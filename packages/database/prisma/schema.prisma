@@ -1,0 +1,107 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  apiKey    String   @unique @default(uuid())
+  apiKeyHash String?
+  plan      String   @default("free")
+  maxWorkflows Int   @default(10)
+  maxExecutionsPerDay Int @default(100)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  shardKey  String?  @default(uuid())
+  region    String?  @default("us-central")
+  metadata  Json?
+  workflows Workflow[]
+  
+  @@map("clients")
+  @@index([email])
+  @@index([apiKey])
+  @@index([deletedAt])
+}
+
+model Workflow {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  config      Json
+  version     Int      @default(1)
+  isActive    Boolean  @default(true)
+  isPaused    Boolean  @default(false)
+  schedule    String?
+  timezone    String?  @default("UTC")
+  timeout     Int      @default(300)
+  maxRetries  Int      @default(3)
+  totalExecutions     Int      @default(0)
+  successfulExecutions Int     @default(0)
+  failedExecutions    Int      @default(0)
+  lastExecutedAt      DateTime?
+  avgExecutionTime    Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  clientId    String
+  client      Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  executions  Execution[]
+  tags        Tag[]
+
+  @@map("workflows")
+  @@index([clientId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@index([lastExecutedAt])
+}
+
+model Execution {
+  id         String   @id @default(uuid())
+  status     String   @default("pending")
+  startedAt  DateTime @default(now())
+  finishedAt DateTime?
+  duration   Int?
+  result     Json?
+  error      String?
+  errorStack String?
+  trigger    String   @default("manual")
+  triggerData Json?
+  logs       String?
+  stepResults Json?
+  cost       Float?   @default(0)
+  credits    Int?     @default(0)
+  retryCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@map("executions")
+  @@index([workflowId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([trigger])
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  workflows Workflow[]
+  createdAt DateTime @default(now())
+
+  @@map("tags")
+}
