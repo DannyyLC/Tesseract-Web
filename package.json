@@ -33,8 +33,14 @@
     "prisma:seed": "npm run seed --workspace=@workflow-platform/database"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/node": "^22.10.7",
     "prettier": "^3.6.2",
     "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2"
   }
 }

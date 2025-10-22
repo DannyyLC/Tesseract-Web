@@ -5,7 +5,8 @@
     "rootDir": "./src",
     "baseUrl": "./",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@workflow-platform/database": ["../../packages/database/src"]
     },
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,

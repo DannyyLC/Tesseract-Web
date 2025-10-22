@@ -8,5 +8,5 @@ export interface ClientPayload {
   maxExecutionsPerDay: number;
   isActive: boolean;
   region: string | null;
-  metadata?: any;
+  metadata: any;
 }
