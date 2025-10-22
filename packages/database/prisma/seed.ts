@@ -1,421 +1,348 @@
 import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Empezando a sembrar datos de prueba...\n');
+  console.log('🌱 Iniciando seed de la base de datos...\n');
+
+  // Limpiar datos existentes (opcional)
+  console.log('🧹 Limpiando datos existentes...');
+  await prisma.execution.deleteMany();
+  await prisma.workflow.deleteMany();
+  await prisma.apiKey.deleteMany();
+  await prisma.refreshToken.deleteMany();
+  await prisma.whatsAppConfig.deleteMany();
+  await prisma.tag.deleteMany();
+  await prisma.client.deleteMany();
+  console.log('✅ Datos limpiados\n');
 
   // ============================================
-  // 0. LIMPIAR DATOS ANTERIORES (IMPORTANTE)
+  // CREAR CLIENTES
   // ============================================
-  console.log('🧹 Limpiando datos anteriores...');
-  
-  // Orden importante: eliminar en orden inverso a las relaciones
-  await prisma.execution.deleteMany({});
-  console.log('   ✓ Ejecuciones eliminadas');
-  
-  await prisma.workflow.deleteMany({});
-  console.log('   ✓ Workflows eliminados');
-  
-  await prisma.client.deleteMany({});
-  console.log('   ✓ Clientes eliminados');
-  
-  await prisma.tag.deleteMany({});
-  console.log('   ✓ Tags eliminados\n');
+  console.log('👥 Creando clientes...');
 
-  // ============================================
-  // 1. CREAR UN CLIENTE
-  // ============================================
-  console.log('📦 Creando cliente de prueba...');
-  
-  const client = await prisma.client.create({
+  // Cliente 1: Plan Free
+  const client1Password = 'Password123!';
+  const client1 = await prisma.client.create({
     data: {
-      name: 'Acme Corporation',
+      name: 'Acme Corp',
       email: 'admin@acme.com',
+      password: await bcrypt.hash(client1Password, 10),
+      emailVerified: true,
+      plan: 'free',
+      maxWorkflows: 10,
+      maxExecutionsPerDay: 100,
+      maxApiKeys: 3,
+      isActive: true,
+      region: 'us-central',
+    },
+  });
+  console.log(`✅ Cliente creado: ${client1.name} (${client1.email})`);
+  console.log(`   Password: ${client1Password}\n`);
+
+  // Cliente 2: Plan Pro
+  const client2Password = 'SecurePass456!';
+  const client2 = await prisma.client.create({
+    data: {
+      name: 'TechStart Inc',
+      email: 'tech@techstart.io',
+      password: await bcrypt.hash(client2Password, 10),
+      emailVerified: true,
       plan: 'pro',
       maxWorkflows: 50,
       maxExecutionsPerDay: 1000,
-      region: 'us-central',
-      metadata: {
-        industry: 'tech',
-        companySize: '50-100',
-        country: 'Mexico',
-      },
+      maxApiKeys: 10,
+      isActive: true,
+      region: 'us-east',
+    },
+  });
+  console.log(`✅ Cliente creado: ${client2.name} (${client2.email})`);
+  console.log(`   Password: ${client2Password}\n`);
+
+  // ============================================
+  // CREAR API KEYS
+  // ============================================
+  console.log('🔑 Creando API Keys...');
+
+  // API Key 1 para Acme Corp (Producción)
+  const apiKey1 = 'ak_live_acme_prod_xyz789abc123def456ghi';
+  const apiKey1Hash = await bcrypt.hash(apiKey1, 10);
+  await prisma.apiKey.create({
+    data: {
+      name: 'Producción Web',
+      keyHash: apiKey1Hash,
+      keyPrefix: apiKey1.substring(0, 10),
+      isActive: true,
+      clientId: client1.id,
+    },
+  });
+  console.log(`✅ API Key creada para ${client1.name}: ${apiKey1}`);
+
+  // API Key 2 para Acme Corp (Testing)
+  const apiKey2 = 'ak_test_acme_test_123abc456def789ghi012';
+  const apiKey2Hash = await bcrypt.hash(apiKey2, 10);
+  await prisma.apiKey.create({
+    data: {
+      name: 'Testing',
+      keyHash: apiKey2Hash,
+      keyPrefix: apiKey2.substring(0, 10),
+      isActive: true,
+      clientId: client1.id,
+    },
+  });
+  console.log(`✅ API Key creada para ${client1.name}: ${apiKey2}`);
+
+  // API Key 3 para TechStart
+  const apiKey3 = 'ak_live_tech_prod_999zzz888yyy777xxx';
+  const apiKey3Hash = await bcrypt.hash(apiKey3, 10);
+  await prisma.apiKey.create({
+    data: {
+      name: 'Producción',
+      keyHash: apiKey3Hash,
+      keyPrefix: apiKey3.substring(0, 10),
+      isActive: true,
+      clientId: client2.id,
+    },
+  });
+  console.log(`✅ API Key creada para ${client2.name}: ${apiKey3}\n`);
+
+  // ============================================
+  // CREAR TAGS
+  // ============================================
+  console.log('🏷️  Creando tags...');
+
+  const tagLeads = await prisma.tag.create({
+    data: {
+      name: 'leads',
+      color: '#3B82F6',
     },
   });
 
-  console.log(`✅ Cliente creado: ${client.name} (ID: ${client.id})`);
-  console.log(`   API Key: ${client.apiKey}\n`);
-
-  // ============================================
-  // 2. CREAR TAGS
-  // ============================================
-  console.log('🏷️  Creando tags...');
-  
-  const productionTag = await prisma.tag.create({
-    data: { name: 'production' },
+  const tagMarketing = await prisma.tag.create({
+    data: {
+      name: 'marketing',
+      color: '#10B981',
+    },
   });
 
-  const testTag = await prisma.tag.create({
-    data: { name: 'testing' },
+  const tagAutomation = await prisma.tag.create({
+    data: {
+      name: 'automation',
+      color: '#F59E0B',
+    },
   });
 
-  const marketingTag = await prisma.tag.create({
-    data: { name: 'marketing' },
-  });
-
-  console.log(`✅ Tags creados: ${productionTag.name}, ${testTag.name}, ${marketingTag.name}\n`);
+  console.log('✅ Tags creados\n');
 
   // ============================================
-  // 3. CREAR WORKFLOWS
+  // CREAR WORKFLOWS
   // ============================================
   console.log('⚙️  Creando workflows...');
 
-  // Workflow 1: Procesamiento de Leads (Custom)
+  // Workflow 1: Tipo n8n
   const workflow1 = await prisma.workflow.create({
     data: {
-      name: 'Procesar Leads de Formulario',
-      description: 'Recibe datos del formulario web, extrae información con IA, y envía notificación',
-      clientId: client.id,
-      isActive: true,
-      timezone: 'America/Mexico_City',
+      name: 'Procesador de Leads',
+      description: 'Workflow que procesa leads desde formulario web',
       config: {
-        type: 'custom',
-        steps: [
-          {
-            id: 'extract-data',
-            type: 'ai',
-            provider: 'openai',
-            model: 'gpt-4',
-            prompt: 'Extrae el nombre, email y teléfono del siguiente texto',
-          },
-          {
-            id: 'save-to-crm',
-            type: 'database',
-            action: 'insert',
-            table: 'leads',
-          },
-          {
-            id: 'notify-team',
-            type: 'notification',
-            method: 'email',
-            to: 'sales@acme.com',
-          },
-        ],
+        type: 'n8n',
+        webhookUrl: 'https://n8n.acme.com/webhook/lead-processor',
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer n8n-secret-token-123',
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000,
+        retryOnFail: true,
+        maxRetries: 3,
       },
+      version: 1,
+      isActive: true,
+      triggerType: 'webhook',
+      clientId: client1.id,
       tags: {
-        connect: [{ id: productionTag.id }, { id: marketingTag.id }],
+        connect: [{ id: tagLeads.id }, { id: tagAutomation.id }],
       },
     },
   });
+  console.log(`✅ Workflow creado: ${workflow1.name}`);
 
-  console.log(`✅ Workflow 1 creado: ${workflow1.name}`);
-
-  // Workflow 2: Scraping Diario (Custom con Schedule)
+  // Workflow 2: Tipo custom
   const workflow2 = await prisma.workflow.create({
     data: {
-      name: 'Scraping Diario de Competencia',
-      description: 'Extrae precios de la competencia y genera reporte',
-      clientId: client.id,
-      isActive: true,
-      schedule: '0 9 * * *', // Todos los días a las 9am
-      timezone: 'America/Mexico_City',
+      name: 'Análisis de Sentimientos IA',
+      description: 'Analiza sentimientos de comentarios con GPT-4',
       config: {
         type: 'custom',
         steps: [
           {
-            id: 'scrape-prices',
-            type: 'scraping',
-            url: 'https://competitor.com/products',
-            selectors: {
-              price: '.product-price',
-              name: '.product-name',
+            id: 'extract-text',
+            type: 'transform',
+            operation: 'parse',
+            input: '{input}',
+          },
+          {
+            id: 'analyze-sentiment',
+            type: 'ai',
+            provider: 'openai',
+            model: 'gpt-4',
+            prompt: 'Analiza el sentimiento del siguiente texto: {extract-text.result}',
+            temperature: 0.7,
+            maxTokens: 500,
+          },
+          {
+            id: 'save-result',
+            type: 'database',
+            action: 'insert',
+            table: 'sentiment_analysis',
+            data: {
+              text: '{extract-text.result}',
+              sentiment: '{analyze-sentiment.sentiment}',
+              score: '{analyze-sentiment.score}',
+            },
+          },
+        ],
+      },
+      version: 1,
+      isActive: true,
+      triggerType: 'api',
+      clientId: client1.id,
+      tags: {
+        connect: [{ id: tagAutomation.id }],
+      },
+    },
+  });
+  console.log(`✅ Workflow creado: ${workflow2.name}`);
+
+  // Workflow 3: Con schedule
+  const workflow3 = await prisma.workflow.create({
+    data: {
+      name: 'Reporte Diario de Ventas',
+      description: 'Genera reporte de ventas todos los días a las 8am',
+      config: {
+        type: 'custom',
+        steps: [
+          {
+            id: 'fetch-sales',
+            type: 'database',
+            action: 'query',
+            table: 'sales',
+            where: {
+              date: '{today}',
             },
           },
           {
             id: 'generate-report',
             type: 'transform',
-            operation: 'compare-prices',
+            operation: 'aggregate',
+            input: '{fetch-sales.result}',
           },
           {
-            id: 'send-report',
+            id: 'send-email',
             type: 'notification',
             method: 'email',
-            to: 'analytics@acme.com',
+            to: 'sales@techstart.io',
+            subject: 'Reporte de Ventas - {today}',
+            template: 'daily-sales-report',
           },
         ],
       },
-      tags: {
-        connect: [{ id: testTag.id }],
-      },
-    },
-  });
-
-  console.log(`✅ Workflow 2 creado: ${workflow2.name}`);
-
-  // Workflow 3: Integración con n8n
-  const workflow3 = await prisma.workflow.create({
-    data: {
-      name: 'Notificación de Ventas (n8n)',
-      description: 'Workflow externo en n8n para notificar nuevas ventas',
-      clientId: client.id,
+      version: 1,
       isActive: true,
+      schedule: '0 8 * * *', // Todos los días a las 8am
       timezone: 'America/Mexico_City',
-      config: {
-        type: 'n8n',
-        webhookUrl: 'https://n8n.acme.com/webhook/sales-notification-abc123',
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer n8n-secret-token-xyz789',
-          'Content-Type': 'application/json',
-        },
-        timeout: 30000,
-        retryOnFail: true,
-        retryDelay: 5000,
-        maxRetries: 3,
-      },
+      triggerType: 'schedule',
+      clientId: client2.id,
       tags: {
-        connect: [{ id: productionTag.id }],
+        connect: [{ id: tagMarketing.id }],
       },
     },
   });
-
-  console.log(`✅ Workflow 3 creado: ${workflow3.name}\n`);
+  console.log(`✅ Workflow creado: ${workflow3.name}\n`);
 
   // ============================================
-  // 4. CREAR EJECUCIONES
+  // CREAR EJECUCIONES DE EJEMPLO
   // ============================================
-  console.log('🚀 Creando ejecuciones de ejemplo...');
+  console.log('📊 Creando ejecuciones de ejemplo...');
 
-  // Ejecución exitosa del workflow 1
-  const execution1 = await prisma.execution.create({
+  // Ejecución exitosa
+  await prisma.execution.create({
     data: {
-      workflowId: workflow1.id,
       status: 'completed',
-      trigger: 'webhook',
-      startedAt: new Date('2025-10-21T10:00:00Z'),
-      finishedAt: new Date('2025-10-21T10:00:15Z'),
-      duration: 15,
+      startedAt: new Date(Date.now() - 3600000), // Hace 1 hora
+      finishedAt: new Date(Date.now() - 3540000), // Hace 59 minutos
+      duration: 60,
       result: {
-        leadsProcessed: 1,
-        emailSent: true,
-        leadData: {
-          name: 'Juan Pérez',
-          email: 'juan@example.com',
-          phone: '+52 123 456 7890',
-        },
+        leadProcessed: true,
+        leadId: 'lead-123',
+        score: 8.5,
       },
-      stepResults: {
-        'extract-data': {
-          status: 'success',
-          duration: 8,
-          tokensUsed: 150,
-          output: {
-            name: 'Juan Pérez',
-            email: 'juan@example.com',
-            phone: '+52 123 456 7890',
-          },
-        },
-        'save-to-crm': {
-          status: 'success',
-          duration: 3,
-          recordId: 'lead-12345',
-        },
-        'notify-team': {
-          status: 'success',
-          duration: 4,
-          emailId: 'email-abc-789',
-        },
-      },
-      cost: 0.002,
+      trigger: 'webhook',
       triggerData: {
         ip: '192.168.1.100',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        formData: {
-          source: 'landing-page',
-          campaign: 'summer-promo',
+        payload: {
+          name: 'Juan Pérez',
+          email: 'juan@example.com',
         },
       },
-      logs: '[10:00:00] Workflow started\n[10:00:08] AI extraction completed\n[10:00:11] Saved to CRM\n[10:00:15] Email sent successfully',
-    },
-  });
-
-  console.log(`✅ Ejecución 1: ${execution1.status} (${execution1.duration}s)`);
-
-  // Ejecución fallida del workflow 1
-  const execution2 = await prisma.execution.create({
-    data: {
       workflowId: workflow1.id,
+    },
+  });
+
+  // Ejecución fallida
+  await prisma.execution.create({
+    data: {
       status: 'failed',
-      trigger: 'webhook',
-      startedAt: new Date('2025-10-21T11:00:00Z'),
-      finishedAt: new Date('2025-10-21T11:00:10Z'),
-      duration: 10,
-      error: 'OpenAI API timeout after 30 seconds',
-      errorStack: 'Error: timeout\n  at callOpenAI (worker.ts:45)\n  at processStep (executor.ts:123)',
-      stepResults: {
-        'extract-data': {
-          status: 'failed',
-          duration: 10,
-          error: 'timeout',
-          retries: 1,
-        },
-      },
-      retryCount: 1,
-      cost: 0.001,
-      logs: '[11:00:00] Workflow started\n[11:00:02] Calling OpenAI API\n[11:00:32] Error: API timeout',
-    },
-  });
-
-  console.log(`✅ Ejecución 2: ${execution2.status} (error: timeout)`);
-
-  // Ejecución en progreso del workflow 2
-  const execution3 = await prisma.execution.create({
-    data: {
-      workflowId: workflow2.id,
-      status: 'running',
-      trigger: 'schedule',
-      startedAt: new Date(),
-      logs: '[09:00:00] Scheduled execution started\n[09:00:01] Scraping competitor website\n[09:00:15] Extracting 50 products...',
-      stepResults: {
-        'scrape-prices': {
-          status: 'success',
-          duration: 15,
-          productsFound: 50,
-        },
-      },
-    },
-  });
-
-  console.log(`✅ Ejecución 3: ${execution3.status}`);
-
-  // Ejecución cancelada del workflow 2
-  const execution4 = await prisma.execution.create({
-    data: {
-      workflowId: workflow2.id,
-      status: 'cancelled',
-      trigger: 'manual',
-      startedAt: new Date('2025-10-21T08:00:00Z'),
-      finishedAt: new Date('2025-10-21T08:00:30Z'),
-      duration: 30,
-      logs: '[08:00:00] Manual execution started\n[08:00:20] User cancelled execution\n[08:00:30] Cleanup completed',
-      stepResults: {
-        'scrape-prices': {
-          status: 'cancelled',
-          duration: 30,
-          productsFound: 15,
-          note: 'Cancelled by user before completion',
-        },
-      },
-    },
-  });
-
-  console.log(`✅ Ejecución 4: ${execution4.status}`);
-
-  // Ejecución exitosa del workflow n8n
-  const execution5 = await prisma.execution.create({
-    data: {
-      workflowId: workflow3.id,
-      status: 'completed',
+      startedAt: new Date(Date.now() - 1800000), // Hace 30 minutos
+      finishedAt: new Date(Date.now() - 1740000), // Hace 29 minutos
+      duration: 60,
+      error: 'API rate limit exceeded',
+      errorStack: 'Error: Rate limit exceeded at OpenAI API...',
       trigger: 'api',
-      startedAt: new Date('2025-10-21T12:00:00Z'),
-      finishedAt: new Date('2025-10-21T12:00:05Z'),
-      duration: 5,
-      result: {
-        n8nResponse: {
-          success: true,
-          executionId: 'n8n-exec-456',
-          message: 'Notification sent successfully',
-        },
-      },
-      cost: 0.0005,
-      logs: '[12:00:00] Calling n8n webhook\n[12:00:05] n8n responded successfully',
+      retryCount: 3,
+      workflowId: workflow2.id,
     },
   });
 
-  console.log(`✅ Ejecución 5: ${execution5.status} (n8n workflow)\n`);
-
-  // ============================================
-  // 5. ACTUALIZAR ESTADÍSTICAS DE WORKFLOWS
-  // ============================================
-  console.log('📊 Actualizando estadísticas de workflows...');
-
-  await prisma.workflow.update({
-    where: { id: workflow1.id },
+  // Ejecución en progreso
+  await prisma.execution.create({
     data: {
-      totalExecutions: 2,
-      successfulExecutions: 1,
-      failedExecutions: 1,
-      lastExecutedAt: new Date('2025-10-21T11:00:00Z'),
-      avgExecutionTime: 12,
+      status: 'running',
+      startedAt: new Date(),
+      trigger: 'schedule',
+      workflowId: workflow3.id,
     },
   });
 
-  await prisma.workflow.update({
-    where: { id: workflow2.id },
-    data: {
-      totalExecutions: 2,
-      successfulExecutions: 0,
-      failedExecutions: 0,
-      lastExecutedAt: new Date(),
-      avgExecutionTime: 30,
-    },
-  });
-
-  await prisma.workflow.update({
-    where: { id: workflow3.id },
-    data: {
-      totalExecutions: 1,
-      successfulExecutions: 1,
-      failedExecutions: 0,
-      lastExecutedAt: new Date('2025-10-21T12:00:00Z'),
-      avgExecutionTime: 5,
-    },
-  });
-
-  console.log('✅ Estadísticas actualizadas\n');
+  console.log('✅ Ejecuciones creadas\n');
 
   // ============================================
   // RESUMEN FINAL
   // ============================================
-  console.log('═══════════════════════════════════════════════════════');
-  console.log('✨ ¡Datos de prueba creados exitosamente!\n');
-  console.log('📊 RESUMEN:');
-  console.log('───────────────────────────────────────────────────────');
-  console.log(`👤 Cliente: ${client.name}`);
-  console.log(`   Email: ${client.email}`);
-  console.log(`   Plan: ${client.plan}`);
-  console.log(`   🔑 API Key: ${client.apiKey}\n`);
+  console.log('═══════════════════════════════════════════════');
+  console.log('🎉 SEED COMPLETADO EXITOSAMENTE');
+  console.log('═══════════════════════════════════════════════\n');
+
+  console.log('📋 CREDENCIALES PARA TESTING:\n');
   
-  console.log('⚙️  Workflows creados: 3');
-  console.log(`   1. ${workflow1.name} (custom)`);
-  console.log(`   2. ${workflow2.name} (custom + schedule)`);
-  console.log(`   3. ${workflow3.name} (n8n)`);
-  
-  console.log('\n🚀 Ejecuciones creadas: 5');
-  console.log('   • 2 completadas');
-  console.log('   • 1 fallida');
-  console.log('   • 1 en progreso');
-  console.log('   • 1 cancelada');
-  
-  console.log(`\n🏷️  Tags: ${productionTag.name}, ${testTag.name}, ${marketingTag.name}`);
-  console.log('═══════════════════════════════════════════════════════\n');
-  
-  console.log('🎯 PRÓXIMOS PASOS:');
-  console.log('   1. Ver datos visualmente:');
-  console.log('      npm run prisma:studio\n');
-  console.log('   2. Probar el API (cuando lo desarrolles):');
-  console.log(`      curl -H "x-api-key: ${client.apiKey}" http://localhost:3000/api/workflows\n`);
-  console.log('   3. Volver a ejecutar seed (limpia y recrea):');
-  console.log('      npm run prisma:seed\n');
+  console.log('👤 Cliente 1: Acme Corp');
+  console.log(`   Email: ${client1.email}`);
+  console.log(`   Password: ${client1Password}`);
+  console.log(`   API Key (Prod): ${apiKey1}`);
+  console.log(`   API Key (Test): ${apiKey2}\n`);
+
+  console.log('👤 Cliente 2: TechStart Inc');
+  console.log(`   Email: ${client2.email}`);
+  console.log(`   Password: ${client2Password}`);
+  console.log(`   API Key (Prod): ${apiKey3}\n`);
+
+  console.log('═══════════════════════════════════════════════\n');
 }
 
 main()
   .catch((e) => {
-    console.error('\n❌ Error al sembrar datos:', e);
-    console.error('\n💡 TIP: Si el error es de constraint, ejecuta:');
-    console.error('   npm run prisma:reset');
-    console.error('   npm run prisma:seed\n');
+    console.error('❌ Error durante el seed:', e);
     process.exit(1);
   })
   .finally(async () => {
