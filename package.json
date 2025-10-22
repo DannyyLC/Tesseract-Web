@@ -1,0 +1,40 @@
+{
+  "name": "workflow-platform",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "clean": "npm run clean --workspaces --if-present",
+    "clean:all": "rm -rf node_modules apps/*/node_modules packages/*/node_modules",
+    "build:database": "npm run build --workspace=@workflow-platform/database",
+    "build:gateway": "npm run build --workspace=gateway",
+    "build:all": "npm run build:database && npm run build:gateway",
+    "dev:gateway": "npm run start:dev --workspace=gateway",
+    "dev:workers": "npm run start:dev --workspace=workers",
+    "prisma:generate": "npm run generate --workspace=@workflow-platform/database",
+    "prisma:migrate": "npm run migrate:dev --workspace=@workflow-platform/database",
+    "prisma:migrate:deploy": "npm run migrate:deploy --workspace=@workflow-platform/database",
+    "prisma:studio": "npm run studio --workspace=@workflow-platform/database",
+    "prisma:reset": "npm run migrate:reset --workspace=@workflow-platform/database",
+    "test:all": "npm test --workspaces --if-present",
+    "test:gateway": "npm test --workspace=gateway",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:restart": "docker-compose restart",
+    "docker:clean": "docker-compose down -v && docker system prune -f",
+    "prisma:seed": "npm run seed --workspace=@workflow-platform/database"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "prettier": "^3.6.2",
+    "typescript": "^5.7.3"
+  }
+}

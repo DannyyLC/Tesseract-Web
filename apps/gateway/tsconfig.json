@@ -5,11 +5,13 @@
     "rootDir": "./src",
     "baseUrl": "./",
     "paths": {
-      "@/*": ["src/*"],
-      "@database/*": ["../../packages/database/src/*"],
-      "@shared-types/*": ["../../packages/shared-types/src/*"]
-    }
+      "@/*": ["src/*"]
+    },
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "incremental": true,
+    "strictPropertyInitialization": false
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "test"]
+  "exclude": ["node_modules", "dist", "**/*.spec.ts", "test"]
 }

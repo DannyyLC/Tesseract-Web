@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from "@nestjs/common";
-import { Prisma, PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@workflow-platform/database';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -18,7 +18,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     */
    async onModuleInit() {
         try {
-            await this.$conect();
+            await this.$connect();
             this.logger.log('Conectado a PostgreSQL');
         } catch (error) {
             this.logger.error('Error al conectar a PostgreSQL', error);
