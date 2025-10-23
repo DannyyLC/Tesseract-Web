@@ -1,0 +1,21 @@
+{
+  "run": {
+    "command": "nx serve apps/whatsapp-microservice",
+    "startTime": "2025-10-23T22:46:42.748Z",
+    "endTime": "2025-10-23T23:34:02.492Z",
+    "inner": false
+  },
+  "tasks": [
+    {
+      "taskId": "whatsapp-microservice:build",
+      "target": "build",
+      "projectName": "whatsapp-microservice",
+      "hash": "15552327949476704436",
+      "startTime": "2025-10-23T22:46:42.815Z",
+      "endTime": "2025-10-23T22:46:42.850Z",
+      "params": "",
+      "cacheStatus": "local-cache-hit",
+      "status": 0
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+> webpack-cli build --node-env=development
+
+chunk (runtime: main) [1m[32mmain.js[39m[22m (main) 5.79 KiB [1m[33m[entry][39m[22m [1m[32m[rendered][39m[22m
+webpack compiled [1m[32msuccessfully[39m[22m (342d2b139ea3f373)

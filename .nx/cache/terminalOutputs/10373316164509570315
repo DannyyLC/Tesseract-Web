@@ -1,0 +1,189 @@
+[?25l
+[2m> [22m[2mnx run[22m gateway-api:build:development
+
+chunk (runtime: main) [1m[32mmain.js[39m[22m (main) 5.58 KiB [1m[33m[entry][39m[22m [1m[32m[rendered][39m[22m
+webpack compiled [1m[32msuccessfully[39m[22m (0bb3d7fc5d239863)
+[0K
+[2m[32m———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————[39m[22m[0K
+[0K
+[0m[7m[1m[32m NX [39m[22m[27m[0m  [32mSuccessfully ran target [1mbuild[22m for project gateway-api[39m[2m (2s)[22m[0K
+[0K
+[0J[?25h[?25h[?25h[1m[31mDebugger listening on ws://localhost:9229/79497695-282b-456d-b2b8-7856a5153850[39m[22m
+[1m[31mDebugger listening on ws://localhost:9229/79497695-282b-456d-b2b8-7856a5153850[39m[22m
+[1m[31mFor help, see: https://nodejs.org/en/docs/inspector[39m[22m
+[1m[31m[39m[22m
+[32m[Nest] 12139  - [39m10/23/2025, 1:12:08 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 12139  - [39m10/23/2025, 1:12:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mClientsModule dependencies initialized[39m[38;5;3m +4ms[39m
+[32m[Nest] 12139  - [39m10/23/2025, 1:12:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 12139  - [39m10/23/2025, 1:12:08 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/api}:[39m[38;5;3m +3ms[39m
+[32m[Nest] 12139  - [39m10/23/2025, 1:12:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 12139  - [39m10/23/2025, 1:12:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/order, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 12139  - [39m10/23/2025, 1:12:08 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +0ms[39m
+[32m[Nest] 12139  - [39m10/23/2025, 1:12:08 PM [32m    LOG[39m [32m🚀 Application is running on: http://localhost:3000/api[39m
+^[[A^[[A^[[A^[[A^[[B^[[B^[[B^[[B^[[B^[[B^[[B^[[B^[[B^[[B^[[B^[[B^[[B^[[B^[[B^[[B^[[B^[[B^[[B^[[B
+[7m[1m[36m NX [39m[22m[27m [1mFile change detected. Restarting...[22m
+
+[?25l
+[2m> [22m[2mnx run[22m gateway-api:build:development
+
+chunk (runtime: main) [1m[32mmain.js[39m[22m (main) 5.58 KiB [1m[33m[entry][39m[22m [1m[32m[rendered][39m[22m
+webpack compiled [1m[32msuccessfully[39m[22m (0bb3d7fc5d239863)
+[0K
+[2m[32m———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————[39m[22m[0K
+[0K
+[0m[7m[1m[32m NX [39m[22m[27m[0m  [32mSuccessfully ran target [1mbuild[22m for project gateway-api[39m[2m (3s)[22m[0K
+[0K
+[0J[?25h[?25h[?25h[1m[31mDebugger listening on ws://localhost:9229/c0a00148-e1d6-4ade-a5ea-43627ab2a44b[39m[22m
+[1m[31mDebugger listening on ws://localhost:9229/c0a00148-e1d6-4ade-a5ea-43627ab2a44b[39m[22m
+[1m[31mFor help, see: https://nodejs.org/en/docs/inspector[39m[22m
+[1m[31m[39m[22m
+[32m[Nest] 16063  - [39m10/23/2025, 2:25:21 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 16063  - [39m10/23/2025, 2:25:21 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mClientsModule dependencies initialized[39m[38;5;3m +4ms[39m
+[32m[Nest] 16063  - [39m10/23/2025, 2:25:21 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 16063  - [39m10/23/2025, 2:25:21 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/api}:[39m[38;5;3m +2ms[39m
+[32m[Nest] 16063  - [39m10/23/2025, 2:25:21 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 16063  - [39m10/23/2025, 2:25:21 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/order, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 16063  - [39m10/23/2025, 2:25:21 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +0ms[39m
+[32m[Nest] 16063  - [39m10/23/2025, 2:25:21 PM [32m    LOG[39m [32m🚀 Application is running on: http://localhost:3000/api[39m
+
+[7m[1m[36m NX [39m[22m[27m [1mFile change detected. Restarting...[22m
+
+[?25l
+[2m> [22m[2mnx run[22m gateway-api:build:development
+
+chunk (runtime: main) [1m[32mmain.js[39m[22m (main) 5.58 KiB [1m[33m[entry][39m[22m [1m[32m[rendered][39m[22m
+webpack compiled [1m[32msuccessfully[39m[22m (0bb3d7fc5d239863)
+[0K
+[2m[32m———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————[39m[22m[0K
+[0K
+[0m[7m[1m[32m NX [39m[22m[27m[0m  [32mSuccessfully ran target [1mbuild[22m for project gateway-api[39m[2m (2s)[22m[0K
+[0K
+[0J[?25h[?25h[?25h[1m[31mDebugger listening on ws://localhost:9229/aecff932-5637-4f77-b257-1ab18e902163[39m[22m
+[1m[31mDebugger listening on ws://localhost:9229/aecff932-5637-4f77-b257-1ab18e902163[39m[22m
+[1m[31mFor help, see: https://nodejs.org/en/docs/inspector[39m[22m
+[1m[31m[39m[22m
+[32m[Nest] 16179  - [39m10/23/2025, 2:26:58 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 16179  - [39m10/23/2025, 2:26:58 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mClientsModule dependencies initialized[39m[38;5;3m +4ms[39m
+[32m[Nest] 16179  - [39m10/23/2025, 2:26:58 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 16179  - [39m10/23/2025, 2:26:58 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/api}:[39m[38;5;3m +2ms[39m
+[32m[Nest] 16179  - [39m10/23/2025, 2:26:58 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 16179  - [39m10/23/2025, 2:26:58 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/order, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 16179  - [39m10/23/2025, 2:26:58 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +0ms[39m
+[32m[Nest] 16179  - [39m10/23/2025, 2:26:58 PM [32m    LOG[39m [32m🚀 Application is running on: http://localhost:3000/api[39m
+
+[7m[1m[36m NX [39m[22m[27m [1mFile change detected. Restarting...[22m
+
+[?25l
+[2m> [22m[2mnx run[22m gateway-api:build:development
+
+chunk (runtime: main) [1m[32mmain.js[39m[22m (main) 5.58 KiB [1m[33m[entry][39m[22m [1m[32m[rendered][39m[22m
+webpack compiled [1m[32msuccessfully[39m[22m (0bb3d7fc5d239863)
+[0K
+[2m[32m———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————[39m[22m[0K
+[0K
+[0m[7m[1m[32m NX [39m[22m[27m[0m  [32mSuccessfully ran target [1mbuild[22m for project gateway-api[39m[2m (2s)[22m[0K
+[0K
+[0J[?25h[?25h[?25h[1m[31mDebugger listening on ws://localhost:9229/9f7c2702-0d2d-4d70-bee8-c957cdfa20a3[39m[22m
+[1m[31mDebugger listening on ws://localhost:9229/9f7c2702-0d2d-4d70-bee8-c957cdfa20a3[39m[22m
+[1m[31mFor help, see: https://nodejs.org/en/docs/inspector[39m[22m
+[1m[31m[39m[22m
+[32m[Nest] 16232  - [39m10/23/2025, 2:27:20 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 16232  - [39m10/23/2025, 2:27:20 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mClientsModule dependencies initialized[39m[38;5;3m +5ms[39m
+[32m[Nest] 16232  - [39m10/23/2025, 2:27:20 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 16232  - [39m10/23/2025, 2:27:20 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/api}:[39m[38;5;3m +2ms[39m
+[32m[Nest] 16232  - [39m10/23/2025, 2:27:20 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 16232  - [39m10/23/2025, 2:27:20 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/order, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 16232  - [39m10/23/2025, 2:27:20 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +1ms[39m
+[32m[Nest] 16232  - [39m10/23/2025, 2:27:20 PM [32m    LOG[39m [32m🚀 Application is running on: http://localhost:3000/api[39m
+
+[7m[1m[36m NX [39m[22m[27m [1mFile change detected. Restarting...[22m
+
+[?25l
+[2m> [22m[2mnx run[22m gateway-api:build:development
+
+chunk (runtime: main) [1m[32mmain.js[39m[22m (main) 5.58 KiB [1m[33m[entry][39m[22m [1m[32m[rendered][39m[22m
+webpack compiled [1m[32msuccessfully[39m[22m (0bb3d7fc5d239863)
+[0K
+[2m[32m———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————[39m[22m[0K
+[0K
+[0m[7m[1m[32m NX [39m[22m[27m[0m  [32mSuccessfully ran target [1mbuild[22m for project gateway-api[39m[2m (3s)[22m[0K
+[0K
+[0J[?25h[?25h[?25h[1m[31mDebugger listening on ws://localhost:9229/793eadad-938e-4d7e-af33-993f25ae4430[39m[22m
+[1m[31mDebugger listening on ws://localhost:9229/793eadad-938e-4d7e-af33-993f25ae4430[39m[22m
+[1m[31mFor help, see: https://nodejs.org/en/docs/inspector[39m[22m
+[1m[31m[39m[22m
+[32m[Nest] 16309  - [39m10/23/2025, 2:28:00 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 16309  - [39m10/23/2025, 2:28:00 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mClientsModule dependencies initialized[39m[38;5;3m +4ms[39m
+[32m[Nest] 16309  - [39m10/23/2025, 2:28:00 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 16309  - [39m10/23/2025, 2:28:00 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/api}:[39m[38;5;3m +2ms[39m
+[32m[Nest] 16309  - [39m10/23/2025, 2:28:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 16309  - [39m10/23/2025, 2:28:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/order, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 16309  - [39m10/23/2025, 2:28:00 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +0ms[39m
+[32m[Nest] 16309  - [39m10/23/2025, 2:28:00 PM [32m    LOG[39m [32m🚀 Application is running on: http://localhost:3000/api[39m
+
+[7m[1m[36m NX [39m[22m[27m [1mFile change detected. Restarting...[22m
+
+[?25l
+[2m> [22m[2mnx run[22m gateway-api:build:development
+
+chunk (runtime: main) [1m[32mmain.js[39m[22m (main) 35.1 KiB [1m[33m[entry][39m[22m [1m[32m[rendered][39m[22m
+webpack compiled [1m[32msuccessfully[39m[22m (e4041ab20dec6a02)
+[0K
+[2m[32m———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————[39m[22m[0K
+[0K
+[0m[7m[1m[32m NX [39m[22m[27m[0m  [32mSuccessfully ran target [1mbuild[22m for project gateway-api[39m[2m (3s)[22m[0K
+[0K
+[0J[?25h[?25h[?25h[1m[31mDebugger listening on ws://localhost:9229/ba96d629-0795-4ec5-a62e-c005aa58a556[39m[22m
+[1m[31mDebugger listening on ws://localhost:9229/ba96d629-0795-4ec5-a62e-c005aa58a556[39m[22m
+[1m[31mFor help, see: https://nodejs.org/en/docs/inspector[39m[22m
+[1m[31m[39m[22m
+[32m[Nest] 16454  - [39m10/23/2025, 2:29:45 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[1m[31m[31m[Nest] 16454  - [39m[31m10/23/2025, 2:29:45 PM [31m  ERROR[39m[31m [38;5;3m[ExceptionHandler] [39m[31mError: @prisma/client did not initialize yet. Please run "prisma generate" and try to import it again.[39m[22m
+[1m[31m    at new PrismaClient [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m.prisma[24m/client/default.js:43:11[90m)[39m[31m[39m[22m
+[1m[31m    at new PrismaService [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mapps/gateway-api/src/database/prisma.service.ts:9:9[90m)[39m[31m[39m[22m
+[1m[31m    at Injector.instantiateClass [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m@nestjs[24m/core/injector/injector.js:418:19[90m)[39m[31m[39m[22m
+[1m[31m    at callback [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m@nestjs[24m/core/injector/injector.js:70:45[90m)[39m[31m[39m[22m
+[1m[31m    at Injector.resolveConstructorParams [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m@nestjs[24m/core/injector/injector.js:170:24[90m)[39m[31m[39m[22m
+[1m[31m    at Injector.loadInstance [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m@nestjs[24m/core/injector/injector.js:75:13[90m)[39m[31m[39m[22m
+[1m[31m    at Injector.loadProvider [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m@nestjs[24m/core/injector/injector.js:103:9[90m)[39m[31m[39m[22m
+[1m[31m    at [90m/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m@nestjs[24m/core/injector/instance-loader.js:56:13[39m[22m
+[1m[31m    at async Promise.all (index 3)[39m[22m
+[1m[31m    at InstanceLoader.createInstancesOfProviders [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m@nestjs[24m/core/injector/instance-loader.js:55:9[90m)[39m[31m[39m[22m
+[1m[31m[39m[22m
+
+[7m[1m[36m NX [39m[22m[27m [1mProcess exited with code 1, waiting for changes to restart...[22m
+
+
+[7m[1m[36m NX [39m[22m[27m [1mFile change detected. Restarting...[22m
+
+[?25l
+[2m> [22m[2mnx run[22m gateway-api:build:development
+
+chunk (runtime: main) [1m[32mmain.js[39m[22m (main) 35.4 KiB [1m[33m[entry][39m[22m [1m[32m[rendered][39m[22m
+webpack compiled [1m[32msuccessfully[39m[22m (d817e91fb757bec7)
+[0K
+[2m[32m———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————[39m[22m[0K
+[0K
+[0m[7m[1m[32m NX [39m[22m[27m[0m  [32mSuccessfully ran target [1mbuild[22m for project gateway-api[39m[2m (3s)[22m[0K
+[0K
+[0J[?25h[?25h[?25h[1m[31mDebugger listening on ws://localhost:9229/73a5b6ee-a140-4a68-b938-f687d0bafb47[39m[22m
+[1m[31mDebugger listening on ws://localhost:9229/73a5b6ee-a140-4a68-b938-f687d0bafb47[39m[22m
+[1m[31mFor help, see: https://nodejs.org/en/docs/inspector[39m[22m
+[1m[31m[39m[22m
+[32m[Nest] 16582  - [39m10/23/2025, 2:31:13 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[1m[31m[31m[Nest] 16582  - [39m[31m10/23/2025, 2:31:13 PM [31m  ERROR[39m[31m [38;5;3m[ExceptionHandler] [39m[31mError: @prisma/client did not initialize yet. Please run "prisma generate" and try to import it again.[39m[22m
+[1m[31m    at new PrismaClient [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m.prisma[24m/client/default.js:43:11[90m)[39m[31m[39m[22m
+[1m[31m    at new PrismaService [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mapps/gateway-api/src/database/prisma.service.ts:9:9[90m)[39m[31m[39m[22m
+[1m[31m    at Injector.instantiateClass [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m@nestjs[24m/core/injector/injector.js:418:19[90m)[39m[31m[39m[22m
+[1m[31m    at callback [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m@nestjs[24m/core/injector/injector.js:70:45[90m)[39m[31m[39m[22m
+[1m[31m    at Injector.resolveConstructorParams [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m@nestjs[24m/core/injector/injector.js:170:24[90m)[39m[31m[39m[22m
+[1m[31m    at Injector.loadInstance [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m@nestjs[24m/core/injector/injector.js:75:13[90m)[39m[31m[39m[22m
+[1m[31m    at Injector.loadProvider [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m@nestjs[24m/core/injector/injector.js:103:9[90m)[39m[31m[39m[22m
+[1m[31m    at [90m/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m@nestjs[24m/core/injector/instance-loader.js:56:13[39m[22m
+[1m[31m    at async Promise.all (index 3)[39m[22m
+[1m[31m    at InstanceLoader.createInstancesOfProviders [90m(/Users/cristobal/workdir/WorkflowAutomation/[39m[31mnode_modules/[4m@nestjs[24m/core/injector/instance-loader.js:55:9[90m)[39m[31m[39m[22m
+[1m[31m[39m[22m
+
+[7m[1m[36m NX [39m[22m[27m [1mProcess exited with code 1, waiting for changes to restart...[22m
+
+^C[1m[31mWatch error: Daemon closed the connection[39m[22m
