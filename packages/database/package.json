@@ -8,8 +8,9 @@
     "prisma"
   ],
   "scripts": {
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "prebuild": "npm run clean",
     "build": "tsc",
-    "clean": "rm -rf dist",
     "generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",

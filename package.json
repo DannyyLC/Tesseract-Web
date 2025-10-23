@@ -9,33 +9,43 @@
   "scripts": {
     "install:all": "npm install",
     "clean": "npm run clean --workspaces --if-present",
-    "clean:all": "rm -rf node_modules apps/*/node_modules packages/*/node_modules",
+    "clean:all": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist packages/*/dist",
+    
     "build:database": "npm run build --workspace=@workflow-platform/database",
-    "build:gateway": "npm run build --workspace=gateway",
-    "build:all": "npm run build:database && npm run build:gateway",
-    "dev:gateway": "npm run start:dev --workspace=gateway",
-    "dev:workers": "npm run start:dev --workspace=workers",
+    "build:gateway": "npm run build --workspace=@workflow-platform/gateway",
+    "build:workers": "npm run build --workspace=@workflow-platform/workers",
+    "build:all": "npm run build:database && npm run build:gateway && npm run build:workers",
+    
+    "dev:gateway": "npm run start:dev --workspace=@workflow-platform/gateway",
+    "dev:workers": "npm run start:dev --workspace=@workflow-platform/workers",
+    
     "prisma:generate": "npm run generate --workspace=@workflow-platform/database",
     "prisma:migrate": "npm run migrate:dev --workspace=@workflow-platform/database",
     "prisma:migrate:deploy": "npm run migrate:deploy --workspace=@workflow-platform/database",
     "prisma:studio": "npm run studio --workspace=@workflow-platform/database",
     "prisma:reset": "npm run migrate:reset --workspace=@workflow-platform/database",
+    "prisma:seed": "npm run seed --workspace=@workflow-platform/database",
+    
     "test:all": "npm test --workspaces --if-present",
-    "test:gateway": "npm test --workspace=gateway",
+    "test:gateway": "npm test --workspace=@workflow-platform/gateway",
+    "test:workers": "npm test --workspace=@workflow-platform/workers",
+    
     "lint": "npm run lint --workspaces --if-present",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
     "docker:restart": "docker-compose restart",
-    "docker:clean": "docker-compose down -v && docker system prune -f",
-    "prisma:seed": "npm run seed --workspace=@workflow-platform/database"
+    "docker:clean": "docker-compose down -v && docker system prune -f"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
     "@types/node": "^22.10.7",
+    "@types/supertest": "^6.0.3",
     "prettier": "^3.6.2",
+    "supertest": "^7.1.4",
     "typescript": "^5.7.3"
   },
   "dependencies": {

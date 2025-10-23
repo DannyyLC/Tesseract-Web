@@ -1,5 +1,5 @@
 import { createParamDecorator, ExecutionContext } from "@nestjs/common";
-import { ClientPayload } from "@/common/types/client-payload.type";
+import { ClientPayload } from "../../common/types/client-payload.type";
 
 /**
  * Decorador para obtener el cliente autenticado desde el request

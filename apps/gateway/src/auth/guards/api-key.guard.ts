@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { PrismaService } from '@/database/prisma.service';
+import { PrismaService } from '../../database/prisma.service';
 import { ClientPayload } from '../../common/types/client-payload.type';
 import { ApiKeyUtil } from '../utils/api-key.util';
 
@@ -103,7 +103,7 @@ export class ApiKeyGuard implements CanActivate {
           where: { id: matchedApiKey.id },
           data: { lastUsedAt: new Date() },
         })
-        .catch((err) => {
+        .catch((err: Error) => {
           // No fallar si esto falla, solo loggear
           this.logger.warn('Error actualizando lastUsedAt', err);
         });

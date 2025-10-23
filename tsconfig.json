@@ -21,7 +21,8 @@
     "paths": {
       "@workflow-platform/database": ["./packages/database/src"],
       "@workflow-platform/shared-types": ["./packages/shared-types/src"]
-    }
+    },
+    "outDir": "./dist"
   },
   "exclude": ["node_modules", "dist", "**/*.spec.ts"]
 }

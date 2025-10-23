@@ -2,8 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
-
-
+import { WorkflowsModule } from './workflows/workflows.module';
 /**
  * Módulo raíz de la aplicación Gateway
  * 
@@ -14,17 +13,14 @@ import { AuthModule } from './auth/auth.module';
  */
 @Module({
   imports: [
-    // Configuración de variables de entorno
     ConfigModule.forRoot({
-      isGlobal: true,  // Hace que las env vars estén disponibles globalmente
+      isGlobal: true,  
       envFilePath: '.env',
     }),
     
-    // Base de datos
     DatabaseModule,
-    
-    // Autenticación
     AuthModule,
+    WorkflowsModule,
   ],
   controllers: [],
   providers: [],
