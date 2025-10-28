@@ -15,7 +15,7 @@ export class AppController {
     @MessagePattern('test.msg')
     async handleTestMsg(@Payload() msg: any) {
         console.log("Whatsapp service received a msg from the topic test-msg ", msg)
-        return { message: "msg proccessed successfully ",msg}
+        return { message: "msg proccessed successfully for whatsapp service",msg}
     }
 
 }

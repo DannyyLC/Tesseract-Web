@@ -28,7 +28,6 @@ import { GatewayController } from './gateway/gateway.controller';
             clientId: 'gateway',
             brokers: ['20.81.187.131:9092'],
           },
-          producerOnlyMode: true,
           consumer: {
             groupId: 'gateway-consumer',
           },
