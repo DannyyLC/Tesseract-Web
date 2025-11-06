@@ -14,6 +14,7 @@ import {
 import { WorkflowsService } from "./workflows.service";
 import { CreateWorkflowDto } from "./dto/create-workflow.dto";
 import { UpdateWorkflowDto } from "./dto/update-workflow.dto";
+import { ExecuteWorkflowDto } from './dto/execute-workflow.dto';
 import { ApiKeyGuard } from "../auth/guards/api-key.guard";
 import { CurrentClient } from "../auth/decorators/current-client.decorator";
 import { ClientPayload } from '../common/types/client-payload.type';
@@ -179,5 +180,78 @@ export class WorkflowsController {
     @Param('id') id: string,
   ) {
     return this.workflowsService.remove(client.id, id);
+  }
+
+  /**
+   * POST /api/workflows/:id/execute
+   * Ejecutar un workflow
+   * 
+   * Este es el endpoint MÁS IMPORTANTE del sistema.
+   * Permite a los clientes ejecutar sus workflows.
+   * 
+   * Params:
+   *   :id - UUID del workflow a ejecutar
+   * 
+   * Headers requeridos:
+   *   x-api-key: ak_live_xxx...
+   * 
+   * Body:
+   *   {
+   *     "input": {
+   *       "leadName": "Juan Pérez",
+   *       "email": "juan@example.com",
+   *       ...cualquier dato que necesite el workflow
+   *     },
+   *     "metadata": {
+   *       "source": "api",
+   *       "campaign": "summer-2024"
+   *       ...metadata adicional para tracking
+   *     }
+   *   }
+   * 
+   * Response: 201 Created
+   *   {
+   *     "id": "execution-789",
+   *     "workflowId": "workflow-456",
+   *     "status": "completed",
+   *     "startedAt": "2025-11-05T10:30:00Z",
+   *     "finishedAt": "2025-11-05T10:30:12Z",
+   *     "duration": 12,
+   *     "result": {
+   *       ...resultado del workflow desde n8n
+   *     },
+   *     "trigger": "api"
+   *   }
+   * 
+   * Errores posibles:
+   *   404 - Workflow no encontrado
+   *   403 - Workflow pausado o inactivo
+   *   429 - Límite de ejecuciones diarias excedido
+   *   400 - Config del workflow inválido
+   *   502 - Error al comunicarse con n8n
+   *   504 - Timeout del webhook de n8n
+   *   500 - Error interno
+   * 
+   * Flujo interno:
+   * 1. Validar que el workflow existe y pertenece al cliente
+   * 2. Verificar límites diarios
+   * 3. Crear registro de Execution (status="pending")
+   * 4. Llamar al webhook de n8n con los datos
+   * 5. Actualizar Execution con el resultado
+   * 6. Retornar la ejecución completa
+   */
+  @Post(':id/execute')
+  @HttpCode(HttpStatus.CREATED)
+  async execute(
+    @CurrentClient() client: ClientPayload,
+    @Param('id') id: string,
+    @Body() executeDto: ExecuteWorkflowDto,
+  ) {
+    return this.workflowsService.execute(
+      client.id,
+      id,
+      executeDto.input,
+      executeDto.metadata,
+    );
   }
 }
