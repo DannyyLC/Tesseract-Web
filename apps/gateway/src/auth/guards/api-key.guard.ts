@@ -37,7 +37,7 @@ export class ApiKeyGuard implements CanActivate {
 
     try {
       // 1. Extraer prefijo para búsqueda rápida
-      const prefix = ApiKeyUtil.extractPrefix(apiKey);
+      const prefix = apiKey.substring(0, 16);
 
       // 2. Buscar API Keys candidatas por prefijo
       const apiKeyCandidates = await this.prisma.apiKey.findMany({
