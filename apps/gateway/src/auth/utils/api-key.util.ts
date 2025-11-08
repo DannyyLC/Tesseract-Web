@@ -35,7 +35,7 @@ export class ApiKeyUtil {
    * @returns Prefijo del API key
    */
   static extractPrefix(apiKey: string): string {
-    return apiKey.substring(0, 10);
+    return apiKey.substring(0, 16);
   }
 
   /**

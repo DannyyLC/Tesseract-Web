@@ -53,7 +53,8 @@ export class WorkflowsService {
             throw new NotFoundException(`Client with id ${clientId} not found`);
         }
 
-        if (currentCount >= client.maxWorkflows) {
+        // Verificar límite de workflows (-1 significa ilimitado)
+        if (client.maxWorkflows !== -1 && currentCount >= client.maxWorkflows) {
             throw new BadRequestException(
                 `Has alcanzado el limite de ${client.maxWorkflows} workflows para el plan ${client.plan}`,
             );
@@ -249,7 +250,8 @@ export class WorkflowsService {
         },
         });
 
-        if (executionsToday >= workflow.client.maxExecutionsPerDay) {
+        // Verificar límite de ejecuciones diarias (-1 significa ilimitado)
+        if (workflow.client.maxExecutionsPerDay !== -1 && executionsToday >= workflow.client.maxExecutionsPerDay) {
         throw new MaxExecutionsExceededException(
             executionsToday,
             workflow.client.maxExecutionsPerDay,

@@ -16,27 +16,33 @@ import { CreateWorkflowDto } from "./dto/create-workflow.dto";
 import { UpdateWorkflowDto } from "./dto/update-workflow.dto";
 import { ExecuteWorkflowDto } from './dto/execute-workflow.dto';
 import { ApiKeyGuard } from "../auth/guards/api-key.guard";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { CurrentClient } from "../auth/decorators/current-client.decorator";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { ClientPayload } from '../common/types/client-payload.type';
 
 /**
  * Controller de Workflows
  * Maneja todas las peticiones HTTP relacionadas con workflows
  * 
- * Todas las rutas están protegidas con ApiKeyGuard
- * Base path: /api/workflows
+ * ESTRATEGIA DE AUTENTICACIÓN:
+ * - JWT (Token): Para gestión CRUD (crear, listar, editar, eliminar) - Solo UI
+ * - API Key: Para ejecución de workflows - Apps externas
+ * 
+ * Base path: /workflows
  */
 @Controller('workflows')
-@UseGuards(ApiKeyGuard)
 export class WorkflowsController {
     constructor(private readonly workflowsService: WorkflowsService) {}
 
     /**
-   * POST /api/workflows
+   * POST /workflows
    * Crear un nuevo workflow
    * 
+   * ⚠️ Requiere JWT (solo desde UI)
+   * 
    * Headers requeridos:
-   *   x-api-key: ak_live_xxx...
+   *   Authorization: Bearer <JWT token>
    * 
    * Body:
    *   {
@@ -55,23 +61,26 @@ export class WorkflowsController {
    */
 
     @Post()
+    @UseGuards(JwtAuthGuard)
     @HttpCode(HttpStatus.CREATED)
     create(
-        @CurrentClient() client: ClientPayload,
+        @CurrentUser() user: ClientPayload,
         @Body() createDto: CreateWorkflowDto,
     ) {
-        return this.workflowsService.create(client.id, createDto)
+        return this.workflowsService.create(user.id, createDto)
     }
 
     /**
-   * GET /api/workflows
+   * GET /workflows
    * Listar todos los workflows del cliente
+   * 
+   * ⚠️ Requiere JWT (solo desde UI)
    * 
    * Query params opcionales:
    *   ?includeDeleted=true  - Incluir workflows eliminados
    * 
    * Headers requeridos:
-   *   x-api-key: ak_live_xxx...
+   *   Authorization: Bearer <JWT token>
    * 
    * Response: 200 OK
    *   [
@@ -80,23 +89,26 @@ export class WorkflowsController {
    *   ]
    */
   @Get()
+  @UseGuards(JwtAuthGuard)
   findAll(
-    @CurrentClient() client: ClientPayload,
+    @CurrentUser() user: ClientPayload,
     @Query('includeDeleted') includeDeleted?: string,
   ) {
     const includeDeletedBool = includeDeleted === 'true';
-    return this.workflowsService.findAll(client.id, includeDeletedBool);
+    return this.workflowsService.findAll(user.id, includeDeletedBool);
   }
 
   /**
-   * GET /api/workflows/:id
+   * GET /workflows/:id
    * Obtener un workflow específico
+   * 
+   * ⚠️ Requiere JWT (solo desde UI)
    * 
    * Params:
    *   :id - UUID del workflow
    * 
    * Headers requeridos:
-   *   x-api-key: ak_live_xxx...
+   *   Authorization: Bearer <JWT token>
    * 
    * Response: 200 OK
    *   {
@@ -110,22 +122,25 @@ export class WorkflowsController {
    *   404 - Workflow no encontrado
    */
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
   findOne(
-    @CurrentClient() client: ClientPayload,
+    @CurrentUser() user: ClientPayload,
     @Param('id') id: string,
   ) {
-    return this.workflowsService.findOne(client.id, id);
+    return this.workflowsService.findOne(user.id, id);
   }
 
   /**
-   * PUT /api/workflows/:id
+   * PUT /workflows/:id
    * Actualizar un workflow
+   * 
+   * ⚠️ Requiere JWT (solo desde UI)
    * 
    * Params:
    *   :id - UUID del workflow
    * 
    * Headers requeridos:
-   *   x-api-key: ak_live_xxx...
+   *   Authorization: Bearer <JWT token>
    * 
    * Body (todos los campos opcionales):
    *   {
@@ -147,23 +162,26 @@ export class WorkflowsController {
    *   400 - Datos inválidos
    */
   @Put(':id')
+  @UseGuards(JwtAuthGuard)
   update(
-    @CurrentClient() client: ClientPayload,
+    @CurrentUser() user: ClientPayload,
     @Param('id') id: string,
     @Body() updateDto: UpdateWorkflowDto,
   ) {
-    return this.workflowsService.update(client.id, id, updateDto);
+    return this.workflowsService.update(user.id, id, updateDto);
   }
 
   /**
-   * DELETE /api/workflows/:id
+   * DELETE /workflows/:id
    * Eliminar un workflow (soft delete)
+   * 
+   * ⚠️ Requiere JWT (solo desde UI)
    * 
    * Params:
    *   :id - UUID del workflow
    * 
    * Headers requeridos:
-   *   x-api-key: ak_live_xxx...
+   *   Authorization: Bearer <JWT token>
    * 
    * Response: 200 OK
    *   {
@@ -175,25 +193,27 @@ export class WorkflowsController {
    *   404 - Workflow no encontrado
    */
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
   remove(
-    @CurrentClient() client: ClientPayload,
+    @CurrentUser() user: ClientPayload,
     @Param('id') id: string,
   ) {
-    return this.workflowsService.remove(client.id, id);
+    return this.workflowsService.remove(user.id, id);
   }
 
   /**
-   * POST /api/workflows/:id/execute
+   * POST /workflows/:id/execute
    * Ejecutar un workflow
    * 
+   * ⚠️ Requiere API KEY (para apps externas)
    * Este es el endpoint MÁS IMPORTANTE del sistema.
-   * Permite a los clientes ejecutar sus workflows.
+   * Permite a apps externas ejecutar workflows con su API Key.
    * 
    * Params:
    *   :id - UUID del workflow a ejecutar
    * 
    * Headers requeridos:
-   *   x-api-key: ak_live_xxx...
+   *   X-API-Key: ak_live_xxx...
    * 
    * Body:
    *   {
@@ -241,6 +261,7 @@ export class WorkflowsController {
    * 6. Retornar la ejecución completa
    */
   @Post(':id/execute')
+  @UseGuards(ApiKeyGuard)
   @HttpCode(HttpStatus.CREATED)
   async execute(
     @CurrentClient() client: ClientPayload,

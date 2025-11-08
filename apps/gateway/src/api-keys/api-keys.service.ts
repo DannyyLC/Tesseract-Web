@@ -28,7 +28,8 @@ export class  ApiKeysService {
         }
 
         // 2. Verificar límite de API Keys según el plan
-        if (client._count.apiKeys >= client.maxApiKeys) {
+        // -1 significa ilimitado
+        if (client.maxApiKeys !== -1 && client._count.apiKeys >= client.maxApiKeys) {
             throw new ForbiddenException(
                 `Has alcanzado el límite de ${client.maxApiKeys} API Keys para tu plan ${client.plan}. ` +
                 `Elimina una API Key existente o actualiza tu plan.`

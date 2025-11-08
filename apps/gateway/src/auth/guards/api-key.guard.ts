@@ -72,7 +72,9 @@ export class ApiKeyGuard implements CanActivate {
       // 3. Comparar con bcrypt cada candidato
       let matchedApiKey = null;
       for (const candidate of apiKeyCandidates) {
+        this.logger.debug(`Comparando API Key recibida con candidato ID: ${candidate.id}`);
         const isMatch = await ApiKeyUtil.compare(apiKey, candidate.keyHash);
+        this.logger.debug(`Resultado de comparación: ${isMatch}`);
         if (isMatch) {
           matchedApiKey = candidate;
           break;
@@ -81,6 +83,8 @@ export class ApiKeyGuard implements CanActivate {
 
       if (!matchedApiKey) {
         this.logger.warn(`API key inválido: ${prefix}...`);
+        this.logger.debug(`Candidatos encontrados: ${apiKeyCandidates.length}`);
+        this.logger.debug(`API Key recibida (primeros 20 chars): ${apiKey.substring(0, 20)}...`);
         throw new UnauthorizedException('API key inválido');
       }
 

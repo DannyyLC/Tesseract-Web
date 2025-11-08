@@ -13,8 +13,8 @@ import {
 import { ApiKeysService } from "./api-keys.service";
 import { CreateApiKeyDto } from "./dto/create-api-key.dto";
 import { UpdateApiKeyDto } from "./dto/update-api-key.dto";
-import { ApiKeyGuard } from "../auth/guards/api-key.guard";
-import { CurrentClient } from "../auth/decorators/current-client.decorator";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { ClientPayload } from "../common/types/client-payload.type";
 
 /**
@@ -22,19 +22,20 @@ import { ClientPayload } from "../common/types/client-payload.type";
  * Maneja la creación, listado, eliminación y activación/desactivación de API Keys
  * 
  * Base path: /api-keys
- * Todos los endpoints requieren autenticación con API Key (ApiKeyGuard)
+ * Todos los endpoints requieren autenticación JWT (desde la UI)
+ * Las API Keys son para apps externas, su gestión solo se hace desde la UI con JWT
  */
 @Controller('api-keys')
-@UseGuards(ApiKeyGuard)
+@UseGuards(JwtAuthGuard)
 export class ApiKeysController {
     constructor(private readonly apiKeysService: ApiKeysService) {}
 
     /**
      * POST /api-keys
-     * Crea un nuevo API Key para el cliente autenticado
+     * Crea un nuevo API Key para el usuario autenticado
      * 
      * Headers requeridos:
-     *   X-API-Key: ak_live_xxx...
+     *   Authorization: Bearer <JWT token>
      * 
      * Body:
      *   {
@@ -56,25 +57,25 @@ export class ApiKeysController {
      *   }
      * 
      * Errores:
-     *   401 - API Key inválido o no proporcionado
+     *   401 - JWT token inválido o no proporcionado
      *   403 - Límite de API Keys alcanzado
      *   400 - Datos inválidos
      */
     @Post()
     @HttpCode(HttpStatus.CREATED)
     async create(
-        @CurrentClient() client: ClientPayload,
+        @CurrentUser() user: ClientPayload,
         @Body() createDto: CreateApiKeyDto,
     ) {
-        return this.apiKeysService.create(client.id, createDto);
+        return this.apiKeysService.create(user.id, createDto);
     }
 
     /**
      * GET /api-keys
-     * Lista todos los API Keys del cliente autenticado
+     * Lista todos los API Keys del usuario autenticado
      * 
      * Headers requeridos:
-     *   X-API-Key: ak_live_xxx...
+     *   Authorization: Bearer <JWT token>
      * 
      * Response: 200 OK
      *   [
@@ -92,11 +93,11 @@ export class ApiKeysController {
      *   ]
      * 
      * Errores:
-     *   401 - API Key inválido o no proporcionado
+     *   401 - JWT token inválido o no proporcionado
      */
     @Get()
-    async findAll(@CurrentClient() client: ClientPayload) {
-        return this.apiKeysService.findAll(client.id);
+    async findAll(@CurrentUser() user: ClientPayload) {
+        return this.apiKeysService.findAll(user.id);
     }
 
     /**
@@ -107,7 +108,7 @@ export class ApiKeysController {
      *   :id - UUID del API Key
      * 
      * Headers requeridos:
-     *   X-API-Key: ak_live_xxx...
+     *   Authorization: Bearer <JWT token>
      * 
      * Response: 200 OK
      *   {
@@ -124,16 +125,16 @@ export class ApiKeysController {
      *   }
      * 
      * Errores:
-     *   401 - API Key inválido
+     *   401 - JWT token inválido
      *   403 - No tienes permiso para ver este API Key
      *   404 - API Key no encontrado
      */
     @Get(':id')
     async findOne(
-        @CurrentClient() client: ClientPayload,
+        @CurrentUser() user: ClientPayload,
         @Param('id') id: string,
     ) {
-        return this.apiKeysService.findOne(client.id, id);
+        return this.apiKeysService.findOne(user.id, id);
     }
 
     /**
@@ -145,7 +146,7 @@ export class ApiKeysController {
      *   :id - UUID del API Key a eliminar
      * 
      * Headers requeridos:
-     *   X-API-Key: ak_live_xxx...
+     *   Authorization: Bearer <JWT token>
      * 
      * Response: 204 No Content
      *   {
@@ -154,17 +155,17 @@ export class ApiKeysController {
      *   }
      * 
      * Errores:
-     *   401 - API Key inválido
+     *   401 - JWT token inválido
      *   403 - No tienes permiso para eliminar este API Key
      *   404 - API Key no encontrado
      */
     @Delete(':id')
     @HttpCode(HttpStatus.OK)
     async delete(
-        @CurrentClient() client: ClientPayload,
+        @CurrentUser() user: ClientPayload,
         @Param('id') id: string,
     ) {
-        return this.apiKeysService.delete(client.id, id);
+        return this.apiKeysService.delete(user.id, id);
     }
 
     /**
@@ -176,7 +177,7 @@ export class ApiKeysController {
      *   :id - UUID del API Key
      * 
      * Headers requeridos:
-     *   X-API-Key: ak_live_xxx...
+     *   Authorization: Bearer <JWT token>
      * 
      * Body (todos los campos son opcionales):
      *   {
@@ -206,50 +207,17 @@ export class ApiKeysController {
      *   }
      * 
      * Errores:
-     *   401 - API Key inválido
+     *   401 - JWT token inválido
      *   403 - No tienes permiso o el API Key está eliminado, o no se proporcionaron campos
      *   404 - API Key no encontrado
      *   400 - Datos inválidos
      */
     @Patch(':id')
     async update(
-        @CurrentClient() client: ClientPayload,
+        @CurrentUser() user: ClientPayload,
         @Param('id') id: string,
         @Body() updateDto: UpdateApiKeyDto,
     ) {
-        return this.apiKeysService.update(client.id, id, updateDto);
-    }
-
-    /**
-     * POST /api-keys/:id/toggle
-     * Activa o desactiva un API Key
-     * Alterna el estado isActive del API Key
-     * 
-     * Nota: Este endpoint se mantiene por compatibilidad, pero se recomienda usar PATCH /api-keys/:id
-     * 
-     * Params:
-     *   :id - UUID del API Key
-     * 
-     * Headers requeridos:
-     *   X-API-Key: ak_live_xxx...
-     * 
-     * Response: 200 OK
-     *   {
-     *     "success": true,
-     *     "isActive": false,
-     *     "message": "API Key desactivada exitosamente"
-     *   }
-     * 
-     * Errores:
-     *   401 - API Key inválido
-     *   403 - No tienes permiso o el API Key está eliminado
-     *   404 - API Key no encontrado
-     */
-    @Post(':id/toggle')
-    async toggleActive(
-        @CurrentClient() client: ClientPayload,
-        @Param('id') id: string,
-    ) {
-        return this.apiKeysService.toggleActive(client.id, id);
+        return this.apiKeysService.update(user.id, id, updateDto);
     }
 }

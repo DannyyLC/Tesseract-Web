@@ -17,8 +17,12 @@ import { ApiKeysModule } from './api-keys/api-keys.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true,  
-      envFilePath: '.env',
+      isGlobal: true,
+      envFilePath: [
+        '.env',                    // En apps/gateway/.env
+        '../../.env',              // En la raíz del monorepo
+      ],
+      ignoreEnvFile: false,
     }),
     
     DatabaseModule,
