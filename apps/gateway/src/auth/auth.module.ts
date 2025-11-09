@@ -4,11 +4,10 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ApiKeyGuard } from './guards/api-key.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { AdminGuard } from './guards/admin.guard';
+import { RolesGuard } from './guards/roles.guard';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { AdminController } from './admin.controller';
 
 /**
  * AuthModule agrupa toda la funcionalidad de autenticación
@@ -16,14 +15,16 @@ import { AdminController } from './admin.controller';
  * Contiene:
  * - ApiKeyGuard: Para proteger endpoints con API Keys (apps externas)
  * - JwtAuthGuard: Para proteger endpoints con JWT (usuarios humanos)
+ * - RolesGuard: Para verificar roles de usuario (owner/admin/viewer)
  * - JwtStrategy: Estrategia para validar JWT tokens
- * - ApiKeyUtil: Utilidades para hashear y comparar API Keys
- * - CurrentClient: Decorador para obtener el cliente autenticado (API Key)
  * - CurrentUser: Decorador para obtener el usuario autenticado (JWT)
+ * - CurrentApiKey: Decorador para obtener la API key autenticada
+ * - @Roles: Decorador para especificar roles requeridos
  * 
  * Exporta:
  * - ApiKeyGuard: Para endpoints de workflows (ejecución)
  * - JwtAuthGuard: Para endpoints de gestión (API Keys, configuración)
+ * - RolesGuard: Para verificar permisos basados en roles
  */
 @Module({
   imports: [
@@ -45,17 +46,18 @@ import { AdminController } from './admin.controller';
       },
     }),
   ],
-  controllers: [AuthController, AdminController],
+  controllers: [AuthController],
   providers: [
     ApiKeyGuard,
     JwtAuthGuard,
-    AdminGuard,
+    RolesGuard,
     JwtStrategy,
     AuthService,
   ],
   exports: [
     ApiKeyGuard,
     JwtAuthGuard,
+    RolesGuard,
     AuthService,
     JwtModule,      // Para que otros módulos puedan generar tokens
     PassportModule, // Para usar estrategias en otros módulos

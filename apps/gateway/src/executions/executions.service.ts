@@ -23,7 +23,7 @@ export class ExecutionsService {
    * 
    * @param workflowId - ID del workflow que se ejecuta
    * @param trigger - Cómo se disparó (api, webhook, schedule, manual)
-   * @param triggerData - Datos del trigger (IP, payload, metadata, etc.)
+   * @param triggerData - Datos del trigger (IP, payload, metadata, organizationId, userId, apiKeyId, etc.)
    * @returns La ejecución creada con status="pending"
    */
   async create(
@@ -38,20 +38,23 @@ export class ExecutionsService {
         trigger,
         triggerData: triggerData || {},
         startedAt: new Date(),
+        organizationId: triggerData?.organizationId, // ✅ Multi-tenant
+        userId: triggerData?.userId,
+        apiKeyId: triggerData?.apiKeyId,
       },
       include: {
         workflow: {
           select: {
             id: true,
             name: true,
-            clientId: true,
+            organizationId: true,
           },
         },
       },
     });
 
     this.logger.log(
-      `Ejecución creada: ${execution.id} para workflow ${workflowId}`,
+      `Ejecución creada: ${execution.id} para workflow ${workflowId} (trigger: ${trigger}, org: ${triggerData?.organizationId || 'N/A'}, userId: ${triggerData?.userId || 'N/A'}, apiKeyId: ${triggerData?.apiKeyId || 'N/A'})`,
     );
 
     return execution;
@@ -185,14 +188,14 @@ export class ExecutionsService {
    * Obtener una ejecución por ID
    * 
    * @param executionId - ID de la ejecución
-   * @param clientId - ID del cliente (para verificar ownership)
+   * @param organizationId - ID de la organización (para verificar ownership)
    */
-  async findOne(executionId: string, clientId: string) {
+  async findOne(executionId: string, organizationId: string) {
     const execution = await this.prisma.execution.findFirst({
       where: {
         id: executionId,
         workflow: {
-          clientId,
+          organizationId,
           deletedAt: null,
         },
       },
@@ -201,7 +204,21 @@ export class ExecutionsService {
           select: {
             id: true,
             name: true,
-            clientId: true,
+            organizationId: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        apiKey: {
+          select: {
+            id: true,
+            name: true,
+            keyPrefix: true,
           },
         },
       },
@@ -218,21 +235,21 @@ export class ExecutionsService {
    * Listar ejecuciones de un workflow
    * 
    * @param workflowId - ID del workflow
-   * @param clientId - ID del cliente (para verificar ownership)
+   * @param organizationId - ID de la organización (para verificar ownership)
    * @param limit - Número máximo de resultados (default: 50)
    * @param status - Filtrar por estado (opcional)
    */
   async findByWorkflow(
     workflowId: string,
-    clientId: string,
+    organizationId: string,
     limit: number = 50,
     status?: string,
   ) {
-    // Verificar que el workflow pertenece al cliente
+    // Verificar que el workflow pertenece a la organización
     const workflow = await this.prisma.workflow.findFirst({
       where: {
         id: workflowId,
-        clientId,
+        organizationId,
         deletedAt: null,
       },
     });
@@ -247,6 +264,22 @@ export class ExecutionsService {
         workflowId,
         ...(status && { status }),
       },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        apiKey: {
+          select: {
+            id: true,
+            name: true,
+            keyPrefix: true,
+          },
+        },
+      },
       orderBy: {
         startedAt: 'desc',
       },
@@ -255,13 +288,224 @@ export class ExecutionsService {
   }
 
   /**
+   * Listar todas las ejecuciones de la organización
+   * 
+   * @param organizationId - ID de la organización
+   * @param limit - Número máximo de resultados
+   * @param status - Filtrar por estado (opcional)
+   * @param workflowId - Filtrar por workflow (opcional)
+   */
+  async findAll(
+    organizationId: string,
+    limit: number = 50,
+    status?: string,
+    workflowId?: string,
+  ) {
+    const where: Prisma.ExecutionWhereInput = {
+      workflow: {
+        organizationId,
+        deletedAt: null,
+      },
+    };
+
+    // Filtrar por estado si se proporciona
+    if (status) {
+      where.status = status;
+    }
+
+    // Filtrar por workflow si se proporciona
+    if (workflowId) {
+      where.workflowId = workflowId;
+    }
+
+    // Obtener total de registros que cumplen los criterios
+    const total = await this.prisma.execution.count({ where });
+
+    // Obtener ejecuciones
+    const executions = await this.prisma.execution.findMany({
+      where,
+      orderBy: {
+        startedAt: 'desc',
+      },
+      take: limit,
+      include: {
+        workflow: {
+          select: {
+            id: true,
+            name: true,
+            organizationId: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        apiKey: {
+          select: {
+            id: true,
+            name: true,
+            keyPrefix: true,
+          },
+        },
+      },
+    });
+
+    return {
+      total,
+      executions,
+    };
+  }
+
+  /**
+   * Obtener estadísticas de ejecuciones de la organización
+   * 
+   * @param organizationId - ID de la organización
+   * @param period - Periodo de tiempo (24h, 7d, 30d, 90d, all)
+   */
+  async getStats(organizationId: string, period: string = '7d') {
+    // Calcular fecha de inicio según el periodo
+    const now = new Date();
+    let startDate: Date | undefined;
+
+    switch (period) {
+      case '24h':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case 'all':
+        startDate = undefined;
+        break;
+      default:
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    }
+
+    const where: Prisma.ExecutionWhereInput = {
+      workflow: {
+        organizationId,
+        deletedAt: null,
+      },
+      ...(startDate && { startedAt: { gte: startDate } }),
+    };
+
+    // Obtener todas las ejecuciones del periodo
+    const executions = await this.prisma.execution.findMany({
+      where,
+      select: {
+        id: true,
+        status: true,
+        trigger: true,
+        duration: true,
+        workflowId: true,
+        workflow: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Calcular estadísticas
+    const total = executions.length;
+    const successful = executions.filter((e) => e.status === 'completed').length;
+    const failed = executions.filter((e) => e.status === 'failed').length;
+    const cancelled = executions.filter((e) => e.status === 'cancelled').length;
+    const timeout = executions.filter((e) => e.status === 'timeout').length;
+
+    const successRate = total > 0 ? (successful / total) * 100 : 0;
+
+    // Calcular duración total y promedio
+    const completedExecutions = executions.filter((e) => e.duration !== null);
+    const totalDuration = completedExecutions.reduce(
+      (sum, e) => sum + (e.duration || 0),
+      0,
+    );
+    const avgDuration =
+      completedExecutions.length > 0
+        ? totalDuration / completedExecutions.length
+        : 0;
+
+    // Agrupar por estado
+    const byStatus: Record<string, number> = {
+      completed: successful,
+      failed,
+      cancelled,
+      timeout,
+      pending: executions.filter((e) => e.status === 'pending').length,
+      running: executions.filter((e) => e.status === 'running').length,
+    };
+
+    // Agrupar por trigger
+    const byTrigger: Record<string, number> = {};
+    executions.forEach((e) => {
+      byTrigger[e.trigger] = (byTrigger[e.trigger] || 0) + 1;
+    });
+
+    // Top workflows por número de ejecuciones
+    const workflowStats = new Map<
+      string,
+      { name: string; total: number; successful: number }
+    >();
+
+    executions.forEach((e) => {
+      const existing = workflowStats.get(e.workflowId) || {
+        name: e.workflow.name,
+        total: 0,
+        successful: 0,
+      };
+      existing.total += 1;
+      if (e.status === 'completed') {
+        existing.successful += 1;
+      }
+      workflowStats.set(e.workflowId, existing);
+    });
+
+    const topWorkflows = Array.from(workflowStats.entries())
+      .map(([workflowId, stats]) => ({
+        workflowId,
+        workflowName: stats.name,
+        executions: stats.total,
+        successRate:
+          stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
+      }))
+      .sort((a, b) => b.executions - a.executions)
+      .slice(0, 10);
+
+    return {
+      period,
+      total,
+      successful,
+      failed,
+      cancelled,
+      timeout,
+      successRate: parseFloat(successRate.toFixed(2)),
+      avgDuration: parseFloat(avgDuration.toFixed(2)),
+      totalDuration,
+      byStatus,
+      byTrigger,
+      topWorkflows,
+    };
+  }
+
+  /**
    * Cancelar una ejecución en progreso
    * 
    * @param executionId - ID de la ejecución
-   * @param clientId - ID del cliente (para verificar ownership)
+   * @param organizationId - ID de la organización (para verificar ownership)
    */
-  async cancel(executionId: string, clientId: string) {
-    const execution = await this.findOne(executionId, clientId);
+  async cancel(executionId: string, organizationId: string) {
+    const execution = await this.findOne(executionId, organizationId);
 
     if (!['pending', 'running'].includes(execution.status)) {
       throw new Error(
@@ -272,5 +516,175 @@ export class ExecutionsService {
     return this.updateStatus(executionId, 'cancelled', {
       error: 'Execution cancelled by user',
     });
+  }
+
+  /**
+   * Obtener estadísticas de ejecuciones agrupadas por fuente (API key o usuario)
+   * 
+   * @param workflowId - ID del workflow
+   * @param organizationId - ID de la organización
+   * @param period - Periodo de tiempo (24h, 7d, 30d, 90d, all)
+   */
+  async getAnalyticsBySource(
+    workflowId: string,
+    organizationId: string,
+    period: string = '30d',
+  ) {
+    // Verificar que el workflow pertenece a la organización
+    const workflow = await this.prisma.workflow.findFirst({
+      where: {
+        id: workflowId,
+        organizationId,
+        deletedAt: null,
+      },
+    });
+
+    if (!workflow) {
+      throw new NotFoundException('Workflow no encontrado');
+    }
+
+    // Calcular fecha de inicio según el periodo
+    const now = new Date();
+    let startDate: Date | undefined;
+
+    switch (period) {
+      case '24h':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case 'all':
+        startDate = undefined;
+        break;
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    const where: Prisma.ExecutionWhereInput = {
+      workflowId,
+      ...(startDate && { startedAt: { gte: startDate } }),
+    };
+
+    // Obtener todas las ejecuciones del periodo
+    const executions = await this.prisma.execution.findMany({
+      where,
+      select: {
+        id: true,
+        status: true,
+        duration: true,
+        apiKeyId: true,
+        userId: true,
+        apiKey: {
+          select: {
+            id: true,
+            name: true,
+            keyPrefix: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Agrupar por API Key
+    const byApiKey = new Map<
+      string,
+      {
+        name: string;
+        keyPrefix: string;
+        total: number;
+        successful: number;
+        failed: number;
+        avgDuration: number;
+      }
+    >();
+
+    // Agrupar por Usuario
+    const byUser = new Map<
+      string,
+      {
+        name: string;
+        email: string;
+        total: number;
+        successful: number;
+        failed: number;
+        avgDuration: number;
+      }
+    >();
+
+    executions.forEach((e) => {
+      if (e.apiKeyId && e.apiKey) {
+        const existing = byApiKey.get(e.apiKeyId) || {
+          name: e.apiKey.name,
+          keyPrefix: e.apiKey.keyPrefix,
+          total: 0,
+          successful: 0,
+          failed: 0,
+          avgDuration: 0,
+        };
+        existing.total += 1;
+        if (e.status === 'completed') existing.successful += 1;
+        if (e.status === 'failed') existing.failed += 1;
+        if (e.duration) {
+          existing.avgDuration =
+            (existing.avgDuration * (existing.total - 1) + e.duration) /
+            existing.total;
+        }
+        byApiKey.set(e.apiKeyId, existing);
+      }
+
+      if (e.userId && e.user) {
+        const existing = byUser.get(e.userId) || {
+          name: e.user.name,
+          email: e.user.email,
+          total: 0,
+          successful: 0,
+          failed: 0,
+          avgDuration: 0,
+        };
+        existing.total += 1;
+        if (e.status === 'completed') existing.successful += 1;
+        if (e.status === 'failed') existing.failed += 1;
+        if (e.duration) {
+          existing.avgDuration =
+            (existing.avgDuration * (existing.total - 1) + e.duration) /
+            existing.total;
+        }
+        byUser.set(e.userId, existing);
+      }
+    });
+
+    return {
+      workflowId,
+      workflowName: workflow.name,
+      period,
+      totalExecutions: executions.length,
+      byApiKey: Array.from(byApiKey.entries()).map(([apiKeyId, stats]) => ({
+        apiKeyId,
+        ...stats,
+        successRate:
+          stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
+        avgDuration: parseFloat(stats.avgDuration.toFixed(2)),
+      })),
+      byUser: Array.from(byUser.entries()).map(([userId, stats]) => ({
+        userId,
+        ...stats,
+        successRate:
+          stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
+        avgDuration: parseFloat(stats.avgDuration.toFixed(2)),
+      })),
+    };
   }
 }

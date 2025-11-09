@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ExecutionsService } from './executions.service';
+import { ExecutionsController } from './executions.controller';
 
 /**
  * ExecutionsModule
@@ -7,7 +8,7 @@ import { ExecutionsService } from './executions.service';
  * 
  * Contiene:
  * - ExecutionsService: Lógica de negocio de ejecuciones
- * - ExecutionsController: (lo agregaremos después para consultar ejecuciones)
+ * - ExecutionsController: Endpoints para consultar y gestionar ejecuciones
  * 
  * Exporta:
  * - ExecutionsService: Para que WorkflowsModule pueda usarlo al ejecutar workflows
@@ -16,6 +17,7 @@ import { ExecutionsService } from './executions.service';
  * - PrismaService: Se inyecta automáticamente (es global)
  */
 @Module({
+  controllers: [ExecutionsController],
   providers: [ExecutionsService],
   exports: [ExecutionsService], // ← Importante: exportar para usarlo en WorkflowsModule
 })

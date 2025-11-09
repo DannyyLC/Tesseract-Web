@@ -2,7 +2,8 @@ import {
   Injectable, 
   ConflictException, 
   UnauthorizedException, 
-  Logger 
+  Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -12,7 +13,8 @@ import { PrismaService } from '../database/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from './dto/create-user.dto';
-import { JwtPayload } from '../common/types/jwt-payload.type';
+import { UserPayload } from '../common/types/user-payload.type';
+import { PlanType } from '@workflow-automation/shared-types';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
@@ -36,55 +38,99 @@ export class AuthService {
   ) {}
 
   /**
-   * Registra un nuevo cliente
+   * Registra una nueva organización con su usuario Owner
    * 
    * @param dto - Datos de registro (name, email, password)
-   * @returns Cliente creado + tokens JWT
+   * @returns Organization + User Owner + tokens JWT
    */
   async register(dto: RegisterDto) {
-    this.logger.log(`Registrando nuevo usuario: ${dto.email}`);
+    this.logger.log(`Registrando nueva organización: ${dto.email}`);
 
     // 1. Verificar que el email no esté registrado
-    const existingClient = await this.prisma.client.findUnique({
+    const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
 
-    if (existingClient) {
+    if (existingUser) {
       throw new ConflictException('El email ya está registrado');
     }
 
     // 2. Hashear la contraseña
     const passwordHash = await bcrypt.hash(dto.password, this.SALT_ROUNDS);
 
-    // 3. Crear el cliente en la base de datos
-    const client = await this.prisma.client.create({
-      data: {
-        name: dto.name,
-        email: dto.email,
-        password: passwordHash,
-        plan: 'free', // Plan por defecto
-        maxWorkflows: 10,
-        maxExecutionsPerDay: 100,
-        maxApiKeys: 3,
-        isActive: true,
-        emailVerified: false, // Puedes implementar verificación de email después
-      },
+    // 3. Generar slug único para la organización
+    const baseSlug = dto.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    let slug = baseSlug;
+    let counter = 1;
+    while (await this.prisma.organization.findUnique({ where: { slug } })) {
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+
+    // 4. Crear Organization + User Owner en una transacción
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Crear la organización
+      const organization = await tx.organization.create({
+        data: {
+          name: dto.name,
+          slug,
+          plan: PlanType.FREE,
+          maxUsers: 3,
+          maxWorkflows: 5,
+          maxExecutionsPerDay: 100,
+          maxApiKeys: 2,
+          isActive: true,
+        },
+      });
+
+      // Crear el usuario Owner
+      const user = await tx.user.create({
+        data: {
+          email: dto.email,
+          name: dto.name,
+          password: passwordHash,
+          role: 'owner',
+          organizationId: organization.id,
+          isActive: true,
+          emailVerified: false,
+        },
+      });
+
+      return { organization, user };
     });
 
-    this.logger.log(`Usuario registrado exitosamente: ${client.email}`);
+    this.logger.log(
+      `Organización y usuario owner creados: ${result.organization.slug} - ${result.user.email}`,
+    );
 
-    // 4. Generar tokens JWT
-    const tokens = await this.generateTokens(client.id, client.email, client.name, client.plan);
+    // 5. Generar tokens JWT
+    const tokens = await this.generateTokens(
+      result.user.id,
+      result.user.email,
+      result.user.name,
+      result.user.role,
+      result.organization.id,
+      result.organization.name,
+      result.organization.plan,
+    );
 
-    // 5. Retornar cliente y tokens
+    // 6. Retornar datos
     return {
       user: {
-        id: client.id,
-        name: client.name,
-        email: client.email,
-        plan: client.plan,
-        isActive: client.isActive,
-        createdAt: client.createdAt,
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.name,
+        role: result.user.role,
+      },
+      organization: {
+        id: result.organization.id,
+        name: result.organization.name,
+        slug: result.organization.slug,
+        plan: result.organization.plan,
       },
       ...tokens,
     };
@@ -99,27 +145,40 @@ export class AuthService {
   async login(dto: LoginDto) {
     this.logger.log(`Intentando login: ${dto.email}`);
 
-    // 1. Validar credenciales
-    const client = await this.validateClient(dto.email, dto.password);
+    // 1. Validar credenciales y obtener usuario con organización
+    const { user, organization } = await this.validateUser(dto.email, dto.password);
 
     // 2. Generar tokens
-    const tokens = await this.generateTokens(client.id, client.email, client.name, client.plan);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.name,
+      user.role,
+      organization.id,
+      organization.name,
+      organization.plan,
+    );
 
     // 3. Actualizar lastLoginAt
-    await this.prisma.client.update({
-      where: { id: client.id },
+    await this.prisma.user.update({
+      where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
 
-    this.logger.log(`Login exitoso: ${client.email}`);
+    this.logger.log(`Login exitoso: ${user.email} (${organization.name})`);
 
     return {
       user: {
-        id: client.id,
-        name: client.name,
-        email: client.email,
-        plan: client.plan,
-        isActive: client.isActive,
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+      organization: {
+        id: organization.id,
+        name: organization.name,
+        slug: organization.slug,
+        plan: organization.plan,
       },
       ...tokens,
     };
@@ -130,63 +189,84 @@ export class AuthService {
    * 
    * @param email - Email del usuario
    * @param password - Password en texto plano
-   * @returns Cliente si las credenciales son válidas
+   * @returns User + Organization si las credenciales son válidas
    * @throws UnauthorizedException si las credenciales son inválidas
    */
-  async validateClient(email: string, password: string) {
-    // 1. Buscar cliente por email
-    const client = await this.prisma.client.findUnique({
+  async validateUser(email: string, password: string) {
+    // 1. Buscar usuario por email con su organización
+    const user = await this.prisma.user.findUnique({
       where: { email },
+      include: { organization: true },
     });
 
-    if (!client) {
-      this.logger.warn(`Cliente no encontrado: ${email}`);
+    if (!user) {
+      this.logger.warn(`Usuario no encontrado: ${email}`);
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    // 2. Verificar que tenga contraseña (puede no tener si usa OAuth)
-    if (!client.password) {
-      this.logger.warn(`Cliente sin contraseña: ${email}`);
-      throw new UnauthorizedException('Credenciales inválidas');
+    // 2. Verificar que tenga organización
+    if (!user.organization) {
+      this.logger.warn(`Usuario sin organización: ${email}`);
+      throw new UnauthorizedException('Usuario sin organización asignada');
     }
 
-    // 3. Comparar contraseña con bcrypt
-    const isPasswordValid = await bcrypt.compare(password, client.password);
+    // 3. Verificar contraseña
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       this.logger.warn(`Contraseña inválida para: ${email}`);
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    // 4. Verificar que el cliente esté activo
-    if (!client.isActive) {
-      this.logger.warn(`Cliente inactivo: ${email}`);
+    // 4. Verificar que el usuario esté activo
+    if (!user.isActive) {
+      this.logger.warn(`Usuario inactivo: ${email}`);
       throw new UnauthorizedException('Cuenta inactiva');
     }
 
     // 5. Verificar que no esté eliminado
-    if (client.deletedAt) {
-      this.logger.warn(`Cliente eliminado: ${email}`);
+    if (user.deletedAt) {
+      this.logger.warn(`Usuario eliminado: ${email}`);
       throw new UnauthorizedException('Cuenta eliminada');
     }
 
-    return client;
+    // 6. Verificar que la organización esté activa
+    if (!user.organization.isActive) {
+      this.logger.warn(`Organización inactiva: ${user.organization.name}`);
+      throw new UnauthorizedException('Organización inactiva');
+    }
+
+    return { user, organization: user.organization };
   }
 
   /**
    * Genera access token y refresh token
    * 
-   * @param clientId - ID del cliente
-   * @param email - Email del cliente
-   * @param name - Nombre del cliente
-   * @param plan - Plan del cliente
+   * @param userId - ID del usuario
+   * @param email - Email del usuario
+   * @param name - Nombre del usuario
+   * @param role - Rol del usuario
+   * @param organizationId - ID de la organización
+   * @param organizationName - Nombre de la organización
+   * @param plan - Plan de la organización
    * @returns Access token y refresh token
    */
-  async generateTokens(clientId: string, email: string, name: string, plan: string) {
+  async generateTokens(
+    userId: string,
+    email: string,
+    name: string,
+    role: string,
+    organizationId: string,
+    organizationName: string,
+    plan: string,
+  ) {
     // 1. Crear payload para el JWT
-    const payload: JwtPayload = {
-      sub: clientId,
+    const payload: UserPayload = {
+      sub: userId,
       email,
       name,
+      role,
+      organizationId,
+      organizationName,
       plan,
     };
 
@@ -211,7 +291,7 @@ export class AuthService {
       data: {
         tokenHash: refreshTokenHash,
         familyId,
-        clientId,
+        userId,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días
       },
     });
@@ -231,14 +311,14 @@ export class AuthService {
   async refreshTokens(refreshToken: string) {
     try {
       // 1. Verificar y decodificar el refresh token
-      const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
+      const payload = this.jwtService.verify<UserPayload>(refreshToken, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET') || 'refresh-secret-change-in-production',
       });
 
       // 2. Buscar refresh tokens en la DB que coincidan
       const storedTokens = await this.prisma.refreshToken.findMany({
         where: {
-          clientId: payload.sub,
+          userId: payload.sub,
           revokedAt: null,
           expiresAt: { gte: new Date() },
         },
@@ -259,7 +339,7 @@ export class AuthService {
       }
 
       if (!matchedToken) {
-        this.logger.warn(`Refresh token no encontrado para cliente: ${payload.sub}`);
+        this.logger.warn(`Refresh token no encontrado para usuario: ${payload.sub}`);
         throw new UnauthorizedException('Refresh token inválido');
       }
 
@@ -277,6 +357,9 @@ export class AuthService {
         payload.sub,
         payload.email,
         payload.name,
+        payload.role,
+        payload.organizationId,
+        payload.organizationName,
         payload.plan,
       );
 
@@ -297,16 +380,16 @@ export class AuthService {
   async logout(refreshToken: string) {
     try {
       // 1. Decodificar el token (sin verificar expiración para permitir logout de tokens expirados)
-      const payload = this.jwtService.decode(refreshToken) as JwtPayload;
+      const payload = this.jwtService.decode(refreshToken) as UserPayload;
       
       if (!payload) {
         throw new UnauthorizedException('Token inválido');
       }
 
-      // 2. Buscar todos los refresh tokens del cliente
+      // 2. Buscar todos los refresh tokens del usuario
       const storedTokens = await this.prisma.refreshToken.findMany({
         where: {
-          clientId: payload.sub,
+          userId: payload.sub,
           revokedAt: null,
         },
       });
@@ -336,15 +419,15 @@ export class AuthService {
   }
 
   /**
-   * Invalida todos los refresh tokens de un cliente
+   * Invalida todos los refresh tokens de un usuario
    * Útil para "cerrar sesión en todos los dispositivos"
    * 
-   * @param clientId - ID del cliente
+   * @param userId - ID del usuario
    */
-  async logoutAll(clientId: string) {
+  async logoutAll(userId: string) {
     await this.prisma.refreshToken.updateMany({
       where: {
-        clientId,
+        userId,
         revokedAt: null,
       },
       data: {
@@ -353,147 +436,40 @@ export class AuthService {
       },
     });
 
-    this.logger.log(`Todas las sesiones cerradas para cliente: ${clientId}`);
+    this.logger.log(`Todas las sesiones cerradas para usuario: ${userId}`);
     return { message: 'Sesión cerrada en todos los dispositivos' };
   }
 
-  /**
-   * Crea un nuevo usuario (solo para admins)
-   * Permite especificar plan y límites personalizados
-   * 
-   * @param dto - Datos del usuario a crear
-   * @throws ConflictException si el email ya existe
-   */
+  // ========================================================================
+  // MÉTODOS DE ADMINISTRACIÓN - TODO: Mover a UsersService y OrganizationsService
+  // ========================================================================
+  
+  // Estos métodos usan el modelo Client antiguo y deben ser refactorizados
+  // para trabajar con User y Organization por separado.
+  // Se comentan temporalmente para evitar errores de compilación.
+  
+  /*
   async createUser(dto: CreateUserDto) {
-    // Verificar que el email no exista
-    const existingClient = await this.prisma.client.findUnique({
-      where: { email: dto.email },
-    });
-
-    if (existingClient) {
-      throw new ConflictException('El email ya está registrado');
-    }
-
-    // Hashear la contraseña
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-
-    // Determinar límites según el plan
-    const plan = dto.plan || 'free';
-    const defaultLimits: Record<string, { maxWorkflows: number; maxExecutionsPerDay: number; maxApiKeys: number }> = {
-      free: { maxWorkflows: 5, maxExecutionsPerDay: 100, maxApiKeys: 2 },
-      pro: { maxWorkflows: 50, maxExecutionsPerDay: 10000, maxApiKeys: 10 },
-      enterprise: { maxWorkflows: -1, maxExecutionsPerDay: -1, maxApiKeys: -1 },
-      admin: { maxWorkflows: -1, maxExecutionsPerDay: -1, maxApiKeys: -1 },
-    };
-
-    const limits = defaultLimits[plan];
-
-    // Crear el cliente
-    const client = await this.prisma.client.create({
-      data: {
-        name: dto.name,
-        email: dto.email,
-        password: hashedPassword,
-        plan,
-        maxWorkflows: dto.maxWorkflows ?? limits.maxWorkflows,
-        maxExecutionsPerDay: dto.maxExecutionsPerDay ?? limits.maxExecutionsPerDay,
-        maxApiKeys: dto.maxApiKeys ?? limits.maxApiKeys,
-      },
-    });
-
-    this.logger.log(`Usuario creado por admin: ${client.email} (plan: ${plan})`);
-
-    // Retornar sin el hash de contraseña
-    const { password, ...clientWithoutPassword } = client;
-    return clientWithoutPassword;
+    // TODO: Implementar en UsersService
+    // Debe crear un usuario dentro de una organización existente
+    // y validar límites del plan de la organización
   }
 
-  /**
-   * Lista todos los usuarios del sistema
-   * Solo disponible para administradores
-   * 
-   * @param includeDeleted - Si se deben incluir usuarios eliminados
-   * @returns Lista de usuarios sin contraseñas
-   */
-  async listUsers(includeDeleted: boolean = false) {
-    const users = await this.prisma.client.findMany({
-      where: includeDeleted ? {} : { deletedAt: null },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        emailVerified: true,
-        plan: true,
-        maxWorkflows: true,
-        maxExecutionsPerDay: true,
-        maxApiKeys: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        deletedAt: true,
-        lastLoginAt: true,
-        region: true,
-        _count: {
-          select: {
-            workflows: true,
-            apiKeys: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    this.logger.log(`Listando ${users.length} usuarios`);
-    return users;
+  async listUsers(includeDeleted: boolean = false, status?: 'active' | 'inactive' | 'all') {
+    // TODO: Implementar en UsersService
+    // Debe listar usuarios de una organización específica
   }
 
-  /**
-   * Elimina un usuario (soft delete)
-   * Solo disponible para administradores
-   * 
-   * @param userId - ID del usuario a eliminar
-   * @throws NotFoundException si el usuario no existe
-   */
+  async findUserById(userId: string) {
+    // TODO: Implementar en UsersService
+  }
+
+  async updateUser(userId: string, updateData: any) {
+    // TODO: Implementar en UsersService
+  }
+
   async deleteUser(userId: string) {
-    const user = await this.prisma.client.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('Usuario no encontrado');
-    }
-
-    if (user.deletedAt) {
-      throw new ConflictException('El usuario ya está eliminado');
-    }
-
-    // Soft delete
-    const deletedUser = await this.prisma.client.update({
-      where: { id: userId },
-      data: {
-        deletedAt: new Date(),
-        isActive: false,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        deletedAt: true,
-      },
-    });
-
-    // Invalidar todos los refresh tokens del usuario
-    await this.prisma.refreshToken.updateMany({
-      where: { clientId: userId },
-      data: {
-        revokedAt: new Date(),
-        revokedReason: 'user_deleted',
-      },
-    });
-
-    this.logger.log(`Usuario eliminado: ${deletedUser.email}`);
-    return deletedUser;
+    // TODO: Implementar en UsersService
   }
+  */
 }

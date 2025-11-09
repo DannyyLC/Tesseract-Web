@@ -7,6 +7,11 @@ export class CreateApiKeyDto {
     name: string;
 
     @IsOptional()
+    @IsString()
+    @MaxLength(500)
+    description?: string;
+
+    @IsOptional()
     @IsArray()
     @IsString({ each: true })
     scopes?: string[];
@@ -14,5 +19,4 @@ export class CreateApiKeyDto {
     @IsOptional()
     @IsDateString()
     expiresAt?: string;
-
 }

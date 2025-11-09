@@ -16,7 +16,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
-import { ClientPayload } from '../common/types/client-payload.type';
+import { UserPayload } from '../common/types/jwt-payload.type';
 
 /**
  * AuthController maneja todos los endpoints de autenticación
@@ -198,7 +198,7 @@ export class AuthController {
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getProfile(@CurrentUser() user: ClientPayload) {
+  async getProfile(@CurrentUser() user: UserPayload) {
     return user;
   }
 
@@ -266,11 +266,11 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async logoutAll(
-    @CurrentUser() user: ClientPayload,
+    @CurrentUser() user: UserPayload,
     @Res({ passthrough: true }) response: Response,
   ) {
     // Invalidar TODOS los refresh tokens del usuario
-    await this.authService.logoutAll(user.id);
+    await this.authService.logoutAll(user.sub);
 
     // Limpiar las cookies de esta sesión
     response.clearCookie('accessToken', { path: '/' });

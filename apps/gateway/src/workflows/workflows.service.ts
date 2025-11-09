@@ -2,6 +2,7 @@ import {
     Injectable,
     NotFoundException,
     BadRequestException,
+    ForbiddenException,
     Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
@@ -9,6 +10,8 @@ import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { ExecutionsService } from '../executions/executions.service';
 import { N8nService } from '../integrations/n8n/n8n.service';
+import { OrganizationsService } from '../organizations/organizations.service';
+import { PLANS, PlanType } from '@workflow-automation/shared-types';
 import {
   WorkflowNotFoundException,
   WorkflowPausedException,
@@ -18,7 +21,8 @@ import {
 
 
 /**
- * Service que maneja la logica de negocio de workflows
+ * Service que maneja la lógica de negocio de workflows
+ * Incluye validación de límites según el plan de la organización
  */
 
 @Injectable()
@@ -29,34 +33,27 @@ export class WorkflowsService {
         private readonly prisma: PrismaService,
         private readonly executionsService: ExecutionsService,
         private readonly n8nService: N8nService,
+        private readonly organizationsService: OrganizationsService,
     ) {}
 
     /**
      * Crear un nuevo workflow
      */
-    async create(clientId: string, dto: CreateWorkflowDto) {
+    async create(organizationId: string, dto: CreateWorkflowDto) {
         this.validateConfig(dto.config);
 
-        const currentCount = await this.prisma.workflow.count({
-            where: {
-                clientId,
-                deletedAt: null,
-            },
-        });
-
-        const client = await this.prisma.client.findUnique({
-            where: { id: clientId },
-            select: { maxWorkflows: true, plan: true },
-        });
-
-        if (!client) {
-            throw new NotFoundException(`Client with id ${clientId} not found`);
-        }
-
-        // Verificar límite de workflows (-1 significa ilimitado)
-        if (client.maxWorkflows !== -1 && currentCount >= client.maxWorkflows) {
-            throw new BadRequestException(
-                `Has alcanzado el limite de ${client.maxWorkflows} workflows para el plan ${client.plan}`,
+        // Validar límite de workflows según el plan
+        const canAdd = await this.organizationsService.canAddWorkflow(organizationId);
+        if (!canAdd) {
+            const org = await this.prisma.organization.findUnique({
+                where: { id: organizationId },
+                select: { plan: true },
+            });
+            const limit = PLANS[org!.plan as PlanType].limits.maxWorkflows;
+            throw new ForbiddenException(
+                limit === -1
+                    ? 'No se pueden crear más workflows'
+                    : `Has alcanzado el límite de ${limit} workflows para tu plan`,
             );
         }
 
@@ -72,11 +69,11 @@ export class WorkflowsService {
                 timeout: dto.timeout ?? 300,
                 maxRetries: dto.maxRetries ?? 3,
                 triggerType: dto.triggerType,
-                clientId,
+                organizationId,
                 // Asociar tags si se proporcionaron
                 ...(dto.tagIds && {
-                tags: {
-                    connect: dto.tagIds.map((id) => ({ id })),
+                    tags: {
+                        connect: dto.tagIds.map((id) => ({ id })),
                     },
                 }),
             },
@@ -85,48 +82,48 @@ export class WorkflowsService {
             },
         });
 
-        this.logger.log(`Workflow creado ${workflow.id} por cliente ${clientId}`);
+        this.logger.log(`Workflow creado ${workflow.id} en organización ${organizationId}`);
         return workflow;
     }
 
     /**
-    * Listar workflows del cliente
+    * Listar workflows de la organización
     */
-    async findAll(clientId: string, includeDeleted: boolean = false) {
+    async findAll(organizationId: string, includeDeleted: boolean = false) {
         return this.prisma.workflow.findMany({
-        where: {
-            clientId,
-            ...(includeDeleted ? {} : { deletedAt: null }),
-        },
-        include: {
-            tags: true,
-            _count: {
-            select: {
-                executions: true,
+            where: {
+                organizationId,
+                ...(includeDeleted ? {} : { deletedAt: null }),
             },
+            include: {
+                tags: true,
+                _count: {
+                    select: {
+                        executions: true,
+                    },
+                },
             },
-        },
-        orderBy: {
-            createdAt: 'desc',
-        },
+            orderBy: {
+                createdAt: 'desc',
+            },
         });
     }
 
     /**
     * Obtener un workflow específico
     */
-    async findOne(clientId: string, workflowId: string) {
+    async findOne(organizationId: string, workflowId: string) {
         const workflow = await this.prisma.workflow.findFirst({
             where: {
                 id: workflowId,
-                clientId,
+                organizationId,
                 deletedAt: null,
             },
             include: {
                 tags: true,
                 executions: {
-                take: 10,
-                orderBy: { startedAt: 'desc' },
+                    take: 10,
+                    orderBy: { startedAt: 'desc' },
                 },
             },
         });
@@ -140,9 +137,9 @@ export class WorkflowsService {
     /**
     * Actualizar un workflow
     */
-    async update(clientId: string, workflowId: string, dto: UpdateWorkflowDto) {
-        // 1. Verificar que existe y pertenece al cliente
-        const existing = await this.findOne(clientId, workflowId);
+    async update(organizationId: string, workflowId: string, dto: UpdateWorkflowDto) {
+        // 1. Verificar que existe y pertenece a la organización
+        const existing = await this.findOne(organizationId, workflowId);
 
         // 2. Validar config si se está actualizando
         if (dto.config) {
@@ -158,10 +155,10 @@ export class WorkflowsService {
                 version: existing.version + 1, // Incrementar versión
                 // Actualizar tags si se proporcionaron
                 ...(dto.tagIds && {
-                tags: {
-                    set: [], // Limpiar tags actuales
-                    connect: dto.tagIds.map((id) => ({ id })), // Conectar nuevos
-                },
+                    tags: {
+                        set: [], // Limpiar tags actuales
+                        connect: dto.tagIds.map((id) => ({ id })), // Conectar nuevos
+                    },
                 }),
             },
             include: {
@@ -176,17 +173,17 @@ export class WorkflowsService {
     /**
     * Eliminar un workflow (soft delete)
     */
-    async remove(clientId: string, workflowId: string) {
-        // 1. Verificar que existe y pertenece al cliente
-        await this.findOne(clientId, workflowId);
+    async remove(organizationId: string, workflowId: string) {
+        // 1. Verificar que existe y pertenece a la organización
+        await this.findOne(organizationId, workflowId);
 
         // 2. Soft delete
         const workflow = await this.prisma.workflow.update({
-        where: { id: workflowId },
-        data: {
-            deletedAt: new Date(),
-            isActive: false, // También desactivarlo
-        },
+            where: { id: workflowId },
+            data: {
+                deletedAt: new Date(),
+                isActive: false, // También desactivarlo
+            },
         });
 
         this.logger.log(`Workflow eliminado: ${workflowId}`);
@@ -195,124 +192,132 @@ export class WorkflowsService {
 
     /**
      * EJECUTAR UN WORKFLOW
+     * Puede ser llamado desde UI (user) o desde API externa (API key)
      */
     async execute(
-        clientId: string,
+        organizationId: string,
         workflowId: string,
         input: Record<string, any>,
         metadata?: Record<string, any>,
+        userId?: string, // Opcional: quién ejecuta desde UI
+        apiKeyId?: string, // Opcional: qué API key ejecuta
     ) {
         // 1. VALIDACIONES PREVIAS
         const workflow = await this.prisma.workflow.findFirst({
-        where: {
-            id: workflowId,
-            clientId,
-            deletedAt: null,
-        },
-        include: {
-            client: {
-            select: {
-                id: true,
-                name: true,
-                maxExecutionsPerDay: true,
+            where: {
+                id: workflowId,
+                organizationId,
+                deletedAt: null,
             },
+            include: {
+                organization: {
+                    select: {
+                        id: true,
+                        name: true,
+                        plan: true,
+                    },
+                },
             },
-        },
         });
 
         if (!workflow) {
-        throw new WorkflowNotFoundException(workflowId);
+            throw new WorkflowNotFoundException(workflowId);
         }
 
         if (!workflow.isActive) {
-        throw new InvalidWorkflowConfigException('El workflow está inactivo', {
-            workflowId,
-            isActive: false,
-        });
+            throw new InvalidWorkflowConfigException('El workflow está inactivo', {
+                workflowId,
+                isActive: false,
+            });
         }
 
         if (workflow.isPaused) {
-        throw new WorkflowPausedException(workflowId);
+            throw new WorkflowPausedException(workflowId);
         }
 
-        // 2. VALIDAR LÍMITES DIARIOS
+        // 2. VALIDAR LÍMITES DIARIOS DE EJECUCIÓN
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         const executionsToday = await this.prisma.execution.count({
-        where: {
-            workflow: {
-            clientId,
+            where: {
+                workflow: {
+                    organizationId,
+                },
+                startedAt: {
+                    gte: today,
+                },
             },
-            startedAt: {
-            gte: today,
-            },
-        },
         });
 
-        // Verificar límite de ejecuciones diarias (-1 significa ilimitado)
-        if (workflow.client.maxExecutionsPerDay !== -1 && executionsToday >= workflow.client.maxExecutionsPerDay) {
-        throw new MaxExecutionsExceededException(
-            executionsToday,
-            workflow.client.maxExecutionsPerDay,
-        );
+        const org = workflow.organization;
+        if (!org) {
+            throw new NotFoundException('Organización no encontrada');
         }
+
+        // TODO: Agregar límites de ejecuciones al plan si es necesario
+        // const maxExecutionsPerDay = PLANS[org.plan].limits.maxExecutionsPerDay;
+        // if (maxExecutionsPerDay !== -1 && executionsToday >= maxExecutionsPerDay) {
+        //     throw new MaxExecutionsExceededException(executionsToday, maxExecutionsPerDay);
+        // }
 
         // 3. CREAR REGISTRO DE EJECUCIÓN
         const execution = await this.executionsService.create(workflowId, 'api', {
-        input,
-        metadata,
-        clientId,
-        clientName: workflow.client.name,
+            input,
+            metadata,
+            organizationId: org.id,
+            organizationName: org.name,
+            userId, // Opcional
+            apiKeyId, // Opcional
         });
 
         this.logger.log(
-        `Iniciando ejecución ${execution.id} para workflow ${workflowId}`,
+            `Iniciando ejecución ${execution.id} para workflow ${workflowId}`,
         );
 
         // 4. EJECUTAR SEGÚN EL TIPO
         try {
-        const config = workflow.config as any;
+            const config = workflow.config as any;
 
-        if (!config.type) {
-            throw new InvalidWorkflowConfigException(
-            'El config debe tener un campo "type"',
-            );
-        }
+            if (!config.type) {
+                throw new InvalidWorkflowConfigException(
+                    'El config debe tener un campo "type"',
+                );
+            }
 
-        let result: any;
+            let result: any;
 
-        if (config.type === 'n8n') {
-            result = await this.executeN8nWorkflow(workflow, input, execution.id);
-        } else if (config.type === 'custom') {
-            throw new Error('Los workflows custom aún no están implementados');
-        } else {
-            throw new InvalidWorkflowConfigException(
-            `Tipo de workflow no soportado: ${config.type}`,
-            );
-        }
+            if (config.type === 'n8n') {
+                result = await this.executeN8nWorkflow(workflow, input, execution.id);
+            } else if (config.type === 'custom') {
+                throw new Error('Los workflows custom aún no están implementados');
+            } else {
+                throw new InvalidWorkflowConfigException(
+                    `Tipo de workflow no soportado: ${config.type}`,
+                );
+            }
 
-        // 5. MARCAR COMO COMPLETADA
-        await this.executionsService.updateStatus(execution.id, 'completed', {
-            result,
-        });
+            // 5. MARCAR COMO COMPLETADA
+            await this.executionsService.updateStatus(execution.id, 'completed', {
+                result,
+            });
 
-        this.logger.log(`Ejecución ${execution.id} completada exitosamente`);
+            this.logger.log(`Ejecución ${execution.id} completada exitosamente`);
 
-        return this.executionsService.findOne(execution.id, clientId);
+            return this.executionsService.findOne(execution.id, organizationId);
         } catch (error) {
-        // 6. MANEJAR ERRORES
-        this.logger.error(
-            `Error en ejecución ${execution.id}: ${(error as Error).message}`,
-            (error as Error).stack,
-        );
+            // 6. MANEJAR ERRORES
+            this.logger.error(
+                `Error en ejecución ${execution.id}: ${(error as Error).message}`,
+                (error as Error).stack,
+            );
 
-        await this.executionsService.updateStatus(execution.id, 'failed', {
-            error: (error as Error).message,
-            errorStack: (error as Error).stack,
-        });
+            await this.executionsService.updateStatus(execution.id, 'failed', {
+                error: (error as Error).message,
+                errorStack: (error as Error).stack,
+            });
 
-        throw error;
+            throw error;
         }
     }
 

@@ -1,21 +1,22 @@
-import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from '../database/prisma.service';
 import { ApiKeyUtil } from "../auth/utils/api-key.util";
 import { CreateApiKeyDto } from "./dto/create-api-key.dto";
 import { UpdateApiKeyDto } from "./dto/update-api-key.dto";
+import { PLANS, PlanType } from '@workflow-automation/shared-types';
 
 @Injectable()
 export class  ApiKeysService {
     constructor(private readonly prisma: PrismaService) {}
 
     /**
-     * Crea un nuevo API Key para un cliente
+     * Crea un nuevo API Key para una organización
      * Retorna el API Key en texto plano (ÚNICA VEZ)
      */
-    async create(clientId: string, dto: CreateApiKeyDto) {
-        // 1. Verificar que el cliente existe y obtener límite de API Keys
-        const client = await this.prisma.client.findUnique({
-            where: { id: clientId },
+    async create(organizationId: string, dto: CreateApiKeyDto) {
+        // 1. Verificar que la organización existe y obtener límite de API Keys
+        const organization = await this.prisma.organization.findUnique({
+            where: { id: organizationId },
             include: { 
                 _count: { 
                     select: { apiKeys: true } 
@@ -23,15 +24,18 @@ export class  ApiKeysService {
             },
         });
 
-        if (!client) {
-            throw new NotFoundException('Cliente no encontrado');
+        if (!organization) {
+            throw new NotFoundException('Organización no encontrada');
         }
 
         // 2. Verificar límite de API Keys según el plan
+        const planConfig = PLANS[organization.plan as PlanType];
+        const maxApiKeys = planConfig.limits.maxApiKeys;
+        
         // -1 significa ilimitado
-        if (client.maxApiKeys !== -1 && client._count.apiKeys >= client.maxApiKeys) {
-            throw new ForbiddenException(
-                `Has alcanzado el límite de ${client.maxApiKeys} API Keys para tu plan ${client.plan}. ` +
+        if (maxApiKeys !== -1 && organization._count.apiKeys >= maxApiKeys) {
+            throw new BadRequestException(
+                `Has alcanzado el límite de ${maxApiKeys} API Keys para tu plan ${organization.plan}. ` +
                 `Elimina una API Key existente o actualiza tu plan.`
             );
         }
@@ -49,9 +53,10 @@ export class  ApiKeysService {
         const created = await this.prisma.apiKey.create({
             data: {
                 name: dto.name,
+                description: dto.description,
                 keyHash,
                 keyPrefix,
-                clientId,
+                organizationId,
                 scopes: dto.scopes ?? undefined, // Usar undefined en lugar de null para JSON
                 expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
                 isActive: true,
@@ -62,6 +67,7 @@ export class  ApiKeysService {
         return {
             id: created.id,
             name: created.name,
+            description: created.description,
             apiKey, // ⚠️ Este es el valor completo, solo se muestra aquí
             keyPrefix: created.keyPrefix,
             isActive: created.isActive,
@@ -72,13 +78,13 @@ export class  ApiKeysService {
     }
 
     /**
-     * Lista todos los API Keys de un cliente
+     * Lista todos los API Keys de una organización
      * NO incluye el valor completo del API Key (solo el prefijo)
      */
-    async findAll(clientId: string) {
+    async findAll(organizationId: string) {
         const keys = await this.prisma.apiKey.findMany({
             where: { 
-                clientId, 
+                organizationId, 
                 deletedAt: null // Solo mostrar API Keys no eliminados
             },
             orderBy: { createdAt: 'desc' },
@@ -88,10 +94,12 @@ export class  ApiKeysService {
         return keys.map(key => ({
             id: key.id,
             name: key.name,
+            description: key.description,
             keyPrefix: key.keyPrefix, // Solo muestra "ak_live_ab..."
             isActive: key.isActive,
             lastUsedAt: key.lastUsedAt,
             expiresAt: key.expiresAt,
+            scopes: key.scopes,
             createdAt: key.createdAt,
             updatedAt: key.updatedAt,
         }));
@@ -101,7 +109,7 @@ export class  ApiKeysService {
      * Elimina un API Key (soft delete)
      * Marca deletedAt y desactiva el API Key
      */
-    async delete(clientId: string, apiKeyId: string) {
+    async delete(organizationId: string, apiKeyId: string) {
         // 1. Buscar el API Key
         const key = await this.prisma.apiKey.findUnique({ 
             where: { id: apiKeyId } 
@@ -111,8 +119,8 @@ export class  ApiKeysService {
             throw new NotFoundException('API Key no encontrada');
         }
 
-        // 2. Verificar que pertenece al cliente (seguridad)
-        if (key.clientId !== clientId) {
+        // 2. Verificar que pertenece a la organización (seguridad)
+        if (key.organizationId !== organizationId) {
             throw new ForbiddenException('No tienes permiso para eliminar esta API Key');
         }
 
@@ -137,10 +145,9 @@ export class  ApiKeysService {
     }
 
     /**
-     * Activa o desactiva un API Key
-     * Alterna el estado isActive
+     * Actualiza un API Key (nombre, descripción y/o estado activo)
      */
-    async toggleActive(clientId: string, apiKeyId: string) {
+    async update(organizationId: string, apiKeyId: string, dto: UpdateApiKeyDto) {
         // 1. Buscar el API Key
         const key = await this.prisma.apiKey.findUnique({ 
             where: { id: apiKeyId } 
@@ -150,46 +157,8 @@ export class  ApiKeysService {
             throw new NotFoundException('API Key no encontrada');
         }
 
-        // 2. Verificar que pertenece al cliente (seguridad)
-        if (key.clientId !== clientId) {
-            throw new ForbiddenException('No tienes permiso para modificar esta API Key');
-        }
-
-        // 3. Verificar que no esté eliminada
-        if (key.deletedAt) {
-            throw new ForbiddenException('No puedes modificar una API Key eliminada');
-        }
-
-        // 4. Alternar el estado isActive
-        const newState = !key.isActive;
-        await this.prisma.apiKey.update({ 
-            where: { id: apiKeyId }, 
-            data: { isActive: newState } 
-        });
-
-        return { 
-            success: true,
-            isActive: newState,
-            message: `API Key ${newState ? 'activada' : 'desactivada'} exitosamente`
-        };
-    }
-
-    /**
-     * Actualiza un API Key (nombre y/o estado activo)
-     * Permite cambiar el nombre y/o el estado isActive de forma independiente
-     */
-    async update(clientId: string, apiKeyId: string, dto: UpdateApiKeyDto) {
-        // 1. Buscar el API Key
-        const key = await this.prisma.apiKey.findUnique({ 
-            where: { id: apiKeyId } 
-        });
-
-        if (!key) {
-            throw new NotFoundException('API Key no encontrada');
-        }
-
-        // 2. Verificar que pertenece al cliente (seguridad)
-        if (key.clientId !== clientId) {
+        // 2. Verificar que pertenece a la organización (seguridad)
+        if (key.organizationId !== organizationId) {
             throw new ForbiddenException('No tienes permiso para modificar esta API Key');
         }
 
@@ -203,13 +172,16 @@ export class  ApiKeysService {
         if (dto.name !== undefined) {
             dataToUpdate.name = dto.name;
         }
+        if (dto.description !== undefined) {
+            dataToUpdate.description = dto.description;
+        }
         if (dto.isActive !== undefined) {
             dataToUpdate.isActive = dto.isActive;
         }
 
         // 5. Si no hay nada que actualizar, retornar error
         if (Object.keys(dataToUpdate).length === 0) {
-            throw new ForbiddenException('No se proporcionaron campos para actualizar');
+            throw new BadRequestException('No se proporcionaron campos para actualizar');
         }
 
         // 6. Actualizar en la base de datos
@@ -223,10 +195,12 @@ export class  ApiKeysService {
             apiKey: {
                 id: updated.id,
                 name: updated.name,
+                description: updated.description,
                 keyPrefix: updated.keyPrefix,
                 isActive: updated.isActive,
                 lastUsedAt: updated.lastUsedAt,
                 expiresAt: updated.expiresAt,
+                scopes: updated.scopes,
                 createdAt: updated.createdAt,
                 updatedAt: updated.updatedAt,
             },
@@ -237,7 +211,7 @@ export class  ApiKeysService {
     /**
      * Obtiene un API Key específico (sin exponer el valor completo)
      */
-    async findOne(clientId: string, apiKeyId: string) {
+    async findOne(organizationId: string, apiKeyId: string) {
         const key = await this.prisma.apiKey.findUnique({
             where: { id: apiKeyId },
         });
@@ -246,7 +220,7 @@ export class  ApiKeysService {
             throw new NotFoundException('API Key no encontrada');
         }
 
-        if (key.clientId !== clientId) {
+        if (key.organizationId !== organizationId) {
             throw new ForbiddenException('No tienes permiso para ver esta API Key');
         }
 
@@ -254,6 +228,7 @@ export class  ApiKeysService {
         return {
             id: key.id,
             name: key.name,
+            description: key.description,
             keyPrefix: key.keyPrefix,
             isActive: key.isActive,
             lastUsedAt: key.lastUsedAt,
@@ -265,3 +240,4 @@ export class  ApiKeysService {
         };
     }
 }
+

@@ -7,18 +7,19 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { PrismaService } from '../../database/prisma.service';
-import { ClientPayload } from '../../common/types/client-payload.type';
+import { ApiKeyPayload } from '../../common/types/api-key-payload.type';
 import { ApiKeyUtil } from '../utils/api-key.util';
 
 /**
  * Guard que protege los endpoints validando el header X-API-Key
+ * Sistema multi-tenant con Organization
  * 
  * Flujo:
  * 1. Extrae el API Key del header
  * 2. Busca API Keys por prefijo (optimización)
  * 3. Compara con bcrypt cada candidato
- * 4. Valida que el cliente esté activo
- * 5. Inyecta el cliente en el request
+ * 4. Valida que la organización esté activa
+ * 5. Inyecta el ApiKeyPayload en el request
  */
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
@@ -47,17 +48,13 @@ export class ApiKeyGuard implements CanActivate {
           deletedAt: null,
         },
         include: {
-          client: {
+          organization: {
             select: {
               id: true,
               name: true,
-              email: true,
+              slug: true,
               plan: true,
-              maxWorkflows: true,
-              maxExecutionsPerDay: true,
               isActive: true,
-              region: true,
-              metadata: true,
               deletedAt: true,
             },
           },
@@ -88,20 +85,25 @@ export class ApiKeyGuard implements CanActivate {
         throw new UnauthorizedException('API key inválido');
       }
 
-      // 4. Validar el cliente
-      const client = matchedApiKey.client;
+      // 4. Validar la organización
+      const organization = matchedApiKey.organization;
 
-      if (!client.isActive) {
-        this.logger.warn(`Cliente inactivo: ${client.email}`);
-        throw new UnauthorizedException('Cuenta inactiva');
+      if (!organization) {
+        this.logger.warn(`API Key sin organización: ${matchedApiKey.id}`);
+        throw new UnauthorizedException('API key sin organización');
       }
 
-      if (client.deletedAt) {
-        this.logger.warn(`Cliente eliminado: ${client.email}`);
-        throw new UnauthorizedException('Cuenta eliminada');
+      if (!organization.isActive) {
+        this.logger.warn(`Organización inactiva: ${organization.name}`);
+        throw new UnauthorizedException('Organización inactiva');
       }
 
-      // 5. Actualizar lastUsedAt del API Key (opcional pero recomendado)
+      if (organization.deletedAt) {
+        this.logger.warn(`Organización eliminada: ${organization.name}`);
+        throw new UnauthorizedException('Organización eliminada');
+      }
+
+      // 5. Actualizar lastUsedAt del API Key
       this.prisma.apiKey
         .update({
           where: { id: matchedApiKey.id },
@@ -112,23 +114,20 @@ export class ApiKeyGuard implements CanActivate {
           this.logger.warn('Error actualizando lastUsedAt', err);
         });
 
-      // 6. Preparar el payload del cliente
-      const clientPayload: ClientPayload = {
-        id: client.id,
-        name: client.name,
-        email: client.email,
-        plan: client.plan,
-        maxWorkflows: client.maxWorkflows,
-        maxExecutionsPerDay: client.maxExecutionsPerDay,
-        isActive: client.isActive,
-        region: client.region,
-        metadata: client.metadata,
+      // 6. Preparar el payload del API Key
+      const apiKeyPayload: ApiKeyPayload = {
+        apiKeyId: matchedApiKey.id,
+        apiKeyName: matchedApiKey.name,
+        organizationId: organization.id,
+        organizationName: organization.name,
+        plan: organization.plan,
+        scopes: matchedApiKey.scopes as string[] | undefined,
       };
 
       // 7. Inyectar en el request
-      (request as any).client = clientPayload;
+      (request as any).apiKey = apiKeyPayload;
 
-      this.logger.debug(`Cliente autenticado: ${client.email}`);
+      this.logger.debug(`API Key autenticada: ${matchedApiKey.name} (${organization.name})`);
 
       return true;
     } catch (error) {

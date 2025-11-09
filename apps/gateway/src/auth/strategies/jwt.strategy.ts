@@ -3,18 +3,17 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../database/prisma.service';
-import { JwtPayload } from '../../common/types/jwt-payload.type';
-import { ClientPayload } from '../../common/types/client-payload.type';
+import { UserPayload } from '../../common/types/user-payload.type';
 
 /**
- * Estrategia JWT para validar tokens de acceso
+ * Estrategia JWT para validar tokens de acceso del sistema multi-tenant
  * 
  * Flujo:
  * 1. Passport extrae el token del header Authorization: Bearer <token>
  * 2. Passport valida la firma del token con el JWT_SECRET
  * 3. Si es válido, llama a validate() con el payload decodificado
- * 4. validate() busca al cliente en la DB y valida que esté activo
- * 5. Retorna el ClientPayload que se inyecta en request.user
+ * 4. validate() busca al usuario en la DB y valida que esté activo
+ * 5. Retorna el UserPayload que se inyecta en request.user
  */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -41,67 +40,66 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * Este método se ejecuta DESPUÉS de que Passport valida la firma del token
    * 
    * @param payload - Payload decodificado del JWT
-   * @returns ClientPayload que se inyecta en request.user
+   * @returns UserPayload que se inyecta en request.user
    */
-  async validate(payload: JwtPayload): Promise<ClientPayload> {
-    this.logger.debug(`Validando JWT para cliente: ${payload.email}`);
+  async validate(payload: UserPayload): Promise<UserPayload> {
+    this.logger.debug(`Validando JWT para usuario: ${payload.email}`);
 
-    // 1. Buscar el cliente en la base de datos
-    const client = await this.prisma.client.findUnique({
+    // 1. Buscar el usuario en la base de datos con su organización
+    const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        plan: true,
-        maxWorkflows: true,
-        maxExecutionsPerDay: true,
-        isActive: true,
-        region: true,
-        metadata: true,
-        deletedAt: true,
-      },
+      include: { organization: true },
     });
 
-    // 2. Validar que el cliente existe
-    if (!client) {
-      this.logger.warn(`Cliente no encontrado: ${payload.sub}`);
-      throw new UnauthorizedException('Cliente no encontrado');
+    // 2. Validar que el usuario existe
+    if (!user) {
+      this.logger.warn(`Usuario no encontrado: ${payload.sub}`);
+      throw new UnauthorizedException('Usuario no encontrado');
     }
 
-    // 3. Validar que el cliente esté activo
-    if (!client.isActive) {
-      this.logger.warn(`Cliente inactivo: ${client.email}`);
+    // 3. Validar que tenga organización
+    if (!user.organization) {
+      this.logger.warn(`Usuario sin organización: ${payload.sub}`);
+      throw new UnauthorizedException('Usuario sin organización');
+    }
+
+    // 4. Validar que el usuario esté activo
+    if (!user.isActive) {
+      this.logger.warn(`Usuario inactivo: ${user.email}`);
       throw new UnauthorizedException('Cuenta inactiva');
     }
 
-    // 4. Validar que el cliente no esté eliminado (soft delete)
-    if (client.deletedAt) {
-      this.logger.warn(`Cliente eliminado: ${client.email}`);
+    // 5. Validar que el usuario no esté eliminado (soft delete)
+    if (user.deletedAt) {
+      this.logger.warn(`Usuario eliminado: ${user.email}`);
       throw new UnauthorizedException('Cuenta eliminada');
     }
 
-    // 5. Validar que el email coincida (seguridad adicional)
-    if (client.email !== payload.email) {
+    // 6. Validar que la organización esté activa
+    if (!user.organization.isActive) {
+      this.logger.warn(`Organización inactiva: ${user.organization.name}`);
+      throw new UnauthorizedException('Organización inactiva');
+    }
+
+    // 7. Validar que el email coincida (seguridad adicional)
+    if (user.email !== payload.email) {
       this.logger.error(
-        `Email mismatch para cliente ${payload.sub}: ${client.email} vs ${payload.email}`
+        `Email mismatch para usuario ${payload.sub}: ${user.email} vs ${payload.email}`
       );
       throw new UnauthorizedException('Token inválido');
     }
 
-    this.logger.debug(`Cliente autenticado exitosamente: ${client.email}`);
+    this.logger.debug(`Usuario autenticado exitosamente: ${user.email} (${user.organization.name})`);
 
-    // 6. Retornar el payload del cliente que se inyecta en request.user
+    // 8. Retornar el payload completo que se inyecta en request.user
     return {
-      id: client.id,
-      name: client.name,
-      email: client.email,
-      plan: client.plan,
-      maxWorkflows: client.maxWorkflows,
-      maxExecutionsPerDay: client.maxExecutionsPerDay,
-      isActive: client.isActive,
-      region: client.region,
-      metadata: client.metadata,
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      organizationId: user.organization.id,
+      organizationName: user.organization.name,
+      plan: user.organization.plan,
     };
   }
 }

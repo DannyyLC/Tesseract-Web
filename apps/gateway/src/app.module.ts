@@ -5,6 +5,9 @@ import { AuthModule } from './auth/auth.module';
 import { WorkflowsModule } from './workflows/workflows.module';
 import { ExecutionsModule } from './executions/executions.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
+import { OrganizationsModule } from './organizations/organizations.module';
+import { UsersModule } from './users/users.module';
+import { AdminModule } from './admin/admin.module';
 
 /**
  * Módulo raíz de la aplicación Gateway
@@ -12,7 +15,9 @@ import { ApiKeysModule } from './api-keys/api-keys.module';
  * Importa:
  * - ConfigModule: Para variables de entorno (.env)
  * - DatabaseModule: Para conexión a PostgreSQL
- * - AuthModule: Para sistema de autenticación con API Keys
+ * - AuthModule: Para sistema de autenticación con JWT y API Keys
+ * - OrganizationsModule: Para gestión de organizaciones multi-tenant
+ * - UsersModule: Para gestión de usuarios y roles
  */
 @Module({
   imports: [
@@ -27,9 +32,12 @@ import { ApiKeysModule } from './api-keys/api-keys.module';
     
     DatabaseModule,
     AuthModule,
+    OrganizationsModule,
+    UsersModule,
     WorkflowsModule,
     ExecutionsModule,
     ApiKeysModule,
+    AdminModule,
   ],
   controllers: [],
   providers: [],

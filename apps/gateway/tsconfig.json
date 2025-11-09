@@ -2,10 +2,10 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
     "baseUrl": "./",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@workflow-automation/shared-types": ["../../packages/shared-types/dist"]
     },
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,

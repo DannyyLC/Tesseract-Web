@@ -7,6 +7,11 @@ export class UpdateApiKeyDto {
     name?: string;
 
     @IsOptional()
+    @IsString()
+    @MaxLength(500)
+    description?: string;
+
+    @IsOptional()
     @IsBoolean()
     isActive?: boolean;
 }

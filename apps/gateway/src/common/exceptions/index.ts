@@ -15,7 +15,6 @@ export * from './filters/global-exception.filter';
 export * from './business/auth.exceptions';
 export * from './business/workflow.exceptions';
 export * from './business/execution.exceptions';
-export * from './business/client.exceptions';
 export * from './business/tag.exceptions';
 export * from './business/integration.exceptions';
 export * from './business/validation.exceptions';

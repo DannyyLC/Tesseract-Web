@@ -9,7 +9,7 @@ import { AuthGuard } from '@nestjs/passport';
  * Uso:
  * @UseGuards(JwtAuthGuard)
  * @Get('profile')
- * getProfile(@CurrentUser() user: ClientPayload) {
+ * getProfile(@CurrentUser() user: UserPayload) {
  *   return user;
  * }
  * 
@@ -17,7 +17,7 @@ import { AuthGuard } from '@nestjs/passport';
  * 1. Extrae el token de la cookie 'accessToken'
  * 2. Lo inyecta en el header Authorization para que Passport lo procese
  * 3. Usa JwtStrategy para validar el token
- * 4. Si es válido, inyecta request.user con el ClientPayload
+ * 4. Si es válido, inyecta request.user con el UserPayload
  * 5. Si no es válido, lanza UnauthorizedException
  */
 @Injectable()
