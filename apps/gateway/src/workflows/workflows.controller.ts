@@ -19,8 +19,10 @@ import { UpdateWorkflowDto } from "./dto/update-workflow.dto";
 import { ExecuteWorkflowDto } from './dto/execute-workflow.dto';
 import { ApiKeyGuard } from "../auth/guards/api-key.guard";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { JwtOrApiKeyGuard } from "../auth/guards/jwt-or-api-key.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
+import { ApiKeyOnly } from "../auth/decorators/api-key-only.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { CurrentApiKey } from "../auth/decorators/current-api-key.decorator";
 import { UserPayload } from '../common/types/jwt-payload.type';
@@ -122,6 +124,7 @@ export class WorkflowsController {
    *   X-API-Key: ak_live_xxx...
    */
   @Post(':id/execute')
+  @ApiKeyOnly() // Marca que este endpoint solo usa API Key, no JWT
   @UseGuards(ApiKeyGuard)
   @HttpCode(HttpStatus.CREATED)
   async execute(

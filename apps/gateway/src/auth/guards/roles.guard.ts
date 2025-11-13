@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@workflow-automation/shared-types';
 import { ROLES_KEY } from '../decorators/roles.decorator';
+import { API_KEY_ONLY } from '../decorators/api-key-only.decorator';
 import { UserPayload } from '../../common/types/jwt-payload.type';
 
 /**
@@ -32,6 +33,17 @@ export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    // 0. Verificar si el endpoint está marcado como API Key Only
+    const isApiKeyOnly = this.reflector.getAllAndOverride<boolean>(API_KEY_ONLY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isApiKeyOnly) {
+      // Si es API Key only, saltarse la verificación de roles
+      return true;
+    }
+
     // 1. Obtener roles requeridos del decorador @Roles()
     const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
       ROLES_KEY,

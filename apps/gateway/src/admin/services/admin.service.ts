@@ -17,6 +17,41 @@ export class AdminService {
   // ============================================
 
   /**
+   * Crea una nueva organización
+   */
+  async createOrganization(data: {
+    name: string;
+    slug: string;
+    plan?: 'free' | 'pro' | 'enterprise';
+  }) {
+    const plan = data.plan || 'free';
+    const planConfig = PLANS[plan];
+
+    // Verificar que el slug no esté en uso
+    const existing = await this.prisma.organization.findUnique({
+      where: { slug: data.slug },
+    });
+
+    if (existing) {
+      throw new BadRequestException(`El slug "${data.slug}" ya está en uso`);
+    }
+
+    const organization = await this.prisma.organization.create({
+      data: {
+        name: data.name,
+        slug: data.slug,
+        plan,
+        maxUsers: planConfig.limits.maxUsers,
+        maxWorkflows: planConfig.limits.maxWorkflows,
+        maxExecutionsPerDay: planConfig.limits.maxExecutionsPerDay,
+        maxApiKeys: planConfig.limits.maxApiKeys,
+      },
+    });
+
+    return organization;
+  }
+
+  /**
    * Lista TODAS las organizaciones
    */
   async getAllOrganizations(params: {
@@ -225,6 +260,58 @@ export class AdminService {
   // ============================================
   // USERS
   // ============================================
+
+  /**
+   * Crea un usuario en una organización
+   */
+  async createUser(organizationId: string, data: {
+    email: string;
+    name: string;
+    password: string;
+    role: 'owner' | 'admin' | 'viewer';
+  }) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException(`Organización ${organizationId} no encontrada`);
+    }
+
+    // Verificar que el email no esté en uso
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException(`El email "${data.email}" ya está en uso`);
+    }
+
+    // Hash del password
+    const bcrypt = require('bcrypt');
+    const passwordHash = await bcrypt.hash(data.password, 10);
+
+    const user = await this.prisma.user.create({
+      data: {
+        email: data.email,
+        name: data.name,
+        password: passwordHash,
+        role: data.role,
+        organizationId,
+        emailVerified: true, // Auto-verificado cuando lo crea un super admin
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    return user;
+  }
 
   /**
    * Lista todos los usuarios de una organización

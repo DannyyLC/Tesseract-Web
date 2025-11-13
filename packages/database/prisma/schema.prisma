@@ -7,45 +7,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// ORGANIZATIONS (Empresas/Tenants)
-// ============================================
-
 model Organization {
-  id   String @id @default(uuid())
-  name String
-  slug String @unique // URL-friendly: "acme-corp"
-
-  // Plan y límites
-  plan                String @default("free") // "free", "pro", "enterprise"
-  maxUsers            Int    @default(3) // Free: 3, Pro: 10, Enterprise: -1 (ilimitado)
-  maxWorkflows        Int    @default(5) // Free: 5, Pro: 50, Enterprise: -1
-  maxExecutionsPerDay Int    @default(100) // Free: 100, Pro: 10000, Enterprise: -1
-  maxApiKeys          Int    @default(2) // Free: 2, Pro: 10, Enterprise: -1
-
-  // Estado y metadata
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime? // Soft delete
-
-  // Distribución y región
-  shardKey String? @default(uuid())
-  region   String? @default("us-central")
-  metadata Json? // Datos adicionales flexibles
-
-  // Billing (opcional para futuro)
-  stripeCustomerId   String?   @unique
-  subscriptionStatus String?   @default("active") // "active", "cancelled", "past_due"
-  subscriptionEndsAt DateTime?
-
-  // Relaciones
-  users           User[]
-  workflows       Workflow[]
-  executions      Execution[]
-  apiKeys         ApiKey[]
-  whatsappConfigs WhatsAppConfig[]
-  auditLogs       AuditLog[]
+  id                  String           @id @default(uuid())
+  name                String
+  slug                String           @unique
+  plan                String           @default("free")
+  maxUsers            Int              @default(3)
+  maxWorkflows        Int              @default(5)
+  maxExecutionsPerDay Int              @default(100)
+  maxApiKeys          Int              @default(2)
+  isActive            Boolean          @default(true)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  deletedAt           DateTime?
+  shardKey            String?          @default(uuid())
+  region              String?          @default("us-central")
+  metadata            Json?
+  stripeCustomerId    String?          @unique
+  subscriptionStatus  String?          @default("active")
+  subscriptionEndsAt  DateTime?
+  apiKeys             ApiKey[]
+  auditLogs           AuditLog[]
+  executions          Execution[]
+  users               User[]
+  whatsappConfigs     WhatsAppConfig[]
+  workflows           Workflow[]
 
   @@index([slug])
   @@index([deletedAt])
@@ -54,43 +40,29 @@ model Organization {
   @@map("organizations")
 }
 
-// ============================================
-// USERS (Empleados con Roles)
-// ============================================
-
 model User {
-  id    String @id @default(uuid())
-  email String @unique
-  name  String
-
-  // Autenticación JWT (para UI/Dashboard)
-  password               String // Hash bcrypt de la contraseña
-  emailVerified          Boolean   @default(false)
-  emailVerificationToken String?   @unique
-  passwordResetToken     String?   @unique
+  id                     String         @id @default(uuid())
+  email                  String         @unique
+  name                   String
+  password               String
+  emailVerified          Boolean        @default(false)
+  emailVerificationToken String?        @unique
+  passwordResetToken     String?        @unique
   passwordResetExpires   DateTime?
-  twoFactorEnabled       Boolean   @default(false)
-  twoFactorSecret        String? // Para TOTP (Google Authenticator)
-
-  // Rol en la organización
-  role String @default("viewer") // "owner", "admin", "viewer"
-
-  // Estado y metadata
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime? // Soft delete
-  lastLoginAt DateTime?
-
-  // Avatar y perfil
-  avatar   String?
-  timezone String? @default("UTC")
-
-  // Relaciones
-  organizationId   String
-  organization     Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  refreshTokens    RefreshToken[]
-  executionsManual Execution[] // Ejecuciones manuales desde dashboard
+  twoFactorEnabled       Boolean        @default(false)
+  twoFactorSecret        String?
+  role                   String         @default("viewer")
+  isActive               Boolean        @default(true)
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  deletedAt              DateTime?
+  lastLoginAt            DateTime?
+  avatar                 String?
+  timezone               String?        @default("UTC")
+  organizationId         String
+  executionsManual       Execution[]
+  refreshTokens          RefreshToken[]
+  organization           Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([email])
   @@index([organizationId])
@@ -100,47 +72,33 @@ model User {
   @@map("users")
 }
 
-// ============================================
-// CLIENTES (DEPRECATED - Mantener temporalmente para migración)
-// ============================================
-
 model Client {
-  id    String @id @default(uuid())
-  name  String
-  email String @unique
-
-  // Autenticación JWT (para UI)
-  password               String? // Hash bcrypt de la contraseña
-  emailVerified          Boolean   @default(false)
-  emailVerificationToken String?   @unique
-  passwordResetToken     String?   @unique
+  id                     String           @id @default(uuid())
+  name                   String
+  email                  String           @unique
+  plan                   String           @default("free")
+  maxWorkflows           Int              @default(10)
+  maxExecutionsPerDay    Int              @default(100)
+  isActive               Boolean          @default(true)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  deletedAt              DateTime?
+  shardKey               String?          @default(uuid())
+  region                 String?          @default("us-central")
+  metadata               Json?
+  emailVerificationToken String?          @unique
+  emailVerified          Boolean          @default(false)
+  lastLoginAt            DateTime?
+  maxApiKeys             Int              @default(3)
+  password               String?
   passwordResetExpires   DateTime?
-  twoFactorEnabled       Boolean   @default(false)
-  twoFactorSecret        String? // Para TOTP (Google Authenticator)
-
-  // Plan y límites
-  plan                String @default("free") // "free", "pro", "enterprise"
-  maxWorkflows        Int    @default(10)
-  maxExecutionsPerDay Int    @default(100)
-  maxApiKeys          Int    @default(3) // Límite de API keys
-
-  // Estado y metadata
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime? // Soft delete
-  lastLoginAt DateTime?
-
-  // Distribución y región
-  shardKey String? @default(uuid())
-  region   String? @default("us-central")
-  metadata Json? // Datos adicionales flexibles
-
-  // Relaciones (mantener temporalmente)
-  workflows       Workflow[]       @relation("ClientWorkflows")
-  apiKeys         ApiKey[]         @relation("ClientApiKeys")
-  refreshTokens   RefreshToken[]   @relation("ClientRefreshTokens")
-  whatsappConfigs WhatsAppConfig[] @relation("ClientWhatsAppConfigs")
+  passwordResetToken     String?          @unique
+  twoFactorEnabled       Boolean          @default(false)
+  twoFactorSecret        String?
+  apiKeys                ApiKey[]         @relation("ClientApiKeys")
+  refreshTokens          RefreshToken[]   @relation("ClientRefreshTokens")
+  whatsappConfigs        WhatsAppConfig[] @relation("ClientWhatsAppConfigs")
+  workflows              Workflow[]       @relation("ClientWorkflows")
 
   @@index([email])
   @@index([deletedAt])
@@ -148,37 +106,24 @@ model Client {
   @@map("clients")
 }
 
-// ============================================
-// API KEYS (Credenciales de acceso programático)
-// ============================================
 model ApiKey {
-  id          String  @id @default(uuid())
-  name        String // "Production Web", "Mobile App", "Testing"
-  description String? // Descripción opcional
-  keyHash     String  @unique // Hash bcrypt del API key
-  keyPrefix   String // Primeros 16 chars para búsqueda rápida
-
-  // Metadata y uso
-  lastUsedAt DateTime?
-  expiresAt  DateTime? // Opcional: keys con expiración
-  isActive   Boolean   @default(true)
-
-  // Permisos opcionales (null = acceso a todos los workflows)
-  scopes Json? // { "workflowIds": ["uuid1", "uuid2"] } o null
-
-  // Timestamps
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime? // Soft delete
-
-  // Relaciones
-  organizationId String? // Temporal nullable para migración
+  id             String        @id @default(uuid())
+  name           String
+  keyHash        String        @unique
+  keyPrefix      String
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  isActive       Boolean       @default(true)
+  scopes         Json?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+  clientId       String?
+  description    String?
+  organizationId String?
+  client         Client?       @relation("ClientApiKeys", fields: [clientId], references: [id], onDelete: Cascade)
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  executions     Execution[] // Ejecuciones realizadas por esta API key
-
-  // Relación legacy (temporal)
-  clientId String?
-  client   Client? @relation("ClientApiKeys", fields: [clientId], references: [id], onDelete: Cascade)
+  executions     Execution[]
 
   @@index([organizationId])
   @@index([clientId])
@@ -188,38 +133,23 @@ model ApiKey {
   @@map("api_keys")
 }
 
-// ============================================
-// REFRESH TOKENS (Para sesiones JWT)
-// ============================================
 model RefreshToken {
-  id        String @id @default(uuid())
-  tokenHash String @unique // Hash del refresh token
-
-  // Token rotation (familia de tokens)
-  familyId          String // Todos los tokens rotados comparten familyId
-  previousTokenHash String? // Hash del token anterior (para detectar reuso)
-
-  // Expiración y revocación
-  expiresAt     DateTime
-  revokedAt     DateTime? // Si se revocó manualmente
-  revokedReason String? // "logout", "token_reuse_detected", "security"
-
-  // información del dispositivo
-  userAgent String?
-  ipAddress String?
-  deviceId  String? // Identificador único del dispositivo
-
-  // Timestamps
-  createdAt  DateTime @default(now())
-  lastUsedAt DateTime @default(now())
-
-  // Relaciones
-  userId String? // Temporal nullable para migración
-  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Relación legacy (temporal)
-  clientId String?
-  client   Client? @relation("ClientRefreshTokens", fields: [clientId], references: [id], onDelete: Cascade)
+  id                String    @id @default(uuid())
+  tokenHash         String    @unique
+  familyId          String
+  previousTokenHash String?
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  revokedReason     String?
+  userAgent         String?
+  ipAddress         String?
+  deviceId          String?
+  createdAt         DateTime  @default(now())
+  lastUsedAt        DateTime  @default(now())
+  clientId          String?
+  userId            String?
+  client            Client?   @relation("ClientRefreshTokens", fields: [clientId], references: [id], onDelete: Cascade)
+  user              User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([clientId])
@@ -228,54 +158,34 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-// ============================================
-// WORKFLOWS 
-// ============================================
-
 model Workflow {
-  id          String  @id @default(uuid())
-  name        String
-  description String?
-
-  // Configuración del workflow
-  config  Json // Tipo "n8n" o "custom"
-  version Int  @default(1)
-
-  // Estado y scheduling
-  isActive Boolean @default(true)
-  isPaused Boolean @default(false)
-  schedule String? // Cron expression
-  timezone String? @default("UTC")
-
-  // Configuración de ejecución
-  timeout    Int @default(300) // segundos
-  maxRetries Int @default(3)
-
-  // Tipo de trigger
-  triggerType String? // "api", "schedule", "webhook", "whatsapp"
-
-  // Estadísticas
-  totalExecutions      Int       @default(0)
-  successfulExecutions Int       @default(0)
-  failedExecutions     Int       @default(0)
+  id                   String           @id @default(uuid())
+  name                 String
+  description          String?
+  config               Json
+  version              Int              @default(1)
+  isActive             Boolean          @default(true)
+  isPaused             Boolean          @default(false)
+  schedule             String?
+  timezone             String?          @default("UTC")
+  timeout              Int              @default(300)
+  maxRetries           Int              @default(3)
+  totalExecutions      Int              @default(0)
+  successfulExecutions Int              @default(0)
+  failedExecutions     Int              @default(0)
   lastExecutedAt       DateTime?
-  avgExecutionTime     Int? // segundos
-
-  // Timestamps
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime? // Soft delete
-
-  // Relaciones
-  organizationId  String? // Temporal nullable para migración
-  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  executions      Execution[]
-  tags            Tag[]
-  whatsappConfigs WhatsAppConfig[]
-
-  // Relación legacy (temporal)
-  clientId String?
-  client   Client? @relation("ClientWorkflows", fields: [clientId], references: [id], onDelete: Cascade)
+  avgExecutionTime     Int?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  deletedAt            DateTime?
+  clientId             String?
+  triggerType          String?
+  organizationId       String?
+  executions           Execution[]
+  whatsappConfigs      WhatsAppConfig[]
+  client               Client?          @relation("ClientWorkflows", fields: [clientId], references: [id], onDelete: Cascade)
+  organization         Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tags                 Tag[]            @relation("TagToWorkflow")
 
   @@index([organizationId])
   @@index([clientId])
@@ -286,56 +196,32 @@ model Workflow {
   @@map("workflows")
 }
 
-// ============================================
-// EXECUTIONS (Historial de ejecuciones)
-// ============================================
 model Execution {
-  id String @id @default(uuid())
-
-  // Estado y resultado
-  status     String    @default("pending") // "pending", "running", "completed", "failed", "cancelled", "timeout"
-  startedAt  DateTime  @default(now())
-  finishedAt DateTime?
-  duration   Int? // segundos
-
-  // Resultado y errores
-  result     Json?
-  error      String?
-  errorStack String?
-
-  // Trigger información
-  trigger     String @default("manual") // "manual", "webhook", "schedule", "api", "whatsapp"
-  triggerData Json? // IP, payload, etc.
-
-  // Logs y debugging
-  logs        String?
-  stepResults Json?
-
-  // Costos
-  cost    Float? @default(0)
-  credits Int?   @default(0)
-
-  // Reintentos
-  retryCount Int @default(0)
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Tracking de quién ejecutó (para analytics)
-  apiKeyId String? // Si fue ejecutado por API key
-  apiKey   ApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
-
-  userId String? // Si fue ejecución manual desde dashboard
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  // Multi-tenant: todas las ejecuciones pertenecen a una organización
+  id             String       @id @default(uuid())
+  status         String       @default("pending")
+  startedAt      DateTime     @default(now())
+  finishedAt     DateTime?
+  duration       Int?
+  result         Json?
+  error          String?
+  errorStack     String?
+  trigger        String       @default("manual")
+  triggerData    Json?
+  logs           String?
+  stepResults    Json?
+  cost           Float?       @default(0)
+  credits        Int?         @default(0)
+  retryCount     Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  workflowId     String
+  apiKeyId       String?
+  userId         String?
   organizationId String
+  apiKey         ApiKey?      @relation(fields: [apiKeyId], references: [id])
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  // Relación con workflow
-  workflowId String
-  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id])
+  workflow       Workflow     @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
   @@index([workflowId])
   @@index([organizationId])
@@ -347,64 +233,40 @@ model Execution {
   @@map("executions")
 }
 
-// ============================================
-// TAGS (Organización de workflows)
-// ============================================
 model Tag {
   id        String     @id @default(uuid())
   name      String     @unique
-  color     String? // Hex color para UI
   createdAt DateTime   @default(now())
-  workflows Workflow[]
+  color     String?
+  workflows Workflow[] @relation("TagToWorkflow")
 
   @@map("tags")
 }
 
-// ============================================
-// WHATSAPP CONFIG (Integración WhatsApp)
-// ============================================
 model WhatsAppConfig {
-  id String @id @default(uuid())
-
-  // Información del número
-  phoneNumber String  @unique // "+521234567890"
-  displayName String?
-  description String?
-
-  // Configuración del proveedor
-  provider    String // "twilio", "baileys", "whatsapp-business-api"
-  credentials Json // Encriptado: { apiKey, accountSid, authToken, etc }
-
-  // Webhook security
-  webhookSecret String  @default(uuid())
-  webhookUrl    String? // URL donde WhatsApp enviará mensajes
-
-  // Baileys específico
-  qrCode           String? // QR code en base64 (temporal)
-  qrCodeExpiry     DateTime?
-  connectionStatus String    @default("disconnected") // "connected", "disconnected", "scanning", "connecting"
-  lastConnectedAt  DateTime?
-  sessionData      Json? // Credenciales de Baileys (encriptadas)
-
-  // Estado
-  isActive Boolean @default(true)
-
-  // Workflow por defecto
+  id                String        @id @default(uuid())
+  phoneNumber       String        @unique
+  displayName       String?
+  description       String?
+  provider          String
+  credentials       Json
+  webhookSecret     String        @default(uuid())
+  webhookUrl        String?
+  qrCode            String?
+  qrCodeExpiry      DateTime?
+  connectionStatus  String        @default("disconnected")
+  lastConnectedAt   DateTime?
+  sessionData       Json?
+  isActive          Boolean       @default(true)
   defaultWorkflowId String?
-  defaultWorkflow   Workflow? @relation(fields: [defaultWorkflowId], references: [id])
-
-  // Timestamps
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  // Relaciones
-  organizationId String? // Temporal nullable para migración
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  // Relación legacy (temporal)
-  clientId String?
-  client   Client? @relation("ClientWhatsAppConfigs", fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
+  clientId          String?
+  organizationId    String?
+  client            Client?       @relation("ClientWhatsAppConfigs", fields: [clientId], references: [id], onDelete: Cascade)
+  defaultWorkflow   Workflow?     @relation(fields: [defaultWorkflowId], references: [id])
+  organization      Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([phoneNumber])
   @@index([connectionStatus])
@@ -414,44 +276,27 @@ model WhatsAppConfig {
   @@map("whatsapp_configs")
 }
 
-// ============================================
-// AUDIT LOGS (Solo para Super Admins)
-// ============================================
 model AuditLog {
-  id String @id @default(uuid())
-
-  // Quién realizó la acción
-  superAdminId    String // ID del super admin (de config, no FK)
+  id              String        @id @default(uuid())
+  superAdminId    String
   superAdminEmail String
   superAdminName  String
-
-  // Qué acción realizó
-  action     String // "view_organization", "change_plan", "impersonate_user", etc.
-  resource   String // "Organization", "User", "Workflow", etc.
-  resourceId String? // ID del recurso afectado
-  method     String // "GET", "POST", "PATCH", "DELETE"
-  endpoint   String // "/admin/organizations/:id"
-
-  // Detalles de la acción
-  changes  Json? // { before: {...}, after: {...} }
-  metadata Json? // Información adicional relevante
-
-  // Seguridad
-  ipAddress String
-  userAgent String?
-
-  // Resultado
-  statusCode   Int // 200, 404, 500, etc.
-  success      Boolean @default(true)
-  errorMessage String? // Si hubo error
-
-  // Timing
-  duration  Int? // Milisegundos que tardó la operación
-  timestamp DateTime @default(now())
-
-  // Organización afectada (si aplica)
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  action          String
+  resource        String
+  resourceId      String?
+  method          String
+  endpoint        String
+  changes         Json?
+  metadata        Json?
+  ipAddress       String
+  userAgent       String?
+  statusCode      Int
+  success         Boolean       @default(true)
+  errorMessage    String?
+  duration        Int?
+  timestamp       DateTime      @default(now())
+  organizationId  String?
+  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([superAdminEmail])
   @@index([action])

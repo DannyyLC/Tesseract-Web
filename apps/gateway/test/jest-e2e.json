@@ -4,6 +4,12 @@
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
-  }
+    "^.+\\.ts$": "ts-jest"
+  },
+  "transformIgnorePatterns": [
+    "node_modules/(?!(@workflow-platform)/)"
+  ],
+  "detectOpenHandles": true,
+  "forceExit": true,
+  "maxWorkers": 1
 }

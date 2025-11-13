@@ -1,26 +1,6 @@
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-
-/**
- * 🔒 CONFIGURACIÓN DE SUPER ADMINISTRADORES
- * 
- * ⚠️ MÁXIMA SEGURIDAD - Este archivo define quiénes pueden acceder al sistema completo
- * 
- * Los super admins se definen en variables de entorno, NO en base de datos.
- * Esto previene:
- * - Escalación de privilegios vía SQL injection
- * - Modificación no autorizada de permisos
- * - Acceso a super admin si la BD es comprometida
- * 
- * Seguridad implementada:
- * 1. ✅ Credenciales en .env (nunca en código)
- * 2. ✅ Passwords hasheados con bcrypt
- * 3. ✅ Secret key especial para JWT
- * 4. ✅ Rate limiting estricto (3 intentos/hora)
- * 5. ✅ IP whitelist opcional
- * 6. ✅ Logging exhaustivo de TODAS las acciones
- * 7. ✅ 2FA obligatorio (futuro)
- */
 
 export interface SuperAdmin {
   id: string;
@@ -52,6 +32,7 @@ export interface SuperAdmin {
  * Para generar el password hash:
  * node -e "console.log(require('bcrypt').hashSync('your-password', 10))"
  */
+@Injectable()
 export class SuperAdminsConfig {
   private readonly superAdmins: Map<string, SuperAdmin> = new Map();
   private readonly jwtSecret: string;
@@ -70,13 +51,13 @@ export class SuperAdminsConfig {
     
     if (!secret) {
       throw new Error(
-        '❌ SUPER_ADMIN_SECRET no está definido en .env\n' +
+        'SUPER_ADMIN_SECRET no está definido en .env\n' +
         'Genera uno con: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"'
       );
     }
 
     if (secret.length < 32) {
-      throw new Error('❌ SUPER_ADMIN_SECRET debe tener al menos 32 caracteres');
+      throw new Error('SUPER_ADMIN_SECRET debe tener al menos 32 caracteres');
     }
 
     return secret;
@@ -100,7 +81,7 @@ export class SuperAdminsConfig {
       // Si no hay ID, asumimos que no existe más super admins
       if (!id) {
         if (i === 1) {
-          console.warn('⚠️  No hay super admins configurados en .env');
+          console.warn('No hay super admins configurados en .env');
         }
         break;
       }
@@ -108,20 +89,20 @@ export class SuperAdminsConfig {
       // Validar que todos los campos requeridos estén presentes
       if (!email || !passwordHash || !name) {
         throw new Error(
-          `❌ Configuración incompleta para ${prefix}\n` +
+          `Configuración incompleta para ${prefix}\n` +
           `Requerido: ${prefix}_EMAIL, ${prefix}_PASSWORD_HASH, ${prefix}_NAME`
         );
       }
 
       // Validar formato de email
       if (!this.isValidEmail(email)) {
-        throw new Error(`❌ Email inválido para ${prefix}: ${email}`);
+        throw new Error(`Email inválido para ${prefix}: ${email}`);
       }
 
       // Validar que sea un hash de bcrypt
       if (!this.isBcryptHash(passwordHash)) {
         throw new Error(
-          `❌ ${prefix}_PASSWORD_HASH no parece ser un hash de bcrypt\n` +
+          `${prefix}_PASSWORD_HASH no parece ser un hash de bcrypt\n` +
           `Genera uno con: node -e "console.log(require('bcrypt').hashSync('your-password', 10))"`
         );
       }
@@ -138,7 +119,7 @@ export class SuperAdminsConfig {
         allowedIPs,
       });
 
-      console.log(`✅ Super Admin cargado: ${email} (ID: ${id})`);
+      console.log(`Super Admin cargado: ${email} (ID: ${id})`);
     }
   }
 
@@ -148,16 +129,16 @@ export class SuperAdminsConfig {
   private validateConfig(): void {
     if (this.superAdmins.size === 0) {
       console.warn(
-        '\n⚠️  ============================================\n' +
-        '⚠️  NO HAY SUPER ADMINS CONFIGURADOS\n' +
-        '⚠️  Los endpoints de /admin no estarán disponibles\n' +
-        '⚠️  ============================================\n'
+        '\n============================================\n' +
+        'NO HAY SUPER ADMINS CONFIGURADOS\n' +
+        'Los endpoints de /admin no estarán disponibles\n' +
+        '============================================\n'
       );
     } else {
       console.log(
-        `\n✅ Sistema de Super Admins inicializado\n` +
-        `   Super Admins configurados: ${this.superAdmins.size}\n` +
-        `   JWT Secret: ✅ Configurado\n`
+        `\nSistema de Super Admins inicializado\n` +
+        `Super Admins configurados: ${this.superAdmins.size}\n` +
+        `JWT Secret: Configurado\n`
       );
     }
   }

@@ -43,9 +43,22 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const superAdminsConfig = new SuperAdminsConfig(configService);
+        // Obtener el secret directamente del ConfigService
+        const secret = configService.get<string>('SUPER_ADMIN_SECRET');
+        
+        if (!secret) {
+          throw new Error(
+            '❌ SUPER_ADMIN_SECRET no está definido en .env\n' +
+            'Genera uno con: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"'
+          );
+        }
+
+        if (secret.length < 32) {
+          throw new Error('❌ SUPER_ADMIN_SECRET debe tener al menos 32 caracteres');
+        }
+
         return {
-          secret: superAdminsConfig.getJwtSecret(),
+          secret: secret,
           signOptions: {
             expiresIn: '30m', // Sesión corta para seguridad
           },
@@ -55,9 +68,9 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
   ],
   controllers: [AdminController],
   providers: [
+    SuperAdminsConfig,
     AdminService,
     AuditService,
-    SuperAdminsConfig,
     SuperAdminGuard,
   ],
   exports: [

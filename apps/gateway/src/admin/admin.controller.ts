@@ -158,6 +158,21 @@ export class AdminController {
   // ============================================
 
   /**
+   * Crea una nueva organización
+   */
+  @Post('organizations')
+  async createOrganization(
+    @CurrentSuperAdmin() superAdmin: any,
+    @Body() body: {
+      name: string;
+      slug: string;
+      plan?: 'free' | 'pro' | 'enterprise';
+    },
+  ) {
+    return this.adminService.createOrganization(body);
+  }
+
+  /**
    * Lista TODAS las organizaciones del sistema
    * 
    * @query page - Página (default: 1)
@@ -251,6 +266,23 @@ export class AdminController {
   // ============================================
   // USERS
   // ============================================
+
+  /**
+   * Crea un usuario en una organización
+   */
+  @Post('organizations/:organizationId/users')
+  async createUser(
+    @CurrentSuperAdmin() superAdmin: any,
+    @Param('organizationId') organizationId: string,
+    @Body() body: {
+      email: string;
+      name: string;
+      password: string;
+      role: 'owner' | 'admin' | 'viewer';
+    },
+  ) {
+    return this.adminService.createUser(organizationId, body);
+  }
 
   /**
    * Lista TODOS los usuarios de una organización
