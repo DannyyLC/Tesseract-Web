@@ -301,7 +301,7 @@ export class ExecutionsService {
     status?: string,
     workflowId?: string,
   ) {
-    const where: Prisma.ExecutionWhereInput = {
+    const where: any = {
       workflow: {
         organizationId,
         deletedAt: null,
@@ -390,7 +390,7 @@ export class ExecutionsService {
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     }
 
-    const where: Prisma.ExecutionWhereInput = {
+    const where: any = {
       workflow: {
         organizationId,
         deletedAt: null,
@@ -418,17 +418,17 @@ export class ExecutionsService {
 
     // Calcular estadísticas
     const total = executions.length;
-    const successful = executions.filter((e) => e.status === 'completed').length;
-    const failed = executions.filter((e) => e.status === 'failed').length;
-    const cancelled = executions.filter((e) => e.status === 'cancelled').length;
-    const timeout = executions.filter((e) => e.status === 'timeout').length;
+    const successful = executions.filter((e: any) => e.status === 'completed').length;
+    const failed = executions.filter((e: any) => e.status === 'failed').length;
+    const cancelled = executions.filter((e: any) => e.status === 'cancelled').length;
+    const timeout = executions.filter((e: any) => e.status === 'timeout').length;
 
     const successRate = total > 0 ? (successful / total) * 100 : 0;
 
     // Calcular duración total y promedio
-    const completedExecutions = executions.filter((e) => e.duration !== null);
+    const completedExecutions = executions.filter((e: any) => e.duration !== null);
     const totalDuration = completedExecutions.reduce(
-      (sum, e) => sum + (e.duration || 0),
+      (sum: any, e: any) => sum + (e.duration || 0),
       0,
     );
     const avgDuration =
@@ -442,13 +442,13 @@ export class ExecutionsService {
       failed,
       cancelled,
       timeout,
-      pending: executions.filter((e) => e.status === 'pending').length,
-      running: executions.filter((e) => e.status === 'running').length,
+      pending: executions.filter((e: any) => e.status === 'pending').length,
+      running: executions.filter((e: any) => e.status === 'running').length,
     };
 
     // Agrupar por trigger
     const byTrigger: Record<string, number> = {};
-    executions.forEach((e) => {
+    executions.forEach((e: any) => {
       byTrigger[e.trigger] = (byTrigger[e.trigger] || 0) + 1;
     });
 
@@ -458,7 +458,7 @@ export class ExecutionsService {
       { name: string; total: number; successful: number }
     >();
 
-    executions.forEach((e) => {
+    executions.forEach((e: any) => {
       const existing = workflowStats.get(e.workflowId) || {
         name: e.workflow.name,
         total: 0,
@@ -567,7 +567,7 @@ export class ExecutionsService {
         startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     }
 
-    const where: Prisma.ExecutionWhereInput = {
+    const where: any = {
       workflowId,
       ...(startDate && { startedAt: { gte: startDate } }),
     };
@@ -624,7 +624,7 @@ export class ExecutionsService {
       }
     >();
 
-    executions.forEach((e) => {
+    executions.forEach((e: any) => {
       if (e.apiKeyId && e.apiKey) {
         const existing = byApiKey.get(e.apiKeyId) || {
           name: e.apiKey.name,
