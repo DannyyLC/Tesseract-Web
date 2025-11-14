@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">15.21% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/92</span>
+                <span class='fraction'>14/92</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">10% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/10</span>
+                <span class='fraction'>1/10</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">13.48% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/89</span>
+                <span class='fraction'>12/89</span>
             </div>
         
             
@@ -338,7 +338,7 @@
 <a name='L273'></a><a href='#L273'>273</a>
 <a name='L274'></a><a href='#L274'>274</a>
 <a name='L275'></a><a href='#L275'>275</a>
-<a name='L276'></a><a href='#L276'>276</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L276'></a><a href='#L276'>276</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -348,12 +348,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -385,17 +385,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -613,7 +613,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import {</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import {
   Injectable,
   CanActivate,
   ExecutionContext,
@@ -623,12 +623,12 @@
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-<span class="cstat-no" title="statement not covered" >import { Reflector } from '@nestjs/core';</span>
-<span class="cstat-no" title="statement not covered" >import { JwtService } from '@nestjs/jwt';</span>
-<span class="cstat-no" title="statement not covered" >import { SuperAdminsConfig } from '../config/super-admins.config';</span>
+import { Reflector } from '@nestjs/core';
+import { JwtService } from '@nestjs/jwt';
+import { SuperAdminsConfig } from '../config/super-admins.config';
 import { Request } from 'express';
 import { RequestWithSuperAdmin } from '../interfaces/request-with-super-admin.interface';
-<span class="cstat-no" title="statement not covered" >import { IS_PUBLIC_KEY } from '../decorators/public.decorator';</span>
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 &nbsp;
 /**
  * 🔒 SUPER ADMIN GUARD
@@ -660,17 +660,17 @@ interface SuperAdminPayload {
 }
 &nbsp;
 @Injectable()
-export class <span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" >SuperAdminGuard<span class="cstat-no" title="statement not covered" > </span>implements CanActivate {</span></span>
-  private readonly logger = <span class="cstat-no" title="statement not covered" >new Logger(SuperAdminGuard.name);</span>
-  private readonly rateLimitMap = <span class="cstat-no" title="statement not covered" >new Map&lt;string, { count: number; resetTime: number }&gt;();</span>
+export class SuperAdminGuard implements CanActivate {
+  private readonly logger = new Logger(SuperAdminGuard.name);
+  private readonly rateLimitMap = new Map&lt;string, { count: number; resetTime: number }&gt;();
 &nbsp;
-<span class="fstat-no" title="function not covered" >  constructor(</span>
-    private readonly <span class="cstat-no" title="statement not covered" >reflector: R</span>eflector,
-    private readonly <span class="cstat-no" title="statement not covered" >jwtService: J</span>wtService,
-    private readonly <span class="cstat-no" title="statement not covered" >superAdminsConfig: S</span>uperAdminsConfig,
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly jwtService: JwtService,
+    private readonly superAdminsConfig: SuperAdminsConfig,
   ) {
     // Limpiar rate limit cada hora
-<span class="cstat-no" title="statement not covered" >    setInterval(<span class="fstat-no" title="function not covered" >() =</span>&gt; <span class="cstat-no" title="statement not covered" >this.cleanupRateLimit(),</span> 60 * 60 * 1000);</span>
+    setInterval(<span class="fstat-no" title="function not covered" >() =</span>&gt; <span class="cstat-no" title="statement not covered" >this.cleanupRateLimit(),</span> 60 * 60 * 1000);
   }
 &nbsp;
 <span class="fstat-no" title="function not covered" >  async </span>canActivate(context: ExecutionContext): Promise&lt;boolean&gt; {
@@ -895,7 +895,7 @@ export class <span class="cstat-no" title="statement not covered" ><span class="
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-14T04:05:13.035Z
+                at 2025-11-14T06:11:25.236Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
