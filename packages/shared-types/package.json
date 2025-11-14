@@ -1,0 +1,22 @@
+{
+  "name": "@workflow-automation/shared-types",
+  "version": "1.0.0",
+  "description": "Shared types, enums, and utilities for Workflow Automation",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "types",
+    "shared",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
