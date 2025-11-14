@@ -13,6 +13,14 @@ describe('N8nService', () => {
   let service: N8nService;
   let httpService: jest.Mocked<HttpService>;
 
+  // Helper function to create real AxiosError instances
+  const createAxiosError = (code: string, message: string, response?: any): AxiosError => {
+    const error = new AxiosError(message);
+    error.code = code;
+    error.response = response;
+    return error;
+  };
+
   // Silenciar logs durante los tests
   beforeAll(() => {
     jest.spyOn(Logger.prototype, 'log').mockImplementation();
@@ -204,11 +212,7 @@ describe('N8nService', () => {
 
     it('debería lanzar N8nWebhookTimeoutException en timeout', async () => {
       // Arrange
-      const timeoutError = {
-        code: 'ECONNABORTED',
-        message: 'timeout of 30000ms exceeded',
-        isAxiosError: true,
-      } as AxiosError;
+      const timeoutError = createAxiosError('ECONNABORTED', 'timeout of 30000ms exceeded');
       httpService.post.mockReturnValue(throwError(() => timeoutError));
 
       // Act & Assert
@@ -219,11 +223,7 @@ describe('N8nService', () => {
 
     it('debería lanzar N8nWebhookErrorException en error de conexión', async () => {
       // Arrange
-      const connError = {
-        code: 'ECONNREFUSED',
-        message: 'Connection refused',
-        isAxiosError: true,
-      } as AxiosError;
+      const connError = createAxiosError('ECONNREFUSED', 'Connection refused');
       httpService.post.mockReturnValue(throwError(() => connError));
 
       // Act & Assert
@@ -234,14 +234,15 @@ describe('N8nService', () => {
 
     it('debería lanzar N8nWebhookErrorException en error HTTP 4xx', async () => {
       // Arrange
-      const httpError = {
-        isAxiosError: true,
-        response: {
+      const httpError = createAxiosError(
+        '',
+        'Request failed with status code 404',
+        {
           status: 404,
           statusText: 'Not Found',
           data: { error: 'Webhook not found' },
-        },
-      } as AxiosError;
+        }
+      );
       httpService.post.mockReturnValue(throwError(() => httpError));
 
       // Act & Assert
@@ -252,14 +253,15 @@ describe('N8nService', () => {
 
     it('debería lanzar N8nWebhookErrorException en error HTTP 5xx', async () => {
       // Arrange
-      const serverError = {
-        isAxiosError: true,
-        response: {
+      const serverError = createAxiosError(
+        '',
+        'Request failed with status code 500',
+        {
           status: 500,
           statusText: 'Internal Server Error',
           data: { error: 'Server error' },
-        },
-      } as AxiosError;
+        }
+      );
       httpService.post.mockReturnValue(throwError(() => serverError));
 
       // Act & Assert
@@ -280,10 +282,11 @@ describe('N8nService', () => {
         maxRetries: 2,
         retryDelay: 100,
       };
-      const error = {
-        isAxiosError: true,
-        response: { status: 500, statusText: 'Server Error', data: {} },
-      } as AxiosError;
+      const error = createAxiosError(
+        '',
+        'Request failed',
+        { status: 500, statusText: 'Server Error', data: {} }
+      );
 
       httpService.post
         .mockReturnValueOnce(throwError(() => error))
@@ -305,10 +308,11 @@ describe('N8nService', () => {
         retryOnFail: false,
         maxRetries: 2,
       };
-      const error = {
-        isAxiosError: true,
-        response: { status: 500, statusText: 'Server Error', data: {} },
-      } as AxiosError;
+      const error = createAxiosError(
+        '',
+        'Request failed',
+        { status: 500, statusText: 'Server Error', data: {} }
+      );
       httpService.post.mockReturnValue(throwError(() => error));
 
       // Act & Assert
@@ -325,11 +329,7 @@ describe('N8nService', () => {
         retryOnFail: true,
         maxRetries: 2,
       };
-      const timeoutError = {
-        code: 'ECONNABORTED',
-        message: 'timeout',
-        isAxiosError: true,
-      } as AxiosError;
+      const timeoutError = createAxiosError('ECONNABORTED', 'timeout');
       httpService.post.mockReturnValue(throwError(() => timeoutError));
 
       // Act & Assert

@@ -67,7 +67,7 @@ describe('AuthController', () => {
     cookies: {
       refreshToken: mockRefreshToken,
     },
-  } as Request;
+  } as unknown as Request;
 
   beforeEach(async () => {
     const mockAuthService = {
@@ -207,7 +207,7 @@ describe('AuthController', () => {
 
     it('debería lanzar error si no hay refreshToken en las cookies', async () => {
       // Arrange
-      const requestWithoutCookie = { cookies: {} } as Request;
+      const requestWithoutCookie = { cookies: {} } as unknown as Request;
 
       // Act & Assert
       await expect(controller.refresh(requestWithoutCookie, mockResponse)).rejects.toThrow(
@@ -218,7 +218,7 @@ describe('AuthController', () => {
 
     it('debería lanzar error si cookies es undefined', async () => {
       // Arrange
-      const requestWithoutCookies = {} as Request;
+      const requestWithoutCookies = {} as unknown as Request;
 
       // Act & Assert
       await expect(controller.refresh(requestWithoutCookies, mockResponse)).rejects.toThrow(
@@ -277,7 +277,7 @@ describe('AuthController', () => {
 
     it('debería limpiar cookies incluso si no hay refreshToken', async () => {
       // Arrange
-      const requestWithoutCookie = { cookies: {} } as Request;
+      const requestWithoutCookie = { cookies: {} } as unknown as Request;
 
       // Act
       const result = await controller.logout(requestWithoutCookie, mockResponse);
@@ -290,7 +290,7 @@ describe('AuthController', () => {
 
     it('debería limpiar cookies incluso si cookies es undefined', async () => {
       // Arrange
-      const requestWithoutCookies = {} as Request;
+      const requestWithoutCookies = {} as unknown as Request;
 
       // Act
       const result = await controller.logout(requestWithoutCookies, mockResponse);

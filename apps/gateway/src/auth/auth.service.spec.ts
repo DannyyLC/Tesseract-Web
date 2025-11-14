@@ -162,7 +162,7 @@ describe('AuthService', () => {
       // Arrange
       prismaService.user.findUnique.mockResolvedValue(null);
       prismaService.organization.findUnique.mockResolvedValue(null);
-      prismaService.$transaction.mockImplementation(async (callback) => {
+      prismaService.$transaction.mockImplementation(async (callback: any) => {
         return callback({
           organization: { create: jest.fn().mockResolvedValue(mockOrganization) },
           user: { create: jest.fn().mockResolvedValue(mockUser) },
@@ -206,7 +206,7 @@ describe('AuthService', () => {
         .mockResolvedValueOnce(mockOrganization) // Segunda vez: slug-1 ya existe
         .mockResolvedValueOnce(null); // Tercera vez: slug-2 está disponible
 
-      prismaService.$transaction.mockImplementation(async (callback) => {
+      prismaService.$transaction.mockImplementation(async (callback: any) => {
         return callback({
           organization: { create: jest.fn().mockResolvedValue(mockOrganization) },
           user: { create: jest.fn().mockResolvedValue(mockUser) },
@@ -229,7 +229,7 @@ describe('AuthService', () => {
       const bcryptHashSpy = jest.spyOn(bcrypt, 'hash');
       prismaService.user.findUnique.mockResolvedValue(null);
       prismaService.organization.findUnique.mockResolvedValue(null);
-      prismaService.$transaction.mockImplementation(async (callback) => {
+      prismaService.$transaction.mockImplementation(async (callback: any) => {
         return callback({
           organization: { create: jest.fn().mockResolvedValue(mockOrganization) },
           user: { create: jest.fn().mockResolvedValue(mockUser) },
