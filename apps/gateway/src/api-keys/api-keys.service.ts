@@ -91,7 +91,7 @@ export class  ApiKeysService {
         });
 
         // Mapear para NO exponer el hash ni el API Key completo
-        return keys.map(key => ({
+        return keys.map((key: any) => ({
             id: key.id,
             name: key.name,
             description: key.description,
