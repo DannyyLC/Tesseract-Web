@@ -8,8 +8,17 @@ import {
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
 import { PlanType } from '@workflow-automation/shared-types';
+
+// Create mock functions first
+const mockHash = jest.fn();
+const mockCompare = jest.fn();
+
+// Then mock bcrypt module
+jest.mock('bcrypt', () => ({
+  hash: (...args: any[]) => mockHash(...args),
+  compare: (...args: any[]) => mockCompare(...args),
+}));
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -98,7 +107,13 @@ describe('AuthService', () => {
   };
 
   beforeEach(async () => {
-    // Crear mocks
+    // Reset and configure bcrypt mocks
+    mockHash.mockReset();
+    mockCompare.mockReset();
+    mockHash.mockResolvedValue(mockHashedPassword);
+    mockCompare.mockResolvedValue(true);
+
+    // Crear mocks de todos los servicios
     const mockPrismaService = {
       user: {
         findUnique: jest.fn(),
@@ -226,7 +241,6 @@ describe('AuthService', () => {
 
     it('debería hashear la contraseña con bcrypt', async () => {
       // Arrange
-      const bcryptHashSpy = jest.spyOn(bcrypt, 'hash');
       prismaService.user.findUnique.mockResolvedValue(null);
       prismaService.organization.findUnique.mockResolvedValue(null);
       prismaService.$transaction.mockImplementation(async (callback: any) => {
@@ -243,7 +257,7 @@ describe('AuthService', () => {
       await service.register(registerDto);
 
       // Assert
-      expect(bcryptHashSpy).toHaveBeenCalledWith(mockPassword, 10);
+      expect(mockHash).toHaveBeenCalledWith(mockPassword, 10);
     });
   });
 
@@ -261,7 +275,7 @@ describe('AuthService', () => {
       // Arrange
       const userWithOrg = { ...mockUser, organization: mockOrganization };
       prismaService.user.findUnique.mockResolvedValue(userWithOrg);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      mockCompare.mockResolvedValue(true);
       jwtService.sign.mockReturnValueOnce(mockAccessToken).mockReturnValueOnce(mockRefreshToken);
       configService.get.mockReturnValue('7d');
       prismaService.refreshToken.create.mockResolvedValue(mockRefreshTokenRecord);
@@ -294,7 +308,7 @@ describe('AuthService', () => {
       // Arrange
       const userWithOrg = { ...mockUser, organization: mockOrganization };
       prismaService.user.findUnique.mockResolvedValue(userWithOrg);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
+      mockCompare.mockResolvedValue(false);
 
       // Act & Assert
       await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
@@ -310,7 +324,7 @@ describe('AuthService', () => {
       // Arrange
       const userWithOrg = { ...mockUser, organization: mockOrganization };
       prismaService.user.findUnique.mockResolvedValue(userWithOrg);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      mockCompare.mockResolvedValue(true);
 
       // Act
       const result = await service.validateUser(mockEmail, mockPassword);
@@ -347,7 +361,7 @@ describe('AuthService', () => {
       // Arrange
       const userWithOrg = { ...mockUser, organization: mockOrganization };
       prismaService.user.findUnique.mockResolvedValue(userWithOrg);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
+      mockCompare.mockResolvedValue(false);
 
       // Act & Assert
       await expect(service.validateUser(mockEmail, mockPassword)).rejects.toThrow(
@@ -359,7 +373,7 @@ describe('AuthService', () => {
       // Arrange
       const inactiveUser = { ...mockUser, isActive: false, organization: mockOrganization };
       prismaService.user.findUnique.mockResolvedValue(inactiveUser);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      mockCompare.mockResolvedValue(true);
 
       // Act & Assert
       await expect(service.validateUser(mockEmail, mockPassword)).rejects.toThrow(
@@ -371,7 +385,7 @@ describe('AuthService', () => {
       // Arrange
       const deletedUser = { ...mockUser, deletedAt: new Date(), organization: mockOrganization };
       prismaService.user.findUnique.mockResolvedValue(deletedUser);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      mockCompare.mockResolvedValue(true);
 
       // Act & Assert
       await expect(service.validateUser(mockEmail, mockPassword)).rejects.toThrow(
@@ -384,7 +398,7 @@ describe('AuthService', () => {
       const inactiveOrg = { ...mockOrganization, isActive: false };
       const userWithInactiveOrg = { ...mockUser, organization: inactiveOrg };
       prismaService.user.findUnique.mockResolvedValue(userWithInactiveOrg);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      mockCompare.mockResolvedValue(true);
 
       // Act & Assert
       await expect(service.validateUser(mockEmail, mockPassword)).rejects.toThrow(
@@ -471,7 +485,7 @@ describe('AuthService', () => {
       // Arrange
       jwtService.verify.mockReturnValue(mockPayload);
       prismaService.refreshToken.findMany.mockResolvedValue([mockRefreshTokenRecord]);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      mockCompare.mockResolvedValue(true);
       prismaService.refreshToken.update.mockResolvedValue(mockRefreshTokenRecord);
       jwtService.sign.mockReturnValueOnce(mockAccessToken).mockReturnValueOnce(mockRefreshToken);
       configService.get.mockReturnValue('7d');
@@ -515,7 +529,7 @@ describe('AuthService', () => {
       // Arrange
       jwtService.verify.mockReturnValue(mockPayload);
       prismaService.refreshToken.findMany.mockResolvedValue([mockRefreshTokenRecord]);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
+      mockCompare.mockResolvedValue(false);
 
       // Act & Assert
       await expect(service.refreshTokens(mockRefreshToken)).rejects.toThrow(UnauthorizedException);
@@ -541,7 +555,7 @@ describe('AuthService', () => {
       // Arrange
       jwtService.decode.mockReturnValue(mockPayload);
       prismaService.refreshToken.findMany.mockResolvedValue([mockRefreshTokenRecord]);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      mockCompare.mockResolvedValue(true);
       prismaService.refreshToken.update.mockResolvedValue(mockRefreshTokenRecord);
 
       // Act
@@ -562,7 +576,7 @@ describe('AuthService', () => {
       // Arrange
       jwtService.decode.mockReturnValue(mockPayload);
       prismaService.refreshToken.findMany.mockResolvedValue([mockRefreshTokenRecord]);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
+      mockCompare.mockResolvedValue(false);
 
       // Act
       const result = await service.logout(mockRefreshToken);
