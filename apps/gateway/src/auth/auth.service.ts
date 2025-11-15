@@ -72,7 +72,7 @@ export class AuthService {
     }
 
     // 4. Crear Organization + User Owner en una transacción
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: any) => {
       // Crear la organización
       const organization = await tx.organization.create({
         data: {

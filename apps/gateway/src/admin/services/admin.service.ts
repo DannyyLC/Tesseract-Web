@@ -531,13 +531,13 @@ export class AdminService {
     });
 
     // Ordenar por la métrica solicitada
-    const sorted = organizations.sort((a, b) => {
+    const sorted = organizations.sort((a: any, b: any) => {
       const countA = a._count[metric];
       const countB = b._count[metric];
       return countB - countA;
     });
 
-    return sorted.map(org => ({
+    return sorted.map((org: any) => ({
       id: org.id,
       name: org.name,
       slug: org.slug,

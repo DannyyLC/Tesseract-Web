@@ -239,11 +239,11 @@ export class AuditService {
         ? (successfulActions / totalActions) * 100 
         : 0,
       uniqueAdmins: uniqueAdmins.length,
-      topActions: actionsByType.map(item => ({
+      topActions: actionsByType.map((item: any) => ({
         action: item.action,
         count: item._count.action,
       })),
-      topOrganizations: actionsByOrganization.map(item => ({
+      topOrganizations: actionsByOrganization.map((item: any) => ({
         organizationId: item.organizationId,
         count: item._count.organizationId,
       })),
