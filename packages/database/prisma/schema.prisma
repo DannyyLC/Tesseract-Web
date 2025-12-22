@@ -21,6 +21,12 @@ model Organization {
   maxWorkflows        Int              @default(5)
   maxExecutionsPerDay Int              @default(100)
   maxApiKeys          Int              @default(2)
+
+  // Defaults para nuevos workflows 
+  defaultMaxMessages         Int?     // null = sin límite de mensajes
+  defaultInactivityHours     Int?     // null = sin límite temporal
+  defaultMaxTokens           Int      @default(50000)  // Obligatorio
+  defaultMaxCostPerConv      Float?   
   
   // Estado
   isActive            Boolean          @default(true)
@@ -97,7 +103,8 @@ model User {
   // Relaciones
   refreshTokens          RefreshToken[]
   executionsManual       Execution[]
-  conversations          Conversation[] 
+  conversations          Conversation[]
+  auditLogs              AuditLog[]
 
   @@index([email])
   @@index([organizationId])
@@ -169,7 +176,12 @@ model Conversation {
   // Metadata de la conversación
   title          String?   // "Consulta sobre productos", "Testing agente ventas"
   channel        String    // 'dashboard', 'whatsapp', 'web', 'api'
-  status         String    @default("active") // 'active', 'closed', 'archived'
+  status         String    @default("active") // 'active', 'inactive', 'closed'
+  
+  messageCount   Int       @default(0)        // Contador de mensajes
+  totalTokens    Int       @default(0)        // Suma de tokens usados
+  totalCost      Float     @default(0)        // Costo acumulado en USD
+  lastMessageAt  DateTime?                    // Último mensaje (para calcular inactividad)
   
   // Información adicional
   metadata       Json?     // Tags, categorías, sentimiento, etc.
@@ -189,6 +201,7 @@ model Conversation {
   @@index([status])
   @@index([channel])
   @@index([createdAt])
+  @@index([lastMessageAt])
   @@map("conversations")
 }
 
@@ -231,9 +244,30 @@ model Message {
   cost             Float?       
   latencyMs        Int?         
   
-  // Tool calls
-  toolCalls        Json?        
-  toolResults      Json?        
+  // Tool calls (cuando el asistente solicita ejecutar herramientas)
+  toolCalls        Json?
+  // Estructura de toolCalls:
+  // [
+  //   {
+  //     "id": "call_abc123",              // ID único del tool call
+  //     "type": "function",               // Tipo de llamada (siempre "function")
+  //     "function": {
+  //       "name": "get_weather",          // Nombre de la herramienta
+  //       "arguments": "{\"city\":\"NY\"}" // Argumentos en JSON string
+  //     }
+  //   }
+  // ]
+  
+  toolResults      Json?
+  // Estructura de toolResults:
+  // [
+  //   {
+  //     "tool_call_id": "call_abc123",    // ID del tool call correspondiente
+  //     "role": "tool",                   // Siempre "tool"
+  //     "name": "get_weather",            // Nombre de la herramienta ejecutada
+  //     "content": "22°C, sunny"          // Resultado de la ejecución (string o JSON)
+  //   }
+  // ]
   
   createdAt        DateTime     @default(now())
   
@@ -248,6 +282,43 @@ model Message {
 }
 
 // ============================================
+// MODEL PRICE (Precios de modelos de IA)
+// ============================================
+model ModelPrice {
+  id                   String   @id @default(uuid())
+  
+  // Identificación del modelo
+  provider             String   // "openai", "anthropic", "google"
+  modelName            String   // "gpt-4o", "claude-3-5-sonnet", etc.
+  
+  // Precios por 1000 tokens
+  inputPricePer1m      Float    // Precio por 1,000,000 tokens de entrada
+  outputPricePer1m     Float    // Precio por 1,000,000 tokens de salida
+  
+  // Ventana de contexto
+  contextWindow        Int      // Tokens máximos del modelo (ej: 128000 para GPT-4o)
+  recommendedMaxTokens Int      // Tokens recomendados para conversaciones (ej: 100000)
+  
+  // Vigencia del precio
+  effectiveFrom        DateTime @default(now())  // Desde cuándo aplica
+  effectiveTo          DateTime?                 // Hasta cuándo (null = actual)
+  
+  // Estado
+  isActive             Boolean  @default(true)
+  currency             String   @default("USD")
+  
+  // Metadata
+  notes                String?  // "Aumento de precios Q1 2025"
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([provider, modelName, effectiveFrom])
+  @@index([provider, modelName, isActive])
+  @@index([isActive, effectiveFrom])
+  @@map("model_prices")
+}
+
+// ============================================
 // TENANT TOOL (Conexiones con servicios externos)
 // ============================================
 model TenantTool {
@@ -255,7 +326,7 @@ model TenantTool {
   
   // Identificación
   toolName        String       // "hubspot", "google_calendar", "slack", etc.
-  displayName     String?      // "Mi HubSpot de Ventas"
+  displayName     String       // "Google Calendar - Ventas", "HubSpot Portal US"
   
   // Credenciales (referencia a Secret Manager)
   credentialPath  String?      // "projects/tesseract/secrets/org-123-hubspot"
@@ -280,8 +351,11 @@ model TenantTool {
   // Relación
   organizationId  String
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Workflows que usan esta tool
+  workflows       Workflow[]   @relation("WorkflowToTenantTool")
 
-  @@unique([organizationId, toolName])  // Un org, una conexión por tool
+  @@unique([organizationId, displayName])  // Un org puede tener múltiples tools del mismo tipo, pero con nombres únicos
   @@index([organizationId])
   @@index([toolName])
   @@index([isConnected])
@@ -371,11 +445,34 @@ model Workflow {
   description          String?
   
   // Configuración del agente
-  config               Json             // { system_prompt, model, temperature, etc. }
+  config               Json             
+  // Estructura esperada:
+  // {
+  //   "models": {
+  //     "default": {
+  //       "systemPrompt": "Eres un agente de ventas...",
+  //       "model": "gpt-4o",
+  //       "temperature": 0.7,
+  //       "maxTokensPerMessage": 1000,
+  //       "responseFormat": "text",
+  //       "enabledFeatures": ["vision"]
+  //     },
+  //     "classifier": {
+  //       "model": "gpt-3.5-turbo",
+  //       "temperature": 0.3,
+  //       "enabledFeatures": ["web_search"]
+  //     }
+  //   }
+  // }
   
-  // Tools habilitadas para este workflow
-  enabledTools         String[]         @default([])  // ["hubspot", "google_calendar"]
+  // Tools habilitadas para este workflow (relación con TenantTools específicas)
+  tenantTools         TenantTool[]     @relation("WorkflowToTenantTool")
   
+  maxMessages            Int?     // null = sin límite de mensajes
+  inactivityHours        Int?     // null = sin límite temporal
+  maxTokens              Int      @default(50000)  // Siempre tiene valor explícito
+  maxCostPerConversation Float?   // null = sin límite de costo
+
   // Versionado
   version              Int              @default(1)
   
@@ -386,7 +483,7 @@ model Workflow {
   // Programación
   schedule             String?          // Cron expression
   timezone             String?          @default("UTC")
-  triggerType          String?          // "api", "schedule", "webhook", "whatsapp"
+  triggerType          String[]         @default([]) // "api", "schedule", "webhook", "whatsapp"
   
   // Configuración de ejecución
   timeout              Int              @default(300)
@@ -397,7 +494,7 @@ model Workflow {
   successfulExecutions Int              @default(0)
   failedExecutions     Int              @default(0)
   lastExecutedAt       DateTime?
-  avgExecutionTime     Int?
+  avgExecutionTime     Float?
   
   // Timestamps
   createdAt            DateTime         @default(now())
@@ -560,10 +657,11 @@ model WhatsAppConfig {
 model AuditLog {
   id              String        @id @default(uuid())
   
-  // Quién hizo la acción (superadmin)
-  superAdminId    String
-  superAdminEmail String
-  superAdminName  String
+  // Quién hizo la acción (User de la organización)
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  userEmail       String
+  userName        String
   
   // Qué hizo
   action          String        // create, update, delete, login, etc.
@@ -595,7 +693,8 @@ model AuditLog {
   organizationId  String?
   organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([superAdminEmail])
+  @@index([userId])
+  @@index([userEmail])
   @@index([action])
   @@index([timestamp])
   @@index([organizationId])

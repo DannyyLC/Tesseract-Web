@@ -8,6 +8,10 @@ CREATE TABLE "organizations" (
     "maxWorkflows" INTEGER NOT NULL DEFAULT 5,
     "maxExecutionsPerDay" INTEGER NOT NULL DEFAULT 100,
     "maxApiKeys" INTEGER NOT NULL DEFAULT 2,
+    "defaultMaxMessages" INTEGER,
+    "defaultInactivityHours" INTEGER,
+    "defaultMaxTokens" INTEGER NOT NULL DEFAULT 50000,
+    "defaultMaxCostPerConv" DOUBLE PRECISION,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -74,6 +78,10 @@ CREATE TABLE "conversations" (
     "title" TEXT,
     "channel" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'active',
+    "messageCount" INTEGER NOT NULL DEFAULT 0,
+    "totalTokens" INTEGER NOT NULL DEFAULT 0,
+    "totalCost" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "lastMessageAt" TIMESTAMP(3),
     "metadata" JSONB,
     "summary" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -105,10 +113,30 @@ CREATE TABLE "messages" (
 );
 
 -- CreateTable
+CREATE TABLE "model_prices" (
+    "id" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "modelName" TEXT NOT NULL,
+    "inputPricePer1m" DOUBLE PRECISION NOT NULL,
+    "outputPricePer1m" DOUBLE PRECISION NOT NULL,
+    "contextWindow" INTEGER NOT NULL,
+    "recommendedMaxTokens" INTEGER NOT NULL,
+    "effectiveFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "effectiveTo" TIMESTAMP(3),
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "model_prices_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "tenant_tools" (
     "id" TEXT NOT NULL,
     "toolName" TEXT NOT NULL,
-    "displayName" TEXT,
+    "displayName" TEXT NOT NULL,
     "credentialPath" TEXT,
     "config" JSONB,
     "isConnected" BOOLEAN NOT NULL DEFAULT false,
@@ -168,20 +196,23 @@ CREATE TABLE "workflows" (
     "name" TEXT NOT NULL,
     "description" TEXT,
     "config" JSONB NOT NULL,
-    "enabledTools" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "maxMessages" INTEGER,
+    "inactivityHours" INTEGER,
+    "maxTokens" INTEGER NOT NULL DEFAULT 50000,
+    "maxCostPerConversation" DOUBLE PRECISION,
     "version" INTEGER NOT NULL DEFAULT 1,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "isPaused" BOOLEAN NOT NULL DEFAULT false,
     "schedule" TEXT,
     "timezone" TEXT DEFAULT 'UTC',
-    "triggerType" TEXT,
+    "triggerType" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "timeout" INTEGER NOT NULL DEFAULT 300,
     "maxRetries" INTEGER NOT NULL DEFAULT 3,
     "totalExecutions" INTEGER NOT NULL DEFAULT 0,
     "successfulExecutions" INTEGER NOT NULL DEFAULT 0,
     "failedExecutions" INTEGER NOT NULL DEFAULT 0,
     "lastExecutedAt" TIMESTAMP(3),
-    "avgExecutionTime" INTEGER,
+    "avgExecutionTime" DOUBLE PRECISION,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
@@ -256,9 +287,9 @@ CREATE TABLE "whatsapp_configs" (
 -- CreateTable
 CREATE TABLE "audit_logs" (
     "id" TEXT NOT NULL,
-    "superAdminId" TEXT NOT NULL,
-    "superAdminEmail" TEXT NOT NULL,
-    "superAdminName" TEXT NOT NULL,
+    "userId" TEXT,
+    "userEmail" TEXT NOT NULL,
+    "userName" TEXT NOT NULL,
     "action" TEXT NOT NULL,
     "resource" TEXT NOT NULL,
     "resourceId" TEXT,
@@ -276,6 +307,12 @@ CREATE TABLE "audit_logs" (
     "organizationId" TEXT,
 
     CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "_WorkflowToTenantTool" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL
 );
 
 -- CreateTable
@@ -369,6 +406,9 @@ CREATE INDEX "conversations_channel_idx" ON "conversations"("channel");
 CREATE INDEX "conversations_createdAt_idx" ON "conversations"("createdAt");
 
 -- CreateIndex
+CREATE INDEX "conversations_lastMessageAt_idx" ON "conversations"("lastMessageAt");
+
+-- CreateIndex
 CREATE INDEX "messages_conversationId_idx" ON "messages"("conversationId");
 
 -- CreateIndex
@@ -376,6 +416,15 @@ CREATE INDEX "messages_role_idx" ON "messages"("role");
 
 -- CreateIndex
 CREATE INDEX "messages_createdAt_idx" ON "messages"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "model_prices_provider_modelName_isActive_idx" ON "model_prices"("provider", "modelName", "isActive");
+
+-- CreateIndex
+CREATE INDEX "model_prices_isActive_effectiveFrom_idx" ON "model_prices"("isActive", "effectiveFrom");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "model_prices_provider_modelName_effectiveFrom_key" ON "model_prices"("provider", "modelName", "effectiveFrom");
 
 -- CreateIndex
 CREATE INDEX "tenant_tools_organizationId_idx" ON "tenant_tools"("organizationId");
@@ -387,7 +436,7 @@ CREATE INDEX "tenant_tools_toolName_idx" ON "tenant_tools"("toolName");
 CREATE INDEX "tenant_tools_isConnected_idx" ON "tenant_tools"("isConnected");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "tenant_tools_organizationId_toolName_key" ON "tenant_tools"("organizationId", "toolName");
+CREATE UNIQUE INDEX "tenant_tools_organizationId_displayName_key" ON "tenant_tools"("organizationId", "displayName");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "api_keys_keyHash_key" ON "api_keys"("keyHash");
@@ -471,7 +520,10 @@ CREATE INDEX "whatsapp_configs_organizationId_idx" ON "whatsapp_configs"("organi
 CREATE INDEX "whatsapp_configs_deletedAt_idx" ON "whatsapp_configs"("deletedAt");
 
 -- CreateIndex
-CREATE INDEX "audit_logs_superAdminEmail_idx" ON "audit_logs"("superAdminEmail");
+CREATE INDEX "audit_logs_userId_idx" ON "audit_logs"("userId");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_userEmail_idx" ON "audit_logs"("userEmail");
 
 -- CreateIndex
 CREATE INDEX "audit_logs_action_idx" ON "audit_logs"("action");
@@ -484,6 +536,12 @@ CREATE INDEX "audit_logs_organizationId_idx" ON "audit_logs"("organizationId");
 
 -- CreateIndex
 CREATE INDEX "audit_logs_success_idx" ON "audit_logs"("success");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "_WorkflowToTenantTool_AB_unique" ON "_WorkflowToTenantTool"("A", "B");
+
+-- CreateIndex
+CREATE INDEX "_WorkflowToTenantTool_B_index" ON "_WorkflowToTenantTool"("B");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "_TagToWorkflow_AB_unique" ON "_TagToWorkflow"("A", "B");
@@ -540,7 +598,16 @@ ALTER TABLE "whatsapp_configs" ADD CONSTRAINT "whatsapp_configs_defaultWorkflowI
 ALTER TABLE "whatsapp_configs" ADD CONSTRAINT "whatsapp_configs_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_WorkflowToTenantTool" ADD CONSTRAINT "_WorkflowToTenantTool_A_fkey" FOREIGN KEY ("A") REFERENCES "tenant_tools"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_WorkflowToTenantTool" ADD CONSTRAINT "_WorkflowToTenantTool_B_fkey" FOREIGN KEY ("B") REFERENCES "workflows"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_TagToWorkflow" ADD CONSTRAINT "_TagToWorkflow_A_fkey" FOREIGN KEY ("A") REFERENCES "tags"("id") ON DELETE CASCADE ON UPDATE CASCADE;
