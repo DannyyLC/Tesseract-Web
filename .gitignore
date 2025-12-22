@@ -35,6 +35,7 @@ tmp/
 temp/
 *.tmp
 
+migrations/
 
 .nx/cache
 .nx/workspace-data
