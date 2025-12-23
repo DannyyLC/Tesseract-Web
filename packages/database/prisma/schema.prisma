@@ -319,13 +319,87 @@ model ModelPrice {
 }
 
 // ============================================
+// TOOL CATALOG (Catálogo de tools - controlado por sistema)
+// ============================================
+model ToolCatalog {
+  id              String         @id @default(uuid())
+  
+  // Identificación
+  toolName        String         @unique  // "google_calendar", "hubspot", "slack"
+  displayName     String         // "Google Calendar", "HubSpot", "Slack"
+  description     String?        // Descripción de qué hace esta tool
+  provider        String?        // "google", "microsoft", "custom"
+  
+  // Control de disponibilidad (sistema)
+  isActive        Boolean        @default(false)  // Si está lista para producción
+  isInBeta        Boolean        @default(false)  // Si está en testing/beta
+  
+  // Metadata para UI
+  icon            String?        // URL o nombre del ícono
+  category        String?        // "productivity", "crm", "communication"
+  
+  // Timestamps
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  // Relaciones
+  functions       ToolFunction[]
+  tenantTools     TenantTool[]   // Instancias de organizaciones que usan esta tool
+  
+  @@index([isActive])
+  @@index([category])
+  @@map("tool_catalog")
+}
+
+// ============================================
+// TOOL FUNCTION (Funciones de cada tool - controlado por sistema)
+// ============================================
+model ToolFunction {
+  id              String      @id @default(uuid())
+  
+  // Relación con ToolCatalog
+  toolCatalogId   String
+  toolCatalog     ToolCatalog @relation(fields: [toolCatalogId], references: [id], onDelete: Cascade)
+  
+  // Identificación de la función
+  functionName    String      // "check_availability", "create_event", "delete_event"
+  displayName     String      // "Verificar Disponibilidad", "Crear Evento"
+  description     String?     // Descripción de qué hace esta función
+  
+  // Categorización (para UI y control)
+  category        String?      @default("general")  // "read", "write", "delete"
+  
+  // Control de disponibilidad
+  isActive        Boolean     @default(false)  // Si está lista para uso
+  isInBeta        Boolean     @default(false)  // Si está en testing
+  
+  // Metadata para UI
+  icon            String?     // Ícono específico de la función
+  dangerLevel     String?     @default("safe")  // "safe", "warning", "danger"
+  
+  // Timestamps
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@unique([toolCatalogId, functionName])
+  @@index([toolCatalogId, isActive])
+  @@index([toolCatalogId, category])
+  @@index([isActive])
+  @@map("tool_functions")
+}
+
+// ============================================
 // TENANT TOOL (Conexiones con servicios externos)
 // ============================================
 model TenantTool {
   id              String       @id @default(uuid())
   
-  // Identificación
-  toolName        String       // "hubspot", "google_calendar", "slack", etc.
+  // Relación con el catálogo (NUEVO - obligatorio)
+  // Define QUÉ tool es esta instancia (google_calendar, hubspot, etc)
+  toolCatalogId   String
+  toolCatalog     ToolCatalog  @relation(fields: [toolCatalogId], references: [id], onDelete: Restrict)
+  
+  // Identificación personalizada
   displayName     String       // "Google Calendar - Ventas", "HubSpot Portal US"
   
   // Credenciales (referencia a Secret Manager)
@@ -348,16 +422,16 @@ model TenantTool {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   
-  // Relación
+  // Relación con organización
   organizationId  String
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   
   // Workflows que usan esta tool
   workflows       Workflow[]   @relation("WorkflowToTenantTool")
 
-  @@unique([organizationId, displayName])  // Un org puede tener múltiples tools del mismo tipo, pero con nombres únicos
+  @@unique([organizationId, displayName])  // Un org puede tener múltiples conexiones de la misma tool con nombres diferentes
   @@index([organizationId])
-  @@index([toolName])
+  @@index([toolCatalogId])
   @@index([isConnected])
   @@map("tenant_tools")
 }
@@ -467,6 +541,21 @@ model Workflow {
   
   // Tools habilitadas para este workflow (relación con TenantTools específicas)
   tenantTools         TenantTool[]     @relation("WorkflowToTenantTool")
+  
+  // Control granular de funciones por tool (usa ID del TenantTool como key)
+  // Define qué funciones específicas puede usar este workflow de cada TenantTool
+  // Si un TenantTool NO está en el dict, usa TODAS las funciones disponibles
+  toolPermissions     Json?
+  // Estructura (key = ID del TenantTool, NO el nombre):
+  // {
+  //   "tenant_tool_uuid_123": ["check_availability", "create_event"],
+  //   "tenant_tool_uuid_456": ["search_contacts"]
+  // }
+  // Esto permite tener múltiples conexiones del mismo tipo con permisos diferentes:
+  // {
+  //   "calendar_ventas_id": ["check_availability", "create_event"],
+  //   "calendar_marketing_id": ["check_availability", "list_events"]
+  // }
   
   maxMessages            Int?     // null = sin límite de mensajes
   inactivityHours        Int?     // null = sin límite temporal

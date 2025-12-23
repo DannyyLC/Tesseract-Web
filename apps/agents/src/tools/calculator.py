@@ -16,7 +16,6 @@ USO TÍPICO:
 - Operaciones básicas: "2 + 2", "10 * 5 / 2"
 """
 
-from typing import Any
 from langchain_core.tools import BaseTool, tool
 import logging
 import re
@@ -253,7 +252,6 @@ def currency_convert(
 # ==========================================
 # Función principal para el registry
 # ==========================================
-
 def load_calculator_tools() -> list[BaseTool]:
     """
     Retorna todas las tools de calculadora.
@@ -271,32 +269,4 @@ def load_calculator_tools() -> list[BaseTool]:
         percentage,
         currency_convert,
     ]
-
-
-# ==========================================
-# Testing
-# ==========================================
-
-if __name__ == "__main__":
-    """Prueba las tools localmente."""
     
-    print("Testing calculator tools...\n")
-    
-    # Test calculator
-    print("1. Calculator:")
-    print(f"   2 + 2 = {calculator.invoke('2 + 2')}")
-    print(f"   (10 + 5) * 2 = {calculator.invoke('(10 + 5) * 2')}")
-    print(f"   100 / 3 = {calculator.invoke('100 / 3')}")
-    print(f"   2 ** 10 = {calculator.invoke('2 ** 10')}")
-    
-    # Test percentage
-    print("\n2. Percentage:")
-    print(f"   {percentage.invoke({'value': 100, 'percent': 15})}")
-    print(f"   {percentage.invoke({'value': 2350, 'percent': 15})}")
-    
-    # Test currency
-    print("\n3. Currency Convert:")
-    print(f"   {currency_convert.invoke({'amount': 100, 'from_currency': 'USD', 'to_currency': 'MXN'})}")
-    print(f"   {currency_convert.invoke({'amount': 1000, 'from_currency': 'MXN', 'to_currency': 'USD'})}")
-    
-    print("\n✅ All tools working!")

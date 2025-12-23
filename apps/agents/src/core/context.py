@@ -96,13 +96,34 @@ class TenantContext:
     # Credenciales y configuraciones de tools
     # ==========================================
     # Credenciales para cada tool (del Secret Manager vía Gateway)
-    # Ejemplo: {"hubspot": {"api_key": "xxx"}, "google_calendar": {"token": "yyy"}}
+    # Key = toolName del catálogo (NO el ID del TenantTool)
+    # Ejemplo: {"google_calendar": {"token": "yyy"}, "hubspot": {"api_key": "xxx"}}
+    # Si hay múltiples conexiones del mismo tipo, Gateway debe manejar el merge de credenciales
     credentials: dict[str, Any] = field(default_factory=dict)
     
     # Configuración específica de cada tool para este tenant
-    # Viene de: TenantTools.config
-    # Ejemplo: {"hubspot": {"portal_id": "123", "pipeline": "ventas"}}
+    # Viene de: TenantTools.config (agregado de todas las conexiones del mismo tipo)
+    # Key = toolName del catálogo
+    # Ejemplo: {"google_calendar": {"calendar_id": "primary"}, "hubspot": {"portal_id": "123"}}
     tool_configs: dict[str, Any] = field(default_factory=dict)
+    
+    # Control granular de funciones (MAPEADO por Gateway)
+    # Key = toolName del catálogo (NO el ID del TenantTool)
+    # Gateway hace el mapeo desde Workflow.toolPermissions (que usa IDs) a nombres
+    # 
+    # FLUJO DEL GATEWAY:
+    # 1. Workflow.toolPermissions = {"tenant_tool_abc": ["func1"], "tenant_tool_def": ["func2"]}
+    # 2. Gateway consulta TenantTool y obtiene ToolCatalog.toolName
+    # 3. Gateway mapea a: {"google_calendar": ["func1", "func2"]} (merge si múltiples)
+    # 4. Envía a Agents en este campo
+    # 
+    # Ejemplo: {"google_calendar": ["check_availability", "create_event"]}
+    # 
+    # Lógica de restricciones:
+    # - Tool CON funciones: {"google_calendar": ["func1", "func2"]} → solo usa func1 y func2
+    # - Tool SIN entrada: {} o tool no está en dict → sin restricciones, usa TODAS las funciones
+    # - Tool con lista vacía: {"hubspot": []} → sin restricciones, usa TODAS las funciones
+    enabled_functions: dict[str, list[str]] = field(default_factory=dict)
     
     # ==========================================
     # Historial y metadata
@@ -165,6 +186,7 @@ class TenantContext:
             "model_configs": self.model_configs,
             "credentials": self.credentials,
             "tool_configs": self.tool_configs,
+            "enabled_functions": self.enabled_functions,
             "message_history": self.message_history,
             "user_metadata": self.user_metadata,
             "timezone": self.timezone,
@@ -203,13 +225,14 @@ class TenantContext:
     def is_external_user(self) -> bool:
         """True si es cliente/visitante externo (EndUser model)."""
         return self.user_type == "external"
+    
     @property
     def source(self) -> str:
         """
         Fuente del usuario (whatsapp, web_chat, api, dashboard, etc).
         Equivalente a user_metadata["source"] con fallback a channel.
         """
-        return self.user_metadata.get("source", self.channel)
+        return self.user_metadata.get("source", self.channel)    
     
     @property
     def message_count(self) -> int:
@@ -243,6 +266,51 @@ class TenantContext:
         Ejemplo: Para HubSpot retorna {"portal_id": "123", "pipeline": "ventas"}
         """
         return self.tool_configs.get(tool_name, {})
+    
+    def get_enabled_functions(self, tool_name: str) -> list[str] | None:
+        """
+        Obtiene las funciones habilitadas para una tool específica.
+        
+        Retorna:
+            list[str]: Lista de nombres de funciones habilitadas para esta tool
+            None: Sin restricciones - usar TODAS las funciones disponibles
+        
+        Lógica:
+            - Si tool_name NO está en enabled_functions → None (sin restricciones)
+            - Si tool_name está pero lista vacía → None (sin restricciones)
+            - Si tool_name está con funciones → retornar lista
+        
+        Args:
+            tool_name: Nombre de la tool ("google_calendar", "hubspot", etc)
+        
+        Returns:
+            Lista de funciones permitidas o None para usar todas
+            
+        Example:
+            # Con restricciones
+            ctx.enabled_functions = {"google_calendar": ["check_availability", "create_event"]}
+            functions = ctx.get_enabled_functions("google_calendar")
+            # → ["check_availability", "create_event"]
+            
+            # Sin restricciones (tool no en dict)
+            functions = ctx.get_enabled_functions("calculator")
+            # → None (usar todas)
+            
+            # Sin restricciones (lista vacía)
+            ctx.enabled_functions = {"hubspot": []}
+            functions = ctx.get_enabled_functions("hubspot")
+            # → None (usar todas)
+        """
+        if tool_name not in self.enabled_functions:
+            return None
+        
+        functions = self.enabled_functions[tool_name]
+        
+        # Si la lista está vacía, interpretar como "sin restricciones"
+        if not functions:
+            return None
+        
+        return functions
     
     # ==========================================
     # Métodos de acceso a configuración

@@ -302,11 +302,12 @@ def load_specific_tool(
     credentials: dict[str, Any],
     config: dict[str, Any],
     ctx: TenantContext
-) -> BaseTool | None:
+) -> list[BaseTool]:
     """
-    Inicializa una tool específica con sus credenciales.
+    Inicializa una tool específica con sus credenciales y filtra funciones permitidas.
     
     Aquí es donde se inicializan los MCP servers o wrappers de APIs.
+    Las tools retornadas se filtran según ctx.get_enabled_functions(tool_name).
     
     IMPLEMENTACIÓN (MCP):
         if tool_name == "hubspot":
@@ -319,6 +320,10 @@ def load_specific_tool(
             # Retornar las tools del MCP server
             return mcp_server.get_tools()
     
+    FILTRADO:
+        - Si ctx.get_enabled_functions() retorna None → usar todas las funciones
+        - Si retorna lista → filtrar para incluir solo esas funciones
+    
     Args:
         tool_name: Nombre de la tool ("hubspot", "google_calendar", etc)
         credentials: Credenciales descifradas del Secret Manager
@@ -326,37 +331,28 @@ def load_specific_tool(
         ctx: TenantContext (para logging y contexto)
     
     Returns:
-        BaseTool inicializada o None si no está implementada
+        Lista de BaseTool inicializadas y filtradas según permisos
         
     Example:
-        tool = load_specific_tool(
+        tools = load_specific_tool(
             "hubspot",
             {"api_key": "xxx"},
             {"portal_id": "123"},
             ctx
         )
-        # → HubSpotTool configurada y lista
+        # → [HubSpotTool1, HubSpotTool2] (filtradas)
     """
     
     # ==========================================
     # Registry de tool loaders
-    # ==========================================
-    
-    if tool_name == "hubspot":
-        return _load_hubspot_tool(credentials, config, ctx)
-    
-    elif tool_name == "google_calendar":
-        # Usar implementación real de Google Calendar
+    # ==========================================    
+    if tool_name == "google_calendar":
         from tools.google.calendar import load_google_calendar_tools
-        return load_google_calendar_tools(credentials, config)
-    
-    elif tool_name == "zendesk":
-        return _load_zendesk_tool(credentials, config, ctx)
+        tools = load_google_calendar_tools(credentials, config)
     
     elif tool_name == "calculator":
         from tools.calculator import load_calculator_tools
-        return load_calculator_tools()
-    
+        tools = load_calculator_tools()
     
     else:
         logger.warning(
@@ -364,54 +360,81 @@ def load_specific_tool(
             f"Tool loader not implemented."
         )
         return []
-
+    
+    # ==========================================
+    # Filtrar funciones según configuración
+    # ==========================================
+    return _filter_tool_functions(tools, tool_name, ctx)
 
 # ==========================================
-# Tool Loaders Específicos
+# FILTER TOOL FUNCTIONS - Filtrado de funciones
 # ==========================================
-def _load_hubspot_tool(
-    credentials: dict[str, Any],
-    config: dict[str, Any],
-    ctx: TenantContext
-) -> BaseTool | None:
-    """
-    Inicializa HubSpot tool.
-    
-    IMPLEMENTACIÓN FUTURA:
-    - Spawn MCP server de HubSpot
-    - Pasar credenciales y config
-    - Retornar tools disponibles
-    
-    IMPLEMENTACIÓN ACTUAL:
-    - Mock tool para testing
-    """
-    from langchain_core.tools import tool
-    
-    @tool
-    def search_hubspot_contacts(query: str) -> str:
-        """Busca contactos en HubSpot por nombre o email."""
-        # TODO: Implementar llamada real a HubSpot API o MCP server
-        logger.info(f"[Mock] Searching HubSpot contacts: {query}")
-        return f"Mock: Found 3 contacts matching '{query}'"
-    
-    return search_hubspot_contacts
-
-
-def _load_zendesk_tool(
-    credentials: dict[str, Any],
-    config: dict[str, Any],
+def _filter_tool_functions(
+    tools: list[BaseTool] | BaseTool,
+    tool_name: str,
     ctx: TenantContext
 ) -> list[BaseTool]:
-    """Inicializa Zendesk tools (mock)."""
-    from langchain_core.tools import tool
+    """
+    Filtra tools según las funciones habilitadas en el TenantContext.
     
-    @tool
-    def search_zendesk_tickets(query: str) -> str:
-        """Busca tickets en Zendesk."""
-        logger.info(f"[Mock] Searching Zendesk tickets: {query}")
-        return f"Mock: Found 2 tickets matching '{query}'"
+    Orden de precedencia:
+    1. ctx.get_enabled_functions() retorna lista → filtrar
+    2. ctx.get_enabled_functions() retorna None → usar todas (sin restricciones)
     
-    return [search_zendesk_tickets]
+    Args:
+        tools: Lista de tools o tool individual del loader
+        tool_name: Nombre de la tool para obtener permisos
+        ctx: TenantContext con información de funciones habilitadas
+    
+    Returns:
+        Lista de tools filtradas según permisos
+        
+    Example:
+        # Todas las funciones del MCP
+        all_tools = [Tool1, Tool2, Tool3, Tool4, Tool5]
+        
+        # Filtrar según permisos
+        filtered = _filter_tool_functions(all_tools, "google_calendar", ctx)
+        # → [Tool1, Tool2] (solo las permitidas)
+    """
+    
+    # Normalizar a lista
+    if not isinstance(tools, list):
+        tools = [tools] if tools else []
+    
+    # Obtener funciones habilitadas
+    enabled_functions = ctx.get_enabled_functions(tool_name)
+    
+    # Sin restricciones - retornar todas
+    if enabled_functions is None:
+        logger.debug(
+            f"[{ctx.workflow_id}] No function restrictions for '{tool_name}' "
+            f"- using all {len(tools)} functions"
+        )
+        return tools
+    
+    # Filtrar según lista de funciones permitidas
+    filtered_tools = [
+        tool for tool in tools
+        if tool.name in enabled_functions
+    ]
+    
+    # Log del filtrado
+    filtered_count = len(filtered_tools)
+    total_count = len(tools)
+    excluded = [t.name for t in tools if t.name not in enabled_functions]
+    
+    logger.info(
+        f"[{ctx.workflow_id}] Filtered '{tool_name}': "
+        f"{filtered_count}/{total_count} functions enabled"
+    )
+    
+    if excluded:
+        logger.debug(
+            f"[{ctx.workflow_id}] Excluded functions for '{tool_name}': {excluded}"
+        )
+    
+    return filtered_tools
 
 
 # ==========================================
