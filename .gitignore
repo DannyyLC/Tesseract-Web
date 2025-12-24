@@ -9,10 +9,14 @@ dist/
 # TypeScript
 *.tsbuildinfo
 
-# Environment variables
+# Environment variables - IMPORTANTE: nunca subir archivos .env
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+*.env
+**/.env
+**/.env.*
+!**/.env.example
 
 # OS
 .DS_Store
