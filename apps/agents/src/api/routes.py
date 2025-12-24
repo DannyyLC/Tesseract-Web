@@ -20,7 +20,6 @@ from api.deps import (
     build_context
 )
 from core.agent_factory import create_agent_graph
-from core.context import TenantContext
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,6 @@ router = APIRouter()
 # ==========================================
 # Helper Functions
 # ==========================================
-
 def convert_message_history_to_langchain(history: list[dict]) -> list:
     """
     Convierte el historial de mensajes a formato LangChain.
@@ -62,7 +60,6 @@ def convert_message_history_to_langchain(history: list[dict]) -> list:
             langchain_messages.append(HumanMessage(content=content))
     
     return langchain_messages
-
 
 def convert_langchain_messages_to_dict(messages: list) -> list[dict]:
     """
@@ -99,7 +96,6 @@ def convert_langchain_messages_to_dict(messages: list) -> list[dict]:
 # ==========================================
 # Endpoints
 # ==========================================
-
 @router.post(
     "/agents/execute",
     response_model=AgentExecutionResponse,
@@ -259,7 +255,6 @@ async def execute_agent(request: AgentExecutionRequest) -> AgentExecutionRespons
 # ==========================================
 # Endpoint de Validación (útil para testing)
 # ==========================================
-
 @router.post(
     "/agents/validate",
     summary="Validar configuración de agente",

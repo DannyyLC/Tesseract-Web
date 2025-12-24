@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 # ==========================================
 # Pydantic Models para Validación
 # ==========================================
-
 class MessageRequest(BaseModel):
     """Modelo para un mensaje en el historial."""
     role: Literal["human", "assistant", "system"]
@@ -78,12 +77,23 @@ class AgentExecutionRequest(BaseModel):
     # ==========================================
     credentials: dict[str, dict[str, Any]] = Field(
         default_factory=dict,
-        description="Credenciales de tools desde Secret Manager"
+        description="Credenciales de tools desde Secret Manager. Key = toolName del catálogo"
     )
     
     tool_configs: dict[str, dict[str, Any]] = Field(
         default_factory=dict,
-        description="Configuración específica de cada tool"
+        description="Configuración específica de cada tool para este tenant. Key = toolName del catálogo"
+    )
+    
+    enabled_functions: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description=(
+            "Control granular de funciones por tool (mapeado por Gateway). "
+            "Key = toolName del catálogo. "
+            "Ejemplo: {'google_calendar': ['check_availability', 'create_event']}. "
+            "Tool CON funciones → solo usa las especificadas. "
+            "Tool SIN entrada o lista vacía → usa TODAS las funciones disponibles."
+        )
     )
     
     # ==========================================
@@ -102,9 +112,9 @@ class AgentExecutionRequest(BaseModel):
     # ==========================================
     # Configuración adicional
     # ==========================================
-    timezone: Optional[str] = Field(
-        default=None,
-        description="Zona horaria del workflow"
+    timezone: str = Field(
+        default="UTC",
+        description="Zona horaria del workflow (para timestamps y programación)"
     )
     
     interrupts: Optional[list[str]] = Field(
@@ -134,6 +144,28 @@ class AgentExecutionRequest(BaseModel):
                         "temperature": 0.7
                     }
                 },
+                "credentials": {
+                    "google_calendar": {
+                        "access_token": "ya29.xxx",
+                        "refresh_token": "1//xxx"
+                    },
+                    "hubspot": {
+                        "api_key": "pat-na1-xxx"
+                    }
+                },
+                "tool_configs": {
+                    "google_calendar": {
+                        "calendar_id": "primary",
+                        "timezone": "America/Mexico_City"
+                    },
+                    "hubspot": {
+                        "portal_id": "12345678"
+                    }
+                },
+                "enabled_functions": {
+                    "google_calendar": ["check_availability", "create_event"],
+                    "hubspot": []
+                },
                 "message_history": [
                     {"role": "human", "content": "Hola"},
                     {"role": "assistant", "content": "¡Hola! ¿Cómo puedo ayudarte?"}
@@ -141,7 +173,8 @@ class AgentExecutionRequest(BaseModel):
                 "user_metadata": {
                     "name": "Juan Pérez",
                     "email": "juan@empresa.com"
-                }
+                },
+                "timezone": "America/Mexico_City"
             }
         }
     )
@@ -251,6 +284,7 @@ def build_context(request: AgentExecutionRequest) -> TenantContext:
             model_configs=request.model_configs,
             credentials=request.credentials,
             tool_configs=request.tool_configs,
+            enabled_functions=request.enabled_functions,
             message_history=request.message_history,
             user_metadata=request.user_metadata,
             timezone=request.timezone

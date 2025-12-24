@@ -184,8 +184,8 @@ model Conversation {
   lastMessageAt  DateTime?                    // Último mensaje (para calcular inactividad)
   
   // Información adicional
-  metadata       Json?     // Tags, categorías, sentimiento, etc.
-  summary        String?   // Resumen generado por IA
+  metadata       Json?     @db.JsonB  // Tags, categorías, sentimiento, etc.
+  summary        String?   @db.Text   // Resumen generado por IA
   
   // Timestamps
   createdAt      DateTime  @default(now())
@@ -202,6 +202,8 @@ model Conversation {
   @@index([channel])
   @@index([createdAt])
   @@index([lastMessageAt])
+  @@index([closedAt])
+  @@index([workflowId, status, lastMessageAt])  // Query: conversaciones activas por workflow
   @@map("conversations")
 }
 
@@ -216,8 +218,8 @@ model Message {
   
   role             String       // 'user', 'assistant', 'system', 'tool'
   
-  content          String       // Texto del mensaje (siempre presente)
-  attachments      Json?        // Array de archivos multimedia (opcional)
+  content          String       @db.Text  // Texto del mensaje (siempre presente) - puede ser largo
+  attachments      Json?        @db.JsonB // Array de archivos multimedia (opcional)
  
   // Estructura de attachments:
   // [
@@ -236,7 +238,7 @@ model Message {
   // ]
 
   
-  metadata         Json?        
+  metadata         Json?        @db.JsonB
   
   // Datos de IA (si es respuesta del asistente)
   model            String?      
@@ -245,7 +247,7 @@ model Message {
   latencyMs        Int?         
   
   // Tool calls (cuando el asistente solicita ejecutar herramientas)
-  toolCalls        Json?
+  toolCalls        Json?        @db.JsonB
   // Estructura de toolCalls:
   // [
   //   {
@@ -258,7 +260,7 @@ model Message {
   //   }
   // ]
   
-  toolResults      Json?
+  toolResults      Json?        @db.JsonB
   // Estructura de toolResults:
   // [
   //   {
@@ -272,10 +274,10 @@ model Message {
   createdAt        DateTime     @default(now())
   
   // Feedback del usuario
-  feedback         String?      
-  feedbackComment  String?      
+  feedback         String?      // 'positive', 'negative', 'neutral'
+  feedbackComment  String?      @db.Text
 
-  @@index([conversationId])
+  @@index([conversationId, createdAt])  // Índice compuesto - query más común
   @@index([role])
   @@index([createdAt])
   @@map("messages")

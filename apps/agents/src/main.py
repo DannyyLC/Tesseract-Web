@@ -48,13 +48,13 @@ async def lifespan(app: FastAPI):
     Se ejecuta al inicio y al finalizar el servidor.
     """
     # Startup
-    logger.info("🚀 Starting Tesseract Agents service...")
-    logger.info("✅ Service ready to process agent executions")
+    logger.info("Starting Tesseract Agents service...")
+    logger.info("Service ready to process agent executions")
     
     yield
     
     # Shutdown
-    logger.info("🛑 Shutting down Tesseract Agents service...")
+    logger.info("Shutting down Tesseract Agents service...")
 
 
 # ==========================================

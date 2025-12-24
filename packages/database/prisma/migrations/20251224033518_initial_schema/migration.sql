@@ -445,7 +445,13 @@ CREATE INDEX "conversations_createdAt_idx" ON "conversations"("createdAt");
 CREATE INDEX "conversations_lastMessageAt_idx" ON "conversations"("lastMessageAt");
 
 -- CreateIndex
-CREATE INDEX "messages_conversationId_idx" ON "messages"("conversationId");
+CREATE INDEX "conversations_closedAt_idx" ON "conversations"("closedAt");
+
+-- CreateIndex
+CREATE INDEX "conversations_workflowId_status_lastMessageAt_idx" ON "conversations"("workflowId", "status", "lastMessageAt");
+
+-- CreateIndex
+CREATE INDEX "messages_conversationId_createdAt_idx" ON "messages"("conversationId", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "messages_role_idx" ON "messages"("role");
