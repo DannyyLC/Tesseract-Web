@@ -133,9 +133,44 @@ CREATE TABLE "model_prices" (
 );
 
 -- CreateTable
-CREATE TABLE "tenant_tools" (
+CREATE TABLE "tool_catalog" (
     "id" TEXT NOT NULL,
     "toolName" TEXT NOT NULL,
+    "displayName" TEXT NOT NULL,
+    "description" TEXT,
+    "provider" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT false,
+    "isInBeta" BOOLEAN NOT NULL DEFAULT false,
+    "icon" TEXT,
+    "category" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "tool_catalog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "tool_functions" (
+    "id" TEXT NOT NULL,
+    "toolCatalogId" TEXT NOT NULL,
+    "functionName" TEXT NOT NULL,
+    "displayName" TEXT NOT NULL,
+    "description" TEXT,
+    "category" TEXT DEFAULT 'general',
+    "isActive" BOOLEAN NOT NULL DEFAULT false,
+    "isInBeta" BOOLEAN NOT NULL DEFAULT false,
+    "icon" TEXT,
+    "dangerLevel" TEXT DEFAULT 'safe',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "tool_functions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "tenant_tools" (
+    "id" TEXT NOT NULL,
+    "toolCatalogId" TEXT NOT NULL,
     "displayName" TEXT NOT NULL,
     "credentialPath" TEXT,
     "config" JSONB,
@@ -196,6 +231,7 @@ CREATE TABLE "workflows" (
     "name" TEXT NOT NULL,
     "description" TEXT,
     "config" JSONB NOT NULL,
+    "toolPermissions" JSONB,
     "maxMessages" INTEGER,
     "inactivityHours" INTEGER,
     "maxTokens" INTEGER NOT NULL DEFAULT 50000,
@@ -427,10 +463,31 @@ CREATE INDEX "model_prices_isActive_effectiveFrom_idx" ON "model_prices"("isActi
 CREATE UNIQUE INDEX "model_prices_provider_modelName_effectiveFrom_key" ON "model_prices"("provider", "modelName", "effectiveFrom");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "tool_catalog_toolName_key" ON "tool_catalog"("toolName");
+
+-- CreateIndex
+CREATE INDEX "tool_catalog_isActive_idx" ON "tool_catalog"("isActive");
+
+-- CreateIndex
+CREATE INDEX "tool_catalog_category_idx" ON "tool_catalog"("category");
+
+-- CreateIndex
+CREATE INDEX "tool_functions_toolCatalogId_isActive_idx" ON "tool_functions"("toolCatalogId", "isActive");
+
+-- CreateIndex
+CREATE INDEX "tool_functions_toolCatalogId_category_idx" ON "tool_functions"("toolCatalogId", "category");
+
+-- CreateIndex
+CREATE INDEX "tool_functions_isActive_idx" ON "tool_functions"("isActive");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "tool_functions_toolCatalogId_functionName_key" ON "tool_functions"("toolCatalogId", "functionName");
+
+-- CreateIndex
 CREATE INDEX "tenant_tools_organizationId_idx" ON "tenant_tools"("organizationId");
 
 -- CreateIndex
-CREATE INDEX "tenant_tools_toolName_idx" ON "tenant_tools"("toolName");
+CREATE INDEX "tenant_tools_toolCatalogId_idx" ON "tenant_tools"("toolCatalogId");
 
 -- CreateIndex
 CREATE INDEX "tenant_tools_isConnected_idx" ON "tenant_tools"("isConnected");
@@ -566,6 +623,12 @@ ALTER TABLE "conversations" ADD CONSTRAINT "conversations_workflowId_fkey" FOREI
 
 -- AddForeignKey
 ALTER TABLE "messages" ADD CONSTRAINT "messages_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "conversations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "tool_functions" ADD CONSTRAINT "tool_functions_toolCatalogId_fkey" FOREIGN KEY ("toolCatalogId") REFERENCES "tool_catalog"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "tenant_tools" ADD CONSTRAINT "tenant_tools_toolCatalogId_fkey" FOREIGN KEY ("toolCatalogId") REFERENCES "tool_catalog"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "tenant_tools" ADD CONSTRAINT "tenant_tools_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
