@@ -1,6 +1,6 @@
 # Autenticación con Cookies httpOnly
 
-Este proyecto utiliza **cookies httpOnly** para almacenar los tokens JWT de forma segura, protegiéndolos contra ataques XSS (Cross-Site Scripting).
+Este proyecto utiliza **cookies httpOnly** para almacenar los tokens JWT de forma segura, protegiéndolos contra ataques XSS (Cross-Site Scripting)
 
 ---
 
