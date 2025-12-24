@@ -5,11 +5,10 @@ description = "AI Agents service for Tesseract"
 authors = [
     {name = "Daniel Limon",email = "cervantesdaniellimon50m@gmail.com"}
 ]
-readme = "README.md"
 requires-python = "^3.11"
+
 dependencies = [
     "langgraph (>=1.0.5,<2.0.0)",
-    "langchain-google-vertexai (>=3.2.0,<4.0.0)",
     "fastapi (>=0.125.0,<0.126.0)",
     "uvicorn (>=0.38.0,<0.39.0)",
     "sqlalchemy (>=2.0.45,<3.0.0)",

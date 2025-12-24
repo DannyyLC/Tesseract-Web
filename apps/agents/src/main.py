@@ -18,7 +18,13 @@ ENDPOINTS:
 import logging
 import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
+from dotenv import load_dotenv
 
+# Cargar .env desde el root del proyecto
+root_dir = Path(__file__).parent.parent.parent.parent
+env_path = root_dir / ".env"
+load_dotenv(dotenv_path=env_path)
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse

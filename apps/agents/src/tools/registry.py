@@ -264,10 +264,10 @@ def load_tools(ctx: TenantContext) -> List[BaseTool]:
             # ==========================================
             # 2. Inicializar la tool específica
             # ==========================================
-            tool = load_specific_tool(tool_name, credentials, config, ctx)
+            loaded_tools = load_specific_tool(tool_name, credentials, config, ctx)
             
-            if tool:
-                tools.append(tool)
+            if loaded_tools:
+                tools.extend(loaded_tools)  # extend para aplanar la lista
                 logger.info(f"[{ctx.workflow_id}] Tool '{tool_name}' loaded")
             else:
                 logger.warning(

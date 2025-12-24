@@ -9,7 +9,7 @@ ENDPOINTS:
 """
 
 from fastapi import APIRouter, HTTPException, status
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 import logging
 import time
 
@@ -65,6 +65,15 @@ def convert_langchain_messages_to_dict(messages: list) -> list[dict]:
     """
     Convierte mensajes LangChain a formato dict para el response.
     
+    FILTRADO:
+    - SystemMessage: No se incluye (es configuración, no conversación)
+    - ToolMessage: No se incluye (son detalles técnicos internos)
+    - AIMessage vacío: No se incluye (son tool calls intermedios)
+    
+    Solo se retornan mensajes relevantes para el usuario final:
+    - HumanMessage: Mensajes del usuario
+    - AIMessage con contenido: Respuestas del asistente
+    
     Args:
         messages: Lista de mensajes LangChain
     
@@ -76,18 +85,33 @@ def convert_langchain_messages_to_dict(messages: list) -> list[dict]:
     for msg in messages:
         msg_type = type(msg).__name__
         
+        # Filtrar SystemMessage (configuración del agente)
+        if msg_type == "SystemMessage":
+            continue
+        
+        # Filtrar ToolMessage (detalles técnicos internos)
+        if msg_type == "ToolMessage":
+            continue
+        
+        # Mapear tipos de mensaje a roles
         if msg_type == "HumanMessage":
             role = "human"
+            content = msg.content if hasattr(msg, 'content') else str(msg)
         elif msg_type == "AIMessage":
             role = "assistant"
-        elif msg_type == "SystemMessage":
-            role = "system"
+            content = msg.content if hasattr(msg, 'content') else str(msg)
+            
+            # Filtrar AIMessage vacíos (tool calls intermedios)
+            if not content or content.strip() == "":
+                continue
         else:
             role = "unknown"
+            content = msg.content if hasattr(msg, 'content') else str(msg)
+            logger.warning(f"Unknown message type in response: {msg_type}")
         
         result.append({
             "role": role,
-            "content": msg.content if hasattr(msg, 'content') else str(msg)
+            "content": content
         })
     
     return result
