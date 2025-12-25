@@ -9,7 +9,6 @@ import { PrismaService } from '../database/prisma.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { ExecutionsService } from '../executions/executions.service';
-import { N8nService } from '../integrations/n8n/n8n.service';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { PLANS, PlanType } from '@workflow-automation/shared-types';
 import {
@@ -32,7 +31,6 @@ export class WorkflowsService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly executionsService: ExecutionsService,
-        private readonly n8nService: N8nService,
         private readonly organizationsService: OrganizationsService,
     ) {}
 
@@ -275,7 +273,8 @@ export class WorkflowsService {
             `Iniciando ejecución ${execution.id} para workflow ${workflowId}`,
         );
 
-        // 4. EJECUTAR SEGÚN EL TIPO
+        // 4. EJECUTAR WORKFLOW
+        // TODO: Implementar integración con el servicio de agents de Python
         try {
             const config = workflow.config as any;
 
@@ -285,20 +284,11 @@ export class WorkflowsService {
                 );
             }
 
-            let result: any;
-
-            if (config.type === 'n8n') {
-                result = await this.executeN8nWorkflow(workflow, input, execution.id);
-            } else if (config.type === 'custom') {
-                throw new Error('Los workflows custom aún no están implementados');
-            } else {
-                throw new InvalidWorkflowConfigException(
-                    `Tipo de workflow no soportado: ${config.type}`,
-                );
-            }
+            // TODO: Implementar ejecución de workflows
+            throw new Error('La ejecución de workflows aún no está implementada');
 
             // 5. MARCAR COMO COMPLETADA
-            await this.executionsService.updateStatus(execution.id, 'completed', {
+            // await this.executionsService.updateStatus(execution.id, 'completed', {
                 result,
             });
 
@@ -322,81 +312,13 @@ export class WorkflowsService {
     }
 
     /**
-     * Ejecutar un workflow de tipo n8n
-     * @private
-     */
-    private async executeN8nWorkflow(
-        workflow: any,
-        input: Record<string, any>,
-        executionId: string,
-    ) {
-        const config = workflow.config as any;
-
-        if (!config.webhookUrl) {
-        throw new InvalidWorkflowConfigException(
-            'El config de tipo n8n requiere "webhookUrl"',
-        );
-        }
-
-        // Preparar el payload para n8n
-        const payload = {
-        ...input,
-        _meta: {
-            executionId,
-            workflowId: workflow.id,
-            workflowName: workflow.name,
-            clientId: workflow.clientId,
-            timestamp: new Date().toISOString(),
-        },
-        };
-
-        // Configuración del webhook
-        const webhookConfig = {
-        webhookUrl: config.webhookUrl,
-        method: config.method || 'POST',
-        headers: config.headers || {},
-        timeout: workflow.timeout * 1000,
-        retryOnFail: config.retryOnFail ?? true,
-        retryDelay: config.retryDelay || 5000,
-        maxRetries: config.maxRetries ?? workflow.maxRetries,
-        };
-
-        // Llamar al webhook de n8n
-        const result = await this.n8nService.executeWebhook(
-        webhookConfig,
-        payload,
-        executionId,
-        );
-
-        return result;
-    }
-
-
-    /**
     * Valida la estructura del config según su tipo
     */
     private validateConfig(config: any) {
         if (!config.type) {
-        throw new BadRequestException('El config debe tener un campo "type"');
+            throw new BadRequestException('El config debe tener un campo "type"');
         }
 
-        if (config.type === 'n8n') {
-        if (!config.webhookUrl) {
-            throw new BadRequestException('El config de tipo n8n requiere "webhookUrl"');
-        }
-        if (!config.method) {
-            throw new BadRequestException('El config de tipo n8n requiere "method"');
-        }
-        } else if (config.type === 'custom') {
-        if (!config.steps && !config.endpoint) {
-            throw new BadRequestException(
-            'El config de tipo custom requiere "steps" o "endpoint"',
-            );
-        }
-        } else {
-        throw new BadRequestException(
-            'El tipo de config debe ser "n8n" o "custom"',
-        );
-        }
+        // TODO: Implementar validación según el tipo de workflow que se integre con Python agents
     }    
 }

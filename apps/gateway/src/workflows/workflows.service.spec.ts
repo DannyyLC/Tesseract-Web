@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { WorkflowsService } from './workflows.service';
 import { PrismaService } from '../database/prisma.service';
 import { ExecutionsService } from '../executions/executions.service';
-import { N8nService } from '../integrations/n8n/n8n.service';
 import { OrganizationsService } from '../organizations/organizations.service';
 import {
   NotFoundException,
@@ -21,7 +20,6 @@ describe('WorkflowsService', () => {
     let service: WorkflowsService;
     let prismaService: jest.Mocked<PrismaService>;
     let executionsService: jest.Mocked<ExecutionsService>;
-    let n8nService: jest.Mocked<N8nService>;
     let organizationsService: jest.Mocked<OrganizationsService>;
 
     // Silenciar logs durante los tests
@@ -94,9 +92,6 @@ describe('WorkflowsService', () => {
         updateStatus: jest.fn(),
         findOne: jest.fn(),
         };
-        const mockN8nService = {
-        executeWebhook: jest.fn(),
-        };
         const mockOrganizationsService = {
         canAddWorkflow: jest.fn(),
         };
@@ -112,10 +107,6 @@ describe('WorkflowsService', () => {
             useValue: mockExecutionsService,
             },
             {
-            provide: N8nService,
-            useValue: mockN8nService,
-            },
-            {
             provide: OrganizationsService,
             useValue: mockOrganizationsService,
             },
@@ -125,7 +116,6 @@ describe('WorkflowsService', () => {
         service = module.get<WorkflowsService>(WorkflowsService);
         prismaService = module.get(PrismaService);
         executionsService = module.get(ExecutionsService);
-        n8nService = module.get(N8nService);
         organizationsService = module.get(OrganizationsService);
     });
 
