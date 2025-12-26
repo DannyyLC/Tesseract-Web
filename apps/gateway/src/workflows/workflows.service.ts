@@ -306,6 +306,35 @@ export class WorkflowsService {
             data: { conversationId: conversation.id },
         });
 
+        // OBTENER HISTORIAL ANTES de guardar el mensaje del usuario
+        // Esto evita duplicados en el message_history que enviamos al agente
+        const messageHistory = await this.prisma.message.findMany({
+            where: { conversationId: conversation.id },
+            orderBy: { createdAt: 'asc' },
+            select: {
+                role: true,
+                content: true,
+            },
+        });
+
+        // GUARDAR MENSAJE DEL USUARIO INMEDIATAMENTE
+        await this.prisma.message.create({
+            data: {
+                conversationId: conversation.id,
+                role: 'human',
+                content: userMessage,
+            },
+        });
+
+        // Actualizar contador de mensajes de la conversación
+        await this.prisma.conversation.update({
+            where: { id: conversation.id },
+            data: {
+                messageCount: { increment: 1 },
+                lastMessageAt: new Date(),
+            },
+        });
+
         // 5. OBTENER WORKFLOW CON RELACIONES PARA EL PAYLOAD
         const workflowWithTools = await this.prisma.workflow.findUnique({
             where: { id: workflowId },
@@ -335,18 +364,39 @@ export class WorkflowsService {
                 userMessage,
                 userId || endUserId,
                 channel,
+                messageHistory,
             );
 
             // Llamar al servicio de agents (Python)
             this.logger.debug(`Llamando al AgentsService con payload...`);
             const agentResponse = await this.agentsService.execute(payload);
 
-            // 7. GUARDAR MENSAJES RETORNADOS
+            // 7. GUARDAR SOLO EL ÚLTIMO MENSAJE (RESPUESTA DEL ASISTENTE)
             const messages = agentResponse.messages || [];
-            const savedMessages = await this.saveMessages(conversation.id, messages);
-
-            // 8. ACTUALIZAR ESTADÍSTICAS DE LA CONVERSACIÓN
-            await this.updateConversationStats(conversation.id, savedMessages);
+            const lastMessage = messages[messages.length - 1]; // Último mensaje = respuesta del asistente
+            
+            if (lastMessage && lastMessage.role === 'assistant') {
+                await this.prisma.message.create({
+                    data: {
+                        conversationId: conversation.id,
+                        role: lastMessage.role,
+                        content: lastMessage.content,
+                    },
+                });
+                
+                // Actualizar estadísticas de la conversación
+                await this.prisma.conversation.update({
+                    where: { id: conversation.id },
+                    data: {
+                        messageCount: { increment: 1 },
+                        lastMessageAt: new Date(),
+                    },
+                });
+                
+                this.logger.debug(
+                    `Guardado mensaje del asistente en conversación ${conversation.id}`,
+                );
+            }
 
             // 9. MARCAR EJECUCIÓN COMO COMPLETADA
             await this.executionsService.updateStatus(execution.id, 'completed', {
@@ -423,79 +473,7 @@ export class WorkflowsService {
         return newConversation;
     }
 
-    /**
-     * Guarda los mensajes retornados por el servicio de agents
-     * 
-     * @param conversationId - ID de la conversación
-     * @param messages - Array de mensajes del agente
-     * @returns Array de mensajes guardados
-     */
-    private async saveMessages(conversationId: string, messages: any[]) {
-        const savedMessages = [];
 
-        for (const msg of messages) {
-            const message = await this.prisma.message.create({
-                data: {
-                    conversationId,
-                    role: msg.role,
-                    content: msg.content,
-                    attachments: msg.attachments || null,
-                    metadata: msg.metadata || null,
-                    model: msg.model || null,
-                    tokens: msg.tokens || null,
-                    cost: msg.cost || null,
-                    latencyMs: msg.latencyMs || null,
-                    toolCalls: msg.toolCalls || null,
-                    toolResults: msg.toolResults || null,
-                },
-            });
-
-            savedMessages.push(message);
-        }
-
-        this.logger.debug(
-            `Guardados ${savedMessages.length} mensajes en conversación ${conversationId}`,
-        );
-
-        return savedMessages;
-    }
-
-    /**
-     * Actualiza las estadísticas de la conversación
-     * 
-     * @param conversationId - ID de la conversación
-     * @param messages - Array de mensajes recién guardados
-     */
-    private async updateConversationStats(
-        conversationId: string,
-        messages: any[],
-    ) {
-        // Calcular totales de los nuevos mensajes
-        const newMessageCount = messages.length;
-        const newTotalTokens = messages.reduce(
-            (sum, msg) => sum + (msg.tokens || 0),
-            0,
-        );
-        const newTotalCost = messages.reduce(
-            (sum, msg) => sum + (msg.cost || 0),
-            0,
-        );
-
-        // Actualizar conversación incrementando los contadores
-        await this.prisma.conversation.update({
-            where: { id: conversationId },
-            data: {
-                messageCount: { increment: newMessageCount },
-                totalTokens: { increment: newTotalTokens },
-                totalCost: { increment: newTotalCost },
-                lastMessageAt: new Date(),
-            },
-        });
-
-        this.logger.debug(
-            `Estadísticas actualizadas - Conversación ${conversationId}: +${newMessageCount} msgs, +${newTotalTokens} tokens, +$${newTotalCost.toFixed(4)}`,
-        );
-    }
 
     /**
      * Construye el payload completo para el servicio de agents
@@ -505,6 +483,7 @@ export class WorkflowsService {
      * @param userMessage - Mensaje del usuario
      * @param userId - ID del usuario (interno o externo)
      * @param channel - Canal de origen
+     * @param messageHistory - Historial de mensajes previo (sin incluir el mensaje actual)
      * @returns Payload listo para enviar al AgentsService
      */
     private async buildAgentPayload(
@@ -513,6 +492,7 @@ export class WorkflowsService {
         userMessage: string,
         userId?: string,
         channel: string = 'api',
+        messageHistory: any[] = [],
     ) {
         // 1. Extraer configuración del agente y modelos desde el config
         const config = workflow.config as any;
@@ -565,21 +545,7 @@ export class WorkflowsService {
             }
         }
 
-        // 3. Obtener historial de mensajes de la conversación
-        let messageHistory: any[] = [];
-        if (conversation.id) {
-            const messages = await this.prisma.message.findMany({
-                where: { conversationId: conversation.id },
-                orderBy: { createdAt: 'asc' },
-                select: {
-                    role: true,
-                    content: true,
-                },
-            });
-            messageHistory = messages;
-        }
-
-        // 4. Determinar tipo de usuario
+        // 3. Determinar tipo de usuario
         const userType = conversation.userId ? UserType.INTERNAL : UserType.EXTERNAL;
         const finalUserId = conversation.userId || conversation.endUserId || 'anonymous';
 
