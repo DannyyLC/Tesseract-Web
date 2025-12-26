@@ -75,6 +75,7 @@ CREATE TABLE "conversations" (
     "userId" TEXT,
     "endUserId" TEXT,
     "workflowId" TEXT NOT NULL,
+    "whatsappConfigId" TEXT,
     "title" TEXT,
     "channel" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'active',
@@ -278,6 +279,7 @@ CREATE TABLE "executions" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "workflowId" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
+    "conversationId" TEXT,
     "userId" TEXT,
     "apiKeyId" TEXT,
 
@@ -433,6 +435,9 @@ CREATE INDEX "conversations_endUserId_idx" ON "conversations"("endUserId");
 CREATE INDEX "conversations_workflowId_idx" ON "conversations"("workflowId");
 
 -- CreateIndex
+CREATE INDEX "conversations_whatsappConfigId_idx" ON "conversations"("whatsappConfigId");
+
+-- CreateIndex
 CREATE INDEX "conversations_status_idx" ON "conversations"("status");
 
 -- CreateIndex
@@ -550,6 +555,9 @@ CREATE INDEX "executions_workflowId_idx" ON "executions"("workflowId");
 CREATE INDEX "executions_organizationId_idx" ON "executions"("organizationId");
 
 -- CreateIndex
+CREATE INDEX "executions_conversationId_idx" ON "executions"("conversationId");
+
+-- CreateIndex
 CREATE INDEX "executions_apiKeyId_idx" ON "executions"("apiKeyId");
 
 -- CreateIndex
@@ -628,6 +636,9 @@ ALTER TABLE "conversations" ADD CONSTRAINT "conversations_endUserId_fkey" FOREIG
 ALTER TABLE "conversations" ADD CONSTRAINT "conversations_workflowId_fkey" FOREIGN KEY ("workflowId") REFERENCES "workflows"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "conversations" ADD CONSTRAINT "conversations_whatsappConfigId_fkey" FOREIGN KEY ("whatsappConfigId") REFERENCES "whatsapp_configs"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "messages" ADD CONSTRAINT "messages_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "conversations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -653,6 +664,9 @@ ALTER TABLE "executions" ADD CONSTRAINT "executions_workflowId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "executions" ADD CONSTRAINT "executions_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "executions" ADD CONSTRAINT "executions_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "conversations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "executions" ADD CONSTRAINT "executions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;

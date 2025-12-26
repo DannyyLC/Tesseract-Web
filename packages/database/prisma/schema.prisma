@@ -173,6 +173,10 @@ model Conversation {
   workflowId     String
   workflow       Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   
+  // Configuración de WhatsApp (opcional - solo si el canal es whatsapp)
+  whatsappConfigId String?
+  whatsappConfig   WhatsAppConfig? @relation(fields: [whatsappConfigId], references: [id])
+  
   // Metadata de la conversación
   title          String?   // "Consulta sobre productos", "Testing agente ventas"
   channel        String    // 'dashboard', 'whatsapp', 'web', 'api'
@@ -194,10 +198,12 @@ model Conversation {
   
   // Relaciones
   messages       Message[] // Una conversación tiene muchos mensajes
+  executions     Execution[] // Ejecuciones asociadas a esta conversación
 
   @@index([userId])
   @@index([endUserId])
   @@index([workflowId])
+  @@index([whatsappConfigId])
   @@index([status])
   @@index([channel])
   @@index([createdAt])
@@ -524,6 +530,11 @@ model Workflow {
   config               Json             
   // Estructura esperada:
   // {
+  //   "agent": {
+  //     "graph_type": "react",           // "react", "supervisor", "plan_and_execute"
+  //     "max_iterations": 10,            // Máximo de iteraciones del agente
+  //     "allow_interrupts": false        // Si permite interrupciones humanas
+  //   },
   //   "models": {
   //     "default": {
   //       "systemPrompt": "Eres un agente de ventas...",
@@ -655,6 +666,10 @@ model Execution {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   
+  // Conversación asociada (opcional - para agentes conversacionales)
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id])
+  
   // Quién lo ejecutó (opcional)
   userId         String?
   user           User?        @relation(fields: [userId], references: [id])
@@ -664,6 +679,7 @@ model Execution {
 
   @@index([workflowId])
   @@index([organizationId])
+  @@index([conversationId])
   @@index([apiKeyId])
   @@index([userId])
   @@index([status])
@@ -734,6 +750,9 @@ model WhatsAppConfig {
   // Relación
   organizationId    String
   organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Conversaciones por este canal de WhatsApp
+  conversations     Conversation[]
 
   @@index([phoneNumber])
   @@index([connectionStatus])
