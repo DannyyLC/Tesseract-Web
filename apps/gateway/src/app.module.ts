@@ -8,6 +8,7 @@ import { ApiKeysModule } from './api-keys/api-keys.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { UsersModule } from './users/users.module';
 import { AdminModule } from './admin/admin.module';
+import { SecretsModule } from './secrets/secrets.module';
 
 /**
  * Módulo raíz de la aplicación Gateway
@@ -30,6 +31,7 @@ import { AdminModule } from './admin/admin.module';
       ignoreEnvFile: false,
     }),
     
+    SecretsModule,        // Global - Provee acceso a credenciales
     DatabaseModule,
     AuthModule,
     OrganizationsModule,

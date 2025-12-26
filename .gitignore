@@ -18,6 +18,9 @@ dist/
 **/.env.*
 !**/.env.example
 
+# Secrets - IMPORTANTE: nunca subir credenciales locales
+secrets.local.json
+
 # OS
 .DS_Store
 Thumbs.db

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -8,57 +8,88 @@ async function main() {
 
   // Limpiar datos existentes (opcional)
   console.log('🧹 Limpiando datos existentes...');
+  await prisma.message.deleteMany();
+  await prisma.conversation.deleteMany();
   await prisma.execution.deleteMany();
   await prisma.workflow.deleteMany();
+  await prisma.tenantTool.deleteMany();
+  await prisma.toolFunction.deleteMany();
+  await prisma.toolCatalog.deleteMany();
   await prisma.apiKey.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.whatsAppConfig.deleteMany();
   await prisma.tag.deleteMany();
-  await prisma.client.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.organization.deleteMany();
   console.log('✅ Datos limpiados\n');
 
   // ============================================
-  // CREAR CLIENTES
+  // CREAR ORGANIZACIONES
   // ============================================
-  console.log('👥 Creando clientes...');
+  console.log('🏢 Creando organizaciones...');
 
-  // Cliente 1: Plan Free
-  const client1Password = 'Password123!';
-  const client1 = await prisma.client.create({
+  // Organización 1: Plan Free
+  const org1 = await prisma.organization.create({
     data: {
       name: 'Acme Corp',
-      email: 'admin@acme.com',
-      password: await bcrypt.hash(client1Password, 10),
-      emailVerified: true,
+      slug: 'acme-corp',
       plan: 'free',
-      maxWorkflows: 10,
-      maxExecutionsPerDay: 100,
-      maxApiKeys: 3,
       isActive: true,
       region: 'us-central',
     },
   });
-  console.log(`✅ Cliente creado: ${client1.name} (${client1.email})`);
-  console.log(`   Password: ${client1Password}\n`);
+  console.log(`✅ Organización creada: ${org1.name}\n`);
 
-  // Cliente 2: Plan Pro
-  const client2Password = 'SecurePass456!';
-  const client2 = await prisma.client.create({
+  // Organización 2: Plan Pro
+  const org2 = await prisma.organization.create({
     data: {
       name: 'TechStart Inc',
-      email: 'tech@techstart.io',
-      password: await bcrypt.hash(client2Password, 10),
-      emailVerified: true,
+      slug: 'techstart-inc',
       plan: 'pro',
+      isActive: true,
+      region: 'us-east',
+      maxUsers: 10,
       maxWorkflows: 50,
       maxExecutionsPerDay: 1000,
       maxApiKeys: 10,
-      isActive: true,
-      region: 'us-east',
     },
   });
-  console.log(`✅ Cliente creado: ${client2.name} (${client2.email})`);
-  console.log(`   Password: ${client2Password}\n`);
+  console.log(`✅ Organización creada: ${org2.name}\n`);
+
+  // ============================================
+  // CREAR USUARIOS
+  // ============================================
+  console.log('👥 Creando usuarios...');
+
+  const user1Password = 'Password123!';
+  const user1 = await prisma.user.create({
+    data: {
+      email: 'admin@acme.com',
+      password: await bcrypt.hash(user1Password, 10),
+      name: 'Admin Acme',
+      emailVerified: true,
+      role: 'admin',
+      isActive: true,
+      organizationId: org1.id,
+    },
+  });
+  console.log(`✅ Usuario creado: ${user1.name} (${user1.email})`);
+  console.log(`   Password: ${user1Password}\n`);
+
+  const user2Password = 'SecurePass456!';
+  const user2 = await prisma.user.create({
+    data: {
+      email: 'tech@techstart.io',
+      password: await bcrypt.hash(user2Password, 10),
+      name: 'Admin TechStart',
+      emailVerified: true,
+      role: 'admin',
+      isActive: true,
+      organizationId: org2.id,
+    },
+  });
+  console.log(`✅ Usuario creado: ${user2.name} (${user2.email})`);
+  console.log(`   Password: ${user2Password}\n`);
 
   // ============================================
   // CREAR API KEYS
@@ -72,12 +103,12 @@ async function main() {
     data: {
       name: 'Producción Web',
       keyHash: apiKey1Hash,
-      keyPrefix: apiKey1.substring(0, 10),
+      keyPrefix: apiKey1.substring(0, 16),
       isActive: true,
-      clientId: client1.id,
+      organizationId: org1.id,
     },
   });
-  console.log(`✅ API Key creada para ${client1.name}: ${apiKey1}`);
+  console.log(`✅ API Key creada para ${org1.name}: ${apiKey1}`);
 
   // API Key 2 para Acme Corp (Testing)
   const apiKey2 = 'ak_test_acme_test_123abc456def789ghi012';
@@ -86,12 +117,12 @@ async function main() {
     data: {
       name: 'Testing',
       keyHash: apiKey2Hash,
-      keyPrefix: apiKey2.substring(0, 10),
+      keyPrefix: apiKey2.substring(0, 16),
       isActive: true,
-      clientId: client1.id,
+      organizationId: org1.id,
     },
   });
-  console.log(`✅ API Key creada para ${client1.name}: ${apiKey2}`);
+  console.log(`✅ API Key creada para ${org1.name}: ${apiKey2}`);
 
   // API Key 3 para TechStart
   const apiKey3 = 'ak_live_tech_prod_999zzz888yyy777xxx';
@@ -100,28 +131,96 @@ async function main() {
     data: {
       name: 'Producción',
       keyHash: apiKey3Hash,
-      keyPrefix: apiKey3.substring(0, 10),
+      keyPrefix: apiKey3.substring(0, 16),
       isActive: true,
-      clientId: client2.id,
+      organizationId: org2.id,
     },
   });
-  console.log(`✅ API Key creada para ${client2.name}: ${apiKey3}\n`);
+  console.log(`✅ API Key creada para ${org2.name}: ${apiKey3}\n`);
+
+  // ============================================
+  // CREAR TOOL CATALOG (Catálogo de herramientas)
+  // ============================================
+  console.log('🧰 Creando catálogo de herramientas...');
+
+  const toolCalculator = await prisma.toolCatalog.create({
+    data: {
+      toolName: 'calculator',
+      displayName: 'Calculator',
+      description: 'Herramienta de cálculo matemático. Soporta operaciones básicas, porcentajes y conversiones de moneda.',
+      provider: 'custom',
+      category: 'utility',
+      icon: 'https://api.iconify.design/mdi:calculator.svg',
+      isActive: true,
+      isInBeta: false,
+      functions: {
+        create: [
+          {
+            functionName: 'calculator',
+            displayName: 'Calcular expresión',
+            description: 'Evalúa expresiones matemáticas de forma segura. Soporta: +, -, *, /, paréntesis, decimales, módulo y potencias.',
+            category: 'calculation',
+            isActive: true,
+            isInBeta: false,
+            dangerLevel: 'safe',
+          },
+          {
+            functionName: 'percentage',
+            displayName: 'Calcular porcentaje',
+            description: 'Calcula el porcentaje de un valor.',
+            category: 'calculation',
+            isActive: true,
+            isInBeta: false,
+            dangerLevel: 'safe',
+          },
+          {
+            functionName: 'currency_convert',
+            displayName: 'Convertir moneda',
+            description: 'Convierte entre monedas (versión mock para testing).',
+            category: 'conversion',
+            isActive: true,
+            isInBeta: false,
+            dangerLevel: 'safe',
+          },
+        ],
+      },
+    },
+  });
+  console.log(`✅ Tool creada: ${toolCalculator.displayName}\n`);
+
+  // ============================================
+  // CREAR TENANT TOOLS (Conexiones a herramientas)
+  // ============================================
+  console.log('🔗 Creando conexiones de herramientas...');
+
+  const tenantToolCalc1 = await prisma.tenantTool.create({
+    data: {
+      toolCatalogId: toolCalculator.id,
+      displayName: 'Calculator - Acme',
+      credentialPath: null,
+      config: Prisma.JsonNull,
+      isConnected: true,
+      connectedAt: new Date(),
+      organizationId: org1.id,
+    },
+  });
+  console.log(`✅ TenantTool creado: ${tenantToolCalc1.displayName} para ${org1.name}\n`);
 
   // ============================================
   // CREAR TAGS
   // ============================================
   console.log('🏷️  Creando tags...');
 
-  const tagLeads = await prisma.tag.create({
+  const tagTest = await prisma.tag.create({
     data: {
-      name: 'leads',
+      name: 'test',
       color: '#3B82F6',
     },
   });
 
-  const tagMarketing = await prisma.tag.create({
+  const tagMath = await prisma.tag.create({
     data: {
-      name: 'marketing',
+      name: 'math',
       color: '#10B981',
     },
   });
@@ -140,182 +239,89 @@ async function main() {
   // ============================================
   console.log('⚙️  Creando workflows...');
 
-  // Workflow 1: Tipo n8n
+  // Workflow 1: Agente matemático con Calculator
   const workflow1 = await prisma.workflow.create({
     data: {
-      name: 'Procesador de Leads',
-      description: 'Workflow que procesa leads desde formulario web',
+      name: 'Agente Matemático - Calculator',
+      description: 'Agente que ayuda con cálculos matemáticos usando la herramienta Calculator',
       config: {
-        type: 'n8n',
-        webhookUrl: 'https://n8n.acme.com/webhook/lead-processor',
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer n8n-secret-token-123',
-          'Content-Type': 'application/json',
+        type: 'agent',
+        agent: {
+          graph_type: 'react',
+          max_iterations: 10,
+          allow_interrupts: false,
         },
-        timeout: 30000,
-        retryOnFail: true,
-        maxRetries: 3,
+        models: {
+          default: {
+            systemPrompt: 'Eres un asistente matemático experto. Ayudas a los usuarios a realizar cálculos, calcular porcentajes y convertir monedas. Usa la herramienta calculator cuando necesites hacer operaciones matemáticas.',
+            model: 'gpt-4o-mini',
+            temperature: 0.3,
+            maxTokensPerMessage: 1000,
+            responseFormat: 'text',
+          },
+        },
       },
+      toolPermissions: Prisma.JsonNull,
       version: 1,
       isActive: true,
-      triggerType: 'webhook',
-      clientId: client1.id,
+      isPaused: false,
+      triggerType: ['api'],
+      timeout: 300,
+      maxRetries: 3,
+      organizationId: org1.id,
+      tenantTools: {
+        connect: [{ id: tenantToolCalc1.id }],
+      },
       tags: {
-        connect: [{ id: tagLeads.id }, { id: tagAutomation.id }],
+        connect: [{ id: tagTest.id }, { id: tagMath.id }],
       },
     },
   });
   console.log(`✅ Workflow creado: ${workflow1.name}`);
+  console.log(`   ID: ${workflow1.id}\n`);
 
-  // Workflow 2: Tipo custom
+  // Workflow 2: Agente con permisos específicos
   const workflow2 = await prisma.workflow.create({
     data: {
-      name: 'Análisis de Sentimientos IA',
-      description: 'Analiza sentimientos de comentarios con GPT-4',
+      name: 'Agente Porcentajes - Solo Percentage',
+      description: 'Agente que solo puede calcular porcentajes (función limitada)',
       config: {
-        type: 'custom',
-        steps: [
-          {
-            id: 'extract-text',
-            type: 'transform',
-            operation: 'parse',
-            input: '{input}',
+        type: 'agent',
+        agent: {
+          graph_type: 'react',
+          max_iterations: 5,
+          allow_interrupts: false,
+        },
+        models: {
+          default: {
+            systemPrompt: 'Eres un asistente especializado en calcular porcentajes. Solo puedes ayudar con cálculos de porcentajes.',
+            model: 'gpt-4o-mini',
+            temperature: 0.3,
+            maxTokensPerMessage: 500,
+            responseFormat: 'text',
           },
-          {
-            id: 'analyze-sentiment',
-            type: 'ai',
-            provider: 'openai',
-            model: 'gpt-4',
-            prompt: 'Analiza el sentimiento del siguiente texto: {extract-text.result}',
-            temperature: 0.7,
-            maxTokens: 500,
-          },
-          {
-            id: 'save-result',
-            type: 'database',
-            action: 'insert',
-            table: 'sentiment_analysis',
-            data: {
-              text: '{extract-text.result}',
-              sentiment: '{analyze-sentiment.sentiment}',
-              score: '{analyze-sentiment.score}',
-            },
-          },
-        ],
+        },
       },
+      toolPermissions: {
+        [tenantToolCalc1.id]: ['percentage'],
+      } as any,
       version: 1,
       isActive: true,
-      triggerType: 'api',
-      clientId: client1.id,
+      isPaused: false,
+      triggerType: ['api'],
+      timeout: 300,
+      maxRetries: 3,
+      organizationId: org1.id,
+      tenantTools: {
+        connect: [{ id: tenantToolCalc1.id }],
+      },
       tags: {
-        connect: [{ id: tagAutomation.id }],
+        connect: [{ id: tagTest.id }, { id: tagMath.id }],
       },
     },
   });
   console.log(`✅ Workflow creado: ${workflow2.name}`);
-
-  // Workflow 3: Con schedule
-  const workflow3 = await prisma.workflow.create({
-    data: {
-      name: 'Reporte Diario de Ventas',
-      description: 'Genera reporte de ventas todos los días a las 8am',
-      config: {
-        type: 'custom',
-        steps: [
-          {
-            id: 'fetch-sales',
-            type: 'database',
-            action: 'query',
-            table: 'sales',
-            where: {
-              date: '{today}',
-            },
-          },
-          {
-            id: 'generate-report',
-            type: 'transform',
-            operation: 'aggregate',
-            input: '{fetch-sales.result}',
-          },
-          {
-            id: 'send-email',
-            type: 'notification',
-            method: 'email',
-            to: 'sales@techstart.io',
-            subject: 'Reporte de Ventas - {today}',
-            template: 'daily-sales-report',
-          },
-        ],
-      },
-      version: 1,
-      isActive: true,
-      schedule: '0 8 * * *', // Todos los días a las 8am
-      timezone: 'America/Mexico_City',
-      triggerType: 'schedule',
-      clientId: client2.id,
-      tags: {
-        connect: [{ id: tagMarketing.id }],
-      },
-    },
-  });
-  console.log(`✅ Workflow creado: ${workflow3.name}\n`);
-
-  // ============================================
-  // CREAR EJECUCIONES DE EJEMPLO
-  // ============================================
-  console.log('📊 Creando ejecuciones de ejemplo...');
-
-  // Ejecución exitosa
-  await prisma.execution.create({
-    data: {
-      status: 'completed',
-      startedAt: new Date(Date.now() - 3600000), // Hace 1 hora
-      finishedAt: new Date(Date.now() - 3540000), // Hace 59 minutos
-      duration: 60,
-      result: {
-        leadProcessed: true,
-        leadId: 'lead-123',
-        score: 8.5,
-      },
-      trigger: 'webhook',
-      triggerData: {
-        ip: '192.168.1.100',
-        payload: {
-          name: 'Juan Pérez',
-          email: 'juan@example.com',
-        },
-      },
-      workflowId: workflow1.id,
-    },
-  });
-
-  // Ejecución fallida
-  await prisma.execution.create({
-    data: {
-      status: 'failed',
-      startedAt: new Date(Date.now() - 1800000), // Hace 30 minutos
-      finishedAt: new Date(Date.now() - 1740000), // Hace 29 minutos
-      duration: 60,
-      error: 'API rate limit exceeded',
-      errorStack: 'Error: Rate limit exceeded at OpenAI API...',
-      trigger: 'api',
-      retryCount: 3,
-      workflowId: workflow2.id,
-    },
-  });
-
-  // Ejecución en progreso
-  await prisma.execution.create({
-    data: {
-      status: 'running',
-      startedAt: new Date(),
-      trigger: 'schedule',
-      workflowId: workflow3.id,
-    },
-  });
-
-  console.log('✅ Ejecuciones creadas\n');
+  console.log(`   ID: ${workflow2.id}\n`);
 
   // ============================================
   // RESUMEN FINAL
@@ -326,16 +332,42 @@ async function main() {
 
   console.log('📋 CREDENCIALES PARA TESTING:\n');
   
-  console.log('👤 Cliente 1: Acme Corp');
-  console.log(`   Email: ${client1.email}`);
-  console.log(`   Password: ${client1Password}`);
+  console.log('👤 Organización 1: Acme Corp');
+  console.log(`   Org ID: ${org1.id}`);
+  console.log(`   Email: ${user1.email}`);
+  console.log(`   Password: ${user1Password}`);
   console.log(`   API Key (Prod): ${apiKey1}`);
   console.log(`   API Key (Test): ${apiKey2}\n`);
 
-  console.log('👤 Cliente 2: TechStart Inc');
-  console.log(`   Email: ${client2.email}`);
-  console.log(`   Password: ${client2Password}`);
+  console.log('👤 Organización 2: TechStart Inc');
+  console.log(`   Org ID: ${org2.id}`);
+  console.log(`   Email: ${user2.email}`);
+  console.log(`   Password: ${user2Password}`);
   console.log(`   API Key (Prod): ${apiKey3}\n`);
+
+  console.log('🤖 WORKFLOWS PARA PRUEBAS:\n');
+  console.log(`1. ${workflow1.name}`);
+  console.log(`   ID: ${workflow1.id}`);
+  console.log(`   Tools: Calculator (todas las funciones)`);
+  console.log(`   Prueba: "¿Cuánto es 15% de 2350?"\n`);
+
+  console.log(`2. ${workflow2.name}`);
+  console.log(`   ID: ${workflow2.id}`);
+  console.log(`   Tools: Calculator (solo percentage)`);
+  console.log(`   Prueba: "Calcula el 20% de 500"\n`);
+
+  console.log('🧪 EJEMPLO DE REQUEST PARA PROBAR:\n');
+  console.log(`curl -X POST http://localhost:3000/api/workflows/${workflow1.id}/execute \\`);
+  console.log(`  -H "Content-Type: application/json" \\`);
+  console.log(`  -H "x-api-key: ${apiKey1}" \\`);
+  console.log(`  -d '{`);
+  console.log(`    "input": {`);
+  console.log(`      "message": "¿Cuánto es 15% de 2350?"`);
+  console.log(`    },`);
+  console.log(`    "metadata": {`);
+  console.log(`      "channel": "api"`);
+  console.log(`    }`);
+  console.log(`  }'\n`);
 
   console.log('═══════════════════════════════════════════════\n');
 }

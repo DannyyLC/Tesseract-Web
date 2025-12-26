@@ -3,7 +3,7 @@ import { WorkflowsController } from "./workflows.controller";
 import { WorkflowsService } from "./workflows.service";
 import { ExecutionsModule } from '../executions/executions.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
-
+import { AgentsModule } from "../agents/agents.module";
 /**
  * WorkflowsModule
  * Agrupa toda la funcionalidad relacionada con workflows
@@ -25,7 +25,7 @@ import { OrganizationsModule } from '../organizations/organizations.module';
  * - WorkflowsService: Para que otros módulos puedan usarlo si necesitan
  */
 @Module({
-    imports: [ExecutionsModule, OrganizationsModule],
+    imports: [ExecutionsModule, OrganizationsModule, AgentsModule],
     controllers: [WorkflowsController],
     providers: [WorkflowsService],
     exports: [WorkflowsService],

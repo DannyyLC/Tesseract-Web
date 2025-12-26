@@ -50,7 +50,7 @@ export class AgentsService {
         this.httpService
           .post<AgentExecutionResponseDto>(url, request)
           .pipe(
-            timeout(this.agentsServiceTimeout),
+            timeout({ each: this.agentsServiceTimeout }),
             catchError((error: AxiosError) => {
               this.logger.error(
                 `Failed to execute agent: ${error.message}`,

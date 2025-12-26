@@ -10,6 +10,9 @@ import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { ExecutionsService } from '../executions/executions.service';
 import { OrganizationsService } from '../organizations/organizations.service';
+import { SecretsService } from '../secrets/secrets.service';
+import { AgentsService } from '../agents/agents.service';
+import { UserType } from '../agents/dto/agent-execution-request.dto';
 import { PLANS, PlanType } from '@workflow-automation/shared-types';
 import {
   WorkflowNotFoundException,
@@ -32,6 +35,8 @@ export class WorkflowsService {
         private readonly prisma: PrismaService,
         private readonly executionsService: ExecutionsService,
         private readonly organizationsService: OrganizationsService,
+        private readonly secretsService: SecretsService,
+        private readonly agentsService: AgentsService,
     ) {}
 
     /**
@@ -66,7 +71,7 @@ export class WorkflowsService {
                 timezone: dto.timezone ?? 'UTC',
                 timeout: dto.timeout ?? 300,
                 maxRetries: dto.maxRetries ?? 3,
-                triggerType: dto.triggerType,
+                triggerType: dto.triggerType ? [dto.triggerType] : undefined,
                 organizationId,
                 // Asociar tags si se proporcionaron
                 ...(dto.tagIds && {
@@ -148,8 +153,16 @@ export class WorkflowsService {
         const workflow = await this.prisma.workflow.update({
             where: { id: workflowId },
             data: {
-                ...dto,
+                name: dto.name,
+                description: dto.description,
                 config: dto.config as any,
+                isActive: dto.isActive,
+                isPaused: dto.isPaused,
+                schedule: dto.schedule,
+                timezone: dto.timezone,
+                timeout: dto.timeout,
+                maxRetries: dto.maxRetries,
+                triggerType: dto.triggerType ? [dto.triggerType] : undefined,
                 version: existing.version + 1, // Incrementar versión
                 // Actualizar tags si se proporcionaron
                 ...(dto.tagIds && {
@@ -273,30 +286,82 @@ export class WorkflowsService {
             `Iniciando ejecución ${execution.id} para workflow ${workflowId}`,
         );
 
-        // 4. EJECUTAR WORKFLOW
-        // TODO: Implementar integración con el servicio de agents de Python
+        // 4. GESTIONAR CONVERSACIÓN
+        const channel = metadata?.channel || 'api';
+        const conversationId = metadata?.conversationId;
+        const endUserId = metadata?.endUserId;
+        const userMessage = input?.message || JSON.stringify(input);
+
+        const conversation = await this.findOrCreateConversation(
+            workflowId,
+            channel,
+            userId,
+            endUserId,
+            conversationId,
+        );
+
+        // Asociar la ejecución a la conversación
+        await this.prisma.execution.update({
+            where: { id: execution.id },
+            data: { conversationId: conversation.id },
+        });
+
+        // 5. OBTENER WORKFLOW CON RELACIONES PARA EL PAYLOAD
+        const workflowWithTools = await this.prisma.workflow.findUnique({
+            where: { id: workflowId },
+            include: {
+                tenantTools: {
+                    include: {
+                        toolCatalog: {
+                            include: {
+                                functions: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!workflowWithTools) {
+            throw new WorkflowNotFoundException(workflowId);
+        }
+
+        // 6. EJECUTAR WORKFLOW CON EL SERVICIO DE AGENTS
         try {
-            const config = workflow.config as any;
+            // Construir el payload completo con credenciales y configuración
+            const payload = await this.buildAgentPayload(
+                workflowWithTools,
+                conversation,
+                userMessage,
+                userId || endUserId,
+                channel,
+            );
 
-            if (!config.type) {
-                throw new InvalidWorkflowConfigException(
-                    'El config debe tener un campo "type"',
-                );
-            }
+            // Llamar al servicio de agents (Python)
+            this.logger.debug(`Llamando al AgentsService con payload...`);
+            const agentResponse = await this.agentsService.execute(payload);
 
-            // TODO: Implementar ejecución de workflows
-            throw new Error('La ejecución de workflows aún no está implementada');
+            // 7. GUARDAR MENSAJES RETORNADOS
+            const messages = agentResponse.messages || [];
+            const savedMessages = await this.saveMessages(conversation.id, messages);
 
-            // 5. MARCAR COMO COMPLETADA
-            // await this.executionsService.updateStatus(execution.id, 'completed', {
-                result,
+            // 8. ACTUALIZAR ESTADÍSTICAS DE LA CONVERSACIÓN
+            await this.updateConversationStats(conversation.id, savedMessages);
+
+            // 9. MARCAR EJECUCIÓN COMO COMPLETADA
+            await this.executionsService.updateStatus(execution.id, 'completed', {
+                result: {
+                    ...agentResponse,
+                    conversationId: conversation.id,
+                    messagesCount: messages.length,
+                },
             });
 
             this.logger.log(`Ejecución ${execution.id} completada exitosamente`);
 
             return this.executionsService.findOne(execution.id, organizationId);
         } catch (error) {
-            // 6. MANEJAR ERRORES
+            // 9. MANEJAR ERRORES
             this.logger.error(
                 `Error en ejecución ${execution.id}: ${(error as Error).message}`,
                 (error as Error).stack,
@@ -309,6 +374,247 @@ export class WorkflowsService {
 
             throw error;
         }
+    }
+
+    /**
+     * Busca o crea una conversación para la ejecución
+     * 
+     * @param workflowId - ID del workflow
+     * @param channel - Canal de comunicación (api, whatsapp, web, dashboard)
+     * @param userId - ID del usuario interno (opcional)
+     * @param endUserId - ID del usuario externo (opcional)
+     * @param conversationId - ID de conversación existente (opcional)
+     * @returns Conversación existente o nueva
+     */
+    private async findOrCreateConversation(
+        workflowId: string,
+        channel: string,
+        userId?: string,
+        endUserId?: string,
+        conversationId?: string,
+    ) {
+        // Si viene un conversationId, buscar esa conversación
+        if (conversationId) {
+            const existing = await this.prisma.conversation.findUnique({
+                where: { id: conversationId },
+            });
+
+            if (existing) {
+                this.logger.debug(`Usando conversación existente: ${conversationId}`);
+                return existing;
+            }
+        }
+
+        // Si no existe o no viene conversationId, crear una nueva
+        const newConversation = await this.prisma.conversation.create({
+            data: {
+                workflowId,
+                channel,
+                userId,
+                endUserId,
+                status: 'active',
+                messageCount: 0,
+                totalTokens: 0,
+                totalCost: 0,
+            },
+        });
+
+        this.logger.log(`Nueva conversación creada: ${newConversation.id}`);
+        return newConversation;
+    }
+
+    /**
+     * Guarda los mensajes retornados por el servicio de agents
+     * 
+     * @param conversationId - ID de la conversación
+     * @param messages - Array de mensajes del agente
+     * @returns Array de mensajes guardados
+     */
+    private async saveMessages(conversationId: string, messages: any[]) {
+        const savedMessages = [];
+
+        for (const msg of messages) {
+            const message = await this.prisma.message.create({
+                data: {
+                    conversationId,
+                    role: msg.role,
+                    content: msg.content,
+                    attachments: msg.attachments || null,
+                    metadata: msg.metadata || null,
+                    model: msg.model || null,
+                    tokens: msg.tokens || null,
+                    cost: msg.cost || null,
+                    latencyMs: msg.latencyMs || null,
+                    toolCalls: msg.toolCalls || null,
+                    toolResults: msg.toolResults || null,
+                },
+            });
+
+            savedMessages.push(message);
+        }
+
+        this.logger.debug(
+            `Guardados ${savedMessages.length} mensajes en conversación ${conversationId}`,
+        );
+
+        return savedMessages;
+    }
+
+    /**
+     * Actualiza las estadísticas de la conversación
+     * 
+     * @param conversationId - ID de la conversación
+     * @param messages - Array de mensajes recién guardados
+     */
+    private async updateConversationStats(
+        conversationId: string,
+        messages: any[],
+    ) {
+        // Calcular totales de los nuevos mensajes
+        const newMessageCount = messages.length;
+        const newTotalTokens = messages.reduce(
+            (sum, msg) => sum + (msg.tokens || 0),
+            0,
+        );
+        const newTotalCost = messages.reduce(
+            (sum, msg) => sum + (msg.cost || 0),
+            0,
+        );
+
+        // Actualizar conversación incrementando los contadores
+        await this.prisma.conversation.update({
+            where: { id: conversationId },
+            data: {
+                messageCount: { increment: newMessageCount },
+                totalTokens: { increment: newTotalTokens },
+                totalCost: { increment: newTotalCost },
+                lastMessageAt: new Date(),
+            },
+        });
+
+        this.logger.debug(
+            `Estadísticas actualizadas - Conversación ${conversationId}: +${newMessageCount} msgs, +${newTotalTokens} tokens, +$${newTotalCost.toFixed(4)}`,
+        );
+    }
+
+    /**
+     * Construye el payload completo para el servicio de agents
+     * 
+     * @param workflow - Workflow con todas las relaciones
+     * @param conversation - Conversación actual
+     * @param userMessage - Mensaje del usuario
+     * @param userId - ID del usuario (interno o externo)
+     * @param channel - Canal de origen
+     * @returns Payload listo para enviar al AgentsService
+     */
+    private async buildAgentPayload(
+        workflow: any,
+        conversation: any,
+        userMessage: string,
+        userId?: string,
+        channel: string = 'api',
+    ) {
+        // 1. Extraer configuración del agente y modelos desde el config
+        const config = workflow.config as any;
+        const agentConfig = config.agent || {
+            graph_type: 'react',
+            max_iterations: 10,
+            allow_interrupts: false,
+        };
+        const modelsConfig = config.models || {};
+
+        // 2. Construir enabled_tools (lista de nombres de catálogo)
+        const enabledTools: string[] = [];
+        const credentials: Record<string, any> = {};
+        const toolConfigs: Record<string, any> = {};
+        const enabledFunctions: Record<string, string[]> = {};
+
+        // Procesar cada TenantTool asociado al workflow
+        for (const tenantTool of workflow.tenantTools) {
+            const toolName = tenantTool.toolCatalog.toolName; // Nombre en el catálogo (ej: "calculator")
+            const toolId = tenantTool.id; // ID único del TenantTool
+
+            // Agregar al array de enabled_tools
+            if (!enabledTools.includes(toolName)) {
+                enabledTools.push(toolName);
+            }
+
+            // Obtener credenciales desde Secret Manager (si tiene)
+            if (tenantTool.credentialPath) {
+                const creds = await this.secretsService.getCredentials(
+                    tenantTool.credentialPath,
+                );
+                credentials[toolName] = creds;
+            }
+
+            // Agregar configuración específica de la tool
+            if (tenantTool.config) {
+                toolConfigs[toolName] = tenantTool.config;
+            }
+
+            // Determinar funciones habilitadas para esta tool
+            const toolPermissions = workflow.toolPermissions as any;
+            if (toolPermissions && toolPermissions[toolId]) {
+                // Si hay permisos específicos definidos, usar esos
+                enabledFunctions[toolName] = toolPermissions[toolId];
+            } else {
+                // Si no hay permisos específicos, usar TODAS las funciones del catálogo
+                enabledFunctions[toolName] = tenantTool.toolCatalog.functions.map(
+                    (fn: any) => fn.functionName,
+                );
+            }
+        }
+
+        // 3. Obtener historial de mensajes de la conversación
+        let messageHistory: any[] = [];
+        if (conversation.id) {
+            const messages = await this.prisma.message.findMany({
+                where: { conversationId: conversation.id },
+                orderBy: { createdAt: 'asc' },
+                select: {
+                    role: true,
+                    content: true,
+                },
+            });
+            messageHistory = messages;
+        }
+
+        // 4. Determinar tipo de usuario
+        const userType = conversation.userId ? UserType.INTERNAL : UserType.EXTERNAL;
+        const finalUserId = conversation.userId || conversation.endUserId || 'anonymous';
+
+        // 5. Construir el payload final según el DTO esperado
+        const payload = {
+            // Identificación (OBLIGATORIOS)
+            tenant_id: workflow.organizationId,
+            workflow_id: workflow.id,
+            conversation_id: conversation.id,
+            user_type: userType,
+            user_id: finalUserId,
+            channel,
+            user_message: userMessage,
+
+            // Configuración del agente
+            enabled_tools: enabledTools,
+            agent_config: agentConfig,
+            model_configs: modelsConfig,
+
+            // Credenciales y configs de tools (OPCIONALES)
+            credentials: Object.keys(credentials).length > 0 ? credentials : undefined,
+            tool_configs: Object.keys(toolConfigs).length > 0 ? toolConfigs : undefined,
+            enabled_functions: Object.keys(enabledFunctions).length > 0 ? enabledFunctions : undefined,
+
+            // Historial y metadata
+            message_history: messageHistory,
+            timezone: workflow.timezone || 'UTC',
+        };
+
+        this.logger.debug(
+            `Payload construido para workflow ${workflow.id}:`,
+            JSON.stringify(payload, null, 2),
+        );
+
+        return payload;
     }
 
     /**
