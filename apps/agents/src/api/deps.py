@@ -207,6 +207,24 @@ class AgentExecutionResponse(BaseModel):
     )
 
 
+class StreamEvent(BaseModel):
+    """Modelo para eventos de streaming."""
+    
+    type: Literal["token", "message", "tool_start", "tool_end", "error", "end"]
+    content: str
+    metadata: Optional[dict[str, Any]] = None
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "token",
+                "content": "Hola",
+                "metadata": {"model": "gpt-4o"}
+            }
+        }
+    )
+
+
 # ==========================================
 # Dependency Functions
 # ==========================================
@@ -257,7 +275,7 @@ def validate_request(request: AgentExecutionRequest) -> AgentExecutionRequest:
     return request
 
 
-def build_context(request: AgentExecutionRequest) -> TenantContext:
+def build_context(request: AgentExecutionRequest, streaming: bool = False) -> TenantContext:
     """
     Construye TenantContext desde el request.
     
@@ -266,6 +284,7 @@ def build_context(request: AgentExecutionRequest) -> TenantContext:
     
     Args:
         request: Request validado
+        streaming: Si se debe habilitar streaming de tokens (default: False)
     
     Returns:
         TenantContext listo para ejecutar el agente
@@ -287,7 +306,8 @@ def build_context(request: AgentExecutionRequest) -> TenantContext:
             enabled_functions=request.enabled_functions,
             message_history=request.message_history,
             user_metadata=request.user_metadata,
-            timezone=request.timezone
+            timezone=request.timezone,
+            streaming=streaming  # Pasar el flag de streaming
         )
         
         logger.debug(f"TenantContext built successfully for conversation {request.conversation_id}")

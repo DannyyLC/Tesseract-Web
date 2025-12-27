@@ -157,6 +157,7 @@ def get_llm(ctx: TenantContext, model_key: str = "default") -> BaseChatModel:
             "temperature": temperature,
             "max_retries": max_retries,
             "request_timeout": timeout,
+            "streaming": ctx.streaming,  # Habilitar/deshabilitar streaming
         }
         
         # Agregar parámetros opcionales

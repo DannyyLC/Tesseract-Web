@@ -143,6 +143,14 @@ class TenantContext:
     timezone: str = "UTC"
     
     # ==========================================
+    # Configuración de ejecución
+    # ==========================================
+    # Habilitar streaming de tokens desde el modelo
+    # True: Usar streaming (para endpoint /stream)
+    # False: Esperar respuesta completa (para endpoint normal)
+    streaming: bool = False
+    
+    # ==========================================
     # Validación post-inicialización
     # ==========================================
     def __post_init__(self):
@@ -190,6 +198,7 @@ class TenantContext:
             "message_history": self.message_history,
             "user_metadata": self.user_metadata,
             "timezone": self.timezone,
+            "streaming": self.streaming,
         }
     
     # ==========================================
