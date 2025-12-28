@@ -398,6 +398,41 @@ export class WorkflowsService {
                 );
             }
 
+            //TODO: PERSISTIR TOKENS Y COSTOS EN LA BASE DE DATOS
+            //TODO: Los valores ya vienen calculados desde Python en agentResponse.metadata
+            //TODO: const { input_tokens, output_tokens, total_tokens, cost } = agentResponse.metadata || {};
+            //TODO: 
+            //TODO: // Actualizar la tabla Execution con tokens y costos
+            //TODO: await this.prisma.execution.update({
+            //TODO:     where: { id: execution.id },
+            //TODO:     data: {
+            //TODO:         totalTokens: total_tokens || 0,
+            //TODO:         totalCost: cost || 0,
+            //TODO:     },
+            //TODO: });
+            //TODO: 
+            //TODO: // Actualizar la tabla Conversation acumulando tokens y costos
+            //TODO: await this.prisma.conversation.update({
+            //TODO:     where: { id: conversation.id },
+            //TODO:     data: {
+            //TODO:         totalTokens: { increment: total_tokens || 0 },
+            //TODO:         totalCost: { increment: cost || 0 },
+            //TODO:     },
+            //TODO: });
+            //TODO: 
+            //TODO: // Actualizar el mensaje del asistente con sus tokens específicos
+            //TODO: // (si quieres guardar tokens por mensaje individual)
+            //TODO: if (lastMessage && lastMessage.role === 'assistant') {
+            //TODO:     await this.prisma.message.update({
+            //TODO:         where: { id: savedMessage.id },
+            //TODO:         data: {
+            //TODO:             inputTokens: input_tokens || 0,
+            //TODO:             outputTokens: output_tokens || 0,
+            //TODO:             cost: cost || 0,
+            //TODO:         },
+            //TODO:     });
+            //TODO: }
+
             // 9. MARCAR EJECUCIÓN COMO COMPLETADA
             await this.executionsService.updateStatus(execution.id, 'completed', {
                 result: {
@@ -405,6 +440,10 @@ export class WorkflowsService {
                     conversationId: conversation.id,
                     messagesCount: messages.length,
                 },
+                //TODO: Pasar cost y tokens al updateStatus:
+                //TODO: cost: cost,
+                //TODO: // Si quieres agregar más campos en Execution:
+                //TODO: // totalTokens: total_tokens,
             });
 
             this.logger.log(`Ejecución ${execution.id} completada exitosamente`);
@@ -502,6 +541,25 @@ export class WorkflowsService {
             allow_interrupts: false,
         };
         const modelsConfig = config.models || {};
+
+        //TODO: AGREGAR PRICING A CADA MODELO EN modelsConfig
+        //TODO: Crear un mapa de precios por modelo (puede estar en una constante o en la BD)
+        //TODO: const MODEL_PRICING = {
+        //TODO:     'gpt-4o': { input_cost_per_million: 2.5, output_cost_per_million: 10.0 },
+        //TODO:     'gpt-4o-mini': { input_cost_per_million: 0.15, output_cost_per_million: 0.6 },
+        //TODO:     'claude-3-5-sonnet-20241022': { input_cost_per_million: 3.0, output_cost_per_million: 15.0 },
+        //TODO:     'claude-3-5-haiku-20241022': { input_cost_per_million: 0.8, output_cost_per_million: 4.0 },
+        //TODO: };
+        //TODO: 
+        //TODO: // Agregar pricing a cada modelo configurado
+        //TODO: for (const [key, modelConfig] of Object.entries(modelsConfig)) {
+        //TODO:     const modelName = modelConfig.model;
+        //TODO:     const pricing = MODEL_PRICING[modelName];
+        //TODO:     if (pricing) {
+        //TODO:         modelConfig.input_cost_per_million = pricing.input_cost_per_million;
+        //TODO:         modelConfig.output_cost_per_million = pricing.output_cost_per_million;
+        //TODO:     }
+        //TODO: }
 
         // 2. Construir enabled_tools (lista de nombres de catálogo)
         const enabledTools: string[] = [];

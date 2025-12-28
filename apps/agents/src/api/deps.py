@@ -122,6 +122,17 @@ class AgentExecutionRequest(BaseModel):
         description="Puntos de interrupción en el grafo (para aprobaciones)"
     )
     
+    #TODO: Agregar campos de pricing que el Gateway debe enviar:
+    #TODO: model_pricing: dict[str, dict[str, float]] = Field(
+    #TODO:     default_factory=dict,
+    #TODO:     description="Precios por modelo. Key=nombre del modelo, Value={input_cost_per_million, output_cost_per_million}"
+    #TODO: )
+    #TODO: Ejemplo: {
+    #TODO:     "gpt-4o": {"input_cost_per_million": 2.5, "output_cost_per_million": 10.0},
+    #TODO:     "claude-3-5-sonnet-20241022": {"input_cost_per_million": 3.0, "output_cost_per_million": 15.0}
+    #TODO: }
+    #TODO: NOTA: Estos precios deben venir desde Gateway (no hardcodear en Python)
+    
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -187,6 +198,12 @@ class AgentExecutionResponse(BaseModel):
     messages: list[dict[str, Any]]
     metadata: Optional[dict[str, Any]] = None
     
+    #TODO: metadata debe incluir los siguientes campos calculados en routes.py:
+    #TODO: - input_tokens: int  # Tokens del prompt
+    #TODO: - output_tokens: int  # Tokens de la respuesta
+    #TODO: - total_tokens: int  # Suma de input + output
+    #TODO: - cost: float  # Costo calculado usando input/output_cost_per_million
+    
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -200,7 +217,12 @@ class AgentExecutionResponse(BaseModel):
                 "metadata": {
                     "execution_time_ms": 1250,
                     "tools_called": ["google_calendar"],
-                    "model_used": "gpt-4o"
+                    "model_used": "gpt-4o",
+                    #TODO: Agregar estos campos al ejemplo:
+                    #TODO: "input_tokens": 350,
+                    #TODO: "output_tokens": 100,
+                    #TODO: "total_tokens": 450,
+                    #TODO: "cost": 0.001875  # (350/1M * 2.5) + (100/1M * 10.0)
                 }
             }
         }

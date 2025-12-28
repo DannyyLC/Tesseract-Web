@@ -67,6 +67,15 @@ export class ExecutionMetadataDto {
     @IsOptional()
     total_messages?: number;
 
+    //TODO: Agregar campos para recibir usage detallado desde Python:
+    //TODO: @ApiPropertyOptional({ description: 'Tokens de entrada (prompt)', example: 350 })
+    //TODO: @IsOptional()
+    //TODO: input_tokens?: number;
+    //TODO: 
+    //TODO: @ApiPropertyOptional({ description: 'Tokens de salida (completion)', example: 100 })
+    //TODO: @IsOptional()
+    //TODO: output_tokens?: number;
+
     @ApiPropertyOptional({
         description: 'Tokens utilizados en la conversación',
         example: 450,
@@ -74,6 +83,7 @@ export class ExecutionMetadataDto {
     @IsOptional()
     total_tokens?: number;
 
+    //TODO: Este costo ya viene calculado desde Python, solo recibirlo y guardarlo
     @ApiPropertyOptional({
         description: 'Costo estimado en USD',
         example: 0.0023,

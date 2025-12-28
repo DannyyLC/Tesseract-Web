@@ -340,8 +340,26 @@ async def execute_agent(request: AgentExecutionRequest) -> AgentExecutionRespons
         # ==========================================
         output_messages = result.get("messages", [])
         
+        #TODO: EXTRAER USAGE (TOKENS) DEL RESULTADO DE LANGGRAPH
+        #TODO: El último AIMessage contiene usage_metadata con input_tokens y output_tokens
+        #TODO: Buscar en output_messages el último AIMessage y extraer:
+        #TODO: usage_metadata = last_ai_message.usage_metadata
+        #TODO: input_tokens = usage_metadata.get("input_tokens", 0)
+        #TODO: output_tokens = usage_metadata.get("output_tokens", 0)
+        #TODO: total_tokens = input_tokens + output_tokens
+        
         # Convertir mensajes LangChain a dict
         response_messages = convert_langchain_messages_to_dict(output_messages)
+        
+        #TODO: CALCULAR COSTO USANDO LOS PRECIOS DEL MODELO
+        #TODO: model_config = ctx.model_configs.get("default", {})
+        #TODO: input_cost_per_million = model_config.get("input_cost_per_million", 0)
+        #TODO: output_cost_per_million = model_config.get("output_cost_per_million", 0)
+        #TODO: 
+        #TODO: cost = (
+        #TODO:     (input_tokens / 1_000_000 * input_cost_per_million) +
+        #TODO:     (output_tokens / 1_000_000 * output_cost_per_million)
+        #TODO: )
         
         # Metadata de la ejecución
         metadata = {
@@ -349,7 +367,12 @@ async def execute_agent(request: AgentExecutionRequest) -> AgentExecutionRespons
             "graph_type": ctx.agent_config.get("graph_type"),
             "model_used": ctx.model_configs.get("default", {}).get("model", "unknown"),
             "tools_enabled": ctx.enabled_tools,
-            "total_messages": len(response_messages)
+            "total_messages": len(response_messages),
+            #TODO: Agregar estos campos calculados arriba:
+            #TODO: "input_tokens": input_tokens,
+            #TODO: "output_tokens": output_tokens,
+            #TODO: "total_tokens": total_tokens,
+            #TODO: "cost": round(cost, 6),  # Redondear a 6 decimales
         }
         
         logger.info(

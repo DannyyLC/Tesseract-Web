@@ -98,6 +98,15 @@ export class ModelConfigDto {
     @IsArray()
     fallbacks?: string[];
 
+    //TODO: Agregar campos de pricing para que Python calcule los costos:
+    //TODO: @ApiPropertyOptional({ description: 'Costo por millón de tokens de entrada', example: 2.5 })
+    //TODO: @IsOptional()
+    //TODO: input_cost_per_million?: number;
+    //TODO: 
+    //TODO: @ApiPropertyOptional({ description: 'Costo por millón de tokens de salida', example: 10.0 })
+    //TODO: @IsOptional()
+    //TODO: output_cost_per_million?: number;
+
     @ApiPropertyOptional({
         description: 'Número máximo de reintentos',
         example: 2,
