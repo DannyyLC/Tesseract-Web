@@ -5,7 +5,9 @@
 **ANTES**: Gateway calculaba costos (perdía tiempo en cálculos)  
 **DESPUÉS**: Python agents calcula todo, Gateway solo persiste en BD
 
----
+--- 
+
+Ultimo commit del año
 
 ## 📋 Archivos con TODOs
 
