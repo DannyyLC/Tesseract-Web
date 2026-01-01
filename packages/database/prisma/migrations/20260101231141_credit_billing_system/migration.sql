@@ -1,17 +1,35 @@
+-- CreateEnum
+CREATE TYPE "SubscriptionPlan" AS ENUM ('STARTER', 'GROWTH', 'BUSINESS', 'PRO', 'ENTERPRISE');
+
+-- CreateEnum
+CREATE TYPE "WorkflowCategory" AS ENUM ('LIGHT', 'STANDARD', 'ADVANCED');
+
+-- CreateEnum
+CREATE TYPE "ModelTier" AS ENUM ('BASIC', 'STANDARD', 'PREMIUM');
+
+-- CreateEnum
+CREATE TYPE "TransactionType" AS ENUM ('SUBSCRIPTION_RENEWAL', 'PLAN_UPGRADE', 'PLAN_DOWNGRADE', 'EXECUTION_DEDUCTION', 'OVERAGE_CHARGE', 'MANUAL_ADJUSTMENT', 'REFUND', 'ONE_TIME_PURCHASE');
+
+-- CreateEnum
+CREATE TYPE "InvoiceType" AS ENUM ('SUBSCRIPTION', 'OVERAGE', 'ONE_TIME');
+
+-- CreateEnum
+CREATE TYPE "InvoiceStatus" AS ENUM ('DRAFT', 'PENDING', 'PAID', 'FAILED', 'REFUNDED');
+
+-- CreateEnum
+CREATE TYPE "SubscriptionStatus" AS ENUM ('ACTIVE', 'CANCELED', 'PAST_DUE', 'INCOMPLETE');
+
 -- CreateTable
 CREATE TABLE "organizations" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
-    "plan" TEXT NOT NULL DEFAULT 'free',
-    "maxUsers" INTEGER NOT NULL DEFAULT 3,
-    "maxWorkflows" INTEGER NOT NULL DEFAULT 5,
-    "maxExecutionsPerDay" INTEGER NOT NULL DEFAULT 100,
-    "maxApiKeys" INTEGER NOT NULL DEFAULT 2,
+    "plan" "SubscriptionPlan" NOT NULL DEFAULT 'STARTER',
     "defaultMaxMessages" INTEGER,
     "defaultInactivityHours" INTEGER,
-    "defaultMaxTokens" INTEGER NOT NULL DEFAULT 50000,
     "defaultMaxCostPerConv" DOUBLE PRECISION,
+    "allowOverages" BOOLEAN NOT NULL DEFAULT false,
+    "overageLimit" DOUBLE PRECISION,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -20,10 +38,93 @@ CREATE TABLE "organizations" (
     "region" TEXT DEFAULT 'us-central',
     "metadata" JSONB,
     "stripeCustomerId" TEXT,
-    "subscriptionStatus" TEXT DEFAULT 'active',
-    "subscriptionEndsAt" TIMESTAMP(3),
 
     CONSTRAINT "organizations_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "subscriptions" (
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "plan" "SubscriptionPlan" NOT NULL,
+    "status" "SubscriptionStatus" NOT NULL DEFAULT 'ACTIVE',
+    "currentPeriodStart" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "currentPeriodEnd" TIMESTAMP(3) NOT NULL,
+    "cancelAtPeriodEnd" BOOLEAN NOT NULL DEFAULT false,
+    "stripeSubscriptionId" TEXT,
+    "stripePriceId" TEXT,
+    "customMonthlyPrice" DOUBLE PRECISION,
+    "customMonthlyCredits" DOUBLE PRECISION,
+    "customMaxWorkflows" INTEGER,
+    "customOverageLimit" DOUBLE PRECISION,
+    "customFeatures" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "canceledAt" TIMESTAMP(3),
+
+    CONSTRAINT "subscriptions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "credit_balances" (
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "balance" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "lifetimeEarned" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "lifetimeSpent" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "currentMonthSpent" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "currentMonthCostUSD" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "credit_balances_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "credit_transactions" (
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "type" "TransactionType" NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL,
+    "balanceBefore" DOUBLE PRECISION NOT NULL,
+    "balanceAfter" DOUBLE PRECISION NOT NULL,
+    "subscriptionId" TEXT,
+    "executionId" TEXT,
+    "invoiceId" TEXT,
+    "workflowCategory" "WorkflowCategory",
+    "costUSD" DOUBLE PRECISION,
+    "description" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "credit_transactions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "invoices" (
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "invoiceNumber" TEXT NOT NULL,
+    "type" "InvoiceType" NOT NULL,
+    "status" "InvoiceStatus" NOT NULL DEFAULT 'PENDING',
+    "subscriptionId" TEXT,
+    "periodStart" TIMESTAMP(3),
+    "periodEnd" TIMESTAMP(3),
+    "subtotal" DOUBLE PRECISION NOT NULL,
+    "overageCredits" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "overageAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "tax" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "total" DOUBLE PRECISION NOT NULL,
+    "stripeInvoiceId" TEXT,
+    "stripePaymentIntentId" TEXT,
+    "stripeHostedUrl" TEXT,
+    "stripePdfUrl" TEXT,
+    "paidAt" TIMESTAMP(3),
+    "dueAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "invoices_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -118,6 +219,8 @@ CREATE TABLE "model_prices" (
     "id" TEXT NOT NULL,
     "provider" TEXT NOT NULL,
     "modelName" TEXT NOT NULL,
+    "tier" "ModelTier" NOT NULL,
+    "category" TEXT,
     "inputPricePer1m" DOUBLE PRECISION NOT NULL,
     "outputPricePer1m" DOUBLE PRECISION NOT NULL,
     "contextWindow" INTEGER NOT NULL,
@@ -233,9 +336,10 @@ CREATE TABLE "workflows" (
     "description" TEXT,
     "config" JSONB NOT NULL,
     "toolPermissions" JSONB,
+    "category" "WorkflowCategory" NOT NULL,
+    "maxTokensPerExecution" INTEGER NOT NULL,
     "maxMessages" INTEGER,
     "inactivityHours" INTEGER,
-    "maxTokens" INTEGER NOT NULL DEFAULT 50000,
     "maxCostPerConversation" DOUBLE PRECISION,
     "version" INTEGER NOT NULL DEFAULT 1,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
@@ -248,6 +352,8 @@ CREATE TABLE "workflows" (
     "totalExecutions" INTEGER NOT NULL DEFAULT 0,
     "successfulExecutions" INTEGER NOT NULL DEFAULT 0,
     "failedExecutions" INTEGER NOT NULL DEFAULT 0,
+    "totalCreditsConsumed" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "avgCreditsPerExecution" DOUBLE PRECISION,
     "lastExecutedAt" TIMESTAMP(3),
     "avgExecutionTime" DOUBLE PRECISION,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -274,6 +380,10 @@ CREATE TABLE "executions" (
     "stepResults" JSONB,
     "cost" DOUBLE PRECISION DEFAULT 0,
     "credits" INTEGER DEFAULT 0,
+    "tokensUsed" INTEGER,
+    "balanceBefore" DOUBLE PRECISION,
+    "balanceAfter" DOUBLE PRECISION,
+    "wasOverage" BOOLEAN NOT NULL DEFAULT false,
     "retryCount" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -378,6 +488,75 @@ CREATE INDEX "organizations_isActive_idx" ON "organizations"("isActive");
 CREATE INDEX "organizations_plan_idx" ON "organizations"("plan");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "subscriptions_organizationId_key" ON "subscriptions"("organizationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriptions_stripeSubscriptionId_key" ON "subscriptions"("stripeSubscriptionId");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_organizationId_idx" ON "subscriptions"("organizationId");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_status_idx" ON "subscriptions"("status");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_currentPeriodEnd_idx" ON "subscriptions"("currentPeriodEnd");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_plan_idx" ON "subscriptions"("plan");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "credit_balances_organizationId_key" ON "credit_balances"("organizationId");
+
+-- CreateIndex
+CREATE INDEX "credit_balances_organizationId_idx" ON "credit_balances"("organizationId");
+
+-- CreateIndex
+CREATE INDEX "credit_balances_balance_idx" ON "credit_balances"("balance");
+
+-- CreateIndex
+CREATE INDEX "credit_balances_updatedAt_idx" ON "credit_balances"("updatedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "credit_transactions_executionId_key" ON "credit_transactions"("executionId");
+
+-- CreateIndex
+CREATE INDEX "credit_transactions_organizationId_createdAt_idx" ON "credit_transactions"("organizationId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "credit_transactions_type_createdAt_idx" ON "credit_transactions"("type", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "credit_transactions_executionId_idx" ON "credit_transactions"("executionId");
+
+-- CreateIndex
+CREATE INDEX "credit_transactions_subscriptionId_idx" ON "credit_transactions"("subscriptionId");
+
+-- CreateIndex
+CREATE INDEX "credit_transactions_invoiceId_idx" ON "credit_transactions"("invoiceId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "invoices_invoiceNumber_key" ON "invoices"("invoiceNumber");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "invoices_stripeInvoiceId_key" ON "invoices"("stripeInvoiceId");
+
+-- CreateIndex
+CREATE INDEX "invoices_organizationId_createdAt_idx" ON "invoices"("organizationId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "invoices_type_status_idx" ON "invoices"("type", "status");
+
+-- CreateIndex
+CREATE INDEX "invoices_status_dueAt_idx" ON "invoices"("status", "dueAt");
+
+-- CreateIndex
+CREATE INDEX "invoices_subscriptionId_idx" ON "invoices"("subscriptionId");
+
+-- CreateIndex
+CREATE INDEX "invoices_stripeInvoiceId_idx" ON "invoices"("stripeInvoiceId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
@@ -471,6 +650,9 @@ CREATE INDEX "model_prices_provider_modelName_isActive_idx" ON "model_prices"("p
 CREATE INDEX "model_prices_isActive_effectiveFrom_idx" ON "model_prices"("isActive", "effectiveFrom");
 
 -- CreateIndex
+CREATE INDEX "model_prices_tier_isActive_idx" ON "model_prices"("tier", "isActive");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "model_prices_provider_modelName_effectiveFrom_key" ON "model_prices"("provider", "modelName", "effectiveFrom");
 
 -- CreateIndex
@@ -549,6 +731,9 @@ CREATE INDEX "workflows_lastExecutedAt_idx" ON "workflows"("lastExecutedAt");
 CREATE INDEX "workflows_triggerType_idx" ON "workflows"("triggerType");
 
 -- CreateIndex
+CREATE INDEX "workflows_category_idx" ON "workflows"("category");
+
+-- CreateIndex
 CREATE INDEX "executions_workflowId_idx" ON "executions"("workflowId");
 
 -- CreateIndex
@@ -571,6 +756,9 @@ CREATE INDEX "executions_startedAt_idx" ON "executions"("startedAt");
 
 -- CreateIndex
 CREATE INDEX "executions_trigger_idx" ON "executions"("trigger");
+
+-- CreateIndex
+CREATE INDEX "executions_wasOverage_idx" ON "executions"("wasOverage");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "tags_name_key" ON "tags"("name");
@@ -619,6 +807,24 @@ CREATE UNIQUE INDEX "_TagToWorkflow_AB_unique" ON "_TagToWorkflow"("A", "B");
 
 -- CreateIndex
 CREATE INDEX "_TagToWorkflow_B_index" ON "_TagToWorkflow"("B");
+
+-- AddForeignKey
+ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "credit_balances" ADD CONSTRAINT "credit_balances_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "credit_transactions" ADD CONSTRAINT "credit_transactions_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "credit_transactions" ADD CONSTRAINT "credit_transactions_executionId_fkey" FOREIGN KEY ("executionId") REFERENCES "executions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "credit_transactions" ADD CONSTRAINT "credit_transactions_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "invoices"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "invoices" ADD CONSTRAINT "invoices_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "users" ADD CONSTRAINT "users_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -8,25 +8,71 @@ datasource db {
 }
 
 // ============================================
+// ENUMS
+// ============================================
+enum SubscriptionPlan {
+  STARTER
+  GROWTH
+  BUSINESS
+  PRO
+  ENTERPRISE
+}
+enum WorkflowCategory {
+  LIGHT      // 1 crédito - Tareas simples, hasta 20k tokens
+  STANDARD   // 5 créditos - Workflows completos, hasta 50k tokens
+  ADVANCED   // 25 créditos - Multi-agente complejo, hasta 128k tokens
+}
+enum ModelTier {
+  BASIC      // gpt-4o-mini, claude-haiku - Solo para LIGHT workflows
+  STANDARD   // gpt-4o, claude-sonnet - Para LIGHT y STANDARD workflows
+  PREMIUM    // gpt-4-turbo, claude-opus - Para todos los workflows
+}
+enum TransactionType {
+  SUBSCRIPTION_RENEWAL  // Renovación mensual automática
+  PLAN_UPGRADE          // Upgrade de plan (STARTER -> GROWTH)
+  PLAN_DOWNGRADE        // Downgrade de plan (PRO -> BUSINESS)
+  EXECUTION_DEDUCTION   // Deducción por ejecución de workflow
+  OVERAGE_CHARGE        // Cargo por consumo en negativo
+  MANUAL_ADJUSTMENT     // Ajuste manual por admin
+  REFUND                // Reembolso
+  ONE_TIME_PURCHASE     // Compra de paquete de créditos adicional
+}
+enum InvoiceType {
+  SUBSCRIPTION  // Factura mensual de suscripción
+  OVERAGE       // Factura de overages del mes anterior
+  ONE_TIME      // Compra única de créditos
+}
+enum InvoiceStatus {
+  DRAFT          // Borrador, no enviada
+  PENDING        // Enviada, esperando pago
+  PAID           // Pagada exitosamente
+  FAILED         // Pago fallido
+  REFUNDED       // Reembolsada
+}
+enum SubscriptionStatus {
+  ACTIVE         // Suscripción activa
+  CANCELED       // Cancelada, no renovará
+  PAST_DUE       // Pago vencido
+  INCOMPLETE     // Pago inicial incompleto
+}
+
+// ============================================
 // ORGANIZATION (Tenant principal)
 // ============================================
 model Organization {
   id                  String           @id @default(uuid())
   name                String
   slug                String           @unique
-  plan                String           @default("free")
+  plan                SubscriptionPlan @default(STARTER)
   
-  // Límites según plan
-  maxUsers            Int              @default(3)
-  maxWorkflows        Int              @default(5)
-  maxExecutionsPerDay Int              @default(100)
-  maxApiKeys          Int              @default(2)
-
-  // Defaults para nuevos workflows 
-  defaultMaxMessages         Int?     // null = sin límite de mensajes
-  defaultInactivityHours     Int?     // null = sin límite temporal
-  defaultMaxTokens           Int      @default(50000)  // Obligatorio
-  defaultMaxCostPerConv      Float?   
+  // Defaults para nuevos workflows (opcionales)
+  defaultMaxMessages     Int?     // null = sin límite de mensajes por conversación
+  defaultInactivityHours Int?     // null = sin límite temporal de inactividad
+  defaultMaxCostPerConv  Float?   // null = sin límite de costo por conversación
+  
+  // Credit System - Overage Control
+  allowOverages       Boolean          @default(false)  // Permite balance negativo
+  overageLimit        Float?           // Límite de créditos negativos (null = usar default del plan)
   
   // Estado
   isActive            Boolean          @default(true)
@@ -41,8 +87,6 @@ model Organization {
   
   // Billing (Stripe)
   stripeCustomerId    String?          @unique
-  subscriptionStatus  String?          @default("active")
-  subscriptionEndsAt  DateTime?
   
   // Relaciones
   users               User[]
@@ -52,13 +96,184 @@ model Organization {
   tenantTools         TenantTool[]     
   whatsappConfigs     WhatsAppConfig[]
   auditLogs           AuditLog[]
-  endUsers            EndUser[]        
+  endUsers            EndUser[]
+  
+  // Credit System Relations
+  creditBalance       CreditBalance?
+  subscription        Subscription?
+  creditTransactions  CreditTransaction[]
+  invoices            Invoice[]
 
   @@index([slug])
   @@index([deletedAt])
   @@index([isActive])
   @@index([plan])
   @@map("organizations")
+}
+
+// ============================================
+// SUBSCRIPTION (Suscripción mensual activa)
+// ============================================
+model Subscription {
+  id                    String             @id @default(uuid())
+  organizationId        String             @unique
+  organization          Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Plan y estado
+  plan                  SubscriptionPlan
+  status                SubscriptionStatus @default(ACTIVE)
+  
+  // Ciclo de facturación
+  currentPeriodStart    DateTime           @default(now())
+  currentPeriodEnd      DateTime           // Calculado: currentPeriodStart + 1 mes
+  cancelAtPeriodEnd     Boolean            @default(false)  // Si true, no renueva al final del periodo
+  
+  // Stripe
+  stripeSubscriptionId  String?            @unique
+  stripePriceId         String?
+  
+  // Campos personalizables para ENTERPRISE
+  customMonthlyPrice    Float?             // null = usar precio estándar del plan
+  customMonthlyCredits  Float?             // null = usar defaults (150/500/1500/5000)
+  customMaxWorkflows    Int?               // null = usar defaults (3/7/12/25)
+  customOverageLimit    Float?             // null = calcular automático (1 mes de créditos)
+  customFeatures        Json?              // Features especiales: { sla: "99.9%", support: "24/7", ... }
+  
+  // Timestamps
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  canceledAt            DateTime?          // Fecha de cancelación
+  
+  @@index([organizationId])
+  @@index([status])
+  @@index([currentPeriodEnd])  // Para cron de renovaciones
+  @@index([plan])              // Para analytics
+  @@map("subscriptions")
+}
+
+// ============================================
+// CREDIT BALANCE (Balance de créditos por organización)
+// ============================================
+model CreditBalance {
+  id                  String       @id @default(uuid())
+  organizationId      String       @unique
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Balance actual (puede ser negativo si hay overage)
+  balance             Float        @default(0)
+  
+  // Contadores históricos acumulativos
+  lifetimeEarned      Float        @default(0)  // Total créditos comprados históricamente
+  lifetimeSpent       Float        @default(0)  // Total créditos consumidos
+  
+  // Contadores del mes actual
+  // NOTA: Se calculan sumando CreditTransaction del periodo actual (subscription.currentPeriodStart/End)
+  // Se actualizan con cada transacción, no se "reinician" sino que se recalculan desde transacciones
+  currentMonthSpent   Float        @default(0)  // Créditos gastados este mes
+  currentMonthCostUSD Float        @default(0)  // Costo real en USD este mes (para análisis interno)
+  
+  // Timestamps
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  
+  @@index([organizationId])
+  @@index([balance])       // Para queries de balance bajo
+  @@index([updatedAt])     // Para analytics de uso
+  @@map("credit_balances")
+}
+
+// ============================================
+// CREDIT TRANSACTION (Historial de transacciones de créditos)
+// ============================================
+model CreditTransaction {
+  id                String          @id @default(uuid())
+  organizationId    String
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Tipo de transacción
+  type              TransactionType
+  
+  // Monto y balances (para auditoría completa)
+  amount            Float           // Positivo = ingreso, Negativo = gasto
+  balanceBefore     Float           // Balance antes de la transacción
+  balanceAfter      Float           // Balance después de la transacción
+  
+  // Referencias opcionales según el tipo de transacción
+  subscriptionId    String?         // Para SUBSCRIPTION_RENEWAL, PLAN_UPGRADE, PLAN_DOWNGRADE
+  executionId       String?         @unique // Para EXECUTION_DEDUCTION
+  execution         Execution?      @relation("ExecutionTransaction", fields: [executionId], references: [id])
+  invoiceId         String?         // Para compras (ONE_TIME_PURCHASE, OVERAGE_CHARGE)
+  invoice           Invoice?        @relation(fields: [invoiceId], references: [id])
+  
+  // Metadata de la ejecución (para reportes y análisis)
+  workflowCategory  WorkflowCategory?  // LIGHT/STANDARD/ADVANCED (si es deducción por ejecución)
+  costUSD           Float?          // Costo real en USD de esta transacción (para análisis interno)
+  
+  // Información adicional
+  description       String?         // Descripción legible: "Renovación plan GROWTH", "Ejecución workflow Ventas"
+  metadata          Json?           // Info extra: { tokens: 450, model: "gpt-4o", duration: 1250 }
+  
+  // Timestamp
+  createdAt         DateTime        @default(now())
+  
+  @@index([organizationId, createdAt])  // Query principal: transacciones por org y fecha
+  @@index([type, createdAt])            // Para reportes por tipo
+  @@index([executionId])                // Para buscar transacción de una ejecución
+  @@index([subscriptionId])             // Para transacciones de una suscripción
+  @@index([invoiceId])                  // Para transacciones de una factura
+  @@map("credit_transactions")
+}
+
+// ============================================
+// INVOICE (Facturas de pago - Stripe)
+// ============================================
+model Invoice {
+  id                    String          @id @default(uuid())
+  organizationId        String
+  organization          Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Identificación
+  invoiceNumber         String          @unique  // Auto-generado: INV-202601-0001
+  type                  InvoiceType               // SUBSCRIPTION, OVERAGE, ONE_TIME
+  status                InvoiceStatus    @default(PENDING)
+  
+  // Referencias opcionales
+  subscriptionId        String?         // Si es factura de suscripción mensual
+  
+  // Periodo facturado (para facturas mensuales)
+  periodStart           DateTime?       // Inicio del periodo
+  periodEnd             DateTime?       // Fin del periodo
+  
+  // Montos
+  subtotal              Float           // Precio base (suscripción o paquete)
+  overageCredits        Float           @default(0)  // Créditos en negativo del mes anterior
+  overageAmount         Float           @default(0)  // overageCredits * $0.01
+  tax                   Float           @default(0)  // Impuestos si aplican
+  total                 Float           // subtotal + overageAmount + tax
+  
+  // Stripe
+  stripeInvoiceId       String?         @unique
+  stripePaymentIntentId String?
+  stripeHostedUrl       String?         // URL para que el cliente pague
+  stripePdfUrl          String?         // URL del PDF generado por Stripe
+  
+  // Fechas
+  paidAt                DateTime?       // Cuándo se pagó
+  dueAt                 DateTime?       // Fecha límite de pago
+  
+  // Timestamps
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  
+  // Relaciones
+  creditTransactions    CreditTransaction[]
+  
+  @@index([organizationId, createdAt])   // Facturas por org
+  @@index([type, status])                // Reportes por tipo y estado
+  @@index([status, dueAt])               // Facturas vencidas pendientes
+  @@index([subscriptionId])              // Facturas de una suscripción
+  @@index([stripeInvoiceId])             // Lookup por Stripe ID
+  @@map("invoices")
 }
 
 // ============================================
@@ -293,36 +508,43 @@ model Message {
 // MODEL PRICE (Precios de modelos de IA)
 // ============================================
 model ModelPrice {
-  id                   String   @id @default(uuid())
+  id                   String    @id @default(uuid())
   
   // Identificación del modelo
-  provider             String   // "openai", "anthropic", "google"
-  modelName            String   // "gpt-4o", "claude-3-5-sonnet", etc.
+  provider             String    // "openai", "anthropic", "google"
+  modelName            String    // "gpt-4o", "claude-3-5-sonnet", etc.
   
-  // Precios por 1000 tokens
-  inputPricePer1m      Float    // Precio por 1,000,000 tokens de entrada
-  outputPricePer1m     Float    // Precio por 1,000,000 tokens de salida
+  // Tier del modelo (para restricciones por workflow category)
+  tier                 ModelTier // BASIC, STANDARD, PREMIUM
+  
+  // Categoría para UI (agrupación visual)
+  category             String?   // "respuesta-rapida", "razonamiento-avanzado", "ultima-generacion"
+  
+  // Precios por 1 millón de tokens
+  inputPricePer1m      Float     // Precio por 1,000,000 tokens de entrada
+  outputPricePer1m     Float     // Precio por 1,000,000 tokens de salida
   
   // Ventana de contexto
-  contextWindow        Int      // Tokens máximos del modelo (ej: 128000 para GPT-4o)
-  recommendedMaxTokens Int      // Tokens recomendados para conversaciones (ej: 100000)
+  contextWindow        Int       // Tokens máximos del modelo (ej: 128000 para GPT-4o)
+  recommendedMaxTokens Int       // Tokens recomendados para conversaciones (ej: 100000)
   
   // Vigencia del precio
-  effectiveFrom        DateTime @default(now())  // Desde cuándo aplica
-  effectiveTo          DateTime?                 // Hasta cuándo (null = actual)
+  effectiveFrom        DateTime  @default(now())  // Desde cuándo aplica
+  effectiveTo          DateTime?                  // Hasta cuándo (null = actual)
   
   // Estado
-  isActive             Boolean  @default(true)
-  currency             String   @default("USD")
+  isActive             Boolean   @default(true)
+  currency             String    @default("USD")
   
   // Metadata
-  notes                String?  // "Aumento de precios Q1 2025"
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  notes                String?   // "Aumento de precios Q1 2025"
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@unique([provider, modelName, effectiveFrom])
   @@index([provider, modelName, isActive])
   @@index([isActive, effectiveFrom])
+  @@index([tier, isActive])  // Para filtrar modelos por tier
   @@map("model_prices")
 }
 
@@ -570,9 +792,12 @@ model Workflow {
   //   "calendar_marketing_id": ["check_availability", "list_events"]
   // }
   
+  // Credit System - Workflow Category
+  category               WorkflowCategory  // LIGHT (1cr), STANDARD (5cr), ADVANCED (25cr) - Asignado por admin
+  maxTokensPerExecution  Int               // Límite de tokens por ejecución (20k/50k/128k según category)
+  
   maxMessages            Int?     // null = sin límite de mensajes
   inactivityHours        Int?     // null = sin límite temporal
-  maxTokens              Int      @default(50000)  // Siempre tiene valor explícito
   maxCostPerConversation Float?   // null = sin límite de costo
 
   // Versionado
@@ -591,10 +816,12 @@ model Workflow {
   timeout              Int              @default(300)
   maxRetries           Int              @default(3)
   
-  // Estadísticas
+  // Estadísticas (incluye tracking de créditos)
   totalExecutions      Int              @default(0)
   successfulExecutions Int              @default(0)
   failedExecutions     Int              @default(0)
+  totalCreditsConsumed Float            @default(0)  // Total créditos gastados por este workflow
+  avgCreditsPerExecution Float?         // Promedio de créditos por ejecución
   lastExecutedAt       DateTime?
   avgExecutionTime     Float?
   
@@ -618,6 +845,7 @@ model Workflow {
   @@index([deletedAt])
   @@index([lastExecutedAt])
   @@index([triggerType])
+  @@index([category])  // Para filtrar workflows por categoría
   @@map("workflows")
 }
 
@@ -648,9 +876,13 @@ model Execution {
   logs           String?
   stepResults    Json?
   
-  // Costos
-  cost           Float?       @default(0)
-  credits        Int?         @default(0)
+  // Credit System - Costos y Créditos
+  cost           Float?       @default(0)      // Costo real en USD (de las APIs de modelos)
+  credits        Int?         @default(0)      // Créditos cobrados (1/5/25 según workflow.category)
+  tokensUsed     Int?                          // Total tokens consumidos en esta ejecución
+  balanceBefore  Float?                        // Snapshot del balance antes de la ejecución
+  balanceAfter   Float?                        // Snapshot del balance después de la ejecución
+  wasOverage     Boolean      @default(false)  // True si se ejecutó con balance negativo
   
   // Reintentos
   retryCount     Int          @default(0)
@@ -676,6 +908,9 @@ model Execution {
   
   apiKeyId       String?
   apiKey         ApiKey?      @relation(fields: [apiKeyId], references: [id])
+  
+  // Credit Transaction asociada (para trazabilidad)
+  creditTransaction CreditTransaction? @relation("ExecutionTransaction")
 
   @@index([workflowId])
   @@index([organizationId])
@@ -685,6 +920,7 @@ model Execution {
   @@index([status])
   @@index([startedAt])
   @@index([trigger])
+  @@index([wasOverage])  // Para identificar ejecuciones en overage
   @@map("executions")
 }
 
