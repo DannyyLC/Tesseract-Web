@@ -1,169 +1,214 @@
 /**
- * Sistema de Planes de Suscripción
+ * Sistema de Planes de Suscripción con Créditos
  * 
- * Define los planes disponibles y sus límites.
- * Este archivo centraliza la configuración de planes para mantener
- * consistencia entre frontend y backend.
+ * Define los planes disponibles, sus límites, y configuración de créditos.
+ * Sistema de pre-pago: créditos mensuales con renovación automática.
  */
 
 // ============================================
 // ENUMS
 // ============================================
-
 /**
  * Planes de suscripción disponibles
  */
-export enum PlanType {
-  FREE = 'free',
-  PRO = 'pro',
-  ENTERPRISE = 'enterprise',
+export enum SubscriptionPlan {
+  STARTER = 'STARTER',
+  GROWTH = 'GROWTH',
+  BUSINESS = 'BUSINESS',
+  PRO = 'PRO',
+  ENTERPRISE = 'ENTERPRISE',
+}
+
+/**
+ * Categorías de workflows (determina costo en créditos)
+ */
+export enum WorkflowCategory {
+  LIGHT = 'LIGHT',        // 1 crédito - Tareas simples, hasta 20k tokens
+  STANDARD = 'STANDARD',  // 5 créditos - Workflows completos, hasta 50k tokens
+  ADVANCED = 'ADVANCED',  // 25 créditos - Multi-agente complejo, hasta 128k tokens
+}
+
+/**
+ * Tiers de modelos (determina qué modelos puede usar cada workflow)
+ */
+export enum ModelTier {
+  BASIC = 'BASIC',        // gpt-4o-mini, claude-haiku
+  STANDARD = 'STANDARD',  // gpt-4o, claude-sonnet
+  PREMIUM = 'PREMIUM',    // gpt-4-turbo, claude-opus, o1
 }
 
 // ============================================
 // INTERFACES
 // ============================================
-
 /**
- * Límites de un plan
+ * Configuración de créditos por categoría de workflow
  */
-export interface PlanLimits {
-  maxUsers: number;           // -1 = ilimitado
-  maxWorkflows: number;       // -1 = ilimitado
-  maxExecutionsPerDay: number; // -1 = ilimitado
-  maxApiKeys: number;         // -1 = ilimitado
+export interface WorkflowCategoryConfig {
+  category: WorkflowCategory;
+  credits: number;           // Créditos que cuesta ejecutar
+  maxTokens: number;         // Límite de tokens por ejecución
+  allowedModelTiers: ModelTier[]; // Tiers de modelos permitidos
+  description: string;
 }
 
 /**
- * Features de un plan
+ * Límites de un plan de suscripción
  */
-export interface PlanFeatures {
-  customDomain: boolean;
-  whatsappIntegration: boolean;
-  advancedAnalytics: boolean;
-  prioritySupport: boolean;
-  sla: boolean;
-  ssoIntegration: boolean;
-  auditLogs: boolean;
-  customRetention: boolean; // Retención personalizada de logs
-  webhooks: boolean;
-  apiRateLimit: number; // Requests por minuto
+export interface PlanLimits {
+  maxWorkflows: number;      // Workflows activos simultáneos
+  monthlyCredits: number;    // Créditos incluidos por mes
+  overageLimit: number;      // Límite de créditos en negativo (overage)
+  allowOverages: boolean;    // Si permite balance negativo
 }
 
 /**
  * Información completa de un plan
  */
 export interface Plan {
-  type: PlanType;
+  type: SubscriptionPlan;
   name: string;
   description: string;
   price: {
-    monthly: number;  // USD
-    yearly: number;   // USD
+    monthly: number;         // USD por mes
+    currency: string;
   };
   limits: PlanLimits;
-  features: PlanFeatures;
-  color: string;
-  icon: string;
-  popular?: boolean;
+  popular?: boolean;         // Badge "Más popular"
+  stripePriceId?: string;    // Stripe Price ID (opcional hasta integrar)
 }
+
+/**
+ * Configuración personalizada para ENTERPRISE
+ */
+export interface EnterprisePlanConfig {
+  customMonthlyPrice?: number;
+  customMonthlyCredits?: number;
+  customMaxWorkflows?: number;
+  customOverageLimit?: number;
+  customFeatures?: Record<string, any>;
+}
+
+// ============================================
+// CONFIGURACIÓN DE CATEGORÍAS DE WORKFLOWS
+// ============================================
+/**
+ * Configuración de costos y límites por categoría de workflow
+ */
+export const WORKFLOW_CATEGORIES: Record<WorkflowCategory, WorkflowCategoryConfig> = {
+  [WorkflowCategory.LIGHT]: {
+    category: WorkflowCategory.LIGHT,
+    credits: 1,
+    maxTokens: 20_000,
+    allowedModelTiers: [ModelTier.BASIC, ModelTier.STANDARD, ModelTier.PREMIUM],
+    description: 'Tareas simples y rápidas con respuestas directas',
+  },
+  [WorkflowCategory.STANDARD]: {
+    category: WorkflowCategory.STANDARD,
+    credits: 5,
+    maxTokens: 50_000,
+    allowedModelTiers: [ModelTier.BASIC, ModelTier.STANDARD, ModelTier.PREMIUM],
+    description: 'Workflows completos con múltiples pasos y herramientas',
+  },
+  [WorkflowCategory.ADVANCED]: {
+    category: WorkflowCategory.ADVANCED,
+    credits: 25,
+    maxTokens: 128_000,
+    allowedModelTiers: [ModelTier.BASIC, ModelTier.STANDARD, ModelTier.PREMIUM],
+    description: 'Agentes complejos multi-step con reasoning avanzado',
+  },
+};
 
 // ============================================
 // CONFIGURACIÓN DE PLANES
 // ============================================
+/**
+ * Precio por crédito en overage
+ */
+export const OVERAGE_PRICE_PER_CREDIT = 0.01; // $0.01 USD por crédito
 
 /**
  * Configuración completa de todos los planes
  */
-export const PLANS: Record<PlanType, Plan> = {
-  [PlanType.FREE]: {
-    type: PlanType.FREE,
-    name: 'Free',
-    description: 'Perfecto para probar y proyectos pequeños',
+export const PLANS: Record<SubscriptionPlan, Plan> = {
+  [SubscriptionPlan.STARTER]: {
+    type: SubscriptionPlan.STARTER,
+    name: 'Starter',
+    description: 'Perfecto para empezar a automatizar tareas',
     price: {
-      monthly: 0,
-      yearly: 0,
+      monthly: 25,
+      currency: 'USD',
     },
     limits: {
-      maxUsers: 3,
-      maxWorkflows: 5,
-      maxExecutionsPerDay: 100,
-      maxApiKeys: 2,
-    },
-    features: {
-      customDomain: false,
-      whatsappIntegration: true,
-      advancedAnalytics: false,
-      prioritySupport: false,
-      sla: false,
-      ssoIntegration: false,
-      auditLogs: false,
-      customRetention: false,
-      webhooks: true,
-      apiRateLimit: 60, // 60 req/min
-    },
-    color: '#10B981', // Green
-    icon: '🚀',
+      maxWorkflows: 3,
+      monthlyCredits: 150,
+      overageLimit: 150, // 1 mes extra de créditos
+      allowOverages: true,
+    }
   },
-  
-  [PlanType.PRO]: {
-    type: PlanType.PRO,
-    name: 'Pro',
-    description: 'Para equipos en crecimiento que necesitan más potencia',
+
+  [SubscriptionPlan.GROWTH]: {
+    type: SubscriptionPlan.GROWTH,
+    name: 'Growth',
+    description: 'Para equipos que escalan sus operaciones',
     price: {
-      monthly: 49,
-      yearly: 470, // ~20% descuento
+      monthly: 79,
+      currency: 'USD',
     },
     limits: {
-      maxUsers: 10,
-      maxWorkflows: 50,
-      maxExecutionsPerDay: 10000,
-      maxApiKeys: 10,
+      maxWorkflows: 7,
+      monthlyCredits: 500,
+      overageLimit: 500,
+      allowOverages: true,
     },
-    features: {
-      customDomain: true,
-      whatsappIntegration: true,
-      advancedAnalytics: true,
-      prioritySupport: true,
-      sla: false,
-      ssoIntegration: false,
-      auditLogs: true,
-      customRetention: true,
-      webhooks: true,
-      apiRateLimit: 300, // 300 req/min
-    },
-    color: '#3B82F6', // Blue
-    icon: '⚡',
     popular: true,
   },
-  
-  [PlanType.ENTERPRISE]: {
-    type: PlanType.ENTERPRISE,
-    name: 'Enterprise',
-    description: 'Para empresas que necesitan escala y soporte premium',
+
+  [SubscriptionPlan.BUSINESS]: {
+    type: SubscriptionPlan.BUSINESS,
+    name: 'Business',
+    description: 'Para empresas con alta demanda',
     price: {
-      monthly: 299,
-      yearly: 2990, // ~17% descuento
+      monthly: 199,
+      currency: 'USD',
     },
     limits: {
-      maxUsers: -1,        // Ilimitado
-      maxWorkflows: -1,    // Ilimitado
-      maxExecutionsPerDay: -1, // Ilimitado
-      maxApiKeys: -1,      // Ilimitado
+      maxWorkflows: 12,
+      monthlyCredits: 1500,
+      overageLimit: 1500,
+      allowOverages: true,
+    }
+  },
+
+  [SubscriptionPlan.PRO]: {
+    type: SubscriptionPlan.PRO,
+    name: 'Pro',
+    description: 'Para organizaciones que necesitan máxima capacidad',
+    price: {
+      monthly: 499,
+      currency: 'USD',
     },
-    features: {
-      customDomain: true,
-      whatsappIntegration: true,
-      advancedAnalytics: true,
-      prioritySupport: true,
-      sla: true,
-      ssoIntegration: true,
-      auditLogs: true,
-      customRetention: true,
-      webhooks: true,
-      apiRateLimit: 1000, // 1000 req/min
+    limits: {
+      maxWorkflows: 25,
+      monthlyCredits: 5000,
+      overageLimit: 5000,
+      allowOverages: true,
+    }
+  },
+
+  [SubscriptionPlan.ENTERPRISE]: {
+    type: SubscriptionPlan.ENTERPRISE,
+    name: 'Enterprise',
+    description: 'Solución personalizada para grandes organizaciones',
+    price: {
+      monthly: 0, // Custom pricing
+      currency: 'USD',
     },
-    color: '#8B5CF6', // Purple
-    icon: '👑',
+    limits: {
+      maxWorkflows: -1,      // Ilimitado (se configura custom)
+      monthlyCredits: -1,    // Ilimitado (se configura custom)
+      overageLimit: -1,      // Ilimitado (se configura custom)
+      allowOverages: true,
+    }
   },
 };
 
@@ -173,263 +218,161 @@ export const PLANS: Record<PlanType, Plan> = {
 
 /**
  * Obtiene la configuración de un plan
- * 
- * @param planType - Tipo de plan
- * @returns Configuración del plan
  */
-export function getPlan(planType: PlanType): Plan {
+export function getPlan(planType: SubscriptionPlan): Plan {
   return PLANS[planType];
 }
 
 /**
- * Obtiene los límites de un plan
- * 
- * @param planType - Tipo de plan
- * @returns Límites del plan
+ * Obtiene los límites de un plan (con soporte para ENTERPRISE custom)
  */
-export function getPlanLimits(planType: PlanType): PlanLimits {
-  return PLANS[planType].limits;
-}
-
-/**
- * Obtiene las features de un plan
- * 
- * @param planType - Tipo de plan
- * @returns Features del plan
- */
-export function getPlanFeatures(planType: PlanType): PlanFeatures {
-  return PLANS[planType].features;
-}
-
-/**
- * Verifica si un plan tiene una feature específica
- * 
- * @param planType - Tipo de plan
- * @param feature - Feature a verificar
- * @returns true si el plan tiene la feature
- */
-export function hasFeature(planType: PlanType, feature: keyof PlanFeatures): boolean {
-  return PLANS[planType].features[feature] === true;
-}
-
-/**
- * Verifica si un límite está alcanzado
- * 
- * @param planType - Tipo de plan
- * @param limitType - Tipo de límite
- * @param currentValue - Valor actual
- * @returns true si el límite está alcanzado
- */
-export function isLimitReached(
-  planType: PlanType,
-  limitType: keyof PlanLimits,
-  currentValue: number,
-): boolean {
-  const limit = PLANS[planType].limits[limitType];
+export function getPlanLimits(
+  planType: SubscriptionPlan,
+  enterpriseConfig?: EnterprisePlanConfig
+): PlanLimits {
+  const plan = PLANS[planType];
   
-  // -1 significa ilimitado
-  if (limit === -1) {
-    return false;
+  // Para ENTERPRISE, usar valores custom si existen
+  if (planType === SubscriptionPlan.ENTERPRISE && enterpriseConfig) {
+    return {
+      maxWorkflows: enterpriseConfig.customMaxWorkflows ?? plan.limits.maxWorkflows,
+      monthlyCredits: enterpriseConfig.customMonthlyCredits ?? plan.limits.monthlyCredits,
+      overageLimit: enterpriseConfig.customOverageLimit ?? plan.limits.overageLimit,
+      allowOverages: plan.limits.allowOverages,
+    };
   }
   
-  return currentValue >= limit;
+  return plan.limits;
 }
 
 /**
- * Verifica si se puede agregar más de un recurso
- * 
- * @param planType - Tipo de plan
- * @param limitType - Tipo de límite
- * @param currentValue - Valor actual
- * @param amountToAdd - Cantidad a agregar (default: 1)
- * @returns true si se puede agregar
+ * Verifica si un plan puede crear más workflows
  */
-export function canAdd(
-  planType: PlanType,
-  limitType: keyof PlanLimits,
-  currentValue: number,
-  amountToAdd: number = 1,
+export function canCreateWorkflow(
+  planType: SubscriptionPlan,
+  currentWorkflows: number,
+  enterpriseConfig?: EnterprisePlanConfig
 ): boolean {
-  const limit = PLANS[planType].limits[limitType];
+  const limits = getPlanLimits(planType, enterpriseConfig);
   
-  // -1 significa ilimitado
-  if (limit === -1) {
+  // -1 = ilimitado
+  if (limits.maxWorkflows === -1) {
     return true;
   }
   
-  return (currentValue + amountToAdd) <= limit;
+  return currentWorkflows < limits.maxWorkflows;
 }
 
 /**
- * Calcula cuántos recursos más se pueden agregar
- * 
- * @param planType - Tipo de plan
- * @param limitType - Tipo de límite
- * @param currentValue - Valor actual
- * @returns Cantidad disponible (-1 si es ilimitado)
+ * Verifica si hay suficientes créditos para ejecutar un workflow
  */
-export function getAvailableSlots(
-  planType: PlanType,
-  limitType: keyof PlanLimits,
-  currentValue: number,
-): number {
-  const limit = PLANS[planType].limits[limitType];
+export function hasSufficientCredits(
+  currentBalance: number,
+  workflowCategory: WorkflowCategory,
+  allowOverages: boolean,
+  overageLimit: number
+): boolean {
+  const requiredCredits = WORKFLOW_CATEGORIES[workflowCategory].credits;
   
-  // -1 significa ilimitado
-  if (limit === -1) {
-    return -1;
+  // Si tiene balance positivo suficiente
+  if (currentBalance >= requiredCredits) {
+    return true;
   }
   
-  return Math.max(0, limit - currentValue);
-}
-
-/**
- * Compara dos planes y retorna si el primero es superior
- * 
- * @param plan1 - Primer plan
- * @param plan2 - Segundo plan
- * @returns true si plan1 es superior a plan2
- */
-export function isPlanSuperior(plan1: PlanType, plan2: PlanType): boolean {
-  const hierarchy = {
-    [PlanType.FREE]: 0,
-    [PlanType.PRO]: 1,
-    [PlanType.ENTERPRISE]: 2,
-  };
+  // Si no permite overages
+  if (!allowOverages) {
+    return false;
+  }
   
-  return hierarchy[plan1] > hierarchy[plan2];
+  // Verificar límite de overage
+  const balanceAfterExecution = currentBalance - requiredCredits;
+  return Math.abs(balanceAfterExecution) <= overageLimit;
 }
 
 /**
- * Verifica si un upgrade es necesario para una acción
- * 
- * @param currentPlan - Plan actual
- * @param requiredPlan - Plan requerido
- * @returns true si necesita upgrade
+ * Obtiene el costo en créditos de un workflow según su categoría
  */
-export function needsUpgrade(currentPlan: PlanType, requiredPlan: PlanType): boolean {
-  return isPlanSuperior(requiredPlan, currentPlan);
+export function getWorkflowCreditCost(category: WorkflowCategory): number {
+  return WORKFLOW_CATEGORIES[category].credits;
 }
 
 /**
- * Calcula el ahorro anual vs mensual
- * 
- * @param planType - Tipo de plan
- * @returns Ahorro en USD y porcentaje
+ * Obtiene el límite de tokens de un workflow según su categoría
  */
-export function getYearlySavings(planType: PlanType): { amount: number; percentage: number } {
-  const plan = PLANS[planType];
-  const monthlyTotal = plan.price.monthly * 12;
-  const yearlyTotal = plan.price.yearly;
-  const amount = monthlyTotal - yearlyTotal;
-  const percentage = monthlyTotal > 0 ? Math.round((amount / monthlyTotal) * 100) : 0;
-  
-  return { amount, percentage };
+export function getWorkflowMaxTokens(category: WorkflowCategory): number {
+  return WORKFLOW_CATEGORIES[category].maxTokens;
 }
 
 /**
- * Obtiene todos los planes ordenados por precio
- * 
- * @returns Array de planes ordenados
+ * Verifica si un modelo puede usarse en un workflow de cierta categoría
  */
-export function getAllPlans(): Plan[] {
+export function canUseModelInWorkflow(
+  modelTier: ModelTier,
+  workflowCategory: WorkflowCategory
+): boolean {
+  return WORKFLOW_CATEGORIES[workflowCategory].allowedModelTiers.includes(modelTier);
+}
+
+/**
+ * Calcula el costo de overage en USD
+ */
+export function calculateOverageCost(overageCredits: number): number {
+  return Math.abs(overageCredits) * OVERAGE_PRICE_PER_CREDIT;
+}
+
+/**
+ * Obtiene todos los planes ordenados por precio 
+ */
+export function getOrderedPlans(): Plan[] {
   return [
-    PLANS[PlanType.FREE],
-    PLANS[PlanType.PRO],
-    PLANS[PlanType.ENTERPRISE],
+    PLANS[SubscriptionPlan.STARTER],
+    PLANS[SubscriptionPlan.GROWTH],
+    PLANS[SubscriptionPlan.BUSINESS],
+    PLANS[SubscriptionPlan.PRO],
+    PLANS[SubscriptionPlan.ENTERPRISE],
   ];
 }
 
 /**
- * Formatea el precio de un plan para mostrar en UI
- * 
- * @param plan - Plan
- * @param billing - 'monthly' o 'yearly'
- * @returns String formateado (ej: "$49/mes")
+ * Verifica si un upgrade es válido (solo se puede subir, no bajar)
  */
-export function formatPlanPrice(plan: Plan, billing: 'monthly' | 'yearly'): string {
-  const price = billing === 'monthly' ? plan.price.monthly : plan.price.yearly;
+export function canUpgradePlan(
+  currentPlan: SubscriptionPlan,
+  targetPlan: SubscriptionPlan
+): boolean {
+  const planOrder = [
+    SubscriptionPlan.STARTER,
+    SubscriptionPlan.GROWTH,
+    SubscriptionPlan.BUSINESS,
+    SubscriptionPlan.PRO,
+    SubscriptionPlan.ENTERPRISE,
+  ];
   
-  if (price === 0) {
-    return 'Gratis';
-  }
+  const currentIndex = planOrder.indexOf(currentPlan);
+  const targetIndex = planOrder.indexOf(targetPlan);
   
-  const period = billing === 'monthly' ? 'mes' : 'año';
-  return `$${price}/${period}`;
+  return targetIndex > currentIndex;
 }
 
 /**
- * Valida límites de organización contra su plan
- * 
- * Útil para verificar antes de crear recursos
+ * Valida si los valores custom de ENTERPRISE son válidos
  */
-export interface LimitValidation {
-  isValid: boolean;
-  limitType?: keyof PlanLimits;
-  limit?: number;
-  current?: number;
-  message?: string;
-}
-
-/**
- * Valida si se puede crear un usuario
- */
-export function validateUserCreation(
-  planType: PlanType,
-  currentUsers: number,
-): LimitValidation {
-  if (canAdd(planType, 'maxUsers', currentUsers)) {
-    return { isValid: true };
+export function validateEnterpriseConfig(config: EnterprisePlanConfig): boolean {
+  if (config.customMonthlyPrice !== undefined && config.customMonthlyPrice < 0) {
+    return false;
   }
   
-  const limit = getPlanLimits(planType).maxUsers;
-  return {
-    isValid: false,
-    limitType: 'maxUsers',
-    limit,
-    current: currentUsers,
-    message: `Has alcanzado el límite de ${limit} usuarios en tu plan ${planType}`,
-  };
-}
-
-/**
- * Valida si se puede crear un workflow
- */
-export function validateWorkflowCreation(
-  planType: PlanType,
-  currentWorkflows: number,
-): LimitValidation {
-  if (canAdd(planType, 'maxWorkflows', currentWorkflows)) {
-    return { isValid: true };
+  if (config.customMonthlyCredits !== undefined && config.customMonthlyCredits < 0) {
+    return false;
   }
   
-  const limit = getPlanLimits(planType).maxWorkflows;
-  return {
-    isValid: false,
-    limitType: 'maxWorkflows',
-    limit,
-    current: currentWorkflows,
-    message: `Has alcanzado el límite de ${limit} workflows en tu plan ${planType}`,
-  };
-}
-
-/**
- * Valida si se puede crear una API key
- */
-export function validateApiKeyCreation(
-  planType: PlanType,
-  currentApiKeys: number,
-): LimitValidation {
-  if (canAdd(planType, 'maxApiKeys', currentApiKeys)) {
-    return { isValid: true };
+  if (config.customMaxWorkflows !== undefined && config.customMaxWorkflows < 1) {
+    return false;
   }
   
-  const limit = getPlanLimits(planType).maxApiKeys;
-  return {
-    isValid: false,
-    limitType: 'maxApiKeys',
-    limit,
-    current: currentApiKeys,
-    message: `Has alcanzado el límite de ${limit} API keys en tu plan ${planType}`,
-  };
+  if (config.customOverageLimit !== undefined && config.customOverageLimit < 0) {
+    return false;
+  }
+  
+  return true;
 }
