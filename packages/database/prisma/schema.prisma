@@ -748,49 +748,85 @@ model Workflow {
   name                 String
   description          String?
   
-  // Configuración del agente
+  // Configuración del workflow - Estructura unificada para todos los tipos de grafos
   config               Json             
-  // Estructura esperada:
+  // Estructura unificada:
   // {
-  //   "agent": {
-  //     "graph_type": "react",           // "react", "supervisor", "plan_and_execute"
-  //     "max_iterations": 10,            // Máximo de iteraciones del agente
-  //     "allow_interrupts": false        // Si permite interrupciones humanas
+  //   "type": "agent",
+  //   "graph": {
+  //     "type": "react",                 // "react", "supervisor", "router", "sequential", "parallel"
+  //     "config": {
+  //       // Configuración específica del tipo de grafo
+  //       // REACT: { "max_iterations": 10, "allow_interrupts": false }
+  //       // SUPERVISOR: { "routing_strategy": "llm_based", "max_iterations": 20 }
+  //       // ROUTER: { "routes": [...], "default_route": "agent_name" }
+  //       // SEQUENTIAL: { "steps": [{"agent": "a", "output_to": "data"}, ...] }
+  //     }
   //   },
-  //   "models": {
+  //   "agents": {
+  //     // Para grafos simples (react): un agente "default"
   //     "default": {
-  //       "systemPrompt": "Eres un agente de ventas...",
   //       "model": "gpt-4o",
   //       "temperature": 0.7,
-  //       "maxTokensPerMessage": 1000,
-  //       "responseFormat": "text",
-  //       "enabledFeatures": ["vision"]
+  //       "system_prompt": "Eres un asistente...",
+  //       "tools": ["tenant-tool-uuid-1", "tenant-tool-uuid-2"]  // IDs de TenantTools
   //     },
-  //     "classifier": {
-  //       "model": "gpt-3.5-turbo",
+  //     // Para grafos multi-agente (supervisor, router, sequential): múltiples agentes
+  //     "supervisor": {
+  //       "model": "gpt-4o",
+  //       "system_prompt": "Coordinas agentes...",
+  //       "tools": []
+  //     },
+  //     "sales_agent": {
+  //       "model": "gpt-4o",
+  //       "temperature": 0.5,
+  //       "system_prompt": "Gestionas ventas...",
+  //       "tools": ["tenant-tool-uuid-calendar-ventas"]
+  //     },
+  //     "marketing_agent": {
+  //       "model": "gpt-4o-mini",
   //       "temperature": 0.3,
-  //       "enabledFeatures": ["web_search"]
+  //       "system_prompt": "Gestionas marketing...",
+  //       // OPCIÓN 1: Array simple de IDs (sin restricciones de funciones)
+  //       "tools": ["tenant-tool-uuid-calendar-marketing"]
+  //     },
+  //     "restricted_agent": {
+  //       "model": "gpt-4o",
+  //       "system_prompt": "Agente con permisos limitados...",
+  //       // OPCIÓN 2: Array de objetos con control granular de funciones
+  //       "tools": [
+  //         {
+  //           "id": "tenant-tool-uuid-calendar",
+  //           "functions": ["check_availability", "list_events"]  // Solo estas funciones
+  //         },
+  //         {
+  //           "id": "tenant-tool-uuid-calculator"  // Sin "functions" = usa todas
+  //         }
+  //       ]
   //     }
   //   }
   // }
+  //
+  // FORMATOS SOPORTADOS PARA "tools":
+  // 
+  // 1. String simple (sin control granular):
+  //    "tools": ["uuid-1", "uuid-2"]
+  //    → Puede usar TODAS las funciones de cada tool
+  //
+  // 2. Objeto con funciones específicas (control granular):
+  //    "tools": [
+  //      {"id": "uuid-1", "functions": ["func1", "func2"]},  // Solo func1 y func2
+  //      {"id": "uuid-2"}  // Sin "functions" = usa todas
+  //    ]
+  //    → Puede usar solo las funciones especificadas
+  //
+  // 3. Array vacío (sin tools):
+  //    "tools": []
+  //    → El agente no tiene acceso a ninguna tool
   
   // Tools habilitadas para este workflow (relación con TenantTools específicas)
+  // Representa el POOL de tools disponibles - cada agente decide cuáles usar en config.agents[].tools
   tenantTools         TenantTool[]     @relation("WorkflowToTenantTool")
-  
-  // Control granular de funciones por tool (usa ID del TenantTool como key)
-  // Define qué funciones específicas puede usar este workflow de cada TenantTool
-  // Si un TenantTool NO está en el dict, usa TODAS las funciones disponibles
-  toolPermissions     Json?
-  // Estructura (key = ID del TenantTool, NO el nombre):
-  // {
-  //   "tenant_tool_uuid_123": ["check_availability", "create_event"],
-  //   "tenant_tool_uuid_456": ["search_contacts"]
-  // }
-  // Esto permite tener múltiples conexiones del mismo tipo con permisos diferentes:
-  // {
-  //   "calendar_ventas_id": ["check_availability", "create_event"],
-  //   "calendar_marketing_id": ["check_availability", "list_events"]
-  // }
   
   // Credit System - Workflow Category
   category               WorkflowCategory  // LIGHT (1cr), STANDARD (5cr), ADVANCED (25cr) - Asignado por admin

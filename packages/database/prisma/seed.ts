@@ -532,19 +532,25 @@ async function main() {
       category: 'LIGHT',
       maxTokensPerExecution: 20000,
       config: {
-        type: 'agent',
-        agent: {
-          graph_type: 'react',
-          max_iterations: 3,
-          allow_interrupts: false,
+        graph: {
+          type: 'react',
+          config: {
+            max_iterations: 3,
+            allow_interrupts: false,
+          },
         },
-        models: {
+        agents: {
           default: {
-            systemPrompt: 'Eres un asistente de cálculo rápido. Responde de forma concisa.',
             model: 'gpt-4o-mini',
             temperature: 0.3,
-            maxTokensPerMessage: 500,
-            responseFormat: 'text',
+            system_prompt: 'Eres un asistente de cálculo rápido. Responde de forma concisa.',
+            // Control granular: solo permite calculator y percentage, NO currency_convert
+            tools: [
+              {
+                id: tenantToolCalc1.id,
+                functions: ['calculator', 'percentage'],
+              },
+            ],
           },
         },
       },
@@ -564,6 +570,7 @@ async function main() {
     },
   });
   console.log(`✅ Workflow LIGHT creado: ${workflow1.name}`);
+  console.log(`   Permisos: Solo calculator y percentage`);
 
   // Workflow 2: STANDARD (5 créditos) - Acme Corp
   const workflow2 = await prisma.workflow.create({
@@ -574,19 +581,20 @@ async function main() {
       maxTokensPerExecution: 50000,
       maxMessages: 20,
       config: {
-        type: 'agent',
-        agent: {
-          graph_type: 'react',
-          max_iterations: 10,
-          allow_interrupts: true,
+        graph: {
+          type: 'react',
+          config: {
+            max_iterations: 10,
+            allow_interrupts: true,
+          },
         },
-        models: {
+        agents: {
           default: {
-            systemPrompt: 'Eres un asistente financiero experto. Proporciona análisis detallados con cálculos precisos.',
             model: 'gpt-4o',
             temperature: 0.5,
-            maxTokensPerMessage: 2000,
-            responseFormat: 'text',
+            system_prompt: 'Eres un asistente financiero experto. Proporciona análisis detallados con cálculos precisos.',
+            // Sin restricciones = puede usar TODAS las funciones disponibles (string format)
+            tools: [tenantToolCalc1.id],
           },
         },
       },
@@ -606,6 +614,7 @@ async function main() {
     },
   });
   console.log(`✅ Workflow STANDARD creado: ${workflow2.name}`);
+  console.log(`   Permisos: Todas las funciones (sin restricciones)`);
 
   // Workflow 3: ADVANCED (25 créditos) - TechStart
   const workflow3 = await prisma.workflow.create({
@@ -617,19 +626,25 @@ async function main() {
       maxMessages: 50,
       inactivityHours: 48,
       config: {
-        type: 'agent',
-        agent: {
-          graph_type: 'react',
-          max_iterations: 50,
-          allow_interrupts: true,
+        graph: {
+          type: 'react',
+          config: {
+            max_iterations: 50,
+            allow_interrupts: true,
+          },
         },
-        models: {
+        agents: {
           default: {
-            systemPrompt: 'Eres un agente estratégico de alto nivel. Realiza análisis profundos y detallados con razonamiento paso a paso.',
             model: 'gpt-4o',
             temperature: 0.7,
-            maxTokensPerMessage: 4000,
-            responseFormat: 'text',
+            system_prompt: 'Eres un agente estratégico de alto nivel. Realiza análisis profundos y detallados con razonamiento paso a paso.',
+            // Control granular: solo permite calculator básica
+            tools: [
+              {
+                id: tenantToolCalc2.id,
+                functions: ['calculator'],
+              },
+            ],
           },
         },
       },
@@ -649,6 +664,7 @@ async function main() {
     },
   });
   console.log(`✅ Workflow ADVANCED creado: ${workflow3.name}`);
+  console.log(`   Permisos: Solo calculator (sin percentage ni currency_convert)`);
 
   // Workflow 4: LIGHT para testing - TechStart
   const workflow4 = await prisma.workflow.create({
@@ -658,19 +674,20 @@ async function main() {
       category: 'LIGHT',
       maxTokensPerExecution: 20000,
       config: {
-        type: 'agent',
-        agent: {
-          graph_type: 'react',
-          max_iterations: 3,
-          allow_interrupts: false,
+        graph: {
+          type: 'react',
+          config: {
+            max_iterations: 3,
+            allow_interrupts: false,
+          },
         },
-        models: {
+        agents: {
           default: {
-            systemPrompt: 'Eres un bot de prueba. Responde de forma breve.',
             model: 'gpt-4o-mini',
             temperature: 0.2,
-            maxTokensPerMessage: 300,
-            responseFormat: 'text',
+            system_prompt: 'Eres un bot de prueba. Responde de forma breve.',
+            // Sin tools asignadas
+            tools: [],
           },
         },
       },

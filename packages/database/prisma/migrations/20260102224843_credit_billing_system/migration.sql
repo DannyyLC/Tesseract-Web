@@ -335,7 +335,6 @@ CREATE TABLE "workflows" (
     "name" TEXT NOT NULL,
     "description" TEXT,
     "config" JSONB NOT NULL,
-    "toolPermissions" JSONB,
     "category" "WorkflowCategory" NOT NULL,
     "maxTokensPerExecution" INTEGER NOT NULL,
     "maxMessages" INTEGER,
