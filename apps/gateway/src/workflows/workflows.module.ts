@@ -4,6 +4,7 @@ import { WorkflowsService } from "./workflows.service";
 import { ExecutionsModule } from '../executions/executions.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { AgentsModule } from "../agents/agents.module";
+import { CreditBalanceService } from '../credits/credit-balance.service';
 /**
  * WorkflowsModule
  * Agrupa toda la funcionalidad relacionada con workflows
@@ -20,6 +21,7 @@ import { AgentsModule } from "../agents/agents.module";
  * - PrismaService: Se inyecta automáticamente (es global)
  * - ExecutionsService: Desde ExecutionsModule
  * - OrganizationsService: Desde OrganizationsModule
+ * - CreditBalanceService: Para validar y descontar créditos
  * 
  * Exporta:
  * - WorkflowsService: Para que otros módulos puedan usarlo si necesitan
@@ -27,7 +29,7 @@ import { AgentsModule } from "../agents/agents.module";
 @Module({
     imports: [ExecutionsModule, OrganizationsModule, AgentsModule],
     controllers: [WorkflowsController],
-    providers: [WorkflowsService],
+    providers: [WorkflowsService, CreditBalanceService],
     exports: [WorkflowsService],
 })
 export class WorkflowsModule {}

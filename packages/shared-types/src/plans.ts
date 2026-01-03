@@ -6,6 +6,11 @@
  */
 
 // ============================================
+// IMPORTS
+// ============================================
+import { WorkflowCategory, ModelTier } from '@prisma/client';
+
+// ============================================
 // ENUMS
 // ============================================
 /**
@@ -19,23 +24,8 @@ export enum SubscriptionPlan {
   ENTERPRISE = 'ENTERPRISE',
 }
 
-/**
- * Categorías de workflows (determina costo en créditos)
- */
-export enum WorkflowCategory {
-  LIGHT = 'LIGHT',        // 1 crédito - Tareas simples, hasta 20k tokens
-  STANDARD = 'STANDARD',  // 5 créditos - Workflows completos, hasta 50k tokens
-  ADVANCED = 'ADVANCED',  // 25 créditos - Multi-agente complejo, hasta 128k tokens
-}
-
-/**
- * Tiers de modelos (determina qué modelos puede usar cada workflow)
- */
-export enum ModelTier {
-  BASIC = 'BASIC',        // gpt-4o-mini, claude-haiku
-  STANDARD = 'STANDARD',  // gpt-4o, claude-sonnet
-  PREMIUM = 'PREMIUM',    // gpt-4-turbo, claude-opus, o1
-}
+// Re-exportar enums de Prisma para facilitar el uso
+export { WorkflowCategory, ModelTier };
 
 // ============================================
 // INTERFACES

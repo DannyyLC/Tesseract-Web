@@ -14,6 +14,7 @@ import { SecretsService } from '../secrets/secrets.service';
 import { AgentsService } from '../agents/agents.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
 import { PLANS, PlanType } from '@workflow-automation/shared-types';
+import { CreditBalanceService } from '../credits/credit-balance.service';
 import {
   WorkflowNotFoundException,
   WorkflowPausedException,
@@ -37,6 +38,7 @@ export class WorkflowsService {
         private readonly organizationsService: OrganizationsService,
         private readonly secretsService: SecretsService,
         private readonly agentsService: AgentsService,
+        private readonly creditBalanceService: CreditBalanceService,
     ) {}
 
     /**
@@ -276,6 +278,18 @@ export class WorkflowsService {
         //     throw new MaxExecutionsExceededException(executionsToday, maxExecutionsPerDay);
         // }
 
+        // 2.1. VALIDAR BALANCE DE CRÉDITOS
+        const canExecute = await this.creditBalanceService.canExecuteWorkflow(
+            organizationId,
+            workflow.category,
+        );
+
+        if (!canExecute.allowed) {
+            throw new ForbiddenException(
+                `Insufficient credits: ${canExecute.reason}`,
+            );
+        }
+
         // 3. CREAR REGISTRO DE EJECUCIÓN
         const execution = await this.executionsService.create(workflowId, 'api', {
             input,
@@ -402,6 +416,19 @@ export class WorkflowsService {
                 );
             }
 
+            // 8.1. DESCONTAR CRÉDITOS DEL BALANCE
+            await this.creditBalanceService.deductCredits(
+                organizationId,
+                execution.id,
+                workflow.id,
+                workflow.category,
+                workflow.name,
+            );
+
+            this.logger.log(
+                `Créditos descontados para ejecución ${execution.id}`,
+            );
+
             //TODO: PERSISTIR TOKENS Y COSTOS EN LA BASE DE DATOS
             //TODO: Los valores ya vienen calculados desde Python en agentResponse.metadata
             //TODO: const { input_tokens, output_tokens, total_tokens, cost } = agentResponse.metadata || {};
@@ -410,8 +437,8 @@ export class WorkflowsService {
             //TODO: await this.prisma.execution.update({
             //TODO:     where: { id: execution.id },
             //TODO:     data: {
-            //TODO:         totalTokens: total_tokens || 0,
-            //TODO:         totalCost: cost || 0,
+            //TODO:         tokensUsed: total_tokens || 0,
+            //TODO:         cost: cost || 0,
             //TODO:     },
             //TODO: });
             //TODO: 
@@ -430,8 +457,7 @@ export class WorkflowsService {
             //TODO:     await this.prisma.message.update({
             //TODO:         where: { id: savedMessage.id },
             //TODO:         data: {
-            //TODO:             inputTokens: input_tokens || 0,
-            //TODO:             outputTokens: output_tokens || 0,
+            //TODO:             tokens: total_tokens || 0,
             //TODO:             cost: cost || 0,
             //TODO:         },
             //TODO:     });
