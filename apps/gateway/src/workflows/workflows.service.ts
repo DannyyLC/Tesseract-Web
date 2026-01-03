@@ -13,8 +13,9 @@ import { OrganizationsService } from '../organizations/organizations.service';
 import { SecretsService } from '../secrets/secrets.service';
 import { AgentsService } from '../agents/agents.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
-import { PLANS, PlanType } from '@workflow-automation/shared-types';
+import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
 import { CreditBalanceService } from '../credits/credit-balance.service';
+import { ModelPricesService } from '../model-prices/model-prices.service';
 import {
   WorkflowNotFoundException,
   WorkflowPausedException,
@@ -39,6 +40,7 @@ export class WorkflowsService {
         private readonly secretsService: SecretsService,
         private readonly agentsService: AgentsService,
         private readonly creditBalanceService: CreditBalanceService,
+        private readonly modelPricesService: ModelPricesService,
     ) {}
 
     /**
@@ -54,7 +56,7 @@ export class WorkflowsService {
                 where: { id: organizationId },
                 select: { plan: true },
             });
-            const limit = PLANS[org!.plan as PlanType].limits.maxWorkflows;
+            const limit = PLANS[org!.plan as SubscriptionPlan].limits.maxWorkflows;
             throw new ForbiddenException(
                 limit === -1
                     ? 'No se pueden crear más workflows'
@@ -416,52 +418,67 @@ export class WorkflowsService {
                 );
             }
 
-            // 8.1. DESCONTAR CRÉDITOS DEL BALANCE
+            // 8.1. EXTRAER TOKENS Y CALCULAR COSTO
+            const metadata = (agentResponse.metadata || {}) as any;
+            const inputTokens = metadata.input_tokens || 0;
+            const outputTokens = metadata.output_tokens || 0;
+            const totalTokens = metadata.total_tokens || 0;
+            const modelUsed = metadata.model_used || 'gpt-4o-mini';
+
+            // Calcular costo en USD usando ModelPricesService
+            let costUSD = 0;
+            if (totalTokens > 0) {
+                try {
+                    const costCalculation = await this.modelPricesService.calculateCost(
+                        modelUsed,
+                        { inputTokens, outputTokens, totalTokens },
+                    );
+                    costUSD = costCalculation.totalCost;
+                } catch (error) {
+                    this.logger.error(
+                        `Error calculando costo para modelo ${modelUsed}: ${(error as Error).message}`,
+                    );
+                }
+            }
+
+            // 8.2. DESCONTAR CRÉDITOS DEL BALANCE
             await this.creditBalanceService.deductCredits(
                 organizationId,
                 execution.id,
                 workflow.id,
                 workflow.category,
                 workflow.name,
+                costUSD,
+                {
+                    input_tokens: inputTokens,
+                    output_tokens: outputTokens,
+                    total_tokens: totalTokens,
+                    model: modelUsed,
+                    execution_time_ms: metadata.execution_time_ms,
+                },
             );
 
             this.logger.log(
                 `Créditos descontados para ejecución ${execution.id}`,
             );
 
-            //TODO: PERSISTIR TOKENS Y COSTOS EN LA BASE DE DATOS
-            //TODO: Los valores ya vienen calculados desde Python en agentResponse.metadata
-            //TODO: const { input_tokens, output_tokens, total_tokens, cost } = agentResponse.metadata || {};
-            //TODO: 
-            //TODO: // Actualizar la tabla Execution con tokens y costos
-            //TODO: await this.prisma.execution.update({
-            //TODO:     where: { id: execution.id },
-            //TODO:     data: {
-            //TODO:         tokensUsed: total_tokens || 0,
-            //TODO:         cost: cost || 0,
-            //TODO:     },
-            //TODO: });
-            //TODO: 
-            //TODO: // Actualizar la tabla Conversation acumulando tokens y costos
-            //TODO: await this.prisma.conversation.update({
-            //TODO:     where: { id: conversation.id },
-            //TODO:     data: {
-            //TODO:         totalTokens: { increment: total_tokens || 0 },
-            //TODO:         totalCost: { increment: cost || 0 },
-            //TODO:     },
-            //TODO: });
-            //TODO: 
-            //TODO: // Actualizar el mensaje del asistente con sus tokens específicos
-            //TODO: // (si quieres guardar tokens por mensaje individual)
-            //TODO: if (lastMessage && lastMessage.role === 'assistant') {
-            //TODO:     await this.prisma.message.update({
-            //TODO:         where: { id: savedMessage.id },
-            //TODO:         data: {
-            //TODO:             tokens: total_tokens || 0,
-            //TODO:             cost: cost || 0,
-            //TODO:         },
-            //TODO:     });
-            //TODO: }
+            // 8.3. ACTUALIZAR EXECUTION CON TOKENS Y COSTO
+            await this.prisma.execution.update({
+                where: { id: execution.id },
+                data: {
+                    tokensUsed: totalTokens,
+                    cost: costUSD,
+                },
+            });
+
+            // 8.4. ACTUALIZAR CONVERSATION ACUMULANDO TOKENS Y COSTOS
+            await this.prisma.conversation.update({
+                where: { id: conversation.id },
+                data: {
+                    totalTokens: { increment: totalTokens },
+                    totalCost: { increment: costUSD },
+                },
+            });
 
             // 9. MARCAR EJECUCIÓN COMO COMPLETADA
             await this.executionsService.updateStatus(execution.id, 'completed', {
@@ -470,10 +487,6 @@ export class WorkflowsService {
                     conversationId: conversation.id,
                     messagesCount: messages.length,
                 },
-                //TODO: Pasar cost y tokens al updateStatus:
-                //TODO: cost: cost,
-                //TODO: // Si quieres agregar más campos en Execution:
-                //TODO: // totalTokens: total_tokens,
             });
 
             this.logger.log(`Ejecución ${execution.id} completada exitosamente`);
@@ -668,3 +681,4 @@ export class WorkflowsService {
         // TODO: Implementar validación según el tipo de workflow que se integre con Python agents
     }    
 }
+    

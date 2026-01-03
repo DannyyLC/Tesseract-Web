@@ -340,13 +340,19 @@ async def execute_agent(request: AgentExecutionRequest) -> AgentExecutionRespons
         # ==========================================
         output_messages = result.get("messages", [])
         
-        #TODO: EXTRAER USAGE (TOKENS) DEL RESULTADO DE LANGGRAPH
-        #TODO: El último AIMessage contiene usage_metadata con input_tokens y output_tokens
-        #TODO: Buscar en output_messages el último AIMessage y extraer:
-        #TODO: usage_metadata = last_ai_message.usage_metadata
-        #TODO: input_tokens = usage_metadata.get("input_tokens", 0)
-        #TODO: output_tokens = usage_metadata.get("output_tokens", 0)
-        #TODO: total_tokens = input_tokens + output_tokens
+        # Extraer usage_metadata del último AIMessage
+        input_tokens = 0
+        output_tokens = 0
+        total_tokens = 0
+        
+        # Buscar el último AIMessage que tenga usage_metadata
+        for msg in reversed(output_messages):
+            if hasattr(msg, 'usage_metadata') and msg.usage_metadata:
+                usage = msg.usage_metadata
+                input_tokens = usage.get("input_tokens", 0)
+                output_tokens = usage.get("output_tokens", 0)
+                total_tokens = usage.get("total_tokens", input_tokens + output_tokens)
+                break
         
         # Convertir mensajes LangChain a dict
         all_messages = convert_langchain_messages_to_dict(output_messages)
@@ -354,16 +360,6 @@ async def execute_agent(request: AgentExecutionRequest) -> AgentExecutionRespons
         # Solo retornar mensajes del asistente (el input del usuario ya lo tienen)
         # Esto reduce el payload y evita redundancia
         response_messages = [msg for msg in all_messages if msg.get("role") == "assistant"]
-        
-        #TODO: CALCULAR COSTO USANDO LOS PRECIOS DEL MODELO
-        #TODO: model_config = ctx.model_configs.get("default", {})
-        #TODO: input_cost_per_million = model_config.get("input_cost_per_million", 0)
-        #TODO: output_cost_per_million = model_config.get("output_cost_per_million", 0)
-        #TODO: 
-        #TODO: cost = (
-        #TODO:     (input_tokens / 1_000_000 * input_cost_per_million) +
-        #TODO:     (output_tokens / 1_000_000 * output_cost_per_million)
-        #TODO: )
         
         # Metadata de la ejecución
         default_agent = ctx.get_agent_config("default") or {}
@@ -373,11 +369,9 @@ async def execute_agent(request: AgentExecutionRequest) -> AgentExecutionRespons
             "model_used": default_agent.get("model", "unknown"),
             "agents_count": len(ctx.agents_config),
             "total_messages": len(response_messages),
-            #TODO: Agregar estos campos calculados arriba:
-            #TODO: "input_tokens": input_tokens,
-            #TODO: "output_tokens": output_tokens,
-            #TODO: "total_tokens": total_tokens,
-            #TODO: "cost": round(cost, 6),  # Redondear a 6 decimales
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
         }
         
         logger.info(

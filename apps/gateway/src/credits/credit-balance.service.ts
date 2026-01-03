@@ -75,6 +75,8 @@ export class CreditBalanceService {
     workflowId: string,
     workflowCategory: WorkflowCategory,
     workflowName: string,
+    costUSD?: number,
+    metadata?: Record<string, any>,
   ): Promise<void> {
     // Obtener balance actual
     const balance = await this.prisma.creditBalance.findUnique({
@@ -98,6 +100,7 @@ export class CreditBalanceService {
           balance: balanceAfter,
           lifetimeSpent: { increment: credits },
           currentMonthSpent: { increment: credits },
+          currentMonthCostUSD: { increment: costUSD || 0 },
         },
       }),
 
@@ -111,7 +114,9 @@ export class CreditBalanceService {
           balanceAfter,
           executionId,
           workflowCategory,
+          costUSD: costUSD ?? undefined,
           description: `Execution of ${workflowCategory} workflow: ${workflowName}`,
+          metadata: metadata ?? undefined,
         },
       }),
 
