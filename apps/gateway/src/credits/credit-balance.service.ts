@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { WorkflowCategory } from '@prisma/client';
-import { getWorkflowCreditCost } from '@workflow-automation/shared-types/src/plans';
+import { getWorkflowCreditCost } from '@workflow-automation/shared-types';
 
 
 @Injectable()
