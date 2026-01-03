@@ -30,6 +30,17 @@ export class CreateWorkflowDto {
   @MaxLength(500)
   description?: string;
 
+  @IsString()
+  @IsIn(['LIGHT', 'STANDARD', 'ADVANCED'])
+  @IsNotEmpty({ message: 'La categoría es requerida' })
+  category!: 'LIGHT' | 'STANDARD' | 'ADVANCED';
+
+  @IsInt()
+  @Min(1000)
+  @Max(200000)
+  @IsNotEmpty({ message: 'maxTokensPerExecution es requerido' })
+  maxTokensPerExecution!: number;
+
   @IsObject()
   @IsNotEmpty({ message: 'El config es requerido' })
   config!: WorkflowConfig;

@@ -277,8 +277,8 @@ async def execute_agent(request: AgentExecutionRequest) -> AgentExecutionRespons
         
         logger.info(
             f"[{request.conversation_id}] Context built: "
-            f"graph_type={ctx.agent_config.get('graph_type')}, "
-            f"tools={len(ctx.enabled_tools)}, "
+            f"graph_type={ctx.graph_config.get('type')}, "
+            f"agents={list(ctx.agents_config.keys())}, "
             f"history_messages={len(ctx.message_history)}"
         )
         
@@ -349,7 +349,11 @@ async def execute_agent(request: AgentExecutionRequest) -> AgentExecutionRespons
         #TODO: total_tokens = input_tokens + output_tokens
         
         # Convertir mensajes LangChain a dict
-        response_messages = convert_langchain_messages_to_dict(output_messages)
+        all_messages = convert_langchain_messages_to_dict(output_messages)
+        
+        # Solo retornar mensajes del asistente (el input del usuario ya lo tienen)
+        # Esto reduce el payload y evita redundancia
+        response_messages = [msg for msg in all_messages if msg.get("role") == "assistant"]
         
         #TODO: CALCULAR COSTO USANDO LOS PRECIOS DEL MODELO
         #TODO: model_config = ctx.model_configs.get("default", {})
@@ -362,11 +366,12 @@ async def execute_agent(request: AgentExecutionRequest) -> AgentExecutionRespons
         #TODO: )
         
         # Metadata de la ejecución
+        default_agent = ctx.get_agent_config("default") or {}
         metadata = {
             "execution_time_ms": int(execution_time),
-            "graph_type": ctx.agent_config.get("graph_type"),
-            "model_used": ctx.model_configs.get("default", {}).get("model", "unknown"),
-            "tools_enabled": ctx.enabled_tools,
+            "graph_type": ctx.graph_config.get("type"),
+            "model_used": default_agent.get("model", "unknown"),
+            "agents_count": len(ctx.agents_config),
             "total_messages": len(response_messages),
             #TODO: Agregar estos campos calculados arriba:
             #TODO: "input_tokens": input_tokens,
@@ -548,9 +553,9 @@ async def validate_agent_config(request: AgentExecutionRequest) -> dict:
             "valid": True,
             "message": "Configuration is valid",
             "details": {
-                "graph_type": ctx.agent_config.get("graph_type"),
-                "tools_count": len(ctx.enabled_tools),
-                "model_configured": "default" in ctx.model_configs
+                "graph_type": ctx.graph_config.get("type"),
+                "agents_count": len(ctx.agents_config),
+                "default_agent_configured": "default" in ctx.agents_config
             }
         }
         

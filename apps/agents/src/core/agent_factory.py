@@ -87,20 +87,20 @@ def create_agent_graph(ctx: TenantContext) -> StateGraph:
     """
     
     # ==========================================
-    # 1. Extraer graph_type de la configuración
+    # 1. Extraer graph_type de configuración
     # ==========================================
-    # agent_config viene de Workflow.config en la DB
-    # Ejemplo: {"graph_type": "react", "system_prompt": "...", ...}
-    graph_type = ctx.agent_config.get("graph_type")
+    # graph_config viene de Workflow.config.graph en la DB
+    # Ejemplo: {"type": "react", "config": {"max_iterations": 10, "allow_interrupts": false}}
+    graph_type = ctx.graph_config.get("type")
     
     # Validar que existe
     if not graph_type:
         logger.error(
-            f"No graph_type specified in agent_config for workflow {ctx.workflow_id}. "
-            f"agent_config: {ctx.agent_config}"
+            f"No graph type specified in graph_config for workflow {ctx.workflow_id}. "
+            f"graph_config: {ctx.graph_config}"
         )
         raise ValueError(
-            "agent_config must include 'graph_type' field. "
+            "graph_config must include 'type' field. "
             f"Available types: {list(GRAPH_BUILDERS.keys())}"
         )
     

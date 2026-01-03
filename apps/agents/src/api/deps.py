@@ -57,42 +57,21 @@ class AgentExecutionRequest(BaseModel):
     # ==========================================
     # Configuración del Workflow
     # ==========================================
-    enabled_tools: list[str] = Field(
-        default_factory=list,
-        description="Lista de tools habilitadas para este workflow"
-    )
-    
-    agent_config: dict[str, Any] = Field(
+    graph_config: dict[str, Any] = Field(
         default_factory=dict,
-        description="Configuración del agente (graph_type, system_prompt, etc)"
+        description="Config del grafo: {type: 'react', config: {max_iterations: 10, allow_interrupts: false}}"
     )
     
-    model_configs: dict[str, Any] = Field(
+    agents_config: dict[str, Any] = Field(
         default_factory=dict,
-        description="Configuración de modelos (default, classifier, etc)"
+        description="Configs por agente: {default: {model, temperature, system_prompt, tools: [uuids]}}"
     )
     
-    # ==========================================
-    # Credenciales y configuraciones
-    # ==========================================
-    credentials: dict[str, dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Credenciales de tools desde Secret Manager. Key = toolName del catálogo"
-    )
-    
-    tool_configs: dict[str, dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Configuración específica de cada tool para este tenant. Key = toolName del catálogo"
-    )
-    
-    enabled_functions: dict[str, list[str]] = Field(
+    agent_tool_instances: dict[str, dict[str, Any]] = Field(
         default_factory=dict,
         description=(
-            "Control granular de funciones por tool (mapeado por Gateway). "
-            "Key = toolName del catálogo. "
-            "Ejemplo: {'google_calendar': ['check_availability', 'create_event']}. "
-            "Tool CON funciones → solo usa las especificadas. "
-            "Tool SIN entrada o lista vacía → usa TODAS las funciones disponibles."
+            "Tool instances por agente. "
+            "Estructura: {agent_name: {tool_uuid: {tool_name, display_name, credentials, config, enabled_functions}}}"
         )
     )
     
@@ -143,39 +122,38 @@ class AgentExecutionRequest(BaseModel):
                 "user_id": "user-789",
                 "channel": "dashboard",
                 "user_message": "Agenda una demo para mañana",
-                "enabled_tools": ["google_calendar", "hubspot"],
-                "agent_config": {
-                    "graph_type": "react",
-                    "system_prompt": "Eres un asistente de ventas...",
-                    "max_iterations": 10
+                "graph_config": {
+                    "type": "react",
+                    "config": {
+                        "max_iterations": 10,
+                        "allow_interrupts": True
+                    }
                 },
-                "model_configs": {
+                "agents_config": {
                     "default": {
                         "model": "gpt-4o",
-                        "temperature": 0.7
+                        "temperature": 0.7,
+                        "system_prompt": "Eres un asistente de ventas...",
+                        "tools": ["tool-uuid-1", "tool-uuid-2"]
                     }
                 },
-                "credentials": {
-                    "google_calendar": {
-                        "access_token": "ya29.xxx",
-                        "refresh_token": "1//xxx"
-                    },
-                    "hubspot": {
-                        "api_key": "pat-na1-xxx"
+                "agent_tool_instances": {
+                    "default": {
+                        "tool-uuid-1": {
+                            "tool_name": "google_calendar",
+                            "display_name": "Calendar Ventas",
+                            "credentials": {"token": "xxx"},
+                            "config": {"calendar_id": "primary"},
+                            "enabled_functions": ["check_availability", "create_event"]
+                        },
+                        "tool-uuid-2": {
+                            "tool_name": "hubspot",
+                            "display_name": "HubSpot CRM",
+                            "credentials": {"api_key": "yyy"},
+                            "config": {"portal_id": "12345678"},
+                            "enabled_functions": ["create_contact", "search_deals"]
+                        }
                     }
-                },
-                "tool_configs": {
-                    "google_calendar": {
-                        "calendar_id": "primary",
-                        "timezone": "America/Mexico_City"
-                    },
-                    "hubspot": {
-                        "portal_id": "12345678"
-                    }
-                },
-                "enabled_functions": {
-                    "google_calendar": ["check_availability", "create_event"],
-                    "hubspot": []
                 },
                 "message_history": [
                     {"role": "human", "content": "Hola"},
@@ -268,18 +246,22 @@ def validate_request(request: AgentExecutionRequest) -> AgentExecutionRequest:
         HTTPException: Si hay errores de validación de negocio
     """
     
-    # Validar que graph_type esté configurado
-    graph_type = request.agent_config.get("graph_type")
+    # Validar que graph_type esté configurado en graph_config
+    graph_type = request.graph_config.get("type")
     if not graph_type:
-        logger.error(f"Missing graph_type in agent_config for workflow {request.workflow_id}")
+        logger.error(f"Missing 'type' in graph_config for workflow {request.workflow_id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="agent_config must include 'graph_type'"
+            detail="graph_config must include 'type'"
         )
     
-    # Validar que haya configuración de modelo
-    if not request.model_configs:
-        logger.warning(f"No model_configs provided for workflow {request.workflow_id}, using defaults")
+    # Validar que haya al menos un agente configurado
+    if not request.agents_config:
+        logger.error(f"No agents_config provided for workflow {request.workflow_id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="agents_config is required"
+        )
     
     # Validar user_type
     if request.user_type not in ["internal", "external"]:
@@ -291,7 +273,8 @@ def validate_request(request: AgentExecutionRequest) -> AgentExecutionRequest:
     logger.info(
         f"Request validated: tenant={request.tenant_id}, "
         f"workflow={request.workflow_id}, "
-        f"conversation={request.conversation_id}"
+        f"conversation={request.conversation_id}, "
+        f"graph_type={graph_type}"
     )
     
     return request
@@ -320,12 +303,9 @@ def build_context(request: AgentExecutionRequest, streaming: bool = False) -> Te
             user_type=request.user_type,
             user_id=request.user_id,
             channel=request.channel,
-            enabled_tools=request.enabled_tools,
-            agent_config=request.agent_config,
-            model_configs=request.model_configs,
-            credentials=request.credentials,
-            tool_configs=request.tool_configs,
-            enabled_functions=request.enabled_functions,
+            graph_config=request.graph_config,
+            agents_config=request.agents_config,
+            agent_tool_instances=request.agent_tool_instances,
             message_history=request.message_history,
             user_metadata=request.user_metadata,
             timezone=request.timezone,

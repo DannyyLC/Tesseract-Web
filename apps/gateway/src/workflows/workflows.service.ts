@@ -64,6 +64,8 @@ export class WorkflowsService {
             data: {
                 name: dto.name,
                 description: dto.description,
+                category: dto.category,
+                maxTokensPerExecution: dto.maxTokensPerExecution,
                 config: dto.config as any,
                 isActive: dto.isActive ?? true,
                 isPaused: dto.isPaused ?? false,
@@ -155,6 +157,8 @@ export class WorkflowsService {
             data: {
                 name: dto.name,
                 description: dto.description,
+                category: dto.category,
+                maxTokensPerExecution: dto.maxTokensPerExecution,
                 config: dto.config as any,
                 isActive: dto.isActive,
                 isPaused: dto.isPaused,
@@ -533,81 +537,72 @@ export class WorkflowsService {
         channel: string = 'api',
         messageHistory: any[] = [],
     ) {
-        // 1. Extraer configuración del agente y modelos desde el config
+        // 1. Extraer nueva estructura unificada de config
         const config = workflow.config as any;
-        const agentConfig = config.agent || {
-            graph_type: 'react',
-            max_iterations: 10,
-            allow_interrupts: false,
+        const graphConfig = config.graph || { 
+            type: 'react', 
+            config: { max_iterations: 10, allow_interrupts: false } 
         };
-        const modelsConfig = config.models || {};
+        const agentsConfig = config.agents || {};
 
-        //TODO: AGREGAR PRICING A CADA MODELO EN modelsConfig
-        //TODO: Crear un mapa de precios por modelo (puede estar en una constante o en la BD)
-        //TODO: const MODEL_PRICING = {
-        //TODO:     'gpt-4o': { input_cost_per_million: 2.5, output_cost_per_million: 10.0 },
-        //TODO:     'gpt-4o-mini': { input_cost_per_million: 0.15, output_cost_per_million: 0.6 },
-        //TODO:     'claude-3-5-sonnet-20241022': { input_cost_per_million: 3.0, output_cost_per_million: 15.0 },
-        //TODO:     'claude-3-5-haiku-20241022': { input_cost_per_million: 0.8, output_cost_per_million: 4.0 },
-        //TODO: };
-        //TODO: 
-        //TODO: // Agregar pricing a cada modelo configurado
-        //TODO: for (const [key, modelConfig] of Object.entries(modelsConfig)) {
-        //TODO:     const modelName = modelConfig.model;
-        //TODO:     const pricing = MODEL_PRICING[modelName];
-        //TODO:     if (pricing) {
-        //TODO:         modelConfig.input_cost_per_million = pricing.input_cost_per_million;
-        //TODO:         modelConfig.output_cost_per_million = pricing.output_cost_per_million;
-        //TODO:     }
-        //TODO: }
+        // 2. Construir tool_instances con UUIDs como keys
+        const toolInstances: Record<string, any> = {};
 
-        // 2. Construir enabled_tools (lista de nombres de catálogo)
-        const enabledTools: string[] = [];
-        const credentials: Record<string, any> = {};
-        const toolConfigs: Record<string, any> = {};
-        const enabledFunctions: Record<string, string[]> = {};
-
-        // Procesar cada TenantTool asociado al workflow
         for (const tenantTool of workflow.tenantTools) {
-            const toolName = tenantTool.toolCatalog.toolName; // Nombre en el catálogo (ej: "calculator")
-            const toolId = tenantTool.id; // ID único del TenantTool
+            const toolId = tenantTool.id; // UUID del TenantTool
+            const toolName = tenantTool.toolCatalog.toolName;
 
-            // Agregar al array de enabled_tools
-            if (!enabledTools.includes(toolName)) {
-                enabledTools.push(toolName);
-            }
+            // Construir instancia completa
+            toolInstances[toolId] = {
+                tool_name: toolName,
+                display_name: tenantTool.displayName,
+                config: tenantTool.config || {},
+                enabled_functions: tenantTool.toolCatalog.functions.map(
+                    (fn: any) => fn.functionName,
+                ),
+            };
 
-            // Obtener credenciales desde Secret Manager (si tiene)
+            // Agregar credenciales si existen
             if (tenantTool.credentialPath) {
                 const creds = await this.secretsService.getCredentials(
                     tenantTool.credentialPath,
                 );
-                credentials[toolName] = creds;
-            }
-
-            // Agregar configuración específica de la tool
-            if (tenantTool.config) {
-                toolConfigs[toolName] = tenantTool.config;
-            }
-
-            // Determinar funciones habilitadas para esta tool
-            const toolPermissions = workflow.toolPermissions as any;
-            if (toolPermissions && toolPermissions[toolId]) {
-                // Si hay permisos específicos definidos, usar esos
-                enabledFunctions[toolName] = toolPermissions[toolId];
-            } else {
-                // Si no hay permisos específicos, usar TODAS las funciones del catálogo
-                enabledFunctions[toolName] = tenantTool.toolCatalog.functions.map(
-                    (fn: any) => fn.functionName,
-                );
+                toolInstances[toolId].credentials = creds;
             }
         }
 
-        // 3. Determinar tipo de usuario
+        // 3. Filtrar tool_instances por agente según su configuración
+        const agentToolInstances: Record<string, Record<string, any>> = {};
+
+        for (const [agentName, agentConfig] of Object.entries(agentsConfig) as [string, any][]) {
+            const agentTools = agentConfig.tools || [];
+            const filtered: Record<string, any> = {};
+
+            for (const tool of agentTools) {
+                if (typeof tool === 'string') {
+                    // Formato simple: UUID completo sin restricciones
+                    if (toolInstances[tool]) {
+                        filtered[tool] = toolInstances[tool];
+                    }
+                } else if (typeof tool === 'object' && tool.id) {
+                    // Formato granular: {id, functions} - override funciones permitidas
+                    if (toolInstances[tool.id]) {
+                        filtered[tool.id] = {
+                            ...toolInstances[tool.id],
+                            enabled_functions: tool.functions, // Override con restricciones específicas
+                        };
+                    }
+                }
+            }
+
+            agentToolInstances[agentName] = filtered;
+        }
+
+        // 4. Determinar tipo de usuario
         const userType = conversation.userId ? UserType.INTERNAL : UserType.EXTERNAL;
         const finalUserId = conversation.userId || conversation.endUserId || 'anonymous';
 
-        // 5. Construir el payload final según el DTO esperado
+        // 5. Construir el payload final
         const payload = {
             // Identificación (OBLIGATORIOS)
             tenant_id: workflow.organizationId,
@@ -618,15 +613,10 @@ export class WorkflowsService {
             channel,
             user_message: userMessage,
 
-            // Configuración del agente
-            enabled_tools: enabledTools,
-            agent_config: agentConfig,
-            model_configs: modelsConfig,
-
-            // Credenciales y configs de tools (OPCIONALES)
-            credentials: Object.keys(credentials).length > 0 ? credentials : undefined,
-            tool_configs: Object.keys(toolConfigs).length > 0 ? toolConfigs : undefined,
-            enabled_functions: Object.keys(enabledFunctions).length > 0 ? enabledFunctions : undefined,
+            // Nueva estructura unificada
+            graph_config: graphConfig,
+            agents_config: agentsConfig,
+            agent_tool_instances: agentToolInstances,
 
             // Historial y metadata
             message_history: messageHistory,

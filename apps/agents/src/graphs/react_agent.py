@@ -75,19 +75,19 @@ class ReactAgentState(TypedDict):
 # ==========================================
 # Nodos del Grafo
 # ==========================================
-def call_model(state: ReactAgentState, ctx: TenantContext) -> dict:
+def call_model(state: ReactAgentState, ctx: TenantContext, llm_with_tools) -> dict:
     """
     Nodo que llama al LLM.
     
     Este nodo:
     1. Lee los mensajes actuales del estado
-    2. Obtiene el LLM configurado (con tools bindeadas)
-    3. Invoca el LLM
-    4. Retorna el mensaje de respuesta (puede incluir tool_calls)
+    2. Invoca el LLM con tools ya bindeadas
+    3. Retorna el mensaje de respuesta (puede incluir tool_calls)
     
     Args:
         state: Estado actual del grafo con historial de mensajes
         ctx: TenantContext con configuración del workflow
+        llm_with_tools: LLM con tools ya bindeadas (inicializado una sola vez)
     
     Returns:
         Dict con nuevos mensajes para agregar al estado
@@ -126,8 +126,8 @@ def call_model(state: ReactAgentState, ctx: TenantContext) -> dict:
     messages = state["messages"]
     
     # Agregar system prompt si existe y no está en el historial
-    model_config = ctx.get_model_config("default")
-    system_prompt = model_config.get("systemPrompt") or ctx.agent_config.get("system_prompt")
+    agent_config = ctx.get_agent_config("default")
+    system_prompt = agent_config.get("system_prompt")
     
     # Si hay system prompt y el primer mensaje no es system, agregarlo
     if system_prompt and (not messages or messages[0].type != "system"):
@@ -139,24 +139,7 @@ def call_model(state: ReactAgentState, ctx: TenantContext) -> dict:
     )
     
     # ==========================================
-    # 2. Obtener LLM con tools
-    # ==========================================
-    # get_llm retorna el LLM configurado (OpenAI, Anthropic, etc)
-    # load_tools obtiene las tools habilitadas para este workflow
-    llm = get_llm(ctx)
-    tools = load_tools(ctx)
-    
-    # Bindear tools al LLM
-    # Esto le permite al LLM decidir llamar estas tools
-    llm_with_tools = llm.bind_tools(tools) if tools else llm
-    
-    logger.debug(
-        f"[{ctx.workflow_id}] LLM: {model_config.get('model')}, "
-        f"Tools: {[tool.name for tool in tools]}"
-    )
-    
-    # ==========================================
-    # 3. Invocar LLM
+    # 2. Invocar LLM
     # ==========================================
     try:
         response = llm_with_tools.invoke(messages)
@@ -229,7 +212,7 @@ def should_continue(state: ReactAgentState, ctx: TenantContext) -> Literal["tool
     # 1. Verificar límite de iteraciones
     # ==========================================
     # Safety para evitar loops infinitos
-    max_iterations = ctx.agent_config.get("max_iterations", 10)
+    max_iterations = ctx.agents_config.get("max_iterations", 10)
     current_iteration = state.get("iteration_count", 0)
     
     if current_iteration >= max_iterations:
@@ -322,23 +305,35 @@ def create_react_agent(ctx: TenantContext) -> StateGraph:
     logger.info(f"[{ctx.workflow_id}] Creating ReAct agent graph")
     
     # ==========================================
-    # 1. Crear el grafo
+    # 1. Cargar LLM y Tools UNA SOLA VEZ
+    # ==========================================
+    llm = get_llm(ctx)
+    tools = load_tools(ctx, agent_name="default")
+    
+    # Bindear tools al LLM
+    llm_with_tools = llm.bind_tools(tools) if tools else llm
+    
+    logger.info(
+        f"[{ctx.workflow_id}] Loaded {len(tools)} tools for ReAct agent"
+    )
+    
+    # ==========================================
+    # 2. Crear el grafo
     # ==========================================
     graph = StateGraph(ReactAgentState)
     
     # ==========================================
-    # 2. Agregar nodos
+    # 3. Agregar nodos
     # ==========================================
     # Nodo principal que llama al LLM
-    # Usamos lambda para pasar ctx al nodo
-    graph.add_node("agent", lambda state: call_model(state, ctx))
+    # Usamos lambda para pasar ctx y llm_with_tools al nodo
+    graph.add_node("agent", lambda state: call_model(state, ctx, llm_with_tools))
     
     # Nodo de tools (usa ToolNode prebuilt de LangGraph)
     # ToolNode automáticamente:
     # - Lee tool_calls del último mensaje
     # - Ejecuta cada tool
     # - Agrega ToolMessage con resultados
-    tools = load_tools(ctx)
     if tools:
         graph.add_node("tools", ToolNode(tools))
     
@@ -346,35 +341,43 @@ def create_react_agent(ctx: TenantContext) -> StateGraph:
     graph.add_node("increment", increment_iteration)
     
     # ==========================================
-    # 3. Definir aristas (edges)
+    # 4. Definir aristas (edges)
     # ==========================================
     # Punto de entrada: START → agent
     graph.add_edge(START, "agent")
     
     # Arista condicional después del agent
     # should_continue decide: "tools" o "end"
-    graph.add_conditional_edges(
-        "agent",
-        lambda state: should_continue(state, ctx),
-        {
-            "tools": "tools",  # Si el LLM quiere llamar tools
-            "end": END        # Si el LLM terminó
-        }
-    )
-    
-    # Después de ejecutar tools:
-    # tools → increment → agent (volver al LLM con resultados)
     if tools:
+        # Si hay tools disponibles, el LLM puede usarlas
+        graph.add_conditional_edges(
+            "agent",
+            lambda state: should_continue(state, ctx),
+            {
+                "tools": "tools",  # Si el LLM quiere llamar tools
+                "end": END        # Si el LLM terminó
+            }
+        )
+        
+        # Después de ejecutar tools:
+        # tools → increment → agent (volver al LLM con resultados)
         graph.add_edge("tools", "increment")
         graph.add_edge("increment", "agent")
+    else:
+        # Sin tools, solo ir directamente a END
+        graph.add_edge("agent", END)
+        logger.warning(
+            f"[{ctx.workflow_id}] No tools available for agent. "
+            f"Agent will work without tool calling capability."
+        )
     
     # ==========================================
-    # 4. Configurar interrupciones (opcional)
+    # 5. Configurar interrupciones (opcional)
     # ==========================================
     # Si el workflow tiene interrupts configurados,
     # LangGraph pausará antes de ejecutar tools
     # Útil para: human-in-the-loop, aprobaciones, etc
-    interrupts = ctx.agent_config.get("interrupts", [])
+    interrupts = ctx.agents_config.get("interrupts", [])
     interrupt_before = []
     
     if "before_tools" in interrupts and tools:
@@ -382,7 +385,7 @@ def create_react_agent(ctx: TenantContext) -> StateGraph:
         logger.info(f"[{ctx.workflow_id}] Interrupts configured: before tools")
     
     # ==========================================
-    # 5. Compilar el grafo
+    # 6. Compilar el grafo
     # ==========================================
     # Compilar convierte el grafo en un runnable ejecutable
     compiled = graph.compile(
@@ -392,7 +395,7 @@ def create_react_agent(ctx: TenantContext) -> StateGraph:
     logger.info(
         f"[{ctx.workflow_id}] ReAct agent graph compiled successfully. "
         f"Tools: {len(tools)}, "
-        f"Max iterations: {ctx.agent_config.get('max_iterations', 10)}"
+        f"Max iterations: {ctx.agents_config.get('max_iterations', 10)}"
     )
     
     return compiled

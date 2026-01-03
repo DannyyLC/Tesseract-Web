@@ -183,84 +183,51 @@ export class AgentExecutionRequestDto {
     user_message: string;
 
     // ==========================================
-    // CONFIGURACIÓN DEL AGENTE
+    // CONFIGURACIÓN DEL WORKFLOW 
     // ==========================================
     @ApiProperty({
-        description: 'Lista de tools habilitadas para este workflow',
-        example: ['google_calendar', 'hubspot'],
-        type: [String],
+        description: 'Configuración del grafo',
+        example: {
+            type: 'react',
+            config: {
+                max_iterations: 10,
+                allow_interrupts: false,
+            },
+        },
     })
-    @IsArray()
-    @IsString({ each: true })
-    enabled_tools: string[];
-
-    @ApiProperty({
-        description: 'Configuración del agente',
-        type: AgentConfigDto,
-    })
-    @ValidateNested()
-    @Type(() => AgentConfigDto)
     @IsObject()
-    agent_config: AgentConfigDto;
+    graph_config: Record<string, any>;
 
     @ApiProperty({
-        description: 'Configuración de modelos (default, classifier, etc)',
+        description: 'Configuración de agentes',
         example: {
             default: {
                 model: 'gpt-4o',
                 temperature: 0.7,
-                systemPrompt: 'Eres un asistente...',
+                system_prompt: 'Eres un asistente...',
+                tools: ['tool-uuid-1', 'tool-uuid-2'],
             },
         },
     })
     @IsObject()
-    model_configs: Record<string, ModelConfigDto>;
+    agents_config: Record<string, any>;
 
-    // ==========================================
-    // CREDENCIALES Y CONFIGS DE TOOLS
-    // ==========================================
-    @ApiPropertyOptional({
-        description: 'Credenciales de las tools (desde Secret Manager)',
+    @ApiProperty({
+        description: 'Tool instances por agente con UUIDs como keys',
         example: {
-            google_calendar: {
-                access_token: 'ya29.xxx',
-                refresh_token: '1//xxx',
-            },
-            hubspot: {
-                api_key: 'pat-na1-xxx',
+            default: {
+                'tool-uuid-1': {
+                    tool_name: 'google_calendar',
+                    display_name: 'Calendar Ventas',
+                    credentials: { token: 'xxx' },
+                    config: { calendar_id: 'primary' },
+                    enabled_functions: ['check_availability', 'create_event'],
+                },
             },
         },
     })
-    @IsOptional()
     @IsObject()
-    credentials?: Record<string, Record<string, any>>;
-
-    @ApiPropertyOptional({
-        description: 'Configuración específica de cada tool para este tenant',
-        example: {
-            google_calendar: {
-                calendar_id: 'primary',
-                timezone: 'America/Mexico_City',
-            },
-            hubspot: {
-                portal_id: '12345678',
-            },
-        },
-    })
-    @IsOptional()
-    @IsObject()
-    tool_configs?: Record<string, Record<string, any>>;
-
-    @ApiPropertyOptional({
-        description: 'Control granular de funciones por tool',
-        example: {
-            google_calendar: ['check_availability', 'create_event'],
-            hubspot: [],
-        },
-    })
-    @IsOptional()
-    @IsObject()
-    enabled_functions?: Record<string, string[]>;
+    agent_tool_instances: Record<string, Record<string, any>>;
 
     // ==========================================
     // HISTORIAL Y METADATA

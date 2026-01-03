@@ -116,7 +116,7 @@ def get_llm(ctx: TenantContext, model_key: str = "default") -> BaseChatModel:
     # ==========================================
     # 1. Obtener configuración del modelo
     # ==========================================
-    model_config = ctx.get_model_config(model_key)
+    model_config = ctx.get_agent_config(model_key)
     
     if not model_config:
         raise ValueError(
@@ -200,96 +200,130 @@ def get_llm(ctx: TenantContext, model_key: str = "default") -> BaseChatModel:
 
 
 # ==========================================
-# LOAD TOOLS - Carga las tools habilitadas
+# LOAD TOOLS - Carga las tools habilitadas por agente
 # ==========================================
-def load_tools(ctx: TenantContext) -> List[BaseTool]:
+def load_tools(ctx: TenantContext, agent_name: str = "default") -> List[BaseTool]:
     """
-    Carga todas las tools habilitadas para este workflow.
+    Carga tools para un agente específico desde sus tool_instances.
     
-    Para cada tool en ctx.enabled_tools:
-    1. Obtiene credenciales del Secret Manager (ya vienen en ctx.credentials)
-    2. Obtiene configuración específica del tenant (ctx.tool_configs)
-    3. Inicializa la tool (spawn MCP server o crear wrapper)
-    4. Retorna lista de LangChain Tools
+    Para cada tool instance del agente:
+    1. Extrae tool_name, display_name, credentials, config, enabled_functions
+    2. Inicializa la tool (spawn MCP server o crear wrapper)
+    3. Filtra funciones si es necesario
+    4. Agrega sufijo de display_name para diferenciar múltiples instancias
     
     Args:
-        ctx: TenantContext con tools habilitadas y credenciales
+        ctx: TenantContext con agent_tool_instances
+        agent_name: Nombre del agente ("default", "sales", "marketing", etc)
     
     Returns:
         Lista de BaseTool listas para bindear al LLM
         
     Example:
         ctx = TenantContext(
-            enabled_tools=["hubspot", "google_calendar"],
-            credentials={
-                "hubspot": {"api_key": "xxx"},
-                "google_calendar": {"token": "yyy"}
-            },
-            tool_configs={
-                "hubspot": {"portal_id": "123"}
+            agent_tool_instances={
+                "default": {
+                    "uuid-123": {
+                        "tool_name": "google_calendar",
+                        "display_name": "Calendar Ventas",
+                        "credentials": {"token": "xxx"},
+                        "config": {"calendar_id": "primary"},
+                        "enabled_functions": ["check_availability", "create_event"]
+                    }
+                }
             },
             ...
         )
         
-        tools = load_tools(ctx)
-        # → [HubSpotTool(...), GoogleCalendarTool(...)]
-        
-        llm_with_tools = llm.bind_tools(tools)
+        tools = load_tools(ctx, agent_name="default")
+        # → [GoogleCalendarTool(name="check_availability_Calendar_Ventas", ...)]
     """
     
-    if not ctx.enabled_tools:
-        logger.info(f"[{ctx.workflow_id}] No tools enabled")
+    agent_tools = ctx.get_agent_tools(agent_name)
+    
+    if not agent_tools:
+        logger.info(f"[{ctx.workflow_id}] No tools for agent '{agent_name}'")
         return []
     
     logger.info(
-        f"[{ctx.workflow_id}] Loading {len(ctx.enabled_tools)} tools: "
-        f"{ctx.enabled_tools}"
+        f"[{ctx.workflow_id}] Loading {len(agent_tools)} tool instances "
+        f"for agent '{agent_name}'"
     )
     
     tools = []
     
-    for tool_name in ctx.enabled_tools:
+    for tool_uuid, tool_instance in agent_tools.items():
         try:
-            # ==========================================
-            # 1. Obtener credenciales y config
-            # ==========================================
-            # ctx.get_tool_credentials() valida que la tool esté habilitada
-            credentials = ctx.get_tool_credentials(tool_name)
-            config = ctx.get_tool_config(tool_name)
+            tool_name = tool_instance["tool_name"]
+            display_name = tool_instance["display_name"]
+            credentials = tool_instance.get("credentials", {})
+            config = tool_instance.get("config", {})
+            enabled_functions = tool_instance.get("enabled_functions")
             
             logger.debug(
                 f"[{ctx.workflow_id}] Loading tool '{tool_name}' "
-                f"with config: {list(config.keys())}"
+                f"(display: {display_name}, uuid: {tool_uuid}, "
+                f"enabled_functions: {enabled_functions})"
             )
             
             # ==========================================
-            # 2. Inicializar la tool específica
+            # 1. Inicializar la tool específica
             # ==========================================
             loaded_tools = load_specific_tool(tool_name, credentials, config, ctx)
             
-            if loaded_tools:
-                tools.extend(loaded_tools)  # extend para aplanar la lista
-                logger.info(f"[{ctx.workflow_id}] Tool '{tool_name}' loaded")
-            else:
+            if not loaded_tools:
                 logger.warning(
-                    f"[{ctx.workflow_id}] Tool '{tool_name}' returned None"
+                    f"[{ctx.workflow_id}] Tool '{tool_name}' returned empty list"
                 )
+                continue
+            
+            # ==========================================
+            # 2. Filtrar funciones si es necesario
+            # ==========================================
+            if enabled_functions:
+                loaded_tools = _filter_tool_functions(loaded_tools, enabled_functions)
+            
+            # ==========================================
+            # 3. Clonar tools para evitar mutación de objetos compartidos
+            # ==========================================
+            # IMPORTANTE: Las tools pueden ser reutilizadas entre llamadas,
+            # necesitamos clonarlas antes de renombrarlas para evitar side effects
+            import copy
+            loaded_tools = [copy.deepcopy(tool) for tool in loaded_tools]
+            
+            # ==========================================
+            # 4. Agregar sufijo de display_name para diferenciar
+            # ==========================================
+            display_suffix = display_name.replace(' ', '_').replace('-', '_')
+            for tool in loaded_tools:
+                original_name = tool.name
+                tool.name = f"{original_name}_{display_suffix}"
+                tool.description = f"{tool.description} [{display_name}]"
+                logger.debug(
+                    f"[{ctx.workflow_id}] Renamed tool: {original_name} -> {tool.name}"
+                )
+            
+            tools.extend(loaded_tools)
+            logger.info(
+                f"[{ctx.workflow_id}] Tool '{tool_name}' loaded "
+                f"({len(loaded_tools)} functions)"
+            )
         
-        except PermissionError as e:
-            # Tool no está habilitada (no debería pasar, pero por si acaso)
+        except KeyError as e:
             logger.error(
-                f"[{ctx.workflow_id}] Permission denied for tool '{tool_name}': {e}"
+                f"[{ctx.workflow_id}] Missing required field in tool instance "
+                f"{tool_uuid}: {e}"
             )
         
         except Exception as e:
-            # Error al cargar la tool, pero no rompemos todo
             logger.error(
-                f"[{ctx.workflow_id}] Failed to load tool '{tool_name}': {e}",
+                f"[{ctx.workflow_id}] Failed to load tool {tool_uuid}: {e}",
                 exc_info=True
             )
     
     logger.info(
-        f"[{ctx.workflow_id}] Successfully loaded {len(tools)} tools"
+        f"[{ctx.workflow_id}] Successfully loaded {len(tools)} tools "
+        f"for agent '{agent_name}'"
     )
     
     return tools
@@ -362,40 +396,29 @@ def load_specific_tool(
         )
         return []
     
-    # ==========================================
-    # Filtrar funciones según configuración
-    # ==========================================
-    return _filter_tool_functions(tools, tool_name, ctx)
+    # Retornar las tools sin filtrado (el filtrado ahora se hace en load_tools)
+    return tools if isinstance(tools, list) else [tools] if tools else []
 
 # ==========================================
 # FILTER TOOL FUNCTIONS - Filtrado de funciones
 # ==========================================
 def _filter_tool_functions(
     tools: list[BaseTool] | BaseTool,
-    tool_name: str,
-    ctx: TenantContext
+    enabled_functions: list[str]
 ) -> list[BaseTool]:
     """
-    Filtra tools según las funciones habilitadas en el TenantContext.
-    
-    Orden de precedencia:
-    1. ctx.get_enabled_functions() retorna lista → filtrar
-    2. ctx.get_enabled_functions() retorna None → usar todas (sin restricciones)
+    Filtra tools según lista de funciones habilitadas.
     
     Args:
         tools: Lista de tools o tool individual del loader
-        tool_name: Nombre de la tool para obtener permisos
-        ctx: TenantContext con información de funciones habilitadas
+        enabled_functions: Lista de nombres de funciones permitidas
     
     Returns:
-        Lista de tools filtradas según permisos
+        Lista de tools filtradas
         
     Example:
-        # Todas las funciones del MCP
         all_tools = [Tool1, Tool2, Tool3, Tool4, Tool5]
-        
-        # Filtrar según permisos
-        filtered = _filter_tool_functions(all_tools, "google_calendar", ctx)
+        filtered = _filter_tool_functions(all_tools, ["func1", "func2"])
         # → [Tool1, Tool2] (solo las permitidas)
     """
     
@@ -403,16 +426,17 @@ def _filter_tool_functions(
     if not isinstance(tools, list):
         tools = [tools] if tools else []
     
-    # Obtener funciones habilitadas
-    enabled_functions = ctx.get_enabled_functions(tool_name)
-    
     # Sin restricciones - retornar todas
-    if enabled_functions is None:
-        logger.debug(
-            f"[{ctx.workflow_id}] No function restrictions for '{tool_name}' "
-            f"- using all {len(tools)} functions"
-        )
+    if not enabled_functions:
+        logger.debug(f"No enabled_functions filter, returning all {len(tools)} tools")
         return tools
+    
+    # Log para debugging
+    tool_names = [t.name for t in tools]
+    logger.debug(
+        f"Filtering tools. Available: {tool_names}, "
+        f"Allowed: {enabled_functions}"
+    )
     
     # Filtrar según lista de funciones permitidas
     filtered_tools = [
@@ -426,14 +450,11 @@ def _filter_tool_functions(
     excluded = [t.name for t in tools if t.name not in enabled_functions]
     
     logger.info(
-        f"[{ctx.workflow_id}] Filtered '{tool_name}': "
-        f"{filtered_count}/{total_count} functions enabled"
+        f"Filtered tools: {filtered_count}/{total_count} functions enabled"
     )
     
     if excluded:
-        logger.debug(
-            f"[{ctx.workflow_id}] Excluded functions for '{tool_name}': {excluded}"
-        )
+        logger.debug(f"Excluded functions: {excluded}")
     
     return filtered_tools
 

@@ -76,54 +76,23 @@ class TenantContext:
     channel: str            # "dashboard", "whatsapp", "web", "api"
     
     # ==========================================
-    # Configuración del Workflow (pre-cargada)
+    # Configuración del Workflow
     # ==========================================
-    # Tools habilitadas
-    # Viene de: Workflow.tenantTools
-    enabled_tools: list[str] = field(default_factory=list)
+    # Configuración del grafo
+    # Viene de: Workflow.config.graph
+    # Ejemplo: {"type": "react", "config": {"max_iterations": 10, "allow_interrupts": false}}
+    graph_config: dict[str, Any] = field(default_factory=dict)
     
-    # Configuración base del agente
-    # Viene de: Workflow.config
-    # Ejemplo: {"graph_type": "react", "system_prompt": "...", ...}
-    agent_config: dict[str, Any] = field(default_factory=dict)
+    # Configuración de agentes
+    # Viene de: Workflow.config.agents
+    # Estructura: {"default": {"model": "gpt-4o", "temperature": 0.7, "system_prompt": "...", "tools": ["uuid1"]}}
+    agents_config: dict[str, Any] = field(default_factory=dict)
     
-    # Configuración de modelos
-    # Viene de: Workflow.config.models
-    # Estructura: {"default": {model, systemPrompt, temperature...}, "classifier": {...}}
-    model_configs: dict[str, Any] = field(default_factory=dict)
-    
-    # ==========================================
-    # Credenciales y configuraciones de tools
-    # ==========================================
-    # Credenciales para cada tool (del Secret Manager vía Gateway)
-    # Key = toolName del catálogo (NO el ID del TenantTool)
-    # Ejemplo: {"google_calendar": {"token": "yyy"}, "hubspot": {"api_key": "xxx"}}
-    # Si hay múltiples conexiones del mismo tipo, Gateway debe manejar el merge de credenciales
-    credentials: dict[str, Any] = field(default_factory=dict)
-    
-    # Configuración específica de cada tool para este tenant
-    # Viene de: TenantTools.config (agregado de todas las conexiones del mismo tipo)
-    # Key = toolName del catálogo
-    # Ejemplo: {"google_calendar": {"calendar_id": "primary"}, "hubspot": {"portal_id": "123"}}
-    tool_configs: dict[str, Any] = field(default_factory=dict)
-    
-    # Control granular de funciones (MAPEADO por Gateway)
-    # Key = toolName del catálogo (NO el ID del TenantTool)
-    # Gateway hace el mapeo desde Workflow.toolPermissions (que usa IDs) a nombres
-    # 
-    # FLUJO DEL GATEWAY:
-    # 1. Workflow.toolPermissions = {"tenant_tool_abc": ["func1"], "tenant_tool_def": ["func2"]}
-    # 2. Gateway consulta TenantTool y obtiene ToolCatalog.toolName
-    # 3. Gateway mapea a: {"google_calendar": ["func1", "func2"]} (merge si múltiples)
-    # 4. Envía a Agents en este campo
-    # 
-    # Ejemplo: {"google_calendar": ["check_availability", "create_event"]}
-    # 
-    # Lógica de restricciones:
-    # - Tool CON funciones: {"google_calendar": ["func1", "func2"]} → solo usa func1 y func2
-    # - Tool SIN entrada: {} o tool no está en dict → sin restricciones, usa TODAS las funciones
-    # - Tool con lista vacía: {"hubspot": []} → sin restricciones, usa TODAS las funciones
-    enabled_functions: dict[str, list[str]] = field(default_factory=dict)
+    # Tool instances por agente
+    # Viene de: Gateway construye desde TenantTools + credenciales
+    # Estructura: {"agent_name": {"tool_uuid": {"tool_name", "display_name", "credentials", "config", "enabled_functions"}}}
+    # Ejemplo: {"default": {"uuid-123": {"tool_name": "google_calendar", "display_name": "Calendar Ventas", ...}}}
+    agent_tool_instances: dict[str, dict[str, Any]] = field(default_factory=dict)
     
     # ==========================================
     # Historial y metadata
@@ -249,92 +218,45 @@ class TenantContext:
         return len(self.message_history)
     
     # ==========================================
-    # Métodos de acceso a tools
+    # Métodos de acceso a agentes y tools
     # ==========================================
-    def has_tool(self, tool_name: str) -> bool:
-        """Verifica si una tool está habilitada para este workflow."""
-        return tool_name in self.enabled_tools
-    
-    def get_tool_credentials(self, tool_name: str) -> dict[str, Any]:
+    def get_agent_config(self, agent_name: str = "default") -> dict[str, Any]:
         """
-        Obtiene credenciales de una tool.
-        
-        Raises:
-            PermissionError: Si la tool no está habilitada para este workflow
-        """
-        if not self.has_tool(tool_name):
-            raise PermissionError(
-                f"Tool '{tool_name}' is not enabled for workflow '{self.workflow_id}'"
-            )
-        return self.credentials.get(tool_name, {})
-    
-    def get_tool_config(self, tool_name: str) -> dict[str, Any]:
-        """
-        Obtiene configuración específica del tenant para una tool.
-        
-        Ejemplo: Para HubSpot retorna {"portal_id": "123", "pipeline": "ventas"}
-        """
-        return self.tool_configs.get(tool_name, {})
-    
-    def get_enabled_functions(self, tool_name: str) -> list[str] | None:
-        """
-        Obtiene las funciones habilitadas para una tool específica.
-        
-        Retorna:
-            list[str]: Lista de nombres de funciones habilitadas para esta tool
-            None: Sin restricciones - usar TODAS las funciones disponibles
-        
-        Lógica:
-            - Si tool_name NO está en enabled_functions → None (sin restricciones)
-            - Si tool_name está pero lista vacía → None (sin restricciones)
-            - Si tool_name está con funciones → retornar lista
+        Obtiene configuración de un agente específico.
         
         Args:
-            tool_name: Nombre de la tool ("google_calendar", "hubspot", etc)
+            agent_name: Nombre del agente ("default", "sales", "marketing", etc)
         
         Returns:
-            Lista de funciones permitidas o None para usar todas
-            
-        Example:
-            # Con restricciones
-            ctx.enabled_functions = {"google_calendar": ["check_availability", "create_event"]}
-            functions = ctx.get_enabled_functions("google_calendar")
-            # → ["check_availability", "create_event"]
-            
-            # Sin restricciones (tool no en dict)
-            functions = ctx.get_enabled_functions("calculator")
-            # → None (usar todas)
-            
-            # Sin restricciones (lista vacía)
-            ctx.enabled_functions = {"hubspot": []}
-            functions = ctx.get_enabled_functions("hubspot")
-            # → None (usar todas)
+            Configuración del agente (model, temperature, system_prompt, tools)
         """
-        if tool_name not in self.enabled_functions:
-            return None
-        
-        functions = self.enabled_functions[tool_name]
-        
-        # Si la lista está vacía, interpretar como "sin restricciones"
-        if not functions:
-            return None
-        
-        return functions
+        return self.agents_config.get(agent_name, {})
     
-    # ==========================================
-    # Métodos de acceso a configuración
-    # ==========================================
-    def get_model_config(self, model_name: str = "default") -> dict[str, Any]:
+    def get_agent_tools(self, agent_name: str = "default") -> dict[str, Any]:
         """
-        Obtiene configuración de un modelo específico.
+        Obtiene tool_instances para un agente específico.
         
         Args:
-            model_name: Nombre del modelo ("default", "classifier", etc)
+            agent_name: Nombre del agente
         
         Returns:
-            Configuración del modelo o dict vacío si no existe
+            Diccionario de tool instances con UUIDs como keys
         """
-        return self.model_configs.get(model_name, {})
+        return self.agent_tool_instances.get(agent_name, {})
+    
+    def get_tool_instance(self, agent_name: str, tool_uuid: str) -> dict[str, Any]:
+        """
+        Obtiene una tool instance específica por UUID.
+        
+        Args:
+            agent_name: Nombre del agente
+            tool_uuid: UUID del TenantTool
+        
+        Returns:
+            Tool instance con tool_name, display_name, credentials, config, enabled_functions
+        """
+        agent_tools = self.get_agent_tools(agent_name)
+        return agent_tools.get(tool_uuid, {})
     
     # ==========================================
     # Métodos de acceso a user metadata
@@ -353,6 +275,8 @@ class TenantContext:
     # Representación para debugging/logs
     # ==========================================
     def __repr__(self) -> str:
+        agents_count = len(self.agents_config)
+        total_tools = sum(len(tools) for tools in self.agent_tool_instances.values())
         return (
             f"TenantContext("
             f"tenant={self.tenant_id}, "
@@ -360,7 +284,8 @@ class TenantContext:
             f"conversation={self.conversation_id}, "
             f"user={self.user_type}:{self.user_id}, "
             f"channel={self.channel}, "
-            f"tools={len(self.enabled_tools)}, "
+            f"agents={agents_count}, "
+            f"total_tools={total_tools}, "
             f"messages={len(self.message_history)}"
             f")"
         )
