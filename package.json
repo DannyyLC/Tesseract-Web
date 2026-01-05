@@ -80,8 +80,10 @@
     "cookie-parser": "^1.4.7",
     "kafka": "^0.2.3",
     "kafkajs": "^2.2.4",
+    "qrcode": "^1.5.4",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",
+    "speakeasy": "^2.0.0",
     "tslib": "^2.3.0"
   }
 }

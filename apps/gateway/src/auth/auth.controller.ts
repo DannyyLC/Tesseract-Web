@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Res,
   Req,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -17,6 +18,9 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { UserPayload } from '../common/types/jwt-payload.type';
+import { TempTokenGuard } from './guards/temp-token.guard';
+import { ApiResponseBuilder } from '@workflow-automation/shared-types'
+import { HttpStatusCode } from 'axios';
 
 /**
  * AuthController maneja todos los endpoints de autenticación
@@ -45,15 +49,15 @@ export class AuthController {
   /**
    * POST /auth/login
    * Inicia sesión con email y password
-   * 
+   *
    * 🔐 Los tokens se establecen como cookies httpOnly (NO en el body)
-   * 
+   *
    * Body:
    *   {
    *     "email": "juan@example.com",
    *     "password": "password123"
    *   }
-   * 
+   *
    * Response: 200 OK
    *   {
    *     "user": {
@@ -64,69 +68,71 @@ export class AuthController {
    *       "isActive": true
    *     }
    *   }
-   * 
+   *
    * Cookies establecidas:
-   *   - accessToken: httpOnly, secure, sameSite=strict, maxAge=15min
-   *   - refreshToken: httpOnly, secure, sameSite=strict, maxAge=7days
-   * 
+   *   - temp2FAToken: token temporal para 2FA (15 minutos)
+   *
    * Errores:
    *   401 - Credenciales inválidas
    *   401 - Cuenta inactiva o eliminada
    */
   @Post('login')
-  @HttpCode(HttpStatus.OK)
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authService.login(loginDto);
+    const responseBuilder = new ApiResponseBuilder();
+    try {
+      const result = await this.authService.login(loginDto);
 
-    // Determinar si estamos en producción
-    const isProduction = process.env.NODE_ENV === 'production';
+      // Determinar si estamos en producción
+      const isProduction = process.env.NODE_ENV === 'production';
 
-    // Establecer accessToken en cookie httpOnly
-    response.cookie('accessToken', result.accessToken, {
-      httpOnly: true,       // No accesible desde JavaScript
-      secure: isProduction, // Solo HTTPS en producción
-      sameSite: 'strict',   // Protección CSRF
-      maxAge: 15 * 60 * 1000, // 15 minutos
-      path: '/',
-    });
+      // Establecer temp2FAToken en cookie httpOnly
+      response.cookie('temp2FAToken', result.tempToken, {
+        httpOnly: true, // No accesible desde JavaScript
+        secure: isProduction, // Solo HTTPS en producción
+        sameSite: 'strict', // Protección CSRF
+        maxAge: 15 * 60 * 1000, // 15 minutos
+        path: '/api/auth',
+      });
 
-    // Establecer refreshToken en cookie httpOnly
-    response.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
-      path: '/api/auth', // Solo se envía a endpoints de auth
-    });
-
-    // Retornar solo la info del usuario (NO los tokens)
-    return {
-      user: result.user,
-    };
+      responseBuilder
+        .setSuccess(true)
+        .setStatusCode(HttpStatusCode.Ok)
+        .setData({ qr_data: result.qr })
+        .setMessage('Credentials valid, proceed to 2FA verification');
+      response.statusCode = HttpStatus.OK;
+      response.send(responseBuilder.build());
+    } catch (error) {
+      responseBuilder
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.Unauthorized)
+        .setMessage('Invalid credentials or account inactive');
+      response.statusCode = HttpStatus.UNAUTHORIZED;
+      response.send(responseBuilder.build());
+    }
   }
 
   /**
    * POST /auth/refresh
    * Refresca el access token usando el refresh token de la cookie
-   * 
+   *
    * 🔐 Lee el refreshToken desde la cookie (NO desde el body)
-   * 
+   *
    * Body: {} (vacío, no se necesita enviar nada)
-   * 
+   *
    * Response: 200 OK
    *   {
    *     "success": true
    *   }
-   * 
+   *
    * Cookies actualizadas:
    *   - accessToken: nuevo token (15 minutos)
    *   - refreshToken: nuevo token rotado (7 días)
-   * 
+   *
    * Nota: El refresh token antiguo se invalida (token rotation)
-   * 
+   *
    * Errores:
    *   401 - Refresh token inválido o expirado
    *   401 - Cookie refreshToken no encontrada
@@ -175,11 +181,11 @@ export class AuthController {
   /**
    * GET /auth/me
    * Obtiene la información del usuario autenticado
-   * 
+   *
    * 🔐 El accessToken se lee automáticamente desde la cookie
-   * 
+   *
    * Headers: (ninguno requerido, la cookie se envía automáticamente)
-   * 
+   *
    * Response: 200 OK
    *   {
    *     "id": "uuid",
@@ -192,7 +198,7 @@ export class AuthController {
    *     "region": "us-central",
    *     "metadata": {...}
    *   }
-   * 
+   *
    * Errores:
    *   401 - Token inválido o expirado
    */
@@ -205,21 +211,21 @@ export class AuthController {
   /**
    * POST /auth/logout
    * Cierra sesión invalidando el refresh token y limpiando las cookies
-   * 
+   *
    * 🔐 Lee el refreshToken desde la cookie y la elimina
-   * 
+   *
    * Headers: (ninguno requerido, las cookies se envían automáticamente)
    * Body: {} (vacío)
-   * 
+   *
    * Response: 200 OK
    *   {
    *     "message": "Sesión cerrada exitosamente"
    *   }
-   * 
+   *
    * Cookies eliminadas:
    *   - accessToken
    *   - refreshToken
-   * 
+   *   - temp2FAToken
    * Nota: Solo invalida el refresh token específico de esta sesión
    */
   @Post('logout')
@@ -240,6 +246,7 @@ export class AuthController {
     // Limpiar las cookies
     response.clearCookie('accessToken', { path: '/' });
     response.clearCookie('refreshToken', { path: '/api/auth' });
+    response.clearCookie('temp2FAToken', { path: '/api/auth' });
 
     return { message: 'Sesión cerrada exitosamente' };
   }
@@ -248,19 +255,20 @@ export class AuthController {
    * POST /auth/logout-all
    * Cierra sesión en todos los dispositivos
    * Invalida TODOS los refresh tokens del usuario y limpia las cookies
-   * 
+   *
    * 🔐 Invalida todas las sesiones del usuario en todos los dispositivos
-   * 
+   *
    * Headers: (ninguno requerido, las cookies se envían automáticamente)
-   * 
+   *
    * Response: 200 OK
    *   {
    *     "message": "Sesión cerrada en todos los dispositivos"
    *   }
-   * 
+   *
    * Cookies eliminadas:
    *   - accessToken
    *   - refreshToken
+   *   - temp2FAToken
    */
   @Post('logout-all')
   @UseGuards(JwtAuthGuard)
@@ -275,7 +283,75 @@ export class AuthController {
     // Limpiar las cookies de esta sesión
     response.clearCookie('accessToken', { path: '/' });
     response.clearCookie('refreshToken', { path: '/api/auth' });
+    response.clearCookie('temp2FAToken', { path: '/api/auth' });
 
     return { message: 'Sesión cerrada en todos los dispositivos' };
+  }
+
+  //   @Post('2fa/setup')
+  // @UseGuards(TempTokenGuard)
+  // async setup2FA(@CurrentUser() user : UserPayload) {
+  //   return this.authService.setup2FA(user.sub);
+  // }
+
+  @Post('verify2facode')
+  @UseGuards(TempTokenGuard)
+  async verify2FA(
+    @CurrentUser() user: UserPayload,
+    @Body('code2FA') authCode: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    var result = null;
+    const responseBuilder = new ApiResponseBuilder();
+    try {
+      result = await this.authService.verify2FACode(user, authCode);
+    } catch (error) {
+      responseBuilder
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.InternalServerError)
+        .setMessage('Error verifying 2FA code');
+      response.statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
+      response.send(responseBuilder.build());
+      return;
+    }
+
+    if (result == null) {
+      responseBuilder
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.Unauthorized)
+        .setMessage('Invalid 2FA code');
+      response.statusCode = HttpStatus.UNAUTHORIZED;
+      response.send(responseBuilder.build());
+      return;
+    }
+    // Determinar si estamos en producción
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    // Establecer accessToken en cookie httpOnly
+    response.cookie('accessToken', result.accessToken, {
+      httpOnly: true, // No accesible desde JavaScript
+      secure: isProduction, // Solo HTTPS en producción
+      sameSite: 'strict', // Protección CSRF
+      maxAge: 24 * 60 * 60 * 1000, // 24 horas
+      path: '/',
+    });
+
+    // Establecer refreshToken en cookie httpOnly
+    response.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
+      path: '/api/auth', // Solo se envía a endpoints de auth
+    });
+
+    // Retornar solo la info del usuario (NO los tokens)
+    responseBuilder
+      .setSuccess(true)
+      .setStatusCode(HttpStatusCode.Ok)
+      .setData({ user: result.user })
+      .setMessage('2FA verified successfully');
+    response.statusCode = 200;
+    response.send(responseBuilder.build());
   }
 }

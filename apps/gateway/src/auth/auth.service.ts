@@ -15,6 +15,8 @@ import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserPayload } from '../common/types/user-payload.type';
 import { PlanType } from '@workflow-automation/shared-types';
+import * as speakeasy from 'speakeasy';
+import * as qrcode from 'qrcode';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
@@ -39,7 +41,7 @@ export class AuthService {
 
   /**
    * Registra una nueva organización con su usuario Owner
-   * 
+   *
    * @param dto - Datos de registro (name, email, password)
    * @returns Organization + User Owner + tokens JWT
    */
@@ -138,55 +140,43 @@ export class AuthService {
 
   /**
    * Login de usuario existente
-   * 
+   *
    * @param dto - Credenciales (email, password)
-   * @returns Tokens JWT (access + refresh)
+   * @returns qrCode, tempToken
    */
   async login(dto: LoginDto) {
     this.logger.log(`Intentando login: ${dto.email}`);
 
     // 1. Validar credenciales y obtener usuario con organización
-    const { user, organization } = await this.validateUser(dto.email, dto.password);
-
-    // 2. Generar tokens
-    const tokens = await this.generateTokens(
-      user.id,
-      user.email,
-      user.name,
-      user.role,
-      organization.id,
-      organization.name,
-      organization.plan,
+    const { user, organization } = await this.validateUser(
+      dto.email,
+      dto.password,
     );
-
-    // 3. Actualizar lastLoginAt
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
+    const payload: UserPayload = {
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      organizationId: organization.id,
+      organizationName: organization.name,
+      plan: organization.plan,
+    };
+    // 2. Generar temporary token
+    const tempToken = this.jwtService.sign(payload, {
+      secret:
+        this.configService.get<string>('TEMP_TOKEN_SECRET') ||
+        'temp-token-secret',
+      expiresIn: '15m',
     });
-
-    this.logger.log(`Login exitoso: ${user.email} (${organization.name})`);
-
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-      organization: {
-        id: organization.id,
-        name: organization.name,
-        slug: organization.slug,
-        plan: organization.plan,
-      },
-      ...tokens,
+      ...(await this.setup2FA(user.id)),
+      tempToken,
     };
   }
 
   /**
    * Valida las credenciales del usuario
-   * 
+   *
    * @param email - Email del usuario
    * @param password - Password en texto plano
    * @returns User + Organization si las credenciales son válidas
@@ -240,7 +230,7 @@ export class AuthService {
 
   /**
    * Genera access token y refresh token
-   * 
+   *
    * @param userId - ID del usuario
    * @param email - Email del usuario
    * @param name - Nombre del usuario
@@ -271,12 +261,20 @@ export class AuthService {
     };
 
     // 2. Generar access token (corta duración)
-    const accessToken = this.jwtService.sign(payload);
+    const accessToken = this.jwtService.sign(payload, {
+      secret:
+        this.configService.get<string>('JWT_SECRET') ||
+        'super-secret-change-in-production',
+      expiresIn: this.configService.get<string>('JWT_EXPIRES_IN') || '1d',
+    });
 
     // 3. Generar refresh token (larga duración)
-    const refreshTokenExpiry = this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d';
+    const refreshTokenExpiry =
+      this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d';
     const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET') || 'refresh-secret-change-in-production',
+      secret:
+        this.configService.get<string>('JWT_REFRESH_SECRET') ||
+        'refresh-secret-change-in-production',
       expiresIn: refreshTokenExpiry as any,
     });
 
@@ -304,7 +302,7 @@ export class AuthService {
 
   /**
    * Refresca el access token usando un refresh token válido
-   * 
+   *
    * @param refreshToken - Refresh token en texto plano
    * @returns Nuevos access token y refresh token
    */
@@ -312,7 +310,9 @@ export class AuthService {
     try {
       // 1. Verificar y decodificar el refresh token
       const payload = this.jwtService.verify<UserPayload>(refreshToken, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET') || 'refresh-secret-change-in-production',
+        secret:
+          this.configService.get<string>('JWT_REFRESH_SECRET') ||
+          'refresh-secret-change-in-production',
       });
 
       // 2. Buscar refresh tokens en la DB que coincidan
@@ -339,14 +339,16 @@ export class AuthService {
       }
 
       if (!matchedToken) {
-        this.logger.warn(`Refresh token no encontrado para usuario: ${payload.sub}`);
+        this.logger.warn(
+          `Refresh token no encontrado para usuario: ${payload.sub}`,
+        );
         throw new UnauthorizedException('Refresh token inválido');
       }
 
       // 4. Revocar el refresh token usado (token rotation)
       await this.prisma.refreshToken.update({
         where: { id: matchedToken.id },
-        data: { 
+        data: {
           revokedAt: new Date(),
           revokedReason: 'token_rotated',
         },
@@ -374,14 +376,14 @@ export class AuthService {
 
   /**
    * Cierra sesión del usuario invalidando su refresh token
-   * 
+   *
    * @param refreshToken - Refresh token a invalidar
    */
   async logout(refreshToken: string) {
     try {
       // 1. Decodificar el token (sin verificar expiración para permitir logout de tokens expirados)
       const payload = this.jwtService.decode(refreshToken) as UserPayload;
-      
+
       if (!payload) {
         throw new UnauthorizedException('Token inválido');
       }
@@ -400,12 +402,12 @@ export class AuthService {
         if (isMatch) {
           await this.prisma.refreshToken.update({
             where: { id: stored.id },
-            data: { 
+            data: {
               revokedAt: new Date(),
               revokedReason: 'logout',
             },
           });
-          
+
           this.logger.log(`Sesión cerrada para: ${payload.email}`);
           return { message: 'Sesión cerrada exitosamente' };
         }
@@ -421,7 +423,7 @@ export class AuthService {
   /**
    * Invalida todos los refresh tokens de un usuario
    * Útil para "cerrar sesión en todos los dispositivos"
-   * 
+   *
    * @param userId - ID del usuario
    */
   async logoutAll(userId: string) {
@@ -443,11 +445,11 @@ export class AuthService {
   // ========================================================================
   // MÉTODOS DE ADMINISTRACIÓN - TODO: Mover a UsersService y OrganizationsService
   // ========================================================================
-  
+
   // Estos métodos usan el modelo Client antiguo y deben ser refactorizados
   // para trabajar con User y Organization por separado.
   // Se comentan temporalmente para evitar errores de compilación.
-  
+
   /*
   async createUser(dto: CreateUserDto) {
     // TODO: Implementar en UsersService
@@ -472,4 +474,101 @@ export class AuthService {
     // TODO: Implementar en UsersService
   }
   */
+
+  async generateTempToken(dto: LoginDto, expiresIn: string = '15m') {
+    // 1. Validar credenciales y obtener usuario con organización
+    const { user, organization } = await this.validateUser(
+      dto.email,
+      dto.password,
+    );
+    const payload: UserPayload = {
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      organizationId: organization.id,
+      organizationName: organization.name,
+      plan: organization.plan,
+    };
+    // 2. Generar temporary token
+    const tempToken = this.jwtService.sign(payload, {
+      secret:
+        this.configService.get<string>('TEMP_TOKEN_SECRET') ||
+        'temp-token-secret',
+      expiresIn,
+    });
+    return tempToken;
+  }
+
+  async setup2FA(userId: string) {
+    //Now we are wrapping the userId in a text, optionally we could add a complex secret here
+    const secret = speakeasy.generateSecret({ name: `Tesseract (${userId})` });
+    // Guarda secret.base32 en user.twoFactorSecret y twoFactorEnabled=false
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorSecret: secret.base32, twoFactorEnabled: false },
+    });
+    const qr = await qrcode.toDataURL(secret.otpauth_url);
+    return { qr };
+  }
+
+  async verify2FACode(userPayload: UserPayload, authCode: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userPayload.sub },
+    });
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: userPayload.organizationId },
+    });
+    if (!user?.twoFactorSecret) return null;
+    if (!organization) return null;
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: 'base32',
+      token: authCode,
+    });
+    if (verified) {
+      await this.prisma.user.update({
+        where: { id: userPayload.sub },
+        data: { twoFactorEnabled: true },
+      });
+
+      // 2. Generar tokens
+      const tokens = await this.generateTokens(
+        userPayload.sub,
+        userPayload.email,
+        userPayload.name,
+        userPayload.role,
+        userPayload.organizationId,
+        userPayload.organizationName,
+        userPayload.plan,
+      );
+
+      // 3. Actualizar lastLoginAt
+      await this.prisma.user.update({
+        where: { id: userPayload.sub },
+        data: { lastLoginAt: new Date() },
+      });
+
+      this.logger.log(
+        `Login exitoso: ${userPayload.email} (${userPayload.organizationName})`,
+      );
+      return {
+        user: {
+          id: userPayload.sub,
+          email: userPayload.email,
+          name: userPayload.name,
+          role: userPayload.role,
+        },
+        organization: {
+          id: userPayload.organizationId,
+          name: userPayload.organizationName,
+          slug: organization.slug,
+          plan: userPayload.plan,
+        },
+        ...tokens,
+      };
+    } else {
+      return null;
+    }
+  }
 }
