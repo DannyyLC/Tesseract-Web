@@ -6,7 +6,6 @@ import { PrismaService } from "./prisma.service";
  * Al ser @Global(), PrismaService esta disponible en todos los modulos
  * sin necesidad de importar DatabaseModule en cada uno
  */
-
 @Global()
 @Module({
     providers: [PrismaService],
