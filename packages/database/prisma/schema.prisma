@@ -505,9 +505,9 @@ model Message {
 }
 
 // ============================================
-// MODEL PRICE (Precios de modelos de IA)
+// LLM MODEL (Modelos de IA con precios)
 // ============================================
-model ModelPrice {
+model LlmModel {
   id                   String    @id @default(uuid())
   
   // Identificación del modelo
@@ -545,7 +545,7 @@ model ModelPrice {
   @@index([provider, modelName, isActive])
   @@index([isActive, effectiveFrom])
   @@index([tier, isActive])  // Para filtrar modelos por tier
-  @@map("model_prices")
+  @@map("llm_models")
 }
 
 // ============================================

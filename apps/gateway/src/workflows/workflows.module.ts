@@ -5,7 +5,7 @@ import { ExecutionsModule } from '../executions/executions.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { AgentsModule } from "../agents/agents.module";
 import { CreditBalanceService } from '../credits/credit-balance.service';
-import { ModelPricesService } from '../model-prices/model-prices.service';
+import { LlmModelsService } from '../llm-models/llm-models.service';
 /**
  * WorkflowsModule
  * Agrupa toda la funcionalidad relacionada con workflows
@@ -23,7 +23,7 @@ import { ModelPricesService } from '../model-prices/model-prices.service';
  * - ExecutionsService: Desde ExecutionsModule
  * - OrganizationsService: Desde OrganizationsModule
  * - CreditBalanceService: Para validar y descontar créditos
- * - ModelPricesService: Para calcular costos en USD
+ * - LlmModelsService: Para calcular costos en USD
  * 
  * Exporta:
  * - WorkflowsService: Para que otros módulos puedan usarlo si necesitan
@@ -31,7 +31,7 @@ import { ModelPricesService } from '../model-prices/model-prices.service';
 @Module({
     imports: [ExecutionsModule, OrganizationsModule, AgentsModule],
     controllers: [WorkflowsController],
-    providers: [WorkflowsService, CreditBalanceService, ModelPricesService],
+    providers: [WorkflowsService, CreditBalanceService, LlmModelsService],
     exports: [WorkflowsService],
 })
 export class WorkflowsModule {}

@@ -215,7 +215,7 @@ CREATE TABLE "messages" (
 );
 
 -- CreateTable
-CREATE TABLE "model_prices" (
+CREATE TABLE "llm_models" (
     "id" TEXT NOT NULL,
     "provider" TEXT NOT NULL,
     "modelName" TEXT NOT NULL,
@@ -233,7 +233,7 @@ CREATE TABLE "model_prices" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "model_prices_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "llm_models_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -643,16 +643,16 @@ CREATE INDEX "messages_role_idx" ON "messages"("role");
 CREATE INDEX "messages_createdAt_idx" ON "messages"("createdAt");
 
 -- CreateIndex
-CREATE INDEX "model_prices_provider_modelName_isActive_idx" ON "model_prices"("provider", "modelName", "isActive");
+CREATE INDEX "llm_models_provider_modelName_isActive_idx" ON "llm_models"("provider", "modelName", "isActive");
 
 -- CreateIndex
-CREATE INDEX "model_prices_isActive_effectiveFrom_idx" ON "model_prices"("isActive", "effectiveFrom");
+CREATE INDEX "llm_models_isActive_effectiveFrom_idx" ON "llm_models"("isActive", "effectiveFrom");
 
 -- CreateIndex
-CREATE INDEX "model_prices_tier_isActive_idx" ON "model_prices"("tier", "isActive");
+CREATE INDEX "llm_models_tier_isActive_idx" ON "llm_models"("tier", "isActive");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "model_prices_provider_modelName_effectiveFrom_key" ON "model_prices"("provider", "modelName", "effectiveFrom");
+CREATE UNIQUE INDEX "llm_models_provider_modelName_effectiveFrom_key" ON "llm_models"("provider", "modelName", "effectiveFrom");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "tool_catalog_toolName_key" ON "tool_catalog"("toolName");

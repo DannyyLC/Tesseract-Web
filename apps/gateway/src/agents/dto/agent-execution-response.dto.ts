@@ -38,7 +38,7 @@ export class AgentMessageDto {
  * - usage_by_model: Desglose de tokens por modelo (crítico para calcular costos multi-modelo)
  * 
  * NOTA: El Gateway usa usage_by_model para calcular costos exactos
- * consultando la tabla ModelPrice. Python NO calcula costos.
+ * consultando la tabla LlmModel. Python NO calcula costos.
  */
 export class ExecutionMetadataDto {
     @ApiPropertyOptional({

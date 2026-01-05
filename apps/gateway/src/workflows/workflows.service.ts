@@ -15,7 +15,7 @@ import { AgentsService } from '../agents/agents.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
 import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
 import { CreditBalanceService } from '../credits/credit-balance.service';
-import { ModelPricesService } from '../model-prices/model-prices.service';
+import { LlmModelsService } from '../llm-models/llm-models.service';
 import {
   WorkflowNotFoundException,
   WorkflowPausedException,
@@ -40,7 +40,7 @@ export class WorkflowsService {
         private readonly secretsService: SecretsService,
         private readonly agentsService: AgentsService,
         private readonly creditBalanceService: CreditBalanceService,
-        private readonly modelPricesService: ModelPricesService,
+        private readonly llmModelsService: LlmModelsService,
     ) {}
 
     /**
@@ -413,7 +413,7 @@ export class WorkflowsService {
             if (Object.keys(usageByModel).length > 0) {
                 for (const [modelName, usage] of Object.entries(usageByModel) as [string, any][]) {
                     try {
-                        const costCalculation = await this.modelPricesService.calculateCost(
+                        const costCalculation = await this.llmModelsService.calculateCost(
                             modelName,
                             {
                                 inputTokens: usage.input_tokens || 0,
@@ -442,7 +442,7 @@ export class WorkflowsService {
                 
                 if (totalTokens > 0) {
                     try {
-                        const costCalculation = await this.modelPricesService.calculateCost(
+                        const costCalculation = await this.llmModelsService.calculateCost(
                             modelUsed,
                             { inputTokens, outputTokens, totalTokens },
                         );
@@ -757,7 +757,7 @@ export class WorkflowsService {
     }
 
     /**
-     * Valida que todos los modelos especificados en agents_config existen en ModelPrice
+     * Valida que todos los modelos especificados en agents_config existen en LlmModel
      */
     private async validateModelsInConfig(agentsConfig: Record<string, any>) {
         const modelsToValidate = new Set<string>();
@@ -779,7 +779,7 @@ export class WorkflowsService {
         }
 
         // Obtener modelos activos de la BD
-        const activeModels = await this.prisma.modelPrice.findMany({
+        const activeModels = await this.prisma.llmModel.findMany({
             where: { isActive: true },
             select: { modelName: true },
         });
