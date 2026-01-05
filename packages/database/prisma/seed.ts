@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -16,7 +16,7 @@ async function main() {
   await prisma.invoice.deleteMany();
   await prisma.creditBalance.deleteMany();
   await prisma.subscription.deleteMany();
-  await prisma.modelPrice.deleteMany();
+  await prisma.llmModel.deleteMany();
   await prisma.tenantTool.deleteMany();
   await prisma.toolFunction.deleteMany();
   await prisma.toolCatalog.deleteMany();
@@ -30,12 +30,12 @@ async function main() {
   console.log('✅ Datos limpiados\n');
 
   // ============================================
-  // CREAR MODEL PRICES (PRECIOS DE MODELOS)
+  // CREAR LLM MODELS (MODELOS DE IA)
   // ============================================
-  console.log('💰 Creando precios de modelos...');
+  console.log('💰 Creando modelos de IA...');
 
   // OpenAI Models
-  await prisma.modelPrice.createMany({
+  await prisma.llmModel.createMany({
     data: [
       // BASIC TIER - Solo para workflows LIGHT
       {

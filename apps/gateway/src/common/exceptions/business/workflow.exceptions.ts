@@ -78,23 +78,6 @@ export class WorkflowPausedException extends AppException {
 }
 
 /**
- * Excepción: Webhook de n8n inválido
- * Se lanza cuando la URL del webhook de n8n es inválida
- */
-export class InvalidN8nWebhookException extends AppException {
-  constructor(webhookUrl: string, reason?: string) {
-    super(
-      ErrorCode.INVALID_N8N_WEBHOOK,
-      reason
-        ? `Invalid n8n webhook URL: ${reason}`
-        : 'The provided n8n webhook URL is invalid',
-      HttpStatus.BAD_REQUEST,
-      { webhookUrl, reason },
-    );
-  }
-}
-
-/**
  * Excepción: Steps de workflow custom inválidos
  * Se lanza cuando los steps del workflow custom son inválidos
  */

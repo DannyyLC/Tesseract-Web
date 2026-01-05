@@ -35,93 +35,6 @@ export class MessageHistoryDto {
     content: string;
 }
 
-export class AgentConfigDto {
-    @ApiProperty({
-        description: 'Tipo de grafo del agente',
-        example: 'react',
-    })
-    @IsString()
-    @IsNotEmpty()
-    graph_type: string;
-
-    @ApiPropertyOptional({
-        description: 'Máximo de iteraciones del agente',
-        example: 10,
-    })
-    @IsOptional()
-    max_iterations?: number;
-
-    @ApiPropertyOptional({
-        description: 'Si permite interrupciones humanas',
-        example: false,
-    })
-    @IsOptional()
-    allow_interrupts?: boolean;
-}
-
-export class ModelConfigDto {
-    @ApiProperty({
-        description: 'Nombre del modelo',
-        example: 'gpt-4o',
-    })
-    @IsString()
-    @IsNotEmpty()
-    model: string;
-
-    @ApiPropertyOptional({
-        description: 'Temperatura del modelo',
-        example: 0.7,
-    })
-    @IsOptional()
-    temperature?: number;
-
-    @ApiPropertyOptional({
-        description: 'Máximo de tokens por mensaje',
-        example: 1000,
-    })
-    @IsOptional()
-    max_tokens?: number;
-
-    @ApiPropertyOptional({
-        description: 'System prompt del modelo',
-        example: 'Eres un asistente de ventas...',
-    })
-    @IsOptional()
-    systemPrompt?: string;
-
-    @ApiPropertyOptional({
-        description: 'Modelos de respaldo en caso de falla',
-        example: ['claude-3-5-sonnet-20241022'],
-        type: [String],
-    })
-    @IsOptional()
-    @IsArray()
-    fallbacks?: string[];
-
-    //TODO: Agregar campos de pricing para que Python calcule los costos:
-    //TODO: @ApiPropertyOptional({ description: 'Costo por millón de tokens de entrada', example: 2.5 })
-    //TODO: @IsOptional()
-    //TODO: input_cost_per_million?: number;
-    //TODO: 
-    //TODO: @ApiPropertyOptional({ description: 'Costo por millón de tokens de salida', example: 10.0 })
-    //TODO: @IsOptional()
-    //TODO: output_cost_per_million?: number;
-
-    @ApiPropertyOptional({
-        description: 'Número máximo de reintentos',
-        example: 2,
-    })
-    @IsOptional()
-    max_retries?: number;
-
-    @ApiPropertyOptional({
-        description: 'Timeout en segundos',
-        example: 60,
-    })
-    @IsOptional()
-    timeout?: number;
-}
-
 export class AgentExecutionRequestDto {
     // ==========================================
     // IDENTIFICACIÓN (OBLIGATORIOS)
@@ -186,7 +99,12 @@ export class AgentExecutionRequestDto {
     // CONFIGURACIÓN DEL WORKFLOW 
     // ==========================================
     @ApiProperty({
-        description: 'Configuración del grafo',
+        description: `Configuración del grafo - FLEXIBLE para soportar múltiples tipos:
+            - react: { type: 'react', config: { max_iterations: 10, allow_interrupts: false } }
+            - supervisor: { type: 'supervisor', config: { supervisor_model: 'gpt-4o', members: [...] } }
+            - parallel: { type: 'parallel', config: { branches: [...], merge_strategy: 'first' } }
+            - sequential: { type: 'sequential', config: { steps: [...] } }
+            - router: { type: 'router', config: { routes: {...}, fallback: '...' } }`,
         example: {
             type: 'react',
             config: {
@@ -199,13 +117,22 @@ export class AgentExecutionRequestDto {
     graph_config: Record<string, any>;
 
     @ApiProperty({
-        description: 'Configuración de agentes',
+        description: `Configuración de agentes por nombre (default, sales, support, etc).
+            
+            Campos: model (requerido), temperature, max_tokens, system_prompt, fallbacks, max_retries, timeout.
+            
+            NOTA: El campo 'tools' NO se envía aquí (aunque existe en BD).
+            - Gateway lo usa internamente para filtrar agent_tool_instances
+            - Python solo lee agent_tool_instances, no necesita ver 'tools'`,
         example: {
             default: {
                 model: 'gpt-4o',
                 temperature: 0.7,
+                max_tokens: 1000,
                 system_prompt: 'Eres un asistente...',
-                tools: ['tool-uuid-1', 'tool-uuid-2'],
+                fallbacks: ['claude-3-5-sonnet-20241022'],
+                max_retries: 2,
+                timeout: 60
             },
         },
     })

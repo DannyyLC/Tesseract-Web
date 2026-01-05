@@ -336,23 +336,67 @@ async def execute_agent(request: AgentExecutionRequest) -> AgentExecutionRespons
             )
         
         # ==========================================
-        # 6. Procesar resultado
+        # 6. Procesar resultado y calcular usage por modelo
         # ==========================================
         output_messages = result.get("messages", [])
         
-        # Extraer usage_metadata del último AIMessage
-        input_tokens = 0
-        output_tokens = 0
-        total_tokens = 0
+        # IMPORTANTE: usage_metadata en LangChain incluye TODO el historial acumulativo
+        # NO podemos sumar input_tokens de cada AIMessage porque duplicaríamos el conteo
+        # 
+        # ESTRATEGIA:
+        # 1. Para INPUT: Tomar el MAYOR input_tokens (último mensaje tiene el total acumulado)
+        # 2. Para OUTPUT: Sumar SOLO output_tokens de cada AIMessage por modelo
+        #
+        # Esto nos da el costo REAL sin duplicados
         
-        # Buscar el último AIMessage que tenga usage_metadata
-        for msg in reversed(output_messages):
+        # Estructura: { "model_name": { input_tokens: max, output_tokens: sum } }
+        usage_by_model: dict[str, dict[str, int]] = {}
+        max_input_per_model: dict[str, int] = {}  # Máximo input por modelo
+        
+        for msg in output_messages:
             if hasattr(msg, 'usage_metadata') and msg.usage_metadata:
                 usage = msg.usage_metadata
+                
+                # Extraer tokens
                 input_tokens = usage.get("input_tokens", 0)
                 output_tokens = usage.get("output_tokens", 0)
-                total_tokens = usage.get("total_tokens", input_tokens + output_tokens)
-                break
+                
+                # Obtener el modelo usado de response_metadata
+                model_name = "unknown"
+                if hasattr(msg, 'response_metadata') and msg.response_metadata:
+                    model_name = msg.response_metadata.get("model_name") or msg.response_metadata.get("model", "unknown")
+                
+                # Fallback: usar modelo del default agent
+                if model_name == "unknown":
+                    default_agent = ctx.get_agent_config("default") or {}
+                    model_name = default_agent.get("model", "unknown")
+                
+                # Inicializar si no existe
+                if model_name not in usage_by_model:
+                    usage_by_model[model_name] = {
+                        "input_tokens": 0,
+                        "output_tokens": 0,
+                        "total_tokens": 0
+                    }
+                    max_input_per_model[model_name] = 0
+                
+                # INPUT: Guardar el MÁXIMO (es acumulativo, el último tiene el total)
+                if input_tokens > max_input_per_model[model_name]:
+                    max_input_per_model[model_name] = input_tokens
+                
+                # OUTPUT: SUMAR cada generación (estos sí son independientes)
+                usage_by_model[model_name]["output_tokens"] += output_tokens
+        
+        # Asignar el input máximo a cada modelo
+        total_input = 0
+        total_output = 0
+        for model_name in usage_by_model:
+            usage_by_model[model_name]["input_tokens"] = max_input_per_model[model_name]
+            usage_by_model[model_name]["total_tokens"] = (
+                max_input_per_model[model_name] + usage_by_model[model_name]["output_tokens"]
+            )
+            total_input += max_input_per_model[model_name]
+            total_output += usage_by_model[model_name]["output_tokens"]
         
         # Convertir mensajes LangChain a dict
         all_messages = convert_langchain_messages_to_dict(output_messages)
@@ -362,20 +406,19 @@ async def execute_agent(request: AgentExecutionRequest) -> AgentExecutionRespons
         response_messages = [msg for msg in all_messages if msg.get("role") == "assistant"]
         
         # Metadata de la ejecución
-        default_agent = ctx.get_agent_config("default") or {}
         metadata = {
             "execution_time_ms": int(execution_time),
             "graph_type": ctx.graph_config.get("type"),
-            "model_used": default_agent.get("model", "unknown"),
             "agents_count": len(ctx.agents_config),
-            "total_messages": len(response_messages),
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "total_tokens": total_tokens,
+            "input_tokens": total_input,
+            "output_tokens": total_output,
+            "total_tokens": total_input + total_output,
+            "usage_by_model": usage_by_model,  # Breakdown por modelo (sin duplicados)
         }
         
         logger.info(
-            f"[{request.conversation_id}] Returning {len(response_messages)} messages"
+            f"[{request.conversation_id}] Returning {len(response_messages)} messages, "
+            f"usage: {usage_by_model}"
         )
         
         # ==========================================

@@ -111,9 +111,16 @@ describe('WorkflowsController', () => {
       description: 'A new workflow',
       triggerType: 'api' as const,
       config: {
-        type: 'n8n' as const,
-        webhookUrl: 'https://n8n.example.com/webhook',
-        method: 'POST',
+        type: 'agent' as const,
+        graph: { type: 'react' as const, config: {} },
+        agents: {
+          default: {
+            model: 'gpt-4o',
+            temperature: 0.7,
+            system_prompt: 'You are a helpful assistant',
+            tools: [],
+          },
+        },
       },
     };
 
