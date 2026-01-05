@@ -44,9 +44,16 @@ describe('WorkflowsService', () => {
         name: 'Test Workflow',
         description: 'Test description',
         config: {
-        type: 'n8n',
-        webhookUrl: 'https://n8n.example.com/webhook/test',
-        method: 'POST',
+            type: 'agent',
+            graph: { type: 'react', config: {} },
+            agents: {
+                default: {
+                    model: 'gpt-4o',
+                    temperature: 0.7,
+                    system_prompt: 'You are a helpful assistant',
+                    tools: [],
+                },
+            },
         },
         isActive: true,
         isPaused: false,
@@ -129,9 +136,16 @@ describe('WorkflowsService', () => {
         name: 'New Workflow',
         description: 'New workflow description',
         config: {
-            type: 'n8n' as const,
-            webhookUrl: 'https://n8n.example.com/webhook/test',
-            method: 'POST',
+            type: 'agent' as const,
+            graph: { type: 'react' as const, config: {} },
+            agents: {
+                default: {
+                    model: 'gpt-4o',
+                    temperature: 0.7,
+                    system_prompt: 'You are a helpful assistant',
+                    tools: [],
+                },
+            },
         },
         isActive: true,
         isPaused: false,
@@ -197,7 +211,7 @@ describe('WorkflowsService', () => {
             // Arrange
             const invalidDto = {
                 ...createDto,
-                config: { webhookUrl: 'https://example.com' }, // Falta 'type'
+                config: { graph: { type: 'react' } }, // Falta 'type'
             };
             organizationsService.canAddWorkflow.mockResolvedValue(true);
 
@@ -206,11 +220,11 @@ describe('WorkflowsService', () => {
                 service.create(mockOrganizationId, invalidDto as any),
             ).rejects.toThrow(BadRequestException);
         });
-        it('should throw BadRequestException when n8n config is missing webhookUrl', async () => {
+        it('should throw BadRequestException when agent config is missing required fields', async () => {
             // Arrange
             const invalidDto = {
                 ...createDto,
-                config: { type: 'n8n', method: 'POST' }, // Falta webhookUrl
+                config: { type: 'agent' }, // Falta graph y agents
             };
             organizationsService.canAddWorkflow.mockResolvedValue(true);
 
@@ -224,9 +238,11 @@ describe('WorkflowsService', () => {
             const minimalDto = {
                 name: 'Minimal Workflow',
                 config: {
-                type: 'n8n' as const,
-                webhookUrl: 'https://example.com',
-                method: 'POST',
+                    type: 'agent' as const,
+                    graph: { type: 'react' as const, config: {} },
+                    agents: {
+                        default: { model: 'gpt-4o', tools: [] },
+                    },
                 },
                 triggerType: 'manual' as const,
             };
@@ -446,7 +462,7 @@ describe('WorkflowsService', () => {
         it('should validate config when updating', async () => {
             // Arrange
             const updateDtoWithInvalidConfig = {
-                config: { type: 'n8n' }, // Falta webhookUrl y method
+                config: { type: 'agent' }, // Falta graph y agents
             };
             (prismaService.workflow.findFirst as jest.Mock).mockResolvedValue(mockWorkflow as any);
 
@@ -679,7 +695,7 @@ describe('WorkflowsService', () => {
             // Arrange
             (prismaService.workflow.findFirst as jest.Mock).mockResolvedValue({
                 ...mockWorkflow,
-                config: { webhookUrl: 'https://example.com' }, // Sin type
+                config: { graph: { type: 'react' } }, // Sin type
                 organization: mockOrganization,
             } as any);
             executionsService.updateStatus.mockResolvedValue({
@@ -701,7 +717,7 @@ describe('WorkflowsService', () => {
         it('should execute with apiKeyId when provided', async () => {
             // Arrange
             const mockApiKeyId = 'api-key-123';
-            n8nService.executeWebhook.mockResolvedValue({ success: true });
+            agentsService.execute.mockResolvedValue({ success: true });
             executionsService.updateStatus.mockResolvedValue({
                 ...mockExecution,
                 status: 'completed',
@@ -726,36 +742,6 @@ describe('WorkflowsService', () => {
                 }),
             );
         });
-        it('should include metadata in n8n webhook payload', async () => {
-            // Arrange
-            n8nService.executeWebhook.mockResolvedValue({ success: true });
-            executionsService.updateStatus.mockResolvedValue({
-                ...mockExecution,
-                status: 'completed',
-            } as any);
-
-            // Act
-            await service.execute(
-                mockOrganizationId,
-                mockWorkflowId,
-                executeInput,
-                executeMetadata,
-            );
-
-            // Assert
-            expect(n8nService.executeWebhook).toHaveBeenCalledWith(
-                expect.any(Object),
-                expect.objectContaining({
-                ...executeInput,
-                _meta: expect.objectContaining({
-                    executionId: mockExecution.id,
-                    workflowId: mockWorkflowId,
-                    workflowName: mockWorkflow.name,
-                }),
-                }),
-                mockExecution.id,
-            );
-        });
         it('should throw NotFoundException when organization is not found', async () => {
             // Arrange
             (prismaService.workflow.findFirst as jest.Mock).mockResolvedValue({
@@ -770,16 +756,18 @@ describe('WorkflowsService', () => {
         });
     });
 
-    // Test para validateConfig()
+    // Test para validateConfig()  
     describe('validateConfig (tested via create)', () => {
-        it('should accept valid n8n config', async () => {
+        it('should accept valid agent config', async () => {
             // Arrange
             const validDto = {
                 name: 'Test',
                 config: {
-                type: 'n8n' as const,
-                webhookUrl: 'https://example.com',
-                method: 'POST',
+                    type: 'agent' as const,
+                    graph: { type: 'react' as const, config: {} },
+                    agents: {
+                        default: { model: 'gpt-4o', tools: [] },
+                    },
                 },
                 triggerType: 'manual' as const,
             };

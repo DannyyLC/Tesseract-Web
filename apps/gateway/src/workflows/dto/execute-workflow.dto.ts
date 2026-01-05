@@ -27,8 +27,8 @@ export class ExecuteWorkflowDto {
    * Datos de entrada para el workflow
    * Puede ser cualquier estructura JSON
    * 
-   * Este objeto se enviará al webhook de n8n o al orchestrator
-   * según el tipo de workflow
+   * Este objeto se enviará al servicio de agentes Python
+   * para su procesamiento según la configuración del workflow
    */
   @IsObject()
   @IsNotEmpty({ message: 'Los datos de entrada son requeridos' })

@@ -33,36 +33,6 @@ export class AnthropicApiErrorException extends AppException {
 }
 
 /**
- * Excepción: Error de webhook n8n
- * Se lanza cuando el webhook de n8n falla o devuelve error
- */
-export class N8nWebhookErrorException extends AppException {
-  constructor(webhookUrl: string, reason: string, statusCode?: number) {
-    super(
-      ErrorCode.N8N_WEBHOOK_ERROR,
-      `n8n webhook error: ${reason}`,
-      HttpStatus.BAD_GATEWAY,
-      { webhookUrl, reason, externalStatusCode: statusCode },
-    );
-  }
-}
-
-/**
- * Excepción: Timeout de webhook n8n
- * Se lanza cuando el webhook de n8n no responde a tiempo
- */
-export class N8nWebhookTimeoutException extends AppException {
-  constructor(webhookUrl: string, timeoutSeconds: number) {
-    super(
-      ErrorCode.N8N_WEBHOOK_TIMEOUT,
-      `n8n webhook timed out after ${timeoutSeconds} seconds`,
-      HttpStatus.GATEWAY_TIMEOUT,
-      { webhookUrl, timeoutSeconds },
-    );
-  }
-}
-
-/**
  * Excepción: Rate limit de API externa
  * Se lanza cuando una API externa alcanza su rate limit
  */

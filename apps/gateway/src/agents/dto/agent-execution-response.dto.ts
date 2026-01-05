@@ -27,6 +27,19 @@ export class AgentMessageDto {
     content: string;
 }
 
+/**
+ * Metadata retornado por el servicio Python sobre la ejecución.
+ * 
+ * CAMPOS QUE PYTHON ENVÍA:
+ * - execution_time_ms: Duración de la ejecución en milisegundos
+ * - graph_type: Tipo de grafo ejecutado (react, supervisor, etc) - útil para analytics
+ * - agents_count: Número de agentes que participaron - útil para métricas
+ * - input_tokens, output_tokens, total_tokens: Contadores totales agregados
+ * - usage_by_model: Desglose de tokens por modelo (crítico para calcular costos multi-modelo)
+ * 
+ * NOTA: El Gateway usa usage_by_model para calcular costos exactos
+ * consultando la tabla ModelPrice. Python NO calcula costos.
+ */
 export class ExecutionMetadataDto {
     @ApiPropertyOptional({
         description: 'Tiempo de ejecución en milisegundos',
@@ -36,7 +49,7 @@ export class ExecutionMetadataDto {
     execution_time_ms?: number;
 
     @ApiPropertyOptional({
-        description: 'Tipo de grafo utilizado',
+        description: 'Tipo de grafo ejecutado (react, supervisor, router, sequential, parallel)',
         example: 'react',
     })
     @IsOptional()
@@ -44,53 +57,49 @@ export class ExecutionMetadataDto {
     graph_type?: string;
 
     @ApiPropertyOptional({
-        description: 'Modelo utilizado',
-        example: 'gpt-4o',
+        description: 'Número de agentes que participaron en la ejecución',
+        example: 1,
     })
     @IsOptional()
-    @IsString()
-    model_used?: string;
+    agents_count?: number;
 
     @ApiPropertyOptional({
-        description: 'Tools habilitadas en la ejecución',
-        example: ['google_calendar', 'hubspot'],
-        type: [String],
+        description: 'Tokens de entrada (prompt) - retornados por Python',
+        example: 350,
     })
     @IsOptional()
-    @IsArray()
-    tools_enabled?: string[];
+    input_tokens?: number;
 
     @ApiPropertyOptional({
-        description: 'Número total de mensajes generados',
-        example: 3,
+        description: 'Tokens de salida (completion) - retornados por Python',
+        example: 100,
     })
     @IsOptional()
-    total_messages?: number;
-
-    //TODO: Agregar campos para recibir usage detallado desde Python:
-    //TODO: @ApiPropertyOptional({ description: 'Tokens de entrada (prompt)', example: 350 })
-    //TODO: @IsOptional()
-    //TODO: input_tokens?: number;
-    //TODO: 
-    //TODO: @ApiPropertyOptional({ description: 'Tokens de salida (completion)', example: 100 })
-    //TODO: @IsOptional()
-    //TODO: output_tokens?: number;
+    output_tokens?: number;
 
     @ApiPropertyOptional({
-        description: 'Tokens utilizados en la conversación',
+        description: 'Total de tokens (input + output)',
         example: 450,
     })
     @IsOptional()
     total_tokens?: number;
 
-    //TODO: Este costo ya viene calculado desde Python, solo recibirlo y guardarlo
     @ApiPropertyOptional({
-        description: 'Costo estimado en USD',
-        example: 0.0023,
+        description: `Usage detallado por modelo - para workflows multi-agente con diferentes modelos.
+            IMPORTANTE: Python calcula esto correctamente evitando duplicados:
+            - input_tokens: Máximo acumulado (LangChain reporta el total acumulativo)
+            - output_tokens: Suma de todas las generaciones del modelo
+            Ejemplo: Si un modelo se usa 3 veces, output_tokens = sum(gen1+gen2+gen3)`,
+        example: {
+            'gpt-4o': { input_tokens: 350, output_tokens: 80, total_tokens: 430 },
+            'gpt-4o-mini': { input_tokens: 50, output_tokens: 20, total_tokens: 70 }
+        },
     })
     @IsOptional()
-    cost?: number;
+    @IsObject()
+    usage_by_model?: Record<string, { input_tokens: number; output_tokens: number; total_tokens: number }>;
 }
+
 
 export class AgentExecutionResponseDto {
     @ApiProperty({

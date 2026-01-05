@@ -91,37 +91,19 @@ export class CreateWorkflowDto {
 }
 
 /**
- * Tipo para la configuración del workflow
- * Puede ser n8n o custom
+ * Configuración de workflow tipo agente
+ * Refleja la estructura del schema de Prisma para workflows basados en LangGraph
  */
-export type WorkflowConfig = N8nWorkflowConfig | CustomWorkflowConfig;
-
-/**
- * Configuración para workflows de tipo n8n
- */
-export interface N8nWorkflowConfig {
-  type: 'n8n';
-  webhookUrl: string;
-  method: string;
-  headers?: Record<string, string>;
-  timeout?: number;
-  retryOnFail?: boolean;
-  retryDelay?: number;
-  maxRetries?: number;
-}
-
-/**
- * Configuración para workflows custom
- */
-export interface CustomWorkflowConfig {
-  type: 'custom';
-  steps?: any[];
-  endpoint?: string;
-  onError?: {
-    action: string;
-    to?: string;
-    includeStackTrace?: boolean;
+export interface WorkflowConfig {
+  type: 'agent';
+  graph: {
+    type: 'react' | 'supervisor' | 'router' | 'sequential' | 'parallel';
+    config?: Record<string, any>;
   };
-  parallel?: boolean;
-  continueOnError?: boolean;
+  agents: Record<string, {
+    model: string;
+    temperature?: number;
+    system_prompt?: string;
+    tools?: (string | { id: string; functions?: string[] })[];
+  }>;
 }

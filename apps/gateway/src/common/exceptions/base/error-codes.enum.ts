@@ -112,12 +112,6 @@ export enum ErrorCode {
   WORKFLOW_IS_PAUSED = 'WORKFLOW_2005',
   
   /**
-   * La URL del webhook de n8n es inválida o no responde
-   * HTTP Status: 400 Bad Request
-   */
-  INVALID_N8N_WEBHOOK = 'WORKFLOW_2006',
-  
-  /**
    * Los steps del workflow custom son inválidos
    * HTTP Status: 400 Bad Request
    */
@@ -244,7 +238,7 @@ export enum ErrorCode {
   DATABASE_ERROR = 'SYSTEM_5001',
   
   /**
-   * Error al llamar a una API externa (OpenAI, n8n, etc.)
+   * Error al llamar a una API externa (OpenAI, Anthropic, etc.)
    * HTTP Status: 502 Bad Gateway
    */
   EXTERNAL_API_ERROR = 'SYSTEM_5002',
@@ -300,18 +294,6 @@ export enum ErrorCode {
    * HTTP Status: 502 Bad Gateway
    */
   ANTHROPIC_API_ERROR = 'INTEGRATION_6002',
-  
-  /**
-   * El webhook de n8n no respondió o dio error
-   * HTTP Status: 502 Bad Gateway
-   */
-  N8N_WEBHOOK_ERROR = 'INTEGRATION_6003',
-  
-  /**
-   * Timeout al llamar al webhook de n8n
-   * HTTP Status: 504 Gateway Timeout
-   */
-  N8N_WEBHOOK_TIMEOUT = 'INTEGRATION_6004',
   
   /**
    * La API externa alcanzó su rate limit

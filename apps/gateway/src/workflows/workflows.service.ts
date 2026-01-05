@@ -47,7 +47,7 @@ export class WorkflowsService {
      * Crear un nuevo workflow
      */
     async create(organizationId: string, dto: CreateWorkflowDto) {
-        this.validateConfig(dto.config);
+        await this.validateConfig(dto.config);
 
         // Validar límite de workflows según el plan
         const canAdd = await this.organizationsService.canAddWorkflow(organizationId);
@@ -152,7 +152,7 @@ export class WorkflowsService {
 
         // 2. Validar config si se está actualizando
         if (dto.config) {
-            this.validateConfig(dto.config);
+            await this.validateConfig(dto.config);
         }
 
         // 3. Actualizar (incrementando versión)
@@ -254,31 +254,11 @@ export class WorkflowsService {
             throw new WorkflowPausedException(workflowId);
         }
 
-        // 2. VALIDAR LÍMITES DIARIOS DE EJECUCIÓN
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const executionsToday = await this.prisma.execution.count({
-            where: {
-                workflow: {
-                    organizationId,
-                },
-                startedAt: {
-                    gte: today,
-                },
-            },
-        });
-
+        // 2. VALIDAR ORGANIZACIÓN
         const org = workflow.organization;
         if (!org) {
             throw new NotFoundException('Organización no encontrada');
         }
-
-        // TODO: Agregar límites de ejecuciones al plan si es necesario
-        // const maxExecutionsPerDay = PLANS[org.plan].limits.maxExecutionsPerDay;
-        // if (maxExecutionsPerDay !== -1 && executionsToday >= maxExecutionsPerDay) {
-        //     throw new MaxExecutionsExceededException(executionsToday, maxExecutionsPerDay);
-        // }
 
         // 2.1. VALIDAR BALANCE DE CRÉDITOS
         const canExecute = await this.creditBalanceService.canExecuteWorkflow(
@@ -388,7 +368,9 @@ export class WorkflowsService {
             );
 
             // Llamar al servicio de agents (Python)
-            this.logger.debug(`Llamando al AgentsService con payload...`);
+            this.logger.debug(
+                `Llamando al AgentsService`,
+            );
             const agentResponse = await this.agentsService.execute(payload);
 
             // 7. GUARDAR SOLO EL ÚLTIMO MENSAJE (RESPUESTA DEL ASISTENTE)
@@ -418,28 +400,66 @@ export class WorkflowsService {
                 );
             }
 
-            // 8.1. EXTRAER TOKENS Y CALCULAR COSTO
+            // 8.1. EXTRAER TOKENS Y CALCULAR COSTO (multi-modelo)
             const metadata = (agentResponse.metadata || {}) as any;
-            const inputTokens = metadata.input_tokens || 0;
-            const outputTokens = metadata.output_tokens || 0;
             const totalTokens = metadata.total_tokens || 0;
-            const modelUsed = metadata.model_used || 'gpt-4o-mini';
+            const usageByModel = metadata.usage_by_model || {};
 
-            // Calcular costo en USD usando ModelPricesService
+            // Calcular costo en USD sumando todos los modelos usados
             let costUSD = 0;
-            if (totalTokens > 0) {
-                try {
-                    const costCalculation = await this.modelPricesService.calculateCost(
-                        modelUsed,
-                        { inputTokens, outputTokens, totalTokens },
-                    );
-                    costUSD = costCalculation.totalCost;
-                } catch (error) {
-                    this.logger.error(
-                        `Error calculando costo para modelo ${modelUsed}: ${(error as Error).message}`,
-                    );
+            const costBreakdown: { model: string; cost: number }[] = [];
+
+            // Si hay usage_by_model, calcular costo por cada modelo
+            if (Object.keys(usageByModel).length > 0) {
+                for (const [modelName, usage] of Object.entries(usageByModel) as [string, any][]) {
+                    try {
+                        const costCalculation = await this.modelPricesService.calculateCost(
+                            modelName,
+                            {
+                                inputTokens: usage.input_tokens || 0,
+                                outputTokens: usage.output_tokens || 0,
+                                totalTokens: usage.total_tokens || 0,
+                            },
+                        );
+                        costUSD += costCalculation.totalCost;
+                        costBreakdown.push({ model: modelName, cost: costCalculation.totalCost });
+                        
+                        this.logger.debug(
+                            `Costo para modelo ${modelName}: $${costCalculation.totalCost} ` +
+                            `(input: ${usage.input_tokens}, output: ${usage.output_tokens})`,
+                        );
+                    } catch (error) {
+                        this.logger.error(
+                            `Error calculando costo para modelo ${modelName}: ${(error as Error).message}`,
+                        );
+                    }
+                }
+            } else {
+                // Fallback: usar tokens totales con modelo por defecto
+                const inputTokens = metadata.input_tokens || 0;
+                const outputTokens = metadata.output_tokens || 0;
+                const modelUsed = metadata.model_used || 'gpt-4o-mini';
+                
+                if (totalTokens > 0) {
+                    try {
+                        const costCalculation = await this.modelPricesService.calculateCost(
+                            modelUsed,
+                            { inputTokens, outputTokens, totalTokens },
+                        );
+                        costUSD = costCalculation.totalCost;
+                        costBreakdown.push({ model: modelUsed, cost: costUSD });
+                    } catch (error) {
+                        this.logger.error(
+                            `Error calculando costo para modelo ${modelUsed}: ${(error as Error).message}`,
+                        );
+                    }
                 }
             }
+
+            this.logger.log(
+                `Costo total de ejecución ${execution.id}: $${costUSD} ` +
+                `(breakdown: ${JSON.stringify(costBreakdown)})`,
+            );
 
             // 8.2. DESCONTAR CRÉDITOS DEL BALANCE
             await this.creditBalanceService.deductCredits(
@@ -450,10 +470,11 @@ export class WorkflowsService {
                 workflow.name,
                 costUSD,
                 {
-                    input_tokens: inputTokens,
-                    output_tokens: outputTokens,
+                    input_tokens: metadata.input_tokens || 0,
+                    output_tokens: metadata.output_tokens || 0,
                     total_tokens: totalTokens,
-                    model: modelUsed,
+                    usage_by_model: usageByModel,
+                    cost_breakdown: costBreakdown,
                     execution_time_ms: metadata.execution_time_ms,
                 },
             );
@@ -485,7 +506,6 @@ export class WorkflowsService {
                 result: {
                     ...agentResponse,
                     conversationId: conversation.id,
-                    messagesCount: messages.length,
                 },
             });
 
@@ -635,13 +655,28 @@ export class WorkflowsService {
             }
 
             agentToolInstances[agentName] = filtered;
+
+            // Validar: si el agente tiene tools configurados pero ninguno válido
+            if (agentTools.length > 0 && Object.keys(filtered).length === 0) {
+                this.logger.warn(
+                    `Agent "${agentName}" tiene tools configurados pero ninguno es válido. ` +
+                    `Tools configurados: ${JSON.stringify(agentTools)}`,
+                );
+            }
         }
 
-        // 4. Determinar tipo de usuario
+        // 4. Limpiar agents_config - remover campo 'tools' (redundante, ya está en agent_tool_instances)
+        const cleanedAgentsConfig: Record<string, any> = {};
+        for (const [agentName, agentConfig] of Object.entries(agentsConfig) as [string, any][]) {
+            const { tools, ...configWithoutTools } = agentConfig;
+            cleanedAgentsConfig[agentName] = configWithoutTools;
+        }
+
+        // 5. Determinar tipo de usuario
         const userType = conversation.userId ? UserType.INTERNAL : UserType.EXTERNAL;
         const finalUserId = conversation.userId || conversation.endUserId || 'anonymous';
 
-        // 5. Construir el payload final
+        // 6. Construir el payload final
         const payload = {
             // Identificación (OBLIGATORIOS)
             tenant_id: workflow.organizationId,
@@ -654,7 +689,7 @@ export class WorkflowsService {
 
             // Nueva estructura unificada
             graph_config: graphConfig,
-            agents_config: agentsConfig,
+            agents_config: cleanedAgentsConfig, // ← Sin campo 'tools'
             agent_tool_instances: agentToolInstances,
 
             // Historial y metadata
@@ -662,9 +697,28 @@ export class WorkflowsService {
             timezone: workflow.timezone || 'UTC',
         };
 
+        // Sanitizar payload para logging (remover credenciales)
+        const sanitizedPayload = {
+            ...payload,
+            agent_tool_instances: Object.fromEntries(
+                Object.entries(payload.agent_tool_instances).map(([agentName, tools]) => [
+                    agentName,
+                    Object.fromEntries(
+                        Object.entries(tools as Record<string, any>).map(([toolId, toolConfig]) => [
+                            toolId,
+                            {
+                                ...toolConfig,
+                                credentials: toolConfig.credentials ? '[REDACTED]' : undefined,
+                            },
+                        ]),
+                    ),
+                ]),
+            ),
+        };
+
         this.logger.debug(
             `Payload construido para workflow ${workflow.id}:`,
-            JSON.stringify(payload, null, 2),
+            JSON.stringify(sanitizedPayload, null, 2),
         );
 
         return payload;
@@ -673,12 +727,80 @@ export class WorkflowsService {
     /**
     * Valida la estructura del config según su tipo
     */
-    private validateConfig(config: any) {
-        if (!config.type) {
-            throw new BadRequestException('El config debe tener un campo "type"');
+    private async validateConfig(config: any) {
+        if (!config || typeof config !== 'object') {
+            throw new InvalidWorkflowConfigException('Config must be an object');
         }
 
-        // TODO: Implementar validación según el tipo de workflow que se integre con Python agents
+        if (!config.type) {
+            throw new InvalidWorkflowConfigException('Config must have a "type" field');
+        }
+
+        // Validación para workflows tipo 'agent' (LangGraph)
+        if (config.type === 'agent') {
+            if (!config.graph?.type) {
+                throw new InvalidWorkflowConfigException(
+                    'Agent workflows must have graph.type (react, supervisor, router, sequential, parallel)',
+                );
+            }
+            if (!config.agents || typeof config.agents !== 'object') {
+                throw new InvalidWorkflowConfigException('Agent workflows must have agents config');
+            }
+            // Validar que al menos exista un agente
+            if (Object.keys(config.agents).length === 0) {
+                throw new InvalidWorkflowConfigException('Agent workflows must have at least one agent');
+            }
+
+            // Validar que los modelos especificados existen en la BD
+            await this.validateModelsInConfig(config.agents);
+        }
+    }
+
+    /**
+     * Valida que todos los modelos especificados en agents_config existen en ModelPrice
+     */
+    private async validateModelsInConfig(agentsConfig: Record<string, any>) {
+        const modelsToValidate = new Set<string>();
+        
+        // Recolectar todos los modelos (principal + fallbacks)
+        for (const agentConfig of Object.values(agentsConfig)) {
+            if (agentConfig.model) {
+                modelsToValidate.add(agentConfig.model);
+            }
+            if (agentConfig.fallbacks && Array.isArray(agentConfig.fallbacks)) {
+                agentConfig.fallbacks.forEach((model: string) => modelsToValidate.add(model));
+            }
+        }
+
+        if (modelsToValidate.size === 0) {
+            throw new InvalidWorkflowConfigException(
+                'At least one agent must have a model specified'
+            );
+        }
+
+        // Obtener modelos activos de la BD
+        const activeModels = await this.prisma.modelPrice.findMany({
+            where: { isActive: true },
+            select: { modelName: true },
+        });
+
+        const activeModelNames = new Set(activeModels.map(m => m.modelName));
+        const invalidModels: string[] = [];
+
+        // Verificar que cada modelo existe
+        for (const model of modelsToValidate) {
+            if (!activeModelNames.has(model)) {
+                invalidModels.push(model);
+            }
+        }
+
+        if (invalidModels.length > 0) {
+            const availableModels = Array.from(activeModelNames).slice(0, 10).join(', ');
+            throw new InvalidWorkflowConfigException(
+                `Invalid models: ${invalidModels.join(', ')}. ` +
+                `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`
+            );
+        }
     }    
 }
     
