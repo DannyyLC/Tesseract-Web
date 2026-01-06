@@ -30,10 +30,16 @@ CREATE TABLE "organizations" (
     "defaultMaxCostPerConv" DOUBLE PRECISION,
     "allowOverages" BOOLEAN NOT NULL DEFAULT false,
     "overageLimit" DOUBLE PRECISION,
+    "customMaxUsers" INTEGER,
+    "customMaxApiKeys" INTEGER,
+    "customMaxWorkflows" INTEGER,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
+    "deactivatedAt" TIMESTAMP(3),
+    "deactivatedBy" TEXT,
+    "deactivationReason" TEXT,
     "shardKey" TEXT,
     "region" TEXT DEFAULT 'us-central',
     "metadata" JSONB,
@@ -51,6 +57,9 @@ CREATE TABLE "subscriptions" (
     "currentPeriodStart" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "currentPeriodEnd" TIMESTAMP(3) NOT NULL,
     "cancelAtPeriodEnd" BOOLEAN NOT NULL DEFAULT false,
+    "pendingPlanChange" "SubscriptionPlan",
+    "planChangeRequestedAt" TIMESTAMP(3),
+    "planChangeRequestedBy" TEXT,
     "stripeSubscriptionId" TEXT,
     "stripePriceId" TEXT,
     "customMonthlyPrice" DOUBLE PRECISION,
@@ -484,6 +493,9 @@ CREATE INDEX "organizations_deletedAt_idx" ON "organizations"("deletedAt");
 CREATE INDEX "organizations_isActive_idx" ON "organizations"("isActive");
 
 -- CreateIndex
+CREATE INDEX "organizations_deactivatedAt_idx" ON "organizations"("deactivatedAt");
+
+-- CreateIndex
 CREATE INDEX "organizations_plan_idx" ON "organizations"("plan");
 
 -- CreateIndex
@@ -500,6 +512,9 @@ CREATE INDEX "subscriptions_status_idx" ON "subscriptions"("status");
 
 -- CreateIndex
 CREATE INDEX "subscriptions_currentPeriodEnd_idx" ON "subscriptions"("currentPeriodEnd");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_pendingPlanChange_idx" ON "subscriptions"("pendingPlanChange");
 
 -- CreateIndex
 CREATE INDEX "subscriptions_plan_idx" ON "subscriptions"("plan");

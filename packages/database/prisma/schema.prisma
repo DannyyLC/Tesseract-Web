@@ -74,11 +74,22 @@ model Organization {
   allowOverages       Boolean          @default(false)  // Permite balance negativo
   overageLimit        Float?           // Límite de créditos negativos (null = usar default del plan)
   
+  // Overrides de límites del plan (para super admins)
+  // null = usar valores por defecto del plan
+  customMaxUsers      Int?             // Override del límite de usuarios
+  customMaxApiKeys    Int?             // Override del límite de API keys
+  customMaxWorkflows  Int?             // Override del límite de workflows
+  
   // Estado
   isActive            Boolean          @default(true)
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
   deletedAt           DateTime?
+  
+  // Desactivación temporal (diferente a deletedAt que es eliminación lógica)
+  deactivatedAt       DateTime?
+  deactivatedBy       String?          // userId del que desactivó (Owner o SuperAdmin)
+  deactivationReason  String?          // Motivo de la desactivación
   
   // Escalabilidad futura
   shardKey            String?          @default(uuid())
@@ -107,6 +118,7 @@ model Organization {
   @@index([slug])
   @@index([deletedAt])
   @@index([isActive])
+  @@index([deactivatedAt])
   @@index([plan])
   @@map("organizations")
 }
@@ -128,6 +140,11 @@ model Subscription {
   currentPeriodEnd      DateTime           // Calculado: currentPeriodStart + 1 mes
   cancelAtPeriodEnd     Boolean            @default(false)  // Si true, no renueva al final del periodo
   
+  // Downgrade programado (se aplica al final del periodo = currentPeriodEnd)
+  pendingPlanChange     SubscriptionPlan?  // null = sin cambio pendiente, ej: GROWTH
+  planChangeRequestedAt DateTime?          // Cuándo el usuario SOLICITÓ el cambio
+  planChangeRequestedBy String?            // userId que solicitó el cambio
+  
   // Stripe
   stripeSubscriptionId  String?            @unique
   stripePriceId         String?
@@ -147,6 +164,7 @@ model Subscription {
   @@index([organizationId])
   @@index([status])
   @@index([currentPeriodEnd])  // Para cron de renovaciones
+  @@index([pendingPlanChange]) // Para cron de cambios de plan programados
   @@index([plan])              // Para analytics
   @@map("subscriptions")
 }

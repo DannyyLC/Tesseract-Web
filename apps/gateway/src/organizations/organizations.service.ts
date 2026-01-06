@@ -1,11 +1,17 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { PLANS, PlanType, canAdd } from '@workflow-automation/shared-types';
+import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import { ListOrganizationsDto } from './dto/list-organizations.dto';
+import { InviteMemberDto } from './dto/invite-member.dto';
+import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
+import { UpdateSettingsDto } from './dto/update-settings.dto';
+import { UpdateCustomLimitsDto } from './dto/update-custom-limits.dto';
+import { randomBytes } from 'crypto';
 
 /**
  * Servicio para gestionar organizaciones
- * Solo los propietarios (owners) pueden modificar la organización
+ * Maneja operaciones tanto de usuarios normales (owners) como de super admins
  */
 @Injectable()
 export class OrganizationsService {
@@ -34,7 +40,7 @@ export class OrganizationsService {
       throw new NotFoundException('Organización no encontrada');
     }
 
-    const planConfig = PLANS[organization.plan as PlanType];
+    const planConfig = PLANS[organization.plan];
 
     return {
       ...organization,
@@ -77,7 +83,7 @@ export class OrganizationsService {
   /**
    * Obtiene las estadísticas de uso de la organización
    */
-  async getStats(organizationId: string) {
+  async getStats(organizationId: string, includeAdminData: boolean = false) {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
       include: {
@@ -88,6 +94,8 @@ export class OrganizationsService {
             apiKeys: true,
           },
         },
+        creditBalance: includeAdminData,
+        subscription: includeAdminData,
       },
     });
 
@@ -95,51 +103,79 @@ export class OrganizationsService {
       throw new NotFoundException('Organización no encontrada');
     }
 
-    const planConfig = PLANS[organization.plan as PlanType];
+    // Obtener límites efectivos (con overrides)
+    const effectiveLimits = this.getEffectiveLimits(organization);
 
-    // Calcular ejecuciones del día actual
+    // Calcular ejecuciones del mes actual (no del día, porque no hay límite diario)
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
-    const executionsToday = await this.prisma.execution.count({
+    const executionsThisMonth = await this.prisma.execution.count({
       where: {
         workflow: {
           organizationId,
         },
         createdAt: {
-          gte: today,
+          gte: firstDayOfMonth,
         },
       },
     });
 
-    return {
+    const stats: any = {
       plan: organization.plan,
-      limits: planConfig.limits,
+      limits: effectiveLimits,
       usage: {
         users: {
           current: organization._count.users,
-          limit: planConfig.limits.maxUsers,
-          percentage: planConfig.limits.maxUsers === -1 ? 0 : (organization._count.users / planConfig.limits.maxUsers) * 100,
+          limit: effectiveLimits.maxUsers,
+          percentage: effectiveLimits.maxUsers === -1 ? 0 : (organization._count.users / effectiveLimits.maxUsers) * 100,
         },
         workflows: {
           current: organization._count.workflows,
-          limit: planConfig.limits.maxWorkflows,
-          percentage: planConfig.limits.maxWorkflows === -1 ? 0 : (organization._count.workflows / planConfig.limits.maxWorkflows) * 100,
+          limit: effectiveLimits.maxWorkflows,
+          percentage: effectiveLimits.maxWorkflows === -1 ? 0 : (organization._count.workflows / effectiveLimits.maxWorkflows) * 100,
         },
         apiKeys: {
           current: organization._count.apiKeys,
-          limit: planConfig.limits.maxApiKeys,
-          percentage: planConfig.limits.maxApiKeys === -1 ? 0 : (organization._count.apiKeys / planConfig.limits.maxApiKeys) * 100,
+          limit: effectiveLimits.maxApiKeys,
+          percentage: effectiveLimits.maxApiKeys === -1 ? 0 : (organization._count.apiKeys / effectiveLimits.maxApiKeys) * 100,
         },
         executions: {
-          today: executionsToday,
-          limit: planConfig.limits.maxExecutionsPerDay,
-          percentage: planConfig.limits.maxExecutionsPerDay === -1 ? 0 : (executionsToday / planConfig.limits.maxExecutionsPerDay) * 100,
+          thisMonth: executionsThisMonth,
         },
       },
-      canAddUser: canAdd(organization.plan as PlanType, 'maxUsers', organization._count.users),
-      canAddWorkflow: canAdd(organization.plan as PlanType, 'maxWorkflows', organization._count.workflows),
+      canAddUser: effectiveLimits.maxUsers === -1 || organization._count.users < effectiveLimits.maxUsers,
+      canAddWorkflow: effectiveLimits.maxWorkflows === -1 || organization._count.workflows < effectiveLimits.maxWorkflows,
     };
+
+    // Datos solo para super admins
+    if (includeAdminData && organization.creditBalance) {
+      stats.adminData = {
+        creditBalance: organization.creditBalance.balance,
+        lifetimeEarned: organization.creditBalance.lifetimeEarned,
+        lifetimeSpent: organization.creditBalance.lifetimeSpent,
+        currentMonthCostUSD: organization.creditBalance.currentMonthCostUSD,
+        currentMonthSpent: organization.creditBalance.currentMonthSpent,
+        allowOverages: organization.allowOverages,
+        overageLimit: organization.overageLimit,
+        deactivatedAt: (organization as any).deactivatedAt,
+        deactivatedBy: (organization as any).deactivatedBy,
+        deactivationReason: (organization as any).deactivationReason,
+        stripeCustomerId: organization.stripeCustomerId,
+      };
+
+      if (organization.subscription) {
+        stats.adminData.subscription = {
+          status: organization.subscription.status,
+          currentPeriodStart: organization.subscription.currentPeriodStart,
+          currentPeriodEnd: organization.subscription.currentPeriodEnd,
+          pendingPlanChange: (organization.subscription as any).pendingPlanChange,
+          planChangeRequestedAt: (organization.subscription as any).planChangeRequestedAt,
+        };
+      }
+    }
+
+    return stats;
   }
 
   /**
@@ -185,7 +221,8 @@ export class OrganizationsService {
       throw new NotFoundException('Organización no encontrada');
     }
 
-    return canAdd(organization.plan as PlanType, 'maxUsers', organization._count.users);
+    const effectiveLimits = this.getEffectiveLimits(organization);
+    return effectiveLimits.maxUsers === -1 || organization._count.users < effectiveLimits.maxUsers;
   }
 
   /**
@@ -205,7 +242,8 @@ export class OrganizationsService {
       throw new NotFoundException('Organización no encontrada');
     }
 
-    return canAdd(organization.plan as PlanType, 'maxWorkflows', organization._count.workflows);
+    const effectiveLimits = this.getEffectiveLimits(organization);
+    return effectiveLimits.maxWorkflows === -1 || organization._count.workflows < effectiveLimits.maxWorkflows;
   }
 
   /**
@@ -225,7 +263,762 @@ export class OrganizationsService {
       throw new NotFoundException('Organización no encontrada');
     }
 
-    const planConfig = PLANS[organization.plan as PlanType];
-    return planConfig.limits.maxApiKeys === -1 || organization._count.apiKeys < planConfig.limits.maxApiKeys;
+    const effectiveLimits = this.getEffectiveLimits(organization);
+    return effectiveLimits.maxApiKeys === -1 || organization._count.apiKeys < effectiveLimits.maxApiKeys;
+  }
+
+  // ============================================
+  // GESTIÓN DE MIEMBROS
+  // ============================================
+
+  /**
+   * Remueve un miembro de la organización (soft delete)
+   * No puede remover al owner si es el único owner
+   */
+  async removeMember(organizationId: string, userId: string, removedBy: string) {
+    // Verificar que el usuario existe y pertenece a la organización
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        organizationId,
+        deletedAt: null,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado en la organización');
+    }
+
+    // Verificar que no es el último owner
+    if (user.role === 'owner') {
+      const ownerCount = await this.prisma.user.count({
+        where: {
+          organizationId,
+          role: 'owner',
+          deletedAt: null,
+        },
+      });
+
+      if (ownerCount === 1) {
+        throw new BadRequestException('No se puede eliminar al único owner de la organización');
+      }
+    }
+
+    // Soft delete
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt: new Date(),
+        isActive: false,
+      },
+    });
+
+    this.logger.log(`Usuario ${user.email} removido de organización ${organizationId} por ${removedBy}`);
+  }
+
+  /**
+   * Actualiza el rol de un miembro
+   * No puede cambiar el rol del último owner
+   */
+  async updateMemberRole(organizationId: string, userId: string, newRole: string, updatedBy: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        organizationId,
+        deletedAt: null,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado en la organización');
+    }
+
+    // Si está cambiando de owner a otro rol, verificar que no es el último owner
+    if (user.role === 'owner' && newRole !== 'owner') {
+      const ownerCount = await this.prisma.user.count({
+        where: {
+          organizationId,
+          role: 'owner',
+          deletedAt: null,
+        },
+      });
+
+      if (ownerCount === 1) {
+        throw new BadRequestException('No se puede cambiar el rol del único owner de la organización');
+      }
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { role: newRole },
+    });
+
+    this.logger.log(`Rol de ${user.email} actualizado de ${user.role} a ${newRole} por ${updatedBy}`);
+
+    return updated;
+  }
+
+  /**
+   * Obtiene información detallada de un miembro específico
+   */
+  async getMember(organizationId: string, userId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        organizationId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        emailVerified: true,
+        twoFactorEnabled: true,
+        avatar: true,
+        timezone: true,
+        createdAt: true,
+        updatedAt: true,
+        lastLoginAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado en la organización');
+    }
+
+    return user;
+  }
+
+  /**
+   * Invita un nuevo miembro a la organización
+   * Genera un token de invitación y envía email
+   */
+  async inviteMember(organizationId: string, dto: InviteMemberDto, invitedBy: string) {
+    // Verificar que la organización puede agregar más usuarios
+    const canAdd = await this.canAddUser(organizationId);
+    if (!canAdd) {
+      throw new BadRequestException('La organización ha alcanzado el límite de usuarios permitidos');
+    }
+
+    // Verificar que el email no esté ya en uso en esta organización
+    const existingUser = await this.prisma.user.findFirst({
+      where: {
+        email: dto.email,
+        organizationId,
+        deletedAt: null,
+      },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Este email ya está registrado en la organización');
+    }
+
+    // Generar token de invitación (válido por 7 días)
+    const invitationToken = randomBytes(32).toString('hex');
+    const invitationExpires = new Date();
+    invitationExpires.setDate(invitationExpires.getDate() + 7);
+
+    // Crear usuario con estado pendiente de verificación
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        name: dto.name || dto.email.split('@')[0],
+        password: '', // Se establecerá cuando acepte la invitación
+        role: dto.role,
+        organizationId,
+        emailVerified: false,
+        emailVerificationToken: invitationToken,
+        isActive: false, // Inactivo hasta que acepte la invitación
+      },
+    });
+
+    this.logger.log(`Usuario ${dto.email} invitado a organización ${organizationId} por ${invitedBy} con rol ${dto.role}`);
+
+    // TODO: Enviar email de invitación
+    // await this.emailService.sendInvitation(dto.email, invitationToken);
+
+    return {
+      ...user,
+      invitationUrl: `/accept-invitation?token=${invitationToken}`,
+    };
+  }
+
+  /**
+   * Reenvía la invitación a un usuario pendiente
+   */
+  async resendInvitation(organizationId: string, userId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        organizationId,
+        deletedAt: null,
+        emailVerified: false,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado o ya está verificado');
+    }
+
+    // Generar nuevo token
+    const invitationToken = randomBytes(32).toString('hex');
+    const invitationExpires = new Date();
+    invitationExpires.setDate(invitationExpires.getDate() + 7);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerificationToken: invitationToken,
+      },
+    });
+
+    this.logger.log(`Invitación reenviada a ${user.email}`);
+
+    // TODO: Enviar email de invitación
+    // await this.emailService.sendInvitation(user.email, invitationToken);
+
+    return {
+      message: 'Invitación reenviada exitosamente',
+      invitationUrl: `/accept-invitation?token=${invitationToken}`,
+    };
+  }
+
+  /**
+   * Cancela una invitación pendiente (elimina el usuario)
+   */
+  async cancelInvitation(organizationId: string, userId: string, canceledBy: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        organizationId,
+        deletedAt: null,
+        emailVerified: false,
+        isActive: false,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Invitación no encontrada o usuario ya está activo');
+    }
+
+    // Eliminar el usuario (no es un miembro activo todavía)
+    await this.prisma.user.delete({
+      where: { id: userId },
+    });
+
+    this.logger.log(`Invitación a ${user.email} cancelada por ${canceledBy}`);
+
+    return {
+      message: 'Invitación cancelada exitosamente',
+    };
+  }
+
+  /**
+   * Activa un miembro desactivado
+   */
+  async activateMember(organizationId: string, userId: string, activatedBy: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        organizationId,
+        deletedAt: null,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado en la organización');
+    }
+
+    if (user.isActive) {
+      throw new ConflictException('El usuario ya está activo');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: true },
+    });
+
+    this.logger.log(`Usuario ${user.email} activado por ${activatedBy}`);
+
+    return {
+      message: 'Usuario activado exitosamente',
+    };
+  }
+
+  /**
+   * Desactiva un miembro (sin eliminarlo)
+   */
+  async deactivateMember(organizationId: string, userId: string, deactivatedBy: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        organizationId,
+        deletedAt: null,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado en la organización');
+    }
+
+    if (!user.isActive) {
+      throw new ConflictException('El usuario ya está desactivado');
+    }
+
+    // No se puede desactivar al último owner
+    if (user.role === 'owner') {
+      const activeOwnerCount = await this.prisma.user.count({
+        where: {
+          organizationId,
+          role: 'owner',
+          deletedAt: null,
+          isActive: true,
+        },
+      });
+
+      if (activeOwnerCount === 1) {
+        throw new BadRequestException('No se puede desactivar al único owner activo de la organización');
+      }
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: false },
+    });
+
+    this.logger.log(`Usuario ${user.email} desactivado por ${deactivatedBy}`);
+
+    return {
+      message: 'Usuario desactivado exitosamente',
+    };
+  }
+
+  /**
+   * Transfiere el ownership de la organización a otro usuario
+   */
+  async transferOwnership(organizationId: string, dto: TransferOwnershipDto, currentOwnerId: string) {
+    // Verificar que el usuario actual es owner
+    const currentOwner = await this.prisma.user.findFirst({
+      where: {
+        id: currentOwnerId,
+        organizationId,
+        role: 'owner',
+        deletedAt: null,
+      },
+    });
+
+    if (!currentOwner) {
+      throw new ForbiddenException('Solo el owner puede transferir el ownership');
+    }
+
+    // Verificar que el nuevo owner existe y está activo
+    const newOwner = await this.prisma.user.findFirst({
+      where: {
+        id: dto.newOwnerId,
+        organizationId,
+        deletedAt: null,
+        isActive: true,
+      },
+    });
+
+    if (!newOwner) {
+      throw new NotFoundException('El usuario destino no existe o no está activo en la organización');
+    }
+
+    if (newOwner.id === currentOwnerId) {
+      throw new BadRequestException('No puedes transferir el ownership a ti mismo');
+    }
+
+    // Hacer la transferencia en una transacción
+    await this.prisma.$transaction([
+      // El owner actual se convierte en admin
+      this.prisma.user.update({
+        where: { id: currentOwnerId },
+        data: { role: 'admin' },
+      }),
+      // El nuevo usuario se convierte en owner
+      this.prisma.user.update({
+        where: { id: dto.newOwnerId },
+        data: { role: 'owner' },
+      }),
+    ]);
+
+    this.logger.log(`Ownership transferido de ${currentOwner.email} a ${newOwner.email} en organización ${organizationId}`);
+
+    return {
+      message: 'Ownership transferido exitosamente',
+      previousOwner: { id: currentOwner.id, email: currentOwner.email },
+      newOwner: { id: newOwner.id, email: newOwner.email },
+    };
+  }
+
+  // ============================================
+  // CONFIGURACIÓN DE ORGANIZACIÓN
+  // ============================================
+
+  /**
+   * Actualiza la configuración general de la organización
+   */
+  async updateSettings(organizationId: string, dto: UpdateSettingsDto) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    const updated = await this.prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        defaultMaxMessages: dto.defaultMaxMessages,
+        defaultInactivityHours: dto.defaultInactivityHours,
+        defaultMaxCostPerConv: dto.defaultMaxCostPerConv,
+      },
+    });
+
+    this.logger.log(`Configuración de organización ${organizationId} actualizada`);
+
+    return updated;
+  }
+
+  /**
+   * Actualiza los límites custom de una organización (solo super admins)
+   */
+  async updateCustomLimits(organizationId: string, dto: UpdateCustomLimitsDto, updatedBy: string) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    const updated = await this.prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        customMaxUsers: dto.customMaxUsers,
+        customMaxWorkflows: dto.customMaxWorkflows,
+        customMaxApiKeys: dto.customMaxApiKeys,
+      },
+    });
+
+    this.logger.log(`Límites custom de organización ${organizationId} actualizados por ${updatedBy}`);
+
+    return {
+      ...updated,
+      effectiveLimits: this.getEffectiveLimits(updated),
+    };
+  }
+
+  // ============================================
+  // DESACTIVACIÓN / REACTIVACIÓN
+  // ============================================
+
+  /**
+   * Desactiva una organización temporalmente
+   * Puede ser revertido con reactivate()
+   */
+  async deactivate(organizationId: string, deactivatedBy: string, reason?: string) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    if ((organization as any).deactivatedAt) {
+      throw new ConflictException('La organización ya está desactivada');
+    }
+
+    const updated = await this.prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        isActive: false,
+        deactivatedAt: new Date() as any,
+        deactivatedBy: deactivatedBy as any,
+        deactivationReason: reason as any,
+      },
+    });
+
+    this.logger.warn(`Organización ${organization.name} desactivada por ${deactivatedBy}. Razón: ${reason || 'No especificada'}`);
+
+    return updated;
+  }
+
+  /**
+   * Reactiva una organización previamente desactivada
+   */
+  async reactivate(organizationId: string) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    if (!(organization as any).deactivatedAt) {
+      throw new ConflictException('La organización no está desactivada');
+    }
+
+    if (organization.deletedAt) {
+      throw new ConflictException('No se puede reactivar una organización eliminada');
+    }
+
+    const updated = await this.prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        isActive: true,
+        deactivatedAt: null as any,
+        deactivatedBy: null as any,
+        deactivationReason: null as any,
+      },
+    });
+
+    this.logger.log(`Organización ${organization.name} reactivada`);
+
+    return updated;
+  }
+
+  // ============================================
+  // MÉTODOS PARA SUPER ADMINS
+  // ============================================
+
+  /**
+   * Lista todas las organizaciones (solo super admins)
+   * Con filtros y paginación
+   */
+  async findAll(filters: ListOrganizationsDto = {}) {
+    const { search, plan, isActive, isDeactivated, page = 1, limit = 20 } = filters;
+
+    const where: any = {
+      deletedAt: null, // No mostrar eliminadas
+    };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { slug: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (plan) {
+      where.plan = plan;
+    }
+
+    if (typeof isActive === 'boolean') {
+      where.isActive = isActive;
+    }
+
+    if (typeof isDeactivated === 'boolean') {
+      where.deactivatedAt = isDeactivated ? { not: null } : null;
+    }
+
+    const [organizations, total] = await Promise.all([
+      this.prisma.organization.findMany({
+        where,
+        include: {
+          _count: {
+            select: {
+              users: true,
+              workflows: true,
+              apiKeys: true,
+              executions: true,
+            },
+          },
+          creditBalance: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.organization.count({ where }),
+    ]);
+
+    return {
+      data: organizations,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Obtiene análisis de costos detallado (solo super admins)
+   */
+  async getCostAnalysis(organizationId: string) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: {
+        creditBalance: true,
+        subscription: true,
+        _count: {
+          select: {
+            users: true,
+            workflows: true,
+            executions: true,
+          },
+        },
+      },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    // Obtener ejecuciones del mes con costos
+    const firstDayOfMonth = new Date();
+    firstDayOfMonth.setDate(1);
+    firstDayOfMonth.setHours(0, 0, 0, 0);
+
+    const executionsThisMonth = await this.prisma.execution.findMany({
+      where: {
+        organizationId,
+        createdAt: { gte: firstDayOfMonth },
+      },
+      select: {
+        id: true,
+        cost: true,
+        credits: true,
+        tokensUsed: true,
+        status: true,
+        createdAt: true,
+        workflow: {
+          select: {
+            name: true,
+            category: true,
+          },
+        },
+      },
+    });
+
+    const costAnalysis = {
+      organization: {
+        id: organization.id,
+        name: organization.name,
+        plan: organization.plan,
+        isActive: organization.isActive,
+        deactivatedAt: (organization as any).deactivatedAt,
+      },
+      credits: organization.creditBalance ? {
+        balance: organization.creditBalance.balance,
+        lifetimeEarned: organization.creditBalance.lifetimeEarned,
+        lifetimeSpent: organization.creditBalance.lifetimeSpent,
+        currentMonthSpent: organization.creditBalance.currentMonthSpent,
+        currentMonthCostUSD: organization.creditBalance.currentMonthCostUSD,
+      } : null,
+      subscription: organization.subscription ? {
+        status: organization.subscription.status,
+        currentPeriodStart: organization.subscription.currentPeriodStart,
+        currentPeriodEnd: organization.subscription.currentPeriodEnd,
+        pendingPlanChange: (organization.subscription as any).pendingPlanChange,
+      } : null,
+      thisMonth: {
+        totalExecutions: executionsThisMonth.length,
+        totalCostUSD: executionsThisMonth.reduce((sum, e) => sum + (e.cost || 0), 0),
+        totalCredits: executionsThisMonth.reduce((sum, e) => sum + (e.credits || 0), 0),
+        totalTokens: executionsThisMonth.reduce((sum, e) => sum + (e.tokensUsed || 0), 0),
+        byCategory: this.groupExecutionsByCategory(executionsThisMonth),
+      },
+      counters: {
+        users: organization._count.users,
+        workflows: organization._count.workflows,
+        totalExecutions: organization._count.executions,
+      },
+    };
+
+    return costAnalysis;
+  }
+
+  /**
+   * Elimina permanentemente una organización (solo super admins)
+   * CUIDADO: Esta operación no se puede deshacer
+   */
+  async forceDelete(organizationId: string) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    // Primero hacer soft delete si no está marcada
+    if (!organization.deletedAt) {
+      await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: {
+          deletedAt: new Date(),
+          isActive: false,
+        },
+      });
+    }
+
+    this.logger.warn(`FORCE DELETE: Organización ${organization.name} (${organizationId}) marcada para eliminación permanente`);
+
+    return {
+      message: 'Organización marcada como eliminada. Los datos serán purgados según la política de retención.',
+      organizationId,
+      organizationName: organization.name,
+    };
+  }
+
+  // ============================================
+  // MÉTODOS AUXILIARES
+  // ============================================
+  private groupExecutionsByCategory(executions: any[]) {
+    const grouped: any = {};
+
+    executions.forEach(exec => {
+      const category = exec.workflow.category || 'UNKNOWN';
+      if (!grouped[category]) {
+        grouped[category] = {
+          count: 0,
+          totalCostUSD: 0,
+          totalCredits: 0,
+          totalTokens: 0,
+        };
+      }
+
+      grouped[category].count++;
+      grouped[category].totalCostUSD += exec.cost || 0;
+      grouped[category].totalCredits += exec.credits || 0;
+      grouped[category].totalTokens += exec.tokensUsed || 0;
+    });
+
+    return grouped;
+  }
+
+  /**
+   * Verifica si se puede agregar un recurso según el plan
+   */
+  private checkCanAdd(plan: SubscriptionPlan | string, limitKey: 'maxUsers' | 'maxWorkflows', current: number): boolean {
+    const planConfig = PLANS[plan as SubscriptionPlan];
+    const limit = planConfig.limits[limitKey] as number;
+    return limit === -1 || current < limit;
+  }
+
+  /**
+   * Obtiene los límites efectivos de una organización
+   * Combina los límites del plan con los overrides custom
+   */
+  private getEffectiveLimits(organization: any) {
+    const planDefaults = PLANS[organization.plan as SubscriptionPlan].limits;
+
+    return {
+      maxUsers: organization.customMaxUsers ?? planDefaults.maxUsers,
+      maxWorkflows: organization.customMaxWorkflows ?? planDefaults.maxWorkflows,
+      maxApiKeys: organization.customMaxApiKeys ?? planDefaults.maxApiKeys,
+      monthlyCredits: planDefaults.monthlyCredits,
+      overageLimit: organization.overageLimit ?? planDefaults.overageLimit,
+      allowOverages: organization.allowOverages ?? planDefaults.allowOverages,
+    };
   }
 }
