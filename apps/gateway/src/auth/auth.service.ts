@@ -169,7 +169,7 @@ export class AuthService {
       expiresIn: '15m',
     });
     return {
-      ...(await this.setup2FA(user.id)),
+      ...(user.twoFactorEnabled ? {qr: "not needed"} : await this.setup2FA(user.id)),
       tempToken,
     };
   }
