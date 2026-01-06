@@ -38,7 +38,7 @@ export class ExecutionsService {
         trigger,
         triggerData: triggerData || {},
         startedAt: new Date(),
-        organizationId: triggerData?.organizationId, // ✅ Multi-tenant
+        organizationId: triggerData?.organizationId,
         userId: triggerData?.userId,
         apiKeyId: triggerData?.apiKeyId,
       },
@@ -185,12 +185,13 @@ export class ExecutionsService {
   }
 
   /**
-   * Obtener una ejecución por ID
+   * Obtener una ejecución por ID (versión cliente)
+   * Incluye información de créditos pero no costos internos
    * 
    * @param executionId - ID de la ejecución
    * @param organizationId - ID de la organización (para verificar ownership)
    */
-  async findOne(executionId: string, organizationId: string) {
+  async findOneForClient(executionId: string, organizationId: string) {
     const execution = await this.prisma.execution.findFirst({
       where: {
         id: executionId,
@@ -199,11 +200,37 @@ export class ExecutionsService {
           deletedAt: null,
         },
       },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        startedAt: true,
+        finishedAt: true,
+        duration: true,
+        result: true,
+        error: true,
+        trigger: true,
+        triggerData: true,
+        logs: true,
+        stepResults: true,
+        retryCount: true,
+        createdAt: true,
+        updatedAt: true,
+        // Campos de créditos para clientes
+        credits: true,
+        balanceBefore: true,
+        balanceAfter: true,
+        wasOverage: true,
+        // Relaciones
+        workflowId: true,
+        organizationId: true,
+        conversationId: true,
+        userId: true,
+        apiKeyId: true,
         workflow: {
           select: {
             id: true,
             name: true,
+            category: true,
             organizationId: true,
           },
         },
@@ -219,6 +246,91 @@ export class ExecutionsService {
             id: true,
             name: true,
             keyPrefix: true,
+          },
+        },
+      },
+    });
+
+    if (!execution) {
+      throw new NotFoundException('Ejecución no encontrada');
+    }
+
+    return execution;
+  }
+
+  /**
+   * Obtener una ejecución por ID (versión admin)
+   * Incluye TODOS los campos técnicos: cost, tokensUsed, errorStack, creditTransaction
+   * 
+   * @param executionId - ID de la ejecución
+   * @param organizationId - ID de la organización (opcional para super admin)
+   */
+  async findOneForAdmin(executionId: string, organizationId?: string) {
+    const where: any = {
+      id: executionId,
+    };
+
+    // Si se proporciona organizationId, filtrar por él
+    if (organizationId) {
+      where.workflow = {
+        organizationId,
+        deletedAt: null,
+      };
+    }
+
+    const execution = await this.prisma.execution.findFirst({
+      where,
+      include: {
+        workflow: {
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            organizationId: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        apiKey: {
+          select: {
+            id: true,
+            name: true,
+            keyPrefix: true,
+          },
+        },
+        conversation: {
+          select: {
+            id: true,
+            channel: true,
+            messageCount: true,
+            totalTokens: true,
+            totalCost: true,
+          },
+        },
+        creditTransaction: {
+          select: {
+            id: true,
+            type: true,
+            amount: true,
+            balanceBefore: true,
+            balanceAfter: true,
+            workflowCategory: true,
+            costUSD: true,
+            description: true,
+            metadata: true,
+            createdAt: true,
           },
         },
       },
@@ -264,7 +376,25 @@ export class ExecutionsService {
         workflowId,
         ...(status && { status }),
       },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        startedAt: true,
+        finishedAt: true,
+        duration: true,
+        trigger: true,
+        error: true,
+        retryCount: true,
+        // Campos de créditos
+        credits: true,
+        balanceBefore: true,
+        balanceAfter: true,
+        wasOverage: true,
+        // Relaciones
+        workflowId: true,
+        userId: true,
+        apiKeyId: true,
+        conversationId: true,
         user: {
           select: {
             id: true,
@@ -288,19 +418,44 @@ export class ExecutionsService {
   }
 
   /**
-   * Listar todas las ejecuciones de la organización
+   * Listar todas las ejecuciones de la organización (versión cliente)
+   * Con paginación cursor-based y filtros avanzados
    * 
    * @param organizationId - ID de la organización
-   * @param limit - Número máximo de resultados
-   * @param status - Filtrar por estado (opcional)
-   * @param workflowId - Filtrar por workflow (opcional)
+   * @param options - Opciones de filtrado y paginación
    */
   async findAll(
     organizationId: string,
-    limit: number = 50,
-    status?: string,
-    workflowId?: string,
+    options: {
+      limit?: number;
+      cursor?: string;
+      status?: string;
+      workflowId?: string;
+      trigger?: string;
+      startDate?: Date;
+      endDate?: Date;
+      wasOverage?: boolean;
+      userId?: string;
+      apiKeyId?: string;
+    } = {},
   ) {
+    const {
+      limit = 50,
+      cursor,
+      status,
+      workflowId,
+      trigger,
+      startDate,
+      endDate,
+      wasOverage,
+      userId,
+      apiKeyId,
+    } = options;
+
+    // Limitar máximo a 100 registros por página
+    const take = Math.min(limit, 100);
+
+    // Construir filtros dinámicos
     const where: any = {
       workflow: {
         organizationId,
@@ -308,32 +463,55 @@ export class ExecutionsService {
       },
     };
 
-    // Filtrar por estado si se proporciona
-    if (status) {
-      where.status = status;
-    }
+    if (status) where.status = status;
+    if (workflowId) where.workflowId = workflowId;
+    if (trigger) where.trigger = trigger;
+    if (wasOverage !== undefined) where.wasOverage = wasOverage;
+    if (userId) where.userId = userId;
+    if (apiKeyId) where.apiKeyId = apiKeyId;
 
-    // Filtrar por workflow si se proporciona
-    if (workflowId) {
-      where.workflowId = workflowId;
+    // Filtro por rango de fechas
+    if (startDate || endDate) {
+      where.startedAt = {};
+      if (startDate) where.startedAt.gte = startDate;
+      if (endDate) where.startedAt.lte = endDate;
     }
 
     // Obtener total de registros que cumplen los criterios
     const total = await this.prisma.execution.count({ where });
 
-    // Obtener ejecuciones
-    const executions = await this.prisma.execution.findMany({
+    // Construir query con cursor si existe
+    const queryOptions: any = {
       where,
+      take: take + 1, // Tomar uno extra para saber si hay más
       orderBy: {
         startedAt: 'desc',
       },
-      take: limit,
-      include: {
+      select: {
+        id: true,
+        status: true,
+        startedAt: true,
+        finishedAt: true,
+        duration: true,
+        trigger: true,
+        error: true,
+        retryCount: true,
+        // Campos de créditos para clientes
+        credits: true,
+        balanceBefore: true,
+        balanceAfter: true,
+        wasOverage: true,
+        // Relaciones
+        workflowId: true,
+        organizationId: true,
+        conversationId: true,
+        userId: true,
+        apiKeyId: true,
         workflow: {
           select: {
             id: true,
             name: true,
-            organizationId: true,
+            category: true,
           },
         },
         user: {
@@ -351,16 +529,191 @@ export class ExecutionsService {
           },
         },
       },
-    });
+    };
+
+    // Si hay cursor, empezar desde ese punto
+    if (cursor) {
+      queryOptions.cursor = { id: cursor };
+      queryOptions.skip = 1; // Skip el cursor mismo
+    }
+
+    // Obtener ejecuciones
+    const results = await this.prisma.execution.findMany(queryOptions);
+
+    // Determinar si hay más resultados
+    const hasMore = results.length > take;
+    const executions = hasMore ? results.slice(0, take) : results;
+
+    // El siguiente cursor es el ID del último elemento
+    const nextCursor = hasMore ? executions[executions.length - 1].id : null;
 
     return {
-      total,
-      executions,
+      data: executions,
+      pagination: {
+        total,
+        limit: take,
+        nextCursor,
+        hasMore,
+      },
+    };
+  }
+
+  /**
+   * Listar todas las ejecuciones (versión admin)
+   * Incluye campos técnicos: cost, tokensUsed, creditTransaction
+   * 
+   * @param organizationId - ID de la organización (opcional para super admin)
+   * @param options - Opciones de filtrado y paginación
+   */
+  async findAllForAdmin(
+    organizationId: string | undefined,
+    options: {
+      limit?: number;
+      cursor?: string;
+      status?: string;
+      workflowId?: string;
+      trigger?: string;
+      startDate?: Date;
+      endDate?: Date;
+      wasOverage?: boolean;
+      userId?: string;
+      apiKeyId?: string;
+    } = {},
+  ) {
+    const {
+      limit = 50,
+      cursor,
+      status,
+      workflowId,
+      trigger,
+      startDate,
+      endDate,
+      wasOverage,
+      userId,
+      apiKeyId,
+    } = options;
+
+    // Limitar máximo a 100 registros por página
+    const take = Math.min(limit, 100);
+
+    // Construir filtros dinámicos
+    const where: any = {};
+
+    // Si se proporciona organizationId, filtrar por él
+    if (organizationId) {
+      where.workflow = {
+        organizationId,
+        deletedAt: null,
+      };
+    }
+
+    if (status) where.status = status;
+    if (workflowId) where.workflowId = workflowId;
+    if (trigger) where.trigger = trigger;
+    if (wasOverage !== undefined) where.wasOverage = wasOverage;
+    if (userId) where.userId = userId;
+    if (apiKeyId) where.apiKeyId = apiKeyId;
+
+    // Filtro por rango de fechas
+    if (startDate || endDate) {
+      where.startedAt = {};
+      if (startDate) where.startedAt.gte = startDate;
+      if (endDate) where.startedAt.lte = endDate;
+    }
+
+    // Obtener total de registros que cumplen los criterios
+    const total = await this.prisma.execution.count({ where });
+
+    // Construir query con cursor si existe
+    const queryOptions: any = {
+      where,
+      take: take + 1, // Tomar uno extra para saber si hay más
+      orderBy: {
+        startedAt: 'desc',
+      },
+      include: {
+        workflow: {
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            organizationId: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        apiKey: {
+          select: {
+            id: true,
+            name: true,
+            keyPrefix: true,
+          },
+        },
+        conversation: {
+          select: {
+            id: true,
+            channel: true,
+            messageCount: true,
+          },
+        },
+        creditTransaction: {
+          select: {
+            id: true,
+            type: true,
+            amount: true,
+            balanceBefore: true,
+            balanceAfter: true,
+            workflowCategory: true,
+            costUSD: true,
+            description: true,
+            createdAt: true,
+          },
+        },
+      },
+    };
+
+    // Si hay cursor, empezar desde ese punto
+    if (cursor) {
+      queryOptions.cursor = { id: cursor };
+      queryOptions.skip = 1; // Skip el cursor mismo
+    }
+
+    // Obtener ejecuciones
+    const results = await this.prisma.execution.findMany(queryOptions);
+
+    // Determinar si hay más resultados
+    const hasMore = results.length > take;
+    const executions = hasMore ? results.slice(0, take) : results;
+
+    // El siguiente cursor es el ID del último elemento
+    const nextCursor = hasMore ? executions[executions.length - 1].id : null;
+
+    return {
+      data: executions,
+      pagination: {
+        total,
+        limit: take,
+        nextCursor,
+        hasMore,
+      },
     };
   }
 
   /**
    * Obtener estadísticas de ejecuciones de la organización
+   * Incluye información de créditos y categorías de workflow
    * 
    * @param organizationId - ID de la organización
    * @param period - Periodo de tiempo (24h, 7d, 30d, 90d, all)
@@ -398,7 +751,7 @@ export class ExecutionsService {
       ...(startDate && { startedAt: { gte: startDate } }),
     };
 
-    // Obtener todas las ejecuciones del periodo
+    // Obtener todas las ejecuciones del periodo con info de créditos
     const executions = await this.prisma.execution.findMany({
       where,
       select: {
@@ -407,10 +760,13 @@ export class ExecutionsService {
         trigger: true,
         duration: true,
         workflowId: true,
+        credits: true,
+        wasOverage: true,
         workflow: {
           select: {
             id: true,
             name: true,
+            category: true,
           },
         },
       },
@@ -482,6 +838,36 @@ export class ExecutionsService {
       .sort((a, b) => b.executions - a.executions)
       .slice(0, 10);
 
+    // Calcular estadísticas de créditos
+    const totalCreditsConsumed = executions.reduce(
+      (sum: number, e: any) => sum + (e.credits || 0),
+      0,
+    );
+
+    const executionsInOverage = executions.filter(
+      (e: any) => e.wasOverage === true,
+    ).length;
+
+    const overageRate = total > 0 ? (executionsInOverage / total) * 100 : 0;
+
+    const avgCreditsPerExecution =
+      total > 0 ? totalCreditsConsumed / total : 0;
+
+    // Agrupar por categoría de workflow
+    const byWorkflowCategory: Record<string, { count: number; credits: number }> = {
+      LIGHT: { count: 0, credits: 0 },
+      STANDARD: { count: 0, credits: 0 },
+      ADVANCED: { count: 0, credits: 0 },
+    };
+
+    executions.forEach((e: any) => {
+      const category = e.workflow?.category;
+      if (category && byWorkflowCategory[category]) {
+        byWorkflowCategory[category].count += 1;
+        byWorkflowCategory[category].credits += e.credits || 0;
+      }
+    });
+
     return {
       period,
       total,
@@ -495,6 +881,14 @@ export class ExecutionsService {
       byStatus,
       byTrigger,
       topWorkflows,
+      // Estadísticas de créditos
+      credits: {
+        totalConsumed: totalCreditsConsumed,
+        avgPerExecution: parseFloat(avgCreditsPerExecution.toFixed(2)),
+        executionsInOverage,
+        overageRate: parseFloat(overageRate.toFixed(2)),
+        byCategory: byWorkflowCategory,
+      },
     };
   }
 
@@ -505,7 +899,7 @@ export class ExecutionsService {
    * @param organizationId - ID de la organización (para verificar ownership)
    */
   async cancel(executionId: string, organizationId: string) {
-    const execution = await this.findOne(executionId, organizationId);
+    const execution = await this.findOneForClient(executionId, organizationId);
 
     if (!['pending', 'running'].includes(execution.status)) {
       throw new Error(

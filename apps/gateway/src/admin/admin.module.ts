@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AdminController } from './admin.controller';
-import { AdminService } from './services/admin.service';
-import { AuditService } from './services/audit.service';
 import { SuperAdminsConfig } from './config/super-admins.config';
 import { SuperAdminGuard } from './guards/super-admin.guard';
-import { LlmModelsController } from './llm-models.controller';
+import { AdminLlmModelsController } from './llm-models.controller';
+import { AdminExecutionsController } from './executions.controller';
 import { LlmModelsModule } from '../llm-models/llm-models.module';
+import { ExecutionsModule } from '../executions/executions.module';
 
 /**
  * ADMIN MODULE
@@ -24,7 +24,8 @@ import { LlmModelsModule } from '../llm-models/llm-models.module';
  */
 @Module({
   imports: [
-    LlmModelsModule, 
+    LlmModelsModule,
+    ExecutionsModule,
     // JWT con configuración especial para super admins
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -52,15 +53,11 @@ import { LlmModelsModule } from '../llm-models/llm-models.module';
       },
     }),
   ],
-  controllers: [AdminController, LlmModelsController],
+  controllers: [AdminController, AdminLlmModelsController, AdminExecutionsController],
   providers: [
     SuperAdminsConfig,
-    AdminService,
-    AuditService,
     SuperAdminGuard,
   ],
-  exports: [
-    AuditService, // Para que otros módulos puedan loggear acciones críticas
-  ],
+  exports: [],
 })
 export class AdminModule {}

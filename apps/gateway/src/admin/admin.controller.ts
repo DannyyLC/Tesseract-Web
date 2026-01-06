@@ -24,10 +24,10 @@ import { SuperAdminsConfig } from './config/super-admins.config';
 import { SuperAdminLoginDto } from './dto/super-admin-login.dto';
 
 /**
- * 🔥 ADMIN CONTROLLER - SOLO SUPER ADMINS
+ * ADMIN CONTROLLER - SOLO SUPER ADMINS
  * 
- * ⚠️  Este controlador tiene acceso a TODAS las organizaciones del sistema
- * ⚠️  Todas las acciones son registradas en audit logs
+ * Este controlador tiene acceso a TODAS las organizaciones del sistema
+ * Todas las acciones son registradas en audit logs
  * 
  * Funcionalidades:
  * - Login especial para super admins
@@ -54,10 +54,10 @@ export class AdminController {
   /**
    * Login especial para super admins
    * 
-   * ⚠️  NO protegido por guard (es el endpoint de login)
-   * ✅  Validación contra configuración (no DB)
-   * ✅  Rate limiting aplicado por IP
-   * ✅  Logging exhaustivo
+   * NO protegido por guard (es el endpoint de login)
+   * Validación contra configuración (no DB)
+   * Rate limiting aplicado por IP
+   * Logging exhaustivo
    */
   @Public()
   @Post('login')

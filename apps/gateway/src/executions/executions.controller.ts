@@ -7,13 +7,16 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
-  ParseIntPipe,
-  DefaultValuePipe,
+  ValidationPipe,
 } from '@nestjs/common';
 import { ExecutionsService } from './executions.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserPayload } from '../common/types/jwt-payload.type';
+import {
+  ExecutionQueryDto,
+  ExecutionStatsQueryDto,
+} from './dto';
 
 /**
  * Controller de Executions
@@ -35,24 +38,25 @@ export class ExecutionsController {
 
   /**
    * GET /executions
-   * Lista todas las ejecuciones de la organización
+   * Lista todas las ejecuciones de la organización con paginación cursor
    */
   @Get()
   async findAll(
     @CurrentUser() user: UserPayload,
-    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
-    @Query('status') status?: string,
-    @Query('workflowId') workflowId?: string,
+    @Query(new ValidationPipe({ transform: true })) query: ExecutionQueryDto,
   ) {
-    // Limitar máximo de resultados a 200
-    const maxLimit = Math.min(limit || 50, 200);
-
-    return this.executionsService.findAll(
-      user.organizationId,
-      maxLimit,
-      status,
-      workflowId,
-    );
+    return this.executionsService.findAll(user.organizationId, {
+      limit: query.limit,
+      cursor: query.cursor,
+      status: query.status,
+      workflowId: query.workflowId,
+      trigger: query.trigger,
+      startDate: query.startDate ? new Date(query.startDate) : undefined,
+      endDate: query.endDate ? new Date(query.endDate) : undefined,
+      wasOverage: query.wasOverage,
+      userId: query.userId,
+      apiKeyId: query.apiKeyId,
+    });
   }
 
   /**
@@ -62,9 +66,9 @@ export class ExecutionsController {
   @Get('stats')
   async getStats(
     @CurrentUser() user: UserPayload,
-    @Query('period', new DefaultValuePipe('7d')) period?: string,
+    @Query(new ValidationPipe({ transform: true })) query: ExecutionStatsQueryDto,
   ) {
-    return this.executionsService.getStats(user.organizationId, period);
+    return this.executionsService.getStats(user.organizationId, query.period);
   }
 
   /**
@@ -76,7 +80,7 @@ export class ExecutionsController {
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
   ) {
-    return this.executionsService.findOne(id, user.organizationId);
+    return this.executionsService.findOneForClient(id, user.organizationId);
   }
 
   /**

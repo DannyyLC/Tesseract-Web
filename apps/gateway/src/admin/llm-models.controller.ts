@@ -27,7 +27,7 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
 @Controller('admin/llm-models')
 @UseGuards(SuperAdminGuard)
 @ApiBearerAuth()
-export class LlmModelsController {
+export class AdminLlmModelsController {
   constructor(private readonly llmModelsService: LlmModelsService) {}
 
   @Post()

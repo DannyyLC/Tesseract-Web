@@ -974,7 +974,11 @@ model Execution {
   @@index([status])
   @@index([startedAt])
   @@index([trigger])
-  @@index([wasOverage])  // Para identificar ejecuciones en overage
+  @@index([wasOverage])  
+  @@index([organizationId, trigger, startedAt])
+  @@index([organizationId, wasOverage])
+  @@index([organizationId, userId, startedAt])
+  @@index([organizationId, apiKeyId, startedAt])
   @@map("executions")
 }
 

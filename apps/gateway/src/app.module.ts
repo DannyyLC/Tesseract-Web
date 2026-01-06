@@ -6,20 +6,10 @@ import { WorkflowsModule } from './workflows/workflows.module';
 import { ExecutionsModule } from './executions/executions.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { OrganizationsModule } from './organizations/organizations.module';
-import { UsersModule } from './users/users.module';
 import { AdminModule } from './admin/admin.module';
 import { SecretsModule } from './secrets/secrets.module';
 
-/**
- * Módulo raíz de la aplicación Gateway
- * 
- * Importa:
- * - ConfigModule: Para variables de entorno (.env)
- * - DatabaseModule: Para conexión a PostgreSQL
- * - AuthModule: Para sistema de autenticación con JWT y API Keys
- * - OrganizationsModule: Para gestión de organizaciones multi-tenant
- * - UsersModule: Para gestión de usuarios y roles
- */
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -31,11 +21,10 @@ import { SecretsModule } from './secrets/secrets.module';
       ignoreEnvFile: false,
     }),
     
-    SecretsModule,        // Global - Provee acceso a credenciales
+    SecretsModule,        
     DatabaseModule,
     AuthModule,
     OrganizationsModule,
-    UsersModule,
     WorkflowsModule,
     ExecutionsModule,
     ApiKeysModule,
