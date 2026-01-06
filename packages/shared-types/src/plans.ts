@@ -45,7 +45,9 @@ export interface WorkflowCategoryConfig {
  * Límites de un plan de suscripción
  */
 export interface PlanLimits {
+  maxUsers: number;          // Usuarios permitidos en la organización
   maxWorkflows: number;      // Workflows activos simultáneos
+  maxApiKeys: number;        // API keys permitidas
   monthlyCredits: number;    // Créditos incluidos por mes
   overageLimit: number;      // Límite de créditos en negativo (overage)
   allowOverages: boolean;    // Si permite balance negativo
@@ -129,7 +131,9 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       currency: 'USD',
     },
     limits: {
+      maxUsers: 10,
       maxWorkflows: 3,
+      maxApiKeys: 50,
       monthlyCredits: 150,
       overageLimit: 150, // 1 mes extra de créditos
       allowOverages: true,
@@ -145,7 +149,9 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       currency: 'USD',
     },
     limits: {
+      maxUsers: 25,
       maxWorkflows: 7,
+      maxApiKeys: 100,
       monthlyCredits: 500,
       overageLimit: 500,
       allowOverages: true,
@@ -162,7 +168,9 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       currency: 'USD',
     },
     limits: {
+      maxUsers: 50,
       maxWorkflows: 12,
+      maxApiKeys: 250,
       monthlyCredits: 1500,
       overageLimit: 1500,
       allowOverages: true,
@@ -178,7 +186,9 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       currency: 'USD',
     },
     limits: {
+      maxUsers: 100,
       maxWorkflows: 25,
+      maxApiKeys: 500,
       monthlyCredits: 5000,
       overageLimit: 5000,
       allowOverages: true,
@@ -194,7 +204,9 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       currency: 'USD',
     },
     limits: {
+      maxUsers: -1,          // Ilimitado (se configura custom)
       maxWorkflows: -1,      // Ilimitado (se configura custom)
+      maxApiKeys: -1,        // Ilimitado (se configura custom)
       monthlyCredits: -1,    // Ilimitado (se configura custom)
       overageLimit: -1,      // Ilimitado (se configura custom)
       allowOverages: true,
@@ -225,7 +237,9 @@ export function getPlanLimits(
   // Para ENTERPRISE, usar valores custom si existen
   if (planType === SubscriptionPlan.ENTERPRISE && enterpriseConfig) {
     return {
+      maxUsers: plan.limits.maxUsers,
       maxWorkflows: enterpriseConfig.customMaxWorkflows ?? plan.limits.maxWorkflows,
+      maxApiKeys: plan.limits.maxApiKeys,
       monthlyCredits: enterpriseConfig.customMonthlyCredits ?? plan.limits.monthlyCredits,
       overageLimit: enterpriseConfig.customOverageLimit ?? plan.limits.overageLimit,
       allowOverages: plan.limits.allowOverages,
