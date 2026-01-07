@@ -11,6 +11,7 @@ datasource db {
 // ENUMS
 // ============================================
 enum SubscriptionPlan {
+  FREE
   STARTER
   GROWTH
   BUSINESS
@@ -63,7 +64,7 @@ model Organization {
   id                  String           @id @default(uuid())
   name                String
   slug                String           @unique
-  plan                SubscriptionPlan @default(STARTER)
+  plan                SubscriptionPlan @default(FREE)
   
   // Defaults para nuevos workflows (opcionales)
   defaultMaxMessages     Int?     // null = sin límite de mensajes por conversación

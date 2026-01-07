@@ -1,12 +1,14 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
-import { UpdateOrganizationDto } from './dto/update-organization.dto';
-import { ListOrganizationsDto } from './dto/list-organizations.dto';
-import { InviteMemberDto } from './dto/invite-member.dto';
-import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
-import { UpdateSettingsDto } from './dto/update-settings.dto';
-import { UpdateCustomLimitsDto } from './dto/update-custom-limits.dto';
+import {
+  CreateOrganizationDto,
+  UpdateCustomLimitsDto, 
+  UpdateOrganizationDto,
+  UpdateOverageSettingsDto,
+  UpdateSettingsDto
+} from './dto';
+import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 
 /**
@@ -19,6 +21,84 @@ export class OrganizationsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  // ============================================
+  // CREATE
+  // ============================================
+  /**
+   * Crea una nueva organización con owner y balance de créditos inicial
+   * - Sin suscripción (se agrega después si es necesario)
+   * - CreditBalance en 0
+   * - Owner es quien crea la organización
+   */
+  async create(dto: CreateOrganizationDto) {
+    // Validar que el email del owner no existe
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.ownerEmail },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Email already registered');
+    }
+
+    // Generar slug único desde el nombre
+    // El slug es para URLs amigables (ej: mycompany.tesseract.app)
+    // pero múltiples organizaciones pueden tener el mismo nombre
+    const slug = await this.generateUniqueSlug(dto.name);
+
+    // Hashear password del owner
+    const hashedPassword = await bcrypt.hash(dto.ownerPassword, 10);
+
+    // Crear organización + creditBalance + owner en transacción
+    const organization = await this.prisma.$transaction(async (tx) => {
+      // 1. Crear organización (sin plan hasta que paguen)
+      const org = await tx.organization.create({
+        data: {
+          name: dto.name,
+          slug,
+          isActive: true,
+          allowOverages: false,
+        },
+      });
+
+      // 2. Crear balance de créditos en 0
+      await tx.creditBalance.create({
+        data: {
+          organizationId: org.id,
+          balance: 0,
+          lifetimeEarned: 0,
+          lifetimeSpent: 0,
+          currentMonthSpent: 0,
+          currentMonthCostUSD: 0,
+        },
+      });
+
+      // 3. Crear owner
+      await tx.user.create({
+        data: {
+          email: dto.ownerEmail,
+          name: dto.ownerName,
+          password: hashedPassword,
+          role: 'owner',
+          organizationId: org.id,
+          isActive: true,
+          emailVerified: false,
+          emailVerificationToken: randomBytes(32).toString('hex'),
+        },
+      });
+
+      return org;
+    });
+
+    this.logger.log(
+      `Organización "${organization.name}" creada con ID: ${organization.id}`,
+    );
+
+    return organization;
+  }
+
+  // ============================================
+  // READ
+  // ============================================
   /**
    * Obtiene la información de una organización
    */
@@ -179,32 +259,6 @@ export class OrganizationsService {
   }
 
   /**
-   * Lista todos los miembros de la organización
-   */
-  async listMembers(organizationId: string) {
-    const users = await this.prisma.user.findMany({
-      where: {
-        organizationId,
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        lastLoginAt: true,
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
-
-    return users;
-  }
-
-  /**
    * Verifica si la organización puede agregar un nuevo usuario
    */
   async canAddUser(organizationId: string): Promise<boolean> {
@@ -268,392 +322,6 @@ export class OrganizationsService {
   }
 
   // ============================================
-  // GESTIÓN DE MIEMBROS
-  // ============================================
-  /**
-   * Remueve un miembro de la organización (soft delete)
-   * No puede remover al owner si es el único owner
-   */
-  async removeMember(organizationId: string, userId: string, removedBy: string) {
-    // Verificar que el usuario existe y pertenece a la organización
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id: userId,
-        organizationId,
-        deletedAt: null,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado en la organización');
-    }
-
-    // Verificar que no es el último owner
-    if (user.role === 'owner') {
-      const ownerCount = await this.prisma.user.count({
-        where: {
-          organizationId,
-          role: 'owner',
-          deletedAt: null,
-        },
-      });
-
-      if (ownerCount === 1) {
-        throw new BadRequestException('No se puede eliminar al único owner de la organización');
-      }
-    }
-
-    // Soft delete
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        deletedAt: new Date(),
-        isActive: false,
-      },
-    });
-
-    this.logger.log(`Usuario ${user.email} removido de organización ${organizationId} por ${removedBy}`);
-  }
-
-  /**
-   * Actualiza el rol de un miembro
-   * No puede cambiar el rol del último owner
-   */
-  async updateMemberRole(organizationId: string, userId: string, newRole: string, updatedBy: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id: userId,
-        organizationId,
-        deletedAt: null,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado en la organización');
-    }
-
-    // Si está cambiando de owner a otro rol, verificar que no es el último owner
-    if (user.role === 'owner' && newRole !== 'owner') {
-      const ownerCount = await this.prisma.user.count({
-        where: {
-          organizationId,
-          role: 'owner',
-          deletedAt: null,
-        },
-      });
-
-      if (ownerCount === 1) {
-        throw new BadRequestException('No se puede cambiar el rol del único owner de la organización');
-      }
-    }
-
-    const updated = await this.prisma.user.update({
-      where: { id: userId },
-      data: { role: newRole },
-    });
-
-    this.logger.log(`Rol de ${user.email} actualizado de ${user.role} a ${newRole} por ${updatedBy}`);
-
-    return updated;
-  }
-
-  /**
-   * Obtiene información detallada de un miembro específico
-   */
-  async getMember(organizationId: string, userId: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id: userId,
-        organizationId,
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        emailVerified: true,
-        twoFactorEnabled: true,
-        avatar: true,
-        timezone: true,
-        createdAt: true,
-        updatedAt: true,
-        lastLoginAt: true,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado en la organización');
-    }
-
-    return user;
-  }
-
-  /**
-   * Invita un nuevo miembro a la organización
-   * Genera un token de invitación y envía email
-   */
-  async inviteMember(organizationId: string, dto: InviteMemberDto, invitedBy: string) {
-    // Verificar que la organización puede agregar más usuarios
-    const canAdd = await this.canAddUser(organizationId);
-    if (!canAdd) {
-      throw new BadRequestException('La organización ha alcanzado el límite de usuarios permitidos');
-    }
-
-    // Verificar que el email no esté ya en uso en esta organización
-    const existingUser = await this.prisma.user.findFirst({
-      where: {
-        email: dto.email,
-        organizationId,
-        deletedAt: null,
-      },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('Este email ya está registrado en la organización');
-    }
-
-    // Generar token de invitación (válido por 7 días)
-    const invitationToken = randomBytes(32).toString('hex');
-    const invitationExpires = new Date();
-    invitationExpires.setDate(invitationExpires.getDate() + 7);
-
-    // Crear usuario con estado pendiente de verificación
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        name: dto.name || dto.email.split('@')[0],
-        password: '', // Se establecerá cuando acepte la invitación
-        role: dto.role,
-        organizationId,
-        emailVerified: false,
-        emailVerificationToken: invitationToken,
-        isActive: false, // Inactivo hasta que acepte la invitación
-      },
-    });
-
-    this.logger.log(`Usuario ${dto.email} invitado a organización ${organizationId} por ${invitedBy} con rol ${dto.role}`);
-
-    // TODO: Enviar email de invitación
-    // await this.emailService.sendInvitation(dto.email, invitationToken);
-
-    return {
-      ...user,
-      invitationUrl: `/accept-invitation?token=${invitationToken}`,
-    };
-  }
-
-  /**
-   * Reenvía la invitación a un usuario pendiente
-   */
-  async resendInvitation(organizationId: string, userId: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id: userId,
-        organizationId,
-        deletedAt: null,
-        emailVerified: false,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado o ya está verificado');
-    }
-
-    // Generar nuevo token
-    const invitationToken = randomBytes(32).toString('hex');
-    const invitationExpires = new Date();
-    invitationExpires.setDate(invitationExpires.getDate() + 7);
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        emailVerificationToken: invitationToken,
-      },
-    });
-
-    this.logger.log(`Invitación reenviada a ${user.email}`);
-
-    // TODO: Enviar email de invitación
-    // await this.emailService.sendInvitation(user.email, invitationToken);
-
-    return {
-      message: 'Invitación reenviada exitosamente',
-      invitationUrl: `/accept-invitation?token=${invitationToken}`,
-    };
-  }
-
-  /**
-   * Cancela una invitación pendiente (elimina el usuario)
-   */
-  async cancelInvitation(organizationId: string, userId: string, canceledBy: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id: userId,
-        organizationId,
-        deletedAt: null,
-        emailVerified: false,
-        isActive: false,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Invitación no encontrada o usuario ya está activo');
-    }
-
-    // Eliminar el usuario (no es un miembro activo todavía)
-    await this.prisma.user.delete({
-      where: { id: userId },
-    });
-
-    this.logger.log(`Invitación a ${user.email} cancelada por ${canceledBy}`);
-
-    return {
-      message: 'Invitación cancelada exitosamente',
-    };
-  }
-
-  /**
-   * Activa un miembro desactivado
-   */
-  async activateMember(organizationId: string, userId: string, activatedBy: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id: userId,
-        organizationId,
-        deletedAt: null,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado en la organización');
-    }
-
-    if (user.isActive) {
-      throw new ConflictException('El usuario ya está activo');
-    }
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { isActive: true },
-    });
-
-    this.logger.log(`Usuario ${user.email} activado por ${activatedBy}`);
-
-    return {
-      message: 'Usuario activado exitosamente',
-    };
-  }
-
-  /**
-   * Desactiva un miembro (sin eliminarlo)
-   */
-  async deactivateMember(organizationId: string, userId: string, deactivatedBy: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id: userId,
-        organizationId,
-        deletedAt: null,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado en la organización');
-    }
-
-    if (!user.isActive) {
-      throw new ConflictException('El usuario ya está desactivado');
-    }
-
-    // No se puede desactivar al último owner
-    if (user.role === 'owner') {
-      const activeOwnerCount = await this.prisma.user.count({
-        where: {
-          organizationId,
-          role: 'owner',
-          deletedAt: null,
-          isActive: true,
-        },
-      });
-
-      if (activeOwnerCount === 1) {
-        throw new BadRequestException('No se puede desactivar al único owner activo de la organización');
-      }
-    }
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { isActive: false },
-    });
-
-    this.logger.log(`Usuario ${user.email} desactivado por ${deactivatedBy}`);
-
-    return {
-      message: 'Usuario desactivado exitosamente',
-    };
-  }
-
-  /**
-   * Transfiere el ownership de la organización a otro usuario
-   */
-  async transferOwnership(organizationId: string, dto: TransferOwnershipDto, currentOwnerId: string) {
-    // Verificar que el usuario actual es owner
-    const currentOwner = await this.prisma.user.findFirst({
-      where: {
-        id: currentOwnerId,
-        organizationId,
-        role: 'owner',
-        deletedAt: null,
-      },
-    });
-
-    if (!currentOwner) {
-      throw new ForbiddenException('Solo el owner puede transferir el ownership');
-    }
-
-    // Verificar que el nuevo owner existe y está activo
-    const newOwner = await this.prisma.user.findFirst({
-      where: {
-        id: dto.newOwnerId,
-        organizationId,
-        deletedAt: null,
-        isActive: true,
-      },
-    });
-
-    if (!newOwner) {
-      throw new NotFoundException('El usuario destino no existe o no está activo en la organización');
-    }
-
-    if (newOwner.id === currentOwnerId) {
-      throw new BadRequestException('No puedes transferir el ownership a ti mismo');
-    }
-
-    // Hacer la transferencia en una transacción
-    await this.prisma.$transaction([
-      // El owner actual se convierte en admin
-      this.prisma.user.update({
-        where: { id: currentOwnerId },
-        data: { role: 'admin' },
-      }),
-      // El nuevo usuario se convierte en owner
-      this.prisma.user.update({
-        where: { id: dto.newOwnerId },
-        data: { role: 'owner' },
-      }),
-    ]);
-
-    this.logger.log(`Ownership transferido de ${currentOwner.email} a ${newOwner.email} en organización ${organizationId}`);
-
-    return {
-      message: 'Ownership transferido exitosamente',
-      previousOwner: { id: currentOwner.id, email: currentOwner.email },
-      newOwner: { id: newOwner.id, email: newOwner.email },
-    };
-  }
-
-  // ============================================
   // CONFIGURACIÓN DE ORGANIZACIÓN
   // ============================================
   /**
@@ -709,6 +377,62 @@ export class OrganizationsService {
       ...updated,
       effectiveLimits: this.getEffectiveLimits(updated),
     };
+  }
+
+  /**
+   * Actualiza la configuración de overages de una organización
+   * Reglas:
+   * - Solo puede tener overages si tiene suscripción activa
+   * - El overageLimit máximo es igual a los créditos mensuales del plan
+   *   (ej: plan con 150 créditos → máximo -150 de overage)
+   */
+  async updateOverageSettings(
+    organizationId: string,
+    dto: UpdateOverageSettingsDto,
+  ) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: {
+        subscription: true,
+      },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    // Si quiere habilitar overages, debe tener suscripción activa
+    if (dto.allowOverages && !organization.subscription) {
+      throw new BadRequestException(
+        'No se pueden habilitar overages sin una suscripción activa',
+      );
+    }
+
+    // Si se proporciona overageLimit, validar que no exceda el límite del plan
+    if (dto.overageLimit !== undefined && dto.overageLimit !== null) {
+      const planLimits = PLANS[organization.plan as SubscriptionPlan].limits;
+      const maxOverage = planLimits.monthlyCredits;
+
+      if (dto.overageLimit > maxOverage) {
+        throw new BadRequestException(
+          `El overageLimit no puede exceder los créditos mensuales del plan (${maxOverage} créditos)`,
+        );
+      }
+    }
+
+    const updated = await this.prisma.organization.update({
+      where: { id: organizationId },
+      data:{
+        allowOverages: dto.allowOverages,
+        overageLimit: dto.overageLimit,
+      },
+    });
+
+    this.logger.log(
+      `Configuración de overages actualizada para organización ${organizationId}: allowOverages=${dto.allowOverages}, overageLimit=${dto.overageLimit}`,
+    );
+
+    return updated;
   }
 
   // ============================================
@@ -785,6 +509,39 @@ export class OrganizationsService {
   // ============================================
   // MÉTODOS AUXILIARES
   // ============================================
+  /**
+   * Genera un slug único desde el nombre de la organización
+   */
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '') // Eliminar caracteres especiales
+      .replace(/[\s_]+/g, '-') // Reemplazar espacios y guiones bajos con guión
+      .replace(/^-+|-+$/g, ''); // Eliminar guiones al inicio/final
+  }
+
+  /**
+   * Genera un slug único intentando primero el slug base
+   * Si ya existe, agrega un sufijo aleatorio corto (6 caracteres)
+   */
+  private async generateUniqueSlug(name: string): Promise<string> {
+    const baseSlug = this.generateSlug(name);
+    
+    // Intentar primero con el slug base
+    const existingOrg = await this.prisma.organization.findUnique({
+      where: { slug: baseSlug },
+    });
+
+    if (!existingOrg) {
+      return baseSlug;
+    }
+
+    // Si existe, agregar sufijo aleatorio corto
+    const randomSuffix = randomBytes(3).toString('hex'); // 6 caracteres hex
+    return `${baseSlug}-${randomSuffix}`;
+  }
+
   /**
    * Obtiene los límites efectivos de una organización
    * Combina los límites del plan con los overrides custom

@@ -8,10 +8,8 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import {
   CreateOwnerDto,
-  CreateUserDto,
   InviteUserDto,
   UpdateProfileDto,
-  UpdateRoleDto,
   UserFiltersDto,
 } from './dto';
 import * as bcrypt from 'bcrypt';
@@ -127,6 +125,82 @@ export class UsersService {
     // await this.notificationsService.sendInvitationEmail(user, invitedBy);
 
     return user;
+  }
+
+  /**
+   * Reenviar invitación a usuario pendiente
+   */
+  async resendInvitation(
+    userId: string,
+    organizationId: string,
+  ): Promise<{ message: string; invitationUrl: string }> {
+    // Buscar usuario pendiente de verificación
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        organizationId,
+        deletedAt: null,
+        emailVerified: false,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(
+        'User not found or already verified',
+      );
+    }
+
+    // Generar nuevo token de invitación
+    const invitationToken = randomBytes(32).toString('hex');
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerificationToken: invitationToken,
+      },
+    });
+
+    // TODO: Enviar email de invitación
+    // await this.notificationsService.sendInvitationEmail(user, invitationToken);
+
+    return {
+      message: 'Invitation resent successfully',
+      invitationUrl: `/accept-invitation?token=${invitationToken}`,
+    };
+  }
+
+  /**
+   * Cancelar invitación pendiente (elimina el usuario que nunca aceptó)
+   */
+  async cancelInvitation(
+    userId: string,
+    organizationId: string,
+  ): Promise<{ message: string }> {
+    // Buscar usuario pendiente (no verificado y no activo)
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        organizationId,
+        deletedAt: null,
+        emailVerified: false,
+        isActive: false,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(
+        'Invitation not found or user is already active',
+      );
+    }
+
+    // Eliminar usuario (no es miembro activo todavía)
+    await this.prisma.user.delete({
+      where: { id: userId },
+    });
+
+    return {
+      message: 'Invitation canceled successfully',
+    };
   }
 
   // ==================== READ ====================
@@ -557,6 +631,7 @@ export class UsersService {
 
     // Obtener límite del plan
     const planLimits = {
+      FREE: 1,
       STARTER: 3,
       GROWTH: 10,
       BUSINESS: 25,

@@ -17,6 +17,7 @@ import { WorkflowCategory, ModelTier } from '@prisma/client';
  * Planes de suscripción disponibles
  */
 export enum SubscriptionPlan {
+  FREE = 'FREE',           // Plan gratuito (sin pago)
   STARTER = 'STARTER',
   GROWTH = 'GROWTH',
   BUSINESS = 'BUSINESS',
@@ -122,6 +123,24 @@ export const OVERAGE_PRICE_PER_CREDIT = 0.01; // $0.01 USD por crédito
  * Configuración completa de todos los planes
  */
 export const PLANS: Record<SubscriptionPlan, Plan> = {
+  [SubscriptionPlan.FREE]: {
+    type: SubscriptionPlan.FREE,
+    name: 'Free',
+    description: 'Plan gratuito con límites básicos',
+    price: {
+      monthly: 0,
+      currency: 'USD',
+    },
+    limits: {
+      maxUsers: 1,          
+      maxWorkflows: 0,       
+      maxApiKeys: 0,         
+      monthlyCredits: 0,     
+      overageLimit: 0,       
+      allowOverages: false, 
+    }
+  },
+
   [SubscriptionPlan.STARTER]: {
     type: SubscriptionPlan.STARTER,
     name: 'Starter',
@@ -329,6 +348,7 @@ export function calculateOverageCost(overageCredits: number): number {
  */
 export function getOrderedPlans(): Plan[] {
   return [
+    PLANS[SubscriptionPlan.FREE],
     PLANS[SubscriptionPlan.STARTER],
     PLANS[SubscriptionPlan.GROWTH],
     PLANS[SubscriptionPlan.BUSINESS],
@@ -345,6 +365,7 @@ export function canUpgradePlan(
   targetPlan: SubscriptionPlan
 ): boolean {
   const planOrder = [
+    SubscriptionPlan.FREE,
     SubscriptionPlan.STARTER,
     SubscriptionPlan.GROWTH,
     SubscriptionPlan.BUSINESS,

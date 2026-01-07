@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "SubscriptionPlan" AS ENUM ('STARTER', 'GROWTH', 'BUSINESS', 'PRO', 'ENTERPRISE');
+CREATE TYPE "SubscriptionPlan" AS ENUM ('FREE', 'STARTER', 'GROWTH', 'BUSINESS', 'PRO', 'ENTERPRISE');
 
 -- CreateEnum
 CREATE TYPE "WorkflowCategory" AS ENUM ('LIGHT', 'STANDARD', 'ADVANCED');
@@ -773,6 +773,18 @@ CREATE INDEX "executions_trigger_idx" ON "executions"("trigger");
 
 -- CreateIndex
 CREATE INDEX "executions_wasOverage_idx" ON "executions"("wasOverage");
+
+-- CreateIndex
+CREATE INDEX "executions_organizationId_trigger_startedAt_idx" ON "executions"("organizationId", "trigger", "startedAt");
+
+-- CreateIndex
+CREATE INDEX "executions_organizationId_wasOverage_idx" ON "executions"("organizationId", "wasOverage");
+
+-- CreateIndex
+CREATE INDEX "executions_organizationId_userId_startedAt_idx" ON "executions"("organizationId", "userId", "startedAt");
+
+-- CreateIndex
+CREATE INDEX "executions_organizationId_apiKeyId_startedAt_idx" ON "executions"("organizationId", "apiKeyId", "startedAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "tags_name_key" ON "tags"("name");

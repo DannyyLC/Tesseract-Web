@@ -3,7 +3,7 @@
 ## 1. Organization (Su Organización)
 
 - `name` - Nombre de la organización
-- `plan` - Plan actual (STARTER, GROWTH, BUSINESS, PRO, ENTERPRISE)
+- `plan` - Plan actual (FREE, STARTER, GROWTH, BUSINESS, PRO, ENTERPRISE)
 - `allowOverages` - Si pueden seguir ejecutando con balance negativo
 - `overageLimit` - Límite de créditos negativos permitido
 - `isActive` - Estado de la organización
@@ -251,3 +251,9 @@
 - `success` - Si fue exitoso
 - `errorMessage` - Mensaje de error (si falló)
 - `timestamp` - Cuándo ocurrió
+
+## Email   
+En users.service.ts falta poner la implementacion del envio de emails. para esto se crea un servicio dedicado y se usa el metodo aqui
+
+## Users
+Para el servicio de los  usuarios tambien falta implementar los guards que se encargues que que se cumplan lo roles y aplicar la segurida necesaria de acceso
