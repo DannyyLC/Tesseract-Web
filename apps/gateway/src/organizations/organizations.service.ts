@@ -270,7 +270,6 @@ export class OrganizationsService {
   // ============================================
   // GESTIÓN DE MIEMBROS
   // ============================================
-
   /**
    * Remueve un miembro de la organización (soft delete)
    * No puede remover al owner si es el único owner
@@ -657,7 +656,6 @@ export class OrganizationsService {
   // ============================================
   // CONFIGURACIÓN DE ORGANIZACIÓN
   // ============================================
-
   /**
    * Actualiza la configuración general de la organización
    */
@@ -716,7 +714,6 @@ export class OrganizationsService {
   // ============================================
   // DESACTIVACIÓN / REACTIVACIÓN
   // ============================================
-
   /**
    * Desactiva una organización temporalmente
    * Puede ser revertido con reactivate()
@@ -784,227 +781,10 @@ export class OrganizationsService {
     return updated;
   }
 
-  // ============================================
-  // MÉTODOS PARA SUPER ADMINS
-  // ============================================
-
-  /**
-   * Lista todas las organizaciones (solo super admins)
-   * Con filtros y paginación
-   */
-  async findAll(filters: ListOrganizationsDto = {}) {
-    const { search, plan, isActive, isDeactivated, page = 1, limit = 20 } = filters;
-
-    const where: any = {
-      deletedAt: null, // No mostrar eliminadas
-    };
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { slug: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    if (plan) {
-      where.plan = plan;
-    }
-
-    if (typeof isActive === 'boolean') {
-      where.isActive = isActive;
-    }
-
-    if (typeof isDeactivated === 'boolean') {
-      where.deactivatedAt = isDeactivated ? { not: null } : null;
-    }
-
-    const [organizations, total] = await Promise.all([
-      this.prisma.organization.findMany({
-        where,
-        include: {
-          _count: {
-            select: {
-              users: true,
-              workflows: true,
-              apiKeys: true,
-              executions: true,
-            },
-          },
-          creditBalance: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      this.prisma.organization.count({ where }),
-    ]);
-
-    return {
-      data: organizations,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
-  }
-
-  /**
-   * Obtiene análisis de costos detallado (solo super admins)
-   */
-  async getCostAnalysis(organizationId: string) {
-    const organization = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-      include: {
-        creditBalance: true,
-        subscription: true,
-        _count: {
-          select: {
-            users: true,
-            workflows: true,
-            executions: true,
-          },
-        },
-      },
-    });
-
-    if (!organization) {
-      throw new NotFoundException('Organización no encontrada');
-    }
-
-    // Obtener ejecuciones del mes con costos
-    const firstDayOfMonth = new Date();
-    firstDayOfMonth.setDate(1);
-    firstDayOfMonth.setHours(0, 0, 0, 0);
-
-    const executionsThisMonth = await this.prisma.execution.findMany({
-      where: {
-        organizationId,
-        createdAt: { gte: firstDayOfMonth },
-      },
-      select: {
-        id: true,
-        cost: true,
-        credits: true,
-        tokensUsed: true,
-        status: true,
-        createdAt: true,
-        workflow: {
-          select: {
-            name: true,
-            category: true,
-          },
-        },
-      },
-    });
-
-    const costAnalysis = {
-      organization: {
-        id: organization.id,
-        name: organization.name,
-        plan: organization.plan,
-        isActive: organization.isActive,
-        deactivatedAt: (organization as any).deactivatedAt,
-      },
-      credits: organization.creditBalance ? {
-        balance: organization.creditBalance.balance,
-        lifetimeEarned: organization.creditBalance.lifetimeEarned,
-        lifetimeSpent: organization.creditBalance.lifetimeSpent,
-        currentMonthSpent: organization.creditBalance.currentMonthSpent,
-        currentMonthCostUSD: organization.creditBalance.currentMonthCostUSD,
-      } : null,
-      subscription: organization.subscription ? {
-        status: organization.subscription.status,
-        currentPeriodStart: organization.subscription.currentPeriodStart,
-        currentPeriodEnd: organization.subscription.currentPeriodEnd,
-        pendingPlanChange: (organization.subscription as any).pendingPlanChange,
-      } : null,
-      thisMonth: {
-        totalExecutions: executionsThisMonth.length,
-        totalCostUSD: executionsThisMonth.reduce((sum, e) => sum + (e.cost || 0), 0),
-        totalCredits: executionsThisMonth.reduce((sum, e) => sum + (e.credits || 0), 0),
-        totalTokens: executionsThisMonth.reduce((sum, e) => sum + (e.tokensUsed || 0), 0),
-        byCategory: this.groupExecutionsByCategory(executionsThisMonth),
-      },
-      counters: {
-        users: organization._count.users,
-        workflows: organization._count.workflows,
-        totalExecutions: organization._count.executions,
-      },
-    };
-
-    return costAnalysis;
-  }
-
-  /**
-   * Elimina permanentemente una organización (solo super admins)
-   * CUIDADO: Esta operación no se puede deshacer
-   */
-  async forceDelete(organizationId: string) {
-    const organization = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-    });
-
-    if (!organization) {
-      throw new NotFoundException('Organización no encontrada');
-    }
-
-    // Primero hacer soft delete si no está marcada
-    if (!organization.deletedAt) {
-      await this.prisma.organization.update({
-        where: { id: organizationId },
-        data: {
-          deletedAt: new Date(),
-          isActive: false,
-        },
-      });
-    }
-
-    this.logger.warn(`FORCE DELETE: Organización ${organization.name} (${organizationId}) marcada para eliminación permanente`);
-
-    return {
-      message: 'Organización marcada como eliminada. Los datos serán purgados según la política de retención.',
-      organizationId,
-      organizationName: organization.name,
-    };
-  }
 
   // ============================================
   // MÉTODOS AUXILIARES
   // ============================================
-  private groupExecutionsByCategory(executions: any[]) {
-    const grouped: any = {};
-
-    executions.forEach(exec => {
-      const category = exec.workflow.category || 'UNKNOWN';
-      if (!grouped[category]) {
-        grouped[category] = {
-          count: 0,
-          totalCostUSD: 0,
-          totalCredits: 0,
-          totalTokens: 0,
-        };
-      }
-
-      grouped[category].count++;
-      grouped[category].totalCostUSD += exec.cost || 0;
-      grouped[category].totalCredits += exec.credits || 0;
-      grouped[category].totalTokens += exec.tokensUsed || 0;
-    });
-
-    return grouped;
-  }
-
-  /**
-   * Verifica si se puede agregar un recurso según el plan
-   */
-  private checkCanAdd(plan: SubscriptionPlan | string, limitKey: 'maxUsers' | 'maxWorkflows', current: number): boolean {
-    const planConfig = PLANS[plan as SubscriptionPlan];
-    const limit = planConfig.limits[limitKey] as number;
-    return limit === -1 || current < limit;
-  }
-
   /**
    * Obtiene los límites efectivos de una organización
    * Combina los límites del plan con los overrides custom
