@@ -1,7 +1,6 @@
 import {
     Injectable,
     NotFoundException,
-    BadRequestException,
     ForbiddenException,
     Logger,
 } from '@nestjs/common';
@@ -16,11 +15,11 @@ import { UserType } from '../agents/dto/agent-execution-request.dto';
 import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
 import { CreditBalanceService } from '../credits/credit-balance.service';
 import { LlmModelsService } from '../llm-models/llm-models.service';
+import { ConversationsService } from '@/conversations/conversations.service';
 import {
   WorkflowNotFoundException,
   WorkflowPausedException,
   InvalidWorkflowConfigException,
-  MaxExecutionsExceededException,
 } from '../common/exceptions';
 
 
@@ -28,7 +27,6 @@ import {
  * Service que maneja la lógica de negocio de workflows
  * Incluye validación de límites según el plan de la organización
  */
-
 @Injectable()
 export class WorkflowsService {
     private readonly logger = new Logger(WorkflowsService.name);
@@ -41,8 +39,12 @@ export class WorkflowsService {
         private readonly agentsService: AgentsService,
         private readonly creditBalanceService: CreditBalanceService,
         private readonly llmModelsService: LlmModelsService,
+        private readonly conversationsService: ConversationsService,
     ) {}
 
+    //==========================================================
+    // CRUD DE WORKFLOWS
+    //==========================================================
     /**
      * Crear un nuevo workflow
      */
@@ -201,7 +203,7 @@ export class WorkflowsService {
             where: { id: workflowId },
             data: {
                 deletedAt: new Date(),
-                isActive: false, // También desactivarlo
+                isActive: false, 
             },
         });
 
@@ -209,9 +211,11 @@ export class WorkflowsService {
         return { message: 'Workflow eliminado exitosamente', workflow };
     }
 
+    //==========================================================
+    // Ejecutar Workflow
+    //==========================================================
     /**
-     * EJECUTAR UN WORKFLOW
-     * Puede ser llamado desde UI (user) o desde API externa (API key)
+     * Ejecutar un workflow
      */
     async execute(
         organizationId: string,
@@ -292,7 +296,7 @@ export class WorkflowsService {
         const endUserId = metadata?.endUserId;
         const userMessage = input?.message || JSON.stringify(input);
 
-        const conversation = await this.findOrCreateConversation(
+        const conversation = await this.conversationsService.findOrCreateConversation(
             workflowId,
             channel,
             userId,
@@ -511,7 +515,7 @@ export class WorkflowsService {
 
             this.logger.log(`Ejecución ${execution.id} completada exitosamente`);
 
-            return this.executionsService.findOne(execution.id, organizationId);
+            return this.executionsService.findOneForClient(execution.id, organizationId);
         } catch (error) {
             // 9. MANEJAR ERRORES
             this.logger.error(
@@ -528,55 +532,9 @@ export class WorkflowsService {
         }
     }
 
-    /**
-     * Busca o crea una conversación para la ejecución
-     * 
-     * @param workflowId - ID del workflow
-     * @param channel - Canal de comunicación (api, whatsapp, web, dashboard)
-     * @param userId - ID del usuario interno (opcional)
-     * @param endUserId - ID del usuario externo (opcional)
-     * @param conversationId - ID de conversación existente (opcional)
-     * @returns Conversación existente o nueva
-     */
-    private async findOrCreateConversation(
-        workflowId: string,
-        channel: string,
-        userId?: string,
-        endUserId?: string,
-        conversationId?: string,
-    ) {
-        // Si viene un conversationId, buscar esa conversación
-        if (conversationId) {
-            const existing = await this.prisma.conversation.findUnique({
-                where: { id: conversationId },
-            });
-
-            if (existing) {
-                this.logger.debug(`Usando conversación existente: ${conversationId}`);
-                return existing;
-            }
-        }
-
-        // Si no existe o no viene conversationId, crear una nueva
-        const newConversation = await this.prisma.conversation.create({
-            data: {
-                workflowId,
-                channel,
-                userId,
-                endUserId,
-                status: 'active',
-                messageCount: 0,
-                totalTokens: 0,
-                totalCost: 0,
-            },
-        });
-
-        this.logger.log(`Nueva conversación creada: ${newConversation.id}`);
-        return newConversation;
-    }
-
-
-
+    //==========================================================
+    // Metodos Auxiliares
+    //==========================================================
     /**
      * Construye el payload completo para el servicio de agents
      * 

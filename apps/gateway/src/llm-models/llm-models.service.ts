@@ -9,21 +9,9 @@ import {
   CreateLlmModelDto,
   UpdateLlmModelDto,
   QueryLlmModelsDto,
+  TokenUsage,
+  CostCalculation
 } from './dto';
-
-export interface TokenUsage {
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
-}
-
-export interface CostCalculation {
-  inputCost: number;
-  outputCost: number;
-  totalCost: number;
-  model: string;
-  provider: string;
-}
 
 @Injectable()
 export class LlmModelsService {
@@ -31,6 +19,9 @@ export class LlmModelsService {
 
   constructor(private prisma: PrismaService) {}
 
+  //==========================================================
+  // CRUD DE MODELOS LLM
+  //==========================================================
   /**
    * Crear un nuevo modelo LLM
    */
@@ -109,6 +100,20 @@ export class LlmModelsService {
   }
 
   /**
+   * Obtener todos los modelos activos
+   */
+  async getActiveModels() {
+    return this.prisma.llmModel.findMany({
+      where: {
+        isActive: true,
+        effectiveFrom: { lte: new Date() },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }],
+      },
+      orderBy: [{ provider: 'asc' }, { modelName: 'asc' }],
+    });
+  }
+
+  /**
    * Obtener un modelo LLM por ID
    */
   async findOne(id: string) {
@@ -121,6 +126,21 @@ export class LlmModelsService {
     }
 
     return llmModel;
+  }
+
+  /**
+   * Obtener modelo específico por nombre
+   */
+  async getModel(modelName: string) {
+    return this.prisma.llmModel.findFirst({
+      where: {
+        modelName,
+        isActive: true,
+        effectiveFrom: { lte: new Date() },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }],
+      },
+      orderBy: { effectiveFrom: 'desc' },
+    });
   }
 
   /**
@@ -145,12 +165,56 @@ export class LlmModelsService {
   }
 
   /**
+   * Desactivar un modelo LLM
+   * Marca el modelo como inactivo y establece la fecha de fin de vigencia
+   */
+  async delete(id: string) {
+    // Verificar que existe
+    const llmModel = await this.findOne(id);
+
+    const now = new Date();
+    const updatedModel = await this.prisma.llmModel.update({
+      where: { id },
+      data: {
+        isActive: false,
+        effectiveTo: now,
+        notes: llmModel.notes
+          ? `${llmModel.notes} | Desactivado: ${now.toISOString()}`
+          : `Desactivado: ${now.toISOString()}`,
+      },
+    });
+
+    this.logger.log(
+      `Modelo LLM desactivado: ${llmModel.provider}/${llmModel.modelName} (ID: ${id})`,
+    );
+
+    return updatedModel;
+  }
+
+  //==========================================================
+  // CÁLCULO DE COSTOS Y FUNCIONES AUXILIARES
+  //==========================================================
+  // Precios de fallback (basados en gpt-4o-mini a enero 2026)
+  private readonly FALLBACK_PRICES = {
+    inputPricePer1m: 0.15,  // $0.15 por 1M tokens input
+    outputPricePer1m: 0.6,   // $0.60 por 1M tokens output
+  } as const;
+
+  /**
    * Calcular el costo en USD basado en los tokens usados
+   * 
+   * @param modelName - Nombre del modelo LLM
+   * @param usage - Tokens de input/output usados
+   * @returns Cálculo detallado del costo
+   * @throws Error si los tokens son inválidos
    */
   async calculateCost(
     modelName: string,
     usage: TokenUsage,
   ): Promise<CostCalculation> {
+    // Validar entrada
+    this.validateTokenUsage(usage);
+
     // Buscar el modelo actual
     const llmModel = await this.prisma.llmModel.findFirst({
       where: {
@@ -164,26 +228,26 @@ export class LlmModelsService {
 
     if (!llmModel) {
       this.logger.warn(
-        `No pricing found for model: ${modelName}. Using default prices.`,
+        `No pricing found for model: ${modelName}. Using fallback prices.`,
       );
-      // Fallback: precios aproximados de gpt-4o-mini
       return this.calculateWithFallbackPrices(modelName, usage);
     }
 
     // Calcular costos
-    const inputCost =
-      (usage.inputTokens / 1_000_000) * llmModel.inputPricePer1m;
-    const outputCost =
-      (usage.outputTokens / 1_000_000) * llmModel.outputPricePer1m;
-    const totalCost = inputCost + outputCost;
+    const calculation = this.performCostCalculation(
+      usage,
+      llmModel.inputPricePer1m,
+      llmModel.outputPricePer1m,
+      llmModel.modelName,
+      llmModel.provider,
+    );
 
-    return {
-      inputCost: Number(inputCost.toFixed(6)),
-      outputCost: Number(outputCost.toFixed(6)),
-      totalCost: Number(totalCost.toFixed(6)),
-      model: llmModel.modelName,
-      provider: llmModel.provider,
-    };
+    this.logger.debug(
+      `Cost calculated for ${modelName}: $${calculation.totalCost} ` +
+      `(${usage.inputTokens} input + ${usage.outputTokens} output tokens)`,
+    );
+
+    return calculation;
   }
 
   /**
@@ -193,53 +257,64 @@ export class LlmModelsService {
     modelName: string,
     usage: TokenUsage,
   ): CostCalculation {
-    // Precios aproximados por defecto (basados en gpt-4o-mini)
-    const fallbackPrices = {
-      inputPricePer1m: 0.15, // $0.15 por 1M tokens input
-      outputPricePer1m: 0.6, // $0.60 por 1M tokens output
-    };
+    return this.performCostCalculation(
+      usage,
+      this.FALLBACK_PRICES.inputPricePer1m,
+      this.FALLBACK_PRICES.outputPricePer1m,
+      modelName,
+      'unknown',
+    );
+  }
 
-    const inputCost =
-      (usage.inputTokens / 1_000_000) * fallbackPrices.inputPricePer1m;
-    const outputCost =
-      (usage.outputTokens / 1_000_000) * fallbackPrices.outputPricePer1m;
+  /**
+   * Realiza el cálculo matemático del costo
+   * Centraliza la lógica para evitar duplicación
+   * 
+   * @param usage - Tokens usados
+   * @param inputPricePer1m - Precio por 1M tokens de input
+   * @param outputPricePer1m - Precio por 1M tokens de output
+   * @param modelName - Nombre del modelo
+   * @param provider - Proveedor del modelo
+   * @returns Cálculo de costo con 6 decimales de precisión
+   */
+  private performCostCalculation(
+    usage: TokenUsage,
+    inputPricePer1m: number,
+    outputPricePer1m: number,
+    modelName: string,
+    provider: string,
+  ): CostCalculation {
+    const inputCost = (usage.inputTokens / 1_000_000) * inputPricePer1m;
+    const outputCost = (usage.outputTokens / 1_000_000) * outputPricePer1m;
     const totalCost = inputCost + outputCost;
 
+    // Redondear a 6 decimales (suficiente para costos en USD)
     return {
       inputCost: Number(inputCost.toFixed(6)),
       outputCost: Number(outputCost.toFixed(6)),
       totalCost: Number(totalCost.toFixed(6)),
       model: modelName,
-      provider: 'unknown',
+      provider,
     };
   }
 
   /**
-   * Obtener todos los modelos activos
+   * Valida que el uso de tokens sea válido
+   * 
+   * @param usage - Objeto con tokens de input/output
+   * @throws Error si los tokens son inválidos
    */
-  async getActiveModels() {
-    return this.prisma.llmModel.findMany({
-      where: {
-        isActive: true,
-        effectiveFrom: { lte: new Date() },
-        OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }],
-      },
-      orderBy: [{ provider: 'asc' }, { modelName: 'asc' }],
-    });
-  }
+  private validateTokenUsage(usage: TokenUsage): void {
+    if (!usage) {
+      throw new Error('Token usage is required');
+    }
 
-  /**
-   * Obtener modelo específico por nombre
-   */
-  async getModel(modelName: string) {
-    return this.prisma.llmModel.findFirst({
-      where: {
-        modelName,
-        isActive: true,
-        effectiveFrom: { lte: new Date() },
-        OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }],
-      },
-      orderBy: { effectiveFrom: 'desc' },
-    });
+    if (usage.inputTokens < 0 || usage.outputTokens < 0) {
+      throw new Error('Token counts cannot be negative');
+    }
+
+    if (!Number.isFinite(usage.inputTokens) || !Number.isFinite(usage.outputTokens)) {
+      throw new Error('Token counts must be finite numbers');
+    }
   }
 }
