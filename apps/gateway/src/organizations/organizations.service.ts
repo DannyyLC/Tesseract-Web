@@ -8,8 +8,9 @@ import {
   UpdateOverageSettingsDto,
   UpdateSettingsDto
 } from './dto';
-import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
+import { CreditsService } from '@/credits/credit.service';
+import { UsersService } from '@/users/users.service';
 
 /**
  * Servicio para gestionar organizaciones
@@ -19,7 +20,11 @@ import { randomBytes } from 'crypto';
 export class OrganizationsService {
   private readonly logger = new Logger(OrganizationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly creditsService: CreditsService,
+    private readonly usersService: UsersService,
+  ) {}
 
   // ============================================
   // CREATE
@@ -45,9 +50,6 @@ export class OrganizationsService {
     // pero múltiples organizaciones pueden tener el mismo nombre
     const slug = await this.generateUniqueSlug(dto.name);
 
-    // Hashear password del owner
-    const hashedPassword = await bcrypt.hash(dto.ownerPassword, 10);
-
     // Crear organización + creditBalance + owner en transacción
     const organization = await this.prisma.$transaction(async (tx) => {
       // 1. Crear organización (sin plan hasta que paguen)
@@ -61,29 +63,15 @@ export class OrganizationsService {
       });
 
       // 2. Crear balance de créditos en 0
-      await tx.creditBalance.create({
-        data: {
-          organizationId: org.id,
-          balance: 0,
-          lifetimeEarned: 0,
-          lifetimeSpent: 0,
-          currentMonthSpent: 0,
-          currentMonthCostUSD: 0,
-        },
-      });
+      await this.creditsService.create(org.id);
 
       // 3. Crear owner
-      await tx.user.create({
-        data: {
-          email: dto.ownerEmail,
-          name: dto.ownerName,
-          password: hashedPassword,
-          role: 'owner',
-          organizationId: org.id,
-          isActive: true,
-          emailVerified: false,
-          emailVerificationToken: randomBytes(32).toString('hex'),
-        },
+      await this.usersService.create({
+        email: dto.ownerEmail,
+        name: dto.ownerName,
+        password: dto.ownerPassword,
+        role: 'owner',
+        organizationId: org.id,
       });
 
       return org;

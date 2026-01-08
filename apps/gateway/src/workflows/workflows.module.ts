@@ -5,7 +5,7 @@ import { ExecutionsModule } from '../executions/executions.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { AgentsModule } from "../agents/agents.module";
 import { ConversationsModule } from '../conversations/conversations.module';
-import { CreditBalanceService } from '../credits/credit-balance.service';
+import { CreditBalanceService } from '../credits/credit.service';
 import { LlmModelsService } from '../llm-models/llm-models.service';
 
 

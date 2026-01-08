@@ -5,8 +5,27 @@ import { getWorkflowCreditCost } from '@workflow-automation/shared-types';
 
 
 @Injectable()
-export class CreditBalanceService {
+export class CreditsService {
   constructor(private prisma: PrismaService) {}
+
+  // ============================================
+  // CREATE
+  // ============================================
+  /**
+   * Crear creditBalance para una organizacion nueva
+   */
+  async create(organizationId: string) {
+    await this.prisma.creditBalance.create({
+      data: {
+        organizationId: organizationId,
+        balance: 0,
+        lifetimeEarned: 0,
+        lifetimeSpent: 0,
+        currentMonthSpent: 0,
+        currentMonthCostUSD: 0,
+      }
+    })
+  }
 
   /**
    * Validar si una organización puede ejecutar un workflow

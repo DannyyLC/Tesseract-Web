@@ -4,10 +4,10 @@ import {
   IsString,
   MinLength,
   Matches,
-  IsEnum,
   IsOptional,
+  IsBoolean,
+  IsIn,
 } from 'class-validator';
-import { UserRole } from './user-role.enum';
 
 export class CreateUserDto {
   @IsEmail({}, { message: 'Invalid email format' })
@@ -28,9 +28,22 @@ export class CreateUserDto {
   })
   password: string;
 
-  @IsEnum(UserRole, {
-    message: 'Role must be one of: viewer, editor, admin',
+  @IsString()
+  @IsIn(['viewer', 'editor', 'admin', 'owner'], {
+    message: 'Role must be one of: viewer, editor, admin, owner',
   })
   @IsOptional()
-  role?: UserRole;
+  role?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  organizationId: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean = true;
+
+  @IsBoolean()
+  @IsOptional()
+  emailVerified?: boolean = false;
 }

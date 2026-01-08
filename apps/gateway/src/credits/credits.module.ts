@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { CreditBalanceService } from './credit-balance.service';
+import { CreditsService } from './credit.service';
 
 @Module({
-  providers: [CreditBalanceService],
-  exports: [CreditBalanceService],
+  providers: [CreditsService],
+  exports: [CreditsService],
 })
 export class CreditsModule {}

@@ -13,7 +13,7 @@ import { SecretsService } from '../secrets/secrets.service';
 import { AgentsService } from '../agents/agents.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
 import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
-import { CreditBalanceService } from '../credits/credit-balance.service';
+import { CreditBalanceService } from '../credits/credit.service';
 import { LlmModelsService } from '../llm-models/llm-models.service';
 import { ConversationsService } from '@/conversations/conversations.service';
 import {
