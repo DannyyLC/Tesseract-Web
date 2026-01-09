@@ -251,6 +251,75 @@ export class LlmModelsService {
   }
 
   /**
+   * Calcular costos para múltiples modelos en batch (evita N+1)
+   * 
+   * @param usageByModel - Map de modelName → TokenUsage
+   * @returns Array de cálculos de costo por modelo
+   */
+  async calculateCostBatch(
+    usageByModel: Record<string, TokenUsage>,
+  ): Promise<CostCalculation[]> {
+    const modelNames = Object.keys(usageByModel);
+    
+    if (modelNames.length === 0) {
+      return [];
+    }
+
+    // Validar todas las entradas
+    for (const [modelName, usage] of Object.entries(usageByModel)) {
+      this.validateTokenUsage(usage);
+    }
+
+    // Batch query: obtener todos los modelos en una sola consulta
+    const llmModels = await this.prisma.llmModel.findMany({
+      where: {
+        modelName: { in: modelNames },
+        isActive: true,
+        effectiveFrom: { lte: new Date() },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }],
+      },
+      orderBy: { effectiveFrom: 'desc' },
+    });
+
+    // Crear map de modelName → LlmModel para lookup rápido
+    const modelMap = new Map(
+      llmModels.map((m) => [m.modelName, m])
+    );
+
+    // Calcular costos para cada modelo
+    const calculations: CostCalculation[] = [];
+    
+    for (const [modelName, usage] of Object.entries(usageByModel)) {
+      const llmModel = modelMap.get(modelName);
+      
+      if (!llmModel) {
+        this.logger.warn(
+          `No pricing found for model: ${modelName}. Using fallback prices.`,
+        );
+        calculations.push(
+          this.calculateWithFallbackPrices(modelName, usage)
+        );
+      } else {
+        calculations.push(
+          this.performCostCalculation(
+            usage,
+            llmModel.inputPricePer1m,
+            llmModel.outputPricePer1m,
+            llmModel.modelName,
+            llmModel.provider,
+          )
+        );
+      }
+    }
+
+    this.logger.debug(
+      `Batch cost calculated for ${calculations.length} models`,
+    );
+
+    return calculations;
+  }
+
+  /**
    * Precios por defecto cuando no se encuentra el modelo en la BD
    */
   private calculateWithFallbackPrices(

@@ -66,7 +66,7 @@ export class ExecutionsService {
    * 
    * @param executionId - ID de la ejecución
    * @param status - Nuevo estado (running, completed, failed, cancelled, timeout)
-   * @param data - Datos adicionales (result, error, logs, etc.)
+   * @param data - Datos adicionales (result, error, logs, tokens, cost, etc.)
    */
   async updateStatus(
     executionId: string,
@@ -79,6 +79,7 @@ export class ExecutionsService {
       stepResults?: any;
       cost?: number;
       credits?: number;
+      tokensUsed?: number; // ← Agregado para consolidar updates
     },
   ) {
     const now = new Date();
@@ -96,7 +97,7 @@ export class ExecutionsService {
       (now.getTime() - execution.startedAt.getTime()) / 1000,
     );
 
-    // Actualizar la ejecución
+    // Actualizar la ejecución (TODOS los campos en 1 query)
     const updated = await this.prisma.execution.update({
       where: { id: executionId },
       data: {
@@ -114,6 +115,7 @@ export class ExecutionsService {
         stepResults: data?.stepResults,
         cost: data?.cost,
         credits: data?.credits,
+        tokensUsed: data?.tokensUsed, // ← Incluido en el mismo update
       },
     });
 
@@ -123,7 +125,8 @@ export class ExecutionsService {
     }
 
     this.logger.log(
-      `Ejecución ${executionId} actualizada a estado: ${status} (duración: ${duration}s)`,
+      `Ejecución ${executionId} actualizada a estado: ${status} ` +
+      `(duración: ${duration}s, tokens: ${data?.tokensUsed || 0}, cost: $${data?.cost || 0})`,
     );
 
     return updated;

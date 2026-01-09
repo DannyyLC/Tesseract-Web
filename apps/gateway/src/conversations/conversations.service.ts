@@ -147,4 +147,43 @@ export class ConversationsService {
             `Estadísticas actualizadas para conversación ${conversationId}: +${tokens} tokens, +$${cost}`,
         );
     }
+
+    /**
+     * Actualiza mensajes y estadísticas en una sola operación (batch update)
+     * Optimizado para reducir queries a la BD
+     * 
+     * @param conversationId - ID de la conversación
+     * @param messageIncrement - Cuántos mensajes agregar al contador
+     * @param tokens - Tokens consumidos (opcional)
+     * @param cost - Costo en USD (opcional)
+     */
+    async batchUpdate(
+        conversationId: string,
+        messageIncrement: number,
+        tokens?: number,
+        cost?: number,
+    ) {
+        const updateData: any = {
+            messageCount: { increment: messageIncrement },
+            lastMessageAt: new Date(),
+        };
+
+        if (tokens !== undefined && tokens > 0) {
+            updateData.totalTokens = { increment: tokens };
+        }
+
+        if (cost !== undefined && cost > 0) {
+            updateData.totalCost = { increment: cost };
+        }
+
+        await this.prisma.conversation.update({
+            where: { id: conversationId },
+            data: updateData,
+        });
+
+        this.logger.debug(
+            `Batch update para conversación ${conversationId}: ` +
+            `+${messageIncrement} mensajes, +${tokens || 0} tokens, +$${cost || 0}`,
+        );
+    }
 }
