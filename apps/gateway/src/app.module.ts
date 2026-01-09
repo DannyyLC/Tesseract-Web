@@ -6,8 +6,8 @@ import { WorkflowsModule } from './workflows/workflows.module';
 import { ExecutionsModule } from './executions/executions.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { OrganizationsModule } from './organizations/organizations.module';
-import { SecretsModule } from './secrets/secrets.module';
-
+// import { SecretsModule } from './secrets/secrets.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -20,13 +20,14 @@ import { SecretsModule } from './secrets/secrets.module';
       ignoreEnvFile: false,
     }),
     
-    SecretsModule,        
+    // SecretsModule,        
     DatabaseModule,
     AuthModule,
     OrganizationsModule,
     WorkflowsModule,
     ExecutionsModule,
     ApiKeysModule,
+    NotificationsModule,
   ],
   controllers: [],
   providers: [],

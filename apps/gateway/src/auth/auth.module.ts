@@ -8,6 +8,7 @@ import { RolesGuard } from './guards/roles.guard';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 /**
  * AuthModule agrupa toda la funcionalidad de autenticación
@@ -30,7 +31,7 @@ import { AuthController } from './auth.controller';
   imports: [
     // Passport con estrategia por defecto 'jwt'
     PassportModule.register({ defaultStrategy: 'jwt' }),
-    
+    NotificationsModule,
     // Configuración de JWT
     JwtModule.registerAsync({
       imports: [ConfigModule],

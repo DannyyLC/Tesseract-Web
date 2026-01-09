@@ -9,6 +9,7 @@ import {
   Res,
   Req,
   UnauthorizedException,
+  Query,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -21,6 +22,7 @@ import { UserPayload } from '../common/types/jwt-payload.type';
 import { TempTokenGuard } from './guards/temp-token.guard';
 import { ApiResponseBuilder } from '@workflow-automation/shared-types'
 import { HttpStatusCode } from 'axios';
+import { EmailService } from '../notifications/email/email.service';
 
 /**
  * AuthController maneja todos los endpoints de autenticación
@@ -44,7 +46,7 @@ import { HttpStatusCode } from 'axios';
  */
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService, private readonly emailService: EmailService) {}
 
   /**
    * POST /auth/login
@@ -353,5 +355,20 @@ export class AuthController {
       .setMessage('2FA verified successfully');
     response.statusCode = 200;
     response.send(responseBuilder.build());
+  }
+
+  @Post('send-verification-email')
+  async testEmail(@Body('email') email: string) {
+    return this.emailService.sendEmailVerificationEMail(email);
+  }
+  
+  @Get('verify-email')
+  async verifyEmail(@Query('token') token: string) {
+    const isEmailVerified = await this.authService.verifyEmail(token);
+    if (isEmailVerified) {
+      // TODO send an event through sse 
+    } else {
+      // otherwise not to do anything
+    }  
   }
 }

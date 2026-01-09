@@ -169,7 +169,9 @@ export class AuthService {
       expiresIn: '15m',
     });
     return {
-      ...(user.twoFactorEnabled ? {qr: "not needed"} : await this.setup2FA(user.id)),
+      ...(user.twoFactorEnabled
+        ? { qr: 'not needed' }
+        : await this.setup2FA(user.id)),
       tempToken,
     };
   }
@@ -569,6 +571,25 @@ export class AuthService {
       };
     } else {
       return null;
+    }
+  }
+
+  async verifyEmail(token: string): Promise<boolean> {
+    try {
+      const email = this.jwtService.verify(token, {
+        secret:
+          process.env.JWT_EMAIL_VERIFICATION_SECRET ||
+          'email-verification-secret',
+      });
+      // Marcar el email como verificado en la base de datos
+      await this.prisma.user.updateMany({
+        where: { email: email.email },
+        data: { emailVerified: true },
+      });
+      return true;
+    } catch (error) {
+      this.logger.error('Error al verificar email', error);
+      return false;
     }
   }
 }
