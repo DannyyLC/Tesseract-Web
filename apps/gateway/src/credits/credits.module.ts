@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
-import { CreditBalanceService } from './credit-balance.service';
+import { CreditsService } from './credits.service';
+import { DatabaseModule } from '../database/database.module';
 
 @Module({
-  providers: [CreditBalanceService],
-  exports: [CreditBalanceService],
+  imports: [DatabaseModule],
+  providers: [CreditsService],
+  exports: [CreditsService],
 })
 export class CreditsModule {}

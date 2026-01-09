@@ -9,13 +9,12 @@ import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { ExecutionsService } from '../executions/executions.service';
 import { OrganizationsService } from '../organizations/organizations.service';
-import { SecretsService } from '../secrets/secrets.service';
 import { AgentsService } from '../agents/agents.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
-import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
-import { CreditBalanceService } from '../credits/credit-balance.service';
+import { PLANS, SubscriptionPlan, getWorkflowCreditCost } from '@workflow-automation/shared-types';
+import { CreditsService } from '../credits/credits.service';
 import { LlmModelsService } from '../llm-models/llm-models.service';
-import { ConversationsService } from '@/conversations/conversations.service';
+import { ConversationsService } from '../conversations/conversations.service';
 import {
   WorkflowNotFoundException,
   WorkflowPausedException,
@@ -35,9 +34,8 @@ export class WorkflowsService {
         private readonly prisma: PrismaService,
         private readonly executionsService: ExecutionsService,
         private readonly organizationsService: OrganizationsService,
-        private readonly secretsService: SecretsService,
         private readonly agentsService: AgentsService,
-        private readonly creditBalanceService: CreditBalanceService,
+        private readonly creditsService: CreditsService,
         private readonly llmModelsService: LlmModelsService,
         private readonly conversationsService: ConversationsService,
     ) {}
@@ -225,7 +223,7 @@ export class WorkflowsService {
         userId?: string, // Opcional: quién ejecuta desde UI
         apiKeyId?: string, // Opcional: qué API key ejecuta
     ) {
-        // 1. VALIDACIONES PREVIAS
+        // 1. VALIDACIONES PREVIAS - Cargar workflow con TODO lo necesario en 1 query
         const workflow = await this.prisma.workflow.findFirst({
             where: {
                 id: workflowId,
@@ -238,6 +236,16 @@ export class WorkflowsService {
                         id: true,
                         name: true,
                         plan: true,
+                    },
+                },
+                // Incluir tenantTools desde el inicio (evita query duplicado)
+                tenantTools: {
+                    include: {
+                        toolCatalog: {
+                            include: {
+                                functions: true,
+                            },
+                        },
                     },
                 },
             },
@@ -265,7 +273,7 @@ export class WorkflowsService {
         }
 
         // 2.1. VALIDAR BALANCE DE CRÉDITOS
-        const canExecute = await this.creditBalanceService.canExecuteWorkflow(
+        const canExecute = await this.creditsService.canExecuteWorkflow(
             organizationId,
             workflow.category,
         );
@@ -305,65 +313,29 @@ export class WorkflowsService {
         );
 
         // Asociar la ejecución a la conversación
-        await this.prisma.execution.update({
-            where: { id: execution.id },
-            data: { conversationId: conversation.id },
-        });
+        await this.executionsService.linkToConversation(
+            execution.id,
+            conversation.id,
+        );
 
         // OBTENER HISTORIAL ANTES de guardar el mensaje del usuario
         // Esto evita duplicados en el message_history que enviamos al agente
-        const messageHistory = await this.prisma.message.findMany({
-            where: { conversationId: conversation.id },
-            orderBy: { createdAt: 'asc' },
-            select: {
-                role: true,
-                content: true,
-            },
-        });
+        const messageHistory = await this.conversationsService.getMessageHistory(
+            conversation.id,
+        );
 
         // GUARDAR MENSAJE DEL USUARIO INMEDIATAMENTE
-        await this.prisma.message.create({
-            data: {
-                conversationId: conversation.id,
-                role: 'human',
-                content: userMessage,
-            },
-        });
+        await this.conversationsService.addMessage(
+            conversation.id,
+            'human',
+            userMessage,
+        );
 
-        // Actualizar contador de mensajes de la conversación
-        await this.prisma.conversation.update({
-            where: { id: conversation.id },
-            data: {
-                messageCount: { increment: 1 },
-                lastMessageAt: new Date(),
-            },
-        });
-
-        // 5. OBTENER WORKFLOW CON RELACIONES PARA EL PAYLOAD
-        const workflowWithTools = await this.prisma.workflow.findUnique({
-            where: { id: workflowId },
-            include: {
-                tenantTools: {
-                    include: {
-                        toolCatalog: {
-                            include: {
-                                functions: true,
-                            },
-                        },
-                    },
-                },
-            },
-        });
-
-        if (!workflowWithTools) {
-            throw new WorkflowNotFoundException(workflowId);
-        }
-
-        // 6. EJECUTAR WORKFLOW CON EL SERVICIO DE AGENTS
+        // 5. EJECUTAR WORKFLOW CON EL SERVICIO DE AGENTS
         try {
             // Construir el payload completo con credenciales y configuración
             const payload = await this.buildAgentPayload(
-                workflowWithTools,
+                workflow,
                 conversation,
                 userMessage,
                 userId || endUserId,
@@ -377,66 +349,62 @@ export class WorkflowsService {
             );
             const agentResponse = await this.agentsService.execute(payload);
 
-            // 7. GUARDAR SOLO EL ÚLTIMO MENSAJE (RESPUESTA DEL ASISTENTE)
+            // 6. GUARDAR SOLO EL ÚLTIMO MENSAJE (RESPUESTA DEL ASISTENTE)
             const messages = agentResponse.messages || [];
             const lastMessage = messages[messages.length - 1]; // Último mensaje = respuesta del asistente
+            let assistantMessageSaved = false;
             
             if (lastMessage && lastMessage.role === 'assistant') {
-                await this.prisma.message.create({
-                    data: {
-                        conversationId: conversation.id,
-                        role: lastMessage.role,
-                        content: lastMessage.content,
-                    },
-                });
-                
-                // Actualizar estadísticas de la conversación
-                await this.prisma.conversation.update({
-                    where: { id: conversation.id },
-                    data: {
-                        messageCount: { increment: 1 },
-                        lastMessageAt: new Date(),
-                    },
-                });
+                await this.conversationsService.addMessage(
+                    conversation.id,
+                    lastMessage.role,
+                    lastMessage.content,
+                );
+                assistantMessageSaved = true;
                 
                 this.logger.debug(
                     `Guardado mensaje del asistente en conversación ${conversation.id}`,
                 );
+            } else {
+                this.logger.warn(
+                    `No se encontró mensaje del asistente en ejecución ${execution.id}. ` +
+                    `Messages: ${JSON.stringify(messages)}`,
+                );
             }
 
-            // 8.1. EXTRAER TOKENS Y CALCULAR COSTO (multi-modelo)
+            // 7. EXTRAER TOKENS Y CALCULAR COSTO (multi-modelo con BATCH QUERY)
             const metadata = (agentResponse.metadata || {}) as any;
             const totalTokens = metadata.total_tokens || 0;
             const usageByModel = metadata.usage_by_model || {};
 
-            // Calcular costo en USD sumando todos los modelos usados
             let costUSD = 0;
             const costBreakdown: { model: string; cost: number }[] = [];
 
-            // Si hay usage_by_model, calcular costo por cada modelo
+            // Si hay usage_by_model, usar batch query (1 query para todos los modelos)
             if (Object.keys(usageByModel).length > 0) {
-                for (const [modelName, usage] of Object.entries(usageByModel) as [string, any][]) {
-                    try {
-                        const costCalculation = await this.llmModelsService.calculateCost(
-                            modelName,
-                            {
-                                inputTokens: usage.input_tokens || 0,
-                                outputTokens: usage.output_tokens || 0,
-                                totalTokens: usage.total_tokens || 0,
-                            },
-                        );
-                        costUSD += costCalculation.totalCost;
-                        costBreakdown.push({ model: modelName, cost: costCalculation.totalCost });
-                        
-                        this.logger.debug(
-                            `Costo para modelo ${modelName}: $${costCalculation.totalCost} ` +
-                            `(input: ${usage.input_tokens}, output: ${usage.output_tokens})`,
-                        );
-                    } catch (error) {
-                        this.logger.error(
-                            `Error calculando costo para modelo ${modelName}: ${(error as Error).message}`,
-                        );
+                try {
+                    // Convertir formato para batch query
+                    const usageForBatch: Record<string, any> = {};
+                    for (const [modelName, usage] of Object.entries(usageByModel) as [string, any][]) {
+                        usageForBatch[modelName] = {
+                            inputTokens: usage.input_tokens || 0,
+                            outputTokens: usage.output_tokens || 0,
+                            totalTokens: usage.total_tokens || 0,
+                        };
                     }
+
+                    // BATCH QUERY: Obtener costos de todos los modelos en 1 query
+                    const calculations = await this.llmModelsService.calculateCostBatch(usageForBatch);
+                    
+                    // Sumar costos
+                    for (const calc of calculations) {
+                        costUSD += calc.totalCost;
+                        costBreakdown.push({ model: calc.model, cost: calc.totalCost });
+                    }
+                } catch (error) {
+                    this.logger.error(
+                        `Error en batch calculation de costos: ${(error as Error).message}`,
+                    );
                 }
             } else {
                 // Fallback: usar tokens totales con modelo por defecto
@@ -465,8 +433,37 @@ export class WorkflowsService {
                 `(breakdown: ${JSON.stringify(costBreakdown)})`,
             );
 
-            // 8.2. DESCONTAR CRÉDITOS DEL BALANCE
-            await this.creditBalanceService.deductCredits(
+            // 8. ACTUALIZAR EXECUTION Y CONVERSATION EN PARALELO
+            const messageIncrement = assistantMessageSaved ? 2 : 1; // user + assistant (o solo user)
+            
+            // Execution y Conversation son tablas DIFERENTES → Seguro paralelizar
+            await Promise.all([
+                // Update execution: TODOS los campos en 1 query (evita race condition)
+                this.executionsService.updateStatus(execution.id, 'completed', {
+                    result: {
+                        ...agentResponse,
+                        conversationId: conversation.id,
+                    },
+                    cost: costUSD,
+                    tokensUsed: totalTokens, // ← Consolidado en el mismo update
+                    credits: undefined, // Se actualizará en el siguiente paso
+                }),
+                // Batch update de conversation (tabla diferente, sin conflicto)
+                this.conversationsService.batchUpdate(
+                    conversation.id,
+                    messageIncrement,
+                    totalTokens,
+                    costUSD,
+                ),
+            ]);
+
+            this.logger.log(`Ejecución ${execution.id} marcada como completada`);
+
+            // 9. DESCONTAR CRÉDITOS SOLO EN EJECUCIONES EXITOSAS
+            // Se descuentan después de confirmar que todo fue exitoso
+            const creditsToDeduct = getWorkflowCreditCost(workflow.category);
+            
+            await this.creditsService.deductCredits(
                 organizationId,
                 execution.id,
                 workflow.id,
@@ -484,40 +481,14 @@ export class WorkflowsService {
             );
 
             this.logger.log(
-                `Créditos descontados para ejecución ${execution.id}`,
+                `Créditos descontados para ejecución exitosa ${execution.id}: ` +
+                `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
             );
 
-            // 8.3. ACTUALIZAR EXECUTION CON TOKENS Y COSTO
-            await this.prisma.execution.update({
-                where: { id: execution.id },
-                data: {
-                    tokensUsed: totalTokens,
-                    cost: costUSD,
-                },
-            });
-
-            // 8.4. ACTUALIZAR CONVERSATION ACUMULANDO TOKENS Y COSTOS
-            await this.prisma.conversation.update({
-                where: { id: conversation.id },
-                data: {
-                    totalTokens: { increment: totalTokens },
-                    totalCost: { increment: costUSD },
-                },
-            });
-
-            // 9. MARCAR EJECUCIÓN COMO COMPLETADA
-            await this.executionsService.updateStatus(execution.id, 'completed', {
-                result: {
-                    ...agentResponse,
-                    conversationId: conversation.id,
-                },
-            });
-
-            this.logger.log(`Ejecución ${execution.id} completada exitosamente`);
-
+            // 10. RETORNAR EJECUCIÓN CON RELACIONES COMPLETAS (requiere query con joins)
             return this.executionsService.findOneForClient(execution.id, organizationId);
         } catch (error) {
-            // 9. MANEJAR ERRORES
+            // MANEJAR ERRORES - NO SE DESCONTARÁN CRÉDITOS EN EJECUCIONES FALLIDAS
             this.logger.error(
                 `Error en ejecución ${execution.id}: ${(error as Error).message}`,
                 (error as Error).stack,
@@ -527,6 +498,10 @@ export class WorkflowsService {
                 error: (error as Error).message,
                 errorStack: (error as Error).stack,
             });
+
+            this.logger.log(
+                `Ejecución ${execution.id} marcada como fallida. Créditos NO descontados.`,
+            );
 
             throw error;
         }
@@ -579,13 +554,8 @@ export class WorkflowsService {
                 ),
             };
 
-            // Agregar credenciales si existen
-            if (tenantTool.credentialPath) {
-                const creds = await this.secretsService.getCredentials(
-                    tenantTool.credentialPath,
-                );
-                toolInstances[toolId].credentials = creds;
-            }
+            // TODO: Agregar credenciales cuando se implemente
+            // if (tenantTool.credentialPath) { ... }
         }
 
         // 3. Filtrar tool_instances por agente según su configuración

@@ -8,7 +8,6 @@ import {
   UpdateOverageSettingsDto,
   UpdateSettingsDto
 } from './dto';
-import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 
 /**
@@ -19,74 +18,31 @@ import { randomBytes } from 'crypto';
 export class OrganizationsService {
   private readonly logger = new Logger(OrganizationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   // ============================================
   // CREATE
   // ============================================
   /**
-   * Crea una nueva organización con owner y balance de créditos inicial
-   * - Sin suscripción (se agrega después si es necesario)
-   * - CreditBalance en 0
-   * - Owner es quien crea la organización
+   * Crea una nueva organización
    */
   async create(dto: CreateOrganizationDto) {
-    // Validar que el email del owner no existe
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: dto.ownerEmail },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('Email already registered');
-    }
-
     // Generar slug único desde el nombre
     // El slug es para URLs amigables (ej: mycompany.tesseract.app)
     // pero múltiples organizaciones pueden tener el mismo nombre
-    const slug = await this.generateUniqueSlug(dto.name);
+    const slug = await OrganizationsService.generateUniqueSlug(dto.name, this.prisma);
 
-    // Hashear password del owner
-    const hashedPassword = await bcrypt.hash(dto.ownerPassword, 10);
-
-    // Crear organización + creditBalance + owner en transacción
-    const organization = await this.prisma.$transaction(async (tx) => {
-      // 1. Crear organización (sin plan hasta que paguen)
-      const org = await tx.organization.create({
-        data: {
-          name: dto.name,
-          slug,
-          isActive: true,
-          allowOverages: false,
-        },
-      });
-
-      // 2. Crear balance de créditos en 0
-      await tx.creditBalance.create({
-        data: {
-          organizationId: org.id,
-          balance: 0,
-          lifetimeEarned: 0,
-          lifetimeSpent: 0,
-          currentMonthSpent: 0,
-          currentMonthCostUSD: 0,
-        },
-      });
-
-      // 3. Crear owner
-      await tx.user.create({
-        data: {
-          email: dto.ownerEmail,
-          name: dto.ownerName,
-          password: hashedPassword,
-          role: 'owner',
-          organizationId: org.id,
-          isActive: true,
-          emailVerified: false,
-          emailVerificationToken: randomBytes(32).toString('hex'),
-        },
-      });
-
-      return org;
+    // Crear organización
+    const organization = await this.prisma.organization.create({
+      data: {
+        name: dto.name,
+        slug,
+        plan: dto.plan || 'FREE',
+        isActive: true,
+        allowOverages: false,
+      },
     });
 
     this.logger.log(
@@ -510,9 +466,9 @@ export class OrganizationsService {
   // MÉTODOS AUXILIARES
   // ============================================
   /**
-   * Genera un slug único desde el nombre de la organización
+   * Genera un slug base desde el nombre de la organización
    */
-  private generateSlug(name: string): string {
+  static generateSlug(name: string): string {
     return name
       .toLowerCase()
       .trim()
@@ -524,12 +480,23 @@ export class OrganizationsService {
   /**
    * Genera un slug único intentando primero el slug base
    * Si ya existe, agrega un sufijo aleatorio corto (6 caracteres)
+   * Reintenta hasta 10 veces si hay colisión (probabilidad extremadamente baja)
+   * 
+   * Método estático que acepta un cliente de Prisma (normal o transacción)
+   * para poder ser usado desde otros servicios dentro de transacciones
+   * 
+   * @param name - Nombre de la organización
+   * @param prismaClient - Cliente de Prisma (this.prisma o tx)
+   * @returns Slug único
    */
-  private async generateUniqueSlug(name: string): Promise<string> {
-    const baseSlug = this.generateSlug(name);
+  static async generateUniqueSlug(
+    name: string,
+    prismaClient: any,
+  ): Promise<string> {
+    const baseSlug = OrganizationsService.generateSlug(name);
     
     // Intentar primero con el slug base
-    const existingOrg = await this.prisma.organization.findUnique({
+    const existingOrg = await prismaClient.organization.findUnique({
       where: { slug: baseSlug },
     });
 
@@ -537,9 +504,25 @@ export class OrganizationsService {
       return baseSlug;
     }
 
-    // Si existe, agregar sufijo aleatorio corto
-    const randomSuffix = randomBytes(3).toString('hex'); // 6 caracteres hex
-    return `${baseSlug}-${randomSuffix}`;
+    // Si existe, intentar con sufijos aleatorios hasta encontrar uno disponible
+    const maxAttempts = 10;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const randomSuffix = randomBytes(3).toString('hex'); // 6 caracteres hex
+      const candidateSlug = `${baseSlug}-${randomSuffix}`;
+      
+      const exists = await prismaClient.organization.findUnique({
+        where: { slug: candidateSlug },
+      });
+
+      if (!exists) {
+        return candidateSlug;
+      }
+    }
+
+    // Si después de 10 intentos no encuentra, usar timestamp como fallback
+    // Probabilidad de llegar aquí: ~0.0000006% (prácticamente imposible)
+    const timestampSuffix = Date.now().toString(36); // Base36 más corto
+    return `${baseSlug}-${timestampSuffix}`;
   }
 
   /**

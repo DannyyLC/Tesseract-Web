@@ -6,14 +6,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { AuthService } from '../auth/auth.service';
 import {
   CreateOwnerDto,
   InviteUserDto,
   UpdateProfileDto,
   UserFiltersDto,
+  CreateUserDto
 } from './dto';
-import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
 import { User, Organization, Prisma } from '@prisma/client';
 
 interface PaginatedUsers {
@@ -46,44 +46,43 @@ interface UserActivity {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
+  ) {}
 
   // ==================== CREATE ====================
   /**
-   * Crear el owner inicial de una organización
-   * Solo llamado por organizations.service al crear org
+   * Crear usuario
    */
-  async createOwner(
-    organizationId: string,
-    data: CreateOwnerDto,
-  ): Promise<User> {
-    // Validar que la organización existe y está activa
-    await this.validateOrganization(organizationId);
-
-    // Validar que NO existe otro owner
-    await this.validateSingleOwner(organizationId);
-
-    // Validar email único global
-    await this.validateEmailUnique(data.email);
-
+  async create(user: CreateUserDto): Promise<User> {
     // Hashear password
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const hashedPassword = await this.authService.hashPassword(user.password);
 
-    // Crear owner
-    const owner = await this.prisma.user.create({
+    const emailVerified = user.emailVerified ?? false;
+
+    // Generar token de verificación si es necesario
+    const { token, expiresAt } = emailVerified 
+      ? { token: null, expiresAt: null }
+      : this.authService.generateTokenWithExpiry(24);
+
+    // Crear usuario
+    const createdUser = await this.prisma.user.create({
       data: {
-        email: data.email,
-        name: data.name,
+        email: user.email,
+        name: user.name,
         password: hashedPassword,
-        role: 'owner',
-        organizationId,
-        isActive: true,
-        emailVerified: false,
-        emailVerificationToken: randomBytes(32).toString('hex'),
+        role: user.role || 'viewer',
+        organizationId: user.organizationId,
+        isActive: user.isActive ?? true,
+        emailVerified,
+        emailVerificationToken: token,
+        emailVerificationTokenExpires: expiresAt,
       },
     });
 
-    return owner;
+    return createdUser;
   }
 
   /**
@@ -104,8 +103,11 @@ export class UsersService {
     await this.validateEmailUnique(data.email);
 
     // Generar password temporal (el usuario lo cambiará al aceptar)
-    const temporaryPassword = randomBytes(32).toString('hex');
-    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    const temporaryPassword = this.authService.generateVerificationToken();
+    const hashedPassword = await this.authService.hashPassword(temporaryPassword);
+
+    // Generar token de invitación
+    const { token, expiresAt } = this.authService.generateTokenWithExpiry(24);
 
     // Crear usuario inactivo con token de invitación
     const user = await this.prisma.user.create({
@@ -117,7 +119,8 @@ export class UsersService {
         organizationId,
         isActive: false,
         emailVerified: false,
-        emailVerificationToken: randomBytes(32).toString('hex'),
+        emailVerificationToken: token,
+        emailVerificationTokenExpires: expiresAt,
       },
     });
 
@@ -151,12 +154,13 @@ export class UsersService {
     }
 
     // Generar nuevo token de invitación
-    const invitationToken = randomBytes(32).toString('hex');
+    const { token: invitationToken, expiresAt } = this.authService.generateTokenWithExpiry(24);
 
     await this.prisma.user.update({
       where: { id: userId },
       data: {
         emailVerificationToken: invitationToken,
+        emailVerificationTokenExpires: expiresAt,
       },
     });
 

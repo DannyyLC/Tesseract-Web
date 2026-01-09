@@ -8,6 +8,8 @@ import { ApiKeysModule } from './api-keys/api-keys.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 // import { SecretsModule } from './secrets/secrets.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ConversationsModule } from './conversations/conversations.module';
+
 
 @Module({
   imports: [
@@ -20,10 +22,10 @@ import { NotificationsModule } from './notifications/notifications.module';
       ignoreEnvFile: false,
     }),
     
-    // SecretsModule,        
     DatabaseModule,
     AuthModule,
     OrganizationsModule,
+    ConversationsModule,
     WorkflowsModule,
     ExecutionsModule,
     ApiKeysModule,

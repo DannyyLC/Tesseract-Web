@@ -1,4 +1,5 @@
-import { IsString, IsEmail, MinLength, MaxLength, IsNotEmpty } from 'class-validator';
+import { IsString, MinLength, MaxLength, IsNotEmpty, IsOptional, IsIn } from 'class-validator';
+import { SubscriptionPlan } from '@workflow-automation/shared-types';
 
 export class CreateOrganizationDto {
   @IsString()
@@ -7,19 +8,8 @@ export class CreateOrganizationDto {
   @MaxLength(100)
   name: string;
 
-  // Datos del owner
-  @IsEmail()
-  @IsNotEmpty()
-  ownerEmail: string;
-
   @IsString()
-  @IsNotEmpty()
-  @MinLength(2)
-  @MaxLength(100)
-  ownerName: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(8)
-  ownerPassword: string;
+  @IsOptional()
+  @IsIn(['FREE', 'STARTER', 'GROWTH', 'BUSINESS', 'PRO', 'ENTERPRISE'])
+  plan?: SubscriptionPlan;
 }

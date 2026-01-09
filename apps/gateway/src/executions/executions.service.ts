@@ -66,7 +66,7 @@ export class ExecutionsService {
    * 
    * @param executionId - ID de la ejecución
    * @param status - Nuevo estado (running, completed, failed, cancelled, timeout)
-   * @param data - Datos adicionales (result, error, logs, etc.)
+   * @param data - Datos adicionales (result, error, logs, tokens, cost, etc.)
    */
   async updateStatus(
     executionId: string,
@@ -79,6 +79,7 @@ export class ExecutionsService {
       stepResults?: any;
       cost?: number;
       credits?: number;
+      tokensUsed?: number; // ← Agregado para consolidar updates
     },
   ) {
     const now = new Date();
@@ -96,7 +97,7 @@ export class ExecutionsService {
       (now.getTime() - execution.startedAt.getTime()) / 1000,
     );
 
-    // Actualizar la ejecución
+    // Actualizar la ejecución (TODOS los campos en 1 query)
     const updated = await this.prisma.execution.update({
       where: { id: executionId },
       data: {
@@ -114,6 +115,7 @@ export class ExecutionsService {
         stepResults: data?.stepResults,
         cost: data?.cost,
         credits: data?.credits,
+        tokensUsed: data?.tokensUsed, // ← Incluido en el mismo update
       },
     });
 
@@ -123,7 +125,8 @@ export class ExecutionsService {
     }
 
     this.logger.log(
-      `Ejecución ${executionId} actualizada a estado: ${status} (duración: ${duration}s)`,
+      `Ejecución ${executionId} actualizada a estado: ${status} ` +
+      `(duración: ${duration}s, tokens: ${data?.tokensUsed || 0}, cost: $${data?.cost || 0})`,
     );
 
     return updated;
@@ -1080,5 +1083,47 @@ export class ExecutionsService {
         avgDuration: parseFloat(stats.avgDuration.toFixed(2)),
       })),
     };
+  }
+
+  /**
+   * Asocia una ejecución a una conversación
+   * 
+   * @param executionId - ID de la ejecución
+   * @param conversationId - ID de la conversación
+   */
+  async linkToConversation(executionId: string, conversationId: string) {
+    await this.prisma.execution.update({
+      where: { id: executionId },
+      data: { conversationId },
+    });
+
+    this.logger.debug(
+      `Ejecución ${executionId} asociada a conversación ${conversationId}`,
+    );
+  }
+
+  /**
+   * Actualiza las estadísticas de uso (tokens y costo) de una ejecución
+   * 
+   * @param executionId - ID de la ejecución
+   * @param tokensUsed - Tokens consumidos
+   * @param cost - Costo en USD
+   */
+  async updateUsageStats(
+    executionId: string,
+    tokensUsed: number,
+    cost: number,
+  ) {
+    await this.prisma.execution.update({
+      where: { id: executionId },
+      data: {
+        tokensUsed,
+        cost,
+      },
+    });
+
+    this.logger.debug(
+      `Estadísticas actualizadas para ejecución ${executionId}: ${tokensUsed} tokens, $${cost}`,
+    );
   }
 }
