@@ -62,4 +62,89 @@ export class ConversationsService {
         this.logger.log(`Nueva conversación creada: ${newConversation.id}`);
         return newConversation;
     }
+
+    /**
+     * Obtiene el historial de mensajes de una conversación
+     * 
+     * @param conversationId - ID de la conversación
+     * @returns Array de mensajes ordenados cronológicamente
+     */
+    async getMessageHistory(conversationId: string) {
+        return this.prisma.message.findMany({
+            where: { conversationId },
+            orderBy: { createdAt: 'asc' },
+            select: {
+                role: true,
+                content: true,
+            },
+        });
+    }
+
+    /**
+     * Agrega un nuevo mensaje a la conversación
+     * 
+     * @param conversationId - ID de la conversación
+     * @param role - Rol del mensaje (human, assistant, system)
+     * @param content - Contenido del mensaje
+     * @returns Mensaje creado
+     */
+    async addMessage(
+        conversationId: string,
+        role: 'human' | 'assistant' | 'system',
+        content: string,
+    ) {
+        const message = await this.prisma.message.create({
+            data: {
+                conversationId,
+                role,
+                content,
+            },
+        });
+
+        this.logger.debug(
+            `Mensaje ${role} agregado a conversación ${conversationId}`,
+        );
+
+        return message;
+    }
+
+    /**
+     * Incrementa el contador de mensajes y actualiza timestamp
+     * 
+     * @param conversationId - ID de la conversación
+     */
+    async incrementMessageCount(conversationId: string) {
+        await this.prisma.conversation.update({
+            where: { id: conversationId },
+            data: {
+                messageCount: { increment: 1 },
+                lastMessageAt: new Date(),
+            },
+        });
+    }
+
+    /**
+     * Actualiza las estadísticas de uso (tokens y costo) de la conversación
+     * 
+     * @param conversationId - ID de la conversación
+     * @param tokens - Tokens consumidos
+     * @param cost - Costo en USD
+     */
+    async updateUsageStats(
+        conversationId: string,
+        tokens: number,
+        cost: number,
+    ) {
+        await this.prisma.conversation.update({
+            where: { id: conversationId },
+            data: {
+                totalTokens: { increment: tokens },
+                totalCost: { increment: cost },
+            },
+        });
+
+        this.logger.debug(
+            `Estadísticas actualizadas para conversación ${conversationId}: +${tokens} tokens, +$${cost}`,
+        );
+    }
 }

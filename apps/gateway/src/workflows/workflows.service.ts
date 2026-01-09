@@ -303,39 +303,26 @@ export class WorkflowsService {
         );
 
         // Asociar la ejecución a la conversación
-        await this.prisma.execution.update({
-            where: { id: execution.id },
-            data: { conversationId: conversation.id },
-        });
+        await this.executionsService.linkToConversation(
+            execution.id,
+            conversation.id,
+        );
 
         // OBTENER HISTORIAL ANTES de guardar el mensaje del usuario
         // Esto evita duplicados en el message_history que enviamos al agente
-        const messageHistory = await this.prisma.message.findMany({
-            where: { conversationId: conversation.id },
-            orderBy: { createdAt: 'asc' },
-            select: {
-                role: true,
-                content: true,
-            },
-        });
+        const messageHistory = await this.conversationsService.getMessageHistory(
+            conversation.id,
+        );
 
         // GUARDAR MENSAJE DEL USUARIO INMEDIATAMENTE
-        await this.prisma.message.create({
-            data: {
-                conversationId: conversation.id,
-                role: 'human',
-                content: userMessage,
-            },
-        });
+        await this.conversationsService.addMessage(
+            conversation.id,
+            'human',
+            userMessage,
+        );
 
         // Actualizar contador de mensajes de la conversación
-        await this.prisma.conversation.update({
-            where: { id: conversation.id },
-            data: {
-                messageCount: { increment: 1 },
-                lastMessageAt: new Date(),
-            },
-        });
+        await this.conversationsService.incrementMessageCount(conversation.id);
 
         // 5. OBTENER WORKFLOW CON RELACIONES PARA EL PAYLOAD
         const workflowWithTools = await this.prisma.workflow.findUnique({
@@ -380,22 +367,16 @@ export class WorkflowsService {
             const lastMessage = messages[messages.length - 1]; // Último mensaje = respuesta del asistente
             
             if (lastMessage && lastMessage.role === 'assistant') {
-                await this.prisma.message.create({
-                    data: {
-                        conversationId: conversation.id,
-                        role: lastMessage.role,
-                        content: lastMessage.content,
-                    },
-                });
+                await this.conversationsService.addMessage(
+                    conversation.id,
+                    lastMessage.role,
+                    lastMessage.content,
+                );
                 
                 // Actualizar estadísticas de la conversación
-                await this.prisma.conversation.update({
-                    where: { id: conversation.id },
-                    data: {
-                        messageCount: { increment: 1 },
-                        lastMessageAt: new Date(),
-                    },
-                });
+                await this.conversationsService.incrementMessageCount(
+                    conversation.id,
+                );
                 
                 this.logger.debug(
                     `Guardado mensaje del asistente en conversación ${conversation.id}`,
@@ -486,22 +467,18 @@ export class WorkflowsService {
             );
 
             // 8.3. ACTUALIZAR EXECUTION CON TOKENS Y COSTO
-            await this.prisma.execution.update({
-                where: { id: execution.id },
-                data: {
-                    tokensUsed: totalTokens,
-                    cost: costUSD,
-                },
-            });
+            await this.executionsService.updateUsageStats(
+                execution.id,
+                totalTokens,
+                costUSD,
+            );
 
             // 8.4. ACTUALIZAR CONVERSATION ACUMULANDO TOKENS Y COSTOS
-            await this.prisma.conversation.update({
-                where: { id: conversation.id },
-                data: {
-                    totalTokens: { increment: totalTokens },
-                    totalCost: { increment: costUSD },
-                },
-            });
+            await this.conversationsService.updateUsageStats(
+                conversation.id,
+                totalTokens,
+                costUSD,
+            );
 
             // 9. MARCAR EJECUCIÓN COMO COMPLETADA
             await this.executionsService.updateStatus(execution.id, 'completed', {

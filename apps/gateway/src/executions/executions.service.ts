@@ -1081,4 +1081,46 @@ export class ExecutionsService {
       })),
     };
   }
+
+  /**
+   * Asocia una ejecución a una conversación
+   * 
+   * @param executionId - ID de la ejecución
+   * @param conversationId - ID de la conversación
+   */
+  async linkToConversation(executionId: string, conversationId: string) {
+    await this.prisma.execution.update({
+      where: { id: executionId },
+      data: { conversationId },
+    });
+
+    this.logger.debug(
+      `Ejecución ${executionId} asociada a conversación ${conversationId}`,
+    );
+  }
+
+  /**
+   * Actualiza las estadísticas de uso (tokens y costo) de una ejecución
+   * 
+   * @param executionId - ID de la ejecución
+   * @param tokensUsed - Tokens consumidos
+   * @param cost - Costo en USD
+   */
+  async updateUsageStats(
+    executionId: string,
+    tokensUsed: number,
+    cost: number,
+  ) {
+    await this.prisma.execution.update({
+      where: { id: executionId },
+      data: {
+        tokensUsed,
+        cost,
+      },
+    });
+
+    this.logger.debug(
+      `Estadísticas actualizadas para ejecución ${executionId}: ${tokensUsed} tokens, $${cost}`,
+    );
+  }
 }
