@@ -3,6 +3,7 @@ import {
   ConflictException, 
   UnauthorizedException, 
   Logger,
+  NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -12,9 +13,8 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../database/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UserPayload } from '../common/types/user-payload.type';
-import { PlanType } from '@workflow-automation/shared-types';
+import { SubscriptionPlan } from '@workflow-automation/shared-types';
 import * as speakeasy from 'speakeasy';
 import * as qrcode from 'qrcode';
 
@@ -41,6 +41,7 @@ export class AuthService {
 
   /**
    * Registra una nueva organización con su usuario Owner
+   * Orquesta las llamadas a OrganizationsService, CreditsService y UsersService
    *
    * @param dto - Datos de registro (name, email, password)
    * @returns Organization + User Owner + tokens JWT
@@ -57,39 +58,39 @@ export class AuthService {
       throw new ConflictException('El email ya está registrado');
     }
 
-    // 2. Hashear la contraseña
-    const passwordHash = await bcrypt.hash(dto.password, this.SALT_ROUNDS);
+    // 2. Crear todo en una transacción
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Generar slug único usando método centralizado de OrganizationsService
+      // Pasamos tx para que funcione dentro de la transacción
+      const { OrganizationsService } = await import('../organizations/organizations.service');
+      const slug = await OrganizationsService.generateUniqueSlug(dto.name, tx);
 
-    // 3. Generar slug único para la organización
-    const baseSlug = dto.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-
-    let slug = baseSlug;
-    let counter = 1;
-    while (await this.prisma.organization.findUnique({ where: { slug } })) {
-      slug = `${baseSlug}-${counter}`;
-      counter++;
-    }
-
-    // 4. Crear Organization + User Owner en una transacción
-    const result = await this.prisma.$transaction(async (tx: any) => {
-      // Crear la organización
       const organization = await tx.organization.create({
         data: {
           name: dto.name,
           slug,
-          plan: PlanType.FREE,
-          maxUsers: 3,
-          maxWorkflows: 5,
-          maxExecutionsPerDay: 100,
-          maxApiKeys: 2,
+          plan: SubscriptionPlan.FREE,
           isActive: true,
+          allowOverages: false,
+        },
+      });
+
+      // Crear balance de créditos inicial
+      await tx.creditBalance.create({
+        data: {
+          organizationId: organization.id,
+          balance: 0,
+          lifetimeEarned: 0,
+          lifetimeSpent: 0,
+          currentMonthSpent: 0,
+          currentMonthCostUSD: 0,
         },
       });
 
       // Crear el usuario Owner
+      const passwordHash = await this.hashPassword(dto.password);
+      const { token, expiresAt } = this.generateTokenWithExpiry(24);
+
       const user = await tx.user.create({
         data: {
           email: dto.email,
@@ -99,6 +100,8 @@ export class AuthService {
           organizationId: organization.id,
           isActive: true,
           emailVerified: false,
+          emailVerificationToken: token,
+          emailVerificationTokenExpires: expiresAt,
         },
       });
 
@@ -265,21 +268,19 @@ export class AuthService {
       secret:
         this.configService.get<string>('JWT_SECRET') ||
         'super-secret-change-in-production',
-      expiresIn: this.configService.get<string>('JWT_EXPIRES_IN') || '1d',
+      expiresIn: this.configService.get('JWT_EXPIRES_IN') || '1d',
     });
 
     // 3. Generar refresh token (larga duración)
-    const refreshTokenExpiry =
-      this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d';
     const refreshToken = this.jwtService.sign(payload, {
       secret:
         this.configService.get<string>('JWT_REFRESH_SECRET') ||
         'refresh-secret-change-in-production',
-      expiresIn: refreshTokenExpiry as any,
+      expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN') || '7d',
     });
 
     // 4. Generar hash del refresh token
-    const refreshTokenHash = await bcrypt.hash(refreshToken, this.SALT_ROUNDS);
+    const refreshTokenHash = await this.hashPassword(refreshToken);
 
     // 5. Generar familyId para token rotation
     const familyId = crypto.randomUUID();
@@ -442,40 +443,145 @@ export class AuthService {
     return { message: 'Sesión cerrada en todos los dispositivos' };
   }
 
-  // ========================================================================
-  // MÉTODOS DE ADMINISTRACIÓN - TODO: Mover a UsersService y OrganizationsService
-  // ========================================================================
-
-  // Estos métodos usan el modelo Client antiguo y deben ser refactorizados
-  // para trabajar con User y Organization por separado.
-  // Se comentan temporalmente para evitar errores de compilación.
-
-  /*
-  async createUser(dto: CreateUserDto) {
-    // TODO: Implementar en UsersService
-    // Debe crear un usuario dentro de una organización existente
-    // y validar límites del plan de la organización
+  // ==================== PASSWORD UTILITIES ====================
+  /**
+   * Hashea una contraseña usando bcrypt
+   * 
+   * @param password - Contraseña en texto plano
+   * @returns Contraseña hasheada
+   */
+  async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, this.SALT_ROUNDS);
   }
 
-  async listUsers(includeDeleted: boolean = false, status?: 'active' | 'inactive' | 'all') {
-    // TODO: Implementar en UsersService
-    // Debe listar usuarios de una organización específica
+  // ==================== VERIFICATION TOKEN UTILITIES ====================
+  /**
+   * Genera un token de verificación aleatorio
+   * 
+   * @returns Token hexadecimal de 32 bytes (64 caracteres)
+   */
+  generateVerificationToken(): string {
+    return crypto.randomBytes(32).toString('hex');
   }
 
-  async findUserById(userId: string) {
-    // TODO: Implementar en UsersService
+  /**
+   * Genera un token de verificación con fecha de expiración
+   * 
+   * @param expiresInHours - Horas hasta que expire el token (default: 24)
+   * @returns Objeto con token y fecha de expiración
+   */
+  generateTokenWithExpiry(expiresInHours: number = 24): { token: string; expiresAt: Date } {
+    const token = this.generateVerificationToken();
+    const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
+    
+    return { token, expiresAt };
   }
 
-  async updateUser(userId: string, updateData: any) {
-    // TODO: Implementar en UsersService
+  /**
+   * Valida si un token de verificación ha expirado
+   * 
+   * @param expiresAt - Fecha de expiración del token
+   * @returns true si ha expirado, false si aún es válido
+   */
+  isTokenExpired(expiresAt: Date | null): boolean {
+    if (!expiresAt) return true;
+    return expiresAt < new Date();
   }
 
-  async deleteUser(userId: string) {
-    // TODO: Implementar en UsersService
-  }
-  */
+  // ==================== EMAIL VERIFICATION ====================
+  /**
+   * Verificar email con token
+   * 
+   * @param token - Token de verificación
+   * @returns Mensaje de éxito y usuario verificado
+   */
+  async verifyEmail(token: string): Promise<{ message: string; user: any }> {
+    // Buscar usuario por token
+    const user = await this.prisma.user.findUnique({
+      where: { emailVerificationToken: token },
+    });
 
-  async generateTempToken(dto: LoginDto, expiresIn: string = '15m') {
+    if (!user) {
+      throw new NotFoundException('Invalid verification token');
+    }
+
+    // Validar que el token no haya expirado
+    if (this.isTokenExpired(user.emailVerificationTokenExpires)) {
+      throw new BadRequestException('Verification token has expired. Please request a new one.');
+    }
+
+    // Verificar email y limpiar token
+    const verifiedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerified: true,
+        emailVerificationToken: null,
+        emailVerificationTokenExpires: null,
+        isActive: true, // Activar usuario al verificar email
+      },
+    });
+
+    return {
+      message: 'Email verified successfully',
+      user: verifiedUser,
+    };
+  }
+
+  /**
+   * Regenerar token de verificación cuando ha expirado
+   * Se puede usar por email o userId
+   * 
+   * @param emailOrUserId - Email o ID del usuario
+   * @param organizationId - ID de la organización (opcional)
+   * @returns Token generado y fecha de expiración
+   */
+  async regenerateVerificationToken(
+    emailOrUserId: string,
+    organizationId?: string,
+  ): Promise<{ message: string; token: string; expiresAt: Date }> {
+    // Buscar usuario por email o ID
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: emailOrUserId },
+          { id: emailOrUserId },
+        ],
+        ...(organizationId && { organizationId }),
+        deletedAt: null,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Validar que el email NO esté verificado
+    if (user.emailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    // Generar nuevo token y expiración
+    const { token: newToken, expiresAt } = this.generateTokenWithExpiry(24);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerificationToken: newToken,
+        emailVerificationTokenExpires: expiresAt,
+      },
+    });
+
+    // TODO: Enviar email con nuevo token
+    // await this.notificationsService.sendVerificationEmail(user.email, newToken);
+
+    return {
+      message: 'Verification token regenerated successfully',
+      token: newToken,
+      expiresAt,
+    };
+  }
+
+  async generateTempToken(dto: LoginDto, expiresIn: string | number = '15m') {
     // 1. Validar credenciales y obtener usuario con organización
     const { user, organization } = await this.validateUser(
       dto.email,
@@ -490,13 +596,15 @@ export class AuthService {
       organizationName: organization.name,
       plan: organization.plan,
     };
+    
     // 2. Generar temporary token
-    const tempToken = this.jwtService.sign(payload, {
+    const options: any = {
       secret:
         this.configService.get<string>('TEMP_TOKEN_SECRET') ||
         'temp-token-secret',
       expiresIn,
-    });
+    };
+    const tempToken = this.jwtService.sign(payload, options);
     return tempToken;
   }
 
@@ -508,7 +616,7 @@ export class AuthService {
       where: { id: userId },
       data: { twoFactorSecret: secret.base32, twoFactorEnabled: false },
     });
-    const qr = await qrcode.toDataURL(secret.otpauth_url);
+    const qr = await qrcode.toDataURL(secret.otpauth_url || '');
     return { qr };
   }
 

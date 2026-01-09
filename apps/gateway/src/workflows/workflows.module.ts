@@ -5,8 +5,8 @@ import { ExecutionsModule } from '../executions/executions.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { AgentsModule } from "../agents/agents.module";
 import { ConversationsModule } from '../conversations/conversations.module';
-import { CreditBalanceService } from '../credits/credit.service';
-import { LlmModelsService } from '../llm-models/llm-models.service';
+import { CreditsModule } from '../credits/credits.module';
+import { LlmModelsModule } from '../llm-models/llm-models.module';
 
 
 /**
@@ -14,9 +14,16 @@ import { LlmModelsService } from '../llm-models/llm-models.service';
  * Agrupa toda la funcionalidad relacionada con workflows
  */
 @Module({
-    imports: [ExecutionsModule, OrganizationsModule, AgentsModule, ConversationsModule],
+    imports: [
+        ExecutionsModule, 
+        OrganizationsModule, 
+        AgentsModule, 
+        ConversationsModule,
+        CreditsModule,
+        LlmModelsModule,
+    ],
     controllers: [WorkflowsController],
-    providers: [WorkflowsService, CreditBalanceService, LlmModelsService],
+    providers: [WorkflowsService],
     exports: [WorkflowsService],
 })
 export class WorkflowsModule {}

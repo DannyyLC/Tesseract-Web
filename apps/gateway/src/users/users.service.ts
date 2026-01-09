@@ -6,6 +6,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { AuthService } from '../auth/auth.service';
 import {
   CreateOwnerDto,
   InviteUserDto,
@@ -13,8 +14,6 @@ import {
   UserFiltersDto,
   CreateUserDto
 } from './dto';
-import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
 import { User, Organization, Prisma } from '@prisma/client';
 
 interface PaginatedUsers {
@@ -47,7 +46,11 @@ interface UserActivity {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
+  ) {}
 
   // ==================== CREATE ====================
   /**
@@ -55,9 +58,14 @@ export class UsersService {
    */
   async create(user: CreateUserDto): Promise<User> {
     // Hashear password
-    const hashedPassword = await bcrypt.hash(user.password, 10);
+    const hashedPassword = await this.authService.hashPassword(user.password);
 
     const emailVerified = user.emailVerified ?? false;
+
+    // Generar token de verificación si es necesario
+    const { token, expiresAt } = emailVerified 
+      ? { token: null, expiresAt: null }
+      : this.authService.generateTokenWithExpiry(24);
 
     // Crear usuario
     const createdUser = await this.prisma.user.create({
@@ -69,52 +77,12 @@ export class UsersService {
         organizationId: user.organizationId,
         isActive: user.isActive ?? true,
         emailVerified,
-        // Solo generar token si el email NO está verificado
-        emailVerificationToken: emailVerified ? null : randomBytes(32).toString('hex'),
-        // Token expira en 24 horas
-        emailVerificationTokenExpires: emailVerified ? null : new Date(Date.now() + 24 * 60 * 60 * 1000),
+        emailVerificationToken: token,
+        emailVerificationTokenExpires: expiresAt,
       },
     });
 
     return createdUser;
-  }
-
-  /**
-   * Crear el owner inicial de una organización
-   * Solo llamado por organizations.service al crear org
-   */
-  async createOwner(
-    organizationId: string,
-    data: CreateOwnerDto,
-  ): Promise<User> {
-    // Validar que la organización existe y está activa
-    await this.validateOrganization(organizationId);
-
-    // Validar que NO existe otro owner
-    await this.validateSingleOwner(organizationId);
-
-    // Validar email único global
-    await this.validateEmailUnique(data.email);
-
-    // Hashear password
-    const hashedPassword = await bcrypt.hash(data.password, 10);
-
-    // Crear owner
-    const owner = await this.prisma.user.create({
-      data: {
-        email: data.email,
-        name: data.name,
-        password: hashedPassword,
-        role: 'owner',
-        organizationId,
-        isActive: true,
-        emailVerified: false,
-        emailVerificationToken: randomBytes(32).toString('hex'),
-        emailVerificationTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      },
-    });
-
-    return owner;
   }
 
   /**
@@ -135,8 +103,11 @@ export class UsersService {
     await this.validateEmailUnique(data.email);
 
     // Generar password temporal (el usuario lo cambiará al aceptar)
-    const temporaryPassword = randomBytes(32).toString('hex');
-    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    const temporaryPassword = this.authService.generateVerificationToken();
+    const hashedPassword = await this.authService.hashPassword(temporaryPassword);
+
+    // Generar token de invitación
+    const { token, expiresAt } = this.authService.generateTokenWithExpiry(24);
 
     // Crear usuario inactivo con token de invitación
     const user = await this.prisma.user.create({
@@ -148,8 +119,8 @@ export class UsersService {
         organizationId,
         isActive: false,
         emailVerified: false,
-        emailVerificationToken: randomBytes(32).toString('hex'),
-        emailVerificationTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        emailVerificationToken: token,
+        emailVerificationTokenExpires: expiresAt,
       },
     });
 
@@ -183,13 +154,13 @@ export class UsersService {
     }
 
     // Generar nuevo token de invitación
-    const invitationToken = randomBytes(32).toString('hex');
+    const { token: invitationToken, expiresAt } = this.authService.generateTokenWithExpiry(24);
 
     await this.prisma.user.update({
       where: { id: userId },
       data: {
         emailVerificationToken: invitationToken,
-        emailVerificationTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        emailVerificationTokenExpires: expiresAt,
       },
     });
 
@@ -233,92 +204,6 @@ export class UsersService {
 
     return {
       message: 'Invitation canceled successfully',
-    };
-  }
-
-  /**
-   * Verificar email con token
-   */
-  async verifyEmail(token: string): Promise<{ message: string; user: User }> {
-    // Buscar usuario por token
-    const user = await this.prisma.user.findUnique({
-      where: { emailVerificationToken: token },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Invalid verification token');
-    }
-
-    // Validar que el token no haya expirado
-    if (user.emailVerificationTokenExpires && user.emailVerificationTokenExpires < new Date()) {
-      throw new BadRequestException('Verification token has expired. Please request a new one.');
-    }
-
-    // Verificar email y limpiar token
-    const verifiedUser = await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        emailVerified: true,
-        emailVerificationToken: null,
-        emailVerificationTokenExpires: null,
-        isActive: true, // Activar usuario al verificar email
-      },
-    });
-
-    return {
-      message: 'Email verified successfully',
-      user: verifiedUser,
-    };
-  }
-
-  /**
-   * Regenerar token de verificación cuando ha expirado
-   * Se puede usar por email o userId
-   */
-  async regenerateVerificationToken(
-    emailOrUserId: string,
-    organizationId?: string,
-  ): Promise<{ message: string; token: string; expiresAt: Date }> {
-    // Buscar usuario por email o ID
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: emailOrUserId },
-          { id: emailOrUserId },
-        ],
-        ...(organizationId && { organizationId }),
-        deletedAt: null,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    // Validar que el email NO esté verificado
-    if (user.emailVerified) {
-      throw new BadRequestException('Email is already verified');
-    }
-
-    // Generar nuevo token y expiración
-    const newToken = randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        emailVerificationToken: newToken,
-        emailVerificationTokenExpires: expiresAt,
-      },
-    });
-
-    // TODO: Enviar email con nuevo token
-    // await this.notificationsService.sendVerificationEmail(user.email, newToken);
-
-    return {
-      message: 'Verification token regenerated successfully',
-      token: newToken,
-      expiresAt,
     };
   }
 

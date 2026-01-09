@@ -6,7 +6,7 @@ import { WorkflowsModule } from './workflows/workflows.module';
 import { ExecutionsModule } from './executions/executions.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { OrganizationsModule } from './organizations/organizations.module';
-import { SecretsModule } from './secrets/secrets.module';
+import { ConversationsModule } from './conversations/conversations.module';
 
 
 @Module({
@@ -20,10 +20,10 @@ import { SecretsModule } from './secrets/secrets.module';
       ignoreEnvFile: false,
     }),
     
-    SecretsModule,        
     DatabaseModule,
     AuthModule,
     OrganizationsModule,
+    ConversationsModule,
     WorkflowsModule,
     ExecutionsModule,
     ApiKeysModule,

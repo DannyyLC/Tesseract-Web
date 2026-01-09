@@ -9,13 +9,12 @@ import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { ExecutionsService } from '../executions/executions.service';
 import { OrganizationsService } from '../organizations/organizations.service';
-import { SecretsService } from '../secrets/secrets.service';
 import { AgentsService } from '../agents/agents.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
 import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
-import { CreditBalanceService } from '../credits/credit.service';
+import { CreditsService } from '../credits/credits.service';
 import { LlmModelsService } from '../llm-models/llm-models.service';
-import { ConversationsService } from '@/conversations/conversations.service';
+import { ConversationsService } from '../conversations/conversations.service';
 import {
   WorkflowNotFoundException,
   WorkflowPausedException,
@@ -35,9 +34,8 @@ export class WorkflowsService {
         private readonly prisma: PrismaService,
         private readonly executionsService: ExecutionsService,
         private readonly organizationsService: OrganizationsService,
-        private readonly secretsService: SecretsService,
         private readonly agentsService: AgentsService,
-        private readonly creditBalanceService: CreditBalanceService,
+        private readonly creditsService: CreditsService,
         private readonly llmModelsService: LlmModelsService,
         private readonly conversationsService: ConversationsService,
     ) {}
@@ -265,7 +263,7 @@ export class WorkflowsService {
         }
 
         // 2.1. VALIDAR BALANCE DE CRÉDITOS
-        const canExecute = await this.creditBalanceService.canExecuteWorkflow(
+        const canExecute = await this.creditsService.canExecuteWorkflow(
             organizationId,
             workflow.category,
         );
@@ -466,7 +464,7 @@ export class WorkflowsService {
             );
 
             // 8.2. DESCONTAR CRÉDITOS DEL BALANCE
-            await this.creditBalanceService.deductCredits(
+            await this.creditsService.deductCredits(
                 organizationId,
                 execution.id,
                 workflow.id,
@@ -581,10 +579,7 @@ export class WorkflowsService {
 
             // Agregar credenciales si existen
             if (tenantTool.credentialPath) {
-                const creds = await this.secretsService.getCredentials(
-                    tenantTool.credentialPath,
-                );
-                toolInstances[toolId].credentials = creds;
+                console.log('falta por haber')
             }
         }
 

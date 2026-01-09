@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { DatabaseModule } from '../database/database.module';
 import { ApiKeyGuard } from './guards/api-key.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -11,23 +12,12 @@ import { AuthController } from './auth.controller';
 
 /**
  * AuthModule agrupa toda la funcionalidad de autenticación
- * 
- * Contiene:
- * - ApiKeyGuard: Para proteger endpoints con API Keys (apps externas)
- * - JwtAuthGuard: Para proteger endpoints con JWT (usuarios humanos)
- * - RolesGuard: Para verificar roles de usuario (owner/admin/viewer)
- * - JwtStrategy: Estrategia para validar JWT tokens
- * - CurrentUser: Decorador para obtener el usuario autenticado (JWT)
- * - CurrentApiKey: Decorador para obtener la API key autenticada
- * - @Roles: Decorador para especificar roles requeridos
- * 
- * Exporta:
- * - ApiKeyGuard: Para endpoints de workflows (ejecución)
- * - JwtAuthGuard: Para endpoints de gestión (API Keys, configuración)
- * - RolesGuard: Para verificar permisos basados en roles
  */
 @Module({
   imports: [
+    // Database para PrismaService
+    DatabaseModule,
+    
     // Passport con estrategia por defecto 'jwt'
     PassportModule.register({ defaultStrategy: 'jwt' }),
     
@@ -59,8 +49,7 @@ import { AuthController } from './auth.controller';
     JwtAuthGuard,
     RolesGuard,
     AuthService,
-    JwtModule,      // Para que otros módulos puedan generar tokens
-    PassportModule, // Para usar estrategias en otros módulos
+    PassportModule
   ],
 })
 export class AuthModule {}
