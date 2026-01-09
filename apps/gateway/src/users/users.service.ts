@@ -54,9 +54,51 @@ export class UsersService {
 
   // ==================== CREATE ====================
   /**
+   * Validar que un usuario se puede crear (sin crearlo)
+   * Útil para validaciones previas antes de formularios o procesos de registro
+   */
+  async validate(user: CreateUserDto): Promise<{ valid: boolean; message: string }> {
+    try {
+      // Validar que la organización existe y está activa
+      await this.validateOrganization(user.organizationId);
+
+      // Validar límite de usuarios del plan
+      await this.validateUserLimit(user.organizationId);
+
+      // Validar email único global
+      await this.authService.validateEmailUnique(user.email);
+
+      // Validar requisitos mínimos de contraseña
+      this.authService.validatePasswordStrength(user.password);
+
+      return {
+        valid: true,
+        message: 'User can be created successfully',
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        message: (error as Error).message || 'Validation failed',
+      };
+    }
+  }
+
+  /**
    * Crear usuario
    */
   async create(user: CreateUserDto): Promise<User> {
+    // Validar que la organización existe y está activa
+    await this.validateOrganization(user.organizationId);
+
+    // Validar límite de usuarios del plan
+    await this.validateUserLimit(user.organizationId);
+
+    // Validar email único global
+    await this.authService.validateEmailUnique(user.email);
+
+    // Validar requisitos mínimos de contraseña
+    this.authService.validatePasswordStrength(user.password);
+
     // Hashear password
     const hashedPassword = await this.authService.hashPassword(user.password);
 
@@ -100,7 +142,7 @@ export class UsersService {
     await this.validateUserLimit(organizationId);
 
     // Validar email único global
-    await this.validateEmailUnique(data.email);
+    await this.authService.validateEmailUnique(data.email);
 
     // Generar password temporal (el usuario lo cambiará al aceptar)
     const temporaryPassword = this.authService.generateVerificationToken();
@@ -759,18 +801,5 @@ export class UsersService {
     }
 
     return org;
-  }
-
-  /**
-   * Validar que el email es único (global)
-   */
-  private async validateEmailUnique(email: string): Promise<void> {
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('Email already registered');
-    }
   }
 }

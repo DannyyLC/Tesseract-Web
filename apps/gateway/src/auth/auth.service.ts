@@ -39,6 +39,9 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
+  //==============================================================
+  // AUTHENTICATION METHODS 
+  //==============================================================
   /**
    * Registra una nueva organización con su usuario Owner
    * Orquesta las llamadas a OrganizationsService, CreditsService y UsersService
@@ -180,6 +183,77 @@ export class AuthService {
   }
 
   /**
+   * Cierra sesión del usuario invalidando su refresh token
+   *
+   * @param refreshToken - Refresh token a invalidar
+   */
+  async logout(refreshToken: string) {
+    try {
+      // 1. Decodificar el token (sin verificar expiración para permitir logout de tokens expirados)
+      const payload = this.jwtService.decode(refreshToken) as UserPayload;
+
+      if (!payload) {
+        throw new UnauthorizedException('Token inválido');
+      }
+
+      // 2. Buscar todos los refresh tokens del usuario
+      const storedTokens = await this.prisma.refreshToken.findMany({
+        where: {
+          userId: payload.sub,
+          revokedAt: null,
+        },
+      });
+
+      // 3. Encontrar y revocar el token específico
+      for (const stored of storedTokens) {
+        const isMatch = await bcrypt.compare(refreshToken, stored.tokenHash);
+        if (isMatch) {
+          await this.prisma.refreshToken.update({
+            where: { id: stored.id },
+            data: {
+              revokedAt: new Date(),
+              revokedReason: 'logout',
+            },
+          });
+
+          this.logger.log(`Sesión cerrada para: ${payload.email}`);
+          return { message: 'Sesión cerrada exitosamente' };
+        }
+      }
+
+      return { message: 'Token no encontrado' };
+    } catch (error) {
+      this.logger.error('Error al cerrar sesión', error);
+      throw new UnauthorizedException('Error al cerrar sesión');
+    }
+  }
+
+  /**
+   * Invalida todos los refresh tokens de un usuario
+   * Útil para "cerrar sesión en todos los dispositivos"
+   *
+   * @param userId - ID del usuario
+   */
+  async logoutAll(userId: string) {
+    await this.prisma.refreshToken.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+        revokedReason: 'logout_all',
+      },
+    });
+
+    this.logger.log(`Todas las sesiones cerradas para usuario: ${userId}`);
+    return { message: 'Sesión cerrada en todos los dispositivos' };
+  }
+
+  //==============================================================
+  // VALIDATIONS
+  //==============================================================
+  /**
    * Valida las credenciales del usuario
    *
    * @param email - Email del usuario
@@ -233,6 +307,51 @@ export class AuthService {
     return { user, organization: user.organization };
   }
 
+  /**
+   * Validar requisitos mínimos de contraseña
+   */
+  public validatePasswordStrength(password: string): void {
+    if (!password || password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters long');
+    }
+
+    // Al menos una letra mayúscula
+    if (!/[A-Z]/.test(password)) {
+      throw new BadRequestException('Password must contain at least one uppercase letter');
+    }
+
+    // Al menos una letra minúscula
+    if (!/[a-z]/.test(password)) {
+      throw new BadRequestException('Password must contain at least one lowercase letter');
+    }
+
+    // Al menos un número
+    if (!/\d/.test(password)) {
+      throw new BadRequestException('Password must contain at least one number');
+    }
+
+    // Al menos un carácter especial
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      throw new BadRequestException('Password must contain at least one special character');
+    }
+  }
+
+    /**
+   * Validar que el email es único (global)
+   */
+  async validateEmailUnique(email: string): Promise<void> {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Email already registered');
+    }
+  }
+
+  //==============================================================
+  // TOKENS
+  //==============================================================
   /**
    * Genera access token y refresh token
    *
@@ -376,86 +495,6 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token inválido o expirado');
     }
   }
-
-  /**
-   * Cierra sesión del usuario invalidando su refresh token
-   *
-   * @param refreshToken - Refresh token a invalidar
-   */
-  async logout(refreshToken: string) {
-    try {
-      // 1. Decodificar el token (sin verificar expiración para permitir logout de tokens expirados)
-      const payload = this.jwtService.decode(refreshToken) as UserPayload;
-
-      if (!payload) {
-        throw new UnauthorizedException('Token inválido');
-      }
-
-      // 2. Buscar todos los refresh tokens del usuario
-      const storedTokens = await this.prisma.refreshToken.findMany({
-        where: {
-          userId: payload.sub,
-          revokedAt: null,
-        },
-      });
-
-      // 3. Encontrar y revocar el token específico
-      for (const stored of storedTokens) {
-        const isMatch = await bcrypt.compare(refreshToken, stored.tokenHash);
-        if (isMatch) {
-          await this.prisma.refreshToken.update({
-            where: { id: stored.id },
-            data: {
-              revokedAt: new Date(),
-              revokedReason: 'logout',
-            },
-          });
-
-          this.logger.log(`Sesión cerrada para: ${payload.email}`);
-          return { message: 'Sesión cerrada exitosamente' };
-        }
-      }
-
-      return { message: 'Token no encontrado' };
-    } catch (error) {
-      this.logger.error('Error al cerrar sesión', error);
-      throw new UnauthorizedException('Error al cerrar sesión');
-    }
-  }
-
-  /**
-   * Invalida todos los refresh tokens de un usuario
-   * Útil para "cerrar sesión en todos los dispositivos"
-   *
-   * @param userId - ID del usuario
-   */
-  async logoutAll(userId: string) {
-    await this.prisma.refreshToken.updateMany({
-      where: {
-        userId,
-        revokedAt: null,
-      },
-      data: {
-        revokedAt: new Date(),
-        revokedReason: 'logout_all',
-      },
-    });
-
-    this.logger.log(`Todas las sesiones cerradas para usuario: ${userId}`);
-    return { message: 'Sesión cerrada en todos los dispositivos' };
-  }
-
-  // ==================== PASSWORD UTILITIES ====================
-  /**
-   * Hashea una contraseña usando bcrypt
-   * 
-   * @param password - Contraseña en texto plano
-   * @returns Contraseña hasheada
-   */
-  async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, this.SALT_ROUNDS);
-  }
-
   // ==================== VERIFICATION TOKEN UTILITIES ====================
   /**
    * Genera un token de verificación aleatorio
@@ -488,45 +527,6 @@ export class AuthService {
   isTokenExpired(expiresAt: Date | null): boolean {
     if (!expiresAt) return true;
     return expiresAt < new Date();
-  }
-
-  // ==================== EMAIL VERIFICATION ====================
-  /**
-   * Verificar email con token
-   * 
-   * @param token - Token de verificación
-   * @returns Mensaje de éxito y usuario verificado
-   */
-  async verifyEmail(token: string): Promise<{ message: string; user: any }> {
-    // Buscar usuario por token
-    const user = await this.prisma.user.findUnique({
-      where: { emailVerificationToken: token },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Invalid verification token');
-    }
-
-    // Validar que el token no haya expirado
-    if (this.isTokenExpired(user.emailVerificationTokenExpires)) {
-      throw new BadRequestException('Verification token has expired. Please request a new one.');
-    }
-
-    // Verificar email y limpiar token
-    const verifiedUser = await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        emailVerified: true,
-        emailVerificationToken: null,
-        emailVerificationTokenExpires: null,
-        isActive: true, // Activar usuario al verificar email
-      },
-    });
-
-    return {
-      message: 'Email verified successfully',
-      user: verifiedUser,
-    };
   }
 
   /**
@@ -610,6 +610,20 @@ export class AuthService {
     return tempToken;
   }
 
+  // ==================== PASSWORD UTILITIES ====================
+  /**
+   * Hashea una contraseña usando bcrypt
+   * 
+   * @param password - Contraseña en texto plano
+   * @returns Contraseña hasheada
+   */
+  async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, this.SALT_ROUNDS);
+  }
+
+  //==============================================================
+  // TOKENS
+  //==============================================================
   async setup2FA(userId: string) {
     //Now we are wrapping the userId in a text, optionally we could add a complex secret here
     const secret = speakeasy.generateSecret({ name: `Tesseract (${userId})` });
@@ -682,6 +696,7 @@ export class AuthService {
     }
   }
 
+  // ==================== EMAIL VERIFICATION ====================
   async verifyEmail(token: string): Promise<boolean> {
     try {
       const email = this.jwtService.verify(token, {
