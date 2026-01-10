@@ -3,7 +3,7 @@ import { PrismaService } from '../database/prisma.service';
 import { ApiKeyUtil } from "../auth/utils/api-key.util";
 import { CreateApiKeyDto } from "./dto/create-api-key.dto";
 import { UpdateApiKeyDto } from "./dto/update-api-key.dto";
-import { PLANS, PlanType } from '@workflow-automation/shared-types';
+import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
 
 @Injectable()
 export class  ApiKeysService {
@@ -29,7 +29,7 @@ export class  ApiKeysService {
         }
 
         // 2. Verificar límite de API Keys según el plan
-        const planConfig = PLANS[organization.plan as PlanType];
+        const planConfig = PLANS[organization.plan as SubscriptionPlan];
         const maxApiKeys = planConfig.limits.maxApiKeys;
         
         // -1 significa ilimitado

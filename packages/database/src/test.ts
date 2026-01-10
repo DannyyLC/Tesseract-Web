@@ -5,8 +5,8 @@ async function test() {
     await prisma.$connect();
     console.log('Conexión exitosa a PostgreSQL');
 
-    const count = await prisma.client.count();
-    console.log(`Clientes en la DB: ${count}`);
+    const count = await prisma.organization.count();
+    console.log(`Organizaciones en la DB: ${count}`);
 
     await prisma.$disconnect();
     console.log('Desconectado');

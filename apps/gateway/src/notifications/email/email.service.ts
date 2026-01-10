@@ -8,7 +8,7 @@ export class EmailService {
   constructor(
     private readonly mailerService: MailerService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   async sendWelcomeEmail(userEmail: string, name: string) {
     await this.mailerService.sendMail({
@@ -28,12 +28,12 @@ export class EmailService {
     });
   }
 
-  private async generateVerificationToken(payload: String): Promise<string> {
+  private async generateVerificationToken(payload: string): Promise<string> {
     const token = this.jwtService.sign({
       email: payload,
     }, {
       secret: process.env.JWT_EMAIL_VERIFICATION_SECRET || 'email-verification-secret',
-      expiresIn: process.env.JWT_EMAIL_VERIFICATION_EXPIRES_IN || '30m',
+      expiresIn: (process.env.JWT_EMAIL_VERIFICATION_EXPIRES_IN || '30m') as any,
     });
     return token;
   }
