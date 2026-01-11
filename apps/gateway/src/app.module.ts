@@ -9,6 +9,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 // import { SecretsModule } from './secrets/secrets.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ConversationsModule } from './conversations/conversations.module';
+import { EventsModule } from './events/events.module';
 
 
 @Module({
@@ -30,6 +31,7 @@ import { ConversationsModule } from './conversations/conversations.module';
     ExecutionsModule,
     ApiKeysModule,
     NotificationsModule,
+    EventsModule
   ],
   controllers: [],
   providers: [],
