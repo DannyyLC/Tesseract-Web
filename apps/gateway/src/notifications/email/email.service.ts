@@ -40,14 +40,6 @@ export class EmailService {
     return handlebars.compile(templateSource);
   }
 
-  async sendWelcomeEmail(userEmail: string, name: string) {
-    await this.transporter.sendMail({
-      to: userEmail,
-      subject: 'Welcome to Our App!',
-      html: this.emailVerificationTemplate({ name }),
-    });
-  }
-
   async sendEmailVerificationEMail(userEmail: string) {
     const token = await this.generateVerificationToken(userEmail);
     const verificationUrl = `${process.env.DOMAIN_BASE_URL}/auth/verify-email?token=${token}`;
