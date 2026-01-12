@@ -141,10 +141,10 @@ async def stream_agent_execution(graph, messages: list, conversation_id: str, ct
         max_input_per_model: dict[str, int] = {}
         start_time = time.time()
         
-        # Usar astream_events para capturar todos los eventos del grafo
+        # Usar astream_events v2 (estándar moderno)
         async for event in graph.astream_events(
             {"messages": messages, "iteration_count": 0},
-            version="v1"
+            version="v2"
         ):
             event_type = event.get("event", "")
             
@@ -152,7 +152,8 @@ async def stream_agent_execution(graph, messages: list, conversation_id: str, ct
             # Tokens del modelo (streaming de respuesta)
             # ==========================================
             if event_type == "on_chat_model_stream":
-                chunk = event.get("data", {}).get("chunk")
+                data = event.get("data", {})
+                chunk = data.get("chunk")
                 if chunk and hasattr(chunk, "content") and chunk.content:
                     stream_event = {
                         "type": "token",
@@ -165,14 +166,15 @@ async def stream_agent_execution(graph, messages: list, conversation_id: str, ct
             # ==========================================
             elif event_type == "on_tool_start":
                 tool_name = event.get("name", "unknown")
-                tool_input = event.get("data", {}).get("input", {})
+                data = event.get("data", {})
+                tool_input = data.get("input", {})
                 
                 stream_event = {
                     "type": "tool_start",
                     "content": f"Usando herramienta: {tool_name}",
                     "metadata": {
                         "tool_name": tool_name,
-                        "input": str(tool_input)[:200]  # Limitar tamaño
+                        "input": str(tool_input)[:200]
                     }
                 }
                 yield f"data: {json.dumps(stream_event)}\n\n"
@@ -183,14 +185,15 @@ async def stream_agent_execution(graph, messages: list, conversation_id: str, ct
             # ==========================================
             elif event_type == "on_tool_end":
                 tool_name = event.get("name", "unknown")
-                tool_output = event.get("data", {}).get("output", "")
+                data = event.get("data", {})
+                tool_output = data.get("output", "")
                 
                 stream_event = {
                     "type": "tool_end",
                     "content": f"Herramienta completada: {tool_name}",
                     "metadata": {
                         "tool_name": tool_name,
-                        "output": str(tool_output)[:200]  # Limitar tamaño
+                        "output": str(tool_output)[:200]
                     }
                 }
                 yield f"data: {json.dumps(stream_event)}\n\n"
@@ -200,26 +203,30 @@ async def stream_agent_execution(graph, messages: list, conversation_id: str, ct
             # Mensaje completo del modelo (capturar usage)
             # ==========================================
             elif event_type == "on_chat_model_end":
-                output = event.get("data", {}).get("output")
+                data = event.get("data", {})
+                output = data.get("output")
+                
                 if output:
-                    # 1. Emitir mensaje si hay contenido
-                    if hasattr(output, "content") and output.content:
-                        stream_event = {
-                            "type": "message",
-                            "content": output.content
-                        }
-                        yield f"data: {json.dumps(stream_event)}\n\n"
-                    
+                    # 1. Emitir mensaje final (opcional, ya enviamos tokens)
+                    # if hasattr(output, "content") and output.content:
+                    #     ...
+
                     # 2. Capturar metadata de uso
-                    if hasattr(output, 'usage_metadata') and output.usage_metadata:
+                    # En v2, usage_metadata está directamente en el AIMessage output
+                    usage = None
+                    if hasattr(output, 'usage_metadata'):
                         usage = output.usage_metadata
-                        
+                    elif isinstance(output, dict) and 'usage_metadata' in output:
+                        usage = output['usage_metadata']
+                    
+                    if usage:
                         # Extraer tokens
                         input_tokens = usage.get("input_tokens", 0)
                         output_tokens = usage.get("output_tokens", 0)
                         
                         # Obtener modelo
                         model_name = "unknown"
+                        # Intentar sacar modelo de response_metadata
                         if hasattr(output, 'response_metadata') and output.response_metadata:
                             model_name = output.response_metadata.get("model_name") or output.response_metadata.get("model", "unknown")
                         
@@ -242,6 +249,7 @@ async def stream_agent_execution(graph, messages: list, conversation_id: str, ct
                             max_input_per_model[model_name] = input_tokens
                             
                         usage_by_model[model_name]["output_tokens"] += output_tokens
+                        logger.info(f"[{conversation_id}] Captured usage for {model_name}: {input_tokens}/{output_tokens}")
                         
         # ==========================================
         # Calcular totales y emitir evento METADATA

@@ -172,7 +172,7 @@ export class WorkflowsController {
       apiKey.apiKeyId,
     );
 
-    return new StreamableFile(stream);
+    return new StreamableFile(stream as any);
   }
 
   /**
