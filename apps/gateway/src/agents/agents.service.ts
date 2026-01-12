@@ -111,6 +111,84 @@ export class AgentsService {
       );
     }
   }
+  /**
+   * Ejecuta un agente en modo streaming
+   * 
+   * @param request - Request completo
+   * @returns Stream de SSE (Server-Sent Events)
+   */
+  async executeStream(
+    request: AgentExecutionRequestDto,
+  ): Promise<NodeJS.ReadableStream> {
+    const url = `${this.agentsServiceUrl}/api/v1/agents/execute/stream`;
+
+    this.logger.debug(
+      `Executing streaming agent for tenant: ${request.tenant_id}, workflow: ${request.workflow_id}`,
+    );
+
+    try {
+      // Usar responseType: 'stream' para obtener el stream raw
+      const response = await firstValueFrom(
+        this.httpService
+          .post(url, request, {
+            responseType: 'stream',
+          })
+          .pipe(
+            // El timeout inicial es solo para establecer la conexión
+            // No aplica al stream completo (que puede durar mucho más)
+            timeout({ each: 10000 }),
+            catchError((error: AxiosError) => {
+              this.logger.error(
+                `Failed to initiate streaming agent: ${error.message}`,
+                error.stack,
+              );
+
+              if (error.code === 'ECONNREFUSED') {
+                throw new HttpException(
+                  'Agents service is not available',
+                  HttpStatus.SERVICE_UNAVAILABLE,
+                );
+              }
+
+              if (error.response) {
+                // Si hay response en error, es que el server rechazó el request (ej: 422)
+                // Si es stream, la data puede ser un stream también, hay que tener cuidado
+                // Pero usualmente errores 4xx/5xx devolvemos JSON antes de empezar el stream
+                throw new HttpException(
+                  'Agent execution failed to start',
+                  error.response.status,
+                );
+              }
+
+              throw new HttpException(
+                'Failed to communicate with agents service',
+                HttpStatus.INTERNAL_SERVER_ERROR,
+              );
+            }),
+          ),
+      );
+
+      this.logger.debug(
+        `Agent streaming initiatied for conversation: ${request.conversation_id}`,
+      );
+
+      return response.data; // Retorna el stream (Readable)
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      this.logger.error(
+        `Unexpected error initiating stream: ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+
+      throw new HttpException(
+        'Unexpected error during agent execution',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 
   /**
    * Health check del servicio de agents

@@ -1,16 +1,18 @@
-import { 
-    Controller,
-    Get,
-    Post,
-    Put,
-    Delete,
-    Body,
-    Param,
-    Query, 
-    UseGuards,
-    HttpCode,
-    HttpStatus,
-    DefaultValuePipe,
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  DefaultValuePipe,
+  Header,
+  StreamableFile,
 } from "@nestjs/common";
 import { WorkflowsService } from "./workflows.service";
 import { ExecutionsService } from "../executions/executions.service";
@@ -42,30 +44,30 @@ import { UserRole } from '@workflow-automation/shared-types';
 @Controller('workflows')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class WorkflowsController {
-    constructor(
-        private readonly workflowsService: WorkflowsService,
-        private readonly executionsService: ExecutionsService,
-    ) {}
+  constructor(
+    private readonly workflowsService: WorkflowsService,
+    private readonly executionsService: ExecutionsService,
+  ) { }
 
-    /**
-   * POST /workflows
-   * Crear un nuevo workflow
-   * Solo Owner y Admin pueden crear workflows
-   */
-    @Post()
-    @HttpCode(HttpStatus.CREATED)
-    @Roles(UserRole.OWNER, UserRole.ADMIN)
-    create(
-        @CurrentUser() user: UserPayload,
-        @Body() createDto: CreateWorkflowDto,
-    ) {
-        return this.workflowsService.create(user.organizationId, createDto)
-    }
+  /**
+ * POST /workflows
+ * Crear un nuevo workflow
+ * Solo Owner y Admin pueden crear workflows
+ */
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  create(
+    @CurrentUser() user: UserPayload,
+    @Body() createDto: CreateWorkflowDto,
+  ) {
+    return this.workflowsService.create(user.organizationId, createDto)
+  }
 
-    /**
-   * GET /workflows
-   * Listar todos los workflows de la organización
-   */
+  /**
+ * GET /workflows
+ * Listar todos los workflows de la organización
+ */
   @Get()
   findAll(
     @CurrentUser() user: UserPayload,
@@ -140,6 +142,37 @@ export class WorkflowsController {
       undefined, // userId (no aplica en ejecución por API key)
       apiKey.apiKeyId, // apiKeyId
     );
+  }
+
+  /**
+   * POST /workflows/:id/execute/stream
+   * Ejecutar un workflow en modo streaming usando API Key
+   * 
+   * Headers requeridos:
+   *   X-API-Key: ak_live_xxx...
+   * Retorna: Content-Type: text/event-stream
+   */
+  @Post(':id/execute/stream')
+  @ApiKeyOnly()
+  @UseGuards(ApiKeyGuard)
+  @Header('Content-Type', 'text/event-stream')
+  @Header('Cache-Control', 'no-cache')
+  @Header('Connection', 'keep-alive')
+  async executeStream(
+    @CurrentApiKey() apiKey: ApiKeyPayload,
+    @Param('id') id: string,
+    @Body() executeDto: ExecuteWorkflowDto,
+  ): Promise<StreamableFile> {
+    const stream = await this.workflowsService.executeStream(
+      apiKey.organizationId,
+      id,
+      executeDto.input,
+      executeDto.metadata,
+      undefined, // userId
+      apiKey.apiKeyId,
+    );
+
+    return new StreamableFile(stream);
   }
 
   /**

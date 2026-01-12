@@ -118,7 +118,7 @@ def convert_langchain_messages_to_dict(messages: list) -> list[dict]:
     
     return result
 
-async def stream_agent_execution(graph, messages: list, conversation_id: str):
+async def stream_agent_execution(graph, messages: list, conversation_id: str, ctx=None):
     """
     Ejecuta el agente en modo streaming y genera eventos SSE.
     
@@ -135,6 +135,11 @@ async def stream_agent_execution(graph, messages: list, conversation_id: str):
     """
     try:
         logger.info(f"[{conversation_id}] Starting streaming execution...")
+        
+        # Tracking de uso (misma lógica que execute_agent)
+        usage_by_model: dict[str, dict[str, int]] = {}
+        max_input_per_model: dict[str, int] = {}
+        start_time = time.time()
         
         # Usar astream_events para capturar todos los eventos del grafo
         async for event in graph.astream_events(
@@ -192,16 +197,81 @@ async def stream_agent_execution(graph, messages: list, conversation_id: str):
                 logger.debug(f"[{conversation_id}] Tool ended: {tool_name}")
             
             # ==========================================
-            # Mensaje completo del modelo
+            # Mensaje completo del modelo (capturar usage)
             # ==========================================
             elif event_type == "on_chat_model_end":
                 output = event.get("data", {}).get("output")
-                if output and hasattr(output, "content") and output.content:
-                    stream_event = {
-                        "type": "message",
-                        "content": output.content
-                    }
-                    yield f"data: {json.dumps(stream_event)}\n\n"
+                if output:
+                    # 1. Emitir mensaje si hay contenido
+                    if hasattr(output, "content") and output.content:
+                        stream_event = {
+                            "type": "message",
+                            "content": output.content
+                        }
+                        yield f"data: {json.dumps(stream_event)}\n\n"
+                    
+                    # 2. Capturar metadata de uso
+                    if hasattr(output, 'usage_metadata') and output.usage_metadata:
+                        usage = output.usage_metadata
+                        
+                        # Extraer tokens
+                        input_tokens = usage.get("input_tokens", 0)
+                        output_tokens = usage.get("output_tokens", 0)
+                        
+                        # Obtener modelo
+                        model_name = "unknown"
+                        if hasattr(output, 'response_metadata') and output.response_metadata:
+                            model_name = output.response_metadata.get("model_name") or output.response_metadata.get("model", "unknown")
+                        
+                        # Fallback modelo default
+                        if model_name == "unknown" and ctx:
+                            default_agent = ctx.get_agent_config("default") or {}
+                            model_name = default_agent.get("model", "unknown")
+                            
+                        # Inicializar tracking
+                        if model_name not in usage_by_model:
+                            usage_by_model[model_name] = {
+                                "input_tokens": 0,
+                                "output_tokens": 0,
+                                "total_tokens": 0
+                            }
+                            max_input_per_model[model_name] = 0
+                        
+                        # ACUMULAR usage (Input = MAX, Output = SUM)
+                        if input_tokens > max_input_per_model[model_name]:
+                            max_input_per_model[model_name] = input_tokens
+                            
+                        usage_by_model[model_name]["output_tokens"] += output_tokens
+                        
+        # ==========================================
+        # Calcular totales y emitir evento METADATA
+        # ==========================================
+        execution_time = (time.time() - start_time) * 1000
+        
+        total_input = 0
+        total_output = 0
+        
+        for model_name in usage_by_model:
+            usage_by_model[model_name]["input_tokens"] = max_input_per_model[model_name]
+            usage_by_model[model_name]["total_tokens"] = (
+                max_input_per_model[model_name] + usage_by_model[model_name]["output_tokens"]
+            )
+            total_input += max_input_per_model[model_name]
+            total_output += usage_by_model[model_name]["output_tokens"]
+            
+        metadata_event = {
+            "type": "metadata",
+            "content": "",
+            "metadata": {
+                "execution_time_ms": int(execution_time),
+                "input_tokens": total_input,
+                "output_tokens": total_output,
+                "total_tokens": total_input + total_output,
+                "usage_by_model": usage_by_model
+            }
+        }
+        yield f"data: {json.dumps(metadata_event)}\n\n"
+        logger.info(f"[{conversation_id}] Emitted metadata event: {total_input + total_output} tokens")
         
         # ==========================================
         # Evento final
@@ -528,7 +598,7 @@ async def execute_agent_stream(request: AgentExecutionRequest):
         # 5. Retornar StreamingResponse
         # ==========================================
         return StreamingResponse(
-            stream_agent_execution(graph, messages, request.conversation_id),
+            stream_agent_execution(graph, messages, request.conversation_id, ctx),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",

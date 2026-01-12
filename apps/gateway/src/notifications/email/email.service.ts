@@ -20,13 +20,13 @@ export class EmailService {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
         },
-      },
+      } as any,
       {
         from: {
           name: 'No-reply',
           address: process.env.SMTP_EMAIL_FROM,
         },
-      },
+      } as any,
     );
 
     this.emailVerificationTemplate = this.loadTemplate('email_verification_view.hbs');

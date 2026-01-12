@@ -16,9 +16,9 @@ import { CreditsService } from '../credits/credits.service';
 import { LlmModelsService } from '../llm-models/llm-models.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import {
-  WorkflowNotFoundException,
-  WorkflowPausedException,
-  InvalidWorkflowConfigException,
+    WorkflowNotFoundException,
+    WorkflowPausedException,
+    InvalidWorkflowConfigException,
 } from '../common/exceptions';
 
 
@@ -38,7 +38,7 @@ export class WorkflowsService {
         private readonly creditsService: CreditsService,
         private readonly llmModelsService: LlmModelsService,
         private readonly conversationsService: ConversationsService,
-    ) {}
+    ) { }
 
     //==========================================================
     // CRUD DE WORKFLOWS
@@ -201,7 +201,7 @@ export class WorkflowsService {
             where: { id: workflowId },
             data: {
                 deletedAt: new Date(),
-                isActive: false, 
+                isActive: false,
             },
         });
 
@@ -353,7 +353,7 @@ export class WorkflowsService {
             const messages = agentResponse.messages || [];
             const lastMessage = messages[messages.length - 1]; // Último mensaje = respuesta del asistente
             let assistantMessageSaved = false;
-            
+
             if (lastMessage && lastMessage.role === 'assistant') {
                 await this.conversationsService.addMessage(
                     conversation.id,
@@ -361,7 +361,7 @@ export class WorkflowsService {
                     lastMessage.content,
                 );
                 assistantMessageSaved = true;
-                
+
                 this.logger.debug(
                     `Guardado mensaje del asistente en conversación ${conversation.id}`,
                 );
@@ -395,7 +395,7 @@ export class WorkflowsService {
 
                     // BATCH QUERY: Obtener costos de todos los modelos en 1 query
                     const calculations = await this.llmModelsService.calculateCostBatch(usageForBatch);
-                    
+
                     // Sumar costos
                     for (const calc of calculations) {
                         costUSD += calc.totalCost;
@@ -411,7 +411,7 @@ export class WorkflowsService {
                 const inputTokens = metadata.input_tokens || 0;
                 const outputTokens = metadata.output_tokens || 0;
                 const modelUsed = metadata.model_used || 'gpt-4o-mini';
-                
+
                 if (totalTokens > 0) {
                     try {
                         const costCalculation = await this.llmModelsService.calculateCost(
@@ -435,7 +435,7 @@ export class WorkflowsService {
 
             // 8. ACTUALIZAR EXECUTION Y CONVERSATION EN PARALELO
             const messageIncrement = assistantMessageSaved ? 2 : 1; // user + assistant (o solo user)
-            
+
             // Execution y Conversation son tablas DIFERENTES → Seguro paralelizar
             await Promise.all([
                 // Update execution: TODOS los campos en 1 query (evita race condition)
@@ -462,7 +462,7 @@ export class WorkflowsService {
             // 9. DESCONTAR CRÉDITOS SOLO EN EJECUCIONES EXITOSAS
             // Se descuentan después de confirmar que todo fue exitoso
             const creditsToDeduct = getWorkflowCreditCost(workflow.category);
-            
+
             await this.creditsService.deductCredits(
                 organizationId,
                 execution.id,
@@ -508,6 +508,310 @@ export class WorkflowsService {
     }
 
     //==========================================================
+    // Ejecutar Workflow (Streaming)
+    //==========================================================
+    /**
+     * Ejecutar un workflow con streaming
+     */
+    async executeStream(
+        organizationId: string,
+        workflowId: string,
+        input: Record<string, any>,
+        metadata?: Record<string, any>,
+        userId?: string, // Opcional: quién ejecuta desde UI
+        apiKeyId?: string, // Opcional: qué API key ejecuta
+    ): Promise<NodeJS.ReadableStream> {
+        // 1. VALIDACIONES PREVIAS (Misma lógica que execute)
+        const workflow = await this.prisma.workflow.findFirst({
+            where: {
+                id: workflowId,
+                organizationId,
+                deletedAt: null,
+            },
+            include: {
+                organization: {
+                    select: {
+                        id: true,
+                        name: true,
+                        plan: true,
+                    },
+                },
+                tenantTools: {
+                    include: {
+                        toolCatalog: {
+                            include: {
+                                functions: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!workflow) {
+            throw new WorkflowNotFoundException(workflowId);
+        }
+
+        if (!workflow.isActive) {
+            throw new InvalidWorkflowConfigException('El workflow está inactivo', {
+                workflowId,
+                isActive: false,
+            });
+        }
+
+        if (workflow.isPaused) {
+            throw new WorkflowPausedException(workflowId);
+        }
+
+        // 2. VALIDAR ORGANIZACIÓN
+        const org = workflow.organization;
+        if (!org) {
+            throw new NotFoundException('Organización no encontrada');
+        }
+
+        // 2.1. VALIDAR BALANCE DE CRÉDITOS
+        const canExecute = await this.creditsService.canExecuteWorkflow(
+            organizationId,
+            workflow.category,
+        );
+
+        if (!canExecute.allowed) {
+            throw new ForbiddenException(
+                `Insufficient credits: ${canExecute.reason}`,
+            );
+        }
+
+        // 3. CREAR REGISTRO DE EJECUCIÓN
+        const execution = await this.executionsService.create(workflowId, 'api', {
+            input,
+            metadata,
+            organizationId: org.id,
+            organizationName: org.name,
+            userId,
+            apiKeyId,
+        });
+
+        this.logger.log(
+            `Iniciando ejecución (stream) ${execution.id} para workflow ${workflowId}`,
+        );
+
+        // 4. GESTIONAR CONVERSACIÓN
+        const channel = metadata?.channel || 'api';
+        const conversationId = metadata?.conversationId;
+        const endUserId = metadata?.endUserId;
+        const userMessage = input?.message || JSON.stringify(input);
+
+        const conversation = await this.conversationsService.findOrCreateConversation(
+            workflowId,
+            channel,
+            userId,
+            endUserId,
+            conversationId,
+        );
+
+        await this.executionsService.linkToConversation(
+            execution.id,
+            conversation.id,
+        );
+
+        const messageHistory = await this.conversationsService.getMessageHistory(
+            conversation.id,
+        );
+
+        await this.conversationsService.addMessage(
+            conversation.id,
+            'human',
+            userMessage,
+        );
+
+        // 5. EJECUTAR STREAM
+        try {
+            const payload = await this.buildAgentPayload(
+                workflow,
+                conversation,
+                userMessage,
+                userId || endUserId,
+                channel,
+                messageHistory,
+            );
+
+            this.logger.debug(`Llamando al AgentsService (Stream)`);
+            const stream = await this.agentsService.executeStream(payload);
+
+            // 6. MONITORIZAR STREAM PARA EFECTOS SECUNDARIOS
+            this.monitorStreamExecution(stream, execution, conversation, workflow, organizationId);
+
+            return stream;
+
+        } catch (error) {
+            this.logger.error(
+                `Error iniciando stream ${execution.id}: ${(error as Error).message}`,
+                (error as Error).stack,
+            );
+
+            await this.executionsService.updateStatus(execution.id, 'failed', {
+                error: (error as Error).message,
+                errorStack: (error as Error).stack,
+            });
+
+            throw error;
+        }
+    }
+
+    /**
+     * Monitoriza el stream para capturar metadata y actualizar DB
+     */
+    private monitorStreamExecution(
+        stream: NodeJS.ReadableStream,
+        execution: any,
+        conversation: any,
+        workflow: any,
+        organizationId: string
+    ) {
+        let fullContent = '';
+        let metadataEvent: any = null;
+        let assistantMessageBuilder = '';
+
+        stream.on('data', (chunk: Buffer) => {
+            const text = chunk.toString();
+            fullContent += text;
+
+            // Intentar extraer mensajes parciales para loguear o debugear
+            // Nota: Esto es aproximado ya que el chunk puede cortar el JSON
+            // Para producción robusta se necesitaría un parser SSE real
+        });
+
+        stream.on('end', async () => {
+            this.logger.log(`Stream finalizado para ejecución ${execution.id}`);
+
+            try {
+                // 1. Analizar el contenido completo para buscar eventos
+                // Separar por doble salto de línea (SSE standard)
+                const events = fullContent.split('\n\n');
+
+                for (const eventBlock of events) {
+                    if (!eventBlock.trim().startsWith('data: ')) continue;
+
+                    try {
+                        const jsonStr = eventBlock.replace(/^data: /, '').trim();
+                        if (!jsonStr) continue;
+
+                        const event = JSON.parse(jsonStr);
+
+                        // Reconstruir mensaje del asistente
+                        if (event.type === 'message') {
+                            assistantMessageBuilder += event.content;
+                        }
+
+                        // Capturar metadata
+                        if (event.type === 'metadata') {
+                            metadataEvent = event.metadata;
+                        }
+                    } catch (e) {
+                        // Ignorar errores de parseo en chunks intermedios o malformados
+                    }
+                }
+
+                // 2. Procesar finalización
+                if (!metadataEvent) {
+                    this.logger.warn(`No se recibió metadata event en stream ${execution.id}`);
+                }
+
+                const usageByModel = metadataEvent?.usage_by_model || {};
+                const totalTokens = metadataEvent?.total_tokens || 0;
+                let costUSD = 0;
+                const costBreakdown: { model: string; cost: number }[] = [];
+
+                // 3. Calcular Costos
+                if (Object.keys(usageByModel).length > 0) {
+                    const usageForBatch: Record<string, any> = {};
+                    for (const [modelName, usage] of Object.entries(usageByModel) as [string, any][]) {
+                        usageForBatch[modelName] = {
+                            inputTokens: usage.input_tokens || 0,
+                            outputTokens: usage.output_tokens || 0,
+                            totalTokens: usage.total_tokens || 0,
+                        };
+                    }
+                    try {
+                        const calculations = await this.llmModelsService.calculateCostBatch(usageForBatch);
+                        for (const calc of calculations) {
+                            costUSD += calc.totalCost;
+                            costBreakdown.push({ model: calc.model, cost: calc.totalCost });
+                        }
+                    } catch (e) {
+                        this.logger.error(`Error calculando costos stream: ${e}`);
+                    }
+                }
+
+                // 4. Guardar mensaje asistente
+                if (assistantMessageBuilder) {
+                    await this.conversationsService.addMessage(
+                        conversation.id,
+                        'assistant',
+                        assistantMessageBuilder
+                    );
+                }
+
+                // 5. Actualizar Ejecución
+                await this.executionsService.updateStatus(execution.id, 'completed', {
+                    result: {
+                        messages: [{ role: 'assistant', content: assistantMessageBuilder }],
+                        conversationId: conversation.id,
+                    },
+                    cost: costUSD,
+                    tokensUsed: totalTokens,
+                });
+
+                // 6. Actualizar Conversación (stats)
+                await this.conversationsService.batchUpdate(
+                    conversation.id,
+                    assistantMessageBuilder ? 2 : 1,
+                    totalTokens,
+                    costUSD,
+                );
+
+                // 7. Descontar Créditos
+                const creditsToDeduct = getWorkflowCreditCost(workflow.category);
+                await this.creditsService.deductCredits(
+                    organizationId,
+                    execution.id,
+                    workflow.id,
+                    workflow.category,
+                    workflow.name,
+                    costUSD,
+                    {
+                        input_tokens: metadataEvent?.input_tokens || 0,
+                        output_tokens: metadataEvent?.output_tokens || 0,
+                        total_tokens: totalTokens,
+                        usage_by_model: usageByModel,
+                        cost_breakdown: costBreakdown,
+                        execution_time_ms: metadataEvent?.execution_time_ms || 0,
+                    },
+                );
+
+                this.logger.log(`Post-stream processing completed for ${execution.id}. Cost: $${costUSD}`);
+
+            } catch (error) {
+                this.logger.error(
+                    `Error en procesamiento post-stream ${execution.id}: ${(error as Error).message}`,
+                    (error as Error).stack
+                );
+                // Intentar marcar como fallido si algo crítico falló después del stream
+                await this.executionsService.updateStatus(execution.id, 'failed', {
+                    error: `Post-stream processing error: ${(error as Error).message}`,
+                });
+            }
+        });
+
+        stream.on('error', async (err) => {
+            this.logger.error(`Stream error for execution ${execution.id}: ${err.message}`);
+            await this.executionsService.updateStatus(execution.id, 'failed', {
+                error: err.message,
+            });
+        });
+    }
+
+    //==========================================================
     // Metodos Auxiliares
     //==========================================================
     /**
@@ -531,9 +835,9 @@ export class WorkflowsService {
     ) {
         // 1. Extraer nueva estructura unificada de config
         const config = workflow.config as any;
-        const graphConfig = config.graph || { 
-            type: 'react', 
-            config: { max_iterations: 10, allow_interrupts: false } 
+        const graphConfig = config.graph || {
+            type: 'react',
+            config: { max_iterations: 10, allow_interrupts: false }
         };
         const agentsConfig = config.agents || {};
 
@@ -689,7 +993,7 @@ export class WorkflowsService {
      */
     private async validateModelsInConfig(agentsConfig: Record<string, any>) {
         const modelsToValidate = new Set<string>();
-        
+
         // Recolectar todos los modelos (principal + fallbacks)
         for (const agentConfig of Object.values(agentsConfig)) {
             if (agentConfig.model) {
@@ -729,6 +1033,6 @@ export class WorkflowsService {
                 `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`
             );
         }
-    }    
+    }
 }
-    
+
