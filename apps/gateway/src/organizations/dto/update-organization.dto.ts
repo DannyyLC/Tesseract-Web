@@ -1,6 +1,7 @@
 import { IsString, IsOptional, MinLength, MaxLength } from 'class-validator';
 
 export class UpdateOrganizationDto {
+  id: string;
   @IsOptional()
   @IsString()
   @MinLength(2)

@@ -9,6 +9,8 @@ import {
   UpdateSettingsDto
 } from './dto';
 import { randomBytes } from 'crypto';
+import { OrganizationDashboardDto } from './dto/organization-dashboard.dto';
+import { Organization } from '@workflow-platform/database';
 
 /**
  * Servicio para gestionar organizaciones
@@ -18,9 +20,7 @@ import { randomBytes } from 'crypto';
 export class OrganizationsService {
   private readonly logger = new Logger(OrganizationsService.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   // ============================================
   // CREATE
@@ -28,22 +28,31 @@ export class OrganizationsService {
   /**
    * Crea una nueva organización
    */
-  async create(dto: CreateOrganizationDto) {
-    // Generar slug único desde el nombre
-    // El slug es para URLs amigables (ej: mycompany.tesseract.app)
-    // pero múltiples organizaciones pueden tener el mismo nombre
-    const slug = await OrganizationsService.generateUniqueSlug(dto.name, this.prisma);
+  async create(dto: CreateOrganizationDto): Promise<Organization | null> {
+    let organization: Organization | null = null;
+    try {
+      // Generar slug único desde el nombre
+      // El slug es para URLs amigables (ej: mycompany.tesseract.app)
+      // pero múltiples organizaciones pueden tener el mismo nombre
+      const slug = await OrganizationsService.generateUniqueSlug(
+        dto.name,
+        this.prisma,
+      );
 
-    // Crear organización
-    const organization = await this.prisma.organization.create({
-      data: {
-        name: dto.name,
-        slug,
-        plan: dto.plan || 'FREE',
-        isActive: true,
-        allowOverages: false,
-      },
-    });
+      // Crear organización
+      organization = await this.prisma.organization.create({
+        data: {
+          name: dto.name,
+          slug,
+          plan: dto.plan || 'FREE',
+          isActive: true,
+          allowOverages: false,
+        },
+      });
+    } catch (error) {
+      this.logger.error(`Error al crear organización "${dto.name}": ${error}`);
+      return null;
+    }
 
     this.logger.log(
       `Organización "${organization.name}" creada con ID: ${organization.id}`,
@@ -93,23 +102,31 @@ export class OrganizationsService {
    * Actualiza la información de una organización
    * Solo el owner puede actualizar
    */
-  async update(organizationId: string, dto: UpdateOrganizationDto) {
+  async update(dto: UpdateOrganizationDto): Promise<Organization | null> {
     const organization = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
+      where: { id: dto.id },
     });
 
     if (!organization) {
-      throw new NotFoundException('Organización no encontrada');
+      return null;
     }
 
-    const updated = await this.prisma.organization.update({
-      where: { id: organizationId },
-      data: {
-        name: dto.name ?? organization.name,
-        // El plan solo puede ser actualizado por super admins
-        // Por ahora no permitimos cambiar el plan desde aquí
-      },
-    });
+    let updated: Organization | null = null; 
+    try {
+      updated = await this.prisma.organization.update({
+        where: { id: dto.id },
+        data: {
+          name: dto.name ?? organization.name,
+          // El plan solo puede ser actualizado por super admins
+          // Por ahora no permitimos cambiar el plan desde aquí
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Error al actualizar organización "${dto.id}": ${error}`,
+      );
+      return null;
+    }
 
     this.logger.log(`Organización actualizada: ${updated.name}`);
 
@@ -145,7 +162,7 @@ export class OrganizationsService {
     // Calcular ejecuciones del mes actual (no del día, porque no hay límite diario)
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    
+
     const executionsThisMonth = await this.prisma.execution.count({
       where: {
         workflow: {
@@ -164,24 +181,39 @@ export class OrganizationsService {
         users: {
           current: organization._count.users,
           limit: effectiveLimits.maxUsers,
-          percentage: effectiveLimits.maxUsers === -1 ? 0 : (organization._count.users / effectiveLimits.maxUsers) * 100,
+          percentage:
+            effectiveLimits.maxUsers === -1
+              ? 0
+              : (organization._count.users / effectiveLimits.maxUsers) * 100,
         },
         workflows: {
           current: organization._count.workflows,
           limit: effectiveLimits.maxWorkflows,
-          percentage: effectiveLimits.maxWorkflows === -1 ? 0 : (organization._count.workflows / effectiveLimits.maxWorkflows) * 100,
+          percentage:
+            effectiveLimits.maxWorkflows === -1
+              ? 0
+              : (organization._count.workflows / effectiveLimits.maxWorkflows) *
+                100,
         },
         apiKeys: {
           current: organization._count.apiKeys,
           limit: effectiveLimits.maxApiKeys,
-          percentage: effectiveLimits.maxApiKeys === -1 ? 0 : (organization._count.apiKeys / effectiveLimits.maxApiKeys) * 100,
+          percentage:
+            effectiveLimits.maxApiKeys === -1
+              ? 0
+              : (organization._count.apiKeys / effectiveLimits.maxApiKeys) *
+                100,
         },
         executions: {
           thisMonth: executionsThisMonth,
         },
       },
-      canAddUser: effectiveLimits.maxUsers === -1 || organization._count.users < effectiveLimits.maxUsers,
-      canAddWorkflow: effectiveLimits.maxWorkflows === -1 || organization._count.workflows < effectiveLimits.maxWorkflows,
+      canAddUser:
+        effectiveLimits.maxUsers === -1 ||
+        organization._count.users < effectiveLimits.maxUsers,
+      canAddWorkflow:
+        effectiveLimits.maxWorkflows === -1 ||
+        organization._count.workflows < effectiveLimits.maxWorkflows,
     };
 
     // Datos solo para super admins
@@ -205,8 +237,10 @@ export class OrganizationsService {
           status: organization.subscription.status,
           currentPeriodStart: organization.subscription.currentPeriodStart,
           currentPeriodEnd: organization.subscription.currentPeriodEnd,
-          pendingPlanChange: (organization.subscription as any).pendingPlanChange,
-          planChangeRequestedAt: (organization.subscription as any).planChangeRequestedAt,
+          pendingPlanChange: (organization.subscription as any)
+            .pendingPlanChange,
+          planChangeRequestedAt: (organization.subscription as any)
+            .planChangeRequestedAt,
         };
       }
     }
@@ -232,7 +266,10 @@ export class OrganizationsService {
     }
 
     const effectiveLimits = this.getEffectiveLimits(organization);
-    return effectiveLimits.maxUsers === -1 || organization._count.users < effectiveLimits.maxUsers;
+    return (
+      effectiveLimits.maxUsers === -1 ||
+      organization._count.users < effectiveLimits.maxUsers
+    );
   }
 
   /**
@@ -253,7 +290,10 @@ export class OrganizationsService {
     }
 
     const effectiveLimits = this.getEffectiveLimits(organization);
-    return effectiveLimits.maxWorkflows === -1 || organization._count.workflows < effectiveLimits.maxWorkflows;
+    return (
+      effectiveLimits.maxWorkflows === -1 ||
+      organization._count.workflows < effectiveLimits.maxWorkflows
+    );
   }
 
   /**
@@ -274,7 +314,10 @@ export class OrganizationsService {
     }
 
     const effectiveLimits = this.getEffectiveLimits(organization);
-    return effectiveLimits.maxApiKeys === -1 || organization._count.apiKeys < effectiveLimits.maxApiKeys;
+    return (
+      effectiveLimits.maxApiKeys === -1 ||
+      organization._count.apiKeys < effectiveLimits.maxApiKeys
+    );
   }
 
   // ============================================
@@ -301,7 +344,9 @@ export class OrganizationsService {
       },
     });
 
-    this.logger.log(`Configuración de organización ${organizationId} actualizada`);
+    this.logger.log(
+      `Configuración de organización ${organizationId} actualizada`,
+    );
 
     return updated;
   }
@@ -309,7 +354,11 @@ export class OrganizationsService {
   /**
    * Actualiza los límites custom de una organización (solo super admins)
    */
-  async updateCustomLimits(organizationId: string, dto: UpdateCustomLimitsDto, updatedBy: string) {
+  async updateCustomLimits(
+    organizationId: string,
+    dto: UpdateCustomLimitsDto,
+    updatedBy: string,
+  ) {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
     });
@@ -327,7 +376,9 @@ export class OrganizationsService {
       },
     });
 
-    this.logger.log(`Límites custom de organización ${organizationId} actualizados por ${updatedBy}`);
+    this.logger.log(
+      `Límites custom de organización ${organizationId} actualizados por ${updatedBy}`,
+    );
 
     return {
       ...updated,
@@ -378,7 +429,7 @@ export class OrganizationsService {
 
     const updated = await this.prisma.organization.update({
       where: { id: organizationId },
-      data:{
+      data: {
         allowOverages: dto.allowOverages,
         overageLimit: dto.overageLimit,
       },
@@ -398,30 +449,48 @@ export class OrganizationsService {
    * Desactiva una organización temporalmente
    * Puede ser revertido con reactivate()
    */
-  async deactivate(organizationId: string, deactivatedBy: string, reason?: string) {
+  async deactivate(
+    organizationId: string,
+    deactivatedBy: string,
+    reason?: string,
+  ): Promise<Organization | null> {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
     });
 
     if (!organization) {
-      throw new NotFoundException('Organización no encontrada');
+      this.logger.warn(`No se encontró la organización con ID: ${organizationId}`);
+      return null;
     }
 
-    if ((organization as any).deactivatedAt) {
-      throw new ConflictException('La organización ya está desactivada');
+    if (organization.deactivatedAt) {
+      this.logger.warn(
+        `La organización "${organizationId}" ya está desactivada`,
+      );
+      return null;
     }
 
-    const updated = await this.prisma.organization.update({
-      where: { id: organizationId },
-      data: {
-        isActive: false,
-        deactivatedAt: new Date() as any,
-        deactivatedBy: deactivatedBy as any,
-        deactivationReason: reason as any,
-      },
-    });
+    let updated: Organization | null = null;
+    try {
+      updated = await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: {
+          isActive: false,
+          deactivatedAt: new Date() as any,
+          deactivatedBy: deactivatedBy as any,
+          deactivationReason: reason as any,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Error al desactivar organización "${organizationId}": ${error}`,
+      );
+      return null;
+    }
 
-    this.logger.warn(`Organización ${organization.name} desactivada por ${deactivatedBy}. Razón: ${reason || 'No especificada'}`);
+    this.logger.warn(
+      `Organización ${organization.name} desactivada por ${deactivatedBy}. Razón: ${reason || 'No especificada'}`,
+    );
 
     return updated;
   }
@@ -429,38 +498,53 @@ export class OrganizationsService {
   /**
    * Reactiva una organización previamente desactivada
    */
-  async reactivate(organizationId: string) {
+  async reactivate(organizationId: string): Promise<Organization | null> {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
     });
 
     if (!organization) {
-      throw new NotFoundException('Organización no encontrada');
+      
+      this.logger.warn(`No se encontró la organización con ID: ${organizationId}`);
+      return null;
     }
 
-    if (!(organization as any).deactivatedAt) {
-      throw new ConflictException('La organización no está desactivada');
+    if (!organization.deactivatedAt) {
+      this.logger.warn(
+        `La organización "${organizationId}" no está desactivada`,
+      );
+      return null;
     }
 
     if (organization.deletedAt) {
-      throw new ConflictException('No se puede reactivar una organización eliminada');
+      this.logger.warn(
+        `La organización "${organizationId}" está eliminada y no puede ser reactivada`,
+      );
+      return null;
     }
 
-    const updated = await this.prisma.organization.update({
-      where: { id: organizationId },
-      data: {
-        isActive: true,
-        deactivatedAt: null as any,
-        deactivatedBy: null as any,
-        deactivationReason: null as any,
-      },
-    });
+    let updated: Organization | null = null;
+    try {
+      updated = await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: {
+          isActive: true,
+          deactivatedAt: null as any,
+          deactivatedBy: null as any,
+          deactivationReason: null as any,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Error al reactivar organización "${organizationId}": ${error}`,
+      );
+      return null;
+    }
 
     this.logger.log(`Organización ${organization.name} reactivada`);
 
     return updated;
   }
-
 
   // ============================================
   // MÉTODOS AUXILIARES
@@ -481,10 +565,10 @@ export class OrganizationsService {
    * Genera un slug único intentando primero el slug base
    * Si ya existe, agrega un sufijo aleatorio corto (6 caracteres)
    * Reintenta hasta 10 veces si hay colisión (probabilidad extremadamente baja)
-   * 
+   *
    * Método estático que acepta un cliente de Prisma (normal o transacción)
    * para poder ser usado desde otros servicios dentro de transacciones
-   * 
+   *
    * @param name - Nombre de la organización
    * @param prismaClient - Cliente de Prisma (this.prisma o tx)
    * @returns Slug único
@@ -494,7 +578,7 @@ export class OrganizationsService {
     prismaClient: any,
   ): Promise<string> {
     const baseSlug = OrganizationsService.generateSlug(name);
-    
+
     // Intentar primero con el slug base
     const existingOrg = await prismaClient.organization.findUnique({
       where: { slug: baseSlug },
@@ -509,7 +593,7 @@ export class OrganizationsService {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const randomSuffix = randomBytes(3).toString('hex'); // 6 caracteres hex
       const candidateSlug = `${baseSlug}-${randomSuffix}`;
-      
+
       const exists = await prismaClient.organization.findUnique({
         where: { slug: candidateSlug },
       });
@@ -534,11 +618,40 @@ export class OrganizationsService {
 
     return {
       maxUsers: organization.customMaxUsers ?? planDefaults.maxUsers,
-      maxWorkflows: organization.customMaxWorkflows ?? planDefaults.maxWorkflows,
+      maxWorkflows:
+        organization.customMaxWorkflows ?? planDefaults.maxWorkflows,
       maxApiKeys: organization.customMaxApiKeys ?? planDefaults.maxApiKeys,
       monthlyCredits: planDefaults.monthlyCredits,
       overageLimit: organization.overageLimit ?? planDefaults.overageLimit,
       allowOverages: organization.allowOverages ?? planDefaults.allowOverages,
     };
+  }
+
+  async getDashboardData(
+    organizationId: string,
+  ): Promise<OrganizationDashboardDto | null> {
+    let organizationDataForDashboard: OrganizationDashboardDto | null = null;
+
+    organizationDataForDashboard = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        name: true,
+        plan: true,
+        allowOverages: true,
+        isActive: true,
+        createdAt: true,
+        customMaxUsers: true,
+        customMaxApiKeys: true,
+        customMaxWorkflows: true,
+      },
+    });
+
+    if (!organizationDataForDashboard) {
+      this.logger.warn(
+        `No se encontró la organización con ID: ${organizationId} para el dashboard`,
+      );
+      return null;
+    }
+    return organizationDataForDashboard;
   }
 }
