@@ -66,8 +66,8 @@ describe('JwtOrApiKeyGuard', () => {
     }).compile();
 
     guard = module.get<JwtOrApiKeyGuard>(JwtOrApiKeyGuard);
-    jwtAuthGuard = module.get(JwtAuthGuard) as jest.Mocked<JwtAuthGuard>;
-    apiKeyGuard = module.get(ApiKeyGuard) as jest.Mocked<ApiKeyGuard>;
+    jwtAuthGuard = module.get(JwtAuthGuard);
+    apiKeyGuard = module.get(ApiKeyGuard);
 
     jest.clearAllMocks();
   });

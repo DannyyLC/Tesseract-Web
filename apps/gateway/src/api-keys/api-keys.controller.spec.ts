@@ -72,7 +72,7 @@ describe('ApiKeysController', () => {
     }).compile();
 
     controller = module.get<ApiKeysController>(ApiKeysController);
-    service = module.get(ApiKeysService) as jest.Mocked<ApiKeysService>;
+    service = module.get(ApiKeysService);
 
     jest.clearAllMocks();
   });

@@ -159,7 +159,7 @@ export class ApiKeyGuard implements CanActivate {
 
     // Opción 2: Header Authorization Bearer
     const authHeader = request.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
+    if (authHeader?.startsWith('Bearer ')) {
       return authHeader.substring(7); // Quitar "Bearer "
     }
 

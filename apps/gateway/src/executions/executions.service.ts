@@ -356,7 +356,7 @@ export class ExecutionsService {
   async findByWorkflow(
     workflowId: string,
     organizationId: string,
-    limit: number = 50,
+    limit = 50,
     status?: string,
   ) {
     // Verificar que el workflow pertenece a la organización
@@ -720,7 +720,7 @@ export class ExecutionsService {
    * @param organizationId - ID de la organización
    * @param period - Periodo de tiempo (24h, 7d, 30d, 90d, all)
    */
-  async getStats(organizationId: string, period: string = '7d') {
+  async getStats(organizationId: string, period = '7d') {
     // Calcular fecha de inicio según el periodo
     const now = new Date();
     let startDate: Date | undefined;
@@ -934,7 +934,7 @@ export class ExecutionsService {
   async getAnalyticsBySource(
     workflowId: string,
     organizationId: string,
-    period: string = '30d',
+    period = '30d',
   ) {
     // Verificar que el workflow pertenece a la organización
     const workflow = await this.prisma.workflow.findFirst({

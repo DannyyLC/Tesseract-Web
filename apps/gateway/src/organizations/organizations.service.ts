@@ -142,7 +142,7 @@ export class OrganizationsService {
   /**
    * Obtiene las estadísticas de uso de la organización
    */
-  async getStats(organizationId: string, includeAdminData: boolean = false) {
+  async getStats(organizationId: string, includeAdminData = false) {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
       include: {

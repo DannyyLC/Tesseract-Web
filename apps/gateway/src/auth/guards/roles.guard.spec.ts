@@ -82,7 +82,7 @@ describe('RolesGuard', () => {
     }).compile();
 
     guard = module.get<RolesGuard>(RolesGuard);
-    reflector = module.get(Reflector) as jest.Mocked<Reflector>;
+    reflector = module.get(Reflector);
 
     jest.clearAllMocks();
   });

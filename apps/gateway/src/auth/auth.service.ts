@@ -523,7 +523,7 @@ export class AuthService {
    * @param expiresInHours - Horas hasta que expire el token (default: 24)
    * @returns Objeto con token y fecha de expiración
    */
-  generateTokenWithExpiry(expiresInHours: number = 24): {
+  generateTokenWithExpiry(expiresInHours = 24): {
     token: string;
     expiresAt: Date;
   } {

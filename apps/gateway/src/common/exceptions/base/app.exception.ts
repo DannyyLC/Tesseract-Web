@@ -11,9 +11,7 @@ import { ErrorCode } from './error-codes.enum';
  * - {field: 'email', value: 'invalid@' }
  */
 
-export interface ErrorMetadata {
-  [key: string]: any;
-}
+export type ErrorMetadata = Record<string, any>;
 // Clase base para todas las excepciones de la aplicacion
 export class AppException extends HttpException {
   public readonly errorCode: ErrorCode;
@@ -25,7 +23,7 @@ export class AppException extends HttpException {
     message: string,
     statusCode: HttpStatus = HttpStatus.BAD_REQUEST,
     metadata?: ErrorMetadata,
-    isOperational: boolean = true,
+    isOperational = true,
   ) {
     const response = {
       errorCode,

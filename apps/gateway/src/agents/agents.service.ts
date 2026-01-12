@@ -69,7 +69,7 @@ export class AgentsService {
             if (error.response) {
               // El servicio de Python respondió con un error
               throw new HttpException(
-                error.response.data || 'Agent execution failed',
+                error.response.data ?? 'Agent execution failed',
                 error.response.status,
               );
             }

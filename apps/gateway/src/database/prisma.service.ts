@@ -121,8 +121,8 @@ export class PrismaService
    */
   async withRetry<T>(
     operation: () => Promise<T>,
-    maxRetries: number = 3,
-    delayMs: number = 1000,
+    maxRetries = 3,
+    delayMs = 1000,
   ): Promise<T> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {

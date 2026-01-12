@@ -80,7 +80,7 @@ describe('ApiKeysService', () => {
     }).compile();
 
     service = module.get<ApiKeysService>(ApiKeysService);
-    prisma = module.get(PrismaService) as jest.Mocked<PrismaService>;
+    prisma = module.get(PrismaService);
 
     // Setup ApiKeyUtil mocks
     (ApiKeyUtil.generate as jest.Mock).mockReturnValue(mockGeneratedApiKey);

@@ -105,7 +105,7 @@ export class WorkflowsService {
   /**
    * Listar workflows de la organización
    */
-  async findAll(organizationId: string, includeDeleted: boolean = false) {
+  async findAll(organizationId: string, includeDeleted = false) {
     return this.prisma.workflow.findMany({
       where: {
         organizationId,
@@ -366,7 +366,7 @@ export class WorkflowsService {
       const lastMessage = messages[messages.length - 1]; // Último mensaje = respuesta del asistente
       let assistantMessageSaved = false;
 
-      if (lastMessage && lastMessage.role === 'assistant') {
+      if (lastMessage?.role === 'assistant') {
         await this.conversationsService.addMessage(
           conversation.id,
           lastMessage.role,
@@ -874,7 +874,7 @@ export class WorkflowsService {
     conversation: any,
     userMessage: string,
     userId?: string,
-    channel: string = 'api',
+    channel = 'api',
     messageHistory: any[] = [],
   ) {
     // 1. Extraer nueva estructura unificada de config

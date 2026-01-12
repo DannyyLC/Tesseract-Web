@@ -89,7 +89,7 @@ describe('ApiKeyGuard', () => {
     }).compile();
 
     guard = module.get<ApiKeyGuard>(ApiKeyGuard);
-    prisma = module.get(PrismaService) as jest.Mocked<PrismaService>;
+    prisma = module.get(PrismaService);
 
     jest.clearAllMocks();
   });

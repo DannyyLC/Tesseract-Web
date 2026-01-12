@@ -13,5 +13,5 @@
     "strictPropertyInitialization": false
   },
   "include": ["src/**/*", "scripts"],
-  "exclude": ["node_modules", "dist", "**/*.spec.ts", "test"]
+  "exclude": ["node_modules", "dist"]
 }
