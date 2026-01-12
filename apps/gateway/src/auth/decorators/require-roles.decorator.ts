@@ -6,23 +6,23 @@ import { Roles } from './roles.decorator';
 
 /**
  * Decorador combinado que aplica JwtAuthGuard + RolesGuard + @Roles
- * 
+ *
  * Simplifica la protección de endpoints con roles:
- * 
+ *
  * En lugar de:
  * @UseGuards(JwtAuthGuard, RolesGuard)
  * @Roles(UserRole.OWNER)
- * 
+ *
  * Puedes usar:
  * @RequireRoles(UserRole.OWNER)
- * 
+ *
  * Uso:
  * @Post('invite')
  * @RequireRoles(UserRole.OWNER)
  * inviteUser() {
  *   // Solo OWNER puede acceder
  * }
- * 
+ *
  * @Get('workflows')
  * @RequireRoles(UserRole.OWNER, UserRole.ADMIN)
  * getWorkflows() {
@@ -30,8 +30,5 @@ import { Roles } from './roles.decorator';
  * }
  */
 export function RequireRoles(...roles: UserRole[]) {
-  return applyDecorators(
-    UseGuards(JwtAuthGuard, RolesGuard),
-    Roles(...roles),
-  );
+  return applyDecorators(UseGuards(JwtAuthGuard, RolesGuard), Roles(...roles));
 }

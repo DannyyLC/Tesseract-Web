@@ -11,18 +11,17 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { EventsModule } from './events/events.module';
 
-
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [
-        '.env',                    // En apps/gateway/.env
-        '../../.env',              // En la raíz del monorepo
+        '.env', // En apps/gateway/.env
+        '../../.env', // En la raíz del monorepo
       ],
       ignoreEnvFile: false,
     }),
-    
+
     DatabaseModule,
     AuthModule,
     OrganizationsModule,
@@ -31,7 +30,7 @@ import { EventsModule } from './events/events.module';
     ExecutionsModule,
     ApiKeysModule,
     NotificationsModule,
-    EventsModule
+    EventsModule,
   ],
   controllers: [],
   providers: [],

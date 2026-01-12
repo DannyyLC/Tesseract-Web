@@ -3,7 +3,7 @@ import { Observable, Subject } from 'rxjs';
 
 @Injectable()
 export class EventsService {
-private readonly eventSubject = new Subject<MessageEvent>();
+  private readonly eventSubject = new Subject<MessageEvent>();
 
   // POST method will call this to push data
   emitEvent(data: any) {

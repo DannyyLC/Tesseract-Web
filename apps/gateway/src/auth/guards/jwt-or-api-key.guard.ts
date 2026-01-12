@@ -12,7 +12,7 @@ import { ApiKeyGuard } from './api-key.guard';
  * Guard compuesto que acepta CUALQUIERA de:
  * - JWT Token (vía cookies o Authorization header)
  * - API Key (vía X-API-Key header)
- * 
+ *
  * Útil para endpoints que pueden ser accedidos tanto desde
  * la UI (con JWT) como desde APIs externas (con API Key)
  */
@@ -29,8 +29,9 @@ export class JwtOrApiKeyGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
 
     // Intentar autenticación con API Key primero
-    const hasApiKey = request.headers?.['x-api-key'] ||
-                      (request.headers?.authorization?.startsWith('Bearer ak_'));
+    const hasApiKey =
+      request.headers?.['x-api-key'] ||
+      request.headers?.authorization?.startsWith('Bearer ak_');
 
     if (hasApiKey) {
       try {

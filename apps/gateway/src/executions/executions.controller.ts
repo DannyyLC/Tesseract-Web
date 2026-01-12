@@ -13,18 +13,15 @@ import { ExecutionsService } from './executions.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserPayload } from '../common/types/jwt-payload.type';
-import {
-  ExecutionQueryDto,
-  ExecutionStatsQueryDto,
-} from './dto';
+import { ExecutionQueryDto, ExecutionStatsQueryDto } from './dto';
 
 /**
  * Controller de Executions
  * Maneja el historial y estado de las ejecuciones de workflows
- * 
+ *
  * Base path: /executions
  * Todos los endpoints requieren autenticación JWT (solo para usuarios desde UI)
- * 
+ *
  * Responsabilidades:
  * - Consultar historial de ejecuciones
  * - Ver detalles de una ejecución específica
@@ -66,7 +63,8 @@ export class ExecutionsController {
   @Get('stats')
   async getStats(
     @CurrentUser() user: UserPayload,
-    @Query(new ValidationPipe({ transform: true })) query: ExecutionStatsQueryDto,
+    @Query(new ValidationPipe({ transform: true }))
+    query: ExecutionStatsQueryDto,
   ) {
     return this.executionsService.getStats(user.organizationId, query.period);
   }
@@ -76,10 +74,7 @@ export class ExecutionsController {
    * Obtiene detalles completos de una ejecución específica
    */
   @Get(':id')
-  async findOne(
-    @CurrentUser() user: UserPayload,
-    @Param('id') id: string,
-  ) {
+  async findOne(@CurrentUser() user: UserPayload, @Param('id') id: string) {
     return this.executionsService.findOneForClient(id, user.organizationId);
   }
 
@@ -89,12 +84,12 @@ export class ExecutionsController {
    */
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
-  async cancel(
-    @CurrentUser() user: UserPayload,
-    @Param('id') id: string,
-  ) {
-    const execution = await this.executionsService.cancel(id, user.organizationId);
-    
+  async cancel(@CurrentUser() user: UserPayload, @Param('id') id: string) {
+    const execution = await this.executionsService.cancel(
+      id,
+      user.organizationId,
+    );
+
     return {
       success: true,
       message: 'Ejecución cancelada exitosamente',

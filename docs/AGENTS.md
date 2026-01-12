@@ -43,6 +43,7 @@ apps/agents/
 ## Dónde Agregar Nuevas Tools
 
 ### Tools Built-in (sin MCP)
+
 Para herramientas simples como calculator:
 
 1. Crear archivo en `src/tools/` (ej: `weather.py`)
@@ -58,6 +59,7 @@ elif tool_name == "weather":
 ```
 
 ### Tools con MCP (Google, HubSpot, etc)
+
 Para herramientas que usan servicios externos:
 
 1. Crear carpeta en `src/tools/` (ej: `src/tools/hubspot/`)
@@ -74,6 +76,7 @@ Para herramientas que usan servicios externos:
 5. Registrar en `registry.py`
 
 **Ejemplo:**
+
 ```python
 # tools/hubspot/__init__.py
 from tools.hubspot.contacts import get_contact, create_contact
@@ -91,16 +94,19 @@ def load_hubspot_tools():
 ## Ejecutar Tests
 
 ### Todos los tests
+
 ```bash
 poetry run pytest
 ```
 
 ### Con output detallado
+
 ```bash
 poetry run pytest -v
 ```
 
 ### Tests específicos
+
 ```bash
 # Solo tests de calculator
 poetry run pytest tests/test_calculator.py
@@ -110,6 +116,7 @@ poetry run pytest tests/test_calculator.py::TestCalculator::test_basic_addition
 ```
 
 ### Con cobertura de código
+
 ```bash
 poetry run pytest --cov=src --cov-report=html
 ```
@@ -117,6 +124,7 @@ poetry run pytest --cov=src --cov-report=html
 Después abre `htmlcov/index.html` en tu navegador para ver el reporte detallado.
 
 ### Tests en modo watch (durante desarrollo)
+
 ```bash
 poetry run pytest-watch
 ```
@@ -133,12 +141,12 @@ from tools.weather import get_weather
 
 class TestWeather:
     """Tests para weather tool."""
-    
+
     def test_get_weather_success(self):
         """Prueba obtener clima."""
         result = get_weather.invoke({"city": "Mexico City"})
         assert "temperature" in result.lower()
-    
+
     def test_get_weather_invalid_city(self):
         """Prueba ciudad inválida."""
         result = get_weather.invoke({"city": "InvalidCity123"})

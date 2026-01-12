@@ -10,7 +10,7 @@ import {
   UpdateLlmModelDto,
   QueryLlmModelsDto,
   TokenUsage,
-  CostCalculation
+  CostCalculation,
 } from './dto';
 
 @Injectable()
@@ -83,7 +83,11 @@ export class LlmModelsService {
         where,
         skip,
         take: limit,
-        orderBy: [{ provider: 'asc' }, { modelName: 'asc' }, { effectiveFrom: 'desc' }],
+        orderBy: [
+          { provider: 'asc' },
+          { modelName: 'asc' },
+          { effectiveFrom: 'desc' },
+        ],
       }),
       this.prisma.llmModel.count({ where }),
     ]);
@@ -196,13 +200,13 @@ export class LlmModelsService {
   //==========================================================
   // Precios de fallback (basados en gpt-4o-mini a enero 2026)
   private readonly FALLBACK_PRICES = {
-    inputPricePer1m: 0.15,  // $0.15 por 1M tokens input
-    outputPricePer1m: 0.6,   // $0.60 por 1M tokens output
+    inputPricePer1m: 0.15, // $0.15 por 1M tokens input
+    outputPricePer1m: 0.6, // $0.60 por 1M tokens output
   } as const;
 
   /**
    * Calcular el costo en USD basado en los tokens usados
-   * 
+   *
    * @param modelName - Nombre del modelo LLM
    * @param usage - Tokens de input/output usados
    * @returns Cálculo detallado del costo
@@ -244,7 +248,7 @@ export class LlmModelsService {
 
     this.logger.debug(
       `Cost calculated for ${modelName}: $${calculation.totalCost} ` +
-      `(${usage.inputTokens} input + ${usage.outputTokens} output tokens)`,
+        `(${usage.inputTokens} input + ${usage.outputTokens} output tokens)`,
     );
 
     return calculation;
@@ -252,7 +256,7 @@ export class LlmModelsService {
 
   /**
    * Calcular costos para múltiples modelos en batch (evita N+1)
-   * 
+   *
    * @param usageByModel - Map de modelName → TokenUsage
    * @returns Array de cálculos de costo por modelo
    */
@@ -260,7 +264,7 @@ export class LlmModelsService {
     usageByModel: Record<string, TokenUsage>,
   ): Promise<CostCalculation[]> {
     const modelNames = Object.keys(usageByModel);
-    
+
     if (modelNames.length === 0) {
       return [];
     }
@@ -282,23 +286,19 @@ export class LlmModelsService {
     });
 
     // Crear map de modelName → LlmModel para lookup rápido
-    const modelMap = new Map(
-      llmModels.map((m) => [m.modelName, m])
-    );
+    const modelMap = new Map(llmModels.map((m) => [m.modelName, m]));
 
     // Calcular costos para cada modelo
     const calculations: CostCalculation[] = [];
-    
+
     for (const [modelName, usage] of Object.entries(usageByModel)) {
       const llmModel = modelMap.get(modelName);
-      
+
       if (!llmModel) {
         this.logger.warn(
           `No pricing found for model: ${modelName}. Using fallback prices.`,
         );
-        calculations.push(
-          this.calculateWithFallbackPrices(modelName, usage)
-        );
+        calculations.push(this.calculateWithFallbackPrices(modelName, usage));
       } else {
         calculations.push(
           this.performCostCalculation(
@@ -307,7 +307,7 @@ export class LlmModelsService {
             llmModel.outputPricePer1m,
             llmModel.modelName,
             llmModel.provider,
-          )
+          ),
         );
       }
     }
@@ -338,7 +338,7 @@ export class LlmModelsService {
   /**
    * Realiza el cálculo matemático del costo
    * Centraliza la lógica para evitar duplicación
-   * 
+   *
    * @param usage - Tokens usados
    * @param inputPricePer1m - Precio por 1M tokens de input
    * @param outputPricePer1m - Precio por 1M tokens de output
@@ -369,7 +369,7 @@ export class LlmModelsService {
 
   /**
    * Valida que el uso de tokens sea válido
-   * 
+   *
    * @param usage - Objeto con tokens de input/output
    * @throws Error si los tokens son inválidos
    */
@@ -382,7 +382,10 @@ export class LlmModelsService {
       throw new Error('Token counts cannot be negative');
     }
 
-    if (!Number.isFinite(usage.inputTokens) || !Number.isFinite(usage.outputTokens)) {
+    if (
+      !Number.isFinite(usage.inputTokens) ||
+      !Number.isFinite(usage.outputTokens)
+    ) {
       throw new Error('Token counts must be finite numbers');
     }
   }

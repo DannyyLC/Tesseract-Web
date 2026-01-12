@@ -29,7 +29,9 @@ export class EmailService {
       } as any,
     );
 
-    this.emailVerificationTemplate = this.loadTemplate('email_verification_view.hbs');
+    this.emailVerificationTemplate = this.loadTemplate(
+      'email_verification_view.hbs',
+    );
   }
 
   private loadTemplate(templateName: string): handlebars.TemplateDelegate {
@@ -46,7 +48,10 @@ export class EmailService {
     await this.transporter.sendMail({
       to: userEmail,
       subject: 'Verificacion de Email',
-      html: this.emailVerificationTemplate({ verificationUrl, name: userEmail }),
+      html: this.emailVerificationTemplate({
+        verificationUrl,
+        name: userEmail,
+      }),
     });
   }
 

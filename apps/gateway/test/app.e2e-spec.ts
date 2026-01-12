@@ -33,7 +33,8 @@ describe('AppController (e2e)', () => {
 
   beforeAll(async () => {
     // Configurar variables de entorno requeridas
-    process.env.SUPER_ADMIN_SECRET = 'test-super-admin-secret-for-e2e-tests-only-12345678901234567890123456789012';
+    process.env.SUPER_ADMIN_SECRET =
+      'test-super-admin-secret-for-e2e-tests-only-12345678901234567890123456789012';
     process.env.JWT_SECRET = 'test-jwt-secret-for-e2e-tests';
     process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-for-e2e-tests';
 
@@ -78,8 +79,7 @@ describe('AppController (e2e)', () => {
   // Probar que una ruta protegida retorna error sin autenticación
   // En E2E con dependencias mockeadas, puede retornar 401 o 500 dependiendo del flujo
   it('/api/workflows (GET) should return error without auth', async () => {
-    const response = await request(app.getHttpServer())
-      .get('/api/workflows');
+    const response = await request(app.getHttpServer()).get('/api/workflows');
 
     // Verificar que la ruta está protegida (retorna error, no 200)
     expect(response.status).toBeGreaterThanOrEqual(400);

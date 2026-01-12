@@ -3,7 +3,7 @@ import { ApiKeyPayload } from '../../common/types/api-key-payload.type';
 
 /**
  * Decorador para obtener la API Key autenticada
- * 
+ *
  * Uso:
  * @Post('execute')
  * @UseGuards(ApiKeyGuard)
@@ -11,7 +11,7 @@ import { ApiKeyPayload } from '../../common/types/api-key-payload.type';
  *   console.log(apiKey.apiKeyName);     // "Production Web"
  *   console.log(apiKey.organizationId); // ID de la organización
  * }
- * 
+ *
  * Requisito: El endpoint debe estar protegido con ApiKeyGuard
  * para que request.apiKey exista
  */

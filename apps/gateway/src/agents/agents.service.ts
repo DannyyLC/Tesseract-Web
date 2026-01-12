@@ -3,10 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom, timeout, catchError } from 'rxjs';
 import { AxiosError } from 'axios';
-import {
-  AgentExecutionRequestDto,
-  AgentExecutionResponseDto,
-} from './dto';
+import { AgentExecutionRequestDto, AgentExecutionResponseDto } from './dto';
 
 @Injectable()
 export class AgentsService {
@@ -32,7 +29,7 @@ export class AgentsService {
 
   /**
    * Ejecuta un agente en el servicio de Python
-   * 
+   *
    * @param request - Request completo con toda la configuración
    * @returns Response del agente con los mensajes generados
    */
@@ -47,45 +44,43 @@ export class AgentsService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService
-          .post<AgentExecutionResponseDto>(url, request)
-          .pipe(
-            timeout({ each: this.agentsServiceTimeout }),
-            catchError((error: AxiosError) => {
-              this.logger.error(
-                `Failed to execute agent: ${error.message}`,
-                error.stack,
-              );
+        this.httpService.post<AgentExecutionResponseDto>(url, request).pipe(
+          timeout({ each: this.agentsServiceTimeout }),
+          catchError((error: AxiosError) => {
+            this.logger.error(
+              `Failed to execute agent: ${error.message}`,
+              error.stack,
+            );
 
-              if (error.code === 'ECONNREFUSED') {
-                throw new HttpException(
-                  'Agents service is not available',
-                  HttpStatus.SERVICE_UNAVAILABLE,
-                );
-              }
-
-              if (error.code === 'ETIMEDOUT' || error.name === 'TimeoutError') {
-                throw new HttpException(
-                  'Agent execution timed out',
-                  HttpStatus.REQUEST_TIMEOUT,
-                );
-              }
-
-              if (error.response) {
-                // El servicio de Python respondió con un error
-                throw new HttpException(
-                  error.response.data || 'Agent execution failed',
-                  error.response.status,
-                );
-              }
-
-              // Error desconocido
+            if (error.code === 'ECONNREFUSED') {
               throw new HttpException(
-                'Failed to communicate with agents service',
-                HttpStatus.INTERNAL_SERVER_ERROR,
+                'Agents service is not available',
+                HttpStatus.SERVICE_UNAVAILABLE,
               );
-            }),
-          ),
+            }
+
+            if (error.code === 'ETIMEDOUT' || error.name === 'TimeoutError') {
+              throw new HttpException(
+                'Agent execution timed out',
+                HttpStatus.REQUEST_TIMEOUT,
+              );
+            }
+
+            if (error.response) {
+              // El servicio de Python respondió con un error
+              throw new HttpException(
+                error.response.data || 'Agent execution failed',
+                error.response.status,
+              );
+            }
+
+            // Error desconocido
+            throw new HttpException(
+              'Failed to communicate with agents service',
+              HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+          }),
+        ),
       );
 
       this.logger.debug(
@@ -113,7 +108,7 @@ export class AgentsService {
   }
   /**
    * Ejecuta un agente en modo streaming
-   * 
+   *
    * @param request - Request completo
    * @returns Stream de SSE (Server-Sent Events)
    */
@@ -192,7 +187,7 @@ export class AgentsService {
 
   /**
    * Health check del servicio de agents
-   * 
+   *
    * @returns true si el servicio está disponible
    */
   async healthCheck(): Promise<boolean> {
@@ -210,7 +205,9 @@ export class AgentsService {
 
       return response.status === 200;
     } catch (error) {
-      this.logger.warn(`Agents service health check failed: ${(error as Error).message}`);
+      this.logger.warn(
+        `Agents service health check failed: ${(error as Error).message}`,
+      );
       return false;
     }
   }

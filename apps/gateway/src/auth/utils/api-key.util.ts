@@ -55,10 +55,11 @@ export class ApiKeyUtil {
    * @returns Cadena aleatoria
    */
   private static generateRandomString(length: number): string {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const chars =
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
     const randomArray = new Uint8Array(length);
-    
+
     // Usar crypto del navegador/Node.js
     if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
       crypto.getRandomValues(randomArray);
@@ -67,11 +68,11 @@ export class ApiKeyUtil {
       const nodeCrypto = require('crypto');
       nodeCrypto.randomFillSync(randomArray);
     }
-    
+
     for (let i = 0; i < length; i++) {
       result += chars[randomArray[i] % chars.length];
     }
-    
+
     return result;
   }
 }

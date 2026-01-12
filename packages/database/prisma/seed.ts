@@ -44,7 +44,7 @@ async function main() {
         tier: 'BASIC',
         category: 'chat',
         inputPricePer1m: 0.15,
-        outputPricePer1m: 0.60,
+        outputPricePer1m: 0.6,
         contextWindow: 128000,
         recommendedMaxTokens: 100000,
         isActive: true,
@@ -55,8 +55,8 @@ async function main() {
         modelName: 'gpt-4o',
         tier: 'STANDARD',
         category: 'chat',
-        inputPricePer1m: 2.50,
-        outputPricePer1m: 10.00,
+        inputPricePer1m: 2.5,
+        outputPricePer1m: 10.0,
         contextWindow: 128000,
         recommendedMaxTokens: 100000,
         isActive: true,
@@ -66,8 +66,8 @@ async function main() {
         modelName: 'gpt-4o-2024-11-20',
         tier: 'STANDARD',
         category: 'chat',
-        inputPricePer1m: 2.50,
-        outputPricePer1m: 10.00,
+        inputPricePer1m: 2.5,
+        outputPricePer1m: 10.0,
         contextWindow: 128000,
         recommendedMaxTokens: 100000,
         isActive: true,
@@ -78,8 +78,8 @@ async function main() {
         modelName: 'gpt-4-turbo',
         tier: 'PREMIUM',
         category: 'chat',
-        inputPricePer1m: 10.00,
-        outputPricePer1m: 30.00,
+        inputPricePer1m: 10.0,
+        outputPricePer1m: 30.0,
         contextWindow: 128000,
         recommendedMaxTokens: 100000,
         isActive: true,
@@ -89,8 +89,8 @@ async function main() {
         modelName: 'o1',
         tier: 'PREMIUM',
         category: 'reasoning',
-        inputPricePer1m: 15.00,
-        outputPricePer1m: 60.00,
+        inputPricePer1m: 15.0,
+        outputPricePer1m: 60.0,
         contextWindow: 200000,
         recommendedMaxTokens: 150000,
         isActive: true,
@@ -100,8 +100,8 @@ async function main() {
         modelName: 'o1-mini',
         tier: 'STANDARD',
         category: 'reasoning',
-        inputPricePer1m: 3.00,
-        outputPricePer1m: 12.00,
+        inputPricePer1m: 3.0,
+        outputPricePer1m: 12.0,
         contextWindow: 128000,
         recommendedMaxTokens: 100000,
         isActive: true,
@@ -124,8 +124,8 @@ async function main() {
         modelName: 'claude-3-5-sonnet-20241022',
         tier: 'STANDARD',
         category: 'chat',
-        inputPricePer1m: 3.00,
-        outputPricePer1m: 15.00,
+        inputPricePer1m: 3.0,
+        outputPricePer1m: 15.0,
         contextWindow: 200000,
         recommendedMaxTokens: 150000,
         isActive: true,
@@ -135,8 +135,8 @@ async function main() {
         modelName: 'claude-3-opus-20240229',
         tier: 'PREMIUM',
         category: 'chat',
-        inputPricePer1m: 15.00,
-        outputPricePer1m: 75.00,
+        inputPricePer1m: 15.0,
+        outputPricePer1m: 75.0,
         contextWindow: 200000,
         recommendedMaxTokens: 150000,
         isActive: true,
@@ -149,7 +149,7 @@ async function main() {
         tier: 'BASIC',
         category: 'chat',
         inputPricePer1m: 0.075,
-        outputPricePer1m: 0.30,
+        outputPricePer1m: 0.3,
         contextWindow: 1000000,
         recommendedMaxTokens: 800000,
         isActive: true,
@@ -160,7 +160,7 @@ async function main() {
         tier: 'STANDARD',
         category: 'chat',
         inputPricePer1m: 1.25,
-        outputPricePer1m: 5.00,
+        outputPricePer1m: 5.0,
         contextWindow: 2000000,
         recommendedMaxTokens: 1500000,
         isActive: true,
@@ -434,7 +434,8 @@ async function main() {
     data: {
       toolName: 'calculator',
       displayName: 'Calculator',
-      description: 'Herramienta de cálculo matemático. Soporta operaciones básicas, porcentajes y conversiones de moneda.',
+      description:
+        'Herramienta de cálculo matemático. Soporta operaciones básicas, porcentajes y conversiones de moneda.',
       provider: 'custom',
       category: 'utility',
       icon: 'https://api.iconify.design/mdi:calculator.svg',
@@ -445,7 +446,8 @@ async function main() {
           {
             functionName: 'calculator',
             displayName: 'Calcular expresión',
-            description: 'Evalúa expresiones matemáticas de forma segura. Soporta: +, -, *, /, paréntesis, decimales, módulo y potencias.',
+            description:
+              'Evalúa expresiones matemáticas de forma segura. Soporta: +, -, *, /, paréntesis, decimales, módulo y potencias.',
             category: 'calculation',
             isActive: true,
             isInBeta: false,
@@ -592,7 +594,8 @@ async function main() {
           default: {
             model: 'gpt-4o',
             temperature: 0.5,
-            system_prompt: 'Eres un asistente financiero experto. Proporciona análisis detallados con cálculos precisos.',
+            system_prompt:
+              'Eres un asistente financiero experto. Proporciona análisis detallados con cálculos precisos.',
             // Sin restricciones = puede usar TODAS las funciones disponibles (string format)
             tools: [tenantToolCalc1.id],
           },
@@ -637,7 +640,8 @@ async function main() {
           default: {
             model: 'gpt-4o',
             temperature: 0.7,
-            system_prompt: 'Eres un agente estratégico de alto nivel. Realiza análisis profundos y detallados con razonamiento paso a paso.',
+            system_prompt:
+              'Eres un agente estratégico de alto nivel. Realiza análisis profundos y detallados con razonamiento paso a paso.',
             // Control granular: solo permite calculator básica
             tools: [
               {
@@ -886,7 +890,7 @@ async function main() {
   console.log('═══════════════════════════════════════════════\n');
 
   console.log('📋 CREDENCIALES PARA TESTING:\n');
-  
+
   console.log('👤 Organización 1: Acme Corp (STARTER)');
   console.log(`   Org ID: ${org1.id}`);
   console.log(`   Email: ${user1.email}`);

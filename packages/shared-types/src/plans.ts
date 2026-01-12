@@ -1,6 +1,6 @@
 /**
  * Sistema de Planes de Suscripción con Créditos
- * 
+ *
  * Define los planes disponibles, sus límites, y configuración de créditos.
  * Sistema de pre-pago: créditos mensuales con renovación automática.
  */
@@ -17,7 +17,7 @@ import { WorkflowCategory, ModelTier } from '@prisma/client';
  * Planes de suscripción disponibles
  */
 export enum SubscriptionPlan {
-  FREE = 'FREE',           // Plan gratuito (sin pago)
+  FREE = 'FREE', // Plan gratuito (sin pago)
   STARTER = 'STARTER',
   GROWTH = 'GROWTH',
   BUSINESS = 'BUSINESS',
@@ -36,8 +36,8 @@ export { WorkflowCategory, ModelTier };
  */
 export interface WorkflowCategoryConfig {
   category: WorkflowCategory;
-  credits: number;           // Créditos que cuesta ejecutar
-  maxTokens: number;         // Límite de tokens por ejecución
+  credits: number; // Créditos que cuesta ejecutar
+  maxTokens: number; // Límite de tokens por ejecución
   allowedModelTiers: ModelTier[]; // Tiers de modelos permitidos
   description: string;
 }
@@ -46,12 +46,12 @@ export interface WorkflowCategoryConfig {
  * Límites de un plan de suscripción
  */
 export interface PlanLimits {
-  maxUsers: number;          // Usuarios permitidos en la organización
-  maxWorkflows: number;      // Workflows activos simultáneos
-  maxApiKeys: number;        // API keys permitidas
-  monthlyCredits: number;    // Créditos incluidos por mes
-  overageLimit: number;      // Límite de créditos en negativo (overage)
-  allowOverages: boolean;    // Si permite balance negativo
+  maxUsers: number; // Usuarios permitidos en la organización
+  maxWorkflows: number; // Workflows activos simultáneos
+  maxApiKeys: number; // API keys permitidas
+  monthlyCredits: number; // Créditos incluidos por mes
+  overageLimit: number; // Límite de créditos en negativo (overage)
+  allowOverages: boolean; // Si permite balance negativo
 }
 
 /**
@@ -62,12 +62,12 @@ export interface Plan {
   name: string;
   description: string;
   price: {
-    monthly: number;         // USD por mes
+    monthly: number; // USD por mes
     currency: string;
   };
   limits: PlanLimits;
-  popular?: boolean;         // Badge "Más popular"
-  stripePriceId?: string;    // Stripe Price ID (opcional hasta integrar)
+  popular?: boolean; // Badge "Más popular"
+  stripePriceId?: string; // Stripe Price ID (opcional hasta integrar)
 }
 
 /**
@@ -132,13 +132,13 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       currency: 'USD',
     },
     limits: {
-      maxUsers: 1,          
-      maxWorkflows: 0,       
-      maxApiKeys: 0,         
-      monthlyCredits: 0,     
-      overageLimit: 0,       
-      allowOverages: false, 
-    }
+      maxUsers: 1,
+      maxWorkflows: 0,
+      maxApiKeys: 0,
+      monthlyCredits: 0,
+      overageLimit: 0,
+      allowOverages: false,
+    },
   },
 
   [SubscriptionPlan.STARTER]: {
@@ -156,7 +156,7 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       monthlyCredits: 150,
       overageLimit: 150, // 1 mes extra de créditos
       allowOverages: true,
-    }
+    },
   },
 
   [SubscriptionPlan.GROWTH]: {
@@ -193,7 +193,7 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       monthlyCredits: 1500,
       overageLimit: 1500,
       allowOverages: true,
-    }
+    },
   },
 
   [SubscriptionPlan.PRO]: {
@@ -211,7 +211,7 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       monthlyCredits: 5000,
       overageLimit: 5000,
       allowOverages: true,
-    }
+    },
   },
 
   [SubscriptionPlan.ENTERPRISE]: {
@@ -223,13 +223,13 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       currency: 'USD',
     },
     limits: {
-      maxUsers: -1,          // Ilimitado (se configura custom)
-      maxWorkflows: -1,      // Ilimitado (se configura custom)
-      maxApiKeys: -1,        // Ilimitado (se configura custom)
-      monthlyCredits: -1,    // Ilimitado (se configura custom)
-      overageLimit: -1,      // Ilimitado (se configura custom)
+      maxUsers: -1, // Ilimitado (se configura custom)
+      maxWorkflows: -1, // Ilimitado (se configura custom)
+      maxApiKeys: -1, // Ilimitado (se configura custom)
+      monthlyCredits: -1, // Ilimitado (se configura custom)
+      overageLimit: -1, // Ilimitado (se configura custom)
       allowOverages: true,
-    }
+    },
   },
 };
 
@@ -249,10 +249,10 @@ export function getPlan(planType: SubscriptionPlan): Plan {
  */
 export function getPlanLimits(
   planType: SubscriptionPlan,
-  enterpriseConfig?: EnterprisePlanConfig
+  enterpriseConfig?: EnterprisePlanConfig,
 ): PlanLimits {
   const plan = PLANS[planType];
-  
+
   // Para ENTERPRISE, usar valores custom si existen
   if (planType === SubscriptionPlan.ENTERPRISE && enterpriseConfig) {
     return {
@@ -264,7 +264,7 @@ export function getPlanLimits(
       allowOverages: plan.limits.allowOverages,
     };
   }
-  
+
   return plan.limits;
 }
 
@@ -274,15 +274,15 @@ export function getPlanLimits(
 export function canCreateWorkflow(
   planType: SubscriptionPlan,
   currentWorkflows: number,
-  enterpriseConfig?: EnterprisePlanConfig
+  enterpriseConfig?: EnterprisePlanConfig,
 ): boolean {
   const limits = getPlanLimits(planType, enterpriseConfig);
-  
+
   // -1 = ilimitado
   if (limits.maxWorkflows === -1) {
     return true;
   }
-  
+
   return currentWorkflows < limits.maxWorkflows;
 }
 
@@ -293,20 +293,20 @@ export function hasSufficientCredits(
   currentBalance: number,
   workflowCategory: WorkflowCategory,
   allowOverages: boolean,
-  overageLimit: number
+  overageLimit: number,
 ): boolean {
   const requiredCredits = WORKFLOW_CATEGORIES[workflowCategory].credits;
-  
+
   // Si tiene balance positivo suficiente
   if (currentBalance >= requiredCredits) {
     return true;
   }
-  
+
   // Si no permite overages
   if (!allowOverages) {
     return false;
   }
-  
+
   // Verificar límite de overage
   const balanceAfterExecution = currentBalance - requiredCredits;
   return Math.abs(balanceAfterExecution) <= overageLimit;
@@ -331,7 +331,7 @@ export function getWorkflowMaxTokens(category: WorkflowCategory): number {
  */
 export function canUseModelInWorkflow(
   modelTier: ModelTier,
-  workflowCategory: WorkflowCategory
+  workflowCategory: WorkflowCategory,
 ): boolean {
   return WORKFLOW_CATEGORIES[workflowCategory].allowedModelTiers.includes(modelTier);
 }
@@ -344,7 +344,7 @@ export function calculateOverageCost(overageCredits: number): number {
 }
 
 /**
- * Obtiene todos los planes ordenados por precio 
+ * Obtiene todos los planes ordenados por precio
  */
 export function getOrderedPlans(): Plan[] {
   return [
@@ -362,7 +362,7 @@ export function getOrderedPlans(): Plan[] {
  */
 export function canUpgradePlan(
   currentPlan: SubscriptionPlan,
-  targetPlan: SubscriptionPlan
+  targetPlan: SubscriptionPlan,
 ): boolean {
   const planOrder = [
     SubscriptionPlan.FREE,
@@ -372,10 +372,10 @@ export function canUpgradePlan(
     SubscriptionPlan.PRO,
     SubscriptionPlan.ENTERPRISE,
   ];
-  
+
   const currentIndex = planOrder.indexOf(currentPlan);
   const targetIndex = planOrder.indexOf(targetPlan);
-  
+
   return targetIndex > currentIndex;
 }
 
@@ -386,18 +386,18 @@ export function validateEnterpriseConfig(config: EnterprisePlanConfig): boolean 
   if (config.customMonthlyPrice !== undefined && config.customMonthlyPrice < 0) {
     return false;
   }
-  
+
   if (config.customMonthlyCredits !== undefined && config.customMonthlyCredits < 0) {
     return false;
   }
-  
+
   if (config.customMaxWorkflows !== undefined && config.customMaxWorkflows < 1) {
     return false;
   }
-  
+
   if (config.customOverageLimit !== undefined && config.customOverageLimit < 0) {
     return false;
   }
-  
+
   return true;
 }

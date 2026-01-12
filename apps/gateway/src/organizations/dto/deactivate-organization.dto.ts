@@ -1,6 +1,4 @@
-
-
 export interface DeactivateOrganizationDto {
-    deactivatedBy: string;
-    reason?: string;
+  deactivatedBy: string;
+  reason?: string;
 }

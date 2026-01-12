@@ -13,13 +13,13 @@ import { UserPayload } from '../../common/types/jwt-payload.type';
 
 /**
  * Guard que verifica si el usuario tiene el rol requerido
- * 
+ *
  * Flujo:
  * 1. Obtiene los roles requeridos desde los metadatos del endpoint
  * 2. Si no hay roles requeridos, permite el acceso
  * 3. Obtiene el usuario del request (debe venir de JwtAuthGuard)
  * 4. Verifica si el usuario tiene uno de los roles requeridos
- * 
+ *
  * Uso:
  * @Get('settings')
  * @UseGuards(JwtAuthGuard, RolesGuard)
@@ -34,10 +34,10 @@ export class RolesGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     // 0. Verificar si el endpoint está marcado como API Key Only
-    const isApiKeyOnly = this.reflector.getAllAndOverride<boolean>(API_KEY_ONLY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const isApiKeyOnly = this.reflector.getAllAndOverride<boolean>(
+      API_KEY_ONLY,
+      [context.getHandler(), context.getClass()],
+    );
 
     if (isApiKeyOnly) {
       // Si es API Key only, saltarse la verificación de roles
@@ -60,7 +60,9 @@ export class RolesGuard implements CanActivate {
     const user: UserPayload = request.user;
 
     if (!user) {
-      this.logger.warn('Usuario no encontrado en request. ¿Falta JwtAuthGuard?');
+      this.logger.warn(
+        'Usuario no encontrado en request. ¿Falta JwtAuthGuard?',
+      );
       throw new ForbiddenException('Usuario no autenticado');
     }
 

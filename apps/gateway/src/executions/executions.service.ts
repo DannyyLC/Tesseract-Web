@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 
 /**
  * Service que maneja el historial de ejecuciones
- * 
+ *
  * Responsabilidades:
  * - Crear registros de Execution cuando se ejecuta un workflow
  * - Actualizar el estado de las ejecuciones (pending → running → completed/failed)
@@ -20,7 +20,7 @@ export class ExecutionsService {
   /**
    * Crear una nueva ejecución
    * Se llama cuando un workflow empieza a ejecutarse
-   * 
+   *
    * @param workflowId - ID del workflow que se ejecuta
    * @param trigger - Cómo se disparó (api, webhook, schedule, manual)
    * @param triggerData - Datos del trigger (IP, payload, metadata, organizationId, userId, apiKeyId, etc.)
@@ -63,7 +63,7 @@ export class ExecutionsService {
   /**
    * Actualizar el estado de una ejecución
    * Se llama cuando la ejecución cambia de estado
-   * 
+   *
    * @param executionId - ID de la ejecución
    * @param status - Nuevo estado (running, completed, failed, cancelled, timeout)
    * @param data - Datos adicionales (result, error, logs, tokens, cost, etc.)
@@ -102,10 +102,14 @@ export class ExecutionsService {
       where: { id: executionId },
       data: {
         status,
-        finishedAt: ['completed', 'failed', 'cancelled', 'timeout'].includes(status)
+        finishedAt: ['completed', 'failed', 'cancelled', 'timeout'].includes(
+          status,
+        )
           ? now
           : undefined,
-        duration: ['completed', 'failed', 'cancelled', 'timeout'].includes(status)
+        duration: ['completed', 'failed', 'cancelled', 'timeout'].includes(
+          status,
+        )
           ? duration
           : undefined,
         result: data?.result,
@@ -126,7 +130,7 @@ export class ExecutionsService {
 
     this.logger.log(
       `Ejecución ${executionId} actualizada a estado: ${status} ` +
-      `(duración: ${duration}s, tokens: ${data?.tokensUsed || 0}, cost: $${data?.cost || 0})`,
+        `(duración: ${duration}s, tokens: ${data?.tokensUsed || 0}, cost: $${data?.cost || 0})`,
     );
 
     return updated;
@@ -135,7 +139,7 @@ export class ExecutionsService {
   /**
    * Actualizar estadísticas del workflow
    * Incrementa contadores y calcula promedio de tiempo de ejecución
-   * 
+   *
    * @param workflowId - ID del workflow
    * @param status - Estado final de la ejecución (completed o failed)
    * @param duration - Duración de la ejecución en segundos
@@ -170,13 +174,8 @@ export class ExecutionsService {
       data: {
         totalExecutions: { increment: 1 },
         successfulExecutions:
-          status === 'completed'
-            ? { increment: 1 }
-            : undefined,
-        failedExecutions:
-          status === 'failed'
-            ? { increment: 1 }
-            : undefined,
+          status === 'completed' ? { increment: 1 } : undefined,
+        failedExecutions: status === 'failed' ? { increment: 1 } : undefined,
         avgExecutionTime: newAvg,
         lastExecutedAt: new Date(),
       },
@@ -190,7 +189,7 @@ export class ExecutionsService {
   /**
    * Obtener una ejecución por ID (versión cliente)
    * Incluye información de créditos pero no costos internos
-   * 
+   *
    * @param executionId - ID de la ejecución
    * @param organizationId - ID de la organización (para verificar ownership)
    */
@@ -264,7 +263,7 @@ export class ExecutionsService {
   /**
    * Obtener una ejecución por ID (versión admin)
    * Incluye TODOS los campos técnicos: cost, tokensUsed, errorStack, creditTransaction
-   * 
+   *
    * @param executionId - ID de la ejecución
    * @param organizationId - ID de la organización (opcional para super admin)
    */
@@ -348,7 +347,7 @@ export class ExecutionsService {
 
   /**
    * Listar ejecuciones de un workflow
-   * 
+   *
    * @param workflowId - ID del workflow
    * @param organizationId - ID de la organización (para verificar ownership)
    * @param limit - Número máximo de resultados (default: 50)
@@ -423,7 +422,7 @@ export class ExecutionsService {
   /**
    * Listar todas las ejecuciones de la organización (versión cliente)
    * Con paginación cursor-based y filtros avanzados
-   * 
+   *
    * @param organizationId - ID de la organización
    * @param options - Opciones de filtrado y paginación
    */
@@ -564,7 +563,7 @@ export class ExecutionsService {
   /**
    * Listar todas las ejecuciones (versión admin)
    * Incluye campos técnicos: cost, tokensUsed, creditTransaction
-   * 
+   *
    * @param organizationId - ID de la organización (opcional para super admin)
    * @param options - Opciones de filtrado y paginación
    */
@@ -717,7 +716,7 @@ export class ExecutionsService {
   /**
    * Obtener estadísticas de ejecuciones de la organización
    * Incluye información de créditos y categorías de workflow
-   * 
+   *
    * @param organizationId - ID de la organización
    * @param period - Periodo de tiempo (24h, 7d, 30d, 90d, all)
    */
@@ -777,15 +776,23 @@ export class ExecutionsService {
 
     // Calcular estadísticas
     const total = executions.length;
-    const successful = executions.filter((e: any) => e.status === 'completed').length;
+    const successful = executions.filter(
+      (e: any) => e.status === 'completed',
+    ).length;
     const failed = executions.filter((e: any) => e.status === 'failed').length;
-    const cancelled = executions.filter((e: any) => e.status === 'cancelled').length;
-    const timeout = executions.filter((e: any) => e.status === 'timeout').length;
+    const cancelled = executions.filter(
+      (e: any) => e.status === 'cancelled',
+    ).length;
+    const timeout = executions.filter(
+      (e: any) => e.status === 'timeout',
+    ).length;
 
     const successRate = total > 0 ? (successful / total) * 100 : 0;
 
     // Calcular duración total y promedio
-    const completedExecutions = executions.filter((e: any) => e.duration !== null);
+    const completedExecutions = executions.filter(
+      (e: any) => e.duration !== null,
+    );
     const totalDuration = completedExecutions.reduce(
       (sum: any, e: any) => sum + (e.duration || 0),
       0,
@@ -853,11 +860,13 @@ export class ExecutionsService {
 
     const overageRate = total > 0 ? (executionsInOverage / total) * 100 : 0;
 
-    const avgCreditsPerExecution =
-      total > 0 ? totalCreditsConsumed / total : 0;
+    const avgCreditsPerExecution = total > 0 ? totalCreditsConsumed / total : 0;
 
     // Agrupar por categoría de workflow
-    const byWorkflowCategory: Record<string, { count: number; credits: number }> = {
+    const byWorkflowCategory: Record<
+      string,
+      { count: number; credits: number }
+    > = {
       LIGHT: { count: 0, credits: 0 },
       STANDARD: { count: 0, credits: 0 },
       ADVANCED: { count: 0, credits: 0 },
@@ -897,7 +906,7 @@ export class ExecutionsService {
 
   /**
    * Cancelar una ejecución en progreso
-   * 
+   *
    * @param executionId - ID de la ejecución
    * @param organizationId - ID de la organización (para verificar ownership)
    */
@@ -917,7 +926,7 @@ export class ExecutionsService {
 
   /**
    * Obtener estadísticas de ejecuciones agrupadas por fuente (API key o usuario)
-   * 
+   *
    * @param workflowId - ID del workflow
    * @param organizationId - ID de la organización
    * @param period - Periodo de tiempo (24h, 7d, 30d, 90d, all)
@@ -1087,7 +1096,7 @@ export class ExecutionsService {
 
   /**
    * Asocia una ejecución a una conversación
-   * 
+   *
    * @param executionId - ID de la ejecución
    * @param conversationId - ID de la conversación
    */
@@ -1104,7 +1113,7 @@ export class ExecutionsService {
 
   /**
    * Actualiza las estadísticas de uso (tokens y costo) de una ejecución
-   * 
+   *
    * @param executionId - ID de la ejecución
    * @param tokensUsed - Tokens consumidos
    * @param cost - Costo en USD

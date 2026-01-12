@@ -1,7 +1,7 @@
-import { 
-  Injectable, 
-  ConflictException, 
-  UnauthorizedException, 
+import {
+  Injectable,
+  ConflictException,
+  UnauthorizedException,
   Logger,
   NotFoundException,
   BadRequestException,
@@ -20,7 +20,7 @@ import * as qrcode from 'qrcode';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
- * 
+ *
  * Funcionalidades:
  * - Registro de nuevos usuarios
  * - Login y generación de tokens
@@ -40,7 +40,7 @@ export class AuthService {
   ) {}
 
   //==============================================================
-  // AUTHENTICATION METHODS 
+  // AUTHENTICATION METHODS
   //==============================================================
   /**
    * Registra una nueva organización con su usuario Owner
@@ -65,7 +65,9 @@ export class AuthService {
     const result = await this.prisma.$transaction(async (tx) => {
       // Generar slug único usando método centralizado de OrganizationsService
       // Pasamos tx para que funcione dentro de la transacción
-      const { OrganizationsService } = await import('../organizations/organizations.service');
+      const { OrganizationsService } = await import(
+        '../organizations/organizations.service'
+      );
       const slug = await OrganizationsService.generateUniqueSlug(dto.name, tx);
 
       const organization = await tx.organization.create({
@@ -190,7 +192,7 @@ export class AuthService {
   async logout(refreshToken: string) {
     try {
       // 1. Decodificar el token (sin verificar expiración para permitir logout de tokens expirados)
-      const payload = this.jwtService.decode(refreshToken) as UserPayload;
+      const payload = this.jwtService.decode(refreshToken);
 
       if (!payload) {
         throw new UnauthorizedException('Token inválido');
@@ -312,31 +314,41 @@ export class AuthService {
    */
   public validatePasswordStrength(password: string): void {
     if (!password || password.length < 8) {
-      throw new BadRequestException('Password must be at least 8 characters long');
+      throw new BadRequestException(
+        'Password must be at least 8 characters long',
+      );
     }
 
     // Al menos una letra mayúscula
     if (!/[A-Z]/.test(password)) {
-      throw new BadRequestException('Password must contain at least one uppercase letter');
+      throw new BadRequestException(
+        'Password must contain at least one uppercase letter',
+      );
     }
 
     // Al menos una letra minúscula
     if (!/[a-z]/.test(password)) {
-      throw new BadRequestException('Password must contain at least one lowercase letter');
+      throw new BadRequestException(
+        'Password must contain at least one lowercase letter',
+      );
     }
 
     // Al menos un número
     if (!/\d/.test(password)) {
-      throw new BadRequestException('Password must contain at least one number');
+      throw new BadRequestException(
+        'Password must contain at least one number',
+      );
     }
 
     // Al menos un carácter especial
     if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-      throw new BadRequestException('Password must contain at least one special character');
+      throw new BadRequestException(
+        'Password must contain at least one special character',
+      );
     }
   }
 
-    /**
+  /**
    * Validar que el email es único (global)
    */
   async validateEmailUnique(email: string): Promise<void> {
@@ -498,7 +510,7 @@ export class AuthService {
   // ==================== VERIFICATION TOKEN UTILITIES ====================
   /**
    * Genera un token de verificación aleatorio
-   * 
+   *
    * @returns Token hexadecimal de 32 bytes (64 caracteres)
    */
   generateVerificationToken(): string {
@@ -507,20 +519,23 @@ export class AuthService {
 
   /**
    * Genera un token de verificación con fecha de expiración
-   * 
+   *
    * @param expiresInHours - Horas hasta que expire el token (default: 24)
    * @returns Objeto con token y fecha de expiración
    */
-  generateTokenWithExpiry(expiresInHours: number = 24): { token: string; expiresAt: Date } {
+  generateTokenWithExpiry(expiresInHours: number = 24): {
+    token: string;
+    expiresAt: Date;
+  } {
     const token = this.generateVerificationToken();
     const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
-    
+
     return { token, expiresAt };
   }
 
   /**
    * Valida si un token de verificación ha expirado
-   * 
+   *
    * @param expiresAt - Fecha de expiración del token
    * @returns true si ha expirado, false si aún es válido
    */
@@ -532,7 +547,7 @@ export class AuthService {
   /**
    * Regenerar token de verificación cuando ha expirado
    * Se puede usar por email o userId
-   * 
+   *
    * @param emailOrUserId - Email o ID del usuario
    * @param organizationId - ID de la organización (opcional)
    * @returns Token generado y fecha de expiración
@@ -544,10 +559,7 @@ export class AuthService {
     // Buscar usuario por email o ID
     const user = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          { email: emailOrUserId },
-          { id: emailOrUserId },
-        ],
+        OR: [{ email: emailOrUserId }, { id: emailOrUserId }],
         ...(organizationId && { organizationId }),
         deletedAt: null,
       },
@@ -598,7 +610,7 @@ export class AuthService {
       organizationName: organization.name,
       plan: organization.plan,
     };
-    
+
     // 2. Generar temporary token
     const options: any = {
       secret:
@@ -613,7 +625,7 @@ export class AuthService {
   // ==================== PASSWORD UTILITIES ====================
   /**
    * Hashea una contraseña usando bcrypt
-   * 
+   *
    * @param password - Contraseña en texto plano
    * @returns Contraseña hasheada
    */

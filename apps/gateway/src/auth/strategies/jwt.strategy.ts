@@ -7,7 +7,7 @@ import { UserPayload } from '../../common/types/user-payload.type';
 
 /**
  * Estrategia JWT para validar tokens de acceso del sistema multi-tenant
- * 
+ *
  * Flujo:
  * 1. Passport extrae el token del header Authorization: Bearer <token>
  * 2. Passport valida la firma del token con el JWT_SECRET
@@ -26,19 +26,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       // Extraer el JWT del header Authorization: Bearer <token>
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      
+
       // NO ignorar tokens expirados
       ignoreExpiration: false,
-      
+
       // Secret key para validar la firma del token
-      secretOrKey: configService.get<string>('JWT_SECRET') || 'your-secret-key-change-in-production',
+      secretOrKey:
+        configService.get<string>('JWT_SECRET') ||
+        'your-secret-key-change-in-production',
     });
   }
 
   /**
    * Valida el payload del JWT y retorna el usuario
    * Este método se ejecuta DESPUÉS de que Passport valida la firma del token
-   * 
+   *
    * @param payload - Payload decodificado del JWT
    * @returns UserPayload que se inyecta en request.user
    */
@@ -84,12 +86,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // 7. Validar que el email coincida (seguridad adicional)
     if (user.email !== payload.email) {
       this.logger.error(
-        `Email mismatch para usuario ${payload.sub}: ${user.email} vs ${payload.email}`
+        `Email mismatch para usuario ${payload.sub}: ${user.email} vs ${payload.email}`,
       );
       throw new UnauthorizedException('Token inválido');
     }
 
-    this.logger.debug(`Usuario autenticado exitosamente: ${user.email} (${user.organization.name})`);
+    this.logger.debug(
+      `Usuario autenticado exitosamente: ${user.email} (${user.organization.name})`,
+    );
 
     // 8. Retornar el payload completo que se inyecta en request.user
     return {

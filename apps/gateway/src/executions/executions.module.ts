@@ -5,6 +5,6 @@ import { ExecutionsController } from './executions.controller';
 @Module({
   controllers: [ExecutionsController],
   providers: [ExecutionsService],
-  exports: [ExecutionsService], 
+  exports: [ExecutionsService],
 })
 export class ExecutionsModule {}

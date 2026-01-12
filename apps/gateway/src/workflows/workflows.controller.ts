@@ -13,20 +13,20 @@ import {
   DefaultValuePipe,
   Header,
   StreamableFile,
-} from "@nestjs/common";
-import { WorkflowsService } from "./workflows.service";
-import { ExecutionsService } from "../executions/executions.service";
-import { CreateWorkflowDto } from "./dto/create-workflow.dto";
-import { UpdateWorkflowDto } from "./dto/update-workflow.dto";
+} from '@nestjs/common';
+import { WorkflowsService } from './workflows.service';
+import { ExecutionsService } from '../executions/executions.service';
+import { CreateWorkflowDto } from './dto/create-workflow.dto';
+import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { ExecuteWorkflowDto } from './dto/execute-workflow.dto';
-import { ApiKeyGuard } from "../auth/guards/api-key.guard";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { JwtOrApiKeyGuard } from "../auth/guards/jwt-or-api-key.guard";
-import { RolesGuard } from "../auth/guards/roles.guard";
-import { Roles } from "../auth/decorators/roles.decorator";
-import { ApiKeyOnly } from "../auth/decorators/api-key-only.decorator";
-import { CurrentUser } from "../auth/decorators/current-user.decorator";
-import { CurrentApiKey } from "../auth/decorators/current-api-key.decorator";
+import { ApiKeyGuard } from '../auth/guards/api-key.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtOrApiKeyGuard } from '../auth/guards/jwt-or-api-key.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { ApiKeyOnly } from '../auth/decorators/api-key-only.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CurrentApiKey } from '../auth/decorators/current-api-key.decorator';
 import { UserPayload } from '../common/types/jwt-payload.type';
 import { ApiKeyPayload } from '../common/types/api-key-payload.type';
 import { UserRole } from '@workflow-automation/shared-types';
@@ -34,11 +34,11 @@ import { UserRole } from '@workflow-automation/shared-types';
 /**
  * Controller de Workflows
  * Maneja todas las peticiones HTTP relacionadas con workflows
- * 
+ *
  * ESTRATEGIA DE AUTENTICACIÓN:
  * - JWT (Token): Para gestión CRUD (crear, listar, editar, eliminar) - Solo UI
  * - API Key: Para ejecución de workflows - Apps externas
- * 
+ *
  * Base path: /workflows
  */
 @Controller('workflows')
@@ -47,13 +47,13 @@ export class WorkflowsController {
   constructor(
     private readonly workflowsService: WorkflowsService,
     private readonly executionsService: ExecutionsService,
-  ) { }
+  ) {}
 
   /**
- * POST /workflows
- * Crear un nuevo workflow
- * Solo Owner y Admin pueden crear workflows
- */
+   * POST /workflows
+   * Crear un nuevo workflow
+   * Solo Owner y Admin pueden crear workflows
+   */
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
@@ -61,20 +61,23 @@ export class WorkflowsController {
     @CurrentUser() user: UserPayload,
     @Body() createDto: CreateWorkflowDto,
   ) {
-    return this.workflowsService.create(user.organizationId, createDto)
+    return this.workflowsService.create(user.organizationId, createDto);
   }
 
   /**
- * GET /workflows
- * Listar todos los workflows de la organización
- */
+   * GET /workflows
+   * Listar todos los workflows de la organización
+   */
   @Get()
   findAll(
     @CurrentUser() user: UserPayload,
     @Query('includeDeleted') includeDeleted?: string,
   ) {
     const includeDeletedBool = includeDeleted === 'true';
-    return this.workflowsService.findAll(user.organizationId, includeDeletedBool);
+    return this.workflowsService.findAll(
+      user.organizationId,
+      includeDeletedBool,
+    );
   }
 
   /**
@@ -82,10 +85,7 @@ export class WorkflowsController {
    * Obtener un workflow específico
    */
   @Get(':id')
-  findOne(
-    @CurrentUser() user: UserPayload,
-    @Param('id') id: string,
-  ) {
+  findOne(@CurrentUser() user: UserPayload, @Param('id') id: string) {
     return this.workflowsService.findOne(user.organizationId, id);
   }
 
@@ -111,17 +111,14 @@ export class WorkflowsController {
    */
   @Delete(':id')
   @Roles(UserRole.OWNER)
-  remove(
-    @CurrentUser() user: UserPayload,
-    @Param('id') id: string,
-  ) {
+  remove(@CurrentUser() user: UserPayload, @Param('id') id: string) {
     return this.workflowsService.remove(user.organizationId, id);
   }
 
   /**
    * POST /workflows/:id/execute
    * Ejecutar un workflow usando API Key
-   * 
+   *
    * Headers requeridos:
    *   X-API-Key: ak_live_xxx...
    */
@@ -146,21 +143,23 @@ export class WorkflowsController {
     // Transformar respuesta para ocultar metadata interna (DTO simplificado)
     const result = execution.result as any;
     const messages = result?.messages || [];
-    const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-    const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
+    const lastMessage =
+      messages.length > 0 ? messages[messages.length - 1] : null;
+    const assistantContent =
+      lastMessage?.role === 'assistant' ? lastMessage.content : null;
 
     return {
       content: assistantContent,
       metadata: {
         execution_time_ms: result?.metadata?.execution_time_ms,
-      }
+      },
     };
   }
 
   /**
    * POST /workflows/:id/execute/stream
    * Ejecutar un workflow en modo streaming usando API Key
-   * 
+   *
    * Headers requeridos:
    *   X-API-Key: ak_live_xxx...
    * Retorna: Content-Type: text/event-stream
@@ -191,7 +190,7 @@ export class WorkflowsController {
   /**
    * GET /workflows/:id/analytics
    * Obtiene analytics de un workflow agrupadas por fuente (API key o usuario)
-   * 
+   *
    * Query params opcionales:
    *   ?period=30d  - Periodo de tiempo (24h|7d|30d|90d|all) default: 30d
    */

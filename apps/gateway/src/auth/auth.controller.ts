@@ -1,8 +1,8 @@
-import { 
-  Controller, 
-  Post, 
+import {
+  Controller,
+  Post,
   Get,
-  Body, 
+  Body,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -20,33 +20,36 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { UserPayload } from '../common/types/jwt-payload.type';
 import { TempTokenGuard } from './guards/temp-token.guard';
-import { ApiResponseBuilder } from '@workflow-automation/shared-types'
+import { ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { HttpStatusCode } from 'axios';
 import { EmailService } from '../notifications/email/email.service';
 
 /**
  * AuthController maneja todos los endpoints de autenticación
- * 
+ *
  * 🔐 SEGURIDAD: Usa cookies httpOnly para almacenar tokens
  * - Los tokens NO se retornan en el body del response
  * - Se establecen como cookies httpOnly + secure + sameSite
  * - Protección contra XSS (Cross-Site Scripting)
- * 
+ *
  * Endpoints públicos (no requieren autenticación):
  * - POST /auth/login
  * - POST /auth/refresh
- * 
+ *
  * Endpoints protegidos (requieren JWT):
  * - GET /auth/me
  * - POST /auth/logout
  * - POST /auth/logout-all
- * 
+ *
  * Nota: El registro de usuarios está protegido y solo puede ser realizado
  * por administradores a través de /admin/users
  */
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService, private readonly emailService: EmailService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly emailService: EmailService,
+  ) {}
 
   /**
    * POST /auth/login
@@ -303,7 +306,7 @@ export class AuthController {
     @Body('code2FA') authCode: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    var result = null;
+    let result = null;
     const responseBuilder = new ApiResponseBuilder();
     try {
       result = await this.authService.verify2FACode(user, authCode);
@@ -361,14 +364,14 @@ export class AuthController {
   async testEmail(@Body('email') email: string) {
     return this.emailService.sendEmailVerificationEMail(email);
   }
-  
+
   @Get('verify-email')
   async verifyEmail(@Query('token') token: string) {
     const isEmailVerified = await this.authService.verifyEmail(token);
     if (isEmailVerified) {
-      // TODO send an event through sse 
+      // TODO send an event through sse
     } else {
       // otherwise not to do anything
-    }  
+    }
   }
 }

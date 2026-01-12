@@ -78,10 +78,7 @@ describe('RolesGuard', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        RolesGuard,
-        { provide: Reflector, useValue: mockReflector },
-      ],
+      providers: [RolesGuard, { provide: Reflector, useValue: mockReflector }],
     }).compile();
 
     guard = module.get<RolesGuard>(RolesGuard);
@@ -115,10 +112,10 @@ describe('RolesGuard', () => {
 
       // Assert
       expect(result).toBe(true);
-      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(
-        API_KEY_ONLY,
-        [context.getHandler(), context.getClass()],
-      );
+      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(API_KEY_ONLY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
     });
   });
 
@@ -176,7 +173,9 @@ describe('RolesGuard', () => {
 
       // Act & Assert
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-      expect(() => guard.canActivate(context)).toThrow('Usuario no autenticado');
+      expect(() => guard.canActivate(context)).toThrow(
+        'Usuario no autenticado',
+      );
     });
   });
 
@@ -313,7 +312,8 @@ describe('RolesGuard', () => {
       const context = createMockContext(request);
 
       reflector.getAllAndOverride.mockImplementation((key: any) => {
-        if (key === ROLES_KEY) return [UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER];
+        if (key === ROLES_KEY)
+          return [UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER];
         return undefined;
       });
 
@@ -358,10 +358,10 @@ describe('RolesGuard', () => {
       guard.canActivate(context);
 
       // Assert
-      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(
-        ROLES_KEY,
-        [context.getHandler(), context.getClass()],
-      );
+      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(ROLES_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
     });
 
     it('debería verificar API_KEY_ONLY antes de los roles', () => {
@@ -375,10 +375,10 @@ describe('RolesGuard', () => {
       guard.canActivate(context);
 
       // Assert
-      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(
-        API_KEY_ONLY,
-        [context.getHandler(), context.getClass()],
-      );
+      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(API_KEY_ONLY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
     });
   });
 });

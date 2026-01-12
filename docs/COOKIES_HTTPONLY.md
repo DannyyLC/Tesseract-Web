@@ -7,6 +7,7 @@ Este proyecto utiliza **cookies httpOnly** para almacenar los tokens JWT de form
 ## Configuración Backend
 
 ### Variables de entorno (.env)
+
 ```bash
 # Frontend URL para CORS
 FRONTEND_URL="http://localhost:3001"
@@ -16,6 +17,7 @@ NODE_ENV=development  # En producción: production
 ```
 
 ### Características de seguridad implementadas:
+
 - **httpOnly**: JavaScript no puede leer las cookies
 - **secure**: En producción, solo se envían por HTTPS
 - **sameSite: 'strict'**: Protección contra CSRF
@@ -27,13 +29,14 @@ NODE_ENV=development  # En producción: production
 ## Uso en el Frontend
 
 ### 1. Login
+
 ```javascript
 async function login(email, password) {
   const response = await fetch('http://localhost:3000/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include', // ← CRÍTICO
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ email, password }),
   });
 
   if (!response.ok) {
@@ -47,6 +50,7 @@ async function login(email, password) {
 ```
 
 ### 2. Llamadas autenticadas
+
 ```javascript
 async function getProfile() {
   const response = await fetch('http://localhost:3000/api/auth/me', {
@@ -62,7 +66,7 @@ async function createWorkflow(data) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include', // ← Siempre incluir
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
   });
 
   return await response.json();
@@ -70,6 +74,7 @@ async function createWorkflow(data) {
 ```
 
 ### 3. Refresh Token
+
 ```javascript
 async function refreshToken() {
   const response = await fetch('http://localhost:3000/api/auth/refresh', {
@@ -90,6 +95,7 @@ async function refreshToken() {
 ```
 
 ### 4. Logout
+
 ```javascript
 async function logout() {
   await fetch('http://localhost:3000/api/auth/logout', {
@@ -111,10 +117,10 @@ async function logoutAll() {
 }
 ```
 
-
 ## Cookies establecidas
 
 ### accessToken
+
 ```
 Name: accessToken
 Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -127,6 +133,7 @@ Max-Age: 900 (15 minutos)
 ```
 
 ### refreshToken
+
 ```
 Name: refreshToken
 Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...

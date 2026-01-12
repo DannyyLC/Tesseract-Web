@@ -5,9 +5,7 @@ import { OrganizationsController } from './controllers/user-ui/organizations/org
 
 @Module({
   imports: [DatabaseModule],
-  controllers: [
-    OrganizationsController
-  ],
+  controllers: [OrganizationsController],
   providers: [OrganizationsService],
   exports: [OrganizationsService],
 })

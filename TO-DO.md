@@ -10,6 +10,7 @@
 - `createdAt` - Fecha de creación
 
 **Límites personalizados:**
+
 - `customMaxUsers` - Cuántos usuarios pueden tener
 - `customMaxApiKeys` - Cuántas API keys pueden crear
 - `customMaxWorkflows` - Cuántos workflows pueden crear
@@ -34,6 +35,7 @@
 - `planChangeRequestedAt` - Cuándo solicitaron el cambio
 
 **Para planes ENTERPRISE:**
+
 - `customMonthlyPrice` - Precio mensual personalizado
 - `customMonthlyCredits` - Créditos mensuales personalizados
 - `customMaxWorkflows` - Límite de workflows personalizado
@@ -53,6 +55,7 @@
 - `createdAt` - Fecha de la transacción
 
 **Referencias:**
+
 - `executionId` - Si fue por ejecución de workflow
 - `invoiceId` - Si fue por compra/pago
 
@@ -102,9 +105,11 @@
 - `schedule` - Expresión cron (si es programado)
 
 **Límites:**
+
 - `maxTokensPerExecution` - Tokens máximos por ejecución
 
 **Estadísticas:**
+
 - `totalExecutions` - Total de ejecuciones
 - `successfulExecutions` - Ejecuciones exitosas
 - `failedExecutions` - Ejecuciones fallidas
@@ -124,6 +129,7 @@
 - `trigger` - Cómo se activó: manual, api, schedule, webhook, whatsapp
 
 **Costos:**
+
 - `credits` - Créditos cobrados (1/5/25)
 - `cost` - Costo real en USD. Este nunca se le envia al usuario
 - `tokensUsed` - Tokens consumidos. Este nunca se le envia al usuario
@@ -133,6 +139,7 @@
 - `retryCount` - Número de reintentos
 
 **Relaciones:**
+
 - `workflowId` - Qué workflow se ejecutó
 - `userId` - Quién lo ejecutó (si fue manual)
 - `conversationId` - Conversación asociada (si aplica)
@@ -152,6 +159,7 @@
 - `closedAt` - Cuándo se cerró
 
 **Relaciones:**
+
 - `workflowId` - Workflow asociado
 - `userId` - User interno (si aplica)
 - `endUserId` - Cliente externo (si aplica)
@@ -199,6 +207,7 @@
 - `tokenExpiresAt` - Cuándo expira el token
 
 **Relación:**
+
 - `toolCatalogId` - Qué tool es (google_calendar, hubspot, etc)
 
 ---
@@ -231,6 +240,7 @@
 - `qrCodeExpiry` - Expiración del QR
 
 **Relación:**
+
 - `defaultWorkflowId` - Workflow por defecto para mensajes
 
 ---
@@ -252,8 +262,10 @@
 - `errorMessage` - Mensaje de error (si falló)
 - `timestamp` - Cuándo ocurrió
 
-## Email   
+## Email
+
 En users.service.ts falta poner la implementacion del envio de emails. para esto se crea un servicio dedicado y se usa el metodo aqui
 
 ## Users
-Para el servicio de los  usuarios tambien falta implementar los guards que se encargues que que se cumplan lo roles y aplicar la segurida necesaria de acceso
+
+Para el servicio de los usuarios tambien falta implementar los guards que se encargues que que se cumplan lo roles y aplicar la segurida necesaria de acceso

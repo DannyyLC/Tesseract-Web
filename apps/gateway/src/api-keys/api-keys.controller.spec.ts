@@ -101,7 +101,10 @@ describe('ApiKeysController', () => {
 
       // Assert
       expect(result).toEqual(mockApiKey);
-      expect(service.create).toHaveBeenCalledWith(mockUser.organizationId, createDto);
+      expect(service.create).toHaveBeenCalledWith(
+        mockUser.organizationId,
+        createDto,
+      );
     });
 
     it('debería pasar el organizationId del usuario actual', async () => {
@@ -123,7 +126,10 @@ describe('ApiKeysController', () => {
   describe('findAll', () => {
     it('debería listar todos los API keys de la organización del usuario', async () => {
       // Arrange
-      const mockApiKeys = [mockApiKeyListItem, { ...mockApiKeyListItem, id: 'api-key-456' }];
+      const mockApiKeys = [
+        mockApiKeyListItem,
+        { ...mockApiKeyListItem, id: 'api-key-456' },
+      ];
       service.findAll.mockResolvedValue(mockApiKeys);
 
       // Act
@@ -161,7 +167,10 @@ describe('ApiKeysController', () => {
 
       // Assert
       expect(result).toEqual(mockApiKeyListItem);
-      expect(service.findOne).toHaveBeenCalledWith(mockUser.organizationId, apiKeyId);
+      expect(service.findOne).toHaveBeenCalledWith(
+        mockUser.organizationId,
+        apiKeyId,
+      );
     });
   });
 
@@ -173,7 +182,10 @@ describe('ApiKeysController', () => {
     it('debería eliminar un API key exitosamente', async () => {
       // Arrange
       const apiKeyId = 'api-key-123';
-      const deleteResponse = { success: true, message: 'API Key eliminada exitosamente' };
+      const deleteResponse = {
+        success: true,
+        message: 'API Key eliminada exitosamente',
+      };
       service.delete.mockResolvedValue(deleteResponse);
 
       // Act
@@ -181,7 +193,10 @@ describe('ApiKeysController', () => {
 
       // Assert
       expect(result).toEqual(deleteResponse);
-      expect(service.delete).toHaveBeenCalledWith(mockUser.organizationId, apiKeyId);
+      expect(service.delete).toHaveBeenCalledWith(
+        mockUser.organizationId,
+        apiKeyId,
+      );
     });
   });
 
@@ -210,7 +225,11 @@ describe('ApiKeysController', () => {
 
       // Assert
       expect(result).toEqual(updateResponse);
-      expect(service.update).toHaveBeenCalledWith(mockUser.organizationId, apiKeyId, updateDto);
+      expect(service.update).toHaveBeenCalledWith(
+        mockUser.organizationId,
+        apiKeyId,
+        updateDto,
+      );
     });
 
     it('debería pasar el organizationId y params correctamente', async () => {
@@ -226,7 +245,11 @@ describe('ApiKeysController', () => {
       await controller.update(mockUser, apiKeyId, updateDto);
 
       // Assert
-      expect(service.update).toHaveBeenCalledWith('org-123', 'api-key-456', updateDto);
+      expect(service.update).toHaveBeenCalledWith(
+        'org-123',
+        'api-key-456',
+        updateDto,
+      );
     });
   });
 

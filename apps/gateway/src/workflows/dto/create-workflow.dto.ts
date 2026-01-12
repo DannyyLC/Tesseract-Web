@@ -100,10 +100,13 @@ export interface WorkflowConfig {
     type: 'react' | 'supervisor' | 'router' | 'sequential' | 'parallel';
     config?: Record<string, any>;
   };
-  agents: Record<string, {
-    model: string;
-    temperature?: number;
-    system_prompt?: string;
-    tools?: (string | { id: string; functions?: string[] })[];
-  }>;
+  agents: Record<
+    string,
+    {
+      model: string;
+      temperature?: number;
+      system_prompt?: string;
+      tools?: (string | { id: string; functions?: string[] })[];
+    }
+  >;
 }

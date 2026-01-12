@@ -8,7 +8,7 @@ export const API_KEY_ONLY = 'apiKeyOnly';
 /**
  * Decorador para marcar endpoints que solo aceptan API Key
  * Esto evita que se apliquen los guards JWT de nivel de clase
- * 
+ *
  * Ejemplo:
  * @Post('execute')
  * @ApiKeyOnly()

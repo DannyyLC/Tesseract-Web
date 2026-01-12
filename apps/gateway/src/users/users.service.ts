@@ -12,7 +12,7 @@ import {
   InviteUserDto,
   UpdateProfileDto,
   UserFiltersDto,
-  CreateUserDto
+  CreateUserDto,
 } from './dto';
 import { User, Organization, Prisma } from '@prisma/client';
 
@@ -46,7 +46,6 @@ interface UserActivity {
 
 @Injectable()
 export class UsersService {
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
@@ -57,7 +56,9 @@ export class UsersService {
    * Validar que un usuario se puede crear (sin crearlo)
    * Útil para validaciones previas antes de formularios o procesos de registro
    */
-  async validate(user: CreateUserDto): Promise<{ valid: boolean; message: string }> {
+  async validate(
+    user: CreateUserDto,
+  ): Promise<{ valid: boolean; message: string }> {
     try {
       // Validar que la organización existe y está activa
       await this.validateOrganization(user.organizationId);
@@ -105,7 +106,7 @@ export class UsersService {
     const emailVerified = user.emailVerified ?? false;
 
     // Generar token de verificación si es necesario
-    const { token, expiresAt } = emailVerified 
+    const { token, expiresAt } = emailVerified
       ? { token: null, expiresAt: null }
       : this.authService.generateTokenWithExpiry(24);
 
@@ -146,7 +147,8 @@ export class UsersService {
 
     // Generar password temporal (el usuario lo cambiará al aceptar)
     const temporaryPassword = this.authService.generateVerificationToken();
-    const hashedPassword = await this.authService.hashPassword(temporaryPassword);
+    const hashedPassword =
+      await this.authService.hashPassword(temporaryPassword);
 
     // Generar token de invitación
     const { token, expiresAt } = this.authService.generateTokenWithExpiry(24);
@@ -190,13 +192,12 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException(
-        'User not found or already verified',
-      );
+      throw new NotFoundException('User not found or already verified');
     }
 
     // Generar nuevo token de invitación
-    const { token: invitationToken, expiresAt } = this.authService.generateTokenWithExpiry(24);
+    const { token: invitationToken, expiresAt } =
+      this.authService.generateTokenWithExpiry(24);
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -510,9 +511,7 @@ export class UsersService {
     // Verificar que el actor tiene permisos
     const actor = await this.findOne(actorId, organizationId);
     if (actor.role !== 'owner' && actor.role !== 'admin') {
-      throw new ForbiddenException(
-        'Only owner or admin can delete users',
-      );
+      throw new ForbiddenException('Only owner or admin can delete users');
     }
 
     // Soft delete
@@ -620,10 +619,7 @@ export class UsersService {
       where: {
         organizationId,
         deletedAt: null,
-        OR: [
-          { lastLoginAt: { lt: cutoffDate } },
-          { lastLoginAt: null },
-        ],
+        OR: [{ lastLoginAt: { lt: cutoffDate } }, { lastLoginAt: null }],
       },
       orderBy: { lastLoginAt: 'asc' },
     });

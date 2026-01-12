@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ExecutionContext, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  ExecutionContext,
+  UnauthorizedException,
+  Logger,
+} from '@nestjs/common';
 import { JwtOrApiKeyGuard } from './jwt-or-api-key.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { ApiKeyGuard } from './api-key.guard';
@@ -95,7 +99,9 @@ describe('JwtOrApiKeyGuard', () => {
 
     it('debería autenticar exitosamente con Authorization Bearer ak_', async () => {
       // Arrange
-      const request = createMockRequest({ authorization: `Bearer ${mockApiKey}` });
+      const request = createMockRequest({
+        authorization: `Bearer ${mockApiKey}`,
+      });
       const context = createMockContext(request);
 
       apiKeyGuard.canActivate.mockResolvedValue(true);
@@ -114,7 +120,9 @@ describe('JwtOrApiKeyGuard', () => {
       const request = createMockRequest({ 'x-api-key': mockApiKey });
       const context = createMockContext(request);
 
-      apiKeyGuard.canActivate.mockRejectedValue(new UnauthorizedException('Invalid API Key'));
+      apiKeyGuard.canActivate.mockRejectedValue(
+        new UnauthorizedException('Invalid API Key'),
+      );
       jwtAuthGuard.canActivate.mockResolvedValue(true);
 
       // Act
@@ -211,7 +219,9 @@ describe('JwtOrApiKeyGuard', () => {
       jwtAuthGuard.canActivate.mockRejectedValue(new UnauthorizedException());
 
       // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        UnauthorizedException,
+      );
       await expect(guard.canActivate(context)).rejects.toThrow(
         'Se requiere autenticación válida (JWT o API Key)',
       );
@@ -225,7 +235,9 @@ describe('JwtOrApiKeyGuard', () => {
       jwtAuthGuard.canActivate.mockRejectedValue(new UnauthorizedException());
 
       // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -250,7 +262,9 @@ describe('JwtOrApiKeyGuard', () => {
 
     it('debería detectar API Key en Authorization Bearer ak_', async () => {
       // Arrange
-      const request = createMockRequest({ authorization: 'Bearer ak_live_test123' });
+      const request = createMockRequest({
+        authorization: 'Bearer ak_live_test123',
+      });
       const context = createMockContext(request);
 
       apiKeyGuard.canActivate.mockResolvedValue(true);
@@ -264,7 +278,9 @@ describe('JwtOrApiKeyGuard', () => {
 
     it('NO debería detectar API Key en Authorization Bearer sin ak_', async () => {
       // Arrange
-      const request = createMockRequest({ authorization: `Bearer ${mockAccessToken}` });
+      const request = createMockRequest({
+        authorization: `Bearer ${mockAccessToken}`,
+      });
       const context = createMockContext(request);
 
       jwtAuthGuard.canActivate.mockResolvedValue(true);
@@ -307,7 +323,9 @@ describe('JwtOrApiKeyGuard', () => {
       jwtAuthGuard.canActivate.mockResolvedValue(false);
 
       // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('debería manejar headers undefined', async () => {

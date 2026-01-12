@@ -18,7 +18,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
   imports: [
     // Database para PrismaService
     DatabaseModule,
-    
+
     // Passport con estrategia por defecto 'jwt'
     PassportModule.register({ defaultStrategy: 'jwt' }),
     NotificationsModule,
@@ -29,7 +29,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
       useFactory: (configService: ConfigService) => {
         const expiresIn = configService.get<string>('JWT_EXPIRES_IN') || '15m';
         return {
-          secret: configService.get<string>('JWT_SECRET') || 'your-secret-key-change-in-production',
+          secret:
+            configService.get<string>('JWT_SECRET') ||
+            'your-secret-key-change-in-production',
           signOptions: {
             expiresIn: expiresIn as any, // Cast necesario debido a limitación de tipos
           },
@@ -38,19 +40,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [
-    ApiKeyGuard,
-    JwtAuthGuard,
-    RolesGuard,
-    JwtStrategy,
-    AuthService,
-  ],
-  exports: [
-    ApiKeyGuard,
-    JwtAuthGuard,
-    RolesGuard,
-    AuthService,
-    PassportModule
-  ],
+  providers: [ApiKeyGuard, JwtAuthGuard, RolesGuard, JwtStrategy, AuthService],
+  exports: [ApiKeyGuard, JwtAuthGuard, RolesGuard, AuthService, PassportModule],
 })
 export class AuthModule {}

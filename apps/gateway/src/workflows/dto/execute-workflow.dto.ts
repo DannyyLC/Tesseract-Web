@@ -2,12 +2,12 @@ import { IsObject, IsOptional, IsNotEmpty } from 'class-validator';
 
 /**
  * DTO para ejecutar un workflow
- * 
+ *
  * El cliente envía estos datos en POST /api/workflows/:id/execute
- * 
+ *
  * Los datos son flexibles porque cada workflow puede necesitar
  * diferentes inputs según su configuración
- * 
+ *
  * Ejemplo de request:
  * {
  *   "input": {
@@ -26,7 +26,7 @@ export class ExecuteWorkflowDto {
   /**
    * Datos de entrada para el workflow
    * Puede ser cualquier estructura JSON
-   * 
+   *
    * Este objeto se enviará al servicio de agentes Python
    * para su procesamiento según la configuración del workflow
    */
@@ -37,7 +37,7 @@ export class ExecuteWorkflowDto {
   /**
    * Metadata adicional (opcional)
    * Útil para tracking, analytics, debugging, etc.
-   * 
+   *
    * NO se envía al workflow, solo se guarda en triggerData
    */
   @IsObject()

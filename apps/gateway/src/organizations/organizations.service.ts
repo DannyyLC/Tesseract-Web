@@ -1,12 +1,18 @@
-import { Injectable, Logger, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
 import {
   CreateOrganizationDto,
-  UpdateCustomLimitsDto, 
+  UpdateCustomLimitsDto,
   UpdateOrganizationDto,
   UpdateOverageSettingsDto,
-  UpdateSettingsDto
+  UpdateSettingsDto,
 } from './dto';
 import { randomBytes } from 'crypto';
 import { OrganizationDashboardDto } from './dto/organization-dashboard.dto';
@@ -111,7 +117,7 @@ export class OrganizationsService {
       return null;
     }
 
-    let updated: Organization | null = null; 
+    let updated: Organization | null = null;
     try {
       updated = await this.prisma.organization.update({
         where: { id: dto.id },
@@ -459,7 +465,9 @@ export class OrganizationsService {
     });
 
     if (!organization) {
-      this.logger.warn(`No se encontró la organización con ID: ${organizationId}`);
+      this.logger.warn(
+        `No se encontró la organización con ID: ${organizationId}`,
+      );
       return null;
     }
 
@@ -504,8 +512,9 @@ export class OrganizationsService {
     });
 
     if (!organization) {
-      
-      this.logger.warn(`No se encontró la organización con ID: ${organizationId}`);
+      this.logger.warn(
+        `No se encontró la organización con ID: ${organizationId}`,
+      );
       return null;
     }
 

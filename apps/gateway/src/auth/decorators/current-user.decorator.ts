@@ -3,7 +3,7 @@ import { UserPayload } from '../../common/types/jwt-payload.type';
 
 /**
  * Decorador para obtener el usuario autenticado desde el JWT
- * 
+ *
  * Uso:
  * @Post()
  * @UseGuards(JwtAuthGuard)
@@ -12,7 +12,7 @@ import { UserPayload } from '../../common/types/jwt-payload.type';
  *   console.log(user.role);           // Rol: owner/admin/viewer
  *   console.log(user.organizationId); // ID de la organización
  * }
- * 
+ *
  * Requisito: El endpoint debe estar protegido con JwtAuthGuard
  * para que request.user exista (lo inyecta JwtStrategy)
  */

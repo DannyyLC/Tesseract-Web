@@ -3,7 +3,6 @@ import { PrismaService } from '../database/prisma.service';
 import { WorkflowCategory } from '@prisma/client';
 import { getWorkflowCreditCost } from '@workflow-automation/shared-types';
 
-
 @Injectable()
 export class CreditsService {
   constructor(private prisma: PrismaService) {}
@@ -23,8 +22,8 @@ export class CreditsService {
         lifetimeSpent: 0,
         currentMonthSpent: 0,
         currentMonthCostUSD: 0,
-      }
-    })
+      },
+    });
   }
 
   /**

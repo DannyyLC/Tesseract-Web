@@ -27,17 +27,17 @@ interface ErrorResponse {
 
 /**
  * Filtro global de excepciones
- * 
+ *
  * Captura TODAS las excepciones lanzadas en la aplicación y las convierte
  * en respuestas HTTP estandarizadas.
- * 
+ *
  * Responsabilidades:
  * 1. Formatear errores de manera consistente
  * 2. Loguear errores con el nivel apropiado
  * 3. Ocultar información sensible en producción
  * 4. Manejar errores de Prisma específicamente
  * 5. Enviar respuestas HTTP apropiadas
- * 
+ *
  * @example
  * // En main.ts:
  * app.useGlobalFilters(new GlobalExceptionFilter());
@@ -48,7 +48,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   /**
    * Método principal que captura todas las excepciones
-   * 
+   *
    * @param exception - El error que ocurrió (puede ser de cualquier tipo)
    * @param host - Contexto de ejecución (contiene request, response, etc.)
    */
@@ -70,7 +70,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   /**
    * Construye la respuesta de error según el tipo de excepción
-   * 
+   *
    * Maneja 4 casos:
    * 1. AppException (nuestras excepciones custom)
    * 2. HttpException (excepciones de NestJS)
@@ -115,7 +115,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       // El response puede ser string u objeto
       if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
-      } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+      } else if (
+        typeof exceptionResponse === 'object' &&
+        exceptionResponse !== null
+      ) {
         message = (exceptionResponse as any).message || message;
         errorCode = (exceptionResponse as any).errorCode || errorCode;
       }
@@ -163,10 +166,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   /**
    * Maneja errores específicos de Prisma
-   * 
+   *
    * Prisma lanza errores con códigos como P2002, P2025, etc.
    * Los convertimos a errores más amigables para el usuario
-   * 
+   *
    * Ver todos los códigos: https://www.prisma.io/docs/reference/api-reference/error-reference
    */
   private handlePrismaError(
@@ -233,9 +236,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     return {
       success: false,
       errorCode: ErrorCode.DATABASE_ERROR,
-      message: isProduction
-        ? 'A database error occurred'
-        : exception.message,
+      message: isProduction ? 'A database error occurred' : exception.message,
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       timestamp,
       path,
@@ -245,7 +246,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   /**
    * Verifica si un error es de Prisma
-   * 
+   *
    * Los errores de Prisma tienen una propiedad 'code' que empieza con 'P'
    */
   private isPrismaError(exception: unknown): boolean {
@@ -260,11 +261,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   /**
    * Loguea el error con el nivel apropiado según su gravedad
-   * 
+   *
    * Niveles de logging:
    * - WARN: Errores operacionales (esperados) y errores 4xx
    * - ERROR: Errores 5xx (bugs del servidor)
-   * 
+   *
    * En producción, los errores 5xx también se enviarían a Sentry/Datadog
    */
   private logError(
@@ -274,7 +275,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   ) {
     const { method, url, ip, headers } = request;
     const userAgent = headers['user-agent'] || 'unknown';
-    
+
     // Obtener el clientId si existe en el request (agregado por AuthGuard)
     const clientId = (request as any).client?.id || 'anonymous';
 

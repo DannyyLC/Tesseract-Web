@@ -180,7 +180,7 @@ describe('ApiKeyUtil', () => {
       const apiKeys = Array.from({ length: 10 }, () => ApiKeyUtil.generate());
 
       // Assert
-      apiKeys.forEach(apiKey => {
+      apiKeys.forEach((apiKey) => {
         const randomPart = apiKey.substring(8);
         expect(randomPart).toMatch(/^[a-zA-Z0-9]+$/);
       });
@@ -223,7 +223,9 @@ describe('ApiKeyUtil', () => {
       });
 
       mockCompare.mockImplementation((data: string, hash: string) => {
-        return Promise.resolve(data === apiKey && hash.startsWith('$2b$10$mockedhash'));
+        return Promise.resolve(
+          data === apiKey && hash.startsWith('$2b$10$mockedhash'),
+        );
       });
 
       // Act
@@ -285,7 +287,7 @@ describe('ApiKeyUtil', () => {
       const uniqueKeys = new Set(apiKeys);
       expect(uniqueKeys.size).toBe(100); // Todos deben ser únicos
 
-      apiKeys.forEach(key => {
+      apiKeys.forEach((key) => {
         expect(key).toMatch(/^ak_live_[a-zA-Z0-9]{32}$/);
       });
     });
