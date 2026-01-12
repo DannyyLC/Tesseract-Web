@@ -4,6 +4,7 @@ import {
     ForbiddenException,
     Logger,
 } from '@nestjs/common';
+import { Transform, PassThrough } from 'stream';
 import { PrismaService } from '../database/prisma.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
@@ -638,10 +639,15 @@ export class WorkflowsService {
             this.logger.debug(`Llamando al AgentsService (Stream)`);
             const stream = await this.agentsService.executeStream(payload);
 
-            // 6. MONITORIZAR STREAM PARA EFECTOS SECUNDARIOS
-            this.monitorStreamExecution(stream, execution, conversation, workflow, organizationId);
-
-            return stream;
+            // 6. FILTRAR Y MONITORIZAR STREAM
+            // Devolvemos el stream filtrado al cliente, pero monitorizamos el raw internamente
+            return this.handleStreamFilteringAndMonitoring(
+                stream,
+                execution,
+                conversation,
+                workflow,
+                organizationId
+            );
 
         } catch (error) {
             this.logger.error(
@@ -659,38 +665,39 @@ export class WorkflowsService {
     }
 
     /**
-     * Monitoriza el stream para capturar metadata y actualizar DB
+     * Maneja el filtrado del stream para el cliente y la monitorización interna para efectos secundarios
      */
-    private monitorStreamExecution(
-        stream: NodeJS.ReadableStream,
+    private handleStreamFilteringAndMonitoring(
+        rawStream: NodeJS.ReadableStream,
         execution: any,
         conversation: any,
         workflow: any,
         organizationId: string
-    ) {
+    ): NodeJS.ReadableStream {
+        // Stream que enviaremos al cliente (filtrado) on
+        const clientStream = new PassThrough();
+
         let fullContent = '';
         let metadataEvent: any = null;
         let assistantMessageBuilder = '';
+        let buffer = '';
 
-        stream.on('data', (chunk: Buffer) => {
-            const text = chunk.toString();
-            fullContent += text;
+        // Transformador para procesar chunks y filtrar
+        const transformer = new Transform({
+            transform(chunk, encoding, callback) {
+                const text = chunk.toString();
+                fullContent += text; // Acumular todo para debug/log
+                buffer += text;
 
-            // Intentar extraer mensajes parciales para loguear o debugear
-            // Nota: Esto es aproximado ya que el chunk puede cortar el JSON
-            // Para producción robusta se necesitaría un parser SSE real
-        });
+                // Procesar buffer por líneas (SSE standard)
+                const lines = buffer.split('\n\n');
+                // El último elemento puede ser un chunk incompleto
+                buffer = lines.pop() || '';
 
-        stream.on('end', async () => {
-            this.logger.log(`Stream finalizado para ejecución ${execution.id}`);
-
-            try {
-                // 1. Analizar el contenido completo para buscar eventos
-                // Separar por doble salto de línea (SSE standard)
-                const events = fullContent.split('\n\n');
-
-                for (const eventBlock of events) {
-                    if (!eventBlock.trim().startsWith('data: ')) continue;
+                for (const eventBlock of lines) {
+                    if (!eventBlock.trim().startsWith('data: ')) {
+                        continue;
+                    }
 
                     try {
                         const jsonStr = eventBlock.replace(/^data: /, '').trim();
@@ -698,19 +705,43 @@ export class WorkflowsService {
 
                         const event = JSON.parse(jsonStr);
 
-                        // Reconstruir mensaje del asistente
-                        if (event.type === 'message') {
-                            assistantMessageBuilder += event.content;
+                        // LÓGICA DE FILTRADO Y TRANSFORMACIÓN
+
+                        // 1. TOKENS: Simplificar y pasar al cliente
+                        if (event.type === 'token') {
+                            // Cliente quiere: data: "El"\n\n
+                            const simplifiedData = `data: ${JSON.stringify(event.content)}\n\n`;
+                            this.push(simplifiedData);
                         }
 
-                        // Capturar metadata
-                        if (event.type === 'metadata') {
+                        // 2. MENSAJES: Acumular internamente
+                        else if (event.type === 'message') {
+                            assistantMessageBuilder += event.content || '';
+                        }
+
+                        // 3. TOOLS y METADATA: Se filtran del cliente
+                        else if (event.type === 'metadata') {
                             metadataEvent = event.metadata;
                         }
+
                     } catch (e) {
-                        // Ignorar errores de parseo en chunks intermedios o malformados
+                        // Error de parseo json
                     }
                 }
+
+                callback();
+            }
+        });
+
+        // Pipeline: Raw -> Transformer -> Client
+        rawStream.pipe(transformer).pipe(clientStream);
+
+        // MANEJO DE FIN DE STREAM Y EFECTOS SECUNDARIOS
+        transformer.on('finish', async () => {
+            this.logger.log(`Stream finalizado para ejecución ${execution.id}`);
+
+            try {
+                // (Ya procesamos el contenido en el transformer, no necesitamos re-parsear fullContent)
 
                 // 2. Procesar finalización
                 if (!metadataEvent) {
@@ -803,12 +834,7 @@ export class WorkflowsService {
             }
         });
 
-        stream.on('error', async (err) => {
-            this.logger.error(`Stream error for execution ${execution.id}: ${err.message}`);
-            await this.executionsService.updateStatus(execution.id, 'failed', {
-                error: err.message,
-            });
-        });
+        return clientStream;
     }
 
     //==========================================================
