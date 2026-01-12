@@ -134,7 +134,7 @@ export class WorkflowsController {
     @Param('id') id: string,
     @Body() executeDto: ExecuteWorkflowDto,
   ) {
-    return this.workflowsService.execute(
+    const execution = await this.workflowsService.execute(
       apiKey.organizationId,
       id,
       executeDto.input,
@@ -142,6 +142,19 @@ export class WorkflowsController {
       undefined, // userId (no aplica en ejecución por API key)
       apiKey.apiKeyId, // apiKeyId
     );
+
+    // Transformar respuesta para ocultar metadata interna (DTO simplificado)
+    const result = execution.result as any;
+    const messages = result?.messages || [];
+    const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
+
+    return {
+      content: assistantContent,
+      metadata: {
+        execution_time_ms: result?.metadata?.execution_time_ms,
+      }
+    };
   }
 
   /**
