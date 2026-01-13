@@ -2,7 +2,15 @@ import nx from '@nx/eslint-plugin';
 import prettierConfig from 'eslint-config-prettier';
 import tseslint from 'typescript-eslint';
 
-export default tseslint.config(
+// Utility to restrict configs to specific files
+const mapConfigsToFiles = (configs, files) => {
+  return configs.map((config) => ({
+    ...config,
+    files,
+  }));
+};
+
+export default [
   ...nx.configs['flat/base'],
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],
@@ -10,12 +18,17 @@ export default tseslint.config(
     ignores: ['**/dist'],
   },
 
-  {
-    files: ['**/*.ts', '**/*.tsx'],
-    extends: [
+  // TypeScript configs restricted to ts/tsx files
+  ...mapConfigsToFiles(
+    [
       ...tseslint.configs.recommendedTypeChecked,
       ...tseslint.configs.stylisticTypeChecked,
     ],
+    ['**/*.ts', '**/*.tsx']
+  ),
+
+  {
+    files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
       parserOptions: {
         project: [
@@ -23,7 +36,7 @@ export default tseslint.config(
           './apps/gateway/tsconfig.json',
           './apps/gateway/tsconfig.spec.json',
           './packages/database/tsconfig.json',
-          './packages/shared-types/tsconfig.json'
+          './packages/shared-types/tsconfig.json',
         ],
         tsconfigRootDir: import.meta.dirname,
       },
@@ -32,12 +45,11 @@ export default tseslint.config(
       '@typescript-eslint/no-non-null-assertion': 'warn',
       '@typescript-eslint/no-explicit-any': 'warn',
 
-
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-unsafe-return': 'off',
-      '@typescript-eslint/no-unsafe-argument': 'off'
+      '@typescript-eslint/no-unsafe-argument': 'off',
     },
   },
 
@@ -77,4 +89,4 @@ export default tseslint.config(
 
   // Prettier config must be last to override other formatting rules
   prettierConfig,
-);
+];
