@@ -33,9 +33,7 @@ export class AgentsService {
    * @param request - Request completo con toda la configuración
    * @returns Response del agente con los mensajes generados
    */
-  async execute(
-    request: AgentExecutionRequestDto,
-  ): Promise<AgentExecutionResponseDto> {
+  async execute(request: AgentExecutionRequestDto): Promise<AgentExecutionResponseDto> {
     const url = `${this.agentsServiceUrl}/api/v1/agents/execute`;
 
     this.logger.debug(
@@ -47,10 +45,7 @@ export class AgentsService {
         this.httpService.post<AgentExecutionResponseDto>(url, request).pipe(
           timeout({ each: this.agentsServiceTimeout }),
           catchError((error: AxiosError) => {
-            this.logger.error(
-              `Failed to execute agent: ${error.message}`,
-              error.stack,
-            );
+            this.logger.error(`Failed to execute agent: ${error.message}`, error.stack);
 
             if (error.code === 'ECONNREFUSED') {
               throw new HttpException(
@@ -60,10 +55,7 @@ export class AgentsService {
             }
 
             if (error.code === 'ETIMEDOUT' || error.name === 'TimeoutError') {
-              throw new HttpException(
-                'Agent execution timed out',
-                HttpStatus.REQUEST_TIMEOUT,
-              );
+              throw new HttpException('Agent execution timed out', HttpStatus.REQUEST_TIMEOUT);
             }
 
             if (error.response) {
@@ -112,9 +104,7 @@ export class AgentsService {
    * @param request - Request completo
    * @returns Stream de SSE (Server-Sent Events)
    */
-  async executeStream(
-    request: AgentExecutionRequestDto,
-  ): Promise<NodeJS.ReadableStream> {
+  async executeStream(request: AgentExecutionRequestDto): Promise<NodeJS.ReadableStream> {
     const url = `${this.agentsServiceUrl}/api/v1/agents/execute/stream`;
 
     this.logger.debug(
@@ -149,10 +139,7 @@ export class AgentsService {
                 // Si hay response en error, es que el server rechazó el request (ej: 422)
                 // Si es stream, la data puede ser un stream también, hay que tener cuidado
                 // Pero usualmente errores 4xx/5xx devolvemos JSON antes de empezar el stream
-                throw new HttpException(
-                  'Agent execution failed to start',
-                  error.response.status,
-                );
+                throw new HttpException('Agent execution failed to start', error.response.status);
               }
 
               throw new HttpException(
@@ -163,9 +150,7 @@ export class AgentsService {
           ),
       );
 
-      this.logger.debug(
-        `Agent streaming initiatied for conversation: ${request.conversation_id}`,
-      );
+      this.logger.debug(`Agent streaming initiatied for conversation: ${request.conversation_id}`);
 
       return response.data; // Retorna el stream (Readable)
     } catch (error) {
@@ -205,9 +190,7 @@ export class AgentsService {
 
       return response.status === 200;
     } catch (error) {
-      this.logger.warn(
-        `Agents service health check failed: ${(error as Error).message}`,
-      );
+      this.logger.warn(`Agents service health check failed: ${(error as Error).message}`);
       return false;
     }
   }

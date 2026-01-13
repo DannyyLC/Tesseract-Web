@@ -56,8 +56,7 @@ export class ApiKeyUtil {
    * @returns Cadena aleatoria
    */
   private static generateRandomString(length: number): string {
-    const chars =
-      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
     const randomArray = new Uint8Array(length);
 

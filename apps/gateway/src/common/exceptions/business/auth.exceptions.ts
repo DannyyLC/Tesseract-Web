@@ -8,11 +8,7 @@ import { ErrorCode } from '../base/error-codes.enum';
  */
 export class InvalidApiKeyException extends AppException {
   constructor() {
-    super(
-      ErrorCode.INVALID_API_KEY,
-      'Invalid API key provided',
-      HttpStatus.UNAUTHORIZED,
-    );
+    super(ErrorCode.INVALID_API_KEY, 'Invalid API key provided', HttpStatus.UNAUTHORIZED);
   }
 }
 
@@ -37,12 +33,7 @@ export class ClientInactiveException extends AppException {
  */
 export class ClientDeletedException extends AppException {
   constructor(clientId: string) {
-    super(
-      ErrorCode.CLIENT_DELETED,
-      'This account has been deleted',
-      HttpStatus.GONE,
-      { clientId },
-    );
+    super(ErrorCode.CLIENT_DELETED, 'This account has been deleted', HttpStatus.GONE, { clientId });
   }
 }
 
@@ -95,11 +86,7 @@ export class InvalidRefreshTokenException extends AppException {
  */
 export class InvalidPasswordException extends AppException {
   constructor() {
-    super(
-      ErrorCode.INVALID_PASSWORD,
-      'Invalid email or password',
-      HttpStatus.UNAUTHORIZED,
-    );
+    super(ErrorCode.INVALID_PASSWORD, 'Invalid email or password', HttpStatus.UNAUTHORIZED);
   }
 }
 

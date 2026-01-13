@@ -46,7 +46,7 @@ export class WorkflowsController {
   constructor(
     private readonly workflowsService: WorkflowsService,
     private readonly executionsService: ExecutionsService,
-  ) { }
+  ) {}
 
   /**
    * POST /workflows
@@ -56,10 +56,7 @@ export class WorkflowsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  create(
-    @CurrentUser() user: UserPayload,
-    @Body() createDto: CreateWorkflowDto,
-  ) {
+  create(@CurrentUser() user: UserPayload, @Body() createDto: CreateWorkflowDto) {
     return this.workflowsService.create(user.organizationId, createDto);
   }
 
@@ -68,15 +65,9 @@ export class WorkflowsController {
    * Listar todos los workflows de la organización
    */
   @Get()
-  findAll(
-    @CurrentUser() user: UserPayload,
-    @Query('includeDeleted') includeDeleted?: string,
-  ) {
+  findAll(@CurrentUser() user: UserPayload, @Query('includeDeleted') includeDeleted?: string) {
     const includeDeletedBool = includeDeleted === 'true';
-    return this.workflowsService.findAll(
-      user.organizationId,
-      includeDeletedBool,
-    );
+    return this.workflowsService.findAll(user.organizationId, includeDeletedBool);
   }
 
   /**
@@ -142,10 +133,8 @@ export class WorkflowsController {
     // Transformar respuesta para ocultar metadata interna (DTO simplificado)
     const result = execution.result as any;
     const messages = result?.messages ?? [];
-    const lastMessage =
-      messages.length > 0 ? messages[messages.length - 1] : null;
-    const assistantContent =
-      lastMessage?.role === 'assistant' ? lastMessage.content : null;
+    const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
 
     return {
       content: assistantContent,
@@ -199,10 +188,6 @@ export class WorkflowsController {
     @Param('id') id: string,
     @Query('period', new DefaultValuePipe('30d')) period?: string,
   ) {
-    return this.executionsService.getAnalyticsBySource(
-      id,
-      user.organizationId,
-      period,
-    );
+    return this.executionsService.getAnalyticsBySource(id, user.organizationId, period);
   }
 }

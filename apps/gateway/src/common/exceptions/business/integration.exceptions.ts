@@ -8,12 +8,10 @@ import { ErrorCode } from '../base/error-codes.enum';
  */
 export class OpenAiApiErrorException extends AppException {
   constructor(reason: string, statusCode?: number) {
-    super(
-      ErrorCode.OPENAI_API_ERROR,
-      `OpenAI API error: ${reason}`,
-      HttpStatus.BAD_GATEWAY,
-      { reason, externalStatusCode: statusCode },
-    );
+    super(ErrorCode.OPENAI_API_ERROR, `OpenAI API error: ${reason}`, HttpStatus.BAD_GATEWAY, {
+      reason,
+      externalStatusCode: statusCode,
+    });
   }
 }
 
@@ -23,12 +21,10 @@ export class OpenAiApiErrorException extends AppException {
  */
 export class AnthropicApiErrorException extends AppException {
   constructor(reason: string, statusCode?: number) {
-    super(
-      ErrorCode.ANTHROPIC_API_ERROR,
-      `Anthropic API error: ${reason}`,
-      HttpStatus.BAD_GATEWAY,
-      { reason, externalStatusCode: statusCode },
-    );
+    super(ErrorCode.ANTHROPIC_API_ERROR, `Anthropic API error: ${reason}`, HttpStatus.BAD_GATEWAY, {
+      reason,
+      externalStatusCode: statusCode,
+    });
   }
 }
 

@@ -173,9 +173,7 @@ describe('RolesGuard', () => {
 
       // Act & Assert
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-      expect(() => guard.canActivate(context)).toThrow(
-        'Usuario no autenticado',
-      );
+      expect(() => guard.canActivate(context)).toThrow('Usuario no autenticado');
     });
   });
 
@@ -312,8 +310,7 @@ describe('RolesGuard', () => {
       const context = createMockContext(request);
 
       reflector.getAllAndOverride.mockImplementation((key: any) => {
-        if (key === ROLES_KEY)
-          return [UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER];
+        if (key === ROLES_KEY) return [UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER];
         return undefined;
       });
 

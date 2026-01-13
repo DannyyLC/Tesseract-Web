@@ -7,12 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { AuthService } from '../auth/auth.service';
-import {
-  InviteUserDto,
-  UpdateProfileDto,
-  UserFiltersDto,
-  CreateUserDto,
-} from './dto';
+import { InviteUserDto, UpdateProfileDto, UserFiltersDto, CreateUserDto } from './dto';
 import { User, Organization, Prisma } from '@prisma/client';
 
 interface PaginatedUsers {
@@ -48,16 +43,14 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
-  ) { }
+  ) {}
 
   // ==================== CREATE ====================
   /**
    * Validar que un usuario se puede crear (sin crearlo)
    * Útil para validaciones previas antes de formularios o procesos de registro
    */
-  async validate(
-    user: CreateUserDto,
-  ): Promise<{ valid: boolean; message: string }> {
+  async validate(user: CreateUserDto): Promise<{ valid: boolean; message: string }> {
     try {
       // Validar que la organización existe y está activa
       await this.validateOrganization(user.organizationId);
@@ -130,10 +123,7 @@ export class UsersService {
   /**
    * Invitar usuario a la organización
    */
-  async invite(
-    organizationId: string,
-    data: InviteUserDto,
-  ): Promise<User> {
+  async invite(organizationId: string, data: InviteUserDto): Promise<User> {
     // Validar que la organización existe y está activa
     await this.validateOrganization(organizationId);
 
@@ -145,8 +135,7 @@ export class UsersService {
 
     // Generar password temporal (el usuario lo cambiará al aceptar)
     const temporaryPassword = this.authService.generateVerificationToken();
-    const hashedPassword =
-      await this.authService.hashPassword(temporaryPassword);
+    const hashedPassword = await this.authService.hashPassword(temporaryPassword);
 
     // Generar token de invitación
     const { token, expiresAt } = this.authService.generateTokenWithExpiry(24);
@@ -194,8 +183,7 @@ export class UsersService {
     }
 
     // Generar nuevo token de invitación
-    const { token: invitationToken, expiresAt } =
-      this.authService.generateTokenWithExpiry(24);
+    const { token: invitationToken, expiresAt } = this.authService.generateTokenWithExpiry(24);
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -217,10 +205,7 @@ export class UsersService {
   /**
    * Cancelar invitación pendiente (elimina el usuario que nunca aceptó)
    */
-  async cancelInvitation(
-    userId: string,
-    organizationId: string,
-  ): Promise<{ message: string }> {
+  async cancelInvitation(userId: string, organizationId: string): Promise<{ message: string }> {
     // Buscar usuario pendiente (no verificado y no activo)
     const user = await this.prisma.user.findFirst({
       where: {
@@ -233,9 +218,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException(
-        'Invitation not found or user is already active',
-      );
+      throw new NotFoundException('Invitation not found or user is already active');
     }
 
     // Eliminar usuario (no es miembro activo todavía)
@@ -274,10 +257,7 @@ export class UsersService {
   /**
    * Listar usuarios de la organización con filtros
    */
-  async findAll(
-    organizationId: string,
-    filters: UserFiltersDto,
-  ): Promise<PaginatedUsers> {
+  async findAll(organizationId: string, filters: UserFiltersDto): Promise<PaginatedUsers> {
     const { role, isActive, search, page = 1, limit = 10 } = filters;
 
     // Construir condiciones de búsqueda
@@ -319,10 +299,7 @@ export class UsersService {
   /**
    * Buscar usuario por email (dentro de la org)
    */
-  async findByEmail(
-    email: string,
-    organizationId: string,
-  ): Promise<User | null> {
+  async findByEmail(email: string, organizationId: string): Promise<User | null> {
     return this.prisma.user.findFirst({
       where: {
         email,
@@ -335,10 +312,7 @@ export class UsersService {
   /**
    * Contar usuarios activos de la organización
    */
-  async count(
-    organizationId: string,
-    filters?: { isActive?: boolean },
-  ): Promise<number> {
+  async count(organizationId: string, filters?: { isActive?: boolean }): Promise<number> {
     return this.prisma.user.count({
       where: {
         organizationId,
@@ -393,9 +367,7 @@ export class UsersService {
 
     // NO se puede asignar rol 'owner' (solo existe 1 owner)
     if (newRole === 'owner') {
-      throw new ForbiddenException(
-        'Cannot assign owner role. Use transferOwnership instead.',
-      );
+      throw new ForbiddenException('Cannot assign owner role. Use transferOwnership instead.');
     }
 
     // Actualizar rol
@@ -431,9 +403,7 @@ export class UsersService {
 
     // NO se puede desactivar al owner
     if (user.role === 'owner') {
-      throw new ForbiddenException(
-        'Cannot deactivate owner. Transfer ownership first.',
-      );
+      throw new ForbiddenException('Cannot deactivate owner. Transfer ownership first.');
     }
 
     const updatedUser = await this.prisma.user.update({
@@ -495,11 +465,7 @@ export class UsersService {
   /**
    * Soft delete - Eliminación lógica
    */
-  async remove(
-    userId: string,
-    organizationId: string,
-    actorId: string,
-  ): Promise<void> {
+  async remove(userId: string, organizationId: string, actorId: string): Promise<void> {
     // Verificar que el usuario existe
     const user = await this.findOne(userId, organizationId);
 
@@ -551,35 +517,34 @@ export class UsersService {
    * Estadísticas de usuarios de la organización
    */
   async getStats(organizationId: string): Promise<UserStats> {
-    const [total, byRole, active, inactive, verified, unverified] =
-      await Promise.all([
-        // Total usuarios
-        this.prisma.user.count({
-          where: { organizationId, deletedAt: null },
-        }),
-        // Por rol
-        this.prisma.user.groupBy({
-          by: ['role'],
-          where: { organizationId, deletedAt: null },
-          _count: true,
-        }),
-        // Activos
-        this.prisma.user.count({
-          where: { organizationId, deletedAt: null, isActive: true },
-        }),
-        // Inactivos
-        this.prisma.user.count({
-          where: { organizationId, deletedAt: null, isActive: false },
-        }),
-        // Verificados
-        this.prisma.user.count({
-          where: { organizationId, deletedAt: null, emailVerified: true },
-        }),
-        // No verificados
-        this.prisma.user.count({
-          where: { organizationId, deletedAt: null, emailVerified: false },
-        }),
-      ]);
+    const [total, byRole, active, inactive, verified, unverified] = await Promise.all([
+      // Total usuarios
+      this.prisma.user.count({
+        where: { organizationId, deletedAt: null },
+      }),
+      // Por rol
+      this.prisma.user.groupBy({
+        by: ['role'],
+        where: { organizationId, deletedAt: null },
+        _count: true,
+      }),
+      // Activos
+      this.prisma.user.count({
+        where: { organizationId, deletedAt: null, isActive: true },
+      }),
+      // Inactivos
+      this.prisma.user.count({
+        where: { organizationId, deletedAt: null, isActive: false },
+      }),
+      // Verificados
+      this.prisma.user.count({
+        where: { organizationId, deletedAt: null, emailVerified: true },
+      }),
+      // No verificados
+      this.prisma.user.count({
+        where: { organizationId, deletedAt: null, emailVerified: false },
+      }),
+    ]);
 
     // Transformar byRole a objeto
     const roleStats = byRole.reduce(
@@ -626,10 +591,7 @@ export class UsersService {
   /**
    * Actividad del usuario (dentro de su org)
    */
-  async getUserActivity(
-    userId: string,
-    organizationId: string,
-  ): Promise<UserActivity> {
+  async getUserActivity(userId: string, organizationId: string): Promise<UserActivity> {
     // Verificar que el usuario existe
     const user = await this.findOne(userId, organizationId);
 
@@ -733,9 +695,7 @@ export class UsersService {
 
     // El actor debe tener nivel superior al target
     if (actorLevel <= targetCurrentLevel) {
-      throw new ForbiddenException(
-        'Insufficient permissions to modify this user',
-      );
+      throw new ForbiddenException('Insufficient permissions to modify this user');
     }
   }
 
@@ -762,18 +722,14 @@ export class UsersService {
    */
   private validateNotOwner(user: User): void {
     if (user.role === 'owner') {
-      throw new ForbiddenException(
-        'Cannot delete owner. Transfer ownership first.',
-      );
+      throw new ForbiddenException('Cannot delete owner. Transfer ownership first.');
     }
   }
 
   /**
    * Validar que la organización existe y está activa
    */
-  private async validateOrganization(
-    organizationId: string,
-  ): Promise<Organization> {
+  private async validateOrganization(organizationId: string): Promise<Organization> {
     const org = await this.prisma.organization.findUnique({
       where: { id: organizationId },
     });

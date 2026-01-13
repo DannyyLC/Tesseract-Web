@@ -29,9 +29,7 @@ export class EmailService {
       } as any,
     );
 
-    this.emailVerificationTemplate = this.loadTemplate(
-      'email_verification_view.hbs',
-    );
+    this.emailVerificationTemplate = this.loadTemplate('email_verification_view.hbs');
   }
 
   private loadTemplate(templateName: string): handlebars.TemplateDelegate {
@@ -59,9 +57,7 @@ export class EmailService {
     return this.jwtService.sign(
       { email: payload },
       {
-        secret:
-          process.env.JWT_EMAIL_VERIFICATION_SECRET ??
-          'email-verification-secret',
+        secret: process.env.JWT_EMAIL_VERIFICATION_SECRET ?? 'email-verification-secret',
         expiresIn: (process.env.JWT_EMAIL_VERIFICATION_EXPIRES_IN ?? '30m') as any,
       },
     );
@@ -69,9 +65,7 @@ export class EmailService {
 
   verifyEmailToken(token: string): string {
     const email = this.jwtService.verify(token, {
-      secret:
-        process.env.JWT_EMAIL_VERIFICATION_SECRET ??
-        'email-verification-secret',
+      secret: process.env.JWT_EMAIL_VERIFICATION_SECRET ?? 'email-verification-secret',
     });
     return email;
   }

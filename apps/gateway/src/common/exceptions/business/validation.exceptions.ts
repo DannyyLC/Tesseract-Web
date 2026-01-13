@@ -8,12 +8,7 @@ import { ErrorCode } from '../base/error-codes.enum';
  */
 export class ValidationErrorException extends AppException {
   constructor(errors: any[]) {
-    super(
-      ErrorCode.VALIDATION_ERROR,
-      'Validation failed',
-      HttpStatus.BAD_REQUEST,
-      { errors },
-    );
+    super(ErrorCode.VALIDATION_ERROR, 'Validation failed', HttpStatus.BAD_REQUEST, { errors });
   }
 }
 
@@ -67,12 +62,9 @@ export class InvalidEmailFormatException extends AppException {
  */
 export class InvalidUrlFormatException extends AppException {
   constructor(url: string) {
-    super(
-      ErrorCode.INVALID_URL_FORMAT,
-      `Invalid URL format: "${url}"`,
-      HttpStatus.BAD_REQUEST,
-      { url },
-    );
+    super(ErrorCode.INVALID_URL_FORMAT, `Invalid URL format: "${url}"`, HttpStatus.BAD_REQUEST, {
+      url,
+    });
   }
 }
 

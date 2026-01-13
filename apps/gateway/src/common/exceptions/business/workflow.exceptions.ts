@@ -130,11 +130,8 @@ export class InvalidCronExpressionException extends AppException {
  */
 export class InvalidTimezoneException extends AppException {
   constructor(timezone: string) {
-    super(
-      ErrorCode.INVALID_TIMEZONE,
-      `Invalid timezone: "${timezone}"`,
-      HttpStatus.BAD_REQUEST,
-      { timezone },
-    );
+    super(ErrorCode.INVALID_TIMEZONE, `Invalid timezone: "${timezone}"`, HttpStatus.BAD_REQUEST, {
+      timezone,
+    });
   }
 }

@@ -12,4 +12,4 @@ import { EmailService } from './email/email.service';
   providers: [EmailService],
   exports: [EmailService],
 })
-export class NotificationsModule { }
+export class NotificationsModule {}

@@ -46,7 +46,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly emailService: EmailService,
-  ) { }
+  ) {}
 
   /**
    * POST /auth/login
@@ -79,10 +79,7 @@ export class AuthController {
    *   401 - Cuenta inactiva o eliminada
    */
   @Post('login')
-  async login(
-    @Body() loginDto: LoginDto,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) response: Response) {
     const responseBuilder = new ApiResponseBuilder();
     try {
       const result = await this.authService.login(loginDto);
@@ -141,10 +138,7 @@ export class AuthController {
    */
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(
-    @Req() request: Request,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async refresh(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     // Leer refreshToken desde la cookie
     const refreshToken = request.cookies?.refreshToken;
 
@@ -233,10 +227,7 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async logout(
-    @Req() request: Request,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     // Leer refreshToken desde la cookie
     const refreshToken = request.cookies?.refreshToken;
 

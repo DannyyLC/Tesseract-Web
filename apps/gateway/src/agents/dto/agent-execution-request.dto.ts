@@ -80,8 +80,7 @@ export class AgentExecutionRequestDto {
   user_type: UserType;
 
   @ApiProperty({
-    description:
-      'ID del usuario (UUID para internal, teléfono/session para external)',
+    description: 'ID del usuario (UUID para internal, teléfono/session para external)',
     example: 'user-123',
   })
   @IsString()

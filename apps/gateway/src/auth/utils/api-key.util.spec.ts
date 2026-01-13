@@ -222,9 +222,7 @@ describe('ApiKeyUtil', () => {
       });
 
       mockCompare.mockImplementation((data: string, hash: string) => {
-        return Promise.resolve(
-          data === apiKey && hash.startsWith('$2b$10$mockedhash'),
-        );
+        return Promise.resolve(data === apiKey && hash.startsWith('$2b$10$mockedhash'));
       });
 
       // Act

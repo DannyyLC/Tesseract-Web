@@ -1,11 +1,4 @@
-import {
-  IsString,
-  MinLength,
-  MaxLength,
-  IsNotEmpty,
-  IsOptional,
-  IsIn,
-} from 'class-validator';
+import { IsString, MinLength, MaxLength, IsNotEmpty, IsOptional, IsIn } from 'class-validator';
 import { SubscriptionPlan } from '@workflow-automation/shared-types';
 
 export class CreateOrganizationDto {

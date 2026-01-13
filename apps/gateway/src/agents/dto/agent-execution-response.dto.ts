@@ -56,8 +56,7 @@ export class ExecutionMetadataDto {
   execution_time_ms?: number;
 
   @ApiPropertyOptional({
-    description:
-      'Tipo de grafo ejecutado (react, supervisor, router, sequential, parallel)',
+    description: 'Tipo de grafo ejecutado (react, supervisor, router, sequential, parallel)',
     example: 'react',
   })
   @IsOptional()

@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 
 @Controller('events')
 export class EventsController {
-  constructor(private readonly eventsService: EventsService) { }
+  constructor(private readonly eventsService: EventsService) {}
 
   // 1. Client connects here first via EventSource
   @Sse('stream')

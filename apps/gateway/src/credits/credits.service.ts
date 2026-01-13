@@ -5,7 +5,7 @@ import { getWorkflowCreditCost } from '@workflow-automation/shared-types';
 
 @Injectable()
 export class CreditsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   // ============================================
   // CREATE
@@ -165,8 +165,7 @@ export class CreditsService {
     });
 
     if (workflow && workflow.totalExecutions > 0) {
-      const avgCredits =
-        workflow.totalCreditsConsumed / workflow.totalExecutions;
+      const avgCredits = workflow.totalCreditsConsumed / workflow.totalExecutions;
       await this.prisma.workflow.update({
         where: { id: workflowId },
         data: { avgCreditsPerExecution: avgCredits },

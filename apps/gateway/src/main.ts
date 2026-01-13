@@ -16,12 +16,7 @@ async function bootstrap() {
       origin: process.env.FRONTEND_URL ?? 'http://localhost:3001', // URL del frontend
       credentials: true, // Permite envío de cookies
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: [
-        'Content-Type',
-        'Authorization',
-        'X-API-Key',
-        'X-Admin-Key',
-      ],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Admin-Key'],
       exposedHeaders: ['Set-Cookie'],
     });
 

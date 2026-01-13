@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { Transform, PassThrough } from 'stream';
 import { PrismaService } from '../database/prisma.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
@@ -12,11 +7,7 @@ import { ExecutionsService } from '../executions/executions.service';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { AgentsService } from '../agents/agents.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
-import {
-  PLANS,
-  SubscriptionPlan,
-  getWorkflowCreditCost,
-} from '@workflow-automation/shared-types';
+import { PLANS, SubscriptionPlan, getWorkflowCreditCost } from '@workflow-automation/shared-types';
 import { CreditsService } from '../credits/credits.service';
 import { LlmModelsService } from '../llm-models/llm-models.service';
 import { ConversationsService } from '../conversations/conversations.service';
@@ -42,7 +33,7 @@ export class WorkflowsService {
     private readonly creditsService: CreditsService,
     private readonly llmModelsService: LlmModelsService,
     private readonly conversationsService: ConversationsService,
-  ) { }
+  ) {}
 
   //==========================================================
   // CRUD DE WORKFLOWS
@@ -54,8 +45,7 @@ export class WorkflowsService {
     await this.validateConfig(dto.config);
 
     // Validar límite de workflows según el plan
-    const canAdd =
-      await this.organizationsService.canAddWorkflow(organizationId);
+    const canAdd = await this.organizationsService.canAddWorkflow(organizationId);
     if (!canAdd) {
       const org = await this.prisma.organization.findUnique({
         where: { id: organizationId },
@@ -96,9 +86,7 @@ export class WorkflowsService {
       },
     });
 
-    this.logger.log(
-      `Workflow creado ${workflow.id} en organización ${organizationId}`,
-    );
+    this.logger.log(`Workflow creado ${workflow.id} en organización ${organizationId}`);
     return workflow;
   }
 
@@ -153,11 +141,7 @@ export class WorkflowsService {
   /**
    * Actualizar un workflow
    */
-  async update(
-    organizationId: string,
-    workflowId: string,
-    dto: UpdateWorkflowDto,
-  ) {
+  async update(organizationId: string, workflowId: string, dto: UpdateWorkflowDto) {
     // 1. Verificar que existe y pertenece a la organización
     const existing = await this.findOne(organizationId, workflowId);
 
@@ -196,9 +180,7 @@ export class WorkflowsService {
       },
     });
 
-    this.logger.log(
-      `Workflow actualizado: ${workflowId} (versión ${workflow.version})`,
-    );
+    this.logger.log(`Workflow actualizado: ${workflowId} (versión ${workflow.version})`);
     return workflow;
   }
 
@@ -292,9 +274,7 @@ export class WorkflowsService {
     );
 
     if (!canExecute.allowed) {
-      throw new ForbiddenException(
-        `Insufficient credits: ${canExecute.reason}`,
-      );
+      throw new ForbiddenException(`Insufficient credits: ${canExecute.reason}`);
     }
 
     // 3. CREAR REGISTRO DE EJECUCIÓN
@@ -307,9 +287,7 @@ export class WorkflowsService {
       apiKeyId, // Opcional
     });
 
-    this.logger.log(
-      `Iniciando ejecución ${execution.id} para workflow ${workflowId}`,
-    );
+    this.logger.log(`Iniciando ejecución ${execution.id} para workflow ${workflowId}`);
 
     // 4. GESTIONAR CONVERSACIÓN
     const channel = metadata?.channel ?? 'api';
@@ -317,33 +295,23 @@ export class WorkflowsService {
     const endUserId = metadata?.endUserId;
     const userMessage = input?.message ?? JSON.stringify(input);
 
-    const conversation =
-      await this.conversationsService.findOrCreateConversation(
-        workflowId,
-        channel,
-        userId,
-        endUserId,
-        conversationId,
-      );
+    const conversation = await this.conversationsService.findOrCreateConversation(
+      workflowId,
+      channel,
+      userId,
+      endUserId,
+      conversationId,
+    );
 
     // Asociar la ejecución a la conversación
-    await this.executionsService.linkToConversation(
-      execution.id,
-      conversation.id,
-    );
+    await this.executionsService.linkToConversation(execution.id, conversation.id);
 
     // OBTENER HISTORIAL ANTES de guardar el mensaje del usuario
     // Esto evita duplicados en el message_history que enviamos al agente
-    const messageHistory = await this.conversationsService.getMessageHistory(
-      conversation.id,
-    );
+    const messageHistory = await this.conversationsService.getMessageHistory(conversation.id);
 
     // GUARDAR MENSAJE DEL USUARIO INMEDIATAMENTE
-    await this.conversationsService.addMessage(
-      conversation.id,
-      'human',
-      userMessage,
-    );
+    await this.conversationsService.addMessage(conversation.id, 'human', userMessage);
 
     // 5. EJECUTAR WORKFLOW CON EL SERVICIO DE AGENTS
     try {
@@ -374,13 +342,11 @@ export class WorkflowsService {
         );
         assistantMessageSaved = true;
 
-        this.logger.debug(
-          `Guardado mensaje del asistente en conversación ${conversation.id}`,
-        );
+        this.logger.debug(`Guardado mensaje del asistente en conversación ${conversation.id}`);
       } else {
         this.logger.warn(
           `No se encontró mensaje del asistente en ejecución ${execution.id}. ` +
-          `Messages: ${JSON.stringify(messages)}`,
+            `Messages: ${JSON.stringify(messages)}`,
         );
       }
 
@@ -406,8 +372,7 @@ export class WorkflowsService {
           }
 
           // BATCH QUERY: Obtener costos de todos los modelos en 1 query
-          const calculations =
-            await this.llmModelsService.calculateCostBatch(usageForBatch);
+          const calculations = await this.llmModelsService.calculateCostBatch(usageForBatch);
 
           // Sumar costos
           for (const calc of calculations) {
@@ -415,9 +380,7 @@ export class WorkflowsService {
             costBreakdown.push({ model: calc.model, cost: calc.totalCost });
           }
         } catch (error) {
-          this.logger.error(
-            `Error en batch calculation de costos: ${(error as Error).message}`,
-          );
+          this.logger.error(`Error en batch calculation de costos: ${(error as Error).message}`);
         }
       } else {
         // Fallback: usar tokens totales con modelo por defecto
@@ -427,10 +390,11 @@ export class WorkflowsService {
 
         if (totalTokens > 0) {
           try {
-            const costCalculation = await this.llmModelsService.calculateCost(
-              modelUsed,
-              { inputTokens, outputTokens, totalTokens },
-            );
+            const costCalculation = await this.llmModelsService.calculateCost(modelUsed, {
+              inputTokens,
+              outputTokens,
+              totalTokens,
+            });
             costUSD = costCalculation.totalCost;
             costBreakdown.push({ model: modelUsed, cost: costUSD });
           } catch (error) {
@@ -443,7 +407,7 @@ export class WorkflowsService {
 
       this.logger.log(
         `Costo total de ejecución ${execution.id}: $${costUSD} ` +
-        `(breakdown: ${JSON.stringify(costBreakdown)})`,
+          `(breakdown: ${JSON.stringify(costBreakdown)})`,
       );
 
       // 8. ACTUALIZAR EXECUTION Y CONVERSATION EN PARALELO
@@ -495,14 +459,11 @@ export class WorkflowsService {
 
       this.logger.log(
         `Créditos descontados para ejecución exitosa ${execution.id}: ` +
-        `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
+          `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
       );
 
       // 10. RETORNAR EJECUCIÓN CON RELACIONES COMPLETAS (requiere query con joins)
-      return this.executionsService.findOneForClient(
-        execution.id,
-        organizationId,
-      );
+      return this.executionsService.findOneForClient(execution.id, organizationId);
     } catch (error) {
       // MANEJAR ERRORES - NO SE DESCONTARÁN CRÉDITOS EN EJECUCIONES FALLIDAS
       this.logger.error(
@@ -515,9 +476,7 @@ export class WorkflowsService {
         errorStack: (error as Error).stack,
       });
 
-      this.logger.log(
-        `Ejecución ${execution.id} marcada como fallida. Créditos NO descontados.`,
-      );
+      this.logger.log(`Ejecución ${execution.id} marcada como fallida. Créditos NO descontados.`);
 
       throw error;
     }
@@ -592,9 +551,7 @@ export class WorkflowsService {
     );
 
     if (!canExecute.allowed) {
-      throw new ForbiddenException(
-        `Insufficient credits: ${canExecute.reason}`,
-      );
+      throw new ForbiddenException(`Insufficient credits: ${canExecute.reason}`);
     }
 
     // 3. CREAR REGISTRO DE EJECUCIÓN
@@ -607,9 +564,7 @@ export class WorkflowsService {
       apiKeyId,
     });
 
-    this.logger.log(
-      `Iniciando ejecución (stream) ${execution.id} para workflow ${workflowId}`,
-    );
+    this.logger.log(`Iniciando ejecución (stream) ${execution.id} para workflow ${workflowId}`);
 
     // 4. GESTIONAR CONVERSACIÓN
     const channel = metadata?.channel ?? 'api';
@@ -617,29 +572,19 @@ export class WorkflowsService {
     const endUserId = metadata?.endUserId;
     const userMessage = input?.message ?? JSON.stringify(input);
 
-    const conversation =
-      await this.conversationsService.findOrCreateConversation(
-        workflowId,
-        channel,
-        userId,
-        endUserId,
-        conversationId,
-      );
-
-    await this.executionsService.linkToConversation(
-      execution.id,
-      conversation.id,
+    const conversation = await this.conversationsService.findOrCreateConversation(
+      workflowId,
+      channel,
+      userId,
+      endUserId,
+      conversationId,
     );
 
-    const messageHistory = await this.conversationsService.getMessageHistory(
-      conversation.id,
-    );
+    await this.executionsService.linkToConversation(execution.id, conversation.id);
 
-    await this.conversationsService.addMessage(
-      conversation.id,
-      'human',
-      userMessage,
-    );
+    const messageHistory = await this.conversationsService.getMessageHistory(conversation.id);
+
+    await this.conversationsService.addMessage(conversation.id, 'human', userMessage);
 
     // 5. EJECUTAR STREAM
     try {
@@ -760,9 +705,7 @@ export class WorkflowsService {
 
           // 2. Procesar finalización
           if (!metadataEvent) {
-            this.logger.warn(
-              `No se recibió metadata event en stream ${execution.id}`,
-            );
+            this.logger.warn(`No se recibió metadata event en stream ${execution.id}`);
           }
 
           const usageByModel = metadataEvent?.usage_by_model ?? {};
@@ -781,8 +724,7 @@ export class WorkflowsService {
               };
             }
             try {
-              const calculations =
-                await this.llmModelsService.calculateCostBatch(usageForBatch);
+              const calculations = await this.llmModelsService.calculateCostBatch(usageForBatch);
               for (const calc of calculations) {
                 costUSD += calc.totalCost;
                 costBreakdown.push({ model: calc.model, cost: calc.totalCost });
@@ -899,9 +841,7 @@ export class WorkflowsService {
         tool_name: toolName,
         display_name: tenantTool.displayName,
         config: tenantTool.config ?? {},
-        enabled_functions: tenantTool.toolCatalog.functions.map(
-          (fn: any) => fn.functionName,
-        ),
+        enabled_functions: tenantTool.toolCatalog.functions.map((fn: any) => fn.functionName),
       };
 
       // TODO: Agregar credenciales cuando se implemente
@@ -938,7 +878,7 @@ export class WorkflowsService {
       if (agentTools.length > 0 && Object.keys(filtered).length === 0) {
         this.logger.warn(
           `Agent "${agentName}" tiene tools configurados pero ninguno es válido. ` +
-          `Tools configurados: ${JSON.stringify(agentTools)}`,
+            `Tools configurados: ${JSON.stringify(agentTools)}`,
         );
       }
     }
@@ -952,11 +892,8 @@ export class WorkflowsService {
     }
 
     // 5. Determinar tipo de usuario
-    const userType = conversation.userId
-      ? UserType.INTERNAL
-      : UserType.EXTERNAL;
-    const finalUserId =
-      conversation.userId ?? conversation.endUserId ?? 'anonymous';
+    const userType = conversation.userId ? UserType.INTERNAL : UserType.EXTERNAL;
+    const finalUserId = conversation.userId ?? conversation.endUserId ?? 'anonymous';
 
     // 6. Construir el payload final
     const payload = {
@@ -983,22 +920,18 @@ export class WorkflowsService {
     const sanitizedPayload = {
       ...payload,
       agent_tool_instances: Object.fromEntries(
-        Object.entries(payload.agent_tool_instances).map(
-          ([agentName, tools]) => [
-            agentName,
-            Object.fromEntries(
-              Object.entries(tools).map(([toolId, toolConfig]) => [
-                toolId,
-                {
-                  ...toolConfig,
-                  credentials: toolConfig.credentials
-                    ? '[REDACTED]'
-                    : undefined,
-                },
-              ]),
-            ),
-          ],
-        ),
+        Object.entries(payload.agent_tool_instances).map(([agentName, tools]) => [
+          agentName,
+          Object.fromEntries(
+            Object.entries(tools).map(([toolId, toolConfig]) => [
+              toolId,
+              {
+                ...toolConfig,
+                credentials: toolConfig.credentials ? '[REDACTED]' : undefined,
+              },
+            ]),
+          ),
+        ]),
       ),
     };
 
@@ -1019,9 +952,7 @@ export class WorkflowsService {
     }
 
     if (!config.type) {
-      throw new InvalidWorkflowConfigException(
-        'Config must have a "type" field',
-      );
+      throw new InvalidWorkflowConfigException('Config must have a "type" field');
     }
 
     // Validación para workflows tipo 'agent' (LangGraph)
@@ -1032,15 +963,11 @@ export class WorkflowsService {
         );
       }
       if (!config.agents || typeof config.agents !== 'object') {
-        throw new InvalidWorkflowConfigException(
-          'Agent workflows must have agents config',
-        );
+        throw new InvalidWorkflowConfigException('Agent workflows must have agents config');
       }
       // Validar que al menos exista un agente
       if (Object.keys(config.agents).length === 0) {
-        throw new InvalidWorkflowConfigException(
-          'Agent workflows must have at least one agent',
-        );
+        throw new InvalidWorkflowConfigException('Agent workflows must have at least one agent');
       }
 
       // Validar que los modelos especificados existen en la BD
@@ -1055,21 +982,17 @@ export class WorkflowsService {
     const modelsToValidate = new Set<string>();
 
     // Recolectar todos los modelos (principal + fallbacks)
-    for (const agentConfig of Object.values(agentsConfig)) {
+    for (const agentConfig of Object.values(agentsConfig) as any[]) {
       if (agentConfig.model) {
         modelsToValidate.add(agentConfig.model);
       }
       if (agentConfig.fallbacks && Array.isArray(agentConfig.fallbacks)) {
-        agentConfig.fallbacks.forEach((model: string) =>
-          modelsToValidate.add(model),
-        );
+        agentConfig.fallbacks.forEach((model: string) => modelsToValidate.add(model));
       }
     }
 
     if (modelsToValidate.size === 0) {
-      throw new InvalidWorkflowConfigException(
-        'At least one agent must have a model specified',
-      );
+      throw new InvalidWorkflowConfigException('At least one agent must have a model specified');
     }
 
     // Obtener modelos activos de la BD
@@ -1089,12 +1012,10 @@ export class WorkflowsService {
     }
 
     if (invalidModels.length > 0) {
-      const availableModels = Array.from(activeModelNames)
-        .slice(0, 10)
-        .join(', ');
+      const availableModels = Array.from(activeModelNames).slice(0, 10).join(', ');
       throw new InvalidWorkflowConfigException(
         `Invalid models: ${invalidModels.join(', ')}. ` +
-        `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
+          `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
       );
     }
   }

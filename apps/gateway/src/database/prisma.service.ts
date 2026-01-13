@@ -1,15 +1,8 @@
-import {
-  Injectable,
-  OnModuleInit,
-  OnModuleDestroy,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
 
 @Injectable()
-export class PrismaService
-  extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy {
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
@@ -19,8 +12,7 @@ export class PrismaService
         { emit: 'event', level: 'error' },
         { emit: 'event', level: 'warn' },
       ],
-      errorFormat:
-        process.env.NODE_ENV === 'development' ? 'pretty' : 'minimal',
+      errorFormat: process.env.NODE_ENV === 'development' ? 'pretty' : 'minimal',
       datasources: {
         db: {
           url: process.env.DATABASE_URL,
@@ -75,9 +67,7 @@ export class PrismaService
         );
 
         if (attempt === maxRetries) {
-          this.logger.error(
-            'No se pudo conectar a la base de datos después de múltiples intentos',
-          );
+          this.logger.error('No se pudo conectar a la base de datos después de múltiples intentos');
           throw error;
         }
 
@@ -118,11 +108,7 @@ export class PrismaService
    * Ejecuta una operación con reintentos automáticos
    * Útil para operaciones críticas que pueden fallar temporalmente
    */
-  async withRetry<T>(
-    operation: () => Promise<T>,
-    maxRetries = 3,
-    delayMs = 1000,
-  ): Promise<T> {
+  async withRetry<T>(operation: () => Promise<T>, maxRetries = 3, delayMs = 1000): Promise<T> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         return await operation();
@@ -131,9 +117,7 @@ export class PrismaService
           throw error;
         }
 
-        this.logger.warn(
-          `Operación falló (intento ${attempt}/${maxRetries}), reintentando...`,
-        );
+        this.logger.warn(`Operación falló (intento ${attempt}/${maxRetries}), reintentando...`);
         await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
       }
     }

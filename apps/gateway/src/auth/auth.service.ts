@@ -37,7 +37,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   //==============================================================
   // AUTHENTICATION METHODS
@@ -65,9 +65,7 @@ export class AuthService {
     const result = await this.prisma.$transaction(async (tx) => {
       // Generar slug único usando método centralizado de OrganizationsService
       // Pasamos tx para que funcione dentro de la transacción
-      const { OrganizationsService } = await import(
-        '../organizations/organizations.service'
-      );
+      const { OrganizationsService } = await import('../organizations/organizations.service');
       const slug = await OrganizationsService.generateUniqueSlug(dto.name, tx);
 
       const organization = await tx.organization.create({
@@ -156,10 +154,7 @@ export class AuthService {
     this.logger.log(`Intentando login: ${dto.email}`);
 
     // 1. Validar credenciales y obtener usuario con organización
-    const { user, organization } = await this.validateUser(
-      dto.email,
-      dto.password,
-    );
+    const { user, organization } = await this.validateUser(dto.email, dto.password);
     const payload: UserPayload = {
       sub: user.id,
       email: user.email,
@@ -171,15 +166,11 @@ export class AuthService {
     };
     // 2. Generar temporary token
     const tempToken = this.jwtService.sign(payload, {
-      secret:
-        this.configService.get<string>('TEMP_TOKEN_SECRET') ??
-        'temp-token-secret',
+      secret: this.configService.get<string>('TEMP_TOKEN_SECRET') ?? 'temp-token-secret',
       expiresIn: '15m',
     });
     return {
-      ...(user.twoFactorEnabled
-        ? { qr: 'not needed' }
-        : await this.setup2FA(user.id)),
+      ...(user.twoFactorEnabled ? { qr: 'not needed' } : await this.setup2FA(user.id)),
       tempToken,
     };
   }
@@ -314,37 +305,27 @@ export class AuthService {
    */
   public validatePasswordStrength(password: string): void {
     if (!password || password.length < 8) {
-      throw new BadRequestException(
-        'Password must be at least 8 characters long',
-      );
+      throw new BadRequestException('Password must be at least 8 characters long');
     }
 
     // Al menos una letra mayúscula
     if (!/[A-Z]/.test(password)) {
-      throw new BadRequestException(
-        'Password must contain at least one uppercase letter',
-      );
+      throw new BadRequestException('Password must contain at least one uppercase letter');
     }
 
     // Al menos una letra minúscula
     if (!/[a-z]/.test(password)) {
-      throw new BadRequestException(
-        'Password must contain at least one lowercase letter',
-      );
+      throw new BadRequestException('Password must contain at least one lowercase letter');
     }
 
     // Al menos un número
     if (!/\d/.test(password)) {
-      throw new BadRequestException(
-        'Password must contain at least one number',
-      );
+      throw new BadRequestException('Password must contain at least one number');
     }
 
     // Al menos un carácter especial
-    if (!new RegExp("[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]").test(password)) {
-      throw new BadRequestException(
-        'Password must contain at least one special character',
-      );
+    if (!new RegExp('[!@#$%^&*()_+\\-=\\[\\]{};\':"\\\\|,.<>/?]').test(password)) {
+      throw new BadRequestException('Password must contain at least one special character');
     }
   }
 
@@ -398,9 +379,7 @@ export class AuthService {
 
     // 2. Generar access token (corta duración)
     const accessToken = this.jwtService.sign(payload, {
-      secret:
-        this.configService.get<string>('JWT_SECRET') ??
-        'super-secret-change-in-production',
+      secret: this.configService.get<string>('JWT_SECRET') ?? 'super-secret-change-in-production',
       expiresIn: this.configService.get('JWT_EXPIRES_IN') ?? '1d',
     });
 
@@ -473,9 +452,7 @@ export class AuthService {
       }
 
       if (!matchedToken) {
-        this.logger.warn(
-          `Refresh token no encontrado para usuario: ${payload.sub}`,
-        );
+        this.logger.warn(`Refresh token no encontrado para usuario: ${payload.sub}`);
         throw new UnauthorizedException('Refresh token inválido');
       }
 
@@ -597,10 +574,7 @@ export class AuthService {
 
   async generateTempToken(dto: LoginDto, expiresIn: string | number = '15m') {
     // 1. Validar credenciales y obtener usuario con organización
-    const { user, organization } = await this.validateUser(
-      dto.email,
-      dto.password,
-    );
+    const { user, organization } = await this.validateUser(dto.email, dto.password);
     const payload: UserPayload = {
       sub: user.id,
       email: user.email,
@@ -613,9 +587,7 @@ export class AuthService {
 
     // 2. Generar temporary token
     const options: any = {
-      secret:
-        this.configService.get<string>('TEMP_TOKEN_SECRET') ??
-        'temp-token-secret',
+      secret: this.configService.get<string>('TEMP_TOKEN_SECRET') ?? 'temp-token-secret',
       expiresIn,
     };
     const tempToken = this.jwtService.sign(payload, options);
@@ -685,9 +657,7 @@ export class AuthService {
         data: { lastLoginAt: new Date() },
       });
 
-      this.logger.log(
-        `Login exitoso: ${userPayload.email} (${userPayload.organizationName})`,
-      );
+      this.logger.log(`Login exitoso: ${userPayload.email} (${userPayload.organizationName})`);
       return {
         user: {
           id: userPayload.sub,
@@ -712,9 +682,7 @@ export class AuthService {
   async verifyEmail(token: string): Promise<boolean> {
     try {
       const email = this.jwtService.verify(token, {
-        secret:
-          process.env.JWT_EMAIL_VERIFICATION_SECRET ??
-          'email-verification-secret',
+        secret: process.env.JWT_EMAIL_VERIFICATION_SECRET ?? 'email-verification-secret',
       });
       // Marcar el email como verificado en la base de datos
       await this.prisma.user.updateMany({

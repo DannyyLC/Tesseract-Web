@@ -8,12 +8,9 @@ import { ErrorCode } from '../base/error-codes.enum';
  */
 export class TagNotFoundException extends AppException {
   constructor(tagId: string) {
-    super(
-      ErrorCode.TAG_NOT_FOUND,
-      `Tag with ID "${tagId}" not found`,
-      HttpStatus.NOT_FOUND,
-      { tagId },
-    );
+    super(ErrorCode.TAG_NOT_FOUND, `Tag with ID "${tagId}" not found`, HttpStatus.NOT_FOUND, {
+      tagId,
+    });
   }
 }
 
