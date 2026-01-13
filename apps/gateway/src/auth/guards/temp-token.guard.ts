@@ -13,7 +13,7 @@ export class TempTokenGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
@@ -24,13 +24,13 @@ export class TempTokenGuard implements CanActivate {
     }
     try {
       const secret =
-        this.configService.get<string>('TEMP_TOKEN_SECRET') ||
+        this.configService.get<string>('TEMP_TOKEN_SECRET') ??
         'temp-token-secret';
       const payload = this.jwtService.verify(tempToken, { secret });
       // Optionally attach payload to request for later use
       request.user = payload;
       return true;
-    } catch (err) {
+    } catch {
       throw new UnauthorizedException('Invalid or expired temp token');
     }
   }

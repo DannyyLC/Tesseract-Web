@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { Prisma } from '@prisma/client';
 
 /**
  * Service que maneja el historial de ejecuciones
@@ -15,7 +14,7 @@ import { Prisma } from '@prisma/client';
 export class ExecutionsService {
   private readonly logger = new Logger(ExecutionsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Crear una nueva ejecución
@@ -36,7 +35,7 @@ export class ExecutionsService {
         workflowId,
         status: 'pending',
         trigger,
-        triggerData: triggerData || {},
+        triggerData: triggerData ?? {},
         startedAt: new Date(),
         organizationId: triggerData?.organizationId,
         userId: triggerData?.userId,
@@ -54,7 +53,7 @@ export class ExecutionsService {
     });
 
     this.logger.log(
-      `Ejecución creada: ${execution.id} para workflow ${workflowId} (trigger: ${trigger}, org: ${triggerData?.organizationId || 'N/A'}, userId: ${triggerData?.userId || 'N/A'}, apiKeyId: ${triggerData?.apiKeyId || 'N/A'})`,
+      `Ejecución creada: ${execution.id} para workflow ${workflowId} (trigger: ${trigger}, org: ${triggerData?.organizationId ?? 'N/A'}, userId: ${triggerData?.userId ?? 'N/A'}, apiKeyId: ${triggerData?.apiKeyId ?? 'N/A'})`,
     );
 
     return execution;
@@ -130,7 +129,7 @@ export class ExecutionsService {
 
     this.logger.log(
       `Ejecución ${executionId} actualizada a estado: ${status} ` +
-        `(duración: ${duration}s, tokens: ${data?.tokensUsed || 0}, cost: $${data?.cost || 0})`,
+      `(duración: ${duration}s, tokens: ${data?.tokensUsed ?? 0}, cost: $${data?.cost ?? 0})`,
     );
 
     return updated;
@@ -163,7 +162,7 @@ export class ExecutionsService {
 
     // Calcular nuevo promedio de tiempo de ejecución
     const totalExecs = workflow.totalExecutions;
-    const currentAvg = workflow.avgExecutionTime || 0;
+    const currentAvg = workflow.avgExecutionTime ?? 0;
     const newAvg = Math.floor(
       (currentAvg * totalExecs + duration) / (totalExecs + 1),
     );
@@ -794,7 +793,7 @@ export class ExecutionsService {
       (e: any) => e.duration !== null,
     );
     const totalDuration = completedExecutions.reduce(
-      (sum: any, e: any) => sum + (e.duration || 0),
+      (sum: any, e: any) => sum + (e.duration ?? 0),
       0,
     );
     const avgDuration =
@@ -815,7 +814,7 @@ export class ExecutionsService {
     // Agrupar por trigger
     const byTrigger: Record<string, number> = {};
     executions.forEach((e: any) => {
-      byTrigger[e.trigger] = (byTrigger[e.trigger] || 0) + 1;
+      byTrigger[e.trigger] = (byTrigger[e.trigger] ?? 0) + 1;
     });
 
     // Top workflows por número de ejecuciones
@@ -825,7 +824,7 @@ export class ExecutionsService {
     >();
 
     executions.forEach((e: any) => {
-      const existing = workflowStats.get(e.workflowId) || {
+      const existing = workflowStats.get(e.workflowId) ?? {
         name: e.workflow.name,
         total: 0,
         successful: 0,
@@ -850,7 +849,7 @@ export class ExecutionsService {
 
     // Calcular estadísticas de créditos
     const totalCreditsConsumed = executions.reduce(
-      (sum: number, e: any) => sum + (e.credits || 0),
+      (sum: number, e: any) => sum + (e.credits ?? 0),
       0,
     );
 
@@ -876,7 +875,7 @@ export class ExecutionsService {
       const category = e.workflow?.category;
       if (category && byWorkflowCategory[category]) {
         byWorkflowCategory[category].count += 1;
-        byWorkflowCategory[category].credits += e.credits || 0;
+        byWorkflowCategory[category].credits += e.credits ?? 0;
       }
     });
 
@@ -1032,7 +1031,7 @@ export class ExecutionsService {
 
     executions.forEach((e: any) => {
       if (e.apiKeyId && e.apiKey) {
-        const existing = byApiKey.get(e.apiKeyId) || {
+        const existing = byApiKey.get(e.apiKeyId) ?? {
           name: e.apiKey.name,
           keyPrefix: e.apiKey.keyPrefix,
           total: 0,
@@ -1052,7 +1051,7 @@ export class ExecutionsService {
       }
 
       if (e.userId && e.user) {
-        const existing = byUser.get(e.userId) || {
+        const existing = byUser.get(e.userId) ?? {
           name: e.user.name,
           email: e.user.email,
           total: 0,

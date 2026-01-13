@@ -9,8 +9,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 @Injectable()
 export class PrismaService
   extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
-{
+  implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
@@ -146,8 +145,10 @@ export class PrismaService
    * cuando la aplicación recibe señales del sistema (SIGINT, SIGTERM)
    */
   enableShutdownHooks(app: any) {
-    this.$on('beforeExit' as never, async () => {
-      await app.close();
+    this.$on('beforeExit' as never, () => {
+      app.close().catch((error: Error) => {
+        this.logger.error('Error during shutdown:', error);
+      });
     });
   }
 }

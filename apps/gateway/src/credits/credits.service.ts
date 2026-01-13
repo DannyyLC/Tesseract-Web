@@ -5,7 +5,7 @@ import { getWorkflowCreditCost } from '@workflow-automation/shared-types';
 
 @Injectable()
 export class CreditsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   // ============================================
   // CREATE
@@ -118,7 +118,7 @@ export class CreditsService {
           balance: balanceAfter,
           lifetimeSpent: { increment: credits },
           currentMonthSpent: { increment: credits },
-          currentMonthCostUSD: { increment: costUSD || 0 },
+          currentMonthCostUSD: { increment: costUSD ?? 0 },
         },
       }),
 

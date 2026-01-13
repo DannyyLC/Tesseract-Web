@@ -8,7 +8,6 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import {
-  CreateOwnerDto,
   InviteUserDto,
   UpdateProfileDto,
   UserFiltersDto,
@@ -49,7 +48,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
-  ) {}
+  ) { }
 
   // ==================== CREATE ====================
   /**
@@ -116,7 +115,7 @@ export class UsersService {
         email: user.email,
         name: user.name,
         password: hashedPassword,
-        role: user.role || 'viewer',
+        role: user.role ?? 'viewer',
         organizationId: user.organizationId,
         isActive: user.isActive ?? true,
         emailVerified,
@@ -134,7 +133,6 @@ export class UsersService {
   async invite(
     organizationId: string,
     data: InviteUserDto,
-    invitedBy: string,
   ): Promise<User> {
     // Validar que la organización existe y está activa
     await this.validateOrganization(organizationId);
@@ -159,7 +157,7 @@ export class UsersService {
         email: data.email,
         name: data.name,
         password: hashedPassword,
-        role: data.role || 'viewer',
+        role: data.role ?? 'viewer',
         organizationId,
         isActive: false,
         emailVerified: false,
@@ -762,7 +760,7 @@ export class UsersService {
   /**
    * Validar que NO se puede eliminar al owner
    */
-  private async validateNotOwner(user: User): Promise<void> {
+  private validateNotOwner(user: User): void {
     if (user.role === 'owner') {
       throw new ForbiddenException(
         'Cannot delete owner. Transfer ownership first.',

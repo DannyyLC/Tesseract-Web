@@ -21,7 +21,6 @@ import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { ExecuteWorkflowDto } from './dto/execute-workflow.dto';
 import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { JwtOrApiKeyGuard } from '../auth/guards/jwt-or-api-key.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ApiKeyOnly } from '../auth/decorators/api-key-only.decorator';
@@ -47,7 +46,7 @@ export class WorkflowsController {
   constructor(
     private readonly workflowsService: WorkflowsService,
     private readonly executionsService: ExecutionsService,
-  ) {}
+  ) { }
 
   /**
    * POST /workflows
@@ -142,7 +141,7 @@ export class WorkflowsController {
 
     // Transformar respuesta para ocultar metadata interna (DTO simplificado)
     const result = execution.result as any;
-    const messages = result?.messages || [];
+    const messages = result?.messages ?? [];
     const lastMessage =
       messages.length > 0 ? messages[messages.length - 1] : null;
     const assistantContent =

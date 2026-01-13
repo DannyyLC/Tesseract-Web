@@ -13,13 +13,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { DeactivateOrganizationDto } from '../../../dto/deactivate-organization.dto';
 
 @Controller('organizations')
 @UseGuards(JwtAuthGuard)
 export class OrganizationsController {
-  constructor(private readonly organizationsService: OrganizationsService) {}
+  constructor(private readonly organizationsService: OrganizationsService) { }
 
   @Get('dashboard/:id')
   async getDashboardData(@Res() res: Response, @Param('id') id: string) {
@@ -80,7 +80,7 @@ export class OrganizationsController {
   }
 
   @Post('deactivate/:id')
-  async deactivateOrganization(
+  deactivateOrganization(
     @Body() body: DeactivateOrganizationDto,
     @Param('id') id: string,
     @Res() res: Response,
@@ -106,7 +106,7 @@ export class OrganizationsController {
   }
 
   @Patch('activate/:id')
-  async activateOrganization(@Param('id') id: string, @Res() res: Response) {
+  activateOrganization(@Param('id') id: string, @Res() res: Response) {
     const result = this.organizationsService.reactivate(id);
     const apiResponse = new ApiResponseBuilder();
     if (!result) {

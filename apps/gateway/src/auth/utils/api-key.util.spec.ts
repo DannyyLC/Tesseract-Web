@@ -1,5 +1,4 @@
 import { ApiKeyUtil } from './api-key.util';
-import * as bcrypt from 'bcrypt';
 
 // Mock bcrypt functions
 const mockHash = jest.fn();

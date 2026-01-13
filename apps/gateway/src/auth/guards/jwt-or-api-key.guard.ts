@@ -23,14 +23,14 @@ export class JwtOrApiKeyGuard implements CanActivate {
   constructor(
     private readonly jwtAuthGuard: JwtAuthGuard,
     private readonly apiKeyGuard: ApiKeyGuard,
-  ) {}
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
 
     // Intentar autenticación con API Key primero
     const hasApiKey =
-      request.headers?.['x-api-key'] ||
+      request.headers?.['x-api-key'] ??
       request.headers?.authorization?.startsWith('Bearer ak_');
 
     if (hasApiKey) {
@@ -40,7 +40,7 @@ export class JwtOrApiKeyGuard implements CanActivate {
           this.logger.debug('Autenticado vía API Key');
           return true;
         }
-      } catch (error) {
+      } catch {
         // Si falla API Key, intentar con JWT
         this.logger.debug('API Key falló, intentando JWT...');
       }
@@ -53,7 +53,7 @@ export class JwtOrApiKeyGuard implements CanActivate {
         this.logger.debug('Autenticado vía JWT');
         return true;
       }
-    } catch (error) {
+    } catch {
       this.logger.debug('JWT falló');
     }
 

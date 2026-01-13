@@ -8,14 +8,11 @@ import {
   HttpStatus,
   Res,
   Req,
-  UnauthorizedException,
   Query,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { UserPayload } from '../common/types/jwt-payload.type';
@@ -49,7 +46,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   /**
    * POST /auth/login
@@ -109,7 +106,7 @@ export class AuthController {
         .setMessage('Credentials valid, proceed to 2FA verification');
       response.statusCode = HttpStatus.OK;
       response.send(responseBuilder.build());
-    } catch (error) {
+    } catch {
       responseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.Unauthorized)
@@ -209,7 +206,7 @@ export class AuthController {
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getProfile(@CurrentUser() user: UserPayload) {
+  getProfile(@CurrentUser() user: UserPayload) {
     return user;
   }
 
@@ -310,7 +307,7 @@ export class AuthController {
     const responseBuilder = new ApiResponseBuilder();
     try {
       result = await this.authService.verify2FACode(user, authCode);
-    } catch (error) {
+    } catch {
       responseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.InternalServerError)

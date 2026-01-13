@@ -1,11 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ExecutionContext, Logger } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
-
-  const mockAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test';
 
   // Silenciar logs durante los tests
   beforeAll(() => {

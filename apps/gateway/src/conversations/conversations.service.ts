@@ -12,7 +12,7 @@ import { PrismaService } from '../database/prisma.service';
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Busca o crea una conversación para la ejecución
@@ -177,7 +177,7 @@ export class ConversationsService {
 
     this.logger.debug(
       `Batch update para conversación ${conversationId}: ` +
-        `+${messageIncrement} mensajes, +${tokens || 0} tokens, +$${cost || 0}`,
+      `+${messageIncrement} mensajes, +${tokens ?? 0} tokens, +$${cost ?? 0}`,
     );
   }
 }

@@ -17,7 +17,7 @@ import {
 export class LlmModelsService {
   private readonly logger = new Logger(LlmModelsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   //==========================================================
   // CRUD DE MODELOS LLM
@@ -248,7 +248,7 @@ export class LlmModelsService {
 
     this.logger.debug(
       `Cost calculated for ${modelName}: $${calculation.totalCost} ` +
-        `(${usage.inputTokens} input + ${usage.outputTokens} output tokens)`,
+      `(${usage.inputTokens} input + ${usage.outputTokens} output tokens)`,
     );
 
     return calculation;
@@ -270,7 +270,7 @@ export class LlmModelsService {
     }
 
     // Validar todas las entradas
-    for (const [modelName, usage] of Object.entries(usageByModel)) {
+    for (const usage of Object.values(usageByModel)) {
       this.validateTokenUsage(usage);
     }
 

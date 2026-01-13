@@ -2,7 +2,6 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  ConflictException,
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
@@ -26,7 +25,7 @@ import { Organization } from '@workflow-platform/database';
 export class OrganizationsService {
   private readonly logger = new Logger(OrganizationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // ============================================
   // CREATE
@@ -50,7 +49,7 @@ export class OrganizationsService {
         data: {
           name: dto.name,
           slug,
-          plan: dto.plan || 'FREE',
+          plan: dto.plan ?? 'FREE',
           isActive: true,
           allowOverages: false,
         },
@@ -199,7 +198,7 @@ export class OrganizationsService {
             effectiveLimits.maxWorkflows === -1
               ? 0
               : (organization._count.workflows / effectiveLimits.maxWorkflows) *
-                100,
+              100,
         },
         apiKeys: {
           current: organization._count.apiKeys,
@@ -208,7 +207,7 @@ export class OrganizationsService {
             effectiveLimits.maxApiKeys === -1
               ? 0
               : (organization._count.apiKeys / effectiveLimits.maxApiKeys) *
-                100,
+              100,
         },
         executions: {
           thisMonth: executionsThisMonth,
@@ -497,7 +496,7 @@ export class OrganizationsService {
     }
 
     this.logger.warn(
-      `Organización ${organization.name} desactivada por ${deactivatedBy}. Razón: ${reason || 'No especificada'}`,
+      `Organización ${organization.name} desactivada por ${deactivatedBy}. Razón: ${reason ?? 'No especificada'}`,
     );
 
     return updated;

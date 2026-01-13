@@ -119,8 +119,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         typeof exceptionResponse === 'object' &&
         exceptionResponse !== null
       ) {
-        message = (exceptionResponse as any).message || message;
-        errorCode = (exceptionResponse as any).errorCode || errorCode;
+        message = (exceptionResponse as any).message ?? message;
+        errorCode = (exceptionResponse as any).errorCode ?? errorCode;
       }
 
       return {
@@ -156,7 +156,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       errorCode: ErrorCode.INTERNAL_ERROR,
       message: isProduction
         ? 'An internal server error occurred'
-        : (exception as Error).message || 'Unknown error',
+        : (exception as Error).message ?? 'Unknown error',
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       timestamp,
       path,
@@ -182,7 +182,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     // P2002: Unique constraint violation (ej: email ya existe)
     if (code === 'P2002') {
-      const field = exception.meta?.target?.[0] || 'field';
+      const field = exception.meta?.target?.[0] ?? 'field';
       return {
         success: false,
         errorCode: 'DATABASE_UNIQUE_VIOLATION',
@@ -208,7 +208,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     // P2003: Foreign key constraint violation
     if (code === 'P2003') {
-      const field = exception.meta?.field_name || 'field';
+      const field = exception.meta?.field_name ?? 'field';
       return {
         success: false,
         errorCode: 'DATABASE_FOREIGN_KEY_VIOLATION',
@@ -274,10 +274,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     request: Request,
   ) {
     const { method, url, ip, headers } = request;
-    const userAgent = headers['user-agent'] || 'unknown';
+    const userAgent = headers['user-agent'] ?? 'unknown';
 
     // Obtener el clientId si existe en el request (agregado por AuthGuard)
-    const clientId = (request as any).client?.id || 'anonymous';
+    const clientId = (request as any).client?.id ?? 'anonymous';
 
     // Contexto del error para logging
     const logContext = {

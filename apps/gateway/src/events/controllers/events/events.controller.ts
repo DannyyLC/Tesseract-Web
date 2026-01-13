@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 
 @Controller('events')
 export class EventsController {
-  constructor(private readonly eventsService: EventsService) {}
+  constructor(private readonly eventsService: EventsService) { }
 
   // 1. Client connects here first via EventSource
   @Sse('stream')
@@ -14,7 +14,7 @@ export class EventsController {
 
   // 2. Calling this POST method triggers an event to the stream
   @Post('send')
-  async triggerEvent(@Body() payload: any) {
+  triggerEvent(@Body() payload: any) {
     this.eventsService.emitEvent({
       message: 'New notification!',
       content: payload,

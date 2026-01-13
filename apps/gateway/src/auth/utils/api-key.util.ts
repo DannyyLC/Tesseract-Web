@@ -1,4 +1,5 @@
 import * as bcrypt from 'bcrypt';
+import * as nodeCrypto from 'crypto';
 
 /**
  * Utilidades para manejar API Keys con bcrypt
@@ -65,7 +66,6 @@ export class ApiKeyUtil {
       crypto.getRandomValues(randomArray);
     } else {
       // Fallback para Node.js antiguo
-      const nodeCrypto = require('crypto');
       nodeCrypto.randomFillSync(randomArray);
     }
 

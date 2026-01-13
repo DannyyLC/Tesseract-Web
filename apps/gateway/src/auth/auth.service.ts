@@ -37,7 +37,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   //==============================================================
   // AUTHENTICATION METHODS
@@ -172,7 +172,7 @@ export class AuthService {
     // 2. Generar temporary token
     const tempToken = this.jwtService.sign(payload, {
       secret:
-        this.configService.get<string>('TEMP_TOKEN_SECRET') ||
+        this.configService.get<string>('TEMP_TOKEN_SECRET') ??
         'temp-token-secret',
       expiresIn: '15m',
     });
@@ -341,7 +341,7 @@ export class AuthService {
     }
 
     // Al menos un carácter especial
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    if (!new RegExp("[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]").test(password)) {
       throw new BadRequestException(
         'Password must contain at least one special character',
       );
@@ -399,17 +399,17 @@ export class AuthService {
     // 2. Generar access token (corta duración)
     const accessToken = this.jwtService.sign(payload, {
       secret:
-        this.configService.get<string>('JWT_SECRET') ||
+        this.configService.get<string>('JWT_SECRET') ??
         'super-secret-change-in-production',
-      expiresIn: this.configService.get('JWT_EXPIRES_IN') || '1d',
+      expiresIn: this.configService.get('JWT_EXPIRES_IN') ?? '1d',
     });
 
     // 3. Generar refresh token (larga duración)
     const refreshToken = this.jwtService.sign(payload, {
       secret:
-        this.configService.get<string>('JWT_REFRESH_SECRET') ||
+        this.configService.get<string>('JWT_REFRESH_SECRET') ??
         'refresh-secret-change-in-production',
-      expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN') || '7d',
+      expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN') ?? '7d',
     });
 
     // 4. Generar hash del refresh token
@@ -445,7 +445,7 @@ export class AuthService {
       // 1. Verificar y decodificar el refresh token
       const payload = this.jwtService.verify<UserPayload>(refreshToken, {
         secret:
-          this.configService.get<string>('JWT_REFRESH_SECRET') ||
+          this.configService.get<string>('JWT_REFRESH_SECRET') ??
           'refresh-secret-change-in-production',
       });
 
@@ -614,7 +614,7 @@ export class AuthService {
     // 2. Generar temporary token
     const options: any = {
       secret:
-        this.configService.get<string>('TEMP_TOKEN_SECRET') ||
+        this.configService.get<string>('TEMP_TOKEN_SECRET') ??
         'temp-token-secret',
       expiresIn,
     };
@@ -644,7 +644,7 @@ export class AuthService {
       where: { id: userId },
       data: { twoFactorSecret: secret.base32, twoFactorEnabled: false },
     });
-    const qr = await qrcode.toDataURL(secret.otpauth_url || '');
+    const qr = await qrcode.toDataURL(secret.otpauth_url ?? '');
     return { qr };
   }
 
@@ -713,7 +713,7 @@ export class AuthService {
     try {
       const email = this.jwtService.verify(token, {
         secret:
-          process.env.JWT_EMAIL_VERIFICATION_SECRET ||
+          process.env.JWT_EMAIL_VERIFICATION_SECRET ??
           'email-verification-secret',
       });
       // Marcar el email como verificado en la base de datos

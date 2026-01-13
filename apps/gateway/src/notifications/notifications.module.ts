@@ -5,11 +5,11 @@ import { EmailService } from './email/email.service';
 @Module({
   imports: [
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'defaultSecret',
+      secret: process.env.JWT_SECRET ?? 'defaultSecret',
       signOptions: { expiresIn: '1h' },
     }),
   ],
   providers: [EmailService],
   exports: [EmailService],
 })
-export class NotificationsModule {}
+export class NotificationsModule { }
