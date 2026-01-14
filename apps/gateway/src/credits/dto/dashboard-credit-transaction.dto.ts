@@ -1,4 +1,4 @@
-import { TransactionType } from "@workflow-platform/database";
+import { TransactionType } from '@workflow-platform/database';
 
 export interface DashboardCreditTransactionDto {
   id: string;

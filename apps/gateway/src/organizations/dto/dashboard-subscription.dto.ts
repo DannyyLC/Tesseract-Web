@@ -1,4 +1,4 @@
-import { SubscriptionPlan, SubscriptionStatus } from "@workflow-platform/database";
+import { SubscriptionPlan, SubscriptionStatus } from '@workflow-platform/database';
 
 export interface DashboardSubscriptionDto {
   id: string;

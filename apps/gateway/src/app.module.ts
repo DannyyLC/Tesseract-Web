@@ -11,7 +11,6 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { EventsModule } from './events/events.module';
 import { WinstonModule } from 'nest-winston';
-import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import * as winston from 'winston';
 import 'winston-daily-rotate-file';
 import { BillingModule } from './billing/billing.module';
@@ -50,12 +49,11 @@ import { InvoiceModule } from './invoice/invoice.module';
     ApiKeysModule,
     NotificationsModule,
     EventsModule,
-    SubscriptionsModule,
     BillingModule,
     InvoiceModule,
   ],
   controllers: [],
   providers: [],
-  exports: [WinstonModule]
+  exports: [WinstonModule],
 })
-export class AppModule { }
+export class AppModule {}

@@ -11,7 +11,7 @@ import { DashboardCreditTransactionDto } from './dto/dashboard-credit-transactio
 export class CreditsService {
   constructor(
     private prisma: PrismaService,
-        @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
   // ============================================
@@ -51,7 +51,7 @@ export class CreditsService {
     metadata?: Record<string, any>,
     costUSD?: number,
     subscriptionId?: string,
-    invoiceId?: string
+    invoiceId?: string,
   ): Promise<void> {
     const balance = await this.prisma.creditBalance.findUnique({
       where: { organizationId },
@@ -236,9 +236,7 @@ export class CreditsService {
     }
   }
 
-  async getDashboardData(
-    organizationId: string,
-  ): Promise<DashboardCreditsDto | null> {
+  async getDashboardData(organizationId: string): Promise<DashboardCreditsDto | null> {
     const balance = await this.prisma.creditBalance.findUnique({
       where: { organizationId },
       select: {
@@ -249,10 +247,14 @@ export class CreditsService {
       },
     });
     if (!balance) {
-      this.logger.error(`getDashboardData method >> No credit balance found for organization ${organizationId}`);
+      this.logger.error(
+        `getDashboardData method >> No credit balance found for organization ${organizationId}`,
+      );
       return null;
     }
-    this.logger.info(`getDashboardData method >> Retrieved credit balance for organization ${organizationId}: ${JSON.stringify(balance)}`);
+    this.logger.info(
+      `getDashboardData method >> Retrieved credit balance for organization ${organizationId}: ${JSON.stringify(balance)}`,
+    );
     return {
       ...balance,
       creditTransactions: await this.getCreditTransactionsForOrganization(organizationId),

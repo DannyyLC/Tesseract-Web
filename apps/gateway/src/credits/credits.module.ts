@@ -4,13 +4,9 @@ import { DatabaseModule } from '../database/database.module';
 import { CreditsController } from './controllers/user-ui/credits/credits.controller';
 
 @Module({
-  imports: [
-    DatabaseModule
-  ],
+  imports: [DatabaseModule],
   providers: [CreditsService],
   exports: [CreditsService],
-  controllers: [
-    CreditsController
-  ],
+  controllers: [CreditsController],
 })
 export class CreditsModule {}

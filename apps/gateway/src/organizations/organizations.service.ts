@@ -11,6 +11,7 @@ import {
 import { randomBytes } from 'crypto';
 import { OrganizationDashboardDto } from './dto/organization-dashboard.dto';
 import { Organization } from '@workflow-platform/database';
+import { DashboardSubscriptionDto } from './dto/dashboard-subscription.dto';
 
 /**
  * Servicio para gestionar organizaciones
@@ -611,5 +612,32 @@ export class OrganizationsService {
       return null;
     }
     return organizationDataForDashboard;
+  }
+
+  async getSubscriptionData(organizationId: string): Promise<DashboardSubscriptionDto | null> {
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { organizationId },
+      select: {
+        id: true,
+        plan: true,
+        status: true,
+        currentPeriodStart: true,
+        currentPeriodEnd: true,
+        pendingPlanChange: true,
+        planChangeRequestedAt: true,
+        customMonthlyPrice: true,
+        customMonthlyCredits: true,
+        customMaxWorkflows: true,
+        customFeatures: true,
+      },
+    });
+
+    if (!subscription) {
+      this.logger.error(
+        `getDashboardData method >> No subscription found for organization ${organizationId}`,
+      );
+      return null;
+    }
+    return subscription;
   }
 }

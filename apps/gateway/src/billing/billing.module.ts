@@ -6,9 +6,9 @@ import { BillingController } from './billing.controller';
 import { CreditsModule } from '../credits/credits.module';
 
 @Module({
-    imports: [ConfigModule, CreditsModule],
-    controllers: [BillingController],
-    providers: [BillingService, StripeClient],
-    exports: [BillingService],
+  imports: [ConfigModule, CreditsModule],
+  controllers: [BillingController],
+  providers: [BillingService, StripeClient],
+  exports: [BillingService],
 })
-export class BillingModule { }
+export class BillingModule {}
