@@ -10,9 +10,26 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { EventsModule } from './events/events.module';
+import { WinstonModule } from 'nest-winston';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import * as winston from 'winston';
+import 'winston-daily-rotate-file';
 
 @Module({
   imports: [
+    WinstonModule.forRoot({
+      transports: [
+        new winston.transports.DailyRotateFile({
+          filename: 'logs/app-%DATE%.log',
+          datePattern: 'YYYY-MM-DD',
+          zippedArchive: false,
+          maxSize: '20m',
+          maxFiles: '14d',
+          level: 'info',
+        }),
+        new winston.transports.Console(),
+      ],
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [
@@ -31,8 +48,10 @@ import { EventsModule } from './events/events.module';
     ApiKeysModule,
     NotificationsModule,
     EventsModule,
+    SubscriptionsModule
   ],
   controllers: [],
   providers: [],
+  exports: [WinstonModule]
 })
 export class AppModule {}

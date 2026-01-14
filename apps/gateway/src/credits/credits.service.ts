@@ -1,11 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { WorkflowCategory } from '@prisma/client';
 import { getWorkflowCreditCost } from '@workflow-automation/shared-types';
-
+import { CreditBalance } from '@workflow-platform/database';
+import { DashboardCreditsDto } from './dto/dashboard-credits.dto';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
 @Injectable()
 export class CreditsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+        @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+  ) {}
 
   // ============================================
   // CREATE
@@ -13,17 +19,24 @@ export class CreditsService {
   /**
    * Crear creditBalance para una organizacion nueva
    */
-  async create(organizationId: string) {
-    await this.prisma.creditBalance.create({
-      data: {
-        organizationId: organizationId,
-        balance: 0,
-        lifetimeEarned: 0,
-        lifetimeSpent: 0,
-        currentMonthSpent: 0,
-        currentMonthCostUSD: 0,
-      },
-    });
+  async create(organizationId: string): Promise<CreditBalance | null> {
+    try {
+      return await this.prisma.creditBalance.create({
+        data: {
+          organizationId: organizationId,
+          balance: 0,
+          lifetimeEarned: 0,
+          lifetimeSpent: 0,
+          currentMonthSpent: 0,
+          currentMonthCostUSD: 0,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `create method >> Error creando credit balance para org ${organizationId}: ${error}`,
+      );
+      return null;
+    }
   }
 
   /**
@@ -172,5 +185,25 @@ export class CreditsService {
         data: { avgCreditsPerExecution: avgCredits },
       });
     }
+  }
+
+  async getDashboardData(
+    organizationId: string,
+  ): Promise<DashboardCreditsDto | null> {
+    const balance = await this.prisma.creditBalance.findUnique({
+      where: { organizationId },
+      select: {
+        id: true,
+        organizationId: true,
+        balance: true,
+        currentMonthSpent: true,
+      },
+    });
+    if (!balance) {
+      this.logger.error(`getDashboardData method >> No credit balance found for organization ${organizationId}`);
+      return null;
+    }
+    this.logger.info(`getDashboardData method >> Retrieved credit balance for organization ${organizationId}: ${JSON.stringify(balance)}`);
+    return balance;
   }
 }
