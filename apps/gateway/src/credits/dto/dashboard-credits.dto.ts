@@ -1,3 +1,4 @@
+import { DashboardCreditTransactionDto } from "./dashboard-credit-transaction.dto";
 
 
 export interface DashboardCreditsDto {
@@ -5,4 +6,5 @@ export interface DashboardCreditsDto {
   organizationId: string;
   balance: number;
   currentMonthSpent: number;
+  creditTransactions: DashboardCreditTransactionDto[];
 }

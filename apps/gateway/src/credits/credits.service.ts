@@ -6,6 +6,7 @@ import { CreditBalance } from '@workflow-platform/database';
 import { DashboardCreditsDto } from './dto/dashboard-credits.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
+import { DashboardCreditTransactionDto } from './dto/dashboard-credit-transaction.dto';
 @Injectable()
 export class CreditsService {
   constructor(
@@ -252,6 +253,32 @@ export class CreditsService {
       return null;
     }
     this.logger.info(`getDashboardData method >> Retrieved credit balance for organization ${organizationId}: ${JSON.stringify(balance)}`);
-    return balance;
+    return {
+      ...balance,
+      creditTransactions: await this.getCreditTransactionsForOrganization(organizationId),
+    };
+  }
+
+  async getCreditTransactionsForOrganization(
+    organizationId: string,
+  ): Promise<DashboardCreditTransactionDto[]> {
+    return this.prisma.creditTransaction.findMany({
+      where: { organizationId },
+      select: {
+        id: true,
+        organizationId: true,
+        type: true,
+        amount: true,
+        balanceBefore: true,
+        balanceAfter: true,
+        workflowCategory: true,
+        costUSD: true,
+        description: true,
+        createdAt: true,
+        executionId: true,
+        invoiceId: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 }

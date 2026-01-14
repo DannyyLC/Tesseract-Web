@@ -15,6 +15,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import * as winston from 'winston';
 import 'winston-daily-rotate-file';
 import { BillingModule } from './billing/billing.module';
+import { InvoiceModule } from './invoice/invoice.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { BillingModule } from './billing/billing.module';
     EventsModule,
     SubscriptionsModule,
     BillingModule,
+    InvoiceModule,
   ],
   controllers: [],
   providers: [],

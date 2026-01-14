@@ -6,6 +6,7 @@ import { Body, Controller, Get, Param, Patch, Post, Res, UseGuards } from '@nest
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { Response } from 'express';
 import { DeactivateOrganizationDto } from '../../../dto/deactivate-organization.dto';
+import { Organization } from '@workflow-platform/database';
 
 @Controller('organizations')
 @UseGuards(JwtAuthGuard)
@@ -13,7 +14,10 @@ export class OrganizationsController {
   constructor(private readonly organizationsService: OrganizationsService) {}
 
   @Get('dashboard/:id')
-  async getDashboardData(@Res() res: Response, @Param('id') id: string) {
+  async getDashboardData(
+    @Res() res: Response,
+    @Param('id') id: string,
+  ): Promise<Response<ApiResponseBuilder<OrganizationDashboardDto>>> {
     const apiResponse = new ApiResponseBuilder<OrganizationDashboardDto>();
     const result = await this.organizationsService.getDashboardData(id);
 
@@ -32,12 +36,15 @@ export class OrganizationsController {
   }
 
   @Post('create')
-  async createOrganization(@Body() body: CreateOrganizationDto, @Res() res: Response) {
+  async createOrganization(
+    @Body() body: CreateOrganizationDto,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponseBuilder<Organization>>> {
     const result = await this.organizationsService.create(body);
-    const apiResponse = new ApiResponseBuilder();
+    const apiResponse = new ApiResponseBuilder<Organization>();
     if (!result) {
       apiResponse.setStatusCode(400).setMessage('Organization could not be created');
-      return res.status(500).json(apiResponse.build());
+      return res.status(400).json(apiResponse.build());
     } else {
       apiResponse
         .setStatusCode(201)
@@ -48,29 +55,32 @@ export class OrganizationsController {
   }
 
   @Patch('update')
-  async updateOrganization(@Body() body: UpdateOrganizationDto) {
+  async updateOrganization(
+    @Body() body: UpdateOrganizationDto,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponseBuilder<Organization>>> {
     const result = await this.organizationsService.update(body);
-    const apiResponse = new ApiResponseBuilder();
+    const apiResponse = new ApiResponseBuilder<Organization>();
     if (!result) {
       apiResponse.setStatusCode(400).setMessage('Organization could not be updated');
-      return apiResponse.build();
+      return res.status(400).json(apiResponse.build());
     } else {
       apiResponse
         .setStatusCode(200)
         .setMessage('Organization updated successfully')
         .setData(result);
-      return apiResponse.build();
+      return res.status(200).json(apiResponse.build());
     }
   }
 
   @Post('deactivate/:id')
-  deactivateOrganization(
+  async deactivateOrganization(
     @Body() body: DeactivateOrganizationDto,
     @Param('id') id: string,
     @Res() res: Response,
-  ) {
-    const result = this.organizationsService.deactivate(id, body.deactivatedBy, body.reason);
-    const apiResponse = new ApiResponseBuilder();
+  ): Promise<Response<ApiResponseBuilder<Organization>>> {
+    const result = await this.organizationsService.deactivate(id, body.deactivatedBy, body.reason);
+    const apiResponse = new ApiResponseBuilder<Organization>();
     if (!result) {
       apiResponse.setStatusCode(500).setMessage('Organization could not be deactivated');
       return res.status(500).json(apiResponse.build());
@@ -84,9 +94,12 @@ export class OrganizationsController {
   }
 
   @Patch('activate/:id')
-  activateOrganization(@Param('id') id: string, @Res() res: Response) {
-    const result = this.organizationsService.reactivate(id);
-    const apiResponse = new ApiResponseBuilder();
+  async activateOrganization(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponseBuilder<Organization>>> {
+    const result = await this.organizationsService.reactivate(id);
+    const apiResponse = new ApiResponseBuilder<Organization>();
     if (!result) {
       apiResponse.setStatusCode(500).setMessage('Organization could not be activated');
       return res.status(500).json(apiResponse.build());

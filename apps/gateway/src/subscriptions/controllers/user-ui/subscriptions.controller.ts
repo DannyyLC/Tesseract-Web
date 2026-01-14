@@ -6,7 +6,7 @@ import { ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { Request, Response } from 'express';
 
 @Controller('subscriptions')
-@UseGuards(JwtAuthGuard)
+// @UseGuards(JwtAuthGuard)
 export class SubscriptionsController {
     constructor(
         private readonly subscriptionsService: SubscriptionsService,
@@ -16,7 +16,7 @@ export class SubscriptionsController {
     async getDashboardData(
         @Param('organizationId') organizationId: string,
         @Res() res: Response,
-    ): Promise<Response> {
+    ): Promise<Response<ApiResponseBuilder<DashboardSubscriptionDto>>> {
         const apiResponse = new ApiResponseBuilder<DashboardSubscriptionDto>();
         const result = await this.subscriptionsService.getDashboardData(organizationId);
         if (!result) {
