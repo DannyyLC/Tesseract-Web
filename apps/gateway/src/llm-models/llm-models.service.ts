@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import {
   CreateLlmModelDto,
@@ -58,9 +53,7 @@ export class LlmModelsService {
         effectiveFrom: createLlmModelDto.effectiveFrom
           ? new Date(createLlmModelDto.effectiveFrom)
           : new Date(),
-        effectiveTo: createLlmModelDto.effectiveTo
-          ? new Date(createLlmModelDto.effectiveTo)
-          : null,
+        effectiveTo: createLlmModelDto.effectiveTo ? new Date(createLlmModelDto.effectiveTo) : null,
       },
     });
   }
@@ -83,11 +76,7 @@ export class LlmModelsService {
         where,
         skip,
         take: limit,
-        orderBy: [
-          { provider: 'asc' },
-          { modelName: 'asc' },
-          { effectiveFrom: 'desc' },
-        ],
+        orderBy: [{ provider: 'asc' }, { modelName: 'asc' }, { effectiveFrom: 'desc' }],
       }),
       this.prisma.llmModel.count({ where }),
     ]);
@@ -212,10 +201,7 @@ export class LlmModelsService {
    * @returns Cálculo detallado del costo
    * @throws Error si los tokens son inválidos
    */
-  async calculateCost(
-    modelName: string,
-    usage: TokenUsage,
-  ): Promise<CostCalculation> {
+  async calculateCost(modelName: string, usage: TokenUsage): Promise<CostCalculation> {
     // Validar entrada
     this.validateTokenUsage(usage);
 
@@ -231,9 +217,7 @@ export class LlmModelsService {
     });
 
     if (!llmModel) {
-      this.logger.warn(
-        `No pricing found for model: ${modelName}. Using fallback prices.`,
-      );
+      this.logger.warn(`No pricing found for model: ${modelName}. Using fallback prices.`);
       return this.calculateWithFallbackPrices(modelName, usage);
     }
 
@@ -260,9 +244,7 @@ export class LlmModelsService {
    * @param usageByModel - Map de modelName → TokenUsage
    * @returns Array de cálculos de costo por modelo
    */
-  async calculateCostBatch(
-    usageByModel: Record<string, TokenUsage>,
-  ): Promise<CostCalculation[]> {
+  async calculateCostBatch(usageByModel: Record<string, TokenUsage>): Promise<CostCalculation[]> {
     const modelNames = Object.keys(usageByModel);
 
     if (modelNames.length === 0) {
@@ -270,7 +252,7 @@ export class LlmModelsService {
     }
 
     // Validar todas las entradas
-    for (const [modelName, usage] of Object.entries(usageByModel)) {
+    for (const usage of Object.values(usageByModel)) {
       this.validateTokenUsage(usage);
     }
 
@@ -295,9 +277,7 @@ export class LlmModelsService {
       const llmModel = modelMap.get(modelName);
 
       if (!llmModel) {
-        this.logger.warn(
-          `No pricing found for model: ${modelName}. Using fallback prices.`,
-        );
+        this.logger.warn(`No pricing found for model: ${modelName}. Using fallback prices.`);
         calculations.push(this.calculateWithFallbackPrices(modelName, usage));
       } else {
         calculations.push(
@@ -312,9 +292,7 @@ export class LlmModelsService {
       }
     }
 
-    this.logger.debug(
-      `Batch cost calculated for ${calculations.length} models`,
-    );
+    this.logger.debug(`Batch cost calculated for ${calculations.length} models`);
 
     return calculations;
   }
@@ -322,10 +300,7 @@ export class LlmModelsService {
   /**
    * Precios por defecto cuando no se encuentra el modelo en la BD
    */
-  private calculateWithFallbackPrices(
-    modelName: string,
-    usage: TokenUsage,
-  ): CostCalculation {
+  private calculateWithFallbackPrices(modelName: string, usage: TokenUsage): CostCalculation {
     return this.performCostCalculation(
       usage,
       this.FALLBACK_PRICES.inputPricePer1m,
@@ -382,10 +357,7 @@ export class LlmModelsService {
       throw new Error('Token counts cannot be negative');
     }
 
-    if (
-      !Number.isFinite(usage.inputTokens) ||
-      !Number.isFinite(usage.outputTokens)
-    ) {
+    if (!Number.isFinite(usage.inputTokens) || !Number.isFinite(usage.outputTokens)) {
       throw new Error('Token counts must be finite numbers');
     }
   }

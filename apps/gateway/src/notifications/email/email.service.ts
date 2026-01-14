@@ -13,7 +13,7 @@ export class EmailService {
   constructor(private readonly jwtService: JwtService) {
     this.transporter = nodemailer.createTransport(
       {
-        host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+        host: process.env.SMTP_HOST ?? 'smtp-relay.brevo.com',
         port: Number(process.env.SMTP_PORT),
         secure: process.env.MAILER_SECURE === 'true',
         auth: {
@@ -29,9 +29,7 @@ export class EmailService {
       } as any,
     );
 
-    this.emailVerificationTemplate = this.loadTemplate(
-      'email_verification_view.hbs',
-    );
+    this.emailVerificationTemplate = this.loadTemplate('email_verification_view.hbs');
   }
 
   private loadTemplate(templateName: string): handlebars.TemplateDelegate {
@@ -43,7 +41,7 @@ export class EmailService {
   }
 
   async sendEmailVerificationEMail(userEmail: string) {
-    const token = await this.generateVerificationToken(userEmail);
+    const token = this.generateVerificationToken(userEmail);
     const verificationUrl = `${process.env.DOMAIN_BASE_URL}/auth/verify-email?token=${token}`;
     await this.transporter.sendMail({
       to: userEmail,
@@ -55,27 +53,19 @@ export class EmailService {
     });
   }
 
-  private async generateVerificationToken(payload: string): Promise<string> {
-    const token = this.jwtService.sign(
+  private generateVerificationToken(payload: string): string {
+    return this.jwtService.sign(
+      { email: payload },
       {
-        email: payload,
-      },
-      {
-        secret:
-          process.env.JWT_EMAIL_VERIFICATION_SECRET ||
-          'email-verification-secret',
-        expiresIn: (process.env.JWT_EMAIL_VERIFICATION_EXPIRES_IN ||
-          '30m') as any,
+        secret: process.env.JWT_EMAIL_VERIFICATION_SECRET ?? 'email-verification-secret',
+        expiresIn: (process.env.JWT_EMAIL_VERIFICATION_EXPIRES_IN ?? '30m') as any,
       },
     );
-    return token;
   }
 
-  async verifyEmailToken(token: string): Promise<string> {
+  verifyEmailToken(token: string): string {
     const email = this.jwtService.verify(token, {
-      secret:
-        process.env.JWT_EMAIL_VERIFICATION_SECRET ||
-        'email-verification-secret',
+      secret: process.env.JWT_EMAIL_VERIFICATION_SECRET ?? 'email-verification-secret',
     });
     return email;
   }

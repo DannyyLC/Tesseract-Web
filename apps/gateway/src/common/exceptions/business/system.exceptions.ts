@@ -81,12 +81,9 @@ export class WorkerTimeoutException extends AppException {
  */
 export class QueueFullException extends AppException {
   constructor(queueName: string) {
-    super(
-      ErrorCode.QUEUE_FULL,
-      `Queue "${queueName}" is full`,
-      HttpStatus.SERVICE_UNAVAILABLE,
-      { queueName },
-    );
+    super(ErrorCode.QUEUE_FULL, `Queue "${queueName}" is full`, HttpStatus.SERVICE_UNAVAILABLE, {
+      queueName,
+    });
   }
 }
 

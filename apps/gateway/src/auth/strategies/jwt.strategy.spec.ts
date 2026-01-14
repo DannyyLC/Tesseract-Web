@@ -139,12 +139,8 @@ describe('JwtStrategy', () => {
       prismaService.user.findUnique.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
-        'Usuario no encontrado',
-      );
+      await expect(strategy.validate(mockPayload)).rejects.toThrow(UnauthorizedException);
+      await expect(strategy.validate(mockPayload)).rejects.toThrow('Usuario no encontrado');
     });
 
     it('debería lanzar UnauthorizedException si el usuario no tiene organización', async () => {
@@ -153,12 +149,8 @@ describe('JwtStrategy', () => {
       prismaService.user.findUnique.mockResolvedValue(userWithoutOrg);
 
       // Act & Assert
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
-        'Usuario sin organización',
-      );
+      await expect(strategy.validate(mockPayload)).rejects.toThrow(UnauthorizedException);
+      await expect(strategy.validate(mockPayload)).rejects.toThrow('Usuario sin organización');
     });
 
     it('debería lanzar UnauthorizedException si el usuario está inactivo', async () => {
@@ -171,12 +163,8 @@ describe('JwtStrategy', () => {
       prismaService.user.findUnique.mockResolvedValue(inactiveUser);
 
       // Act & Assert
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
-        'Cuenta inactiva',
-      );
+      await expect(strategy.validate(mockPayload)).rejects.toThrow(UnauthorizedException);
+      await expect(strategy.validate(mockPayload)).rejects.toThrow('Cuenta inactiva');
     });
 
     it('debería lanzar UnauthorizedException si el usuario está eliminado', async () => {
@@ -189,12 +177,8 @@ describe('JwtStrategy', () => {
       prismaService.user.findUnique.mockResolvedValue(deletedUser);
 
       // Act & Assert
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
-        'Cuenta eliminada',
-      );
+      await expect(strategy.validate(mockPayload)).rejects.toThrow(UnauthorizedException);
+      await expect(strategy.validate(mockPayload)).rejects.toThrow('Cuenta eliminada');
     });
 
     it('debería lanzar UnauthorizedException si la organización está inactiva', async () => {
@@ -204,12 +188,8 @@ describe('JwtStrategy', () => {
       prismaService.user.findUnique.mockResolvedValue(userWithInactiveOrg);
 
       // Act & Assert
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
-        'Organización inactiva',
-      );
+      await expect(strategy.validate(mockPayload)).rejects.toThrow(UnauthorizedException);
+      await expect(strategy.validate(mockPayload)).rejects.toThrow('Organización inactiva');
     });
 
     it('debería lanzar UnauthorizedException si el email no coincide', async () => {
@@ -222,12 +202,8 @@ describe('JwtStrategy', () => {
       prismaService.user.findUnique.mockResolvedValue(userWithDifferentEmail);
 
       // Act & Assert
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
-        'Token inválido',
-      );
+      await expect(strategy.validate(mockPayload)).rejects.toThrow(UnauthorizedException);
+      await expect(strategy.validate(mockPayload)).rejects.toThrow('Token inválido');
     });
 
     it('debería retornar el UserPayload correcto con todos los campos', async () => {

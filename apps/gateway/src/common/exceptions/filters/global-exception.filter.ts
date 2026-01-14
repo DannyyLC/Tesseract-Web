@@ -77,10 +77,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
    * 3. Errores de Prisma
    * 4. Errores desconocidos
    */
-  private buildErrorResponse(
-    exception: unknown,
-    request: Request,
-  ): ErrorResponse {
+  private buildErrorResponse(exception: unknown, request: Request): ErrorResponse {
     const timestamp = new Date().toISOString();
     const path = request.url;
     const isProduction = process.env.NODE_ENV === 'production';
@@ -115,12 +112,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       // El response puede ser string u objeto
       if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
-      } else if (
-        typeof exceptionResponse === 'object' &&
-        exceptionResponse !== null
-      ) {
-        message = (exceptionResponse as any).message || message;
-        errorCode = (exceptionResponse as any).errorCode || errorCode;
+      } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+        message = (exceptionResponse as any).message ?? message;
+        errorCode = (exceptionResponse as any).errorCode ?? errorCode;
       }
 
       return {
@@ -138,12 +132,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // Errores de Prisma
     // ============================================
     if (this.isPrismaError(exception)) {
-      return this.handlePrismaError(
-        exception as any,
-        timestamp,
-        path,
-        isProduction,
-      );
+      return this.handlePrismaError(exception as any, timestamp, path, isProduction);
     }
 
     // ============================================
@@ -156,7 +145,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       errorCode: ErrorCode.INTERNAL_ERROR,
       message: isProduction
         ? 'An internal server error occurred'
-        : (exception as Error).message || 'Unknown error',
+        : ((exception as Error).message ?? 'Unknown error'),
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       timestamp,
       path,
@@ -182,7 +171,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     // P2002: Unique constraint violation (ej: email ya existe)
     if (code === 'P2002') {
-      const field = exception.meta?.target?.[0] || 'field';
+      const field = exception.meta?.target?.[0] ?? 'field';
       return {
         success: false,
         errorCode: 'DATABASE_UNIQUE_VIOLATION',
@@ -208,7 +197,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     // P2003: Foreign key constraint violation
     if (code === 'P2003') {
-      const field = exception.meta?.field_name || 'field';
+      const field = exception.meta?.field_name ?? 'field';
       return {
         success: false,
         errorCode: 'DATABASE_FOREIGN_KEY_VIOLATION',
@@ -268,16 +257,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
    *
    * En producción, los errores 5xx también se enviarían a Sentry/Datadog
    */
-  private logError(
-    exception: unknown,
-    errorResponse: ErrorResponse,
-    request: Request,
-  ) {
+  private logError(exception: unknown, errorResponse: ErrorResponse, request: Request) {
     const { method, url, ip, headers } = request;
-    const userAgent = headers['user-agent'] || 'unknown';
+    const userAgent = headers['user-agent'] ?? 'unknown';
 
     // Obtener el clientId si existe en el request (agregado por AuthGuard)
-    const clientId = (request as any).client?.id || 'anonymous';
+    const clientId = (request as any).client?.id ?? 'anonymous';
 
     // Contexto del error para logging
     const logContext = {
@@ -294,10 +279,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // Errores operacionales (esperados)
     // ============================================
     if (exception instanceof AppException && exception.isOperational) {
-      this.logger.warn(
-        `Operational error: ${errorResponse.message}`,
-        JSON.stringify(logContext),
-      );
+      this.logger.warn(`Operational error: ${errorResponse.message}`, JSON.stringify(logContext));
       return;
     }
 
@@ -305,10 +287,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // Errores 4xx (error del cliente)
     // ============================================
     if (errorResponse.statusCode >= 400 && errorResponse.statusCode < 500) {
-      this.logger.warn(
-        `Client error: ${errorResponse.message}`,
-        JSON.stringify(logContext),
-      );
+      this.logger.warn(`Client error: ${errorResponse.message}`, JSON.stringify(logContext));
       return;
     }
 

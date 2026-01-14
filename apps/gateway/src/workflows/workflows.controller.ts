@@ -21,7 +21,6 @@ import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { ExecuteWorkflowDto } from './dto/execute-workflow.dto';
 import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { JwtOrApiKeyGuard } from '../auth/guards/jwt-or-api-key.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ApiKeyOnly } from '../auth/decorators/api-key-only.decorator';
@@ -57,10 +56,7 @@ export class WorkflowsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  create(
-    @CurrentUser() user: UserPayload,
-    @Body() createDto: CreateWorkflowDto,
-  ) {
+  create(@CurrentUser() user: UserPayload, @Body() createDto: CreateWorkflowDto) {
     return this.workflowsService.create(user.organizationId, createDto);
   }
 
@@ -69,15 +65,9 @@ export class WorkflowsController {
    * Listar todos los workflows de la organización
    */
   @Get()
-  findAll(
-    @CurrentUser() user: UserPayload,
-    @Query('includeDeleted') includeDeleted?: string,
-  ) {
+  findAll(@CurrentUser() user: UserPayload, @Query('includeDeleted') includeDeleted?: string) {
     const includeDeletedBool = includeDeleted === 'true';
-    return this.workflowsService.findAll(
-      user.organizationId,
-      includeDeletedBool,
-    );
+    return this.workflowsService.findAll(user.organizationId, includeDeletedBool);
   }
 
   /**
@@ -142,11 +132,9 @@ export class WorkflowsController {
 
     // Transformar respuesta para ocultar metadata interna (DTO simplificado)
     const result = execution.result as any;
-    const messages = result?.messages || [];
-    const lastMessage =
-      messages.length > 0 ? messages[messages.length - 1] : null;
-    const assistantContent =
-      lastMessage?.role === 'assistant' ? lastMessage.content : null;
+    const messages = result?.messages ?? [];
+    const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
 
     return {
       content: assistantContent,
@@ -200,10 +188,6 @@ export class WorkflowsController {
     @Param('id') id: string,
     @Query('period', new DefaultValuePipe('30d')) period?: string,
   ) {
-    return this.executionsService.getAnalyticsBySource(
-      id,
-      user.organizationId,
-      period,
-    );
+    return this.executionsService.getAnalyticsBySource(id, user.organizationId, period);
   }
 }

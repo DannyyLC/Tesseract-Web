@@ -14,7 +14,7 @@ export class EventsController {
 
   // 2. Calling this POST method triggers an event to the stream
   @Post('send')
-  async triggerEvent(@Body() payload: any) {
+  triggerEvent(@Body() payload: any) {
     this.eventsService.emitEvent({
       message: 'New notification!',
       content: payload,

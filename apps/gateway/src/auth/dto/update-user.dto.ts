@@ -1,11 +1,4 @@
-import {
-  IsString,
-  IsEmail,
-  IsBoolean,
-  IsInt,
-  IsOptional,
-  Min,
-} from 'class-validator';
+import { IsString, IsEmail, IsBoolean, IsInt, IsOptional, Min } from 'class-validator';
 
 /**
  * DTO para actualizar un usuario existente

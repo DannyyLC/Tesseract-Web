@@ -2,18 +2,9 @@ import { JwtAuthGuard } from '../../../../auth/guards/jwt-auth.guard';
 import { CreateOrganizationDto, UpdateOrganizationDto } from '../../../dto';
 import { OrganizationDashboardDto } from '../../../dto/organization-dashboard.dto';
 import { OrganizationsService } from '../../../organizations.service';
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { DeactivateOrganizationDto } from '../../../dto/deactivate-organization.dto';
 
 @Controller('organizations')
@@ -41,16 +32,11 @@ export class OrganizationsController {
   }
 
   @Post('create')
-  async createOrganization(
-    @Body() body: CreateOrganizationDto,
-    @Res() res: Response,
-  ) {
+  async createOrganization(@Body() body: CreateOrganizationDto, @Res() res: Response) {
     const result = await this.organizationsService.create(body);
     const apiResponse = new ApiResponseBuilder();
     if (!result) {
-      apiResponse
-        .setStatusCode(400)
-        .setMessage('Organization could not be created');
+      apiResponse.setStatusCode(400).setMessage('Organization could not be created');
       return res.status(500).json(apiResponse.build());
     } else {
       apiResponse
@@ -66,9 +52,7 @@ export class OrganizationsController {
     const result = await this.organizationsService.update(body);
     const apiResponse = new ApiResponseBuilder();
     if (!result) {
-      apiResponse
-        .setStatusCode(400)
-        .setMessage('Organization could not be updated');
+      apiResponse.setStatusCode(400).setMessage('Organization could not be updated');
       return apiResponse.build();
     } else {
       apiResponse
@@ -80,21 +64,15 @@ export class OrganizationsController {
   }
 
   @Post('deactivate/:id')
-  async deactivateOrganization(
+  deactivateOrganization(
     @Body() body: DeactivateOrganizationDto,
     @Param('id') id: string,
     @Res() res: Response,
   ) {
-    const result = this.organizationsService.deactivate(
-      id,
-      body.deactivatedBy,
-      body.reason,
-    );
+    const result = this.organizationsService.deactivate(id, body.deactivatedBy, body.reason);
     const apiResponse = new ApiResponseBuilder();
     if (!result) {
-      apiResponse
-        .setStatusCode(500)
-        .setMessage('Organization could not be deactivated');
+      apiResponse.setStatusCode(500).setMessage('Organization could not be deactivated');
       return res.status(500).json(apiResponse.build());
     } else {
       apiResponse
@@ -106,13 +84,11 @@ export class OrganizationsController {
   }
 
   @Patch('activate/:id')
-  async activateOrganization(@Param('id') id: string, @Res() res: Response) {
+  activateOrganization(@Param('id') id: string, @Res() res: Response) {
     const result = this.organizationsService.reactivate(id);
     const apiResponse = new ApiResponseBuilder();
     if (!result) {
-      apiResponse
-        .setStatusCode(500)
-        .setMessage('Organization could not be activated');
+      apiResponse.setStatusCode(500).setMessage('Organization could not be activated');
       return res.status(500).json(apiResponse.build());
     } else {
       apiResponse

@@ -1,5 +1,4 @@
 import { ApiKeyUtil } from './api-key.util';
-import * as bcrypt from 'bcrypt';
 
 // Mock bcrypt functions
 const mockHash = jest.fn();
@@ -223,9 +222,7 @@ describe('ApiKeyUtil', () => {
       });
 
       mockCompare.mockImplementation((data: string, hash: string) => {
-        return Promise.resolve(
-          data === apiKey && hash.startsWith('$2b$10$mockedhash'),
-        );
+        return Promise.resolve(data === apiKey && hash.startsWith('$2b$10$mockedhash'));
       });
 
       // Act

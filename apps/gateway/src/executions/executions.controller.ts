@@ -85,10 +85,7 @@ export class ExecutionsController {
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
   async cancel(@CurrentUser() user: UserPayload, @Param('id') id: string) {
-    const execution = await this.executionsService.cancel(
-      id,
-      user.organizationId,
-    );
+    const execution = await this.executionsService.cancel(id, user.organizationId);
 
     return {
       success: true,

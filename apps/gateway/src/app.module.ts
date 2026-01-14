@@ -14,6 +14,7 @@ import { WinstonModule } from 'nest-winston';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import * as winston from 'winston';
 import 'winston-daily-rotate-file';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -48,10 +49,11 @@ import 'winston-daily-rotate-file';
     ApiKeysModule,
     NotificationsModule,
     EventsModule,
-    SubscriptionsModule
+    SubscriptionsModule,
+    BillingModule,
   ],
   controllers: [],
   providers: [],
   exports: [WinstonModule]
 })
-export class AppModule {}
+export class AppModule { }

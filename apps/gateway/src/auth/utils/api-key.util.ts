@@ -1,4 +1,5 @@
 import * as bcrypt from 'bcrypt';
+import * as nodeCrypto from 'crypto';
 
 /**
  * Utilidades para manejar API Keys con bcrypt
@@ -55,8 +56,7 @@ export class ApiKeyUtil {
    * @returns Cadena aleatoria
    */
   private static generateRandomString(length: number): string {
-    const chars =
-      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
     const randomArray = new Uint8Array(length);
 
@@ -65,7 +65,6 @@ export class ApiKeyUtil {
       crypto.getRandomValues(randomArray);
     } else {
       // Fallback para Node.js antiguo
-      const nodeCrypto = require('crypto');
       nodeCrypto.randomFillSync(randomArray);
     }
 

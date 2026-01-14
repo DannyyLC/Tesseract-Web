@@ -1,11 +1,4 @@
-import {
-  IsEmail,
-  IsString,
-  IsNotEmpty,
-  MinLength,
-  IsOptional,
-  IsIn,
-} from 'class-validator';
+import { IsEmail, IsString, IsNotEmpty, MinLength, IsOptional, IsIn } from 'class-validator';
 
 /**
  * DTO para crear usuarios desde panel de administración

@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { WorkflowCategory } from '@prisma/client';
+import { WorkflowCategory, TransactionType } from '@prisma/client';
 import { getWorkflowCreditCost } from '@workflow-automation/shared-types';
 import { CreditBalance } from '@workflow-platform/database';
 import { DashboardCreditsDto } from './dto/dashboard-credits.dto';
@@ -37,6 +37,55 @@ export class CreditsService {
       );
       return null;
     }
+  }
+
+  /**
+   * Añadir créditos a una organización (Legacy/Suscripción/Compra)
+   */
+  async addCredits(
+    organizationId: string,
+    amount: number,
+    type: TransactionType,
+    description?: string,
+    metadata?: Record<string, any>,
+    costUSD?: number,
+    subscriptionId?: string,
+    invoiceId?: string
+  ): Promise<void> {
+    const balance = await this.prisma.creditBalance.findUnique({
+      where: { organizationId },
+    });
+
+    if (!balance) {
+      throw new Error('Credit balance not found');
+    }
+
+    const balanceBefore = balance.balance;
+    const balanceAfter = balanceBefore + amount;
+
+    await this.prisma.$transaction([
+      this.prisma.creditBalance.update({
+        where: { organizationId },
+        data: {
+          balance: balanceAfter,
+          lifetimeEarned: { increment: amount },
+        },
+      }),
+      this.prisma.creditTransaction.create({
+        data: {
+          organizationId,
+          type,
+          amount,
+          balanceBefore,
+          balanceAfter,
+          description,
+          metadata: metadata ?? undefined,
+          costUSD,
+          subscriptionId,
+          invoiceId,
+        },
+      }),
+    ]);
   }
 
   /**
@@ -131,7 +180,7 @@ export class CreditsService {
           balance: balanceAfter,
           lifetimeSpent: { increment: credits },
           currentMonthSpent: { increment: credits },
-          currentMonthCostUSD: { increment: costUSD || 0 },
+          currentMonthCostUSD: { increment: costUSD ?? 0 },
         },
       }),
 
@@ -178,8 +227,7 @@ export class CreditsService {
     });
 
     if (workflow && workflow.totalExecutions > 0) {
-      const avgCredits =
-        workflow.totalCreditsConsumed / workflow.totalExecutions;
+      const avgCredits = workflow.totalCreditsConsumed / workflow.totalExecutions;
       await this.prisma.workflow.update({
         where: { id: workflowId },
         data: { avgCreditsPerExecution: avgCredits },

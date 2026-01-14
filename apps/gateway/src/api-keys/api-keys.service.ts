@@ -126,9 +126,7 @@ export class ApiKeysService {
 
     // 2. Verificar que pertenece a la organización (seguridad)
     if (key.organizationId !== organizationId) {
-      throw new ForbiddenException(
-        'No tienes permiso para eliminar esta API Key',
-      );
+      throw new ForbiddenException('No tienes permiso para eliminar esta API Key');
     }
 
     // 3. Verificar que no esté ya eliminada
@@ -166,9 +164,7 @@ export class ApiKeysService {
 
     // 2. Verificar que pertenece a la organización (seguridad)
     if (key.organizationId !== organizationId) {
-      throw new ForbiddenException(
-        'No tienes permiso para modificar esta API Key',
-      );
+      throw new ForbiddenException('No tienes permiso para modificar esta API Key');
     }
 
     // 3. Verificar que no esté eliminada
@@ -190,9 +186,7 @@ export class ApiKeysService {
 
     // 5. Si no hay nada que actualizar, retornar error
     if (Object.keys(dataToUpdate).length === 0) {
-      throw new BadRequestException(
-        'No se proporcionaron campos para actualizar',
-      );
+      throw new BadRequestException('No se proporcionaron campos para actualizar');
     }
 
     // 6. Actualizar en la base de datos

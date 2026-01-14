@@ -99,9 +99,7 @@ export class ConversationsService {
       },
     });
 
-    this.logger.debug(
-      `Mensaje ${role} agregado a conversación ${conversationId}`,
-    );
+    this.logger.debug(`Mensaje ${role} agregado a conversación ${conversationId}`);
 
     return message;
   }
@@ -177,7 +175,7 @@ export class ConversationsService {
 
     this.logger.debug(
       `Batch update para conversación ${conversationId}: ` +
-        `+${messageIncrement} mensajes, +${tokens || 0} tokens, +$${cost || 0}`,
+        `+${messageIncrement} mensajes, +${tokens ?? 0} tokens, +$${cost ?? 0}`,
     );
   }
 }

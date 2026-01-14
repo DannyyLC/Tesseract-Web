@@ -1,9 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  ExecutionContext,
-  UnauthorizedException,
-  Logger,
-} from '@nestjs/common';
+import { ExecutionContext, UnauthorizedException, Logger } from '@nestjs/common';
 import { ApiKeyGuard } from './api-key.guard';
 import { PrismaService } from '../../database/prisma.service';
 import { ApiKeyUtil } from '../utils/api-key.util';
@@ -82,10 +78,7 @@ describe('ApiKeyGuard', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ApiKeyGuard,
-        { provide: PrismaService, useValue: mockPrismaService },
-      ],
+      providers: [ApiKeyGuard, { provide: PrismaService, useValue: mockPrismaService }],
     }).compile();
 
     guard = module.get<ApiKeyGuard>(ApiKeyGuard);
@@ -108,9 +101,7 @@ describe('ApiKeyGuard', () => {
       const request = createMockRequest({ 'x-api-key': mockApiKey });
       const context = createMockContext(request);
 
-      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([
-        mockApiKeyRecord,
-      ]);
+      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([mockApiKeyRecord]);
       (ApiKeyUtil.compare as jest.Mock).mockResolvedValue(true);
       (prisma.apiKey.update as jest.Mock).mockResolvedValue(mockApiKeyRecord);
 
@@ -129,9 +120,7 @@ describe('ApiKeyGuard', () => {
       });
       const context = createMockContext(request);
 
-      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([
-        mockApiKeyRecord,
-      ]);
+      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([mockApiKeyRecord]);
       (ApiKeyUtil.compare as jest.Mock).mockResolvedValue(true);
       (prisma.apiKey.update as jest.Mock).mockResolvedValue(mockApiKeyRecord);
 
@@ -149,12 +138,8 @@ describe('ApiKeyGuard', () => {
       const context = createMockContext(request);
 
       // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'API key requerida',
-      );
+      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(context)).rejects.toThrow('API key requerida');
     });
   });
 
@@ -168,9 +153,7 @@ describe('ApiKeyGuard', () => {
       const request = createMockRequest({ 'x-api-key': mockApiKey });
       const context = createMockContext(request);
 
-      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([
-        mockApiKeyRecord,
-      ]);
+      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([mockApiKeyRecord]);
       (ApiKeyUtil.compare as jest.Mock).mockResolvedValue(true);
       (prisma.apiKey.update as jest.Mock).mockResolvedValue(mockApiKeyRecord);
 
@@ -209,12 +192,8 @@ describe('ApiKeyGuard', () => {
       (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([]);
 
       // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'API key inválido',
-      );
+      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(context)).rejects.toThrow('API key inválido');
     });
 
     it('debería lanzar UnauthorizedException si el hash no coincide', async () => {
@@ -222,18 +201,12 @@ describe('ApiKeyGuard', () => {
       const request = createMockRequest({ 'x-api-key': mockApiKey });
       const context = createMockContext(request);
 
-      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([
-        mockApiKeyRecord,
-      ]);
+      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([mockApiKeyRecord]);
       (ApiKeyUtil.compare as jest.Mock).mockResolvedValue(false);
 
       // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'API key inválido',
-      );
+      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(context)).rejects.toThrow('API key inválido');
     });
 
     it('debería comparar múltiples candidatos hasta encontrar match', async () => {
@@ -245,11 +218,7 @@ describe('ApiKeyGuard', () => {
       const candidate2 = { ...mockApiKeyRecord, id: 'key-2', keyHash: 'hash2' };
       const candidate3 = { ...mockApiKeyRecord, id: 'key-3', keyHash: 'hash3' };
 
-      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([
-        candidate1,
-        candidate2,
-        candidate3,
-      ]);
+      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([candidate1, candidate2, candidate3]);
       (ApiKeyUtil.compare as jest.Mock)
         .mockResolvedValueOnce(false) // Candidate 1 fails
         .mockResolvedValueOnce(false) // Candidate 2 fails
@@ -284,18 +253,12 @@ describe('ApiKeyGuard', () => {
       const context = createMockContext(request);
 
       const apiKeyWithoutOrg = { ...mockApiKeyRecord, organization: null };
-      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([
-        apiKeyWithoutOrg,
-      ]);
+      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([apiKeyWithoutOrg]);
       (ApiKeyUtil.compare as jest.Mock).mockResolvedValue(true);
 
       // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'API key sin organización',
-      );
+      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(context)).rejects.toThrow('API key sin organización');
     });
 
     it('debería lanzar UnauthorizedException si la organización está inactiva', async () => {
@@ -309,18 +272,12 @@ describe('ApiKeyGuard', () => {
         organization: inactiveOrg,
       };
 
-      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([
-        apiKeyWithInactiveOrg,
-      ]);
+      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([apiKeyWithInactiveOrg]);
       (ApiKeyUtil.compare as jest.Mock).mockResolvedValue(true);
 
       // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'Organización inactiva',
-      );
+      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(context)).rejects.toThrow('Organización inactiva');
     });
 
     it('debería lanzar UnauthorizedException si la organización está eliminada', async () => {
@@ -334,18 +291,12 @@ describe('ApiKeyGuard', () => {
         organization: deletedOrg,
       };
 
-      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([
-        apiKeyWithDeletedOrg,
-      ]);
+      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([apiKeyWithDeletedOrg]);
       (ApiKeyUtil.compare as jest.Mock).mockResolvedValue(true);
 
       // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'Organización eliminada',
-      );
+      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(context)).rejects.toThrow('Organización eliminada');
     });
   });
 
@@ -359,9 +310,7 @@ describe('ApiKeyGuard', () => {
       const request = createMockRequest({ 'x-api-key': mockApiKey });
       const context = createMockContext(request);
 
-      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([
-        mockApiKeyRecord,
-      ]);
+      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([mockApiKeyRecord]);
       (ApiKeyUtil.compare as jest.Mock).mockResolvedValue(true);
       (prisma.apiKey.update as jest.Mock).mockResolvedValue(mockApiKeyRecord);
 
@@ -384,9 +333,7 @@ describe('ApiKeyGuard', () => {
       const request = createMockRequest({ 'x-api-key': mockApiKey });
       const context = createMockContext(request);
 
-      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([
-        mockApiKeyRecord,
-      ]);
+      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([mockApiKeyRecord]);
       (ApiKeyUtil.compare as jest.Mock).mockResolvedValue(true);
       (prisma.apiKey.update as jest.Mock).mockResolvedValue(mockApiKeyRecord);
 
@@ -405,13 +352,9 @@ describe('ApiKeyGuard', () => {
       const request = createMockRequest({ 'x-api-key': mockApiKey });
       const context = createMockContext(request);
 
-      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([
-        mockApiKeyRecord,
-      ]);
+      (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([mockApiKeyRecord]);
       (ApiKeyUtil.compare as jest.Mock).mockResolvedValue(true);
-      (prisma.apiKey.update as jest.Mock).mockRejectedValue(
-        new Error('DB error'),
-      );
+      (prisma.apiKey.update as jest.Mock).mockRejectedValue(new Error('DB error'));
 
       // Act
       const result = await guard.canActivate(context);
@@ -434,9 +377,7 @@ describe('ApiKeyGuard', () => {
       (prisma.apiKey.findMany as jest.Mock).mockResolvedValue([]);
 
       // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
     });
 
     it('debería convertir errores desconocidos en UnauthorizedException', async () => {
@@ -444,17 +385,11 @@ describe('ApiKeyGuard', () => {
       const request = createMockRequest({ 'x-api-key': mockApiKey });
       const context = createMockContext(request);
 
-      (prisma.apiKey.findMany as jest.Mock).mockRejectedValue(
-        new Error('Database error'),
-      );
+      (prisma.apiKey.findMany as jest.Mock).mockRejectedValue(new Error('Database error'));
 
       // Act & Assert
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'Error al validar API key',
-      );
+      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(context)).rejects.toThrow('Error al validar API key');
     });
   });
 });

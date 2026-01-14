@@ -42,10 +42,7 @@ export class ApiKeysController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  async create(
-    @CurrentUser() user: UserPayload,
-    @Body() createDto: CreateApiKeyDto,
-  ) {
+  async create(@CurrentUser() user: UserPayload, @Body() createDto: CreateApiKeyDto) {
     return this.apiKeysService.create(user.organizationId, createDto);
   }
 

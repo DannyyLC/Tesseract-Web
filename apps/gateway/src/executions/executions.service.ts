@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { Prisma } from '@prisma/client';
 
 /**
  * Service que maneja el historial de ejecuciones
@@ -36,7 +35,7 @@ export class ExecutionsService {
         workflowId,
         status: 'pending',
         trigger,
-        triggerData: triggerData || {},
+        triggerData: triggerData ?? {},
         startedAt: new Date(),
         organizationId: triggerData?.organizationId,
         userId: triggerData?.userId,
@@ -54,7 +53,7 @@ export class ExecutionsService {
     });
 
     this.logger.log(
-      `Ejecución creada: ${execution.id} para workflow ${workflowId} (trigger: ${trigger}, org: ${triggerData?.organizationId || 'N/A'}, userId: ${triggerData?.userId || 'N/A'}, apiKeyId: ${triggerData?.apiKeyId || 'N/A'})`,
+      `Ejecución creada: ${execution.id} para workflow ${workflowId} (trigger: ${trigger}, org: ${triggerData?.organizationId ?? 'N/A'}, userId: ${triggerData?.userId ?? 'N/A'}, apiKeyId: ${triggerData?.apiKeyId ?? 'N/A'})`,
     );
 
     return execution;
@@ -93,23 +92,17 @@ export class ExecutionsService {
     }
 
     // Calcular duración en segundos
-    const duration = Math.floor(
-      (now.getTime() - execution.startedAt.getTime()) / 1000,
-    );
+    const duration = Math.floor((now.getTime() - execution.startedAt.getTime()) / 1000);
 
     // Actualizar la ejecución (TODOS los campos en 1 query)
     const updated = await this.prisma.execution.update({
       where: { id: executionId },
       data: {
         status,
-        finishedAt: ['completed', 'failed', 'cancelled', 'timeout'].includes(
-          status,
-        )
+        finishedAt: ['completed', 'failed', 'cancelled', 'timeout'].includes(status)
           ? now
           : undefined,
-        duration: ['completed', 'failed', 'cancelled', 'timeout'].includes(
-          status,
-        )
+        duration: ['completed', 'failed', 'cancelled', 'timeout'].includes(status)
           ? duration
           : undefined,
         result: data?.result,
@@ -130,7 +123,7 @@ export class ExecutionsService {
 
     this.logger.log(
       `Ejecución ${executionId} actualizada a estado: ${status} ` +
-        `(duración: ${duration}s, tokens: ${data?.tokensUsed || 0}, cost: $${data?.cost || 0})`,
+        `(duración: ${duration}s, tokens: ${data?.tokensUsed ?? 0}, cost: $${data?.cost ?? 0})`,
     );
 
     return updated;
@@ -163,18 +156,15 @@ export class ExecutionsService {
 
     // Calcular nuevo promedio de tiempo de ejecución
     const totalExecs = workflow.totalExecutions;
-    const currentAvg = workflow.avgExecutionTime || 0;
-    const newAvg = Math.floor(
-      (currentAvg * totalExecs + duration) / (totalExecs + 1),
-    );
+    const currentAvg = workflow.avgExecutionTime ?? 0;
+    const newAvg = Math.floor((currentAvg * totalExecs + duration) / (totalExecs + 1));
 
     // Actualizar workflow
     await this.prisma.workflow.update({
       where: { id: workflowId },
       data: {
         totalExecutions: { increment: 1 },
-        successfulExecutions:
-          status === 'completed' ? { increment: 1 } : undefined,
+        successfulExecutions: status === 'completed' ? { increment: 1 } : undefined,
         failedExecutions: status === 'failed' ? { increment: 1 } : undefined,
         avgExecutionTime: newAvg,
         lastExecutedAt: new Date(),
@@ -353,12 +343,7 @@ export class ExecutionsService {
    * @param limit - Número máximo de resultados (default: 50)
    * @param status - Filtrar por estado (opcional)
    */
-  async findByWorkflow(
-    workflowId: string,
-    organizationId: string,
-    limit = 50,
-    status?: string,
-  ) {
+  async findByWorkflow(workflowId: string, organizationId: string, limit = 50, status?: string) {
     // Verificar que el workflow pertenece a la organización
     const workflow = await this.prisma.workflow.findFirst({
       where: {
@@ -776,31 +761,21 @@ export class ExecutionsService {
 
     // Calcular estadísticas
     const total = executions.length;
-    const successful = executions.filter(
-      (e: any) => e.status === 'completed',
-    ).length;
+    const successful = executions.filter((e: any) => e.status === 'completed').length;
     const failed = executions.filter((e: any) => e.status === 'failed').length;
-    const cancelled = executions.filter(
-      (e: any) => e.status === 'cancelled',
-    ).length;
-    const timeout = executions.filter(
-      (e: any) => e.status === 'timeout',
-    ).length;
+    const cancelled = executions.filter((e: any) => e.status === 'cancelled').length;
+    const timeout = executions.filter((e: any) => e.status === 'timeout').length;
 
     const successRate = total > 0 ? (successful / total) * 100 : 0;
 
     // Calcular duración total y promedio
-    const completedExecutions = executions.filter(
-      (e: any) => e.duration !== null,
-    );
+    const completedExecutions = executions.filter((e: any) => e.duration !== null);
     const totalDuration = completedExecutions.reduce(
-      (sum: any, e: any) => sum + (e.duration || 0),
+      (sum: any, e: any) => sum + (e.duration ?? 0),
       0,
     );
     const avgDuration =
-      completedExecutions.length > 0
-        ? totalDuration / completedExecutions.length
-        : 0;
+      completedExecutions.length > 0 ? totalDuration / completedExecutions.length : 0;
 
     // Agrupar por estado
     const byStatus: Record<string, number> = {
@@ -815,17 +790,14 @@ export class ExecutionsService {
     // Agrupar por trigger
     const byTrigger: Record<string, number> = {};
     executions.forEach((e: any) => {
-      byTrigger[e.trigger] = (byTrigger[e.trigger] || 0) + 1;
+      byTrigger[e.trigger] = (byTrigger[e.trigger] ?? 0) + 1;
     });
 
     // Top workflows por número de ejecuciones
-    const workflowStats = new Map<
-      string,
-      { name: string; total: number; successful: number }
-    >();
+    const workflowStats = new Map<string, { name: string; total: number; successful: number }>();
 
     executions.forEach((e: any) => {
-      const existing = workflowStats.get(e.workflowId) || {
+      const existing = workflowStats.get(e.workflowId) ?? {
         name: e.workflow.name,
         total: 0,
         successful: 0,
@@ -842,31 +814,25 @@ export class ExecutionsService {
         workflowId,
         workflowName: stats.name,
         executions: stats.total,
-        successRate:
-          stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
+        successRate: stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
       }))
       .sort((a, b) => b.executions - a.executions)
       .slice(0, 10);
 
     // Calcular estadísticas de créditos
     const totalCreditsConsumed = executions.reduce(
-      (sum: number, e: any) => sum + (e.credits || 0),
+      (sum: number, e: any) => sum + (e.credits ?? 0),
       0,
     );
 
-    const executionsInOverage = executions.filter(
-      (e: any) => e.wasOverage === true,
-    ).length;
+    const executionsInOverage = executions.filter((e: any) => e.wasOverage === true).length;
 
     const overageRate = total > 0 ? (executionsInOverage / total) * 100 : 0;
 
     const avgCreditsPerExecution = total > 0 ? totalCreditsConsumed / total : 0;
 
     // Agrupar por categoría de workflow
-    const byWorkflowCategory: Record<
-      string,
-      { count: number; credits: number }
-    > = {
+    const byWorkflowCategory: Record<string, { count: number; credits: number }> = {
       LIGHT: { count: 0, credits: 0 },
       STANDARD: { count: 0, credits: 0 },
       ADVANCED: { count: 0, credits: 0 },
@@ -876,7 +842,7 @@ export class ExecutionsService {
       const category = e.workflow?.category;
       if (category && byWorkflowCategory[category]) {
         byWorkflowCategory[category].count += 1;
-        byWorkflowCategory[category].credits += e.credits || 0;
+        byWorkflowCategory[category].credits += e.credits ?? 0;
       }
     });
 
@@ -914,9 +880,7 @@ export class ExecutionsService {
     const execution = await this.findOneForClient(executionId, organizationId);
 
     if (!['pending', 'running'].includes(execution.status)) {
-      throw new Error(
-        `No se puede cancelar una ejecución con estado: ${execution.status}`,
-      );
+      throw new Error(`No se puede cancelar una ejecución con estado: ${execution.status}`);
     }
 
     return this.updateStatus(executionId, 'cancelled', {
@@ -931,11 +895,7 @@ export class ExecutionsService {
    * @param organizationId - ID de la organización
    * @param period - Periodo de tiempo (24h, 7d, 30d, 90d, all)
    */
-  async getAnalyticsBySource(
-    workflowId: string,
-    organizationId: string,
-    period = '30d',
-  ) {
+  async getAnalyticsBySource(workflowId: string, organizationId: string, period = '30d') {
     // Verificar que el workflow pertenece a la organización
     const workflow = await this.prisma.workflow.findFirst({
       where: {
@@ -1032,7 +992,7 @@ export class ExecutionsService {
 
     executions.forEach((e: any) => {
       if (e.apiKeyId && e.apiKey) {
-        const existing = byApiKey.get(e.apiKeyId) || {
+        const existing = byApiKey.get(e.apiKeyId) ?? {
           name: e.apiKey.name,
           keyPrefix: e.apiKey.keyPrefix,
           total: 0,
@@ -1045,14 +1005,13 @@ export class ExecutionsService {
         if (e.status === 'failed') existing.failed += 1;
         if (e.duration) {
           existing.avgDuration =
-            (existing.avgDuration * (existing.total - 1) + e.duration) /
-            existing.total;
+            (existing.avgDuration * (existing.total - 1) + e.duration) / existing.total;
         }
         byApiKey.set(e.apiKeyId, existing);
       }
 
       if (e.userId && e.user) {
-        const existing = byUser.get(e.userId) || {
+        const existing = byUser.get(e.userId) ?? {
           name: e.user.name,
           email: e.user.email,
           total: 0,
@@ -1065,8 +1024,7 @@ export class ExecutionsService {
         if (e.status === 'failed') existing.failed += 1;
         if (e.duration) {
           existing.avgDuration =
-            (existing.avgDuration * (existing.total - 1) + e.duration) /
-            existing.total;
+            (existing.avgDuration * (existing.total - 1) + e.duration) / existing.total;
         }
         byUser.set(e.userId, existing);
       }
@@ -1080,15 +1038,13 @@ export class ExecutionsService {
       byApiKey: Array.from(byApiKey.entries()).map(([apiKeyId, stats]) => ({
         apiKeyId,
         ...stats,
-        successRate:
-          stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
+        successRate: stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
         avgDuration: parseFloat(stats.avgDuration.toFixed(2)),
       })),
       byUser: Array.from(byUser.entries()).map(([userId, stats]) => ({
         userId,
         ...stats,
-        successRate:
-          stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
+        successRate: stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
         avgDuration: parseFloat(stats.avgDuration.toFixed(2)),
       })),
     };
@@ -1106,9 +1062,7 @@ export class ExecutionsService {
       data: { conversationId },
     });
 
-    this.logger.debug(
-      `Ejecución ${executionId} asociada a conversación ${conversationId}`,
-    );
+    this.logger.debug(`Ejecución ${executionId} asociada a conversación ${conversationId}`);
   }
 
   /**
@@ -1118,11 +1072,7 @@ export class ExecutionsService {
    * @param tokensUsed - Tokens consumidos
    * @param cost - Costo en USD
    */
-  async updateUsageStats(
-    executionId: string,
-    tokensUsed: number,
-    cost: number,
-  ) {
+  async updateUsageStats(executionId: string, tokensUsed: number, cost: number) {
     await this.prisma.execution.update({
       where: { id: executionId },
       data: {

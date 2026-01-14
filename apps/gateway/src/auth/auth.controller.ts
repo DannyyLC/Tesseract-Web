@@ -8,14 +8,11 @@ import {
   HttpStatus,
   Res,
   Req,
-  UnauthorizedException,
   Query,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { UserPayload } from '../common/types/jwt-payload.type';
@@ -82,10 +79,7 @@ export class AuthController {
    *   401 - Cuenta inactiva o eliminada
    */
   @Post('login')
-  async login(
-    @Body() loginDto: LoginDto,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) response: Response) {
     const responseBuilder = new ApiResponseBuilder();
     try {
       const result = await this.authService.login(loginDto);
@@ -109,7 +103,7 @@ export class AuthController {
         .setMessage('Credentials valid, proceed to 2FA verification');
       response.statusCode = HttpStatus.OK;
       response.send(responseBuilder.build());
-    } catch (error) {
+    } catch {
       responseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.Unauthorized)
@@ -144,10 +138,7 @@ export class AuthController {
    */
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(
-    @Req() request: Request,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async refresh(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     // Leer refreshToken desde la cookie
     const refreshToken = request.cookies?.refreshToken;
 
@@ -209,7 +200,7 @@ export class AuthController {
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getProfile(@CurrentUser() user: UserPayload) {
+  getProfile(@CurrentUser() user: UserPayload) {
     return user;
   }
 
@@ -236,10 +227,7 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async logout(
-    @Req() request: Request,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     // Leer refreshToken desde la cookie
     const refreshToken = request.cookies?.refreshToken;
 
@@ -310,7 +298,7 @@ export class AuthController {
     const responseBuilder = new ApiResponseBuilder();
     try {
       result = await this.authService.verify2FACode(user, authCode);
-    } catch (error) {
+    } catch {
       responseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.InternalServerError)

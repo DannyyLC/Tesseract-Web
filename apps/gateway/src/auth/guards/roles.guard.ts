@@ -34,10 +34,10 @@ export class RolesGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     // 0. Verificar si el endpoint está marcado como API Key Only
-    const isApiKeyOnly = this.reflector.getAllAndOverride<boolean>(
-      API_KEY_ONLY,
-      [context.getHandler(), context.getClass()],
-    );
+    const isApiKeyOnly = this.reflector.getAllAndOverride<boolean>(API_KEY_ONLY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
     if (isApiKeyOnly) {
       // Si es API Key only, saltarse la verificación de roles
@@ -45,10 +45,10 @@ export class RolesGuard implements CanActivate {
     }
 
     // 1. Obtener roles requeridos del decorador @Roles()
-    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
-      ROLES_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
     // 2. Si no hay roles requeridos, permitir acceso
     if (!requiredRoles || requiredRoles.length === 0) {
@@ -60,9 +60,7 @@ export class RolesGuard implements CanActivate {
     const user: UserPayload = request.user;
 
     if (!user) {
-      this.logger.warn(
-        'Usuario no encontrado en request. ¿Falta JwtAuthGuard?',
-      );
+      this.logger.warn('Usuario no encontrado en request. ¿Falta JwtAuthGuard?');
       throw new ForbiddenException('Usuario no autenticado');
     }
 
@@ -78,9 +76,7 @@ export class RolesGuard implements CanActivate {
       );
     }
 
-    this.logger.debug(
-      `Usuario ${user.email} con rol ${user.role} autorizado para endpoint`,
-    );
+    this.logger.debug(`Usuario ${user.email} con rol ${user.role} autorizado para endpoint`);
 
     return true;
   }
