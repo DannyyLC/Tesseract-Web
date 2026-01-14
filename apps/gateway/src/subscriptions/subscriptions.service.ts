@@ -10,7 +10,7 @@ export class SubscriptionsService {
     constructor(
         private readonly prismaService: PrismaService,
         @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
-    ){}
+    ) { }
 
     async getDashboardData(organizationId: string): Promise<DashboardSubscriptionDto | null> {
         const subscription = await this.prismaService.subscription.findFirst({
@@ -49,7 +49,7 @@ export class SubscriptionsService {
             });
             return newSubscription;
         } catch (error) {
-            this.logger.error(`createSubscription method >> Error creating subscription for organization ${organizationId}: ${error.message}`);
+            this.logger.error(`createSubscription method >> Error creating subscription for organization ${organizationId}: ${(error as Error).message}`);
             return null;
         }
     }
@@ -72,7 +72,7 @@ export class SubscriptionsService {
 
     async cancelSubscription(organizationId: string): Promise<Subscription | null> {
         try {
-            const canceledSubscription = await this.prismaService.subscription.update({ 
+            const canceledSubscription = await this.prismaService.subscription.update({
                 where: { organizationId },
                 data: { status: SubscriptionStatus.CANCELED },
             });
