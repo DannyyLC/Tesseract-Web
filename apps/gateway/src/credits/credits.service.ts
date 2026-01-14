@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { WorkflowCategory } from '@prisma/client';
+import { WorkflowCategory, TransactionType } from '@prisma/client';
 import { getWorkflowCreditCost } from '@workflow-automation/shared-types';
 
 @Injectable()
 export class CreditsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   // ============================================
   // CREATE
@@ -24,6 +24,55 @@ export class CreditsService {
         currentMonthCostUSD: 0,
       },
     });
+  }
+
+  /**
+   * Añadir créditos a una organización (Legacy/Suscripción/Compra)
+   */
+  async addCredits(
+    organizationId: string,
+    amount: number,
+    type: TransactionType,
+    description?: string,
+    metadata?: Record<string, any>,
+    costUSD?: number,
+    subscriptionId?: string,
+    invoiceId?: string
+  ): Promise<void> {
+    const balance = await this.prisma.creditBalance.findUnique({
+      where: { organizationId },
+    });
+
+    if (!balance) {
+      throw new Error('Credit balance not found');
+    }
+
+    const balanceBefore = balance.balance;
+    const balanceAfter = balanceBefore + amount;
+
+    await this.prisma.$transaction([
+      this.prisma.creditBalance.update({
+        where: { organizationId },
+        data: {
+          balance: balanceAfter,
+          lifetimeEarned: { increment: amount },
+        },
+      }),
+      this.prisma.creditTransaction.create({
+        data: {
+          organizationId,
+          type,
+          amount,
+          balanceBefore,
+          balanceAfter,
+          description,
+          metadata: metadata ?? undefined,
+          costUSD,
+          subscriptionId,
+          invoiceId,
+        },
+      }),
+    ]);
   }
 
   /**

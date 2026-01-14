@@ -10,6 +10,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { EventsModule } from './events/events.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -31,8 +32,9 @@ import { EventsModule } from './events/events.module';
     ApiKeysModule,
     NotificationsModule,
     EventsModule,
+    BillingModule,
   ],
   controllers: [],
   providers: [],
 })
-export class AppModule {}
+export class AppModule { }
