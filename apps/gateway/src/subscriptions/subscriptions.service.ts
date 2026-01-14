@@ -42,7 +42,7 @@ export class SubscriptionsService {
                 data: {
                     organizationId,
                     plan,
-                    status: 'ACTIVE',
+                    status: SubscriptionStatus.ACTIVE,
                     currentPeriodStart: new Date(),
                     currentPeriodEnd: new Date(new Date().setMonth(new Date().getMonth() + 1)),
                 },
