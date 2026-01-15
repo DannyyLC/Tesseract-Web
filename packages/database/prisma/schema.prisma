@@ -699,9 +699,8 @@ model ApiKey {
   name        String
   description String?
 
-  // Key hasheada (nunca guardamos la key en texto plano)
-  keyHash   String @unique
-  keyPrefix String // Primeros caracteres para identificar
+  // Key hasheada (determinista para búsqueda rápida)
+  keyHash String @unique
 
   // Estado y uso
   isActive   Boolean   @default(true)
@@ -725,7 +724,6 @@ model ApiKey {
 
   @@index([organizationId])
   @@index([workflowId])
-  @@index([keyPrefix])
   @@index([deletedAt])
   @@index([isActive])
   @@map("api_keys")

@@ -1,5 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+
+const hashApiKey = (key: string) => crypto.createHash('sha256').update(key).digest('hex');
 
 const prisma = new PrismaClient();
 
@@ -670,12 +673,11 @@ async function main() {
 
   // API Key 1 para Acme Corp (Producción) -> Workflow 1
   const apiKey1 = 'ak_live_acme_prod_xyz789abc123def456ghi';
-  const apiKey1Hash = await bcrypt.hash(apiKey1, 10);
+  const apiKey1Hash = hashApiKey(apiKey1);
   await prisma.apiKey.create({
     data: {
       name: 'Producción Web',
       keyHash: apiKey1Hash,
-      keyPrefix: apiKey1.substring(0, 16),
       isActive: true,
       organizationId: org1.id,
       workflowId: workflow1.id,
@@ -685,12 +687,11 @@ async function main() {
 
   // API Key 2 para Acme Corp (Testing) -> Workflow 2
   const apiKey2 = 'ak_test_acme_test_123abc456def789ghi012';
-  const apiKey2Hash = await bcrypt.hash(apiKey2, 10);
+  const apiKey2Hash = hashApiKey(apiKey2);
   await prisma.apiKey.create({
     data: {
       name: 'Testing',
       keyHash: apiKey2Hash,
-      keyPrefix: apiKey2.substring(0, 16),
       isActive: true,
       organizationId: org1.id,
       workflowId: workflow2.id,
@@ -700,12 +701,11 @@ async function main() {
 
   // API Key 3 para TechStart -> Workflow 3
   const apiKey3 = 'ak_live_tech_prod_999zzz888yyy777xxx';
-  const apiKey3Hash = await bcrypt.hash(apiKey3, 10);
+  const apiKey3Hash = hashApiKey(apiKey3);
   await prisma.apiKey.create({
     data: {
       name: 'Producción',
       keyHash: apiKey3Hash,
-      keyPrefix: apiKey3.substring(0, 16),
       isActive: true,
       organizationId: org2.id,
       workflowId: workflow3.id,
