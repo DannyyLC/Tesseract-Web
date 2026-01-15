@@ -4,10 +4,10 @@ export class ApiKeyResponseDto {
   apiKey: string;
   keyPrefix: string;
   isActive: boolean;
-  scopes?: any;
+  workflowId: string;
   expiresAt: Date;
   lastUsedAt: Date;
-  createsAt: Date;
+  createdAt: Date;
 }
 
 export class ApiKeyListDto {
@@ -17,5 +17,6 @@ export class ApiKeyListDto {
   isActive: boolean;
   lastUsedAt: Date;
   expiresAt: Date;
-  createsAt: Date;
+  workflowId: string;
+  createdAt: Date;
 }

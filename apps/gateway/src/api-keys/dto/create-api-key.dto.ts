@@ -18,10 +18,9 @@ export class CreateApiKeyDto {
   @MaxLength(500)
   description?: string;
 
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  scopes?: string[];
+  @IsString()
+  @IsNotEmpty()
+  workflowId: string;
 
   @IsOptional()
   @IsDateString()

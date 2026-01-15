@@ -10,5 +10,5 @@ export interface ApiKeyPayload {
   organizationId: string; // ID de la organización dueña de la API key
   organizationName: string; // Nombre de la organización
   plan: string; // Plan de la organización
-  scopes?: string[]; // Permisos específicos de la API key (opcional)
+  workflowId: string; // ID del workflow asociado a esta API key
 }

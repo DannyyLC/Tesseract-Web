@@ -25,7 +25,7 @@ import { ApiKeyUtil } from '../utils/api-key.util';
 export class ApiKeyGuard implements CanActivate {
   private readonly logger = new Logger(ApiKeyGuard.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
@@ -47,7 +47,11 @@ export class ApiKeyGuard implements CanActivate {
           isActive: true,
           deletedAt: null,
         },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          keyHash: true,
+          workflowId: true,
           organization: {
             select: {
               id: true,
@@ -121,7 +125,7 @@ export class ApiKeyGuard implements CanActivate {
         organizationId: organization.id,
         organizationName: organization.name,
         plan: organization.plan,
-        scopes: matchedApiKey.scopes as string[] | undefined,
+        workflowId: matchedApiKey.workflowId,
       };
 
       // 7. Inyectar en el request

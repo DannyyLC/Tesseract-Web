@@ -46,7 +46,7 @@ export class WorkflowsController {
   constructor(
     private readonly workflowsService: WorkflowsService,
     private readonly executionsService: ExecutionsService,
-  ) {}
+  ) { }
 
   /**
    * POST /workflows
@@ -121,9 +121,12 @@ export class WorkflowsController {
     @Param('id') id: string,
     @Body() executeDto: ExecuteWorkflowDto,
   ) {
+    // Si el id es 'current', usamos el workflowId de la API key
+    const targetWorkflowId = id === 'current' ? apiKey.workflowId : id;
+
     const execution = await this.workflowsService.execute(
       apiKey.organizationId,
-      id,
+      targetWorkflowId,
       executeDto.input,
       executeDto.metadata,
       undefined, // userId (no aplica en ejecución por API key)
@@ -163,9 +166,12 @@ export class WorkflowsController {
     @Param('id') id: string,
     @Body() executeDto: ExecuteWorkflowDto,
   ): Promise<StreamableFile> {
+    // Si el id es 'current', usamos el workflowId de la API key
+    const targetWorkflowId = id === 'current' ? apiKey.workflowId : id;
+
     const stream = await this.workflowsService.executeStream(
       apiKey.organizationId,
-      id,
+      targetWorkflowId,
       executeDto.input,
       executeDto.metadata,
       undefined, // userId

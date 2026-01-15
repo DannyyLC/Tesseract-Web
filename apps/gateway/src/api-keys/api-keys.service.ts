@@ -12,7 +12,7 @@ import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
 
 @Injectable()
 export class ApiKeysService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Crea un nuevo API Key para una organización
@@ -41,7 +41,7 @@ export class ApiKeysService {
     if (maxApiKeys !== -1 && organization._count.apiKeys >= maxApiKeys) {
       throw new BadRequestException(
         `Has alcanzado el límite de ${maxApiKeys} API Keys para tu plan ${organization.plan}. ` +
-          `Elimina una API Key existente o actualiza tu plan.`,
+        `Elimina una API Key existente o actualiza tu plan.`,
       );
     }
 
@@ -62,7 +62,7 @@ export class ApiKeysService {
         keyHash,
         keyPrefix,
         organizationId,
-        scopes: dto.scopes ?? undefined, // Usar undefined en lugar de null para JSON
+        workflowId: dto.workflowId,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
         isActive: true,
       },
@@ -73,10 +73,10 @@ export class ApiKeysService {
       id: created.id,
       name: created.name,
       description: created.description,
-      apiKey, // ⚠️ Este es el valor completo, solo se muestra aquí
+      apiKey, // Este es el valor completo, solo se muestra aquí
       keyPrefix: created.keyPrefix,
       isActive: created.isActive,
-      scopes: created.scopes,
+      workflowId: created.workflowId,
       expiresAt: created.expiresAt,
       createdAt: created.createdAt,
     };
@@ -104,7 +104,7 @@ export class ApiKeysService {
       isActive: key.isActive,
       lastUsedAt: key.lastUsedAt,
       expiresAt: key.expiresAt,
-      scopes: key.scopes,
+      workflowId: key.workflowId,
       createdAt: key.createdAt,
       updatedAt: key.updatedAt,
     }));
@@ -205,7 +205,7 @@ export class ApiKeysService {
         isActive: updated.isActive,
         lastUsedAt: updated.lastUsedAt,
         expiresAt: updated.expiresAt,
-        scopes: updated.scopes,
+        workflowId: updated.workflowId,
         createdAt: updated.createdAt,
         updatedAt: updated.updatedAt,
       },
@@ -238,7 +238,7 @@ export class ApiKeysService {
       isActive: key.isActive,
       lastUsedAt: key.lastUsedAt,
       expiresAt: key.expiresAt,
-      scopes: key.scopes,
+      workflowId: key.workflowId,
       createdAt: key.createdAt,
       updatedAt: key.updatedAt,
       deletedAt: key.deletedAt,

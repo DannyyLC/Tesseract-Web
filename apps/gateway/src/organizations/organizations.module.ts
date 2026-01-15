@@ -9,4 +9,4 @@ import { OrganizationsController } from './controllers/user-ui/organizations/org
   providers: [OrganizationsService],
   exports: [OrganizationsService],
 })
-export class OrganizationsModule {}
+export class OrganizationsModule { }
