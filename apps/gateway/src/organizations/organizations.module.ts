@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service';
 import { DatabaseModule } from '../database/database.module';
-import { OrganizationsController } from './controllers/user-ui/organizations/organizations.controller';
+import { OrganizationsController } from './controllers/user-ui/organizations.controller';
 
 @Module({
   imports: [DatabaseModule],
@@ -9,4 +9,4 @@ import { OrganizationsController } from './controllers/user-ui/organizations/org
   providers: [OrganizationsService],
   exports: [OrganizationsService],
 })
-export class OrganizationsModule { }
+export class OrganizationsModule {}

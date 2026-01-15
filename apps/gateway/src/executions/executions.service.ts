@@ -14,7 +14,7 @@ import { PrismaService } from '../database/prisma.service';
 export class ExecutionsService {
   private readonly logger = new Logger(ExecutionsService.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Crear una nueva ejecución
@@ -123,7 +123,7 @@ export class ExecutionsService {
 
     this.logger.log(
       `Ejecución ${executionId} actualizada a estado: ${status} ` +
-      `(duración: ${duration}s, tokens: ${data?.tokensUsed ?? 0}, cost: $${data?.cost ?? 0})`,
+        `(duración: ${duration}s, tokens: ${data?.tokensUsed ?? 0}, cost: $${data?.cost ?? 0})`,
     );
 
     return updated;

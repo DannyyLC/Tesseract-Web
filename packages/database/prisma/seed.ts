@@ -381,7 +381,6 @@ async function main() {
   console.log(`✅ Usuario creado: ${user3.name} (${user3.email})`);
   console.log(`   Password: ${user3Password}\n`);
 
-
   // ============================================
   // CREAR TOOL CATALOG (Catálogo de herramientas)
   // ============================================

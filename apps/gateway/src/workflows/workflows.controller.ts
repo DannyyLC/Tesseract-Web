@@ -46,7 +46,7 @@ export class WorkflowsController {
   constructor(
     private readonly workflowsService: WorkflowsService,
     private readonly executionsService: ExecutionsService,
-  ) { }
+  ) {}
 
   /**
    * POST /workflows
