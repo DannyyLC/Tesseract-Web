@@ -9,7 +9,7 @@ import {
   UpdateSettingsDto,
 } from './dto';
 import { randomBytes } from 'crypto';
-import { OrganizationDashboardDto } from './dto/organization-dashboard.dto';
+import { DashboardOrganizationDto } from './dto/dashboard-organization.dto';
 import { Organization } from '@workflow-platform/database';
 import { DashboardSubscriptionDto } from './dto/dashboard-subscription.dto';
 
@@ -588,8 +588,8 @@ export class OrganizationsService {
     };
   }
 
-  async getDashboardData(organizationId: string): Promise<OrganizationDashboardDto | null> {
-    let organizationDataForDashboard: OrganizationDashboardDto | null = null;
+  async getDashboardData(organizationId: string): Promise<DashboardOrganizationDto | null> {
+    let organizationDataForDashboard: DashboardOrganizationDto | null = null;
 
     organizationDataForDashboard = await this.prisma.organization.findUnique({
       where: { id: organizationId },
@@ -611,7 +611,10 @@ export class OrganizationsService {
       );
       return null;
     }
-    return organizationDataForDashboard;
+    return {
+      ...organizationDataForDashboard,
+      subscriptionData: await this.getSubscriptionData(organizationId),
+    };
   }
 
   async getSubscriptionData(organizationId: string): Promise<DashboardSubscriptionDto | null> {

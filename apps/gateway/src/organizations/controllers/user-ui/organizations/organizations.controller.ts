@@ -1,6 +1,6 @@
 import { JwtAuthGuard } from '../../../../auth/guards/jwt-auth.guard';
 import { CreateOrganizationDto, UpdateOrganizationDto } from '../../../dto';
-import { OrganizationDashboardDto } from '../../../dto/organization-dashboard.dto';
+import { DashboardOrganizationDto } from '../../../dto/dashboard-organization.dto';
 import { OrganizationsService } from '../../../organizations.service';
 import { Body, Controller, Get, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
@@ -17,8 +17,8 @@ export class OrganizationsController {
   async getDashboardData(
     @Res() res: Response,
     @Param('id') id: string,
-  ): Promise<Response<ApiResponseBuilder<OrganizationDashboardDto>>> {
-    const apiResponse = new ApiResponseBuilder<OrganizationDashboardDto>();
+  ): Promise<Response<ApiResponseBuilder<DashboardOrganizationDto>>> {
+    const apiResponse = new ApiResponseBuilder<DashboardOrganizationDto>();
     const result = await this.organizationsService.getDashboardData(id);
 
     if (!result) {

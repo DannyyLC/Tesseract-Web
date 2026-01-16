@@ -4,11 +4,15 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { InviteUserDto, UpdateProfileDto, UserFiltersDto, CreateUserDto } from './dto';
 import { User, Organization, Prisma } from '@prisma/client';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
+import { DashboardUsersDto } from './dto/dashboard-users.dto';
 
 interface PaginatedUsers {
   data: User[];
@@ -43,6 +47,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
+     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
   // ==================== CREATE ====================
@@ -751,5 +756,37 @@ export class UsersService {
     }
 
     return org;
+  }
+
+  async getDashboardData(organizationId: string): Promise<DashboardUsersDto> {
+    const organizationDataForDashboard = await this.prisma.user.findMany({
+      where: { organizationId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        emailVerified: true,
+        twoFactorEnabled: true,
+        lastLoginAt: true,
+        createdAt: true,
+        avatar: true,
+        timezone: true,
+      },
+    });
+    if (organizationDataForDashboard.length === 0) {
+      this.logger.error(
+        `getDashboardData method >> Organization not found for ID: ${organizationId}`,
+      );
+    }
+    return {
+      totalUsers: organizationDataForDashboard.length,
+      activeUsers: organizationDataForDashboard.filter(user => user.isActive).length,
+      invitedUsers: organizationDataForDashboard.filter(user => !user.emailVerified).length,
+      pendingUsers: organizationDataForDashboard.filter(user => !user.isActive).length,
+      users: organizationDataForDashboard
+    };
+    
   }
 }
