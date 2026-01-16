@@ -1,6 +1,6 @@
 import { IsOptional, IsEnum, IsBoolean, IsString, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
-import { UserRole } from './user-role.enum';
+import { UserRole } from '@workflow-automation/shared-types';
 
 export class UserFiltersDto {
   @IsEnum(UserRole)

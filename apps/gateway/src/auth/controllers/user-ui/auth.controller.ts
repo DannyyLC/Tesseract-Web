@@ -11,15 +11,15 @@ import {
   Query,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { CurrentUser } from './decorators/current-user.decorator';
-import { UserPayload } from '../common/types/jwt-payload.type';
-import { TempTokenGuard } from './guards/temp-token.guard';
+import { AuthService } from '../../auth.service';
+import { LoginDto } from '../../dto/login.dto';
+import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
+import { CurrentUser } from '../../decorators/current-user.decorator';
+import { UserPayload } from '../../../common/types/jwt-payload.type';
+import { TempTokenGuard } from '../../guards/temp-token.guard';
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { HttpStatusCode } from 'axios';
-import { EmailService } from '../notifications/email/email.service';
+import { EmailService } from '../../../notifications/email/email.service';
 
 /**
  * AuthController maneja todos los endpoints de autenticación
@@ -46,7 +46,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   /**
    * POST /auth/login

@@ -1,6 +1,6 @@
 import { CreditsService } from '../../credits.service';
 import { Controller, Get, Param, Res, UseGuards } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { DashboardCreditsDto } from '../../dto/dashboard-credits.dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 @Controller('credits')
 @UseGuards(JwtAuthGuard)
 export class CreditsController {
-  constructor(private readonly creditsService: CreditsService) {}
+  constructor(private readonly creditsService: CreditsService) { }
 
   @Get('dashboard/:organizationId')
   async getDashboardData(
