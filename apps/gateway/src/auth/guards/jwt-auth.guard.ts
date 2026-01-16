@@ -1,19 +1,10 @@
 import { Injectable, ExecutionContext } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
-import { API_KEY_ONLY } from '../decorators/api-key-only.decorator';
 
 /**
  * Guard para proteger rutas que requieren autenticación JWT
  *
- * 🔐 Lee el accessToken desde la cookie httpOnly (NO desde el header)
- *
- * Uso:
- * @UseGuards(JwtAuthGuard)
- * @Get('profile')
- * getProfile(@CurrentUser() user: UserPayload) {
- *   return user;
- * }
+ * Lee el accessToken desde la cookie httpOnly (NO desde el header)
  *
  * Flujo:
  * 1. Extrae el token de la cookie 'accessToken'
@@ -28,18 +19,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
    * Extrae el token de la cookie y lo prepara para Passport
    */
   canActivate(context: ExecutionContext) {
-    // Verificar si el endpoint está marcado como API Key Only
-    const reflector = new Reflector();
-    const isApiKeyOnly = reflector.getAllAndOverride<boolean>(API_KEY_ONLY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-
-    if (isApiKeyOnly) {
-      // Si es API Key only, saltarse la autenticación JWT
-      return true;
-    }
-
     const request = context.switchToHttp().getRequest();
 
     // Extraer accessToken de la cookie

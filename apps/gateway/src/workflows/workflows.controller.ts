@@ -23,7 +23,6 @@ import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { ApiKeyOnly } from '../auth/decorators/api-key-only.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CurrentApiKey } from '../auth/decorators/current-api-key.decorator';
 import { UserPayload } from '../common/types/jwt-payload.type';
@@ -46,7 +45,7 @@ export class WorkflowsController {
   constructor(
     private readonly workflowsService: WorkflowsService,
     private readonly executionsService: ExecutionsService,
-  ) {}
+  ) { }
 
   /**
    * POST /workflows
@@ -113,7 +112,6 @@ export class WorkflowsController {
    *   X-API-Key: ak_live_xxx...
    */
   @Post(':id/execute')
-  @ApiKeyOnly() // Marca que este endpoint solo usa API Key, no JWT
   @UseGuards(ApiKeyGuard)
   @HttpCode(HttpStatus.CREATED)
   async execute(
@@ -156,7 +154,6 @@ export class WorkflowsController {
    * Retorna: Content-Type: text/event-stream
    */
   @Post(':id/execute/stream')
-  @ApiKeyOnly()
   @UseGuards(ApiKeyGuard)
   @Header('Content-Type', 'text/event-stream')
   @Header('Cache-Control', 'no-cache')
