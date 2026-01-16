@@ -1,21 +1,23 @@
 export class ApiKeyResponseDto {
   id: string;
   name: string;
+  description?: string;
   apiKey: string;
-  keyPrefix: string;
   isActive: boolean;
-  scopes?: any;
-  expiresAt: Date;
-  lastUsedAt: Date;
-  createsAt: Date;
+  workflowId: string;
+  expiresAt?: Date;
+  lastUsedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export class ApiKeyListDto {
   id: string;
   name: string;
-  keyPrefix: string;
+  description?: string;
   isActive: boolean;
-  lastUsedAt: Date;
-  expiresAt: Date;
-  createsAt: Date;
+  lastUsedAt?: Date;
+  expiresAt?: Date;
+  workflowId: string;
+  createdAt: Date;
 }

@@ -1,11 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  MaxLength,
-  IsNotEmpty,
-  IsArray,
-  IsDateString,
-} from 'class-validator';
+import { IsString, IsOptional, MaxLength, IsNotEmpty, IsDateString } from 'class-validator';
 
 export class CreateApiKeyDto {
   @IsString()
@@ -18,10 +11,9 @@ export class CreateApiKeyDto {
   @MaxLength(500)
   description?: string;
 
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  scopes?: string[];
+  @IsString()
+  @IsNotEmpty()
+  workflowId: string;
 
   @IsOptional()
   @IsDateString()

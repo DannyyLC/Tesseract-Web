@@ -1,22 +1,16 @@
-import * as bcrypt from 'bcrypt';
 import * as nodeCrypto from 'crypto';
 
 /**
- * Utilidades para manejar API Keys con bcrypt
+ * Utilidades para manejar API Keys con hashing determinista (SHA-256)
  */
 export class ApiKeyUtil {
   /**
-   * Número de rounds para bcrypt (10 es el estándar)
-   */
-  private static readonly SALT_ROUNDS = 10;
-
-  /**
-   * Hashea un API Key usando bcrypt
+   * Hashea un API Key usando SHA-256 (determinista para búsqueda rápida)
    * @param apiKey - El API key en texto plano
-   * @returns Hash del API key
+   * @returns Hash del API key en formato hexadecimal
    */
   static async hash(apiKey: string): Promise<string> {
-    return bcrypt.hash(apiKey, this.SALT_ROUNDS);
+    return nodeCrypto.createHash('sha256').update(apiKey).digest('hex');
   }
 
   /**
@@ -26,17 +20,8 @@ export class ApiKeyUtil {
    * @returns true si coinciden, false si no
    */
   static async compare(apiKey: string, hash: string): Promise<boolean> {
-    return bcrypt.compare(apiKey, hash);
-  }
-
-  /**
-   * Extrae el prefijo del API Key para búsqueda rápida
-   * Los primeros 10 caracteres del API key
-   * @param apiKey - El API key completo
-   * @returns Prefijo del API key
-   */
-  static extractPrefix(apiKey: string): string {
-    return apiKey.substring(0, 16);
+    const incomingHash = await this.hash(apiKey);
+    return incomingHash === hash;
   }
 
   /**
@@ -46,32 +31,7 @@ export class ApiKeyUtil {
    * @returns API Key generado
    */
   static generate(env: 'live' | 'test' = 'live'): string {
-    const randomPart = this.generateRandomString(32);
+    const randomPart = nodeCrypto.randomBytes(32).toString('hex');
     return `ak_${env}_${randomPart}`;
-  }
-
-  /**
-   * Genera una cadena aleatoria segura
-   * @param length - Longitud de la cadena
-   * @returns Cadena aleatoria
-   */
-  private static generateRandomString(length: number): string {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    const randomArray = new Uint8Array(length);
-
-    // Usar crypto del navegador/Node.js
-    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-      crypto.getRandomValues(randomArray);
-    } else {
-      // Fallback para Node.js antiguo
-      nodeCrypto.randomFillSync(randomArray);
-    }
-
-    for (let i = 0; i < length; i++) {
-      result += chars[randomArray[i] % chars.length];
-    }
-
-    return result;
   }
 }

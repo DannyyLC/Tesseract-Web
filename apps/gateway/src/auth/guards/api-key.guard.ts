@@ -16,10 +16,9 @@ import { ApiKeyUtil } from '../utils/api-key.util';
  *
  * Flujo:
  * 1. Extrae el API Key del header
- * 2. Busca API Keys por prefijo (optimización)
- * 3. Compara con bcrypt cada candidato
- * 4. Valida que la organización esté activa
- * 5. Inyecta el ApiKeyPayload en el request
+ * 2. Busca API Key directamente por su hash (O(1))
+ * 3. Valida que la organización esté activa
+ * 4. Inyecta el ApiKeyPayload en el request
  */
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
@@ -37,17 +36,20 @@ export class ApiKeyGuard implements CanActivate {
     }
 
     try {
-      // 1. Extraer prefijo para búsqueda rápida
-      const prefix = apiKey.substring(0, 16);
+      // Hashear el API Key recibida (SHA-256 es determinista)
+      const keyHash = await ApiKeyUtil.hash(apiKey);
 
-      // 2. Buscar API Keys candidatas por prefijo
-      const apiKeyCandidates = await this.prisma.apiKey.findMany({
+      // Buscar API Key directamente por su hash (O(1))
+      const matchedApiKey = await this.prisma.apiKey.findUnique({
         where: {
-          keyPrefix: prefix,
-          isActive: true,
-          deletedAt: null,
+          keyHash: keyHash,
         },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          isActive: true,
+          deletedAt: true,
+          workflowId: true,
           organization: {
             select: {
               id: true,
@@ -61,31 +63,12 @@ export class ApiKeyGuard implements CanActivate {
         },
       });
 
-      if (apiKeyCandidates.length === 0) {
-        this.logger.warn(`API key inválido: ${prefix}...`);
+      if (!matchedApiKey || !matchedApiKey.isActive || matchedApiKey.deletedAt) {
+        this.logger.warn(`API key inválido, inactivo o eliminado`);
         throw new UnauthorizedException('API key inválido');
       }
 
-      // 3. Comparar con bcrypt cada candidato
-      let matchedApiKey = null;
-      for (const candidate of apiKeyCandidates) {
-        this.logger.debug(`Comparando API Key recibida con candidato ID: ${candidate.id}`);
-        const isMatch = await ApiKeyUtil.compare(apiKey, candidate.keyHash);
-        this.logger.debug(`Resultado de comparación: ${isMatch}`);
-        if (isMatch) {
-          matchedApiKey = candidate;
-          break;
-        }
-      }
-
-      if (!matchedApiKey) {
-        this.logger.warn(`API key inválido: ${prefix}...`);
-        this.logger.debug(`Candidatos encontrados: ${apiKeyCandidates.length}`);
-        this.logger.debug(`API Key recibida (primeros 20 chars): ${apiKey.substring(0, 20)}...`);
-        throw new UnauthorizedException('API key inválido');
-      }
-
-      // 4. Validar la organización
+      // Validar la organización
       const organization = matchedApiKey.organization;
 
       if (!organization) {
@@ -103,7 +86,7 @@ export class ApiKeyGuard implements CanActivate {
         throw new UnauthorizedException('Organización eliminada');
       }
 
-      // 5. Actualizar lastUsedAt del API Key
+      // Actualizar lastUsedAt del API Key
       this.prisma.apiKey
         .update({
           where: { id: matchedApiKey.id },
@@ -114,17 +97,17 @@ export class ApiKeyGuard implements CanActivate {
           this.logger.warn('Error actualizando lastUsedAt', err);
         });
 
-      // 6. Preparar el payload del API Key
+      // Preparar el payload del API Key
       const apiKeyPayload: ApiKeyPayload = {
         apiKeyId: matchedApiKey.id,
         apiKeyName: matchedApiKey.name,
         organizationId: organization.id,
         organizationName: organization.name,
         plan: organization.plan,
-        scopes: matchedApiKey.scopes as string[] | undefined,
+        workflowId: matchedApiKey.workflowId,
       };
 
-      // 7. Inyectar en el request
+      // Inyectar en el request
       (request as any).apiKey = apiKeyPayload;
 
       this.logger.debug(`API Key autenticada: ${matchedApiKey.name} (${organization.name})`);

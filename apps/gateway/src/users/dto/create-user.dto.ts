@@ -29,8 +29,8 @@ export class CreateUserDto {
   password: string;
 
   @IsString()
-  @IsIn(['viewer', 'editor', 'admin', 'owner'], {
-    message: 'Role must be one of: viewer, editor, admin, owner',
+  @IsIn(['viewer', 'admin', 'owner'], {
+    message: 'Role must be one of: viewer, admin, owner',
   })
   @IsOptional()
   role?: string;

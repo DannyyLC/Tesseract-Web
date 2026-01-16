@@ -1,11 +1,14 @@
-import { JwtAuthGuard } from '../../../../auth/guards/jwt-auth.guard';
-import { CreateOrganizationDto, UpdateOrganizationDto } from '../../../dto';
-import { DashboardOrganizationDto } from '../../../dto/dashboard-organization.dto';
-import { OrganizationsService } from '../../../organizations.service';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import {
+  CreateOrganizationDto,
+  UpdateOrganizationDto,
+  DeactivateOrganizationDto,
+  DashboardOrganizationDto
+} from '../../dto';
+import { OrganizationsService } from '../../organizations.service';
 import { Body, Controller, Get, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { Response } from 'express';
-import { DeactivateOrganizationDto } from '../../../dto/deactivate-organization.dto';
 import { Organization } from '@workflow-platform/database';
 
 @Controller('organizations')

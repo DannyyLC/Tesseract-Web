@@ -1,9 +1,9 @@
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
-import { InvoiceService } from '../../../invoice.service';
+import { InvoiceService } from '../../invoice.service';
 import { Controller, Get, Param, Res, UseGuards } from '@nestjs/common';
 import { DashboardInvoiceDto } from '@/invoice/dto/dashboard-invoice.dto';
 import { Request, Response } from 'express';
-import { JwtAuthGuard } from '../../../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
 @Controller('invoice')
 @UseGuards(JwtAuthGuard)

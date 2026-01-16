@@ -27,7 +27,6 @@ interface UserStats {
   total: number;
   byRole: {
     viewer: number;
-    editor: number;
     admin: number;
     owner: number;
   };
@@ -113,7 +112,7 @@ export class UsersService {
         email: user.email,
         name: user.name,
         password: hashedPassword,
-        role: user.role ?? 'viewer',
+        role: (user.role as any) === 'super_admin' ? 'viewer' : (user.role ?? 'viewer'),
         organizationId: user.organizationId,
         isActive: user.isActive ?? true,
         emailVerified,
@@ -151,7 +150,7 @@ export class UsersService {
         email: data.email,
         name: data.name,
         password: hashedPassword,
-        role: data.role ?? 'viewer',
+        role: (data.role as any) === 'super_admin' ? 'viewer' : (data.role ?? 'viewer'),
         organizationId,
         isActive: false,
         emailVerified: false,
@@ -370,9 +369,11 @@ export class UsersService {
     // Validar jerarquía de roles
     this.validateRoleHierarchy(actor.role, targetUser.role, newRole);
 
-    // NO se puede asignar rol 'owner' (solo existe 1 owner)
-    if (newRole === 'owner') {
-      throw new ForbiddenException('Cannot assign owner role. Use transferOwnership instead.');
+    // NO se puede asignar rol 'super_admin' ni 'owner'
+    if (newRole === 'super_admin' || newRole === 'owner') {
+      throw new ForbiddenException(
+        `Cannot assign ${newRole} role. This role can only be assigned through system configuration.`,
+      );
     }
 
     // Actualizar rol
@@ -554,13 +555,12 @@ export class UsersService {
     // Transformar byRole a objeto
     const roleStats = byRole.reduce(
       (acc, item) => {
-        const role = item.role as 'viewer' | 'editor' | 'admin' | 'owner';
+        const role = item.role as 'viewer' | 'admin' | 'owner';
         acc[role] = item._count;
         return acc;
       },
-      { viewer: 0, editor: 0, admin: 0, owner: 0 } as {
+      { viewer: 0, admin: 0, owner: 0 } as {
         viewer: number;
-        editor: number;
         admin: number;
         owner: number;
       },
@@ -678,9 +678,9 @@ export class UsersService {
     targetNewRole: string,
   ): void {
     const hierarchy: Record<string, number> = {
+      super_admin: 5,
       owner: 4,
       admin: 3,
-      editor: 2,
       viewer: 1,
     };
 

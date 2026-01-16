@@ -1,5 +1,5 @@
 import { IsEmail, IsNotEmpty, IsString, MinLength, IsEnum, IsOptional } from 'class-validator';
-import { UserRole } from './user-role.enum';
+import { UserRole } from '@workflow-automation/shared-types';
 
 export class InviteUserDto {
   @IsEmail({}, { message: 'Invalid email format' })
@@ -12,7 +12,7 @@ export class InviteUserDto {
   name: string;
 
   @IsEnum(UserRole, {
-    message: 'Role must be one of: viewer, editor, admin',
+    message: 'Role must be one of: viewer, admin, owner',
   })
   @IsOptional()
   role?: UserRole;

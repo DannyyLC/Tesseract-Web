@@ -237,7 +237,6 @@ export class ExecutionsService {
           select: {
             id: true,
             name: true,
-            keyPrefix: true,
           },
         },
       },
@@ -299,7 +298,6 @@ export class ExecutionsService {
           select: {
             id: true,
             name: true,
-            keyPrefix: true,
           },
         },
         conversation: {
@@ -393,7 +391,6 @@ export class ExecutionsService {
           select: {
             id: true,
             name: true,
-            keyPrefix: true,
           },
         },
       },
@@ -512,7 +509,6 @@ export class ExecutionsService {
           select: {
             id: true,
             name: true,
-            keyPrefix: true,
           },
         },
       },
@@ -645,7 +641,6 @@ export class ExecutionsService {
           select: {
             id: true,
             name: true,
-            keyPrefix: true,
           },
         },
         conversation: {
@@ -951,7 +946,6 @@ export class ExecutionsService {
           select: {
             id: true,
             name: true,
-            keyPrefix: true,
           },
         },
         user: {
@@ -969,7 +963,6 @@ export class ExecutionsService {
       string,
       {
         name: string;
-        keyPrefix: string;
         total: number;
         successful: number;
         failed: number;
@@ -994,7 +987,6 @@ export class ExecutionsService {
       if (e.apiKeyId && e.apiKey) {
         const existing = byApiKey.get(e.apiKeyId) ?? {
           name: e.apiKey.name,
-          keyPrefix: e.apiKey.keyPrefix,
           total: 0,
           successful: 0,
           failed: 0,

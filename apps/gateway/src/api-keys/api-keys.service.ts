@@ -8,6 +8,7 @@ import { PrismaService } from '../database/prisma.service';
 import { ApiKeyUtil } from '../auth/utils/api-key.util';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { UpdateApiKeyDto } from './dto/update-api-key.dto';
+import { ApiKeyResponseDto, ApiKeyListDto } from './dto/response-api-key.dto';
 import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
 
 @Injectable()
@@ -16,10 +17,9 @@ export class ApiKeysService {
 
   /**
    * Crea un nuevo API Key para una organización
-   * Retorna el API Key en texto plano (ÚNICA VEZ)
    */
-  async create(organizationId: string, dto: CreateApiKeyDto) {
-    // 1. Verificar que la organización existe y obtener límite de API Keys
+  async create(organizationId: string, dto: CreateApiKeyDto): Promise<ApiKeyResponseDto> {
+    // Verificar que la organización existe y obtener límite de API Keys
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
       include: {
@@ -33,7 +33,7 @@ export class ApiKeysService {
       throw new NotFoundException('Organización no encontrada');
     }
 
-    // 2. Verificar límite de API Keys según el plan
+    // Verificar límite de API Keys según el plan
     const planConfig = PLANS[organization.plan as SubscriptionPlan];
     const maxApiKeys = planConfig.limits.maxApiKeys;
 
@@ -45,74 +45,66 @@ export class ApiKeysService {
       );
     }
 
-    // 3. Generar API Key aleatorio
+    // Generar API Key aleatorio
     const apiKey = ApiKeyUtil.generate('live');
 
-    // 4. Extraer prefijo para búsqueda rápida
-    const keyPrefix = ApiKeyUtil.extractPrefix(apiKey);
-
-    // 5. Hashear el API Key con bcrypt
+    // Hashear el API Key con SHA-256
     const keyHash = await ApiKeyUtil.hash(apiKey);
 
-    // 6. Guardar en la base de datos
+    // Guardar en la base de datos
     const created = await this.prisma.apiKey.create({
       data: {
         name: dto.name,
         description: dto.description,
         keyHash,
-        keyPrefix,
         organizationId,
-        scopes: dto.scopes ?? undefined, // Usar undefined en lugar de null para JSON
+        workflowId: dto.workflowId,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
         isActive: true,
       },
     });
 
-    // 7. Retornar con el API Key en texto plano (SOLO ESTA VEZ)
+    // Retornar DTO
     return {
       id: created.id,
       name: created.name,
-      description: created.description,
-      apiKey, // ⚠️ Este es el valor completo, solo se muestra aquí
-      keyPrefix: created.keyPrefix,
+      description: created.description ?? undefined,
+      apiKey,
       isActive: created.isActive,
-      scopes: created.scopes,
-      expiresAt: created.expiresAt,
+      workflowId: created.workflowId,
+      expiresAt: created.expiresAt ?? undefined,
+      lastUsedAt: created.lastUsedAt ?? undefined,
       createdAt: created.createdAt,
+      updatedAt: created.updatedAt,
     };
   }
 
   /**
    * Lista todos los API Keys de una organización
-   * NO incluye el valor completo del API Key (solo el prefijo)
    */
-  async findAll(organizationId: string) {
+  async findAll(organizationId: string): Promise<ApiKeyListDto[]> {
     const keys = await this.prisma.apiKey.findMany({
       where: {
         organizationId,
-        deletedAt: null, // Solo mostrar API Keys no eliminados
+        deletedAt: null,
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    // Mapear para NO exponer el hash ni el API Key completo
-    return keys.map((key: any) => ({
+    return keys.map((key) => ({
       id: key.id,
       name: key.name,
-      description: key.description,
-      keyPrefix: key.keyPrefix, // Solo muestra "ak_live_ab..."
+      description: key.description ?? undefined,
       isActive: key.isActive,
-      lastUsedAt: key.lastUsedAt,
-      expiresAt: key.expiresAt,
-      scopes: key.scopes,
+      lastUsedAt: key.lastUsedAt ?? undefined,
+      expiresAt: key.expiresAt ?? undefined,
+      workflowId: key.workflowId,
       createdAt: key.createdAt,
-      updatedAt: key.updatedAt,
     }));
   }
 
   /**
    * Elimina un API Key (soft delete)
-   * Marca deletedAt y desactiva el API Key
    */
   async delete(organizationId: string, apiKeyId: string) {
     // 1. Buscar el API Key
@@ -150,10 +142,14 @@ export class ApiKeysService {
   }
 
   /**
-   * Actualiza un API Key (nombre, descripción y/o estado activo)
+   * Actualiza un API Key
    */
-  async update(organizationId: string, apiKeyId: string, dto: UpdateApiKeyDto) {
-    // 1. Buscar el API Key
+  async update(
+    organizationId: string,
+    apiKeyId: string,
+    dto: UpdateApiKeyDto,
+  ): Promise<ApiKeyListDto> {
+    // Buscar el API Key
     const key = await this.prisma.apiKey.findUnique({
       where: { id: apiKeyId },
     });
@@ -162,61 +158,47 @@ export class ApiKeysService {
       throw new NotFoundException('API Key no encontrada');
     }
 
-    // 2. Verificar que pertenece a la organización (seguridad)
+    // Verificar que pertenece a la organización (seguridad)
     if (key.organizationId !== organizationId) {
       throw new ForbiddenException('No tienes permiso para modificar esta API Key');
     }
 
-    // 3. Verificar que no esté eliminada
+    // Verificar que no esté eliminada
     if (key.deletedAt) {
       throw new ForbiddenException('No puedes modificar una API Key eliminada');
     }
 
-    // 4. Preparar datos a actualizar (solo los campos proporcionados)
+    // Preparar datos a actualizar
     const dataToUpdate: any = {};
-    if (dto.name !== undefined) {
-      dataToUpdate.name = dto.name;
-    }
-    if (dto.description !== undefined) {
-      dataToUpdate.description = dto.description;
-    }
-    if (dto.isActive !== undefined) {
-      dataToUpdate.isActive = dto.isActive;
-    }
+    if (dto.name !== undefined) dataToUpdate.name = dto.name;
+    if (dto.description !== undefined) dataToUpdate.description = dto.description;
+    if (dto.isActive !== undefined) dataToUpdate.isActive = dto.isActive;
 
-    // 5. Si no hay nada que actualizar, retornar error
     if (Object.keys(dataToUpdate).length === 0) {
       throw new BadRequestException('No se proporcionaron campos para actualizar');
     }
 
-    // 6. Actualizar en la base de datos
     const updated = await this.prisma.apiKey.update({
       where: { id: apiKeyId },
       data: dataToUpdate,
     });
 
     return {
-      success: true,
-      apiKey: {
-        id: updated.id,
-        name: updated.name,
-        description: updated.description,
-        keyPrefix: updated.keyPrefix,
-        isActive: updated.isActive,
-        lastUsedAt: updated.lastUsedAt,
-        expiresAt: updated.expiresAt,
-        scopes: updated.scopes,
-        createdAt: updated.createdAt,
-        updatedAt: updated.updatedAt,
-      },
-      message: 'API Key actualizada exitosamente',
+      id: updated.id,
+      name: updated.name,
+      description: updated.description ?? undefined,
+      isActive: updated.isActive,
+      lastUsedAt: updated.lastUsedAt ?? undefined,
+      expiresAt: updated.expiresAt ?? undefined,
+      workflowId: updated.workflowId,
+      createdAt: updated.createdAt,
     };
   }
 
   /**
-   * Obtiene un API Key específico (sin exponer el valor completo)
+   * Obtiene un API Key específico
    */
-  async findOne(organizationId: string, apiKeyId: string) {
+  async findOne(organizationId: string, apiKeyId: string): Promise<ApiKeyListDto> {
     const key = await this.prisma.apiKey.findUnique({
       where: { id: apiKeyId },
     });
@@ -229,19 +211,15 @@ export class ApiKeysService {
       throw new ForbiddenException('No tienes permiso para ver esta API Key');
     }
 
-    // No exponer el hash ni el API Key completo
     return {
       id: key.id,
       name: key.name,
-      description: key.description,
-      keyPrefix: key.keyPrefix,
+      description: key.description ?? undefined,
       isActive: key.isActive,
-      lastUsedAt: key.lastUsedAt,
-      expiresAt: key.expiresAt,
-      scopes: key.scopes,
+      lastUsedAt: key.lastUsedAt ?? undefined,
+      expiresAt: key.expiresAt ?? undefined,
+      workflowId: key.workflowId,
       createdAt: key.createdAt,
-      updatedAt: key.updatedAt,
-      deletedAt: key.deletedAt,
     };
   }
 }

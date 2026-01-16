@@ -1,4 +1,3 @@
-export * from './user-role.enum';
 export * from './create-owner.dto';
 export * from './create-user.dto';
 export * from './invite-user.dto';
