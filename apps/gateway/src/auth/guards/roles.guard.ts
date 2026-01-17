@@ -23,7 +23,7 @@ import { UserPayload } from '../../common/types/jwt-payload.type';
 export class RolesGuard implements CanActivate {
   private readonly logger = new Logger(RolesGuard.name);
 
-  constructor(private reflector: Reflector) { }
+  constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
     // Obtener roles requeridos del decorador @Roles()

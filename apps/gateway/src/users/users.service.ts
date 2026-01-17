@@ -46,7 +46,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
-     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
   // ==================== CREATE ====================
@@ -782,11 +782,10 @@ export class UsersService {
     }
     return {
       totalUsers: organizationDataForDashboard.length,
-      activeUsers: organizationDataForDashboard.filter(user => user.isActive).length,
-      invitedUsers: organizationDataForDashboard.filter(user => !user.emailVerified).length,
-      pendingUsers: organizationDataForDashboard.filter(user => !user.isActive).length,
-      users: organizationDataForDashboard
+      activeUsers: organizationDataForDashboard.filter((user) => user.isActive).length,
+      invitedUsers: organizationDataForDashboard.filter((user) => !user.emailVerified).length,
+      pendingUsers: organizationDataForDashboard.filter((user) => !user.isActive).length,
+      users: organizationDataForDashboard,
     };
-    
   }
 }

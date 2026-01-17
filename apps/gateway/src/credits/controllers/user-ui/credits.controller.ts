@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 @Controller('credits')
 @UseGuards(JwtAuthGuard)
 export class CreditsController {
-  constructor(private readonly creditsService: CreditsService) { }
+  constructor(private readonly creditsService: CreditsService) {}
 
   @Get('dashboard/:organizationId')
   async getDashboardData(

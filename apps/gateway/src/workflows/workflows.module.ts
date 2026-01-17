@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { WorkflowsController } from './workflows.controller';
+import { WorkflowsController } from './controllers/user-ui/workflows.controller';
 import { WorkflowsService } from './workflows.service';
 import { ExecutionsModule } from '../executions/executions.module';
 import { OrganizationsModule } from '../organizations/organizations.module';

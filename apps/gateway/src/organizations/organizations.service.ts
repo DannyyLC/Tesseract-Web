@@ -7,9 +7,9 @@ import {
   UpdateOrganizationDto,
   UpdateOverageSettingsDto,
   UpdateSettingsDto,
+  DashboardOrganizationDto,
 } from './dto';
 import { randomBytes } from 'crypto';
-import { DashboardOrganizationDto } from './dto/dashboard-organization.dto';
 import { Organization } from '@workflow-platform/database';
 import { DashboardSubscriptionDto } from './dto/dashboard-subscription.dto';
 
@@ -589,9 +589,7 @@ export class OrganizationsService {
   }
 
   async getDashboardData(organizationId: string): Promise<DashboardOrganizationDto | null> {
-    let organizationDataForDashboard: DashboardOrganizationDto | null = null;
-
-    organizationDataForDashboard = await this.prisma.organization.findUnique({
+    const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
       select: {
         name: true,
@@ -605,15 +603,19 @@ export class OrganizationsService {
       },
     });
 
-    if (!organizationDataForDashboard) {
+    if (!organization) {
       this.logger.warn(
         `No se encontró la organización con ID: ${organizationId} para el dashboard`,
       );
       return null;
     }
+
+    const subscriptionData = await this.getSubscriptionData(organizationId);
+
     return {
-      ...organizationDataForDashboard,
-      subscriptionData: await this.getSubscriptionData(organizationId),
+      ...organization,
+      plan: organization.plan as SubscriptionPlan,
+      subscriptionData,
     };
   }
 

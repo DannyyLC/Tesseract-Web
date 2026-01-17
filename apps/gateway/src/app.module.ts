@@ -52,7 +52,7 @@ import { UsersModule } from './users/users.module';
     EventsModule,
     BillingModule,
     InvoiceModule,
-    UsersModule
+    UsersModule,
   ],
   controllers: [],
   providers: [],

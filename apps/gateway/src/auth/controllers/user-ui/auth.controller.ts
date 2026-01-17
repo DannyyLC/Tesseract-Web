@@ -46,7 +46,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly emailService: EmailService,
-  ) { }
+  ) {}
 
   /**
    * POST /auth/login

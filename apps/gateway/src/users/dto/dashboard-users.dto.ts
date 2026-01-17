@@ -1,12 +1,9 @@
-
-
 export interface DashboardUsersDto {
   totalUsers: number;
   activeUsers: number;
   invitedUsers: number;
   pendingUsers: number;
   users: DashboardUserDataDto[];
-
 }
 
 export interface DashboardUserDataDto {

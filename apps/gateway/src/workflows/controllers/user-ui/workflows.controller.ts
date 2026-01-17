@@ -14,19 +14,17 @@ import {
   Header,
   StreamableFile,
 } from '@nestjs/common';
-import { WorkflowsService } from './workflows.service';
-import { ExecutionsService } from '../executions/executions.service';
-import { CreateWorkflowDto } from './dto/create-workflow.dto';
-import { UpdateWorkflowDto } from './dto/update-workflow.dto';
-import { ExecuteWorkflowDto } from './dto/execute-workflow.dto';
-import { ApiKeyGuard } from '../auth/guards/api-key.guard';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { CurrentApiKey } from '../auth/decorators/current-api-key.decorator';
-import { UserPayload } from '../common/types/jwt-payload.type';
-import { ApiKeyPayload } from '../common/types/api-key-payload.type';
+import { WorkflowsService } from '../../workflows.service';
+import { ExecutionsService } from '../../../executions/executions.service';
+import { CreateWorkflowDto, UpdateWorkflowDto, ExecuteWorkflowDto } from '../../dto';
+import { ApiKeyGuard } from '../../../auth/guards/api-key.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../auth/guards/roles.guard';
+import { Roles } from '../../../auth/decorators/roles.decorator';
+import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
+import { CurrentApiKey } from '../../../auth/decorators/current-api-key.decorator';
+import { UserPayload } from '../../../common/types/jwt-payload.type';
+import { ApiKeyPayload } from '../../../common/types/api-key-payload.type';
 import { UserRole } from '@workflow-automation/shared-types';
 
 /**
@@ -45,7 +43,7 @@ export class WorkflowsController {
   constructor(
     private readonly workflowsService: WorkflowsService,
     private readonly executionsService: ExecutionsService,
-  ) { }
+  ) {}
 
   /**
    * POST /workflows

@@ -3,7 +3,7 @@ import {
   CreateOrganizationDto,
   UpdateOrganizationDto,
   DeactivateOrganizationDto,
-  DashboardOrganizationDto
+  DashboardOrganizationDto,
 } from '../../dto';
 import { OrganizationsService } from '../../organizations.service';
 import { Body, Controller, Get, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
