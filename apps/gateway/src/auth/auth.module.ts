@@ -42,4 +42,4 @@ import { OrganizationsModule } from '../organizations/organizations.module';
   providers: [ApiKeyGuard, JwtAuthGuard, RolesGuard, JwtStrategy, AuthService],
   exports: [ApiKeyGuard, JwtAuthGuard, RolesGuard, AuthService, PassportModule],
 })
-export class AuthModule { }
+export class AuthModule {}

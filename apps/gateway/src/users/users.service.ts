@@ -47,7 +47,6 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
-    private readonly organizationsService: OrganizationsService,
   ) {}
 
   /**

@@ -1,9 +1,9 @@
-import { UsersService } from '../../../users.service';
-import { Body, Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
+import { UsersService } from '../../users.service';
+import { Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { DashboardUsersDto } from '../../../dto/dashboard-users.dto';
+import { DashboardUsersDto } from '../../dto/dashboard-users.dto';
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
-import { JwtAuthGuard } from '../../../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
 @Controller('users')
 export class UsersController {
