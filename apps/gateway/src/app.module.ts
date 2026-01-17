@@ -16,6 +16,8 @@ import 'winston-daily-rotate-file';
 import { BillingModule } from './billing/billing.module';
 import { InvoiceModule } from './invoice/invoice.module';
 import { UsersModule } from './users/users.module';
+import { Cron, ScheduleModule } from '@nestjs/schedule';
+import { CronJobsService } from './cron-jobs.service';
 
 @Module({
   imports: [
@@ -52,10 +54,13 @@ import { UsersModule } from './users/users.module';
     EventsModule,
     BillingModule,
     InvoiceModule,
-    UsersModule
+    UsersModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    CronJobsService
+  ],
   exports: [WinstonModule],
 })
 export class AppModule {}

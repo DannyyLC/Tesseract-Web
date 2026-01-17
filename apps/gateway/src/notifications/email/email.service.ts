@@ -1,16 +1,24 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
+import { StartVerificationFlowDto } from '../../auth/dto/start-verification-flow.dto';
+import { PrismaService } from '../../database/prisma.service';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
 
 @Injectable()
 export class EmailService {
   private transporter: nodemailer.Transporter;
   private emailVerificationTemplate: handlebars.TemplateDelegate;
 
-  constructor(private readonly jwtService: JwtService) {
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+  ) {
     this.transporter = nodemailer.createTransport(
       {
         host: process.env.SMTP_HOST ?? 'smtp-relay.brevo.com',
@@ -40,33 +48,34 @@ export class EmailService {
     return handlebars.compile(templateSource);
   }
 
-  async sendEmailVerificationEMail(userEmail: string) {
-    const token = this.generateVerificationToken(userEmail);
-    const verificationUrl = `${process.env.DOMAIN_BASE_URL}/auth/verify-email?token=${token}`;
-    await this.transporter.sendMail({
-      to: userEmail,
-      subject: 'Verificacion de Email',
-      html: this.emailVerificationTemplate({
-        verificationUrl,
-        name: userEmail,
-      }),
-    });
+  async sendVerificationCodeByEmail(
+    payload: StartVerificationFlowDto,
+  ): Promise<{ sentMessageInfo: nodemailer.SentMessageInfo | null; verificationCode: string }> {
+    const verificationCode = await this.generateVerificationCode();
+    let sentMessageInfo: nodemailer.SentMessageInfo = null;
+    try {
+      sentMessageInfo = await this.transporter.sendMail({
+        to: payload.email,
+        subject: 'Verificacion de Email',
+        html: this.emailVerificationTemplate({
+          verificationCode,
+          name: payload.userName,
+        }),
+      });
+    } catch (error) {
+      this.logger.error(
+        `startVerificationEmailFlow >> Error enviando email a ${payload.email}: ${error}`,
+      );
+      return { sentMessageInfo: null, verificationCode: verificationCode };
+    }
+
+    return { 
+      sentMessageInfo,
+      verificationCode
+    };
   }
 
-  private generateVerificationToken(payload: string): string {
-    return this.jwtService.sign(
-      { email: payload },
-      {
-        secret: process.env.JWT_EMAIL_VERIFICATION_SECRET ?? 'email-verification-secret',
-        expiresIn: (process.env.JWT_EMAIL_VERIFICATION_EXPIRES_IN ?? '30m') as any,
-      },
-    );
-  }
-
-  verifyEmailToken(token: string): string {
-    const email = this.jwtService.verify(token, {
-      secret: process.env.JWT_EMAIL_VERIFICATION_SECRET ?? 'email-verification-secret',
-    });
-    return email;
+  private async generateVerificationCode(): Promise<string> {
+    return Math.floor(100000 + Math.random() * 900000).toString();
   }
 }

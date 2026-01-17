@@ -16,11 +16,6 @@ export class CreateUserDto {
 
   @IsString()
   @IsNotEmpty()
-  @MinLength(2, { message: 'Name must be at least 2 characters long' })
-  name: string;
-
-  @IsString()
-  @IsNotEmpty()
   @MinLength(8, { message: 'Password must be at least 8 characters long' })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
     message:
@@ -28,22 +23,10 @@ export class CreateUserDto {
   })
   password: string;
 
-  @IsString()
-  @IsIn(['viewer', 'admin', 'owner'], {
-    message: 'Role must be one of: viewer, admin, owner',
-  })
-  @IsOptional()
-  role?: string;
-
-  @IsString()
-  @IsNotEmpty()
-  organizationId: string;
-
-  @IsBoolean()
-  @IsOptional()
-  isActive?: boolean = true;
-
-  @IsBoolean()
-  @IsOptional()
-  emailVerified?: boolean = false;
+  // @IsString()
+  // @IsIn(['viewer', 'admin', 'owner'], {
+  //   message: 'Role must be one of: viewer, admin, owner',
+  // })
+  // @IsOptional()
+  // role?: string;
 }

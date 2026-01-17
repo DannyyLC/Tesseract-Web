@@ -2,9 +2,9 @@ import {
   Injectable,
   ConflictException,
   UnauthorizedException,
-  Logger,
   NotFoundException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -17,6 +17,15 @@ import { UserPayload } from '../common/types/user-payload.type';
 import { SubscriptionPlan } from '@workflow-automation/shared-types';
 import * as speakeasy from 'speakeasy';
 import * as qrcode from 'qrcode';
+import { CreateUserDto } from '../users/dto';
+import { User } from '@workflow-platform/database';
+import { OrganizationsService } from '../organizations/organizations.service';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
+import { VerificationCodeDto } from './dto/verification-code.dto';
+import { StartVerificationFlowDto } from './dto/start-verification-flow.dto';
+import * as nodemailer from 'nodemailer';
+import { EmailService } from '../notifications/email/email.service';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
@@ -30,13 +39,15 @@ import * as qrcode from 'qrcode';
  */
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
   private readonly SALT_ROUNDS = 10;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly organizationsService: OrganizationsService,
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+    private readonly emailService: EmailService,
   ) {}
 
   //==============================================================
@@ -50,7 +61,7 @@ export class AuthService {
    * @returns Organization + User Owner + tokens JWT
    */
   async register(dto: RegisterDto) {
-    this.logger.log(`Registrando nueva organización: ${dto.email}`);
+    this.logger.info(`Registrando nueva organización: ${dto.email}`);
 
     // 1. Verificar que el email no esté registrado
     const existingUser = await this.prisma.user.findUnique({
@@ -111,7 +122,7 @@ export class AuthService {
       return { organization, user };
     });
 
-    this.logger.log(
+    this.logger.info(
       `Organización y usuario owner creados: ${result.organization.slug} - ${result.user.email}`,
     );
 
@@ -151,7 +162,7 @@ export class AuthService {
    * @returns qrCode, tempToken
    */
   async login(dto: LoginDto) {
-    this.logger.log(`Intentando login: ${dto.email}`);
+    this.logger.info(`Intentando login: ${dto.email}`);
 
     // 1. Validar credenciales y obtener usuario con organización
     const { user, organization } = await this.validateUser(dto.email, dto.password);
@@ -209,7 +220,7 @@ export class AuthService {
             },
           });
 
-          this.logger.log(`Sesión cerrada para: ${payload.email}`);
+          this.logger.info(`Sesión cerrada para: ${payload.email}`);
           return { message: 'Sesión cerrada exitosamente' };
         }
       }
@@ -239,7 +250,7 @@ export class AuthService {
       },
     });
 
-    this.logger.log(`Todas las sesiones cerradas para usuario: ${userId}`);
+    this.logger.info(`Todas las sesiones cerradas para usuario: ${userId}`);
     return { message: 'Sesión cerrada en todos los dispositivos' };
   }
 
@@ -476,7 +487,7 @@ export class AuthService {
         payload.plan,
       );
 
-      this.logger.log(`Tokens refrescados para: ${payload.email}`);
+      this.logger.info(`Tokens refrescados para: ${payload.email}`);
 
       return tokens;
     } catch (error) {
@@ -657,7 +668,7 @@ export class AuthService {
         data: { lastLoginAt: new Date() },
       });
 
-      this.logger.log(`Login exitoso: ${userPayload.email} (${userPayload.organizationName})`);
+      this.logger.info(`Login exitoso: ${userPayload.email} (${userPayload.organizationName})`);
       return {
         user: {
           id: userPayload.sub,
@@ -678,21 +689,122 @@ export class AuthService {
     }
   }
 
-  // ==================== EMAIL VERIFICATION ====================
-  async verifyEmail(token: string): Promise<boolean> {
+  async signupStepOne(payload: StartVerificationFlowDto): Promise<nodemailer.SentMessageInfo | null> {
+    const { sentMessageInfo, verificationCode } = await this.emailService.sendVerificationCodeByEmail(payload);
+    if (!verificationCode) {
+      this.logger.error(`authService >> signupStepOne >> Error enviando email a ${payload.email}`);
+      return null;
+    }
+    if (sentMessageInfo.success === false) {
+      this.logger.error(`authService >> signupStepOne >> Email no aceptado para ${payload.email}`);
+      return null;
+    }
+    
     try {
-      const email = this.jwtService.verify(token, {
-        secret: process.env.JWT_EMAIL_VERIFICATION_SECRET ?? 'email-verification-secret',
+      const verificationCodeRow = await this.prisma.userVerification.create({
+        data: {
+          email: payload.email,
+          organizationName: payload.organizationName,
+          userName: payload.userName,
+          verificationCode: verificationCode,
+          isEmailVerified: false,
+          expiresAt: new Date(Date.now() + 15 * 60 * 1000), // Expira en 15 minutos
+        },
       });
-      // Marcar el email como verificado en la base de datos
-      await this.prisma.user.updateMany({
-        where: { email: email.email },
-        data: { emailVerified: true },
-      });
-      return true;
+      if (!verificationCodeRow) {
+        this.logger.error(
+          `signupStepOne >> Error creando fila de verificación para email ${payload.email}`,
+        );
+        return null;
+      }
     } catch (error) {
-      this.logger.error('Error al verificar email', error);
+      this.logger.error(
+        `signupStepOne >> Error creando fila de verificación para email ${payload.email}: ${error}`,
+      );
+      return null;
+    }
+
+    return sentMessageInfo;
+  }
+
+  async signupStepTwo(data: VerificationCodeDto): Promise<boolean> {
+    const userVerificationRow = await this.prisma.userVerification.findFirst({
+      where: {
+        email: data.email,
+        verificationCode: data.verificationCode,
+        expiresAt: { gt: new Date() },
+      },
+    });
+    if (!userVerificationRow) {
       return false;
     }
+    const isUpdated = await this.prisma.userVerification.updateMany({
+      where: { email: data.email },
+      data: { isEmailVerified: true },
+    });
+    if (isUpdated.count === 0) {
+      this.logger.error(
+        `AuthService >>  SignupStep2 -> Error actualizando el estado de verificación para email ${data.email}`,
+      );
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Crear usuario
+   */
+  async signupStepThree(user: CreateUserDto): Promise<User | null> {
+    const userVerificationRow = await this.prisma.userVerification.findFirst({
+      where: {
+        email: user.email,
+        isEmailVerified: true,
+      },
+    });
+    let createdUser: User | null = null;
+    // Hashear password
+    const hashedPassword = await this.hashPassword(user.password);
+    if (userVerificationRow) {
+      try {
+        const createdOrganization = await this.organizationsService.create({
+          name: userVerificationRow.organizationName,
+          plan: SubscriptionPlan.STARTER,
+        });
+        if (!createdOrganization) {
+          this.logger.error(
+            `AuthService -> signupStep3 method >> Error creando organización para el usuario ${user.email}`,
+          );
+          return null;
+        }
+
+        // Crear usuario
+        createdUser = await this.prisma.user.create({
+          data: {
+            email: userVerificationRow.email,
+            name: userVerificationRow.userName,
+            password: hashedPassword,
+            role: 'owner',
+            organizationId: createdOrganization.id,
+            isActive: true,
+            emailVerified: userVerificationRow.isEmailVerified,
+          },
+        });
+
+        await this.prisma.userVerification.deleteMany({
+          where: { email: user.email },
+        });
+      } catch (error) {
+        this.logger.error(
+          `AuthService -> signupStep3 method >> Error creando usuario para el email ${user.email}: ${error}`,
+        );
+        return null;
+      }
+    } else {
+      this.logger.error(
+        `AuthService -> signupStep3 method >> No se encontró verificación de email para el usuario ${user.email}`,
+      );
+    }
+
+    return createdUser;
   }
 }

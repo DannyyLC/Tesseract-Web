@@ -19,8 +19,10 @@ import { UserPayload } from '../../../common/types/jwt-payload.type';
 import { TempTokenGuard } from '../../guards/temp-token.guard';
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { HttpStatusCode } from 'axios';
-import { EmailService } from '../../../notifications/email/email.service';
-
+import { StartVerificationFlowDto } from '../../../auth/dto/start-verification-flow.dto';
+import { VerificationCodeDto } from '../../../auth/dto/verification-code.dto';
+import * as nodemailer from 'nodemailer';
+import { CreateUserDto } from '../../../users/dto';
 /**
  * AuthController maneja todos los endpoints de autenticación
  *
@@ -44,8 +46,7 @@ import { EmailService } from '../../../notifications/email/email.service';
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly authService: AuthService,
-    private readonly emailService: EmailService,
+    private readonly authService: AuthService
   ) { }
 
   /**
@@ -348,18 +349,68 @@ export class AuthController {
     response.send(responseBuilder.build());
   }
 
-  @Post('send-verification-email')
-  async testEmail(@Body('email') email: string) {
-    return this.emailService.sendEmailVerificationEMail(email);
-  }
-
-  @Get('verify-email')
-  async verifyEmail(@Query('token') token: string) {
-    const isEmailVerified = await this.authService.verifyEmail(token);
-    if (isEmailVerified) {
-      // TODO send an event through sse
+  @Post('signup-step-one')
+  async signupStep1(@Body() payload: StartVerificationFlowDto, @Res() response: Response):
+  Promise<Response<ApiResponseBuilder<nodemailer.SentMessageInfo>>> {
+    const apiResponseBuilder = new ApiResponseBuilder<nodemailer.SentMessageInfo>();
+    const result = await this.authService.signupStepOne(payload);
+    if (result) {
+      apiResponseBuilder
+        .setSuccess(true)
+        .setStatusCode(HttpStatusCode.Ok)
+        .setData(result)
+        .setMessage('Verification email sent successfully');
+      response.statusCode = HttpStatus.OK;
+      return response.send(apiResponseBuilder.build());
     } else {
-      // otherwise not to do anything
+      apiResponseBuilder
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.InternalServerError)
+        .setMessage('Error sending verification email');
+      response.statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
+      return response.send(apiResponseBuilder.build());
     }
   }
+
+  @Post('signup-step-two')
+  async signupStep2(@Body() verificationCode: VerificationCodeDto, @Res() response: Response):
+  Promise<Response<ApiResponseBuilder<boolean>>> {
+    const responseBuilder = new ApiResponseBuilder<boolean>();
+    const isEmailVerified = await this.authService.signupStepTwo(verificationCode);
+    if (isEmailVerified) {
+      responseBuilder
+        .setSuccess(true)
+        .setStatusCode(HttpStatusCode.Ok)
+        .setData(true)
+        .setMessage('Email verified successfully');
+      response.statusCode = HttpStatus.OK;
+      return response.send(responseBuilder.build());
+    } else {
+      responseBuilder
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.BadRequest)
+        .setData(false)
+        .setMessage('Invalid or expired verification code');
+      response.statusCode = HttpStatus.BAD_REQUEST;
+      return response.send(responseBuilder.build());
+    }
+  }
+
+    @Post('signup-step-three')
+    async signupStep3(@Body() body: CreateUserDto, @Res() res: Response): Promise<Response> {
+      const apiResponse = new ApiResponseBuilder<any>();
+      const result = await this.authService.signupStepThree(body);
+      if (!result) {
+        apiResponse
+        .setStatusCode(400)
+        .setMessage('User registration failed');
+        return res.status(400).json(apiResponse.build());
+      } else {
+        apiResponse
+          .setStatusCode(201)
+          .setMessage('User registered successfully')
+          .setData(result);
+        return res.status(201).json(apiResponse.build());
+      }
+    }
 }

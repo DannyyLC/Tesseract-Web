@@ -1112,3 +1112,18 @@ model AuditLog {
   @@index([success])
   @@map("audit_logs")
 }
+
+model UserVerification {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  userName  String
+  organizationName String
+  verificationCode     String   @unique
+  isEmailVerified Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+  @@map("user_verifications")
+}

@@ -10,6 +10,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthService } from './auth.service';
 import { AuthController } from './controllers/user-ui/auth.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { OrganizationsModule } from '../organizations/organizations.module';
 
 /**
  * AuthModule agrupa toda la funcionalidad de autenticación
@@ -18,7 +19,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
   imports: [
     // Database para PrismaService
     DatabaseModule,
-
+    OrganizationsModule,
     // Passport con estrategia por defecto 'jwt'
     PassportModule.register({ defaultStrategy: 'jwt' }),
     NotificationsModule,

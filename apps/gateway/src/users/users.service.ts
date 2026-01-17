@@ -8,11 +8,11 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { AuthService } from '../auth/auth.service';
-import { InviteUserDto, UpdateProfileDto, UserFiltersDto, CreateUserDto } from './dto';
+import { InviteUserDto, UpdateProfileDto, UserFiltersDto, DashboardUsersDto } from './dto';
 import { User, Organization, Prisma } from '@prisma/client';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
-import { DashboardUsersDto } from './dto/dashboard-users.dto';
+import { OrganizationsService } from '../organizations/organizations.service';
 
 interface PaginatedUsers {
   data: User[];
@@ -46,83 +46,9 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
-     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+    private readonly organizationsService: OrganizationsService,
   ) {}
-
-  // ==================== CREATE ====================
-  /**
-   * Validar que un usuario se puede crear (sin crearlo)
-   * Útil para validaciones previas antes de formularios o procesos de registro
-   */
-  async validate(user: CreateUserDto): Promise<{ valid: boolean; message: string }> {
-    try {
-      // Validar que la organización existe y está activa
-      await this.validateOrganization(user.organizationId);
-
-      // Validar límite de usuarios del plan
-      await this.validateUserLimit(user.organizationId);
-
-      // Validar email único global
-      await this.authService.validateEmailUnique(user.email);
-
-      // Validar requisitos mínimos de contraseña
-      this.authService.validatePasswordStrength(user.password);
-
-      return {
-        valid: true,
-        message: 'User can be created successfully',
-      };
-    } catch (error) {
-      return {
-        valid: false,
-        message: (error as Error).message || 'Validation failed',
-      };
-    }
-  }
-
-  /**
-   * Crear usuario
-   */
-  async create(user: CreateUserDto): Promise<User> {
-    // Validar que la organización existe y está activa
-    await this.validateOrganization(user.organizationId);
-
-    // Validar límite de usuarios del plan
-    await this.validateUserLimit(user.organizationId);
-
-    // Validar email único global
-    await this.authService.validateEmailUnique(user.email);
-
-    // Validar requisitos mínimos de contraseña
-    this.authService.validatePasswordStrength(user.password);
-
-    // Hashear password
-    const hashedPassword = await this.authService.hashPassword(user.password);
-
-    const emailVerified = user.emailVerified ?? false;
-
-    // Generar token de verificación si es necesario
-    const { token, expiresAt } = emailVerified
-      ? { token: null, expiresAt: null }
-      : this.authService.generateTokenWithExpiry(24);
-
-    // Crear usuario
-    const createdUser = await this.prisma.user.create({
-      data: {
-        email: user.email,
-        name: user.name,
-        password: hashedPassword,
-        role: (user.role as any) === 'super_admin' ? 'viewer' : (user.role ?? 'viewer'),
-        organizationId: user.organizationId,
-        isActive: user.isActive ?? true,
-        emailVerified,
-        emailVerificationToken: token,
-        emailVerificationTokenExpires: expiresAt,
-      },
-    });
-
-    return createdUser;
-  }
 
   /**
    * Invitar usuario a la organización
@@ -782,11 +708,10 @@ export class UsersService {
     }
     return {
       totalUsers: organizationDataForDashboard.length,
-      activeUsers: organizationDataForDashboard.filter(user => user.isActive).length,
-      invitedUsers: organizationDataForDashboard.filter(user => !user.emailVerified).length,
-      pendingUsers: organizationDataForDashboard.filter(user => !user.isActive).length,
-      users: organizationDataForDashboard
+      activeUsers: organizationDataForDashboard.filter((user) => user.isActive).length,
+      invitedUsers: organizationDataForDashboard.filter((user) => !user.emailVerified).length,
+      pendingUsers: organizationDataForDashboard.filter((user) => !user.isActive).length,
+      users: organizationDataForDashboard,
     };
-    
   }
 }
