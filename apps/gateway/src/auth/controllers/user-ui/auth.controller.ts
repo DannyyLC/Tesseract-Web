@@ -23,6 +23,8 @@ import { StartVerificationFlowDto } from '../../../auth/dto/start-verification-f
 import { VerificationCodeDto } from '../../../auth/dto/verification-code.dto';
 import * as nodemailer from 'nodemailer';
 import { CreateUserDto } from '../../../users/dto';
+import { StepOneErrors, StepThreeErrors } from '../../dto/error-singup-codes.dto';
+import { User } from '@workflow-platform/database';
 /**
  * AuthController maneja todos los endpoints de autenticación
  *
@@ -351,10 +353,11 @@ export class AuthController {
 
   @Post('signup-step-one')
   async signupStep1(@Body() payload: StartVerificationFlowDto, @Res() response: Response):
-  Promise<Response<ApiResponseBuilder<nodemailer.SentMessageInfo>>> {
-    const apiResponseBuilder = new ApiResponseBuilder<nodemailer.SentMessageInfo>();
+  Promise<Response<ApiResponseBuilder<nodemailer.SentMessageInfo | keyof typeof StepOneErrors>>> {
+    const apiResponseBuilder = new ApiResponseBuilder<nodemailer.SentMessageInfo | keyof typeof StepOneErrors>();
     const result = await this.authService.signupStepOne(payload);
-    if (result) {
+    
+    if (typeof result !== 'string') {
       apiResponseBuilder
         .setSuccess(true)
         .setStatusCode(HttpStatusCode.Ok)
@@ -366,7 +369,8 @@ export class AuthController {
       apiResponseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.InternalServerError)
-        .setMessage('Error sending verification email');
+        .setMessage('Error sending verification email')
+        .setErrors([result]);
       response.statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
       return response.send(apiResponseBuilder.build());
     }
@@ -397,13 +401,14 @@ export class AuthController {
   }
 
     @Post('signup-step-three')
-    async signupStep3(@Body() body: CreateUserDto, @Res() res: Response): Promise<Response> {
-      const apiResponse = new ApiResponseBuilder<any>();
+    async signupStep3(@Body() body: CreateUserDto, @Res() res: Response): Promise<Response<ApiResponseBuilder<User | keyof typeof StepThreeErrors>>> {
+      const apiResponse = new ApiResponseBuilder<User | keyof typeof StepThreeErrors>();
       const result = await this.authService.signupStepThree(body);
-      if (!result) {
+      if (typeof result === 'string') {
         apiResponse
         .setStatusCode(400)
-        .setMessage('User registration failed');
+        .setMessage('User registration failed')
+        .setErrors([result]);
         return res.status(400).json(apiResponse.build());
       } else {
         apiResponse

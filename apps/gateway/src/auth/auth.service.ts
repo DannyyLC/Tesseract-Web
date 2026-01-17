@@ -26,6 +26,7 @@ import { VerificationCodeDto } from './dto/verification-code.dto';
 import { StartVerificationFlowDto } from './dto/start-verification-flow.dto';
 import * as nodemailer from 'nodemailer';
 import { EmailService } from '../notifications/email/email.service';
+import { StepOneErrors, StepOneErrorsType, StepThreeErrors } from './dto/error-singup-codes.dto';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
@@ -689,17 +690,49 @@ export class AuthService {
     }
   }
 
-  async signupStepOne(payload: StartVerificationFlowDto): Promise<nodemailer.SentMessageInfo | null> {
-    const { sentMessageInfo, verificationCode } = await this.emailService.sendVerificationCodeByEmail(payload);
-    if (!verificationCode) {
-      this.logger.error(`authService >> signupStepOne >> Error enviando email a ${payload.email}`);
-      return null;
+  async signupStepOne(
+    payload: StartVerificationFlowDto,
+  ): Promise<nodemailer.SentMessageInfo | keyof typeof StepOneErrors> {
+    const emailExists = await this.prisma.user.findUnique({
+      where: { email: payload.email },
+    });
+
+    if (emailExists) {
+      return StepOneErrors.EMAIL_ALREADY_EXISTS;
     }
+
+    const isVerificationInProgress = await this.prisma.userVerification.findFirst({
+      where: {
+        email: payload.email,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (isVerificationInProgress) {
+      return StepOneErrors.ALREADY_IN_PROGRESS;
+    } else {
+      try {
+        await this.prisma.userVerification.deleteMany({
+          where: {
+            email: payload.email,
+          },
+        });
+      } catch (error) {
+        this.logger.error(
+          `signupStepOne >> Error eliminando filas de verificación antiguas para email ${payload.email}: ${error}`,
+        );
+        return StepOneErrors.SERVER_INTERNAL_ERROR;
+      }
+    }
+
+    const { sentMessageInfo, verificationCode } =
+      await this.emailService.sendVerificationCodeByEmail(payload);
+
     if (sentMessageInfo.success === false) {
       this.logger.error(`authService >> signupStepOne >> Email no aceptado para ${payload.email}`);
-      return null;
+      return StepOneErrors.TRANSPORTER_ERROR;
     }
-    
+
     try {
       const verificationCodeRow = await this.prisma.userVerification.create({
         data: {
@@ -715,13 +748,13 @@ export class AuthService {
         this.logger.error(
           `signupStepOne >> Error creando fila de verificación para email ${payload.email}`,
         );
-        return null;
+        return StepOneErrors.SERVER_INTERNAL_ERROR;
       }
     } catch (error) {
       this.logger.error(
         `signupStepOne >> Error creando fila de verificación para email ${payload.email}: ${error}`,
       );
-      return null;
+      return StepOneErrors.SERVER_INTERNAL_ERROR;
     }
 
     return sentMessageInfo;
@@ -754,7 +787,7 @@ export class AuthService {
   /**
    * Crear usuario
    */
-  async signupStepThree(user: CreateUserDto): Promise<User | null> {
+  async signupStepThree(user: CreateUserDto): Promise<User | keyof typeof StepThreeErrors> {
     const userVerificationRow = await this.prisma.userVerification.findFirst({
       where: {
         email: user.email,
@@ -774,7 +807,7 @@ export class AuthService {
           this.logger.error(
             `AuthService -> signupStep3 method >> Error creando organización para el usuario ${user.email}`,
           );
-          return null;
+          return StepThreeErrors.SERVER_INTERNAL_ERROR;
         }
 
         // Crear usuario
@@ -797,12 +830,13 @@ export class AuthService {
         this.logger.error(
           `AuthService -> signupStep3 method >> Error creando usuario para el email ${user.email}: ${error}`,
         );
-        return null;
+        return StepThreeErrors.SERVER_INTERNAL_ERROR;
       }
     } else {
       this.logger.error(
         `AuthService -> signupStep3 method >> No se encontró verificación de email para el usuario ${user.email}`,
       );
+      return StepThreeErrors.EMAIL_NOT_VERIFIED;
     }
 
     return createdUser;
