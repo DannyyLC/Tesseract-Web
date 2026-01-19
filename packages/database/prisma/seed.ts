@@ -721,6 +721,7 @@ async function main() {
   const conversation1 = await prisma.conversation.create({
     data: {
       workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
       channel: 'dashboard',
@@ -738,6 +739,7 @@ async function main() {
   const conversation2 = await prisma.conversation.create({
     data: {
       workflowId: workflow3.id, // Análisis Estratégico
+      organizationId: org2.id, // TechStart
       userId: user2.id, // Admin TechStart
       title: 'Análisis de mercado Q3',
       channel: 'api',

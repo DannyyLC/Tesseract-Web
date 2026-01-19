@@ -12,7 +12,7 @@ import { PrismaService } from '../database/prisma.service';
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Busca o crea una conversación para la ejecución
@@ -43,10 +43,21 @@ export class ConversationsService {
       }
     }
 
+    // Obtener la organización del workflow para asignarla a la conversación
+    const workflow = await this.prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { organizationId: true },
+    });
+
+    if (!workflow) {
+      throw new Error(`Workflow no encontrado: ${workflowId}`);
+    }
+
     // Si no existe o no viene conversationId, crear una nueva
     const newConversation = await this.prisma.conversation.create({
       data: {
         workflowId,
+        organizationId: workflow.organizationId, // Asignación obligatoria
         channel,
         userId,
         endUserId,
@@ -141,6 +152,94 @@ export class ConversationsService {
   }
 
   /**
+   * Actualiza el estado de "Human in the Loop"
+   *
+   * @param conversationId - ID de la conversación
+   * @param isEnabled - true para pausar la IA y esperar humano, false para reactivar IA
+   */
+  async setHumanInTheLoop(conversationId: string, isEnabled: boolean) {
+    const conversation = await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        isHumanInTheLoop: isEnabled,
+      },
+    });
+
+    this.logger.log(
+      `Human in the Loop ${isEnabled ? 'ACTIVADO' : 'DESACTIVADO'} para conversación ${conversationId}`,
+    );
+
+    return conversation;
+  }
+
+  /**
+   * Obtiene una lista de conversaciones con filtros opcionales
+   * Incluye el último mensaje de cada conversación
+   *
+   * @param params Filtros y paginación
+   */
+  async findAll(params: {
+    skip?: number;
+    take?: number;
+    isHumanInTheLoop?: boolean;
+    status?: string;
+    organizationId: string; // Obligatorio para seguridad multi-tenant
+  }) {
+    const { skip, take, isHumanInTheLoop, status, organizationId } = params;
+
+    return this.prisma.conversation.findMany({
+      skip,
+      take,
+      where: {
+        isHumanInTheLoop,
+        status,
+        organizationId, // Filtrado directo y eficiente (usando el índice)
+      },
+      orderBy: { lastMessageAt: 'desc' },
+      include: {
+        // Incluir solo el último mensaje para mostrar en la lista
+        messages: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+        },
+        // Opcional: incluir datos básicos del usuario para mostrar nombre/avatar
+        user: {
+          select: { name: true, email: true, avatar: true },
+        },
+        endUser: {
+          select: { name: true, email: true, avatar: true, phoneNumber: true },
+        },
+      },
+    });
+  }
+
+  /**
+   * Actualiza el estado de la conversación (ej: active, closed)
+   *
+   * @param conversationId - ID de la conversación
+   * @param status - Nuevo estado
+   */
+  async updateStatus(conversationId: string, status: string) {
+    const data: any = { status };
+
+    // Si cerramos la conversación, actualizamos closedAt
+    if (status === 'closed') {
+      data.closedAt = new Date();
+    } else if (status === 'active') {
+      // Si la reactivamos, limpiamos closedAt
+      data.closedAt = null;
+    }
+
+    const conversation = await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data,
+    });
+
+    this.logger.log(`Estado de conversación ${conversationId} actualizado a: ${status}`);
+    return conversation;
+  }
+
+  /**
    * Actualiza mensajes y estadísticas en una sola operación (batch update)
    * Optimizado para reducir queries a la BD
    *
@@ -175,7 +274,7 @@ export class ConversationsService {
 
     this.logger.debug(
       `Batch update para conversación ${conversationId}: ` +
-        `+${messageIncrement} mensajes, +${tokens ?? 0} tokens, +$${cost ?? 0}`,
+      `+${messageIncrement} mensajes, +${tokens ?? 0} tokens, +$${cost ?? 0}`,
     );
   }
 }
