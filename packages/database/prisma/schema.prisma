@@ -423,10 +423,11 @@ model Conversation {
   channel String // 'dashboard', 'whatsapp', 'web', 'api'
   status  String  @default("active") // 'active', 'inactive', 'closed'
 
-  messageCount  Int       @default(0) // Contador de mensajes
-  totalTokens   Int       @default(0) // Suma de tokens usados
-  totalCost     Float     @default(0) // Costo acumulado en USD
-  lastMessageAt DateTime? // Último mensaje (para calcular inactividad)
+  messageCount     Int       @default(0) // Contador de mensajes
+  totalTokens      Int       @default(0) // Suma de tokens usados
+  totalCost        Float     @default(0) // Costo acumulado en USD
+  isHumanInTheLoop Boolean   @default(false) // Si true, la IA no responde, espera humano
+  lastMessageAt    DateTime? // Último mensaje (para calcular inactividad)
 
   // Información adicional
   metadata Json?   @db.JsonB // Tags, categorías, sentimiento, etc.
