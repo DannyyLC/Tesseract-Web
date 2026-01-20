@@ -5,7 +5,7 @@ import { ApiKeyPayload } from "@/common/types/api-key-payload.type";
 import { CurrentApiKey } from "@/auth/decorators/current-api-key.decorator";
 import { ExecuteWorkflowDto } from "@/workflows/dto";
 
-@Controller('workflows')
+@Controller('v1/workflows')
 @UseGuards(ApiKeyGuard)
 export class ExternalWorkflowsController {
     constructor(
