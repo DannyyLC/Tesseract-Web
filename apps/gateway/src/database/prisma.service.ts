@@ -1,11 +1,14 @@
+import { EventsService } from '../events/services/events.service';
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
-
-  constructor() {
+  
+  constructor(
+    private readonly eventsService: EventsService
+  ) {
     super({
       log: [
         { emit: 'event', level: 'query' },
@@ -20,9 +23,32 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       },
     });
 
+  const sseNotifierExtension = Prisma.defineExtension({
+  name: 'sseNotifier',
+  query: {
+    $allModels: {
+      async $allOperations({model, operation, args, query}) {
+        const result = await query(args);
+        console.log(`Prisma SSE Notifier Extension Triggered ${operation} on ${model}`);
+        const mutationOperations = ['create', 'update', 'delete', 'upsert', 'updateMany', 'deleteMany', 'createMany'];
+        if (mutationOperations.includes(operation)) {
+          console.log(`Model ${model} has been ${operation}d.`);
+          //here the Subject publishes the event to all subscribers
+          eventsService.emitEvent(model, operation, result);
+        }
+       
+        return result;
+    }
+  
+    }
+  }
+});
+    const extendedPrismaClient = this.$extends(sseNotifierExtension);
+    Object.assign(this, extendedPrismaClient);
     // Configurar listeners para logging
     this.setupLogging();
   }
+
 
   /**
    * Configura los event listeners para logging de queries y errores

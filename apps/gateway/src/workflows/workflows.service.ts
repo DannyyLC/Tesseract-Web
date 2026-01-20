@@ -16,6 +16,7 @@ import {
   WorkflowPausedException,
   InvalidWorkflowConfigException,
 } from '../common/exceptions';
+import { DashboardWorkflowDto } from './dto/dashboard-workflow.dto';
 
 /**
  * Service que maneja la lógica de negocio de workflows
@@ -1018,5 +1019,55 @@ export class WorkflowsService {
           `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
       );
     }
+  }
+
+  async getDashboardData(organizationId: string): Promise<DashboardWorkflowDto[]> {
+    const workflows = await this.prisma.workflow.findMany({
+      where: {
+        organizationId
+      },
+      select: {
+        name: true,
+        description: true,
+        category: true,
+        isActive: true,
+        isPaused: true,
+        version: true,
+        triggerType: true,
+        schedule: true,
+        maxTokensPerExecution: true,
+        totalExecutions: true,
+        successfulExecutions: true,
+        failedExecutions: true,
+        totalCreditsConsumed: true,
+        avgCreditsPerExecution: true,
+        lastExecutedAt: true,
+        avgExecutionTime: true,
+        executions: {
+          select: {
+            status: true,
+            startedAt: true,
+            finishedAt: true,
+            duration: true,
+            trigger: true,
+            credits: true,
+            cost: true,
+            tokensUsed: true,
+            balanceBefore: true,
+            balanceAfter: true,
+            wasOverage: true,
+            error: true,
+            retryCount: true,
+            workflowId: true,
+            userId: true,
+            conversationId: true
+          },
+          take: 10,
+          orderBy: { startedAt: 'desc' },
+        },
+      }
+    });
+   
+    return workflows;
   }
 }

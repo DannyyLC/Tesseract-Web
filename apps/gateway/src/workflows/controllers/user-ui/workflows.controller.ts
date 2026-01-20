@@ -13,6 +13,7 @@ import {
   DefaultValuePipe,
   Header,
   StreamableFile,
+  Res,
 } from '@nestjs/common';
 import { WorkflowsService } from '../../workflows.service';
 import { ExecutionsService } from '../../../executions/executions.service';
@@ -25,7 +26,9 @@ import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { CurrentApiKey } from '../../../auth/decorators/current-api-key.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
 import { ApiKeyPayload } from '../../../common/types/api-key-payload.type';
-import { UserRole } from '@workflow-automation/shared-types';
+import { ApiResponse, ApiResponseBuilder, UserRole } from '@workflow-automation/shared-types';
+import { Response } from 'express';
+import { DashboardWorkflowDto } from '@/workflows/dto/dashboard-workflow.dto';
 
 /**
  * Controller de Workflows
@@ -190,5 +193,19 @@ export class WorkflowsController {
     @Query('period', new DefaultValuePipe('30d')) period?: string,
   ) {
     return this.executionsService.getAnalyticsBySource(id, user.organizationId, period);
+  }
+  
+  @Get('dashboard/:idOrganization')
+  async getDashboardWorkflows(
+    @Param('idOrganization') idOrganization: string,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponseBuilder<DashboardWorkflowDto[]>>> {
+    const apiResponse = new ApiResponseBuilder<DashboardWorkflowDto[]>()
+    const result = await this.workflowsService.getDashboardData(idOrganization);
+    apiResponse
+    .setData(result)
+    .setMessage('Dashboard workflows data retrieved successfully')
+    .setSuccess(true);
+    return res.status(HttpStatus.OK).json(apiResponse.build());
   }
 }

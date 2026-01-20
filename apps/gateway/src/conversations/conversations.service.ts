@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { DashboardConversationDto } from './dto/dashboard-conversation.dto';
 
 /**
  * ConversationsService
@@ -177,5 +178,50 @@ export class ConversationsService {
       `Batch update para conversación ${conversationId}: ` +
         `+${messageIncrement} mensajes, +${tokens ?? 0} tokens, +$${cost ?? 0}`,
     );
+  }
+
+  async getDashboardData(
+    idOrganization: string,
+    initPage: number,
+    pageSize: number,
+  ):Promise<{ conversations: DashboardConversationDto[]; totalPages: number }> {
+
+    const totalCount = await this.prisma.conversation.count({
+    where: {
+      workflow: {
+        organizationId: idOrganization,
+      },
+    },
+  });
+    
+    const conversations = await this.prisma.conversation.findMany({
+      where: {
+        workflow: {
+          organizationId: idOrganization,
+        }
+      },
+      select: {
+          title: true,
+          channel: true,
+          status: true,
+          messageCount: true,
+          totalTokens: true,
+          totalCost: true,
+          lastMessageAt: true,
+          createdAt: true,
+          closedAt: true,
+          workflowId: true,
+          userId: true,
+          endUserId: true,
+        },
+        take: pageSize,
+        skip: initPage > 0 ? (initPage - 1) * pageSize : 0,
+        orderBy: {
+          createdAt: 'desc',
+        }
+    });
+     const totalPages = Math.ceil(totalCount / pageSize);
+
+    return { conversations, totalPages };
   }
 }
