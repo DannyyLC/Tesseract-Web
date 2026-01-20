@@ -1052,8 +1052,6 @@ export class WorkflowsService {
             duration: true,
             trigger: true,
             credits: true,
-            cost: true,
-            tokensUsed: true,
             balanceBefore: true,
             balanceAfter: true,
             wasOverage: true,

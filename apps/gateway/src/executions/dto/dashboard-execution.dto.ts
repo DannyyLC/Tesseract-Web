@@ -1,14 +1,11 @@
-import { Conversation, User } from "@workflow-platform/database";
 
-export class DashboardExecutionDto { 
+export class DashboardExecutionDto {
     status: string;
     startedAt: Date;
     finishedAt: Date | null;
     duration: number | null;
     trigger: string;
     credits: number | null;
-    cost: number | null;
-    tokensUsed: number | null;
     balanceBefore: number | null;
     balanceAfter: number | null;
     wasOverage: boolean;

@@ -7,6 +7,7 @@ import { AgentsModule } from '../agents/agents.module';
 import { ConversationsModule } from '../conversations/conversations.module';
 import { CreditsModule } from '../credits/credits.module';
 import { LlmModelsModule } from '../llm-models/llm-models.module';
+import { ExternalWorkflowsController } from './controllers/external/workflows.controller';
 
 /**
  * WorkflowsModule
@@ -21,8 +22,8 @@ import { LlmModelsModule } from '../llm-models/llm-models.module';
     CreditsModule,
     LlmModelsModule,
   ],
-  controllers: [WorkflowsController],
+  controllers: [WorkflowsController, ExternalWorkflowsController],
   providers: [WorkflowsService],
   exports: [WorkflowsService],
 })
-export class WorkflowsModule {}
+export class WorkflowsModule { }
