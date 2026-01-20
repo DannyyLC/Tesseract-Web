@@ -18,7 +18,7 @@ export class BillingService {
     private readonly creditsService: CreditsService,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   /**
    * Check if the service is properly connected to Stripe
@@ -287,19 +287,79 @@ export class BillingService {
     const currentPlanConfig = SUBSCRIPTION_PLANS[sub.plan];
     const isUpgrade = planConfig.priceUSD > (currentPlanConfig?.priceUSD || 0);
 
-    // 6. Update Stripe
-    await this.stripeClient.stripe.subscriptions.update(sub.stripeSubscriptionId, {
-      items: [
-        {
-          id: itemId,
-          price: priceId,
+    if (isUpgrade) {
+      // UPGRADE: Immediate change + Charge difference now
+      await this.stripeClient.stripe.subscriptions.update(sub.stripeSubscriptionId, {
+        items: [
+          {
+            id: itemId,
+            price: priceId,
+          },
+        ],
+        proration_behavior: 'none', // Charge full new plan immediately, no refund for old
+        billing_cycle_anchor: 'now', // Reset cycle to now (optional, usually preferred for upgrades)
+      });
+      // DB update will happen via webhook 'customer.subscription.updated'
+    } else {
+      // DOWNGRADE: Schedule change for end of period
+      // We use Subscription Schedules to queue the change natively in Stripe
+
+      // 1. Check if a schedule already exists
+      const subscriptions = (await this.stripeClient.stripe.subscriptions.retrieve(
+        sub.stripeSubscriptionId,
+      )) as any;
+
+      let scheduleId = subscriptions.schedule as string;
+
+      if (scheduleId) {
+        // Update existing schedule
+        await this.stripeClient.stripe.subscriptionSchedules.update(scheduleId, {
+          phases: [
+            {
+              start_date: 'now',
+              end_date: subscriptions.current_period_end, // Phase 1: Keep current plan until period ends
+              items: [{ price: subscriptions.items.data[0].price.id }], // Current price
+            },
+            {
+              start_date: subscriptions.current_period_end, // Phase 2: Start new plan after period ends
+              items: [{ price: priceId }], // New price
+            },
+          ],
+        });
+      } else {
+        // Create new schedule from current subscription
+        const schedule = await this.stripeClient.stripe.subscriptionSchedules.create({
+          from_subscription: sub.stripeSubscriptionId,
+        });
+
+        // Add the downgrade phase
+        await this.stripeClient.stripe.subscriptionSchedules.update(schedule.id, {
+          phases: [
+            {
+              start_date: 'now',
+              end_date: subscriptions.current_period_end, // Phase 1: Keep current plan until period ends
+              items: [{ price: subscriptions.items.data[0].price.id }], // Current price
+            },
+            {
+              start_date: subscriptions.current_period_end, // Phase 2: Start new plan after period ends
+              items: [{ price: priceId }], // New price
+            },
+          ],
+        });
+      }
+
+      // 2. Update DB to reflect pending change
+      await this.prisma.subscription.update({
+        where: { id: sub.id },
+        data: {
+          pendingPlanChange: newPlan,
+          planChangeRequestedAt: new Date(),
+          cancelAtPeriodEnd: false, // Ensure we don't cancel since we are just moving to lower plan
         },
-      ],
-      // Upgrade: 'now' anchor = Immediate new cycle + Charge Full Price. 'none' proration = No credits for old unused time.
-      // Downgrade: No anchor change = Keep current cycle. 'none' proration = No refund/charge now, next invoice matches new plan.
-      proration_behavior: 'none',
-      billing_cycle_anchor: isUpgrade ? 'now' : undefined,
-    });
+      });
+
+      this.logger.log(`Scheduled downgrade to ${newPlan} for org ${organizationId}`);
+    }
   }
 
   private async handleSubscriptionUpdated(subscription: Stripe.Subscription) {
@@ -355,6 +415,8 @@ export class BillingService {
           currentPeriodEnd: new Date(sub.current_period_end * 1000),
           stripePriceId: priceId,
           cancelAtPeriodEnd: sub.cancel_at_period_end,
+          pendingPlanChange: null, // Clear flags now that update is applied
+          planChangeRequestedAt: null,
         },
       }),
     ]);

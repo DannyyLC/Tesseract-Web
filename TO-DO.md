@@ -1,233 +1,185 @@
 # DASHBOARD - Datos por Tabla
 
 ## 1. Organization (Su Organización)
-
-- `name` - Nombre de la organización
-- `plan` - Plan actual (FREE, STARTER, GROWTH, BUSINESS, PRO, ENTERPRISE)
-- `allowOverages` - Si pueden seguir ejecutando con balance negativo
-- `overageLimit` - Límite de créditos negativos permitido
-- `isActive` - Estado de la organización
-- `createdAt` - Fecha de creación
+- `[SEND]` `id`
+- `[SEND]` `name` - Nombre de la organización
+- `[SEND]` `plan` - Plan actual (FREE, STARTER, GROWTH, BUSINESS, PRO, ENTERPRISE)
+- `[SEND]` `allowOverages` - Si pueden seguir ejecutando con balance negativo
+- `[SEND]` `overageLimit` - Límite de créditos negativos permitido
+- `[SEND]` `isActive` - Estado de la organización
+- `[SEND]` `createdAt` - Fecha de creación
 
 **Límites personalizados:**
-
-- `customMaxUsers` - Cuántos usuarios pueden tener
-- `customMaxApiKeys` - Cuántas API keys pueden crear
-- `customMaxWorkflows` - Cuántos workflows pueden crear
+- `[SEND]` `customMaxUsers`
+- `[SEND]` `customMaxApiKeys`
+- `[SEND]` `customMaxWorkflows`
 
 ---
 
 ## 2. CreditBalance (Balance de Créditos)
-
-- `balance` - Balance actual de créditos
-- `currentMonthSpent` - Créditos gastados este mes
+- `[SEND]` `balance` - Balance actual de créditos
+- `[SEND]` `currentMonthSpent` - Créditos gastados este mes
 
 ---
 
 ## 3. Subscription (Suscripción Activa)
-
-- `plan` - Plan actual (duplicado de Organization)
-- `status` - Estado: ACTIVE, CANCELED, PAST_DUE, INCOMPLETE
-- `currentPeriodStart` - Inicio del periodo actual
-- `currentPeriodEnd` - Cuándo renueva
-- `cancelAtPeriodEnd` - Si cancelarán al final del periodo
-- `pendingPlanChange` - Plan al que cambiarán (si hay downgrade/upgrade programado)
-- `planChangeRequestedAt` - Cuándo solicitaron el cambio
+*Nota: Enviar dentro de OrganizationDTO si es posible*
+- `[SEND]` `plan`
+- `[SEND]` `status` - Estado: ACTIVE, CANCELED, PAST_DUE, INCOMPLETE
+- `[SEND]` `currentPeriodStart`
+- `[SEND]` `currentPeriodEnd`
+- `[SEND]` `cancelAtPeriodEnd`
 
 **Para planes ENTERPRISE:**
-
-- `customMonthlyPrice` - Precio mensual personalizado
-- `customMonthlyCredits` - Créditos mensuales personalizados
-- `customMaxWorkflows` - Límite de workflows personalizado
-- `customFeatures` - Features especiales (SLA, soporte 24/7, etc)
+- `[SEND]` `customMonthlyPrice`
+- `[SEND]` `customMonthlyCredits`
+- `[SEND]` `customMaxWorkflows`
+- `[SEND]` `customFeatures`
 
 ---
 
 ## 4. CreditTransaction (Historial de Transacciones)
-
-- `type` - Tipo de transacción (SUBSCRIPTION_RENEWAL, EXECUTION_DEDUCTION, etc)
-- `amount` - Monto (+ ingreso, - gasto)
-- `balanceBefore` - Balance antes
-- `balanceAfter` - Balance después
-- `workflowCategory` - Si fue ejecución: LIGHT/STANDARD/ADVANCED
-- `costUSD` - Costo real en USD solo cuando se trata del pago de una suscripcion no de lo que le costo la ejecucion. Si el registro corresponde a la ejecucion de un workflow no enviar el campo de costUSD
-- `description` - Descripción legible
-- `createdAt` - Fecha de la transacción
+- `[SEND]` `type`
+- `[SEND]` `amount`
+- `[SEND]` `balanceBefore`
+- `[SEND]` `balanceAfter`
+- `[SEND]` `workflowCategory`
+- `[SEND]` `description`
+- `[SEND]` `createdAt`
 
 **Referencias:**
-
-- `executionId` - Si fue por ejecución de workflow
-- `invoiceId` - Si fue por compra/pago
+- `[SEND]` `executionId`
+- `[SEND]` `invoiceId`
 
 ---
 
 ## 5. Invoice (Facturas)
-
-- `invoiceNumber` - Número de factura (INV-202601-0001)
-- `type` - SUBSCRIPTION, OVERAGE, ONE_TIME
-- `status` - DRAFT, PENDING, PAID, FAILED, REFUNDED
-- `periodStart` / `periodEnd` - Periodo facturado
-- `subtotal` - Precio base
-- `overageAmount` - Cargos por overages
-- `tax` - Impuestos
-- `total` - Total a pagar
-- `stripeHostedUrl` - URL para pagar
-- `stripePdfUrl` - PDF de la factura
-- `paidAt` - Cuándo se pagó
-- `dueAt` - Fecha límite de pago
+- `[SEND]` `invoiceNumber`
+- `[SEND]` `type`
+- `[SEND]` `status`
+- `[SEND]` `periodStart` / `periodEnd`
+- `[SEND]` `subtotal`
+- `[SEND]` `overageAmount`
+- `[SEND]` `tax`
+- `[SEND]` `total`
+- `[SEND]` `stripeHostedUrl`
+- `[SEND]` `stripePdfUrl`
+- `[SEND]` `paidAt`
+- `[SEND]` `dueAt`
 
 ---
 
 ## 6. User (Usuarios de la Organización)
-
-- `email` - Email del usuario
-- `name` - Nombre completo
-- `role` - Rol: viewer, editor, admin, owner
-- `isActive` - Si está activo
-- `emailVerified` - Si verificó su email
-- `twoFactorEnabled` - Si tiene 2FA activado
-- `lastLoginAt` - Último login
-- `createdAt` - Cuándo se creó la cuenta
-- `avatar` - URL del avatar
-- `timezone` - Zona horaria
+- `[SEND]` `email`
+- `[SEND]` `name`
+- `[SEND]` `role`
+- `[SEND]` `isActive`
+- `[SEND]` `lastLoginAt`
+- `[SEND]` `createdAt`
+- `[SEND]` `avatar`
+- `[SEND]` `timezone`
 
 ---
 
 ## 7. Workflow (Agentes/Workflows)
-
-- `name` - Nombre del workflow
-- `description` - Descripción
-- `category` - LIGHT (1cr), STANDARD (5cr), ADVANCED (25cr)
-- `isActive` - Si está activo
-- `isPaused` - Si está pausado
-- `version` - Versión actual
-- `triggerType` - Cómo se ejecuta: api, schedule, webhook, whatsapp
-- `schedule` - Expresión cron (si es programado)
+- `[SEND]` `id`
+- `[SEND]` `name`
+- `[SEND]` `description`
+- `[SEND]` `category`
+- `[SEND]` `isActive`
+- `[SEND]` `isPaused`
+- `[SEND]` `version`
+- `[SEND]` `triggerType`
+- `[SEND]` `schedule`
 
 **Límites:**
-
-- `maxTokensPerExecution` - Tokens máximos por ejecución
+- `[SEND]` `maxTokensPerExecution`
 
 **Estadísticas:**
-
-- `totalExecutions` - Total de ejecuciones
-- `successfulExecutions` - Ejecuciones exitosas
-- `failedExecutions` - Ejecuciones fallidas
-- `totalCreditsConsumed` - Créditos totales consumidos
-- `avgCreditsPerExecution` - Promedio de créditos por ejecución. Por ahora este siempre sera segun la categoria ya que siempre cuesta lo mismo
-- `lastExecutedAt` - Última ejecución
-- `avgExecutionTime` - Tiempo promedio de ejecución
+- `[SEND]` `totalExecutions`
+- `[SEND]` `successfulExecutions`
+- `[SEND]` `failedExecutions`
+- `[SEND]` `totalCreditsConsumed`
+- `[SEND]` `lastExecutedAt`
+- `[SEND]` `avgExecutionTime`
 
 ---
 
 ## 8. Execution (Ejecuciones de Workflows)
-
-- `status` - pending, running, completed, failed, cancelled, timeout
-- `startedAt` - Cuándo empezó
-- `finishedAt` - Cuándo terminó
-- `duration` - Duración en segundos
-- `trigger` - Cómo se activó: manual, api, schedule, webhook, whatsapp
+- `[SEND]` `status`
+- `[SEND]` `startedAt`
+- `[SEND]` `finishedAt`
+- `[SEND]` `duration`
+- `[SEND]` `trigger`
 
 **Costos:**
-
-- `credits` - Créditos cobrados (1/5/25)
-- `cost` - Costo real en USD. Este nunca se le envia al usuario
-- `tokensUsed` - Tokens consumidos. Este nunca se le envia al usuario
-- `balanceBefore` / `balanceAfter` - Snapshot del balance
-- `wasOverage` - Si se ejecutó con balance negativo
-- `error` - Mensaje de error (si falló)
-- `retryCount` - Número de reintentos
+- `[SEND]` `credits`
+- `[SEND]` `error`
+- `[SEND]` `retryCount`
 
 **Relaciones:**
-
-- `workflowId` - Qué workflow se ejecutó
-- `userId` - Quién lo ejecutó (si fue manual)
-- `conversationId` - Conversación asociada (si aplica)
+- `[SEND]` `workflowId` (o workflow name/category)
+- `[SEND]` `userId` (o user name)
+- `[SEND]` `conversationId`
 
 ---
 
 ## 9. Conversation (Conversaciones)
-
-- `title` - Título de la conversación
-- `channel` - dashboard, whatsapp, web, api
-- `status` - active, inactive, closed
-- `messageCount` - Número de mensajes
-- `totalTokens` - Tokens totales usados. Nunca se le envia a un usuario
-- `totalCost` - Costo acumulado en USD. Nunca se le envia a un usuario
-- `lastMessageAt` - Último mensaje enviado
-- `createdAt` - Cuándo se creó
-- `closedAt` - Cuándo se cerró
+- `[SEND]` `title`
+- `[SEND]` `channel`
+- `[SEND]` `status`
+- `[SEND]` `isHumanInTheLoop`
+- `[SEND]` `messageCount`
+- `[SEND]` `lastMessageAt`
+- `[SEND]` `createdAt`
+- `[SEND]` `closedAt`
 
 **Relaciones:**
-
-- `workflowId` - Workflow asociado
-- `userId` - User interno (si aplica)
-- `endUserId` - Cliente externo (si aplica)
+- `[SEND]` `workflowId`
+- `[SEND]` `userId`
+- `[SEND]` `endUserId`
 
 ---
 
 ## 10. Message (Mensajes de Conversaciones)
-
-- `role` - user, assistant, system, tool
-- `content` - Contenido del mensaje
-- `attachments` - Archivos adjuntos (imágenes, videos, etc)
-- `model` - Modelo de IA usado (si es respuesta del asistente)
-- `tokens` - Tokens consumidos. Nunca se envia al usuario
-- `cost` - Costo en USD. Nunca se envia al usuario
-- `latencyMs` - Latencia en milisegundos. Nunca se le envia al usuario
-- `toolCalls` - Llamadas a herramientas realizadas. Por ahora aun no se usa
-- `toolResults` - Resultados de las herramientas. Por ahora aun no se usa
-- `feedback` - Feedback del usuario (positive, negative, neutral). No se usa
-- `feedbackComment` - Comentario del feedback. No se usa
-- `createdAt` - Timestamp
+- `[SEND]` `role`
+- `[SEND]` `content`
+- `[SEND]` `attachments`
+- `[SEND]` `model` (Opcional, puede ser informativo)
+- `[SEND]` `createdAt`
 
 ---
 
 ## 11. EndUser (Clientes Externos)
-
-- `phoneNumber` - Número de telefono
-- `email` - Email
-- `externalId` - ID del sistema del cliente (HubSpot, etc)
-- `name` - Nombre
-- `avatar` - Avatar
-- `metadata` - Datos adicionales
-- `lastSeenAt` - Última vez visto
-- `createdAt` - Cuándo se creó
+- `[SEND]` `phoneNumber`
+- `[SEND]` `email`
+- `[SEND]` `externalId`
+- `[SEND]` `name`
+- `[SEND]` `avatar`
+- `[SEND]` `metadata`
+- `[SEND]` `lastSeenAt`
+- `[SEND]` `createdAt`
 
 ---
 
 ## 12. TenantTool (Conexiones con Tools)
-
-- `displayName` - Nombre personalizado ("Google Calendar - Ventas")
-- `isConnected` - Si está conectada
-- `connectionError` - Error de conexión (si hay)
-- `connectedAt` - Cuándo se conectó
-- `lastUsedAt` - Último uso
-- `oauthProvider` - Proveedor OAuth
-- `tokenExpiresAt` - Cuándo expira el token
-
-**Relación:**
-
-- `toolCatalogId` - Qué tool es (google_calendar, hubspot, etc)
+- `[SEND]` `id`
+- `[SEND]` `displayName`
 
 ---
 
 ## 14. ApiKey (API Keys)
-
-- `name` - Nombre de la key
-- `description` - Descripción
-- `keyPrefix` - Primeros caracteres (para identificar)
-- `isActive` - Si está activa
-- `lastUsedAt` - Último uso
-- `expiresAt` - Cuándo expira
-- `scopes` - Permisos (workflows:read, workflows:execute, etc). No funciona por ahora
-- `createdAt` - Cuándo se creó
+- `[SEND]` `name`
+- `[SEND]` `description`
+- `[SEND]` `isActive`
+- `[SEND]` `lastUsedAt`
+- `[SEND]` `expiresAt`
+- `[SEND]` `createdAt`
 
 ---
 
 ## 15. WhatsAppConfig (Configuraciones de WhatsApp)
-
-> ⚠️ **Nada de whatsapp funciona aun**
+> ⚠️ **Nada de whatsapp funciona aun** - Ignorar
 
 - `phoneNumber` - Número de teléfono
 - `displayName` - Nombre para mostrar

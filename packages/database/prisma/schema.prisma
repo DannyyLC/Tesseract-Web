@@ -121,6 +121,7 @@ model Organization {
   subscription       Subscription?
   creditTransactions CreditTransaction[]
   invoices           Invoice[]
+  conversations      Conversation[]
 
   @@index([slug])
   @@index([deletedAt])
@@ -423,10 +424,11 @@ model Conversation {
   channel String // 'dashboard', 'whatsapp', 'web', 'api'
   status  String  @default("active") // 'active', 'inactive', 'closed'
 
-  messageCount  Int       @default(0) // Contador de mensajes
-  totalTokens   Int       @default(0) // Suma de tokens usados
-  totalCost     Float     @default(0) // Costo acumulado en USD
-  lastMessageAt DateTime? // Último mensaje (para calcular inactividad)
+  messageCount     Int       @default(0) // Contador de mensajes
+  totalTokens      Int       @default(0) // Suma de tokens usados
+  totalCost        Float     @default(0) // Costo acumulado en USD
+  isHumanInTheLoop Boolean   @default(false) // Si true, la IA no responde, espera humano
+  lastMessageAt    DateTime? // Último mensaje (para calcular inactividad)
 
   // Información adicional
   metadata Json?   @db.JsonB // Tags, categorías, sentimiento, etc.
@@ -438,9 +440,13 @@ model Conversation {
   closedAt  DateTime? // Cuándo se cerró la conversación
 
   // Relaciones
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   messages   Message[] // Una conversación tiene muchos mensajes
   executions Execution[] // Ejecuciones asociadas a esta conversación
 
+  @@index([organizationId]) // Index CRITICO para filtrar por organización
   @@index([userId])
   @@index([endUserId])
   @@index([workflowId])
@@ -1114,14 +1120,14 @@ model AuditLog {
 }
 
 model UserVerification {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  userName  String
+  id               String   @id @default(uuid())
+  email            String   @unique
+  userName         String
   organizationName String
-  verificationCode     String   @unique
-  isEmailVerified Boolean  @default(false)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  verificationCode String   @unique
+  isEmailVerified  Boolean  @default(false)
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
 
   @@index([email])
   @@index([expiresAt])

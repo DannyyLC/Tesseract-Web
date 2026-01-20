@@ -713,6 +713,48 @@ async function main() {
   console.log(`✅ API Key creada para ${org2.name}: ${apiKey3}\n`);
 
   // ============================================
+  // CREAR CONVERSACIONES (Ejemplos)
+  // ============================================
+  console.log('💬 Creando conversaciones...');
+
+  // Conversación 1: Human in the Loop (Acme Corp)
+  const conversation1 = await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  console.log(`✅ Conversación creada: "${conversation1.title}"`);
+  console.log(`   ID: ${conversation1.id}`);
+  console.log(`   Human in the Loop: TRUE\n`);
+
+  // Conversación 2: Normal (TechStart)
+  const conversation2 = await prisma.conversation.create({
+    data: {
+      workflowId: workflow3.id, // Análisis Estratégico
+      organizationId: org2.id, // TechStart
+      userId: user2.id, // Admin TechStart
+      title: 'Análisis de mercado Q3',
+      channel: 'api',
+      status: 'closed',
+      isHumanInTheLoop: false,
+      messageCount: 12,
+      totalTokens: 15000,
+      closedAt: new Date(),
+    },
+  });
+  console.log(`✅ Conversación creada: "${conversation2.title}"`);
+  console.log(`   ID: ${conversation2.id}`);
+  console.log(`   Human in the Loop: FALSE\n`);
+
+  // ============================================
   // CREAR EJECUCIONES DE EJEMPLO CON CRÉDITOS
   // ============================================
   console.log('⚙️  Creando ejecuciones de ejemplo...');
