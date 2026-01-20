@@ -3,8 +3,6 @@ export class DashboardConversationDto {
     channel: string;
     status: string;
     messageCount: number;
-    totalTokens: number;
-    totalCost: number;
     lastMessageAt: Date | null;
     createdAt: Date;
     closedAt: Date | null;

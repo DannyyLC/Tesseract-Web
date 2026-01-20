@@ -74,11 +74,76 @@ export class ConversationsService {
   }
 
   /**
-   * Obtiene el historial de mensajes de una conversación
+   * Obtiene una conversación por ID con todos sus detalles (incluyendo mensajes)
    *
-   * @param conversationId - ID de la conversación
-   * @returns Array de mensajes ordenados cronológicamente
+   * @param id - ID de la conversación
    */
+  async findOne(id: string) {
+    return this.prisma.conversation.findUnique({
+      where: { id },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+  }
+
+  /**
+   * Actualiza una conversación (Método unificado)
+   *
+   * @param id - ID de la conversación
+   * @param data - Datos a actualizar (compatible con PrismaUpdateInput)
+   */
+  async update(id: string, data: any) {
+    const conversation = await this.prisma.conversation.update({
+      where: { id },
+      data,
+    });
+
+    this.logger.debug(`Conversación ${id} actualizada: ${JSON.stringify(data)}`);
+    return conversation;
+  }
+
+  /**
+   * Obtiene una lista de conversaciones con filtros opcionales
+   * Retorna resumen (sin mensajes o solo el último)
+   */
+  async findAll(params: {
+    skip?: number;
+    take?: number;
+    isHumanInTheLoop?: boolean;
+    status?: string;
+    organizationId: string;
+  }) {
+    const { skip, take, isHumanInTheLoop, status, organizationId } = params;
+
+    return this.prisma.conversation.findMany({
+      skip,
+      take,
+      where: {
+        isHumanInTheLoop,
+        status,
+        organizationId,
+      },
+      orderBy: { lastMessageAt: 'desc' },
+      include: {
+        messages: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+        },
+        user: { select: { name: true, email: true, avatar: true } },
+        endUser: { select: { name: true, email: true, avatar: true } },
+      },
+    });
+  }
+
+  /**
+ * Obtiene el historial de mensajes de una conversación
+ *
+ * @param conversationId - ID de la conversación
+ * @returns Array de mensajes ordenados cronológicamente
+ */
   async getMessageHistory(conversationId: string) {
     return this.prisma.message.findMany({
       where: { conversationId },
@@ -103,13 +168,23 @@ export class ConversationsService {
     role: 'human' | 'assistant' | 'system',
     content: string,
   ) {
-    const message = await this.prisma.message.create({
-      data: {
-        conversationId,
-        role,
-        content,
-      },
-    });
+    const [message] = await this.prisma.$transaction([
+      this.prisma.message.create({
+        data: {
+          conversationId,
+          role,
+          content,
+        },
+      }),
+      this.prisma.conversation.update({
+        where: { id: conversationId },
+        data: {
+          lastMessageAt: new Date(),
+          lastMessageRole: role === 'human' ? 'user' : role, // Normalize 'human' to 'user' if needed by schema enum, or keep string
+          // messageCount increment removed to avoid double counting with batchUpdate
+        },
+      }),
+    ]);
 
     this.logger.debug(`Mensaje ${role} agregado a conversación ${conversationId}`);
 
@@ -117,210 +192,21 @@ export class ConversationsService {
   }
 
   /**
-   * Incrementa el contador de mensajes y actualiza timestamp
-   *
-   * @param conversationId - ID de la conversación
+   * Cuenta conversaciones totales según filtros (para paginación)
    */
-  async incrementMessageCount(conversationId: string) {
-    await this.prisma.conversation.update({
-      where: { id: conversationId },
-      data: {
-        messageCount: { increment: 1 },
-        lastMessageAt: new Date(),
-      },
-    });
-  }
-
-  /**
-   * Actualiza las estadísticas de uso (tokens y costo) de la conversación
-   *
-   * @param conversationId - ID de la conversación
-   * @param tokens - Tokens consumidos
-   * @param cost - Costo en USD
-   */
-  async updateUsageStats(conversationId: string, tokens: number, cost: number) {
-    await this.prisma.conversation.update({
-      where: { id: conversationId },
-      data: {
-        totalTokens: { increment: tokens },
-        totalCost: { increment: cost },
-      },
-    });
-
-    this.logger.debug(
-      `Estadísticas actualizadas para conversación ${conversationId}: +${tokens} tokens, +$${cost}`,
-    );
-  }
-
-  /**
-   * Actualiza el estado de "Human in the Loop"
-   *
-   * @param conversationId - ID de la conversación
-   * @param isEnabled - true para pausar la IA y esperar humano, false para reactivar IA
-   */
-  async setHumanInTheLoop(conversationId: string, isEnabled: boolean) {
-    const conversation = await this.prisma.conversation.update({
-      where: { id: conversationId },
-      data: {
-        isHumanInTheLoop: isEnabled,
-      },
-    });
-
-    this.logger.log(
-      `Human in the Loop ${isEnabled ? 'ACTIVADO' : 'DESACTIVADO'} para conversación ${conversationId}`,
-    );
-
-    return conversation;
-  }
-
-  /**
-   * Obtiene una lista de conversaciones con filtros opcionales
-   * Incluye el último mensaje de cada conversación
-   *
-   * @param params Filtros y paginación
-   */
-  async findAll(params: {
-    skip?: number;
-    take?: number;
+  async count(params: {
     isHumanInTheLoop?: boolean;
     status?: string;
-    organizationId: string; // Obligatorio para seguridad multi-tenant
+    organizationId: string;
   }) {
-    const { skip, take, isHumanInTheLoop, status, organizationId } = params;
+    const { isHumanInTheLoop, status, organizationId } = params;
 
-    return this.prisma.conversation.findMany({
-      skip,
-      take,
+    return this.prisma.conversation.count({
       where: {
         isHumanInTheLoop,
         status,
-        organizationId, // Filtrado directo y eficiente (usando el índice)
-      },
-      orderBy: { lastMessageAt: 'desc' },
-      include: {
-        // Incluir solo el último mensaje para mostrar en la lista
-        messages: {
-          take: 1,
-          orderBy: { createdAt: 'desc' },
-        },
-        // Opcional: incluir datos básicos del usuario para mostrar nombre/avatar
-        user: {
-          select: { name: true, email: true, avatar: true },
-        },
-        endUser: {
-          select: { name: true, email: true, avatar: true, phoneNumber: true },
-        },
+        organizationId,
       },
     });
-  }
-
-  /**
-   * Actualiza el estado de la conversación (ej: active, closed)
-   *
-   * @param conversationId - ID de la conversación
-   * @param status - Nuevo estado
-   */
-  async updateStatus(conversationId: string, status: string) {
-    const data: any = { status };
-
-    // Si cerramos la conversación, actualizamos closedAt
-    if (status === 'closed') {
-      data.closedAt = new Date();
-    } else if (status === 'active') {
-      // Si la reactivamos, limpiamos closedAt
-      data.closedAt = null;
-    }
-
-    const conversation = await this.prisma.conversation.update({
-      where: { id: conversationId },
-      data,
-    });
-
-    this.logger.log(`Estado de conversación ${conversationId} actualizado a: ${status}`);
-    return conversation;
-  }
-
-  /**
-   * Actualiza mensajes y estadísticas en una sola operación (batch update)
-   * Optimizado para reducir queries a la BD
-   *
-   * @param conversationId - ID de la conversación
-   * @param messageIncrement - Cuántos mensajes agregar al contador
-   * @param tokens - Tokens consumidos (opcional)
-   * @param cost - Costo en USD (opcional)
-   */
-  async batchUpdate(
-    conversationId: string,
-    messageIncrement: number,
-    tokens?: number,
-    cost?: number,
-  ) {
-    const updateData: any = {
-      messageCount: { increment: messageIncrement },
-      lastMessageAt: new Date(),
-    };
-
-    if (tokens !== undefined && tokens > 0) {
-      updateData.totalTokens = { increment: tokens };
-    }
-
-    if (cost !== undefined && cost > 0) {
-      updateData.totalCost = { increment: cost };
-    }
-
-    await this.prisma.conversation.update({
-      where: { id: conversationId },
-      data: updateData,
-    });
-
-    this.logger.debug(
-      `Batch update para conversación ${conversationId}: ` +
-      `+${messageIncrement} mensajes, +${tokens ?? 0} tokens, +$${cost ?? 0}`,
-    );
-  }
-
-  async getDashboardData(
-    idOrganization: string,
-    initPage: number,
-    pageSize: number,
-  ):Promise<{ conversations: DashboardConversationDto[]; totalPages: number }> {
-
-    const totalCount = await this.prisma.conversation.count({
-    where: {
-      workflow: {
-        organizationId: idOrganization,
-      },
-    },
-  });
-    
-    const conversations = await this.prisma.conversation.findMany({
-      where: {
-        workflow: {
-          organizationId: idOrganization,
-        }
-      },
-      select: {
-          title: true,
-          channel: true,
-          status: true,
-          messageCount: true,
-          totalTokens: true,
-          totalCost: true,
-          lastMessageAt: true,
-          createdAt: true,
-          closedAt: true,
-          workflowId: true,
-          userId: true,
-          endUserId: true,
-        },
-        take: pageSize,
-        skip: initPage > 0 ? (initPage - 1) * pageSize : 0,
-        orderBy: {
-          createdAt: 'desc',
-        }
-    });
-     const totalPages = Math.ceil(totalCount / pageSize);
-
-    return { conversations, totalPages };
   }
 }
