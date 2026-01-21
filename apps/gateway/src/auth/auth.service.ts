@@ -66,13 +66,47 @@ export class AuthService {
       organizationName: organization.name,
       plan: organization.plan,
     };
-    // 2. Generar temporary token
+    // 2. Si 2FA no está habilitado, login directo
+    if (!user.twoFactorEnabled) {
+      // Generar tokens finales
+      const tokens = await this.generateTokens(
+        user.id,
+        user.email,
+        user.name,
+        user.role,
+        organization.id,
+        organization.name,
+        organization.plan,
+      );
+
+      // Actualizar lastLoginAt
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      });
+
+      this.logger.info(`Login directo exitoso: ${user.email}`);
+      return {
+        status: 'complete',
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          organizationId: organization.id,
+        },
+        ...tokens,
+      };
+    }
+
+    // 3. Si 2FA está habilitado, flujo intermedio
     const tempToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('TEMP_TOKEN_SECRET') ?? 'temp-token-secret',
       expiresIn: '15m',
     });
+
     return {
-      ...(user.twoFactorEnabled ? { qr: 'not needed' } : await this.setup2FA(user.id)),
+      status: '2fa_required',
       tempToken,
     };
   }

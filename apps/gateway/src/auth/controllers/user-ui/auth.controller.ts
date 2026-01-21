@@ -25,6 +25,8 @@ import * as nodemailer from 'nodemailer';
 import { CreateUserDto } from '../../../users/dto';
 import { StepOneErrors, StepThreeErrors } from '../../dto/error-singup-codes.dto';
 import { User } from '@workflow-platform/database';
+import { UnauthorizedException } from '@nestjs/common';
+
 /**
  * AuthController maneja todos los endpoints de autenticación
  */
@@ -68,34 +70,83 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) response: Response) {
     const responseBuilder = new ApiResponseBuilder();
     try {
-      const result = await this.authService.login(loginDto);
-
-      // Determinar si estamos en producción
+      const result: any = await this.authService.login(loginDto);
       const isProduction = process.env.NODE_ENV === 'production';
 
-      // Establecer temp2FAToken en cookie httpOnly
-      response.cookie('temp2FAToken', result.tempToken, {
-        httpOnly: true, // No accesible desde JavaScript
-        secure: isProduction, // Solo HTTPS en producción
-        sameSite: 'strict', // Protección CSRF
-        maxAge: 15 * 60 * 1000, // 15 minutos
-        path: '/api/auth',
-      });
+      if (result.status === 'complete') {
+        // Login directo (sin 2FA)
+        response.cookie('accessToken', result.accessToken, {
+          httpOnly: true,
+          secure: isProduction,
+          sameSite: 'strict',
+          maxAge: 15 * 60 * 1000,
+          path: '/',
+        });
 
-      responseBuilder
-        .setSuccess(true)
-        .setStatusCode(HttpStatusCode.Ok)
-        .setData({ qr_data: result.qr })
-        .setMessage('Credentials valid, proceed to 2FA verification');
+        response.cookie('refreshToken', result.refreshToken, {
+          httpOnly: true,
+          secure: isProduction,
+          sameSite: 'strict',
+          maxAge: 7 * 24 * 60 * 60 * 1000,
+          path: '/api/auth',
+        });
+
+        responseBuilder
+          .setSuccess(true)
+          .setStatusCode(HttpStatusCode.Ok)
+          .setData({ user: result.user })
+          .setMessage('Login successful');
+      } else if (result.status === '2fa_required') {
+        // Requiere 2FA
+        response.cookie('temp2FAToken', result.tempToken, {
+          httpOnly: true,
+          secure: isProduction,
+          sameSite: 'strict',
+          maxAge: 15 * 60 * 1000,
+          path: '/api/auth',
+        });
+
+        responseBuilder
+          .setSuccess(true)
+          .setStatusCode(HttpStatusCode.Ok)
+          .setMessage('Credentials valid, proceed to 2FA verification')
+          .setData({ require2FA: true });
+      }
+
       response.statusCode = HttpStatus.OK;
       response.send(responseBuilder.build());
-    } catch {
+    } catch (error) {
       responseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.Unauthorized)
         .setMessage('Invalid credentials or account inactive');
       response.statusCode = HttpStatus.UNAUTHORIZED;
       response.send(responseBuilder.build());
+    }
+  }
+
+  @Post('2fa/setup')
+  @UseGuards(JwtAuthGuard)
+  async setup2FA(@CurrentUser() user: UserPayload, @Res() response: Response) {
+    const responseBuilder = new ApiResponseBuilder();
+    try {
+      const result = await this.authService.setup2FA(user.sub);
+
+      responseBuilder
+        .setSuccess(true)
+        .setStatusCode(HttpStatusCode.Ok)
+        .setData(result)
+        .setMessage('2FA setup initiated');
+
+      response.statusCode = HttpStatus.OK;
+      return response.send(responseBuilder.build());
+    } catch (error) {
+      responseBuilder
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.InternalServerError)
+        .setMessage('Error initiating 2FA setup');
+      response.statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
+      return response.send(responseBuilder.build());
     }
   }
 
@@ -129,7 +180,7 @@ export class AuthController {
     const refreshToken = request.cookies?.refreshToken;
 
     if (!refreshToken) {
-      throw new Error('Refresh token no encontrado en las cookies');
+      throw new UnauthorizedException('Refresh token no encontrado en las cookies');
     }
 
     const result = await this.authService.refreshTokens(refreshToken);
