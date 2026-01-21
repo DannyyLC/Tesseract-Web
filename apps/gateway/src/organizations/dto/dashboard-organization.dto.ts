@@ -10,5 +10,5 @@ export interface DashboardOrganizationDto {
   customMaxUsers: number | null;
   customMaxApiKeys: number | null;
   customMaxWorkflows: number | null;
-  subscriptionData: DashboardSubscriptionDto | null;
+  subscriptionData?: DashboardSubscriptionDto | null;
 }

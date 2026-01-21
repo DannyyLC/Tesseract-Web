@@ -1028,6 +1028,7 @@ export class WorkflowsService {
         organizationId
       },
       select: {
+        id: true,
         name: true,
         description: true,
         category: true,
