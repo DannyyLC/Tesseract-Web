@@ -1,14 +1,17 @@
-import { EventsService } from '../events/services/events.service';
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger} from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { Subject } from 'rxjs';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
-  
-  constructor(
-    private readonly eventsService: EventsService
-  ) {
+  private readonly dbMutationSubject = new Subject<{
+    model: string;
+    operation: string;
+    data: any;
+  }>();
+
+  constructor() {
     super({
       log: [
         { emit: 'event', level: 'query' },
@@ -22,33 +25,42 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         },
       },
     });
+    const self = this;
+    const sseNotifierExtension = Prisma.defineExtension({
+      name: 'sseNotifier',
+      query: {
+        $allModels: {
+          async $allOperations({ model, operation, args, query }) {
+            const result = await query(args);
+            console.log(`Prisma SSE Notifier Extension Triggered ${operation} on ${model}`);
+            const mutationOperations = [
+              'create',
+              'update',
+              'delete',
+              'upsert',
+              'updateMany',
+              'deleteMany',
+              'createMany',
+            ];
+            if (mutationOperations.includes(operation)) {
+              console.log(`Model ${model} has been ${operation}d.`);
+              self.dbMutationSubject.next({ model, operation, data: result });
+            }
 
-  const sseNotifierExtension = Prisma.defineExtension({
-  name: 'sseNotifier',
-  query: {
-    $allModels: {
-      async $allOperations({model, operation, args, query}) {
-        const result = await query(args);
-        console.log(`Prisma SSE Notifier Extension Triggered ${operation} on ${model}`);
-        const mutationOperations = ['create', 'update', 'delete', 'upsert', 'updateMany', 'deleteMany', 'createMany'];
-        if (mutationOperations.includes(operation)) {
-          console.log(`Model ${model} has been ${operation}d.`);
-          //here the Subject publishes the event to all subscribers
-          eventsService.emitEvent(model, operation, result);
-        }
-       
-        return result;
-    }
-  
-    }
-  }
-});
+            return result;
+          },
+        },
+      },
+    });
     const extendedPrismaClient = this.$extends(sseNotifierExtension);
     Object.assign(this, extendedPrismaClient);
     // Configurar listeners para logging
     this.setupLogging();
   }
 
+  get dbMutations$() {
+    return this.dbMutationSubject.asObservable();
+  }
 
   /**
    * Configura los event listeners para logging de queries y errores
