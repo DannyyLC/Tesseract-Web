@@ -41,4 +41,24 @@ export class CronJobsService {
       this.logger.log(`Daily Auto-close: Closed ${result.count} inactive conversations`);
     }
   }
+
+  // Runs every day at midnight (00:00)
+  @Cron('0 0 * * *')
+  async handleRefreshTokenCleanup() {
+    // Delete expired tokens OR revoked tokens older than 7 days
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const result = await this.prisma.refreshToken.deleteMany({
+      where: {
+        OR: [
+          { expiresAt: { lt: new Date() } }, // Expired
+          { revokedAt: { lt: sevenDaysAgo } }, // Revoked > 7 days ago
+        ],
+      },
+    });
+
+    if (result.count > 0) {
+      this.logger.log(`Daily Token Cleanup: Deleted ${result.count} expired/revoked refresh tokens`);
+    }
+  }
 }
