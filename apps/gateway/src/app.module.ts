@@ -18,7 +18,6 @@ import { InvoiceModule } from './invoice/invoice.module';
 import { UsersModule } from './users/users.module';
 import { Cron, ScheduleModule } from '@nestjs/schedule';
 import { CronJobsService } from './cron-jobs.service';
-import { MessagesModule } from './messages/messages.module';
 import { EndUsersModule } from './end-users/end-users.module';
 
 @Module({
@@ -58,7 +57,6 @@ import { EndUsersModule } from './end-users/end-users.module';
     InvoiceModule,
     UsersModule,
     ScheduleModule.forRoot(),
-    MessagesModule,
     EndUsersModule,
   ],
   controllers: [],
