@@ -1,9 +1,9 @@
-import { ApiKeyGuard } from "@/auth/guards/api-key.guard";
+import { ApiKeyGuard } from "../../../auth/guards/api-key.guard";
 import { Controller, UseGuards, Param, Body, Post, HttpCode, HttpStatus, Header, StreamableFile } from "@nestjs/common";
-import { WorkflowsService } from "@/workflows/workflows.service";
-import { ApiKeyPayload } from "@/common/types/api-key-payload.type";
-import { CurrentApiKey } from "@/auth/decorators/current-api-key.decorator";
-import { ExecuteWorkflowDto } from "@/workflows/dto";
+import { WorkflowsService } from "../../../workflows/workflows.service";
+import { ApiKeyPayload } from "../../../common/types/api-key-payload.type";
+import { CurrentApiKey } from "../../../auth/decorators/current-api-key.decorator";
+import { ExecuteWorkflowDto } from "../../../workflows/dto";
 
 @Controller('v1/workflows')
 @UseGuards(ApiKeyGuard)

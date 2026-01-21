@@ -27,23 +27,6 @@ import { StepOneErrors, StepThreeErrors } from '../../dto/error-singup-codes.dto
 import { User } from '@workflow-platform/database';
 /**
  * AuthController maneja todos los endpoints de autenticación
- *
- * 🔐 SEGURIDAD: Usa cookies httpOnly para almacenar tokens
- * - Los tokens NO se retornan en el body del response
- * - Se establecen como cookies httpOnly + secure + sameSite
- * - Protección contra XSS (Cross-Site Scripting)
- *
- * Endpoints públicos (no requieren autenticación):
- * - POST /auth/login
- * - POST /auth/refresh
- *
- * Endpoints protegidos (requieren JWT):
- * - GET /auth/me
- * - POST /auth/logout
- * - POST /auth/logout-all
- *
- * Nota: El registro de usuarios está protegido y solo puede ser realizado
- * por administradores a través de /admin/users
  */
 @Controller('auth')
 export class AuthController {
@@ -55,7 +38,7 @@ export class AuthController {
    * POST /auth/login
    * Inicia sesión con email y password
    *
-   * 🔐 Los tokens se establecen como cookies httpOnly (NO en el body)
+   * Los tokens se establecen como cookies httpOnly (NO en el body)
    *
    * Body:
    *   {
@@ -252,7 +235,7 @@ export class AuthController {
    * Cierra sesión en todos los dispositivos
    * Invalida TODOS los refresh tokens del usuario y limpia las cookies
    *
-   * 🔐 Invalida todas las sesiones del usuario en todos los dispositivos
+   * Invalida todas las sesiones del usuario en todos los dispositivos
    *
    * Headers: (ninguno requerido, las cookies se envían automáticamente)
    *
@@ -353,10 +336,10 @@ export class AuthController {
 
   @Post('signup-step-one')
   async signupStep1(@Body() payload: StartVerificationFlowDto, @Res() response: Response):
-  Promise<Response<ApiResponseBuilder<nodemailer.SentMessageInfo | keyof typeof StepOneErrors>>> {
+    Promise<Response<ApiResponseBuilder<nodemailer.SentMessageInfo | keyof typeof StepOneErrors>>> {
     const apiResponseBuilder = new ApiResponseBuilder<nodemailer.SentMessageInfo | keyof typeof StepOneErrors>();
     const result = await this.authService.signupStepOne(payload);
-    
+
     if (typeof result !== 'string') {
       apiResponseBuilder
         .setSuccess(true)
@@ -378,7 +361,7 @@ export class AuthController {
 
   @Post('signup-step-two')
   async signupStep2(@Body() verificationCode: VerificationCodeDto, @Res() response: Response):
-  Promise<Response<ApiResponseBuilder<boolean>>> {
+    Promise<Response<ApiResponseBuilder<boolean>>> {
     const responseBuilder = new ApiResponseBuilder<boolean>();
     const isEmailVerified = await this.authService.signupStepTwo(verificationCode);
     if (isEmailVerified) {
@@ -400,22 +383,22 @@ export class AuthController {
     }
   }
 
-    @Post('signup-step-three')
-    async signupStep3(@Body() body: CreateUserDto, @Res() res: Response): Promise<Response<ApiResponseBuilder<User | keyof typeof StepThreeErrors>>> {
-      const apiResponse = new ApiResponseBuilder<User | keyof typeof StepThreeErrors>();
-      const result = await this.authService.signupStepThree(body);
-      if (typeof result === 'string') {
-        apiResponse
+  @Post('signup-step-three')
+  async signupStep3(@Body() body: CreateUserDto, @Res() res: Response): Promise<Response<ApiResponseBuilder<User | keyof typeof StepThreeErrors>>> {
+    const apiResponse = new ApiResponseBuilder<User | keyof typeof StepThreeErrors>();
+    const result = await this.authService.signupStepThree(body);
+    if (typeof result === 'string') {
+      apiResponse
         .setStatusCode(400)
         .setMessage('User registration failed')
         .setErrors([result]);
-        return res.status(400).json(apiResponse.build());
-      } else {
-        apiResponse
-          .setStatusCode(201)
-          .setMessage('User registered successfully')
-          .setData(result);
-        return res.status(201).json(apiResponse.build());
-      }
+      return res.status(400).json(apiResponse.build());
+    } else {
+      apiResponse
+        .setStatusCode(201)
+        .setMessage('User registered successfully')
+        .setData(result);
+      return res.status(201).json(apiResponse.build());
     }
+  }
 }

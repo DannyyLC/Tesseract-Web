@@ -11,7 +11,6 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from '../database/prisma.service';
-import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { UserPayload } from '../common/types/user-payload.type';
 import { SubscriptionPlan } from '@workflow-automation/shared-types';
@@ -26,17 +25,10 @@ import { VerificationCodeDto } from './dto/verification-code.dto';
 import { StartVerificationFlowDto } from './dto/start-verification-flow.dto';
 import * as nodemailer from 'nodemailer';
 import { EmailService } from '../notifications/email/email.service';
-import { StepOneErrors, StepOneErrorsType, StepThreeErrors } from './dto/error-singup-codes.dto';
+import { StepOneErrors, StepThreeErrors } from './dto/error-singup-codes.dto';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
- *
- * Funcionalidades:
- * - Registro de nuevos usuarios
- * - Login y generación de tokens
- * - Validación de credenciales
- * - Refresh de tokens
- * - Logout e invalidación de tokens
  */
 @Injectable()
 export class AuthService {
@@ -49,113 +41,11 @@ export class AuthService {
     private readonly organizationsService: OrganizationsService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   //==============================================================
   // AUTHENTICATION METHODS
   //==============================================================
-  /**
-   * Registra una nueva organización con su usuario Owner
-   * Orquesta las llamadas a OrganizationsService, CreditsService y UsersService
-   *
-   * @param dto - Datos de registro (name, email, password)
-   * @returns Organization + User Owner + tokens JWT
-   */
-  async register(dto: RegisterDto) {
-    this.logger.info(`Registrando nueva organización: ${dto.email}`);
-
-    // 1. Verificar que el email no esté registrado
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('El email ya está registrado');
-    }
-
-    // 2. Crear todo en una transacción
-    const result = await this.prisma.$transaction(async (tx) => {
-      // Generar slug único usando método centralizado de OrganizationsService
-      // Pasamos tx para que funcione dentro de la transacción
-      const { OrganizationsService } = await import('../organizations/organizations.service');
-      const slug = await OrganizationsService.generateUniqueSlug(dto.name, tx);
-
-      const organization = await tx.organization.create({
-        data: {
-          name: dto.name,
-          slug,
-          plan: SubscriptionPlan.FREE,
-          isActive: true,
-          allowOverages: false,
-        },
-      });
-
-      // Crear balance de créditos inicial
-      await tx.creditBalance.create({
-        data: {
-          organizationId: organization.id,
-          balance: 0,
-          lifetimeEarned: 0,
-          lifetimeSpent: 0,
-          currentMonthSpent: 0,
-          currentMonthCostUSD: 0,
-        },
-      });
-
-      // Crear el usuario Owner
-      const passwordHash = await this.hashPassword(dto.password);
-      const { token, expiresAt } = this.generateTokenWithExpiry(24);
-
-      const user = await tx.user.create({
-        data: {
-          email: dto.email,
-          name: dto.name,
-          password: passwordHash,
-          role: 'owner',
-          organizationId: organization.id,
-          isActive: true,
-          emailVerified: false,
-          emailVerificationToken: token,
-          emailVerificationTokenExpires: expiresAt,
-        },
-      });
-
-      return { organization, user };
-    });
-
-    this.logger.info(
-      `Organización y usuario owner creados: ${result.organization.slug} - ${result.user.email}`,
-    );
-
-    // 5. Generar tokens JWT
-    const tokens = await this.generateTokens(
-      result.user.id,
-      result.user.email,
-      result.user.name,
-      result.user.role,
-      result.organization.id,
-      result.organization.name,
-      result.organization.plan,
-    );
-
-    // 6. Retornar datos
-    return {
-      user: {
-        id: result.user.id,
-        email: result.user.email,
-        name: result.user.name,
-        role: result.user.role,
-      },
-      organization: {
-        id: result.organization.id,
-        name: result.organization.name,
-        slug: result.organization.slug,
-        plan: result.organization.plan,
-      },
-      ...tokens,
-    };
-  }
-
   /**
    * Login de usuario existente
    *
@@ -310,35 +200,6 @@ export class AuthService {
     }
 
     return { user, organization: user.organization };
-  }
-
-  /**
-   * Validar requisitos mínimos de contraseña
-   */
-  public validatePasswordStrength(password: string): void {
-    if (!password || password.length < 8) {
-      throw new BadRequestException('Password must be at least 8 characters long');
-    }
-
-    // Al menos una letra mayúscula
-    if (!/[A-Z]/.test(password)) {
-      throw new BadRequestException('Password must contain at least one uppercase letter');
-    }
-
-    // Al menos una letra minúscula
-    if (!/[a-z]/.test(password)) {
-      throw new BadRequestException('Password must contain at least one lowercase letter');
-    }
-
-    // Al menos un número
-    if (!/\d/.test(password)) {
-      throw new BadRequestException('Password must contain at least one number');
-    }
-
-    // Al menos un carácter especial
-    if (!new RegExp('[!@#$%^&*()_+\\-=\\[\\]{};\':"\\\\|,.<>/?]').test(password)) {
-      throw new BadRequestException('Password must contain at least one special character');
-    }
   }
 
   /**
@@ -584,27 +445,7 @@ export class AuthService {
     };
   }
 
-  async generateTempToken(dto: LoginDto, expiresIn: string | number = '15m') {
-    // 1. Validar credenciales y obtener usuario con organización
-    const { user, organization } = await this.validateUser(dto.email, dto.password);
-    const payload: UserPayload = {
-      sub: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      organizationId: organization.id,
-      organizationName: organization.name,
-      plan: organization.plan,
-    };
 
-    // 2. Generar temporary token
-    const options: any = {
-      secret: this.configService.get<string>('TEMP_TOKEN_SECRET') ?? 'temp-token-secret',
-      expiresIn,
-    };
-    const tempToken = this.jwtService.sign(payload, options);
-    return tempToken;
-  }
 
   // ==================== PASSWORD UTILITIES ====================
   /**
@@ -799,36 +640,56 @@ export class AuthService {
     const hashedPassword = await this.hashPassword(user.password);
     if (userVerificationRow) {
       try {
-        const createdOrganization = await this.organizationsService.create({
-          name: userVerificationRow.organizationName,
-          plan: SubscriptionPlan.STARTER,
-        });
-        if (!createdOrganization) {
-          this.logger.error(
-            `AuthService -> signupStep3 method >> Error creando organización para el usuario ${user.email}`,
-          );
-          return StepThreeErrors.SERVER_INTERNAL_ERROR;
-        }
+        // Iniciar transacción para asegurar atomicidad
+        createdUser = await this.prisma.$transaction(async (tx) => {
+          // 1. Crear Organización
+          const slug = await OrganizationsService.generateUniqueSlug(userVerificationRow.organizationName, tx);
 
-        // Crear usuario
-        createdUser = await this.prisma.user.create({
-          data: {
-            email: userVerificationRow.email,
-            name: userVerificationRow.userName,
-            password: hashedPassword,
-            role: 'owner',
-            organizationId: createdOrganization.id,
-            isActive: true,
-            emailVerified: userVerificationRow.isEmailVerified,
-          },
-        });
+          const newOrganization = await tx.organization.create({
+            data: {
+              name: userVerificationRow.organizationName,
+              slug: slug,
+              plan: SubscriptionPlan.STARTER,
+              isActive: true, // Asumimos default true
+              allowOverages: false, // Default seguro
+            },
+          });
 
-        await this.prisma.userVerification.deleteMany({
-          where: { email: user.email },
+          // Crear balance inicial (siempre necesario al crear org)
+          await tx.creditBalance.create({
+            data: {
+              organizationId: newOrganization.id,
+              balance: 0,
+              lifetimeEarned: 0,
+              lifetimeSpent: 0,
+              currentMonthSpent: 0,
+              currentMonthCostUSD: 0,
+            },
+          });
+
+          // 2. Crear Usuario
+          const newUser = await tx.user.create({
+            data: {
+              email: userVerificationRow.email,
+              name: userVerificationRow.userName,
+              password: hashedPassword,
+              role: 'owner', // El primer usuario es owner
+              organizationId: newOrganization.id,
+              isActive: true,
+              emailVerified: userVerificationRow.isEmailVerified,
+            },
+          });
+
+          // 3. Borrar verificación
+          await tx.userVerification.deleteMany({
+            where: { email: user.email },
+          });
+
+          return newUser;
         });
       } catch (error) {
         this.logger.error(
-          `AuthService -> signupStep3 method >> Error creando usuario para el email ${user.email}: ${error}`,
+          `AuthService -> signupStep3 method >> Error en transacción de creación: ${error}`,
         );
         return StepThreeErrors.SERVER_INTERNAL_ERROR;
       }

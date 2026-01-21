@@ -1,5 +1,4 @@
-import { DashboardConversationDto } from '@/conversations/dto/dashboard-conversation.dto';
-import { UpdateConversationDto } from '@/conversations/dto/update-conversation.dto';
+import { DashboardConversationDto, UpdateConversationDto } from '../../dto'
 import { ConversationsService } from '../../conversations.service';
 import { Body, Controller, Get, NotFoundException, Param, Patch, Res } from '@nestjs/common';
 import { Response } from 'express';
