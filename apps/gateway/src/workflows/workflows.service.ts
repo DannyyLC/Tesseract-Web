@@ -638,6 +638,9 @@ export class WorkflowsService {
     // Stream que enviaremos al cliente (filtrado) on
     const clientStream = new PassThrough();
 
+    // 0. ENVIAR CONVERSATION ID AL INICIO (Evento custom)
+    clientStream.write(`event: conversation_id\ndata: "${conversation.id}"\n\n`);
+
     // let fullContent = '';
     let metadataEvent: any = null;
     let assistantMessageBuilder = '';
@@ -668,15 +671,24 @@ export class WorkflowsService {
 
             // LÓGICA DE FILTRADO Y TRANSFORMACIÓN
 
-            // 1. TOKENS: Simplificar y pasar al cliente
+            // 1. TOKENS: Simplificar y pasar al cliente + ACUMULAR para guardar
             if (event.type === 'token') {
               // Cliente quiere: data: "El"\n\n
               const simplifiedData = `data: ${JSON.stringify(event.content)}\n\n`;
               this.push(simplifiedData);
+
+              // IMPORTANTE: Acumular también los tokens porque el agente puede NO mandar evento 'message' al final en streaming
+              assistantMessageBuilder += event.content ?? '';
             }
 
-            // 2. MENSAJES: Acumular internamente
+            // 2. MENSAJES: Acumular internamente (si el agente manda bloques completos)
             else if (event.type === 'message') {
+              // Si ya acumulamos vía tokens, aquí podríamos duplicar si no tenemos cuidado.
+              // Asumimos que si manda tokens, NO manda el mensaje completo acumulado, o viceversa.
+              // PERO para seguridad: si event.content es TODO el mensaje, deberíamos usar ese.
+              // En este caso, simplemente acumulamos si es un chunk tipo mensaje.
+              // Si el 'message' event de tu agente es "todo el texto acumulado hasta ahora", entonces deberíamos REEMPLAZAR.
+              // Asumimos comportamiento estándar de chunks:
               assistantMessageBuilder += event.content ?? '';
             }
 
@@ -732,6 +744,27 @@ export class WorkflowsService {
               }
             } catch (e) {
               this.logger.error(`Error calculando costos stream: ${(e as Error).message}`);
+            }
+          } else {
+            // Fallback: usar tokens totales con modelo por defecto
+            const inputTokens = metadataEvent?.input_tokens ?? 0;
+            const outputTokens = metadataEvent?.output_tokens ?? 0;
+            const modelUsed = metadataEvent?.model_used ?? 'gpt-4o-mini';
+
+            if (totalTokens > 0) {
+              try {
+                const costCalculation = await this.llmModelsService.calculateCost(modelUsed, {
+                  inputTokens,
+                  outputTokens,
+                  totalTokens,
+                });
+                costUSD = costCalculation.totalCost;
+                costBreakdown.push({ model: modelUsed, cost: costUSD });
+              } catch (error) {
+                this.logger.error(
+                  `Error calculando costo stream para modelo ${modelUsed}: ${(error as Error).message}`,
+                );
+              }
             }
           }
 

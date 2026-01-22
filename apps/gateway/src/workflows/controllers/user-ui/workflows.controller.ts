@@ -105,6 +105,7 @@ export class WorkflowsController {
     const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
 
     return {
+      conversationId: result?.conversationId,
       content: assistantContent,
       metadata: {
         execution_time_ms: result?.metadata?.execution_time_ms,
