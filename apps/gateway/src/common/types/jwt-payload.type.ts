@@ -24,6 +24,7 @@ export interface UserPayload {
   organizationId: string; // Organization ID
   organizationName: string; // Organization name (para logging)
   plan: string; // Organization plan (free, pro, enterprise)
+  rememberMe?: boolean; // Remember Me flag
   iat?: number; // Issued At
   exp?: number; // Expiration
 }

@@ -75,6 +75,9 @@ export class AuthController {
 
       if (result.status === 'complete') {
         // Login directo (sin 2FA)
+        const rememberMe = result.rememberMe || false;
+        const refreshMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : undefined; // 30 days if rememberMe, else Session
+
         response.cookie('accessToken', result.accessToken, {
           httpOnly: true,
           secure: isProduction,
@@ -87,14 +90,14 @@ export class AuthController {
           httpOnly: true,
           secure: isProduction,
           sameSite: 'strict',
-          maxAge: 7 * 24 * 60 * 60 * 1000,
+          maxAge: refreshMaxAge,
           path: '/api/auth',
         });
 
         responseBuilder
           .setSuccess(true)
           .setStatusCode(HttpStatusCode.Ok)
-          .setData({ user: result.user })
+          .setData({ user: result.user, rememberMe })
           .setMessage('Login successful');
       } else if (result.status === '2fa_required') {
         // Requiere 2FA
@@ -187,6 +190,8 @@ export class AuthController {
 
     // Determinar si estamos en producción
     const isProduction = process.env.NODE_ENV === 'production';
+    const rememberMe = result.rememberMe || false;
+    const refreshMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : undefined;
 
     // Establecer nuevo accessToken
     response.cookie('accessToken', result.accessToken, {
@@ -202,12 +207,13 @@ export class AuthController {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
+      maxAge: refreshMaxAge,
       path: '/api/auth',
     });
 
     return {
       success: true,
+      rememberMe,
     };
   }
 
@@ -356,13 +362,15 @@ export class AuthController {
     }
     // Determinar si estamos en producción
     const isProduction = process.env.NODE_ENV === 'production';
+    const rememberMe = result.rememberMe || false;
+    const refreshMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : undefined;
 
     // Establecer accessToken en cookie httpOnly
     response.cookie('accessToken', result.accessToken, {
       httpOnly: true, // No accesible desde JavaScript
       secure: isProduction, // Solo HTTPS en producción
       sameSite: 'strict', // Protección CSRF
-      maxAge: 24 * 60 * 60 * 1000, // 24 horas
+      maxAge: 24 * 60 * 60 * 1000, // 24 horas - Wait, accessToken usually short? I'll keep it as was in verify2FA for now
       path: '/',
     });
 
@@ -371,7 +379,7 @@ export class AuthController {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
+      maxAge: refreshMaxAge, // Session or 30 days
       path: '/api/auth', // Solo se envía a endpoints de auth
     });
 
@@ -379,7 +387,7 @@ export class AuthController {
     responseBuilder
       .setSuccess(true)
       .setStatusCode(HttpStatusCode.Ok)
-      .setData({ user: result.user })
+      .setData({ user: result.user, rememberMe })
       .setMessage('2FA verified successfully');
     response.statusCode = 200;
     response.send(responseBuilder.build());
@@ -435,8 +443,8 @@ export class AuthController {
   }
 
   @Post('signup-step-three')
-  async signupStep3(@Body() body: CreateUserDto, @Res() res: Response): Promise<Response<ApiResponseBuilder<User | keyof typeof StepThreeErrors>>> {
-    const apiResponse = new ApiResponseBuilder<User | keyof typeof StepThreeErrors>();
+  async signupStep3(@Body() body: CreateUserDto, @Res() res: Response): Promise<Response<ApiResponseBuilder<any | keyof typeof StepThreeErrors>>> {
+    const apiResponse = new ApiResponseBuilder<any | keyof typeof StepThreeErrors>();
     const result = await this.authService.signupStepThree(body);
     if (typeof result === 'string') {
       apiResponse
@@ -445,10 +453,30 @@ export class AuthController {
         .setErrors([result]);
       return res.status(400).json(apiResponse.build());
     } else {
+      // Determinar si estamos en producción
+      const isProduction = process.env.NODE_ENV === 'production';
+
+      // Login directo (es signup, default recuerdame false)
+      res.cookie('accessToken', result.accessToken, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'strict',
+        maxAge: 15 * 60 * 1000,
+        path: '/',
+      });
+
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'strict',
+        // maxAge: undefined, // Session cookie
+        path: '/api/auth',
+      });
+
       apiResponse
         .setStatusCode(201)
         .setMessage('User registered successfully')
-        .setData(result);
+        .setData({ user: result.user, rememberMe: false });
       return res.status(201).json(apiResponse.build());
     }
   }

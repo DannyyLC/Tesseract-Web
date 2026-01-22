@@ -65,6 +65,7 @@ export class AuthService {
       organizationId: organization.id,
       organizationName: organization.name,
       plan: organization.plan,
+      rememberMe: dto.rememberMe,
     };
     // 2. Si 2FA no está habilitado, login directo
     if (!user.twoFactorEnabled) {
@@ -77,6 +78,7 @@ export class AuthService {
         organization.id,
         organization.name,
         organization.plan,
+        dto.rememberMe,
       );
 
       // Actualizar lastLoginAt
@@ -272,6 +274,7 @@ export class AuthService {
     organizationId: string,
     organizationName: string,
     plan: string,
+    rememberMe?: boolean,
   ) {
     // 1. Crear payload para el JWT
     const payload: UserPayload = {
@@ -282,6 +285,7 @@ export class AuthService {
       organizationId,
       organizationName,
       plan,
+      rememberMe,
     };
 
     // 2. Generar access token (corta duración)
@@ -291,11 +295,12 @@ export class AuthService {
     });
 
     // 3. Generar refresh token (larga duración)
+    const refreshExpiresIn = rememberMe ? '30d' : (this.configService.get('JWT_REFRESH_EXPIRES_IN') ?? '7d');
     const refreshToken = this.jwtService.sign(payload, {
       secret:
         this.configService.get<string>('JWT_REFRESH_SECRET') ??
         'refresh-secret-change-in-production',
-      expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN') ?? '7d',
+      expiresIn: refreshExpiresIn,
     });
 
     // 4. Generar hash del refresh token
@@ -305,12 +310,15 @@ export class AuthService {
     const familyId = crypto.randomUUID();
 
     // 6. Guardar refresh token en la base de datos
+    const expiresAtDate = new Date();
+    expiresAtDate.setDate(expiresAtDate.getDate() + (rememberMe ? 30 : 7));
+
     await this.prisma.refreshToken.create({
       data: {
         tokenHash: refreshTokenHash,
         familyId,
         userId,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días
+        expiresAt: expiresAtDate,
       },
     });
 
@@ -381,11 +389,15 @@ export class AuthService {
         payload.organizationId,
         payload.organizationName,
         payload.plan,
+        payload.rememberMe,
       );
 
       this.logger.info(`Tokens refrescados para: ${payload.email}`);
 
-      return tokens;
+      return {
+        ...tokens,
+        rememberMe: payload.rememberMe,
+      };
     } catch (error) {
       this.logger.error('Error al refrescar tokens', error);
       throw new UnauthorizedException('Refresh token inválido o expirado');
@@ -536,6 +548,7 @@ export class AuthService {
         userPayload.organizationId,
         userPayload.organizationName,
         userPayload.plan,
+        userPayload.rememberMe,
       );
 
       // 3. Actualizar lastLoginAt
@@ -559,6 +572,7 @@ export class AuthService {
           plan: userPayload.plan,
         },
         ...tokens,
+        rememberMe: userPayload.rememberMe,
       };
     } else {
       return null;
@@ -603,7 +617,7 @@ export class AuthService {
     const { sentMessageInfo, verificationCode } =
       await this.emailService.sendVerificationCodeByEmail(payload);
 
-    if (sentMessageInfo.success === false) {
+    if (!sentMessageInfo || sentMessageInfo.success === false) {
       this.logger.error(`authService >> signupStepOne >> Email no aceptado para ${payload.email}`);
       return StepOneErrors.TRANSPORTER_ERROR;
     }
@@ -662,20 +676,21 @@ export class AuthService {
   /**
    * Crear usuario
    */
-  async signupStepThree(user: CreateUserDto): Promise<User | keyof typeof StepThreeErrors> {
+  async signupStepThree(user: CreateUserDto): Promise<any | keyof typeof StepThreeErrors> {
     const userVerificationRow = await this.prisma.userVerification.findFirst({
       where: {
         email: user.email,
         isEmailVerified: true,
       },
     });
-    let createdUser: User | null = null;
+    let createdResult: any = null;
     // Hashear password
     const hashedPassword = await this.hashPassword(user.password);
     if (userVerificationRow) {
       try {
         // Iniciar transacción para asegurar atomicidad
-        createdUser = await this.prisma.$transaction(async (tx) => {
+        // Iniciar transacción para asegurar atomicidad
+        createdResult = await this.prisma.$transaction(async (tx) => {
           // 1. Crear Organización
           const slug = await OrganizationsService.generateUniqueSlug(userVerificationRow.organizationName, tx);
 
@@ -719,7 +734,29 @@ export class AuthService {
             where: { email: user.email },
           });
 
-          return newUser;
+          // 4. Generate Tokens
+          const tokens = await this.generateTokens(
+            newUser.id,
+            newUser.email,
+            newUser.name,
+            newUser.role,
+            newOrganization.id,
+            newOrganization.name,
+            newOrganization.plan,
+            false // rememberMe default false
+          );
+
+          // 5. Update lastLogin
+          await tx.user.update({
+            where: { id: newUser.id },
+            data: { lastLoginAt: new Date() },
+          });
+
+          return {
+            user: newUser,
+            ...tokens,
+            rememberMe: false
+          };
         });
       } catch (error) {
         this.logger.error(
@@ -734,6 +771,6 @@ export class AuthService {
       return StepThreeErrors.EMAIL_NOT_VERIFIED;
     }
 
-    return createdUser;
+    return createdResult;
   }
 }

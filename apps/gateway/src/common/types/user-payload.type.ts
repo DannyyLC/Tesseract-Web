@@ -12,6 +12,7 @@ export interface UserPayload {
   organizationId: string; // ID de la organización
   organizationName: string; // Nombre de la organización
   plan: string; // Plan: 'free', 'pro', 'enterprise'
+  rememberMe?: boolean; // Remember Me flag
   iat?: number; // Issued At - Timestamp de creación
   exp?: number; // Expiration - Timestamp de expiración
 }
