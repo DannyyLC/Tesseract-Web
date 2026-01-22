@@ -8,6 +8,7 @@ import { ConversationsModule } from '../conversations/conversations.module';
 import { CreditsModule } from '../credits/credits.module';
 import { LlmModelsModule } from '../llm-models/llm-models.module';
 import { ExternalWorkflowsController } from './controllers/external/workflows.controller';
+import { WorkflowsEventsController } from './controllers/user-ui/workflows-events.controller';
 
 /**
  * WorkflowsModule
@@ -22,7 +23,7 @@ import { ExternalWorkflowsController } from './controllers/external/workflows.co
     CreditsModule,
     LlmModelsModule,
   ],
-  controllers: [WorkflowsController, ExternalWorkflowsController],
+  controllers: [WorkflowsController, ExternalWorkflowsController, WorkflowsEventsController],
   providers: [WorkflowsService],
   exports: [WorkflowsService],
 })

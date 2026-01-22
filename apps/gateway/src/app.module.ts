@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { WorkflowsModule } from './workflows/workflows.module';
@@ -58,6 +59,7 @@ import { EndUsersModule } from './end-users/end-users.module';
     UsersModule,
     ScheduleModule.forRoot(),
     EndUsersModule,
+    EventEmitterModule.forRoot(),
   ],
   controllers: [],
   providers: [
@@ -65,4 +67,4 @@ import { EndUsersModule } from './end-users/end-users.module';
   ],
   exports: [WinstonModule],
 })
-export class AppModule {}
+export class AppModule { }
