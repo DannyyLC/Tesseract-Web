@@ -15,18 +15,18 @@ export class ConversationsController {
   @Get('dashboard/:idOrganization')
   async getDashboardData(
     @Param('idOrganization') idOrganization: string,
-    @Query('cursorId') cursorId: string | null = null,
+    @Query('cursor') cursor: string | null = null,
     @Query('pageSize') pageSize: number = 10,
-    @Query('paginationAction') paginationAction: 'next' | 'prev' | null = null,
+    @Query('action') action: 'next' | 'prev' | null = null,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<CursorPaginatedResponse<DashboardConversationDto>>>> {
     const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardConversationDto>>();
 
     const paginatedResponse = await this.conversationsService.findAll({
       organizationId: idOrganization,
-      cursor: cursorId,
+      cursor: cursor,
       take: pageSize,
-      paginationAction: paginationAction,
+      paginationAction: action,
     });
 
     const items: DashboardConversationDto[] = paginatedResponse.items.map((c) => ({
