@@ -8,11 +8,12 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { AuthService } from '../auth/auth.service';
-import { InviteUserDto, UpdateProfileDto, UserFiltersDto, DashboardUsersDto } from './dto';
+import { InviteUserDto, UpdateProfileDto, UserFiltersDto, DashboardUsersDto, DashboardUserDataDto } from './dto';
 import { User, Organization, Prisma } from '@prisma/client';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
-import { OrganizationsService } from '../organizations/organizations.service';
+import { CursorPaginatedResponse } from '@workflow-automation/shared-types';
+import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 
 interface PaginatedUsers {
   data: User[];
@@ -665,10 +666,19 @@ export class UsersService {
     return org;
   }
 
-  async getDashboardData(organizationId: string): Promise<DashboardUsersDto> {
-    const organizationDataForDashboard = await this.prisma.user.findMany({
+  async getDashboardData(
+    organizationId: string,
+    cursor?: string | null,
+    take: number = 10, 
+    paginationAction: 'next' | 'prev' | null = null
+  ): Promise<CursorPaginatedResponse<DashboardUserDataDto>> {
+    const users = await this.prisma.user.findMany({
+      take: paginationAction === "prev" ?  - (take + 1) : (take + 1),
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
       where: { organizationId },
       select: {
+        id: true,
         email: true,
         name: true,
         role: true,
@@ -679,18 +689,23 @@ export class UsersService {
         timezone: true,
         emailVerified: true,
       },
+      orderBy: {
+        createdAt: 'desc'
+      }
     });
-    if (organizationDataForDashboard.length === 0) {
+    if (users.length === 0) {
       this.logger.error(
         `getDashboardData method >> Organization not found for ID: ${organizationId}`,
       );
     }
+    const paginatedUserRes = await CursorPaginatedResponseUtils.getInstance().build<User>(
+      users, take, paginationAction
+    )
+    paginatedUserRes.items.forEach(user => {
+      delete user.id
+    });
     return {
-      totalUsers: organizationDataForDashboard.length,
-      activeUsers: organizationDataForDashboard.filter((user) => user.isActive).length,
-      invitedUsers: organizationDataForDashboard.filter((user) => !user.emailVerified).length,
-      pendingUsers: organizationDataForDashboard.filter((user) => !user.isActive).length,
-      users: organizationDataForDashboard,
-    };
+      ...paginatedUserRes
+    }
   }
 }

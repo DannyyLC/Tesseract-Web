@@ -5,6 +5,7 @@ import { DashboardOrganizationDto } from '@/organizations/dto';
 import { DashboardWorkflowDto } from '@/workflows/dto';
 import { ConversationsService } from '../../conversations/conversations.service';
 import { PrismaService } from '../../database/prisma.service';
+import { DashboardConversationDto } from '../../conversations/dto';
 
 @Injectable()
 export class EventsService {
@@ -95,7 +96,25 @@ export class EventsService {
       case EventSubjectType.CONVERSATION:
         return await this.conversationsService.findAll(data.organizationId);
       case EventSubjectType.MESSAGE:
-        return await this.conversationsService.findOne(data.conversationId);
+        const conversation = this.prismaService.conversations.findOne({
+          where: {
+            id: data.conversationId
+          },
+          select: {
+            title: true,
+            channel: true,
+            status: true,
+            isHumanInTheLoop: true,
+            messageCount: true,
+            lastMessageAt: true,
+            createdAt: true,
+            closedAt: true,
+            workflowId: true,
+            userId: true, 
+            endUserId: true
+          }
+        });
+        return conversation as DashboardConversationDto;
       default:
         break;
     }
