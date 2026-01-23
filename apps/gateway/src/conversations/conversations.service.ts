@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { DashboardConversationDto } from './dto/dashboard-conversation.dto';
 import { CursorPaginatedResponse, PaginatedResponse } from '@workflow-automation/shared-types';
@@ -16,7 +16,7 @@ import { Conversation } from '@workflow-platform/database';
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Busca o crea una conversación para la ejecución
@@ -79,17 +79,28 @@ export class ConversationsService {
   /**
    * Obtiene una conversación por ID con todos sus detalles (incluyendo mensajes)
    *
+   * @param organizationId - ID de la organización
    * @param id - ID de la conversación
    */
-  async findOne(id: string) {
-    return this.prisma.conversation.findUnique({
-      where: { id },
+  async findOne(organizationId: string, id: string) {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        id,
+        organizationId,
+        deletedAt: null,
+      },
       include: {
         messages: {
           orderBy: { createdAt: 'asc' },
         },
       },
     });
+
+    if (!conversation) {
+      throw new NotFoundException(`Conversation with ID ${id} not found`);
+    }
+
+    return conversation;
   }
 
   /**
@@ -98,7 +109,23 @@ export class ConversationsService {
    * @param id - ID de la conversación
    * @param data - Datos a actualizar (compatible con PrismaUpdateInput)
    */
-  async update(id: string, data: any) {
+  async update(organizationId: string, id: string, data: any) {
+    // 1. Verificar ownership
+    await this.findOne(organizationId, id);
+
+    // RESTRICCIÓN HITL: Si es usuario interno (userId != null), no puede modificar isHumanInTheLoop
+    if (data.isHumanInTheLoop !== undefined) {
+      const existing = await this.prisma.conversation.findUnique({
+        where: { id },
+        select: { userId: true },
+      });
+
+      if (existing && existing.userId) {
+        // Es una conversación interna (User), no debería tener HITL activado manualmente
+        throw new ForbiddenException('Internal users cannot toggle Human in the Loop');
+      }
+    }
+
     const conversation = await this.prisma.conversation.update({
       where: { id },
       data,
@@ -119,8 +146,10 @@ export class ConversationsService {
     isHumanInTheLoop?: boolean;
     status?: string;
     organizationId: string;
+    workflowId?: string;
+    userId?: string;
   }): Promise<CursorPaginatedResponse<DashboardConversationDto>> {
-    const { cursor, take, paginationAction, isHumanInTheLoop, status, organizationId } = params;
+    const { cursor, take, paginationAction, isHumanInTheLoop, status, organizationId, workflowId, userId } = params;
     const conversations = await this.prisma.conversation.findMany({
       take: paginationAction === 'next' || paginationAction === null ? (take ?? 10) + 1 : - ((take ?? 10) + 1),
       skip: cursor ? 1 : 0,
@@ -129,6 +158,9 @@ export class ConversationsService {
         isHumanInTheLoop,
         status,
         organizationId,
+        workflowId,
+        userId,
+        deletedAt: null,
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -140,7 +172,7 @@ export class ConversationsService {
         endUser: { select: { name: true, email: true, avatar: true } },
       },
     });
-    
+
     return CursorPaginatedResponseUtils.getInstance().build<Conversation>(
       conversations, take ?? 10, paginationAction)
   }
@@ -174,6 +206,7 @@ export class ConversationsService {
     conversationId: string,
     role: 'human' | 'assistant' | 'system',
     content: string,
+    metadata?: any,
   ) {
     const [message] = await this.prisma.$transaction([
       this.prisma.message.create({
@@ -181,6 +214,7 @@ export class ConversationsService {
           conversationId,
           role,
           content,
+          metadata: metadata ?? undefined,
         },
       }),
       this.prisma.conversation.update({
@@ -201,15 +235,36 @@ export class ConversationsService {
   /**
    * Cuenta conversaciones totales según filtros (para paginación)
    */
-  async count(params: { isHumanInTheLoop?: boolean; status?: string; organizationId: string }) {
-    const { isHumanInTheLoop, status, organizationId } = params;
+  async count(params: {
+    isHumanInTheLoop?: boolean;
+    status?: string;
+    organizationId: string;
+    workflowId?: string;
+    userId?: string;
+  }) {
+    const { isHumanInTheLoop, status, organizationId, workflowId, userId } = params;
 
     return this.prisma.conversation.count({
       where: {
         isHumanInTheLoop,
         status,
         organizationId,
+        workflowId,
+        userId,
       },
+    });
+  }
+
+  /**
+   * Elimina una conversación (Soft Delete)
+   */
+  async remove(organizationId: string, id: string) {
+    // 1. Verificar ownership
+    await this.findOne(organizationId, id);
+
+    return this.prisma.conversation.update({
+      where: { id },
+      data: { deletedAt: new Date() },
     });
   }
 }

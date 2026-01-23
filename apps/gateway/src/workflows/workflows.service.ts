@@ -34,7 +34,7 @@ export class WorkflowsService {
     private readonly creditsService: CreditsService,
     private readonly llmModelsService: LlmModelsService,
     private readonly conversationsService: ConversationsService,
-  ) {}
+  ) { }
 
   //==========================================================
   // CRUD DE WORKFLOWS
@@ -307,6 +307,34 @@ export class WorkflowsService {
     // Asociar la ejecución a la conversación
     await this.executionsService.linkToConversation(execution.id, conversation.id);
 
+    // 4.1 CHECK HITL BYPASS (Internal User acting as AI)
+    if (conversation.isHumanInTheLoop && userId) {
+      this.logger.log(`HITL Execution: User ${userId} acting as assistant.`);
+
+      // 1. Guardar el mensaje del usuario como 'assistant' (la persona responde por la IA)
+      await this.conversationsService.addMessage(conversation.id, 'assistant', userMessage, {
+        is_hitl_bypass: true,
+        original_user_id: userId,
+      });
+
+      // 2. Actualizar ejecución como completada
+      await this.executionsService.updateStatus(execution.id, 'completed', {
+        result: {
+          messages: [{ role: 'assistant', content: userMessage }],
+          conversationId: conversation.id,
+        },
+        cost: 0,
+        tokensUsed: 0,
+      });
+
+      // 3. Actualizar contadores de conversación
+      await this.conversationsService.update(organizationId, conversation.id, {
+        messageCount: { increment: 1 },
+      });
+
+      return this.executionsService.findOneForClient(execution.id, organizationId);
+    }
+
     // OBTENER HISTORIAL ANTES de guardar el mensaje del usuario
     // Esto evita duplicados en el message_history que enviamos al agente
     const messageHistory = await this.conversationsService.getMessageHistory(conversation.id);
@@ -347,7 +375,7 @@ export class WorkflowsService {
       } else {
         this.logger.warn(
           `No se encontró mensaje del asistente en ejecución ${execution.id}. ` +
-            `Messages: ${JSON.stringify(messages)}`,
+          `Messages: ${JSON.stringify(messages)}`,
         );
       }
 
@@ -408,7 +436,7 @@ export class WorkflowsService {
 
       this.logger.log(
         `Costo total de ejecución ${execution.id}: $${costUSD} ` +
-          `(breakdown: ${JSON.stringify(costBreakdown)})`,
+        `(breakdown: ${JSON.stringify(costBreakdown)})`,
       );
 
       // 8. ACTUALIZAR EXECUTION Y CONVERSATION EN PARALELO
@@ -427,7 +455,7 @@ export class WorkflowsService {
           credits: undefined, // Se actualizará en el siguiente paso
         }),
         // Batch update de conversation (tabla diferente, sin conflicto)
-        this.conversationsService.update(conversation.id, {
+        this.conversationsService.update(organizationId, conversation.id, {
           messageCount: { increment: messageIncrement },
           lastMessageAt: new Date(),
           ...(totalTokens > 0 ? { totalTokens: { increment: totalTokens } } : {}),
@@ -460,7 +488,7 @@ export class WorkflowsService {
 
       this.logger.log(
         `Créditos descontados para ejecución exitosa ${execution.id}: ` +
-          `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
+        `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
       );
 
       // 10. RETORNAR EJECUCIÓN CON RELACIONES COMPLETAS (requiere query con joins)
@@ -582,6 +610,46 @@ export class WorkflowsService {
     );
 
     await this.executionsService.linkToConversation(execution.id, conversation.id);
+
+    // 4.1 CHECK HITL BYPASS (Internal User acting as AI)
+    if (conversation.isHumanInTheLoop && userId) {
+      this.logger.log(`HITL Stream Execution: User ${userId} acting as assistant.`);
+
+      // 1. Guardar el mensaje del usuario como 'assistant'
+      await this.conversationsService.addMessage(conversation.id, 'assistant', userMessage, {
+        is_hitl_bypass: true,
+        original_user_id: userId,
+      });
+
+      // 2. Actualizar ejecución
+      await this.executionsService.updateStatus(execution.id, 'completed', {
+        result: {
+          messages: [{ role: 'assistant', content: userMessage }],
+          conversationId: conversation.id,
+        },
+        cost: 0,
+        tokensUsed: 0,
+      });
+
+      // 3. Actualizar contadores
+      await this.conversationsService.update(organizationId, conversation.id, {
+        messageCount: { increment: 1 },
+      });
+
+      // 4. Retornar stream simulado
+      const stream = new PassThrough();
+      stream.write(`event: conversation_id\ndata: "${conversation.id}"\n\n`);
+
+      // Simular evento de token para consistencia en frontend
+      const tokenEvent = { type: 'token', content: userMessage };
+      stream.write(`data: ${JSON.stringify(tokenEvent)}\n\n`);
+
+      // Simular evento finalización (opcional, pero buena práctica)
+      // stream.write(`event: done\ndata: "[DONE]"\n\n`); 
+
+      stream.end();
+      return stream;
+    }
 
     const messageHistory = await this.conversationsService.getMessageHistory(conversation.id);
 
@@ -789,7 +857,7 @@ export class WorkflowsService {
 
           // 6. Actualizar Conversación (stats)
           // 6. Actualizar Conversación (stats)
-          await this.conversationsService.update(conversation.id, {
+          await this.conversationsService.update(organizationId, conversation.id, {
             messageCount: { increment: assistantMessageBuilder ? 2 : 1 },
             lastMessageAt: new Date(),
             ...(totalTokens > 0 ? { totalTokens: { increment: totalTokens } } : {}),
@@ -913,7 +981,7 @@ export class WorkflowsService {
       if (agentTools.length > 0 && Object.keys(filtered).length === 0) {
         this.logger.warn(
           `Agent "${agentName}" tiene tools configurados pero ninguno es válido. ` +
-            `Tools configurados: ${JSON.stringify(agentTools)}`,
+          `Tools configurados: ${JSON.stringify(agentTools)}`,
         );
       }
     }
@@ -1050,7 +1118,7 @@ export class WorkflowsService {
       const availableModels = Array.from(activeModelNames).slice(0, 10).join(', ');
       throw new InvalidWorkflowConfigException(
         `Invalid models: ${invalidModels.join(', ')}. ` +
-          `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
+        `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
       );
     }
   }

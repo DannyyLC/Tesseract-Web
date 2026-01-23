@@ -439,6 +439,7 @@ model Conversation {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   closedAt  DateTime? // Cuándo se cerró la conversación
+  deletedAt DateTime? // Soft delete
 
   // Relaciones
   organizationId String
@@ -457,6 +458,7 @@ model Conversation {
   @@index([createdAt])
   @@index([lastMessageAt])
   @@index([closedAt])
+  @@index([deletedAt]) // Index para filtrar soft deletes
   @@index([workflowId, status, lastMessageAt]) // Query: conversaciones activas por workflow
   @@map("conversations")
 }
