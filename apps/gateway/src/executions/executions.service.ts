@@ -1133,7 +1133,7 @@ export class ExecutionsService {
           select: {
             name: true,
           },
-        },  
+        },
         user: {
           select: {
             name: true,
@@ -1143,10 +1143,10 @@ export class ExecutionsService {
       },
       orderBy: {
         startedAt: 'desc',
-      }
+      },
     });
 
-    return executions.map(exec => ({
+    return executions.map((exec) => ({
       status: exec.status,
       startedAt: exec.startedAt,
       finishedAt: exec.finishedAt,

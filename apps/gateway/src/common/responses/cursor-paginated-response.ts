@@ -25,7 +25,7 @@ export class CursorPaginatedResponseUtils {
           : null,
       prevCursor:
         (paginationAction === 'prev' && items.length > (take ?? 10)) || paginationAction === 'next'
-          ? items[0]?.id 
+          ? items[0]?.id
           : null,
       nextPageAvailable: items.length > (take ?? 10) || paginationAction === 'prev',
       pageSize: take ?? 10,

@@ -16,7 +16,7 @@ import { Conversation } from '@workflow-platform/database';
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Busca o crea una conversación para la ejecución
@@ -149,9 +149,21 @@ export class ConversationsService {
     workflowId?: string;
     userId?: string;
   }): Promise<CursorPaginatedResponse<DashboardConversationDto>> {
-    const { cursor, take, paginationAction, isHumanInTheLoop, status, organizationId, workflowId, userId } = params;
+    const {
+      cursor,
+      take,
+      paginationAction,
+      isHumanInTheLoop,
+      status,
+      organizationId,
+      workflowId,
+      userId,
+    } = params;
     const conversations = await this.prisma.conversation.findMany({
-      take: paginationAction === 'next' || paginationAction === null ? (take ?? 10) + 1 : - ((take ?? 10) + 1),
+      take:
+        paginationAction === 'next' || paginationAction === null
+          ? (take ?? 10) + 1
+          : -((take ?? 10) + 1),
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
       where: {
@@ -174,7 +186,10 @@ export class ConversationsService {
     });
 
     return CursorPaginatedResponseUtils.getInstance().build<Conversation>(
-      conversations, take ?? 10, paginationAction)
+      conversations,
+      take ?? 10,
+      paginationAction,
+    );
   }
 
   /**

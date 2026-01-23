@@ -630,24 +630,6 @@ export class UsersService {
   }
 
   /**
-   * Validar que no sea el único owner
-   */
-  private async validateSingleOwner(organizationId: string): Promise<void> {
-    const ownerCount = await this.prisma.user.count({
-      where: {
-        organizationId,
-        role: 'owner',
-        deletedAt: null,
-        isActive: true,
-      },
-    });
-
-    if (ownerCount >= 1) {
-      throw new ConflictException('Organization already has an owner');
-    }
-  }
-
-  /**
    * Validar que NO se puede eliminar al owner
    */
   private validateNotOwner(user: User): void {

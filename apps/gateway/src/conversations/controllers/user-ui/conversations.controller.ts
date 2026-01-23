@@ -1,11 +1,22 @@
 import { DashboardConversationDto, UpdateConversationDto } from '../../dto';
 import { ConversationsService } from '../../conversations.service';
-import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Query, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { Response } from 'express';
 import {
   ApiResponse,
   ApiResponseBuilder,
-  CursorPaginatedResponse
+  CursorPaginatedResponse,
 } from '@workflow-automation/shared-types';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
@@ -14,7 +25,7 @@ import { UserPayload } from '../../../common/types/jwt-payload.type';
 @Controller('conversations')
 @UseGuards(JwtAuthGuard)
 export class ConversationsController {
-  constructor(private readonly conversationsService: ConversationsService) { }
+  constructor(private readonly conversationsService: ConversationsService) {}
 
   @Get('dashboard')
   async getDashboardData(
@@ -49,7 +60,7 @@ export class ConversationsController {
       workflowId: c.workflowId,
       userId: c.userId,
       endUserId: c.endUserId,
-      isInternal: !!c.userId, // Si tiene userId es interno
+      isInternal: !!c.userId,
     }));
 
     apiResponse
@@ -112,9 +123,7 @@ export class ConversationsController {
 
     await this.conversationsService.remove(user.organizationId, id);
 
-    apiResponse
-      .setMessage('Conversation deleted successfully')
-      .setSuccess(true);
+    apiResponse.setMessage('Conversation deleted successfully').setSuccess(true);
 
     return res.status(200).json(apiResponse.build());
   }
