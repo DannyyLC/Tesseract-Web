@@ -13,43 +13,43 @@ export class EventsService {
   private readonly conversationsSubject = new Subject<MessageEvent>();
   constructor(
     private readonly conversationsService: ConversationsService,
-    private readonly prismaService: PrismaService
+    private readonly prismaService: PrismaService,
   ) {
     this.prismaService.dbMutations$.subscribe(async (mutation) => {
       const { model, operation, data } = mutation;
       await this.emitEvent(model, operation, data);
-    }); 
+    });
   }
-  
+
   async emitEvent(model: string, action: string, data: any) {
     const formattedData = await this.getFormattedData(model, data);
     switch (model) {
       case EventSubjectType.ORGANIZATION:
-        this.organizationSubject.next({ 
+        this.organizationSubject.next({
           id: data.id,
           data: formattedData,
           type: `${model}.${action}`,
-          retry: 3000
-         });
+          retry: 3000,
+        });
         break;
 
       case EventSubjectType.WORKFLOW:
-        this.workflowSubject.next({ 
+        this.workflowSubject.next({
           id: data.id,
           data: formattedData,
           type: `${model}.${action}`,
-          retry: 3000
-         });
+          retry: 3000,
+        });
         break;
 
       case EventSubjectType.CONVERSATION:
       case EventSubjectType.MESSAGE:
-        this.conversationsSubject.next({ 
+        this.conversationsSubject.next({
           id: data.id,
           data: formattedData,
           type: `${model}.${action}`,
-          retry: 3000
-         });
+          retry: 3000,
+        });
         break;
 
       default:
@@ -70,7 +70,7 @@ export class EventsService {
           createdAt: data.createdAt,
           customMaxUsers: data.customMaxUsers,
           customMaxApiKeys: data.customMaxApiKeys,
-          customMaxWorkflows: data.customMaxWorkflows
+          customMaxWorkflows: data.customMaxWorkflows,
         } as DashboardOrganizationDto;
 
       case EventSubjectType.WORKFLOW:
@@ -90,7 +90,7 @@ export class EventsService {
           failedExecutions: data.failedExecutions,
           totalCreditsConsumed: data.totalCreditsConsumed,
           lastExecutedAt: data.lastExecutedAt,
-          avgExecutionTime: data.avgExecutionTime
+          avgExecutionTime: data.avgExecutionTime,
         } as DashboardWorkflowDto;
       case EventSubjectType.CONVERSATION:
         return await this.conversationsService.findAll(data.organizationId);

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { DashboardExecutionDto } from './dto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 /**
  * Service que maneja el historial de ejecuciones
@@ -15,7 +16,10 @@ import { DashboardExecutionDto } from './dto';
 export class ExecutionsService {
   private readonly logger = new Logger(ExecutionsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   /**
    * Crear una nueva ejecución
@@ -56,6 +60,9 @@ export class ExecutionsService {
     this.logger.log(
       `Ejecución creada: ${execution.id} para workflow ${workflowId} (trigger: ${trigger}, org: ${triggerData?.organizationId ?? 'N/A'}, userId: ${triggerData?.userId ?? 'N/A'}, apiKeyId: ${triggerData?.apiKeyId ?? 'N/A'})`,
     );
+
+    // Emitir evento de creación
+    this.eventEmitter.emit('execution.created', execution);
 
     return execution;
   }
@@ -115,6 +122,29 @@ export class ExecutionsService {
         credits: data?.credits,
         tokensUsed: data?.tokensUsed, // ← Incluido en el mismo update
       },
+      include: {
+        // Incluir relaciones para que el evento tenga info completa
+        workflow: {
+          select: {
+            id: true,
+            name: true,
+            organizationId: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        apiKey: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
 
     // Si la ejecución terminó (completed o failed), actualizar estadísticas del workflow
@@ -126,6 +156,10 @@ export class ExecutionsService {
       `Ejecución ${executionId} actualizada a estado: ${status} ` +
         `(duración: ${duration}s, tokens: ${data?.tokensUsed ?? 0}, cost: $${data?.cost ?? 0})`,
     );
+
+    // Emitir evento de actualización
+    // Se puede diferenciar finished vs updated, pero updated cubre todo
+    this.eventEmitter.emit('execution.updated', updated);
 
     return updated;
   }
@@ -1093,6 +1127,8 @@ export class ExecutionsService {
         credits: true,
         error: true,
         retryCount: true,
+        workflowId: true,
+        userId: true,
         workflow: {
           select: {
             name: true,
@@ -1119,6 +1155,8 @@ export class ExecutionsService {
       credits: exec.credits,
       error: exec.error,
       retryCount: exec.retryCount,
+      workflowId: exec.workflowId,
+      userId: exec.userId,
       workflowName: exec.workflow.name,
       userName: exec.user?.name || 'N/A',
       conversationId: exec.conversationId,

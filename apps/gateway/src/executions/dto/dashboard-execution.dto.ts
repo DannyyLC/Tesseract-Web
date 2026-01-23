@@ -1,4 +1,3 @@
-
 export class DashboardExecutionDto {
     status: string;
     startedAt: Date;
@@ -8,7 +7,9 @@ export class DashboardExecutionDto {
     credits: number | null;
     error: string | null;
     retryCount: number;
-    workflowName: string;
-    userName: string | null;
+    workflowId: string;
+    workflowName?: string | null;
+    userId: string | null;
+    userName?: string | null;
     conversationId: string | null
 }

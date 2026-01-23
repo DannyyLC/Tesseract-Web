@@ -35,7 +35,7 @@ export class WorkflowsController {
   constructor(
     private readonly workflowsService: WorkflowsService,
     private readonly executionsService: ExecutionsService,
-  ) { }
+  ) {}
 
   /**
    * GET /workflows
@@ -105,6 +105,7 @@ export class WorkflowsController {
     const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
 
     return {
+      conversationId: result?.conversationId,
       content: assistantContent,
       metadata: {
         execution_time_ms: result?.metadata?.execution_time_ms,
@@ -159,7 +160,7 @@ export class WorkflowsController {
     @Param('idOrganization') idOrganization: string,
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<DashboardWorkflowDto[]>>> {
-    const apiResponse = new ApiResponseBuilder<DashboardWorkflowDto[]>()
+    const apiResponse = new ApiResponseBuilder<DashboardWorkflowDto[]>();
     const result = await this.workflowsService.getDashboardData(idOrganization);
     apiResponse
       .setData(result)

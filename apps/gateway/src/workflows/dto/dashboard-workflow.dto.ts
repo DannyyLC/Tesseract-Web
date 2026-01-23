@@ -1,5 +1,5 @@
 import { WorkflowCategory } from "@workflow-automation/shared-types";
-
+import { DashboardExecutionDto } from '../../executions/dto/dashboard-execution.dto';
 
 export class DashboardWorkflowDto {
   id: string;
@@ -18,4 +18,5 @@ export class DashboardWorkflowDto {
   totalCreditsConsumed: number;
   lastExecutedAt?: Date | null;
   avgExecutionTime?: number | null;
+  executions: DashboardExecutionDto[];
 }

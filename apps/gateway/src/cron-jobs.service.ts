@@ -6,7 +6,7 @@ import { PrismaService } from './database/prisma.service';
 export class CronJobsService {
   private readonly logger = new Logger(CronJobsService.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   // Runs every hour
   @Cron('0 * * * *')
@@ -58,7 +58,9 @@ export class CronJobsService {
     });
 
     if (result.count > 0) {
-      this.logger.log(`Daily Token Cleanup: Deleted ${result.count} expired/revoked refresh tokens`);
+      this.logger.log(
+        `Daily Token Cleanup: Deleted ${result.count} expired/revoked refresh tokens`,
+      );
     }
   }
 }
