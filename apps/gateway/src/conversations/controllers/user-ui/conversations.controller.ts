@@ -1,11 +1,11 @@
 import { DashboardConversationDto, UpdateConversationDto } from '../../dto';
 import { ConversationsService } from '../../conversations.service';
-import { Body, Controller, Get, NotFoundException, Param, Patch, Res } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Patch, Query, Res } from '@nestjs/common';
 import { Response } from 'express';
 import {
   ApiResponse,
   ApiResponseBuilder,
-  PaginatedResponse,
+  CursorPaginatedResponse
 } from '@workflow-automation/shared-types';
 
 @Controller('conversations')
@@ -15,29 +15,25 @@ export class ConversationsController {
   @Get('dashboard/:idOrganization')
   async getDashboardData(
     @Param('idOrganization') idOrganization: string,
-    @Param('initPage') initPage: number = 1,
-    @Param('pageSize') pageSize: number = 10,
+    @Query('cursorId') cursorId: string | null = null,
+    @Query('pageSize') pageSize: number = 10,
+    @Query('paginationAction') paginationAction: 'next' | 'prev' | null = null,
     @Res() res: Response,
-  ): Promise<Response<ApiResponse<PaginatedResponse<DashboardConversationDto>>>> {
-    const apiResponse = new ApiResponseBuilder<PaginatedResponse<DashboardConversationDto>>();
+  ): Promise<Response<ApiResponse<CursorPaginatedResponse<DashboardConversationDto>>>> {
+    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardConversationDto>>();
 
-    // 1. Get total count
-    const totalItems = await this.conversationsService.count({
+    const paginatedResponse = await this.conversationsService.findAll({
       organizationId: idOrganization,
-    });
-
-    // 2. Get paginated data
-    const rawConversations = await this.conversationsService.findAll({
-      organizationId: idOrganization,
-      skip: initPage > 0 ? (initPage - 1) * pageSize : 0,
+      cursor: cursorId,
       take: pageSize,
+      paginationAction: paginationAction,
     });
 
-    // 3. Map to DTO
-    const items: DashboardConversationDto[] = rawConversations.map((c) => ({
+    const items: DashboardConversationDto[] = paginatedResponse.items.map((c) => ({
       title: c.title,
       channel: c.channel,
       status: c.status,
+      isHumanInTheLoop: c.isHumanInTheLoop,
       messageCount: c.messageCount,
       lastMessageAt: c.lastMessageAt,
       createdAt: c.createdAt,
@@ -47,18 +43,11 @@ export class ConversationsController {
       endUserId: c.endUserId,
     }));
 
-    const totalPages = Math.ceil(totalItems / pageSize);
-
-    const paginatedResponse: PaginatedResponse<DashboardConversationDto> = {
-      items,
-      totalItems,
-      totalPages,
-      currentPage: initPage,
-      pageSize: pageSize,
-    };
-
     apiResponse
-      .setData(paginatedResponse)
+      .setData({
+        ...paginatedResponse,
+        items: items,
+      })
       .setMessage('Dashboard conversations data retrieved successfully')
       .setSuccess(true);
     return res.status(200).json(apiResponse.build());

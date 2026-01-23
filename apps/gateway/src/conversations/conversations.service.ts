@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { DashboardConversationDto } from './dto/dashboard-conversation.dto';
+import { CursorPaginatedResponse, PaginatedResponse } from '@workflow-automation/shared-types';
+import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
+import { Conversation } from '@workflow-platform/database';
 
 /**
  * ConversationsService
@@ -110,32 +113,36 @@ export class ConversationsService {
    * Retorna resumen (sin mensajes o solo el último)
    */
   async findAll(params: {
-    skip?: number;
+    cursor?: string | null;
     take?: number;
+    paginationAction: 'next' | 'prev' | null;
     isHumanInTheLoop?: boolean;
     status?: string;
     organizationId: string;
-  }) {
-    const { skip, take, isHumanInTheLoop, status, organizationId } = params;
-
-    return this.prisma.conversation.findMany({
-      skip,
-      take,
+  }): Promise<CursorPaginatedResponse<DashboardConversationDto>> {
+    const { cursor, take, paginationAction, isHumanInTheLoop, status, organizationId } = params;
+    const conversations = await this.prisma.conversation.findMany({
+      take: paginationAction === 'next' || paginationAction === null ? (take ?? 10) + 1 : - ((take ?? 10) + 1),
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
       where: {
         isHumanInTheLoop,
         status,
         organizationId,
       },
-      orderBy: { lastMessageAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       include: {
         messages: {
-          take: 1,
+          take: 10,
           orderBy: { createdAt: 'desc' },
         },
         user: { select: { name: true, email: true, avatar: true } },
         endUser: { select: { name: true, email: true, avatar: true } },
       },
     });
+    
+    return CursorPaginatedResponseUtils.getInstance().build<Conversation>(
+      conversations, take ?? 10, paginationAction)
   }
 
   /**

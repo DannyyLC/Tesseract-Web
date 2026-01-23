@@ -731,6 +731,319 @@ async function main() {
       totalTokens: 2500,
     },
   });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      workflowId: workflow2.id, // Asistente Financiero
+      organizationId: org1.id, // Acme Corp
+      userId: user1.id, // Admin Acme
+      title: 'Consulta compleja sobre inversión',
+      channel: 'dashboard',
+      status: 'active',
+      isHumanInTheLoop: true, // <--- Probando el nuevo flag
+      messageCount: 5,
+      totalTokens: 2500,
+    },
+  });
+  
   console.log(`✅ Conversación creada: "${conversation1.title}"`);
   console.log(`   ID: ${conversation1.id}`);
   console.log(`   Human in the Loop: TRUE\n`);

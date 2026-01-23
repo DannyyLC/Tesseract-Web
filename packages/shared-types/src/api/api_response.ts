@@ -15,6 +15,14 @@ export interface PaginatedResponse<T> {
   pageSize: number;
 }
 
+export interface CursorPaginatedResponse<T> {
+  items: T[];
+  nextCursor: string | null;
+  prevCursor: string | null;
+  pageSize: number;
+  nextPageAvailable: boolean;
+}
+
 export class ApiResponseBuilder<T = any> {
   private response: ApiResponse<T>;
   constructor() {

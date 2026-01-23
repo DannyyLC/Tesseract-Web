@@ -1092,6 +1092,16 @@ export class WorkflowsService {
             retryCount: true,
             workflowId: true,
             userId: true,
+            workflow: {
+              select: {
+                name: true,
+              },
+            },
+            user: {
+              select: {
+                name: true
+              },
+            },
             conversationId: true,
           },
           take: 10,
