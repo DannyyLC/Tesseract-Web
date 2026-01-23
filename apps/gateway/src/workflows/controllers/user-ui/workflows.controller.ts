@@ -35,7 +35,7 @@ export class WorkflowsController {
   constructor(
     private readonly workflowsService: WorkflowsService,
     private readonly executionsService: ExecutionsService,
-  ) { }
+  ) {}
 
   /**
    * GET /workflows
@@ -160,7 +160,7 @@ export class WorkflowsController {
     @Param('idOrganization') idOrganization: string,
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<DashboardWorkflowDto[]>>> {
-    const apiResponse = new ApiResponseBuilder<DashboardWorkflowDto[]>()
+    const apiResponse = new ApiResponseBuilder<DashboardWorkflowDto[]>();
     const result = await this.workflowsService.getDashboardData(idOrganization);
     apiResponse
       .setData(result)

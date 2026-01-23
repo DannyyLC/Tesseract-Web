@@ -41,7 +41,7 @@ export class AuthService {
     private readonly organizationsService: OrganizationsService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
     private readonly emailService: EmailService,
-  ) { }
+  ) {}
 
   //==============================================================
   // AUTHENTICATION METHODS
@@ -295,7 +295,9 @@ export class AuthService {
     });
 
     // 3. Generar refresh token (larga duración)
-    const refreshExpiresIn = rememberMe ? '30d' : (this.configService.get('JWT_REFRESH_EXPIRES_IN') ?? '7d');
+    const refreshExpiresIn = rememberMe
+      ? '30d'
+      : (this.configService.get('JWT_REFRESH_EXPIRES_IN') ?? '7d');
     const refreshToken = this.jwtService.sign(payload, {
       secret:
         this.configService.get<string>('JWT_REFRESH_SECRET') ??
@@ -490,8 +492,6 @@ export class AuthService {
       expiresAt,
     };
   }
-
-
 
   // ==================== PASSWORD UTILITIES ====================
   /**
@@ -692,7 +692,10 @@ export class AuthService {
         // Iniciar transacción para asegurar atomicidad
         createdResult = await this.prisma.$transaction(async (tx) => {
           // 1. Crear Organización
-          const slug = await OrganizationsService.generateUniqueSlug(userVerificationRow.organizationName, tx);
+          const slug = await OrganizationsService.generateUniqueSlug(
+            userVerificationRow.organizationName,
+            tx,
+          );
 
           const newOrganization = await tx.organization.create({
             data: {
@@ -743,7 +746,7 @@ export class AuthService {
             newOrganization.id,
             newOrganization.name,
             newOrganization.plan,
-            false // rememberMe default false
+            false, // rememberMe default false
           );
 
           // 5. Update lastLogin
@@ -755,7 +758,7 @@ export class AuthService {
           return {
             user: newUser,
             ...tokens,
-            rememberMe: false
+            rememberMe: false,
           };
         });
       } catch (error) {

@@ -27,4 +27,4 @@ import { WorkflowsEventsController } from './controllers/user-ui/workflows-event
   providers: [WorkflowsService],
   exports: [WorkflowsService],
 })
-export class WorkflowsModule { }
+export class WorkflowsModule {}

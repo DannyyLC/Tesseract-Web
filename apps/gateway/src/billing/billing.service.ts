@@ -18,7 +18,7 @@ export class BillingService {
     private readonly creditsService: CreditsService,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   /**
    * Check if the service is properly connected to Stripe

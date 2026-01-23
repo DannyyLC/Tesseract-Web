@@ -20,5 +20,4 @@ export class EventsController {
   getConversationsStream(): Observable<MessageEvent> {
     return this.eventsService.getConversationsStream();
   }
-
 }

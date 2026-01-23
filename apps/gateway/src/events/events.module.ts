@@ -7,7 +7,7 @@ import { DatabaseModule } from '../database/database.module';
 @Module({
   imports: [
     DatabaseModule, // <-- Use forwardRef here if needed
-    ConversationsModule
+    ConversationsModule,
   ],
   providers: [EventsService],
   exports: [EventsService],

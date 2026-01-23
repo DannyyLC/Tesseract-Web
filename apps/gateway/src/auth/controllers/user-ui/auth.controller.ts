@@ -32,9 +32,7 @@ import { UnauthorizedException } from '@nestjs/common';
  */
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService
-  ) { }
+  constructor(private readonly authService: AuthService) {}
 
   /**
    * POST /auth/login
@@ -394,9 +392,15 @@ export class AuthController {
   }
 
   @Post('signup-step-one')
-  async signupStep1(@Body() payload: StartVerificationFlowDto, @Res() response: Response):
-    Promise<Response<ApiResponseBuilder<nodemailer.SentMessageInfo | keyof typeof StepOneErrors>>> {
-    const apiResponseBuilder = new ApiResponseBuilder<nodemailer.SentMessageInfo | keyof typeof StepOneErrors>();
+  async signupStep1(
+    @Body() payload: StartVerificationFlowDto,
+    @Res() response: Response,
+  ): Promise<
+    Response<ApiResponseBuilder<nodemailer.SentMessageInfo | keyof typeof StepOneErrors>>
+  > {
+    const apiResponseBuilder = new ApiResponseBuilder<
+      nodemailer.SentMessageInfo | keyof typeof StepOneErrors
+    >();
     const result = await this.authService.signupStepOne(payload);
 
     if (typeof result !== 'string') {
@@ -419,8 +423,10 @@ export class AuthController {
   }
 
   @Post('signup-step-two')
-  async signupStep2(@Body() verificationCode: VerificationCodeDto, @Res() response: Response):
-    Promise<Response<ApiResponseBuilder<boolean>>> {
+  async signupStep2(
+    @Body() verificationCode: VerificationCodeDto,
+    @Res() response: Response,
+  ): Promise<Response<ApiResponseBuilder<boolean>>> {
     const responseBuilder = new ApiResponseBuilder<boolean>();
     const isEmailVerified = await this.authService.signupStepTwo(verificationCode);
     if (isEmailVerified) {
@@ -443,14 +449,14 @@ export class AuthController {
   }
 
   @Post('signup-step-three')
-  async signupStep3(@Body() body: CreateUserDto, @Res() res: Response): Promise<Response<ApiResponseBuilder<any | keyof typeof StepThreeErrors>>> {
+  async signupStep3(
+    @Body() body: CreateUserDto,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponseBuilder<any | keyof typeof StepThreeErrors>>> {
     const apiResponse = new ApiResponseBuilder<any | keyof typeof StepThreeErrors>();
     const result = await this.authService.signupStepThree(body);
     if (typeof result === 'string') {
-      apiResponse
-        .setStatusCode(400)
-        .setMessage('User registration failed')
-        .setErrors([result]);
+      apiResponse.setStatusCode(400).setMessage('User registration failed').setErrors([result]);
       return res.status(400).json(apiResponse.build());
     } else {
       // Determinar si estamos en producción

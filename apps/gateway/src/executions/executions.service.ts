@@ -18,7 +18,7 @@ export class ExecutionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   /**
    * Crear una nueva ejecución
@@ -121,28 +121,29 @@ export class ExecutionsService {
         credits: data?.credits,
         tokensUsed: data?.tokensUsed, // ← Incluido en el mismo update
       },
-      include: { // Incluir relaciones para que el evento tenga info completa
+      include: {
+        // Incluir relaciones para que el evento tenga info completa
         workflow: {
           select: {
             id: true,
             name: true,
             organizationId: true,
-          }
+          },
         },
         user: {
           select: {
             id: true,
             name: true,
             email: true,
-          }
+          },
         },
         apiKey: {
           select: {
             id: true,
             name: true,
-          }
-        }
-      }
+          },
+        },
+      },
     });
 
     // Si la ejecución terminó (completed o failed), actualizar estadísticas del workflow
@@ -152,7 +153,7 @@ export class ExecutionsService {
 
     this.logger.log(
       `Ejecución ${executionId} actualizada a estado: ${status} ` +
-      `(duración: ${duration}s, tokens: ${data?.tokensUsed ?? 0}, cost: $${data?.cost ?? 0})`,
+        `(duración: ${duration}s, tokens: ${data?.tokensUsed ?? 0}, cost: $${data?.cost ?? 0})`,
     );
 
     // Emitir evento de actualización

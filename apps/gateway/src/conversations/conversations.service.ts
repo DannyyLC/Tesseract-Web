@@ -13,7 +13,7 @@ import { DashboardConversationDto } from './dto/dashboard-conversation.dto';
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Busca o crea una conversación para la ejecución
@@ -139,11 +139,11 @@ export class ConversationsService {
   }
 
   /**
- * Obtiene el historial de mensajes de una conversación
- *
- * @param conversationId - ID de la conversación
- * @returns Array de mensajes ordenados cronológicamente
- */
+   * Obtiene el historial de mensajes de una conversación
+   *
+   * @param conversationId - ID de la conversación
+   * @returns Array de mensajes ordenados cronológicamente
+   */
   async getMessageHistory(conversationId: string) {
     return this.prisma.message.findMany({
       where: { conversationId },
@@ -194,11 +194,7 @@ export class ConversationsService {
   /**
    * Cuenta conversaciones totales según filtros (para paginación)
    */
-  async count(params: {
-    isHumanInTheLoop?: boolean;
-    status?: string;
-    organizationId: string;
-  }) {
+  async count(params: { isHumanInTheLoop?: boolean; status?: string; organizationId: string }) {
     const { isHumanInTheLoop, status, organizationId } = params;
 
     return this.prisma.conversation.count({

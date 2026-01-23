@@ -69,9 +69,9 @@ export class EmailService {
       return { sentMessageInfo: null, verificationCode: verificationCode };
     }
 
-    return { 
+    return {
       sentMessageInfo,
-      verificationCode
+      verificationCode,
     };
   }
 

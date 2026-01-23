@@ -62,9 +62,7 @@ import { EndUsersModule } from './end-users/end-users.module';
     EventEmitterModule.forRoot(),
   ],
   controllers: [],
-  providers: [
-    CronJobsService
-  ],
+  providers: [CronJobsService],
   exports: [WinstonModule],
 })
-export class AppModule { }
+export class AppModule {}

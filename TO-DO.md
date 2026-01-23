@@ -1,6 +1,7 @@
 # DASHBOARD - Datos por Tabla
 
 ## 1. Organization (Su Organización)
+
 - `[SEND]` `id`
 - `[SEND]` `name` - Nombre de la organización
 - `[SEND]` `plan` - Plan actual (FREE, STARTER, GROWTH, BUSINESS, PRO, ENTERPRISE)
@@ -10,6 +11,7 @@
 - `[SEND]` `createdAt` - Fecha de creación
 
 **Límites personalizados:**
+
 - `[SEND]` `customMaxUsers`
 - `[SEND]` `customMaxApiKeys`
 - `[SEND]` `customMaxWorkflows`
@@ -17,13 +19,16 @@
 ---
 
 ## 2. CreditBalance (Balance de Créditos)
+
 - `[SEND]` `balance` - Balance actual de créditos
 - `[SEND]` `currentMonthSpent` - Créditos gastados este mes
 
 ---
 
 ## 3. Subscription (Suscripción Activa)
-*Nota: Enviar dentro de OrganizationDTO si es posible*
+
+_Nota: Enviar dentro de OrganizationDTO si es posible_
+
 - `[SEND]` `plan`
 - `[SEND]` `status` - Estado: ACTIVE, CANCELED, PAST_DUE, INCOMPLETE
 - `[SEND]` `currentPeriodStart`
@@ -31,6 +36,7 @@
 - `[SEND]` `cancelAtPeriodEnd`
 
 **Para planes ENTERPRISE:**
+
 - `[SEND]` `customMonthlyPrice`
 - `[SEND]` `customMonthlyCredits`
 - `[SEND]` `customMaxWorkflows`
@@ -39,6 +45,7 @@
 ---
 
 ## 4. CreditTransaction (Historial de Transacciones)
+
 - `[SEND]` `type`
 - `[SEND]` `amount`
 - `[SEND]` `balanceBefore`
@@ -48,12 +55,14 @@
 - `[SEND]` `createdAt`
 
 **Referencias:**
+
 - `[SEND]` `executionId`
 - `[SEND]` `invoiceId`
 
 ---
 
 ## 5. Invoice (Facturas)
+
 - `[SEND]` `invoiceNumber`
 - `[SEND]` `type`
 - `[SEND]` `status`
@@ -70,6 +79,7 @@
 ---
 
 ## 6. User (Usuarios de la Organización)
+
 - `[SEND]` `email`
 - `[SEND]` `name`
 - `[SEND]` `role`
@@ -82,6 +92,7 @@
 ---
 
 ## 7. Workflow (Agentes/Workflows)
+
 - `[SEND]` `id`
 - `[SEND]` `name`
 - `[SEND]` `description`
@@ -93,9 +104,11 @@
 - `[SEND]` `schedule`
 
 **Límites:**
+
 - `[SEND]` `maxTokensPerExecution`
 
 **Estadísticas:**
+
 - `[SEND]` `totalExecutions`
 - `[SEND]` `successfulExecutions`
 - `[SEND]` `failedExecutions`
@@ -106,6 +119,7 @@
 ---
 
 ## 8. Execution (Ejecuciones de Workflows)
+
 - `[SEND]` `status`
 - `[SEND]` `startedAt`
 - `[SEND]` `finishedAt`
@@ -113,11 +127,13 @@
 - `[SEND]` `trigger`
 
 **Costos:**
+
 - `[SEND]` `credits`
 - `[SEND]` `error`
 - `[SEND]` `retryCount`
 
 **Relaciones:**
+
 - `[SEND]` `workflowId` (o workflow name/category)
 - `[SEND]` `userId` (o user name)
 - `[SEND]` `conversationId`
@@ -125,6 +141,7 @@
 ---
 
 ## 9. Conversation (Conversaciones)
+
 - `[SEND]` `title`
 - `[SEND]` `channel`
 - `[SEND]` `status`
@@ -135,6 +152,7 @@
 - `[SEND]` `closedAt`
 
 **Relaciones:**
+
 - `[SEND]` `workflowId`
 - `[SEND]` `userId`
 - `[SEND]` `endUserId`
@@ -142,6 +160,7 @@
 ---
 
 ## 10. Message (Mensajes de Conversaciones)
+
 - `[SEND]` `role`
 - `[SEND]` `content`
 - `[SEND]` `attachments`
@@ -151,6 +170,7 @@
 ---
 
 ## 11. EndUser (Clientes Externos)
+
 - `[SEND]` `phoneNumber`
 - `[SEND]` `email`
 - `[SEND]` `externalId`
@@ -163,12 +183,14 @@
 ---
 
 ## 12. TenantTool (Conexiones con Tools)
+
 - `[SEND]` `id`
 - `[SEND]` `displayName`
 
 ---
 
 ## 14. ApiKey (API Keys)
+
 - `[SEND]` `name`
 - `[SEND]` `description`
 - `[SEND]` `isActive`
@@ -179,6 +201,7 @@
 ---
 
 ## 15. WhatsAppConfig (Configuraciones de WhatsApp)
+
 > ⚠️ **Nada de whatsapp funciona aun** - Ignorar
 
 - `phoneNumber` - Número de teléfono

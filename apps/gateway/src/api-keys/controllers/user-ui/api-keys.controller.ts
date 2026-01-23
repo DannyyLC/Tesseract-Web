@@ -21,9 +21,6 @@ import { UserPayload } from '../../../common/types/user-payload.type';
 /**
  * Controller de API Keys
  * Maneja la creación, listado, eliminación y activación/desactivación de API Keys
- *
- * Base path: /api-keys
- * Todos los endpoints requieren autenticación JWT
  */
 @Controller('api-keys')
 @UseGuards(JwtAuthGuard)

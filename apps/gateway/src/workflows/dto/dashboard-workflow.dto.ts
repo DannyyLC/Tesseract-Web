@@ -1,6 +1,5 @@
-import { DashboardExecutionDto } from "../../executions/dto/dashboard-execution.dto";
-import { WorkflowCategory } from "@workflow-automation/shared-types";
-
+import { DashboardExecutionDto } from '../../executions/dto/dashboard-execution.dto';
+import { WorkflowCategory } from '@workflow-automation/shared-types';
 
 export class DashboardWorkflowDto {
   id: string;

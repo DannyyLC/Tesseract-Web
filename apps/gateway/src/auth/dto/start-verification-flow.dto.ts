@@ -1,5 +1,5 @@
 export interface StartVerificationFlowDto {
-    userName: string;
-    email: string;
-    organizationName: string;
+  userName: string;
+  email: string;
+  organizationName: string;
 }
