@@ -2,6 +2,7 @@ export class DashboardConversationDto {
     title: string | null;
     channel: string;
     status: string;
+    isHumanInTheLoop: boolean;
     messageCount: number;
     lastMessageAt: Date | null;
     createdAt: Date;

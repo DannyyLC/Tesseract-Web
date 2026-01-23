@@ -1,8 +1,6 @@
 import { InvoiceStatus, InvoiceType } from '@workflow-platform/database';
 
 export interface DashboardInvoiceDto {
-  id: string;
-  organizationId: string;
   invoiceNumber: string;
   type: InvoiceType;
   status: InvoiceStatus;

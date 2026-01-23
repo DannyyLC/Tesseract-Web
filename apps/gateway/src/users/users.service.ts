@@ -687,17 +687,15 @@ export class UsersService {
     const organizationDataForDashboard = await this.prisma.user.findMany({
       where: { organizationId },
       select: {
-        id: true,
         email: true,
         name: true,
         role: true,
         isActive: true,
-        emailVerified: true,
-        twoFactorEnabled: true,
         lastLoginAt: true,
         createdAt: true,
         avatar: true,
         timezone: true,
+        emailVerified: true,
       },
     });
     if (organizationDataForDashboard.length === 0) {

@@ -1042,7 +1042,6 @@ export class WorkflowsService {
         successfulExecutions: true,
         failedExecutions: true,
         totalCreditsConsumed: true,
-        avgCreditsPerExecution: true,
         lastExecutedAt: true,
         avgExecutionTime: true,
         executions: {

@@ -240,8 +240,6 @@ export class CreditsService {
     const balance = await this.prisma.creditBalance.findUnique({
       where: { organizationId },
       select: {
-        id: true,
-        organizationId: true,
         balance: true,
         currentMonthSpent: true,
       },
@@ -267,14 +265,11 @@ export class CreditsService {
     return this.prisma.creditTransaction.findMany({
       where: { organizationId },
       select: {
-        id: true,
-        organizationId: true,
         type: true,
         amount: true,
         balanceBefore: true,
         balanceAfter: true,
         workflowCategory: true,
-        costUSD: true,
         description: true,
         createdAt: true,
         executionId: true,

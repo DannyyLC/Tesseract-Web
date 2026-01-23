@@ -592,9 +592,11 @@ export class OrganizationsService {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
       select: {
+        id: true,
         name: true,
         plan: true,
         allowOverages: true,
+        overageLimit: true,
         isActive: true,
         createdAt: true,
         customMaxUsers: true,
@@ -623,13 +625,11 @@ export class OrganizationsService {
     const subscription = await this.prisma.subscription.findFirst({
       where: { organizationId },
       select: {
-        id: true,
         plan: true,
         status: true,
         currentPeriodStart: true,
         currentPeriodEnd: true,
-        pendingPlanChange: true,
-        planChangeRequestedAt: true,
+        cancelAtPeriodEnd: true,
         customMonthlyPrice: true,
         customMonthlyCredits: true,
         customMaxWorkflows: true,

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { DashboardExecutionDto } from './dto';
 
 /**
  * Service que maneja el historial de ejecuciones
@@ -1076,5 +1077,51 @@ export class ExecutionsService {
     this.logger.debug(
       `Estadísticas actualizadas para ejecución ${executionId}: ${tokensUsed} tokens, $${cost}`,
     );
+  }
+
+  async getDashboardData(organizationId: string): Promise<DashboardExecutionDto[]> {
+    const executions = await this.prisma.execution.findMany({
+      where: {
+        organizationId,
+      },
+      select: {
+        status: true,
+        startedAt: true,
+        finishedAt: true,
+        duration: true,
+        trigger: true,
+        credits: true,
+        error: true,
+        retryCount: true,
+        workflow: {
+          select: {
+            name: true,
+          },
+        },  
+        user: {
+          select: {
+            name: true,
+          },
+        },
+        conversationId: true,
+      },
+      orderBy: {
+        startedAt: 'desc',
+      }
+    });
+
+    return executions.map(exec => ({
+      status: exec.status,
+      startedAt: exec.startedAt,
+      finishedAt: exec.finishedAt,
+      duration: exec.duration,
+      trigger: exec.trigger,
+      credits: exec.credits,
+      error: exec.error,
+      retryCount: exec.retryCount,
+      workflowName: exec.workflow.name,
+      userName: exec.user?.name || 'N/A',
+      conversationId: exec.conversationId,
+    }));
   }
 }

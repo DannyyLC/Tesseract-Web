@@ -15,8 +15,6 @@ export class InvoiceService {
     const invoices = await this.prismaService.invoice.findMany({
       where: { organizationId },
       select: {
-        id: true,
-        organizationId: true,
         invoiceNumber: true,
         type: true,
         status: true,

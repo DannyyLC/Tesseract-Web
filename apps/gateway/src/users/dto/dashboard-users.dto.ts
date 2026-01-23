@@ -11,10 +11,9 @@ export interface DashboardUserDataDto {
   name: string;
   role: String;
   isActive: boolean;
-  emailVerified: boolean;
-  twoFactorEnabled: boolean;
   lastLoginAt: Date | null;
   createdAt: Date;
   avatar: string | null;
   timezone: string | null;
+  emailVerified?: boolean;
 }
