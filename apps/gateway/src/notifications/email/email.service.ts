@@ -13,6 +13,7 @@ import { Logger } from 'winston';
 export class EmailService {
   private transporter: nodemailer.Transporter;
   private emailVerificationTemplate: handlebars.TemplateDelegate;
+  private emailInvitationTemplate: handlebars.TemplateDelegate;
 
   constructor(
     private readonly jwtService: JwtService,
@@ -38,6 +39,7 @@ export class EmailService {
     );
 
     this.emailVerificationTemplate = this.loadTemplate('email_verification_view.hbs');
+    this.emailInvitationTemplate = this.loadTemplate('email_invitation_view.hbs');
   }
 
   private loadTemplate(templateName: string): handlebars.TemplateDelegate {
@@ -75,7 +77,40 @@ export class EmailService {
     };
   }
 
+  async sendOrganizationInvitationToEmail(
+    email: string,
+    organizationName: string,
+  ) : Promise<{ sentMessageInfo: nodemailer.SentMessageInfo, verificationCode: string } | null> {
+    let sentMessageInfo: nodemailer.SentMessageInfo = null;
+    const verificationCode = await this.generateVerificationCode();
+    
+    try {
+      sentMessageInfo = await this.transporter.sendMail({
+        to: email,
+        subject: `Invitación para unirte a ${organizationName}`,
+        html: this.emailInvitationTemplate({
+          inviteUrl: `localhost:3001/accept-invitation?code=${verificationCode}&email=${encodeURIComponent(email)}`,
+          organizationName, 
+      })
+    });
+      return { sentMessageInfo, verificationCode };
+    } catch (error) {
+      this.logger.error(
+        `sendOrganizationInvitationToEmail >> Error enviando email a ${email}: ${error}`,
+      );
+      return null;
+    }
+  }
+
   private async generateVerificationCode(): Promise<string> {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    let verificationCode;
+    let isVerificationCodeDuplicate;
+    do {
+      verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      isVerificationCodeDuplicate = await this.prisma.userVerification.findFirst({
+        where: { verificationCode },
+      });
+    } while(isVerificationCodeDuplicate);
+    return verificationCode;
   }
 }

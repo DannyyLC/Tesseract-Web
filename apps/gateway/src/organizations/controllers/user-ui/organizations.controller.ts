@@ -10,12 +10,15 @@ import { Body, Controller, Get, Param, Patch, Post, Res, UseGuards } from '@nest
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { Response } from 'express';
 import { Organization } from '@workflow-platform/database';
-
+import { InviteUserErrorsDto } from '../../../users/dto/invite-user-errors.dto';
+import { UsersService } from '../../../users/users.service';
 @Controller('organizations')
 @UseGuards(JwtAuthGuard)
 export class OrganizationsController {
-  constructor(private readonly organizationsService: OrganizationsService) {}
-
+  constructor(
+    private readonly organizationsService: OrganizationsService,
+    private readonly userService: UsersService,
+  ) {}
   @Get('dashboard/:id')
   async getDashboardData(
     @Res() res: Response,
@@ -112,6 +115,28 @@ export class OrganizationsController {
         .setMessage('Organization activated successfully')
         .setData(result);
       return res.status(200).json(apiResponse.build());
+    }
+  }
+
+  @Post('invite-user')
+  async inviteUser(
+    @Body() body: { email: string; organizationId: string },
+    @Res() res: Response,
+  ): Promise<Response<ApiResponseBuilder<boolean | keyof typeof InviteUserErrorsDto>>> {
+    const apiResponse = new ApiResponseBuilder<boolean | keyof typeof InviteUserErrorsDto>();
+    const result = await this.userService.invite(body.organizationId, body.email);
+    if (typeof result !== 'string') {
+      apiResponse
+        .setStatusCode(200)
+        .setMessage('User invited successfully')
+        .setData(result);
+      return res.status(200).json(apiResponse.build());
+    } else {
+      apiResponse
+        .setStatusCode(400)
+        .setMessage('User invitation failed')
+        .setErrors([result]);
+      return res.status(400).json(apiResponse.build());
     }
   }
 }

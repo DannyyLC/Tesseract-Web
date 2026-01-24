@@ -5,8 +5,8 @@ import { DashboardUserDataDto, UpdateUserDto } from '../../dto';
 import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@workflow-automation/shared-types';
 import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '@/auth/decorators/current-user.decorator';
-import { UserPayload } from '@/common/types/jwt-payload.type';
+import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/types/jwt-payload.type';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)

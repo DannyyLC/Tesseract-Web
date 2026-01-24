@@ -241,15 +241,6 @@ export class AuthService {
   /**
    * Validar que el email es único (global)
    */
-  async validateEmailUnique(email: string): Promise<void> {
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('Email already registered');
-    }
-  }
 
   //==============================================================
   // TOKENS

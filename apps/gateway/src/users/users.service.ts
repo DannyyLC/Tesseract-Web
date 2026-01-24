@@ -6,13 +6,14 @@ import {
   Inject,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { AuthService } from '../auth/auth.service';
 import { InviteUserDto, UpdateProfileDto, UserFiltersDto, DashboardUserDataDto } from './dto';
 import { User, Organization, Prisma } from '@prisma/client';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { CursorPaginatedResponse } from '@workflow-automation/shared-types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
+import { InviteUserErrorsDto } from './dto/invite-user-errors.dto';
+import { EmailService } from '../notifications/email/email.service';
 
 interface PaginatedUsers {
   data: User[];
@@ -45,51 +46,85 @@ interface UserActivity {
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly authService: AuthService,
+    private readonly emailService: EmailService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
-  ) { }
+  ) {}
 
   /**
    * Invitar usuario a la organización
    */
-  async invite(organizationId: string, data: InviteUserDto): Promise<User> {
+  async invite(organizationId: string, email: string): Promise<boolean | InviteUserErrorsDto> {
     // Validar que la organización existe y está activa
-    await this.validateOrganization(organizationId);
+    const isOrganizationValid = await this.validateOrganization(organizationId);
 
+    if (!isOrganizationValid) {
+      return InviteUserErrorsDto.ORGANIZATION_NOT_VALID;
+    }
     // Validar límite de usuarios del plan
-    await this.validateUserLimit(organizationId);
+    const isUserLimitValid = await this.validateUserLimit(organizationId);
+    if (!isUserLimitValid) {
+      return InviteUserErrorsDto.INVITE_LIMIT_EXCEEDED;
+    }
 
     // Validar email único global
-    await this.authService.validateEmailUnique(data.email);
+    const isEmailUnique = await this.validateEmailUnique(email);
 
-    // Generar password temporal (el usuario lo cambiará al aceptar)
-    const temporaryPassword = this.authService.generateVerificationToken();
-    const hashedPassword = await this.authService.hashPassword(temporaryPassword);
+    if (!isEmailUnique) {
+      return InviteUserErrorsDto.USER_ALREADY_REGISTERED;
+    }
 
-    // Generar token de invitación
-    const { token, expiresAt } = this.authService.generateTokenWithExpiry(24);
-
-    // Crear usuario inactivo con token de invitación
-    const user = await this.prisma.user.create({
-      data: {
-        email: data.email,
-        name: data.name,
-        password: hashedPassword,
-        role: (data.role as any) === 'super_admin' ? 'viewer' : (data.role ?? 'viewer'),
-        organizationId,
-        isActive: false,
-        emailVerified: false,
-        emailVerificationToken: token,
-        emailVerificationTokenExpires: expiresAt,
+    const isEmailInvited = await this.prisma.userVerification.findFirst({
+      where: {
+        email: email
       },
     });
 
-    // TODO: Enviar email de invitación (delegar a notifications service)
-    // await this.notificationsService.sendInvitationEmail(user, invitedBy);
+    if (isEmailInvited && isEmailInvited.expiresAt < new Date()) {
+      return InviteUserErrorsDto.USER_ALREADY_INVITED;
+    } else if (isEmailInvited && isEmailInvited.expiresAt >= new Date()) {
+      await this.prisma.userVerification.deleteMany({
+        where: {
+          email: email
+        },
+      });
+    }
 
-    return user;
+    const emailSentInfo = await this.emailService.sendOrganizationInvitationToEmail(
+      email,
+      isOrganizationValid.name,
+    );
+
+    if (!emailSentInfo) {
+      return InviteUserErrorsDto.ERROR_SENDING_EMAIL;
+    }
+
+    try {
+      const userVerification = await this.prisma.userVerification.create({
+        data: {
+          email: email,
+          verificationCode: emailSentInfo.verificationCode,
+          organizationName: organizationId,
+          userName: '',
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días para aceptar
+        },
+      });
+      return true;
+    } catch (error) {
+      this.logger.error(`invite >> Error creating user verification for ${email}: ${error}`);
+      return InviteUserErrorsDto.ERROR_SENDING_EMAIL;
+    }
   }
 
+  async validateEmailUnique(email: string): Promise<boolean> {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return false;
+    }
+    return true;
+  }
   /**
    * Reenviar invitación a usuario pendiente
    */
@@ -112,7 +147,7 @@ export class UsersService {
     }
 
     // Generar nuevo token de invitación
-    const { token: invitationToken, expiresAt } = this.authService.generateTokenWithExpiry(24);
+    //const { token: invitationToken, expiresAt } = this.authService.generateTokenWithExpiry(24);
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -551,14 +586,14 @@ export class UsersService {
   /**
    * Validar límite de usuarios del plan
    */
-  private async validateUserLimit(organizationId: string): Promise<void> {
+  private async validateUserLimit(organizationId: string): Promise<boolean> {
     const org = await this.prisma.organization.findUnique({
       where: { id: organizationId },
       include: { subscription: true },
     });
 
     if (!org) {
-      throw new NotFoundException('Organization not found');
+      return false;
     }
 
     // Obtener límite del plan
@@ -575,7 +610,7 @@ export class UsersService {
 
     // Si es ENTERPRISE o sin límite, permitir
     if (maxUsers === null) {
-      return;
+      return true;
     }
 
     // Contar usuarios activos
@@ -587,10 +622,9 @@ export class UsersService {
     });
 
     if (currentUserCount >= maxUsers) {
-      throw new ForbiddenException(
-        `User limit reached for ${org.plan} plan (${maxUsers} users). Upgrade your plan to add more users.`,
-      );
+      return false;
     }
+    return true;
   }
 
   /**
@@ -641,25 +675,13 @@ export class UsersService {
   /**
    * Validar que la organización existe y está activa
    */
-  private async validateOrganization(organizationId: string): Promise<Organization> {
+  private async validateOrganization(organizationId: string): Promise<Organization | null> {
     const org = await this.prisma.organization.findUnique({
       where: { id: organizationId },
     });
 
-    if (!org) {
-      throw new NotFoundException('Organization not found');
-    }
-
-    if (!org.isActive) {
-      throw new ForbiddenException('Organization is not active');
-    }
-
-    if (org.deletedAt) {
-      throw new ForbiddenException('Organization has been deleted');
-    }
-
-    if (org.deactivatedAt) {
-      throw new ForbiddenException('Organization has been deactivated');
+    if (!org || !org.isActive || org.deletedAt || org.deactivatedAt) {
+      return null;
     }
 
     return org;
@@ -674,7 +696,7 @@ export class UsersService {
       search?: string;
       role?: string;
       isActive?: boolean;
-    }
+    },
   ): Promise<CursorPaginatedResponse<DashboardUserDataDto>> {
     const where: Prisma.UserWhereInput = {
       organizationId,
@@ -690,7 +712,7 @@ export class UsersService {
     };
 
     const users = await this.prisma.user.findMany({
-      take: paginationAction === "prev" ? - (take + 1) : (take + 1),
+      take: paginationAction === 'prev' ? -(take + 1) : take + 1,
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
       where,
@@ -707,25 +729,28 @@ export class UsersService {
         emailVerified: true,
       },
       orderBy: {
-        createdAt: 'desc'
-      }
+        createdAt: 'desc',
+      },
     });
 
-    if (users.length === 0 && !cursor) { // Only log if it's an initial load and truly empty, or maybe not needed at all if just filtering results in empty set
+    if (users.length === 0 && !cursor) {
+      // Only log if it's an initial load and truly empty, or maybe not needed at all if just filtering results in empty set
       // Keeping original behavior but refining condition slightly or removing log if it's just no results found
       // this.logger.log(`getDashboardData method >> No users found for ID: ${organizationId} with filters: ${JSON.stringify(filters)}`);
     }
 
     const paginatedUserRes = await CursorPaginatedResponseUtils.getInstance().build(
-      users, take, paginationAction
-    )
+      users,
+      take,
+      paginationAction,
+    );
 
     // Convert to DTO manually if needed or just return matching shape since we selected fields
-    const items = paginatedUserRes.items.map(user => {
+    const items = paginatedUserRes.items.map((user) => {
       // Create a clean object conforming to DashboardUserDataDto
       // Note: user here has exact fields from select above.
       const { id, ...rest } = user;
-      // The original code was doing `delete user.id` on the result from build<User>, 
+      // The original code was doing `delete user.id` on the result from build<User>,
       // but build<User> expects User type. The select return type is Partial<User>.
       // We'll trust the JS behavior or map completely.
 
@@ -733,13 +758,12 @@ export class UsersService {
       return rest as DashboardUserDataDto; // Casting since we removed ID
     });
 
-
     return {
       items: items,
       nextCursor: paginatedUserRes.nextCursor,
       prevCursor: paginatedUserRes.prevCursor,
       nextPageAvailable: paginatedUserRes.nextPageAvailable,
-      pageSize: paginatedUserRes.pageSize
-    }
+      pageSize: paginatedUserRes.pageSize,
+    };
   }
 }
