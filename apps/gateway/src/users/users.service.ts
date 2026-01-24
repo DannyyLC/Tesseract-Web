@@ -6,7 +6,7 @@ import {
   Inject,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { InviteUserDto, UpdateProfileDto, UserFiltersDto, DashboardUserDataDto } from './dto';
+import { UpdateProfileDto, UserFiltersDto, DashboardUserDataDto } from './dto';
 import { User, Organization, Prisma } from '@prisma/client';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
@@ -48,7 +48,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
-  ) {}
+  ) { }
 
   /**
    * Invitar usuario a la organización
@@ -749,13 +749,8 @@ export class UsersService {
     const items = paginatedUserRes.items.map((user) => {
       // Create a clean object conforming to DashboardUserDataDto
       // Note: user here has exact fields from select above.
-      const { id, ...rest } = user;
-      // The original code was doing `delete user.id` on the result from build<User>,
-      // but build<User> expects User type. The select return type is Partial<User>.
-      // We'll trust the JS behavior or map completely.
-
-      // Let's rely on the fact that build returns the array of items.
-      return rest as DashboardUserDataDto; // Casting since we removed ID
+      // We are no longer removing ID as it is now required in the DTO
+      return user as DashboardUserDataDto;
     });
 
     return {
