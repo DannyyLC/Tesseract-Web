@@ -1,8 +1,7 @@
 import { UsersService } from '../../users.service';
 import { Controller, Get, Query, Res, UseGuards, Param, Patch, Delete, Body } from '@nestjs/common';
 import { Response } from 'express';
-import { DashboardUserDataDto } from '../../dto/dashboard-users.dto';
-import { UpdateUserDto } from '../../dto/update-user.dto';
+import { DashboardUserDataDto, UpdateUserDto } from '../../dto';
 import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@workflow-automation/shared-types';
 import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
