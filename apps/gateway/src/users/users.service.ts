@@ -1,6 +1,5 @@
 import {
   Injectable,
-  ConflictException,
   NotFoundException,
   ForbiddenException,
   BadRequestException,
@@ -8,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { AuthService } from '../auth/auth.service';
-import { InviteUserDto, UpdateProfileDto, UserFiltersDto, DashboardUsersDto, DashboardUserDataDto } from './dto';
+import { InviteUserDto, UpdateProfileDto, UserFiltersDto, DashboardUserDataDto } from './dto';
 import { User, Organization, Prisma } from '@prisma/client';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
@@ -48,7 +47,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
-  ) {}
+  ) { }
 
   /**
    * Invitar usuario a la organización
@@ -669,14 +668,32 @@ export class UsersService {
   async getDashboardData(
     organizationId: string,
     cursor?: string | null,
-    take: number = 10, 
-    paginationAction: 'next' | 'prev' | null = null
+    take: number = 10,
+    paginationAction: 'next' | 'prev' | null = null,
+    filters?: {
+      search?: string;
+      role?: string;
+      isActive?: boolean;
+    }
   ): Promise<CursorPaginatedResponse<DashboardUserDataDto>> {
+    const where: Prisma.UserWhereInput = {
+      organizationId,
+      deletedAt: null,
+      ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
+      ...(filters?.role && { role: filters.role }),
+      ...(filters?.search && {
+        OR: [
+          { name: { contains: filters.search, mode: 'insensitive' } },
+          { email: { contains: filters.search, mode: 'insensitive' } },
+        ],
+      }),
+    };
+
     const users = await this.prisma.user.findMany({
-      take: paginationAction === "prev" ?  - (take + 1) : (take + 1),
+      take: paginationAction === "prev" ? - (take + 1) : (take + 1),
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
-      where: { organizationId },
+      where,
       select: {
         id: true,
         email: true,
@@ -693,19 +710,36 @@ export class UsersService {
         createdAt: 'desc'
       }
     });
-    if (users.length === 0) {
-      this.logger.error(
-        `getDashboardData method >> Organization not found for ID: ${organizationId}`,
-      );
+
+    if (users.length === 0 && !cursor) { // Only log if it's an initial load and truly empty, or maybe not needed at all if just filtering results in empty set
+      // Keeping original behavior but refining condition slightly or removing log if it's just no results found
+      // this.logger.log(`getDashboardData method >> No users found for ID: ${organizationId} with filters: ${JSON.stringify(filters)}`);
     }
-    const paginatedUserRes = await CursorPaginatedResponseUtils.getInstance().build<User>(
+
+    const paginatedUserRes = await CursorPaginatedResponseUtils.getInstance().build(
       users, take, paginationAction
     )
-    paginatedUserRes.items.forEach(user => {
-      delete user.id
+
+    // Convert to DTO manually if needed or just return matching shape since we selected fields
+    const items = paginatedUserRes.items.map(user => {
+      // Create a clean object conforming to DashboardUserDataDto
+      // Note: user here has exact fields from select above.
+      const { id, ...rest } = user;
+      // The original code was doing `delete user.id` on the result from build<User>, 
+      // but build<User> expects User type. The select return type is Partial<User>.
+      // We'll trust the JS behavior or map completely.
+
+      // Let's rely on the fact that build returns the array of items.
+      return rest as DashboardUserDataDto; // Casting since we removed ID
     });
+
+
     return {
-      ...paginatedUserRes
+      items: items,
+      nextCursor: paginatedUserRes.nextCursor,
+      prevCursor: paginatedUserRes.prevCursor,
+      nextPageAvailable: paginatedUserRes.nextPageAvailable,
+      pageSize: paginatedUserRes.pageSize
     }
   }
 }

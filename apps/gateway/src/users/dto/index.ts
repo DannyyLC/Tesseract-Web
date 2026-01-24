@@ -5,3 +5,4 @@ export * from './invite-user.dto';
 export * from './update-profile.dto';
 export * from './user-filters.dto';
 export * from './dashboard-users.dto';
+export * from './update-user.dto';
