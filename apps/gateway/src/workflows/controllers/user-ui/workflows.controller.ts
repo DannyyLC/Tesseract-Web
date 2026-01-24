@@ -35,7 +35,25 @@ export class WorkflowsController {
   constructor(
     private readonly workflowsService: WorkflowsService,
     private readonly executionsService: ExecutionsService,
-  ) {}
+  ) { }
+
+  /**
+   * GET /workflows/dashboard
+   * Obtener datos para el dashboard de workflows
+   */
+  @Get('dashboard')
+  async getDashboardWorkflows(
+    @CurrentUser() user: UserPayload,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponseBuilder<DashboardWorkflowDto[]>>> {
+    const apiResponse = new ApiResponseBuilder<DashboardWorkflowDto[]>();
+    const result = await this.workflowsService.getDashboardData(user.organizationId);
+    apiResponse
+      .setData(result)
+      .setMessage('Dashboard workflows data retrieved successfully')
+      .setSuccess(true);
+    return res.status(HttpStatus.OK).json(apiResponse.build());
+  }
 
   /**
    * GET /workflows
@@ -155,17 +173,5 @@ export class WorkflowsController {
     return this.executionsService.getAnalyticsBySource(id, user.organizationId, period);
   }
 
-  @Get('dashboard/:idOrganization')
-  async getDashboardWorkflows(
-    @Param('idOrganization') idOrganization: string,
-    @Res() res: Response,
-  ): Promise<Response<ApiResponseBuilder<DashboardWorkflowDto[]>>> {
-    const apiResponse = new ApiResponseBuilder<DashboardWorkflowDto[]>();
-    const result = await this.workflowsService.getDashboardData(idOrganization);
-    apiResponse
-      .setData(result)
-      .setMessage('Dashboard workflows data retrieved successfully')
-      .setSuccess(true);
-    return res.status(HttpStatus.OK).json(apiResponse.build());
-  }
+
 }
