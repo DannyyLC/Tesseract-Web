@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DatabaseModule } from './database/database.module';
@@ -20,7 +20,10 @@ import { UsersModule } from './users/users.module';
 import { Cron, ScheduleModule } from '@nestjs/schedule';
 import { CronJobsService } from './cron-jobs.service';
 import { EndUsersModule } from './end-users/end-users.module';
+import { AuthService } from './auth/auth.service';
+import { JwtService } from '@nestjs/jwt';
 
+@Global()
 @Module({
   imports: [
     WinstonModule.forRoot({
@@ -62,7 +65,14 @@ import { EndUsersModule } from './end-users/end-users.module';
     EventEmitterModule.forRoot(),
   ],
   controllers: [],
-  providers: [CronJobsService],
-  exports: [WinstonModule],
+  providers: [
+    CronJobsService,
+    AuthService,
+    JwtService
+  ],
+  exports: [
+    WinstonModule,
+    AuthService,
+  ],
 })
 export class AppModule {}

@@ -1129,6 +1129,7 @@ model UserVerification {
   organizationName String
   verificationCode String   @unique
   isEmailVerified  Boolean  @default(false)
+  isFromInvitation Boolean  @default(false)
   expiresAt        DateTime
   createdAt        DateTime @default(now())
 
