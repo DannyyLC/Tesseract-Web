@@ -236,9 +236,6 @@ export class WorkflowsService {
         version: true,
         createdAt: true,
         updatedAt: true,
-        // Exclude config and tags explicitly by not selecting them
-        // tags: false,
-        // config: false
       }
     });
 
