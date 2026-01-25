@@ -7,6 +7,7 @@ export interface DashboardUsersDto {
 }
 
 export interface DashboardUserDataDto {
+  id: string;
   email: string;
   name: string;
   role: String;

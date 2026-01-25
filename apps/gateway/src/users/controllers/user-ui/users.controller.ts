@@ -1,7 +1,7 @@
 import { UsersService } from '../../users.service';
 import { Controller, Get, Query, Res, UseGuards, Param, Patch, Delete, Body } from '@nestjs/common';
 import { Response } from 'express';
-import { DashboardUserDataDto, UpdateUserDto } from '../../dto';
+import { DashboardUserDataDto, UpdateUserDto, UserDetailDto } from '../../dto';
 import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@workflow-automation/shared-types';
 import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
@@ -62,9 +62,23 @@ export class UsersController {
     @Param('id') id: string,
     @Res() res: Response,
   ): Promise<Response> {
-    const apiResponse = new ApiResponseBuilder<any>();
+    const apiResponse = new ApiResponseBuilder<UserDetailDto>();
     const foundUser = await this.usersService.findOne(id, user.organizationId);
-    apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage('User details retrieved successfully').setData(foundUser);
+
+    const userDetail = new UserDetailDto({
+      id: foundUser.id,
+      name: foundUser.name,
+      email: foundUser.email,
+      role: foundUser.role,
+      isActive: foundUser.isActive,
+      avatar: foundUser.avatar,
+      timezone: foundUser.timezone,
+      lastLoginAt: foundUser.lastLoginAt,
+      createdAt: foundUser.createdAt,
+      emailVerified: foundUser.emailVerified,
+    });
+
+    apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage('User details retrieved successfully').setData(userDetail);
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 

@@ -4,9 +4,6 @@ import {
   IsString,
   MinLength,
   Matches,
-  IsOptional,
-  IsBoolean,
-  IsIn,
 } from 'class-validator';
 
 export class CreateUserDto {
@@ -22,11 +19,4 @@ export class CreateUserDto {
       'Password must contain at least one uppercase letter, one lowercase letter, and one number',
   })
   password: string;
-
-  // @IsString()
-  // @IsIn(['viewer', 'admin', 'owner'], {
-  //   message: 'Role must be one of: viewer, admin, owner',
-  // })
-  // @IsOptional()
-  // role?: string;
 }

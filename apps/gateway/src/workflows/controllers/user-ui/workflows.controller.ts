@@ -21,9 +21,12 @@ import { UpdateWorkflowDto, ExecuteWorkflowDto } from '../../dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
-import { ApiResponseBuilder } from '@workflow-automation/shared-types';
+import { ApiResponseBuilder, CursorPaginatedResponse, WorkflowCategory } from '@workflow-automation/shared-types';
 import { Response } from 'express';
 import { DashboardWorkflowDto } from '@/workflows/dto/dashboard-workflow.dto';
+import { WorkflowStatsDto } from '@/workflows/dto/workflow-stats.dto';
+import { WorkflowMetricsDto } from '@/workflows/dto/workflow-metrics.dto';
+import { HttpStatusCode } from 'axios';
 
 /**
  * Controller de Workflows
@@ -35,16 +38,65 @@ export class WorkflowsController {
   constructor(
     private readonly workflowsService: WorkflowsService,
     private readonly executionsService: ExecutionsService,
-  ) {}
+  ) { }
 
   /**
-   * GET /workflows
-   * Listar todos los workflows de la organización
+   * GET /workflows/dashboard
+   * Obtener datos para el dashboard de workflows (paginado)
    */
-  @Get()
-  findAll(@CurrentUser() user: UserPayload, @Query('includeDeleted') includeDeleted?: string) {
-    const includeDeletedBool = includeDeleted === 'true';
-    return this.workflowsService.findAll(user.organizationId, includeDeletedBool);
+  @Get('dashboard')
+  async getDashboardData(
+    @CurrentUser() user: UserPayload,
+    @Res() res: Response,
+    @Query('cursor') cursor: string | null = null,
+    @Query('pageSize') pageSize: number = 10,
+    @Query('action') action: 'next' | 'prev' | null = null,
+    @Query('search') search?: string,
+    @Query('isActive') isActive?: string,
+    @Query('category') category?: WorkflowCategory,
+  ): Promise<Response<ApiResponseBuilder<CursorPaginatedResponse<DashboardWorkflowDto>>>> {
+    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardWorkflowDto>>();
+
+    // Parse boolean filter (query params come as strings)
+    const isActiveBool = isActive === 'true' ? true : isActive === 'false' ? false : undefined;
+
+    const result = await this.workflowsService.getDashboardData(
+      user.organizationId,
+      cursor,
+      pageSize,
+      action,
+      {
+        search,
+        isActive: isActiveBool,
+        category
+      }
+    );
+
+    if (result.items.length === 0) {
+      apiResponse.setStatusCode(HttpStatus.OK).setMessage('No workflows found with current filters').setData(result);
+      return res.status(HttpStatus.OK).json(apiResponse.build());
+    }
+
+    apiResponse
+      .setData(result)
+      .setMessage('Dashboard workflows data retrieved successfully')
+      .setSuccess(true);
+    return res.status(HttpStatus.OK).json(apiResponse.build());
+  }
+
+  /**
+   * GET /workflows/stats
+   * Obtener estadísticas globales de la organización
+   */
+  @Get('stats')
+  async getStats(
+    @CurrentUser() user: UserPayload,
+    @Res() res: Response
+  ): Promise<Response<ApiResponseBuilder<WorkflowStatsDto>>> {
+    const apiResponse = new ApiResponseBuilder<WorkflowStatsDto>();
+    const stats = await this.workflowsService.getStats(user.organizationId);
+    apiResponse.setData(stats).setMessage('Workflow stats retrieved successfully').setSuccess(true);
+    return res.status(HttpStatus.OK).json(apiResponse.build());
   }
 
   /**
@@ -140,32 +192,16 @@ export class WorkflowsController {
   }
 
   /**
-   * GET /workflows/:id/analytics
-   * Obtiene analytics de un workflow agrupadas por fuente (API key o usuario)
-   *
-   * Query params opcionales:
-   *   ?period=30d  - Periodo de tiempo (24h|7d|30d|90d|all) default: 30d
+   * GET /workflows/:id/metrics
+   * Obtiene métricas detalladas de un workflow (Charts, KPIs)
    */
-  @Get(':id/analytics')
-  async getAnalytics(
+  @Get(':id/metrics')
+  async getMetrics(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
     @Query('period', new DefaultValuePipe('30d')) period?: string,
   ) {
-    return this.executionsService.getAnalyticsBySource(id, user.organizationId, period);
+    return this.workflowsService.getMetrics(user.organizationId, id, period);
   }
 
-  @Get('dashboard/:idOrganization')
-  async getDashboardWorkflows(
-    @Param('idOrganization') idOrganization: string,
-    @Res() res: Response,
-  ): Promise<Response<ApiResponseBuilder<DashboardWorkflowDto[]>>> {
-    const apiResponse = new ApiResponseBuilder<DashboardWorkflowDto[]>();
-    const result = await this.workflowsService.getDashboardData(idOrganization);
-    apiResponse
-      .setData(result)
-      .setMessage('Dashboard workflows data retrieved successfully')
-      .setSuccess(true);
-    return res.status(HttpStatus.OK).json(apiResponse.build());
-  }
 }
