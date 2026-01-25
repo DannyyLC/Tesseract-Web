@@ -7,10 +7,13 @@ import { ExecutionsService } from '../executions/executions.service';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { AgentsService } from '../agents/agents.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
-import { PLANS, SubscriptionPlan, getWorkflowCreditCost } from '@workflow-automation/shared-types';
+import { PLANS, SubscriptionPlan, getWorkflowCreditCost, WorkflowCategory } from '@workflow-automation/shared-types';
 import { CreditsService } from '../credits/credits.service';
 import { LlmModelsService } from '../llm-models/llm-models.service';
 import { ConversationsService } from '../conversations/conversations.service';
+import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
+import { WorkflowStatsDto } from './dto/workflow-stats.dto';
+import { WorkflowMetricsDto } from './dto/workflow-metrics.dto';
 import {
   WorkflowNotFoundException,
   WorkflowPausedException,
@@ -34,7 +37,7 @@ export class WorkflowsService {
     private readonly creditsService: CreditsService,
     private readonly llmModelsService: LlmModelsService,
     private readonly conversationsService: ConversationsService,
-  ) {}
+  ) { }
 
   //==========================================================
   // CRUD DE WORKFLOWS
@@ -92,30 +95,129 @@ export class WorkflowsService {
   }
 
   /**
-   * Listar workflows de la organización
+   * Listar workflows para el dashboard (paginado, minimalista)
    */
-  async findAll(organizationId: string, includeDeleted = false) {
-    return this.prisma.workflow.findMany({
-      where: {
-        organizationId,
-        ...(includeDeleted ? {} : { deletedAt: null }),
-      },
-      include: {
-        tags: true,
-        _count: {
-          select: {
-            executions: true,
-          },
-        },
+  async getDashboardData(
+    organizationId: string,
+    cursor?: string | null,
+    take: number = 10,
+    paginationAction: 'next' | 'prev' | null = null,
+    filters?: {
+      search?: string;
+      isActive?: boolean;
+      category?: WorkflowCategory;
+    },
+  ) {
+    const where: any = {
+      organizationId,
+      deletedAt: null,
+      ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
+      ...(filters?.category && { category: filters.category }),
+      ...(filters?.search && {
+        OR: [
+          { name: { contains: filters.search, mode: 'insensitive' } },
+        ],
+      }),
+    };
+
+    const workflows = await this.prisma.workflow.findMany({
+      take: paginationAction === 'prev' ? -(take + 1) : take + 1,
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
+      where,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        isActive: true,
+        createdAt: true,
       },
       orderBy: {
         createdAt: 'desc',
       },
     });
+
+    const paginatedRes = await CursorPaginatedResponseUtils.getInstance().build(
+      workflows,
+      take,
+      paginationAction,
+    );
+
+    const items = paginatedRes.items.map((wf) => ({
+      id: wf.id,
+      name: wf.name,
+      description: wf.description,
+      isActive: wf.isActive,
+    }));
+
+    return {
+      items,
+      nextCursor: paginatedRes.nextCursor,
+      prevCursor: paginatedRes.prevCursor,
+      nextPageAvailable: paginatedRes.nextPageAvailable,
+      pageSize: paginatedRes.pageSize,
+    };
   }
 
   /**
-   * Obtener un workflow específico
+   * Obtener estadísticas globales de workflows
+   */
+  async getStats(organizationId: string): Promise<WorkflowStatsDto> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [totalWorkflows, activeWorkflows, executionsMonth, creditsMonth, byCategory] = await Promise.all([
+      // Total Workflows
+      this.prisma.workflow.count({
+        where: { organizationId, deletedAt: null }
+      }),
+      // Active Workflows
+      this.prisma.workflow.count({
+        where: { organizationId, deletedAt: null, isActive: true }
+      }),
+      // Total Executions Month
+      this.prisma.execution.count({
+        where: {
+          organizationId,
+          startedAt: { gte: startOfMonth }
+        }
+      }),
+      // Credits Consumed Month (Query from CreditTransactions)
+      this.prisma.creditTransaction.aggregate({
+        _sum: { amount: true },
+        where: {
+          organizationId,
+          createdAt: { gte: startOfMonth },
+          amount: { lt: 0 } // Gastos son negativos
+        }
+      }),
+      // By Category
+      this.prisma.workflow.groupBy({
+        by: ['category'],
+        where: { organizationId, deletedAt: null },
+        _count: true
+      })
+    ]);
+
+    const categoryStats: Record<string, number> = {};
+    byCategory.forEach((item) => {
+      categoryStats[item.category] = item._count;
+    });
+
+    // Credits amount comes negative for spending, convert to positive for "consumed"
+    const consumed = Math.abs(creditsMonth._sum.amount || 0);
+
+    return {
+      totalWorkflows,
+      activeWorkflows,
+      totalExecutionsMonth: executionsMonth,
+      creditsConsumedMonth: Number(consumed.toFixed(2)),
+      byCategory: categoryStats
+    };
+  }
+
+  /**
+   * Obtener un workflow específico (Metadata only, NO CONFIG)
    */
   async findOne(organizationId: string, workflowId: string) {
     const workflow = await this.prisma.workflow.findFirst({
@@ -124,19 +226,162 @@ export class WorkflowsService {
         organizationId,
         deletedAt: null,
       },
-      include: {
-        tags: true,
-        executions: {
-          take: 10,
-          orderBy: { startedAt: 'desc' },
-        },
-      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        category: true,
+        isActive: true,
+        isPaused: true,
+        version: true,
+        createdAt: true,
+        updatedAt: true,
+        // Exclude config and tags explicitly by not selecting them
+        // tags: false,
+        // config: false
+      }
     });
+
     if (!workflow) {
       throw new NotFoundException('Workflow no encontrado');
     }
 
     return workflow;
+  }
+
+  /**
+   * Obtener métricas detalladas de un workflow (Charts, KPIs)
+   */
+  async getMetrics(organizationId: string, workflowId: string, period = '30d'): Promise<WorkflowMetricsDto> {
+    // Validate existence
+    const wf = await this.prisma.workflow.findFirst({
+      where: { id: workflowId, organizationId }
+    });
+    if (!wf) throw new NotFoundException('Workflow no encontrado');
+
+    // Date math
+    let startDate = new Date();
+    if (period === '24h') startDate.setHours(startDate.getHours() - 24);
+    else if (period === '7d') startDate.setDate(startDate.getDate() - 7);
+    else if (period === '90d') startDate.setDate(startDate.getDate() - 90);
+    else startDate.setDate(startDate.getDate() - 30); // Default 30d
+
+    // 3. Parallel Queries for Efficiency
+    const [aggregations, failedExecutions, historyRaw] = await Promise.all([
+      // A. KPI Aggregations (DB does the math)
+      this.prisma.execution.aggregate({
+        where: {
+          workflowId,
+          startedAt: { gte: startDate }
+        },
+        _count: {
+          id: true, // Total
+        },
+        _avg: {
+          duration: true, // Avg Duration
+        },
+      }),
+
+      // B. Success Rate Helper (DB Count Only)
+      this.prisma.execution.groupBy({
+        by: ['status'],
+        where: {
+          workflowId,
+          startedAt: { gte: startDate }
+        },
+        _count: true
+      }),
+
+      // C. Daily History (Raw SQL for Performance)
+      // Group by Day and Status
+      this.prisma.$queryRaw<Array<{ date: Date; status: string; count: BigInt }>>`
+        SELECT 
+          DATE("startedAt") as date, 
+          status, 
+          COUNT(*)::int as count 
+        FROM executions 
+        WHERE "workflowId" = ${workflowId} 
+          AND "startedAt" >= ${startDate}
+        GROUP BY DATE("startedAt"), status
+        ORDER BY date ASC
+      `
+    ]);
+
+    // 4. Process Results
+
+    // KPI Processing
+    const totalExecutions = aggregations._count.id;
+    const avgDuration = aggregations._avg.duration || 0;
+    // Calculate Success Rate from GroupBy results
+    const statusCounts = failedExecutions.reduce((acc, curr) => {
+      acc[curr.status] = curr._count;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const successfulCount = statusCounts['completed'] || 0;
+    const failedCount = statusCounts['failed'] || 0;
+    const validTotal = successfulCount + failedCount || 1;
+    const successRate = totalExecutions > 0 ? (successfulCount / totalExecutions) * 100 : 0;
+
+    // Error Distribution Processing
+    // Optimization: Trigger separate query ONLY if there are failures, and fetch ONLY error text
+    const errorDistribution: Record<string, number> = {};
+    if (failedCount > 0) {
+      const failures = await this.prisma.execution.findMany({
+        where: {
+          workflowId,
+          startedAt: { gte: startDate },
+          status: 'failed',
+          error: { not: null }
+        },
+        select: { error: true },
+        take: 1000 // Limit sample size just in case, though unlikely to hit limit often
+      });
+
+      failures.forEach(f => {
+        let errorKey = 'GENERIC_ERROR';
+        const errText = f.error || '';
+        if (errText.toLowerCase().includes('timeout')) errorKey = 'TIMEOUT';
+        else if (errText.includes('API')) errorKey = 'API_ERROR';
+        else if (errText.includes('Rate limit')) errorKey = 'RATE_LIMIT';
+        else if (errText.toLowerCase().includes('hallucination')) errorKey = 'HALLUCINATION';
+
+        errorDistribution[errorKey] = (errorDistribution[errorKey] || 0) + 1;
+      });
+    }
+
+    // Execution History Chart (Daily)
+    const historyMap = new Map<string, { count: number, success: number, failed: number }>();
+
+    // Raw query returns BigInt for counts in some drivers, map it
+    historyRaw.forEach((row: any) => {
+      // row.date is usually a Date object or string depending on driver
+      const dateStr = new Date(row.date).toISOString().split('T')[0];
+      const count = Number(row.count); // Convert BigInt
+
+      if (!historyMap.has(dateStr)) {
+        historyMap.set(dateStr, { count: 0, success: 0, failed: 0 });
+      }
+
+      const day = historyMap.get(dateStr)!;
+      day.count += count;
+      if (row.status === 'completed') day.success += count;
+      if (row.status === 'failed') day.failed += count;
+    });
+
+    const executionHistoryChart = Array.from(historyMap.entries()).map(([date, stats]) => ({
+      date,
+      ...stats
+    })).sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      workflowId,
+      totalExecutions,
+      successRate: parseFloat(successRate.toFixed(1)),
+      avgDuration: parseFloat(avgDuration.toFixed(2)),
+      executionHistoryChart,
+      errorDistribution
+    };
   }
 
   /**
@@ -375,7 +620,7 @@ export class WorkflowsService {
       } else {
         this.logger.warn(
           `No se encontró mensaje del asistente en ejecución ${execution.id}. ` +
-            `Messages: ${JSON.stringify(messages)}`,
+          `Messages: ${JSON.stringify(messages)}`,
         );
       }
 
@@ -436,7 +681,7 @@ export class WorkflowsService {
 
       this.logger.log(
         `Costo total de ejecución ${execution.id}: $${costUSD} ` +
-          `(breakdown: ${JSON.stringify(costBreakdown)})`,
+        `(breakdown: ${JSON.stringify(costBreakdown)})`,
       );
 
       // 8. ACTUALIZAR EXECUTION Y CONVERSATION EN PARALELO
@@ -488,7 +733,7 @@ export class WorkflowsService {
 
       this.logger.log(
         `Créditos descontados para ejecución exitosa ${execution.id}: ` +
-          `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
+        `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
       );
 
       // 10. RETORNAR EJECUCIÓN CON RELACIONES COMPLETAS (requiere query con joins)
@@ -981,7 +1226,7 @@ export class WorkflowsService {
       if (agentTools.length > 0 && Object.keys(filtered).length === 0) {
         this.logger.warn(
           `Agent "${agentName}" tiene tools configurados pero ninguno es válido. ` +
-            `Tools configurados: ${JSON.stringify(agentTools)}`,
+          `Tools configurados: ${JSON.stringify(agentTools)}`,
         );
       }
     }
@@ -1118,66 +1363,8 @@ export class WorkflowsService {
       const availableModels = Array.from(activeModelNames).slice(0, 10).join(', ');
       throw new InvalidWorkflowConfigException(
         `Invalid models: ${invalidModels.join(', ')}. ` +
-          `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
+        `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
       );
     }
-  }
-
-  async getDashboardData(organizationId: string): Promise<DashboardWorkflowDto[]> {
-    const workflows = await this.prisma.workflow.findMany({
-      where: {
-        organizationId,
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        category: true,
-        isActive: true,
-        isPaused: true,
-        version: true,
-        triggerType: true,
-        schedule: true,
-        maxTokensPerExecution: true,
-        totalExecutions: true,
-        successfulExecutions: true,
-        failedExecutions: true,
-        totalCreditsConsumed: true,
-        lastExecutedAt: true,
-        avgExecutionTime: true,
-        executions: {
-          select: {
-            status: true,
-            startedAt: true,
-            finishedAt: true,
-            duration: true,
-            trigger: true,
-            credits: true,
-            balanceBefore: true,
-            balanceAfter: true,
-            wasOverage: true,
-            error: true,
-            retryCount: true,
-            workflowId: true,
-            userId: true,
-            workflow: {
-              select: {
-                name: true,
-              },
-            },
-            user: {
-              select: {
-                name: true,
-              },
-            },
-            conversationId: true,
-          },
-          take: 10,
-          orderBy: { startedAt: 'desc' },
-        },
-      },
-    });
-
-    return workflows;
   }
 }
