@@ -263,10 +263,11 @@ export class WorkflowsService {
 
     // Date math
     let startDate = new Date();
-    if (period === '24h') startDate.setHours(startDate.getHours() - 24);
+    if (period === 'all') startDate = wf.createdAt;
+    else if (period === '24h') startDate.setHours(startDate.getHours() - 24);
     else if (period === '7d') startDate.setDate(startDate.getDate() - 7);
     else if (period === '90d') startDate.setDate(startDate.getDate() - 90);
-    else startDate.setDate(startDate.getDate() - 30); // Default 30d
+    else startDate.setDate(startDate.getDate() - 30);
 
     // 3. Parallel Queries for Efficiency
     const [aggregations, failedExecutions, historyRaw] = await Promise.all([
