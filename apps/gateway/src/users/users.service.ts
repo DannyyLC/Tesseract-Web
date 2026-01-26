@@ -14,6 +14,7 @@ import { CursorPaginatedResponse } from '@workflow-automation/shared-types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { InviteUserErrorsDto } from './dto/invite-user-errors.dto';
 import { EmailService } from '../notifications/email/email.service';
+import { AuthService } from '../auth/auth.service';
 
 interface PaginatedUsers {
   data: User[];
@@ -47,6 +48,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly authService: AuthService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) { }
 
@@ -67,24 +69,26 @@ export class UsersService {
     }
 
     // Validar email único global
-    const isEmailUnique = await this.validateEmailUnique(email);
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
 
-    if (!isEmailUnique) {
+    if (existingUser && existingUser.isActive) {
       return InviteUserErrorsDto.USER_ALREADY_REGISTERED;
     }
 
-    const isEmailInvited = await this.prisma.userVerification.findFirst({
+    const existingVerification = await this.prisma.userVerification.findFirst({
       where: {
-        email: email
+        email: email,
       },
     });
 
-    if (isEmailInvited && isEmailInvited.expiresAt < new Date()) {
+    if (existingVerification && existingVerification.expiresAt < new Date()) {
       return InviteUserErrorsDto.USER_ALREADY_INVITED;
-    } else if (isEmailInvited && isEmailInvited.expiresAt >= new Date()) {
+    } else if (existingVerification && existingVerification.expiresAt >= new Date()) {
       await this.prisma.userVerification.deleteMany({
         where: {
-          email: email
+          email: email,
         },
       });
     }
@@ -105,6 +109,7 @@ export class UsersService {
           verificationCode: emailSentInfo.verificationCode,
           organizationName: organizationId,
           userName: '',
+          isFromInvitation: true,
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días para aceptar
         },
       });
@@ -112,6 +117,80 @@ export class UsersService {
     } catch (error) {
       this.logger.error(`invite >> Error creating user verification for ${email}: ${error}`);
       return InviteUserErrorsDto.ERROR_SENDING_EMAIL;
+    }
+  }
+
+  async createUserFromInvitation(
+    userName: string,
+    pass: string,
+    verificationCode: string,
+  ): Promise<DashboardUserDataDto | null> {
+    const userVerification = await this.prisma.userVerification.findFirst({
+      where: { verificationCode },
+    });
+    if (!userVerification || userVerification.expiresAt < new Date()) {
+      return null;
+    }
+
+    try {
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email: userVerification.email },
+      });
+      if (existingUser) {
+        await this.prisma.userVerification.deleteMany({
+          where: { verificationCode },
+        });
+        await this.prisma.user.update({
+          where: { email: userVerification.email },
+            data: { 
+              emailVerified: true,
+              isActive: true
+            },
+        });
+        return {
+          email: existingUser.email,
+          name: existingUser.name,
+          role: existingUser.role,
+          isActive: existingUser.isActive,
+          lastLoginAt: existingUser.lastLoginAt,
+          createdAt: existingUser.createdAt,
+          avatar: existingUser.avatar,
+          timezone: existingUser.timezone,
+          emailVerified: existingUser.emailVerified,
+        }
+      }
+
+      const hashedPassword = await this.authService.hashPassword(pass);
+
+      const newUser = await this.prisma.user.create({
+        data: {
+          email: userVerification.email,
+          name: userName,
+          password: hashedPassword,
+          organizationId: userVerification.organizationName,
+          isActive: true,
+          emailVerified: true
+        },
+      });
+      await this.prisma.userVerification.deleteMany({
+        where: { verificationCode },
+      });
+      return {
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role,
+        isActive: newUser.isActive,
+        lastLoginAt: newUser.lastLoginAt,
+        createdAt: newUser.createdAt,
+        avatar: newUser.avatar,
+        timezone: newUser.timezone,
+        emailVerified: newUser.emailVerified,
+      };
+    } catch (error) {
+      this.logger.error(
+        `createUserFromInvitation >> Error creating user from invitation: ${error}`,
+      );
+      return null;
     }
   }
 
@@ -129,70 +208,71 @@ export class UsersService {
    * Reenviar invitación a usuario pendiente
    */
   async resendInvitation(
-    userId: string,
+    userEmail: string,
     organizationId: string,
-  ): Promise<{ message: string; invitationUrl: string }> {
-    // Buscar usuario pendiente de verificación
-    const user = await this.prisma.user.findFirst({
+  ): Promise<boolean> {
+    const userVerification = await this.prisma.userVerification.findFirst({
       where: {
-        id: userId,
-        organizationId,
-        deletedAt: null,
-        emailVerified: false,
-      },
+        organizationName: organizationId,
+        email: userEmail,
+      }
     });
-
-    if (!user) {
-      throw new NotFoundException('User not found or already verified');
+    if (!userVerification) {
+      this.logger.error(`resendInvitation >> No pending invitation found for ${userEmail} in org ${organizationId}`);
+      return false;  
+    }
+    const emailSentInfo = await this.emailService.sendOrganizationInvitationToEmail(
+      userEmail,
+      organizationId
+    );
+    if (!emailSentInfo) {
+      this.logger.error(`resendInvitation >> Error sending invitation email to ${userEmail}`);
+      return false;
     }
 
-    // Generar nuevo token de invitación
-    //const { token: invitationToken, expiresAt } = this.authService.generateTokenWithExpiry(24);
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        emailVerificationToken: invitationToken,
-        emailVerificationTokenExpires: expiresAt,
+    const modifiedRecords = await this.prisma.userVerification.updateMany({
+      where: {
+        email: userEmail,
       },
+      data: {
+        verificationCode: emailSentInfo.verificationCode,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días para aceptar
+      }
     });
-
-    // TODO: Enviar email de invitación
-    // await this.notificationsService.sendInvitationEmail(user, invitationToken);
-
-    return {
-      message: 'Invitation resent successfully',
-      invitationUrl: `/accept-invitation?token=${invitationToken}`,
-    };
+    if (modifiedRecords.count === 0) {
+      this.logger.error(`resendInvitation >> Error updating verification record for ${userEmail}`);
+      return false;
+    }
+    
+    return true;
   }
 
   /**
    * Cancelar invitación pendiente (elimina el usuario que nunca aceptó)
    */
-  async cancelInvitation(userId: string, organizationId: string): Promise<{ message: string }> {
-    // Buscar usuario pendiente (no verificado y no activo)
-    const user = await this.prisma.user.findFirst({
+  async cancelInvitation(
+    userEmail: string
+  ): Promise<boolean> {
+    const userVerification = await this.prisma.userVerification.findFirst({
       where: {
-        id: userId,
-        organizationId,
-        deletedAt: null,
-        emailVerified: false,
-        isActive: false,
-      },
+        email: userEmail,
+      }
     });
-
-    if (!user) {
-      throw new NotFoundException('Invitation not found or user is already active');
+    if (!userVerification) {
+      this.logger.error(`cancelInvitation >> No pending invitation found for ${userEmail}`);
+      return false;
+    }
+    const deletedRecords = await this.prisma.userVerification.deleteMany({
+      where: {
+        email: userEmail,
+      }
+    });
+    if (deletedRecords.count === 0) {
+      this.logger.error(`cancelInvitation >> Error deleting verification record for ${userEmail}`);
+      return false;
     }
 
-    // Eliminar usuario (no es miembro activo todavía)
-    await this.prisma.user.delete({
-      where: { id: userId },
-    });
-
-    return {
-      message: 'Invitation canceled successfully',
-    };
+    return true;
   }
 
   // ==================== READ ====================

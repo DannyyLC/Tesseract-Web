@@ -1,6 +1,8 @@
 import { PrismaService } from '../database/prisma.service';
 import { Injectable } from '@nestjs/common';
 import { DashboardEndUserDto } from './dto/dashboard-end-user.dto';
+import { CursorPaginatedResponse } from '@workflow-automation/shared-types';
+import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 
 @Injectable()
 export class EndUsersService {
@@ -8,22 +10,20 @@ export class EndUsersService {
 
   async getDashboardData(
     idOrganization: string,
-    initPage: number = 1,
+    cursor: string | null = null,
     pageSize: number = 10,
-  ): Promise<{ items: DashboardEndUserDto[]; totalPages: number }> {
-    const totalEndUsers = await this.prismaService.endUser.count({
-      where: {
-        organizationId: idOrganization,
-      },
-    });
-    const totalPages = Math.ceil(totalEndUsers / pageSize);
+    paginationAction: 'next' | 'prev' | null = null,
+  ): Promise<CursorPaginatedResponse<DashboardEndUserDto>> {
+    
     const endUsers = await this.prismaService.endUser.findMany({
       where: {
         organizationId: idOrganization,
       },
-      skip: initPage > 0 ? (initPage - 1) * pageSize : 0,
+      skip: cursor ? 1 : 0,
       take: pageSize,
+      cursor: cursor ? { id: cursor } : undefined,
       select: {
+        id: true,
         phoneNumber: true,
         email: true,
         externalId: true,
@@ -33,7 +33,21 @@ export class EndUsersService {
         lastSeenAt: true,
         createdAt: true,
       },
+      orderBy: { createdAt: 'desc' },
     });
-    return { items: endUsers, totalPages };
+    const paginatedData = await CursorPaginatedResponseUtils.getInstance().build( 
+        endUsers,
+        pageSize,
+        paginationAction,
+      );
+    const transformmedData = paginatedData.items.map((eu) => {
+        const { id, ...rest } = eu;
+        return rest;
+    });
+    
+    return {
+        ...paginatedData,
+        items: transformmedData,
+    }
   }
 }

@@ -3,6 +3,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { DashboardInvoiceDto } from './dto/dashboard-invoice.dto';
+import { CursorPaginatedResponse } from '@workflow-automation/shared-types';
+import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 
 @Injectable()
 export class InvoiceService {
@@ -11,10 +13,19 @@ export class InvoiceService {
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
-  async getDashboardData(organizationId: string): Promise<DashboardInvoiceDto[] | null> {
+  async getDashboardData(
+    organizationId: string,
+    cursor: string | null = null,
+    pageSize: number = 10,
+    action: 'next' | 'prev' | null = null,
+  ): Promise<CursorPaginatedResponse<DashboardInvoiceDto> | null> {
     const invoices = await this.prismaService.invoice.findMany({
       where: { organizationId },
+      cursor: cursor ? { id: cursor } : undefined,
+      skip: cursor ? 1 : 0,
+      take: pageSize,
       select: {
+        id: true,
         invoiceNumber: true,
         type: true,
         status: true,
@@ -37,6 +48,20 @@ export class InvoiceService {
       );
       return null;
     }
-    return invoices;
+    const paginatedData = await CursorPaginatedResponseUtils.getInstance().build(
+          invoices,
+          pageSize,
+          action,
+    );
+
+    const transformedData = paginatedData.items.map((invoice) => {
+      const { id, ...rest } = invoice;
+      return rest;
+    });
+
+    return {
+      ...paginatedData,
+      items: transformedData,
+    }
   }
 }

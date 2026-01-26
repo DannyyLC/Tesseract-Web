@@ -1,12 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { WorkflowCategory, TransactionType } from '@prisma/client';
-import { getWorkflowCreditCost } from '@workflow-automation/shared-types';
+import { CursorPaginatedResponse, getWorkflowCreditCost } from '@workflow-automation/shared-types';
 import { CreditBalance } from '@workflow-platform/database';
 import { DashboardCreditsDto } from './dto/dashboard-credits.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { DashboardCreditTransactionDto } from './dto/dashboard-credit-transaction.dto';
+import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 @Injectable()
 export class CreditsService {
   constructor(
@@ -236,7 +237,12 @@ export class CreditsService {
     }
   }
 
-  async getDashboardData(organizationId: string): Promise<DashboardCreditsDto | null> {
+  async getDashboardData(
+    organizationId: string,
+    cursor?: string | null,
+    pageSize: number = 10,
+    paginationAction?: 'next' | 'prev' | null,
+  ): Promise<DashboardCreditsDto | null> {
     const balance = await this.prisma.creditBalance.findUnique({
       where: { organizationId },
       select: {
@@ -255,16 +261,28 @@ export class CreditsService {
     );
     return {
       ...balance,
-      creditTransactions: await this.getCreditTransactionsForOrganization(organizationId),
+      creditTransactions: await this.getCreditTransactionsForOrganization(
+        organizationId,
+        cursor,
+        pageSize,
+        paginationAction,
+      ),
     };
   }
 
   async getCreditTransactionsForOrganization(
     organizationId: string,
-  ): Promise<DashboardCreditTransactionDto[]> {
-    return this.prisma.creditTransaction.findMany({
+    cursor?: string | null,
+    pageSize: number = 10,
+    paginationAction?: 'next' | 'prev' | null,
+  ): Promise<CursorPaginatedResponse<DashboardCreditTransactionDto>> {
+    const creditTransactions = await this.prisma.creditTransaction.findMany({
       where: { organizationId },
+      take: pageSize,
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
       select: {
+        id: true,
         type: true,
         amount: true,
         balanceBefore: true,
@@ -277,5 +295,20 @@ export class CreditsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    const paginatedTransactions = await CursorPaginatedResponseUtils.getInstance().build(
+      creditTransactions,
+      pageSize,
+      paginationAction,
+    );
+
+    const transformmedData = paginatedTransactions.items.map((ct) => {
+      const { id, ...rest } = ct;
+      return rest;
+    });
+        
+    return {
+      ...paginatedTransactions,
+      items: transformmedData,
+    };
   }
 }

@@ -12,6 +12,8 @@ import { Response } from 'express';
 import { Organization } from '@workflow-platform/database';
 import { InviteUserErrorsDto } from '../../../users/dto/invite-user-errors.dto';
 import { UsersService } from '../../../users/users.service';
+import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/types/jwt-payload.type';
 @Controller('organizations')
 @UseGuards(JwtAuthGuard)
 export class OrganizationsController {
@@ -120,11 +122,12 @@ export class OrganizationsController {
 
   @Post('invite-user')
   async inviteUser(
-    @Body() body: { email: string; organizationId: string },
+    @CurrentUser() user: UserPayload,
+    @Body() body: { email: string },
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<boolean | keyof typeof InviteUserErrorsDto>>> {
     const apiResponse = new ApiResponseBuilder<boolean | keyof typeof InviteUserErrorsDto>();
-    const result = await this.userService.invite(body.organizationId, body.email);
+    const result = await this.userService.invite(user.organizationId, body.email);
     if (typeof result !== 'string') {
       apiResponse
         .setStatusCode(200)
@@ -136,6 +139,56 @@ export class OrganizationsController {
         .setStatusCode(400)
         .setMessage('User invitation failed')
         .setErrors([result]);
+      return res.status(400).json(apiResponse.build());
+    }
+  }
+
+  @Post('resend-invitation')
+  async resendInvitation(
+    @CurrentUser() user: UserPayload,
+    @Body() body: { email: string; },
+    @Res() res: Response,
+  ): Promise<Response<ApiResponseBuilder<boolean>>> {
+    const apiResponse = new ApiResponseBuilder<boolean>();
+    const result = await this.userService.resendInvitation(
+      user.organizationId,
+      body.email,
+    );
+    if (result) {
+      apiResponse
+        .setStatusCode(200)
+        .setMessage('Invitation resent successfully')
+        .setData(result);
+      return res.status(200).json(apiResponse.build());
+    } else {
+      apiResponse
+        .setStatusCode(400)
+        .setMessage('Invitation could not be resent')
+        .setData(result);
+      return res.status(400).json(apiResponse.build());
+    }
+  }
+
+  @Post('cancel-invitation')
+  async cancelInvitation(
+    @Body() body: { email: string },
+    @Res() res: Response,
+  ): Promise<Response<ApiResponseBuilder<boolean>>> {
+    const apiResponse = new ApiResponseBuilder<boolean>();
+    const result = await this.userService.cancelInvitation(
+      body.email
+    );
+    if (result) {
+      apiResponse
+        .setStatusCode(200)
+        .setMessage('Invitation cancelled successfully')
+        .setData(result);
+      return res.status(200).json(apiResponse.build());
+    } else {
+      apiResponse
+        .setStatusCode(400)
+        .setMessage('Invitation could not be cancelled')
+        .setData(result);
       return res.status(400).json(apiResponse.build());
     }
   }

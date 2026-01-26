@@ -8,13 +8,15 @@ import {
   HttpCode,
   HttpStatus,
   ValidationPipe,
+  Res,
 } from '@nestjs/common';
 import { ExecutionsService } from './executions.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserPayload } from '../common/types/jwt-payload.type';
-import { ExecutionQueryDto, ExecutionStatsQueryDto } from './dto';
-
+import { DashboardExecutionDto, ExecutionQueryDto, ExecutionStatsQueryDto } from './dto';
+import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@workflow-automation/shared-types';
+import { Response } from 'express';
 /**
  * Controller de Executions
  * Maneja el historial y estado de las ejecuciones de workflows
@@ -92,5 +94,27 @@ export class ExecutionsController {
       message: 'Ejecución cancelada exitosamente',
       execution,
     };
+  }
+
+  @Get('dashboard')
+  async getDashboardData(
+    @CurrentUser() user: UserPayload,
+    @Query('cursor') cursor: string | null = null,
+    @Query('pageSize') pageSize: number = 10,
+    @Query('action') action: 'next' | 'prev' | null = null,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponse<CursorPaginatedResponse<DashboardExecutionDto>>>> {
+    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardExecutionDto>>();
+    const data = await this.executionsService.getDashboardData(
+      user.organizationId,
+      cursor,
+      pageSize,
+      action,
+    );
+    apiResponse
+      .setData(data)
+      .setMessage('Dashboard executions data retrieved successfully')
+      .setSuccess(true);
+    return res.status(200).json(apiResponse.build());
   }
 }
