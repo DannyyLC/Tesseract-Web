@@ -95,7 +95,7 @@ export class WorkflowsService {
   }
 
   /**
-   * Listar workflows para el dashboard (paginado, minimalista)
+   * Listar workflows para el dashboard
    */
   async getDashboardData(
     organizationId: string,
@@ -130,6 +130,8 @@ export class WorkflowsService {
         name: true,
         description: true,
         isActive: true,
+        category: true,
+        lastExecutedAt: true,
         createdAt: true,
       },
       orderBy: {
@@ -148,6 +150,8 @@ export class WorkflowsService {
       name: wf.name,
       description: wf.description,
       isActive: wf.isActive,
+      category: wf.category,
+      lastExecutedAt: wf.lastExecutedAt,
     }));
 
     return {
