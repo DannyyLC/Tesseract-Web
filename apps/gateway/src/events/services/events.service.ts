@@ -92,11 +92,12 @@ export class EventsService {
           totalCreditsConsumed: data.totalCreditsConsumed,
           lastExecutedAt: data.lastExecutedAt,
           avgExecutionTime: data.avgExecutionTime,
-        } as DashboardWorkflowDto;
+          organizationId: data.organizationId,
+        };
       case EventSubjectType.CONVERSATION:
         return await this.conversationsService.findAll(data.organizationId);
       case EventSubjectType.MESSAGE:
-        const conversation = this.prismaService.conversations.findOne({
+        const conversation = await this.prismaService.conversation.findFirst({
           where: {
             id: data.conversationId
           },
@@ -111,7 +112,8 @@ export class EventsService {
             closedAt: true,
             workflowId: true,
             userId: true, 
-            endUserId: true
+            endUserId: true,
+            organizationId: true,
           }
         });
         return conversation as DashboardConversationDto;

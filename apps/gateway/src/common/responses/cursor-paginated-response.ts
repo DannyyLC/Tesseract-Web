@@ -15,7 +15,7 @@ export class CursorPaginatedResponseUtils {
   async build<T extends { id: string }>(
     items: T[],
     take: number,
-    paginationAction: 'next' | 'prev' | null,
+    paginationAction?: 'next' | 'prev' | null,
   ): Promise<CursorPaginatedResponse<T>> {
     return {
       items: items.slice(0, take),

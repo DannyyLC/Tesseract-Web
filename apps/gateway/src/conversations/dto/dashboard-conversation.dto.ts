@@ -10,4 +10,5 @@ export class DashboardConversationDto {
   workflowId: string;
   userId: string | null;
   endUserId: string | null;
+  organizationId?: string | null;
 }

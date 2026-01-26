@@ -2,6 +2,8 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { DashboardExecutionDto } from './dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
+import { CursorPaginatedResponse } from '../../../../packages/shared-types/dist/api/api_response';
 
 /**
  * Service que maneja el historial de ejecuciones
@@ -1113,12 +1115,21 @@ export class ExecutionsService {
     );
   }
 
-  async getDashboardData(organizationId: string): Promise<DashboardExecutionDto[]> {
+  async getDashboardData(
+    organizationId: string,
+    cursor: string | null = null,
+    pageSize: number = 10,
+    action: 'next' | 'prev' | null = null,
+  ): Promise<CursorPaginatedResponse<DashboardExecutionDto>> {
     const executions = await this.prisma.execution.findMany({
       where: {
         organizationId,
       },
+      take: pageSize,
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
       select: {
+        id: true,
         status: true,
         startedAt: true,
         finishedAt: true,
@@ -1146,20 +1157,19 @@ export class ExecutionsService {
       },
     });
 
-    return executions.map((exec) => ({
-      status: exec.status,
-      startedAt: exec.startedAt,
-      finishedAt: exec.finishedAt,
-      duration: exec.duration,
-      trigger: exec.trigger,
-      credits: exec.credits,
-      error: exec.error,
-      retryCount: exec.retryCount,
-      workflowId: exec.workflowId,
-      userId: exec.userId,
-      workflowName: exec.workflow.name,
-      userName: exec.user?.name || 'N/A',
-      conversationId: exec.conversationId,
-    }));
+    const paginatedData =  await CursorPaginatedResponseUtils.getInstance().build(
+      executions,
+      pageSize,
+      action,
+    );
+
+    const transformedData = paginatedData.items.map((execution) => {
+      const {id, ...rest} = execution;
+      return rest;
+    });
+    return {
+      ...paginatedData,
+      items: transformedData,
+    }
   }
 }
