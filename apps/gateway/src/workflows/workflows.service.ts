@@ -134,9 +134,10 @@ export class WorkflowsService {
         lastExecutedAt: true,
         createdAt: true,
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: [
+        { createdAt: 'desc' },
+        { id: 'desc' }
+      ],
     });
 
     const paginatedRes = await CursorPaginatedResponseUtils.getInstance().build(
