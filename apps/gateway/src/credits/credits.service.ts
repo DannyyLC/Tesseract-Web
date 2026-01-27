@@ -305,7 +305,7 @@ export class CreditsService {
       const { id, ...rest } = ct;
       return rest;
     });
-        
+
     return {
       ...paginatedTransactions,
       items: transformmedData,

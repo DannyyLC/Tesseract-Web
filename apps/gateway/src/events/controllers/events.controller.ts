@@ -13,29 +13,28 @@ export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
   @Sse('organization/stream')
-  getOrganizationStream(
-    @CurrentUser() user: UserPayload
-  ): Observable<MessageEvent> {
-    return this.eventsService.getOrganizationStream().pipe(
-      filter(event => (event.data as Organization)?.id === user.organizationId)
-    );
+  getOrganizationStream(@CurrentUser() user: UserPayload): Observable<MessageEvent> {
+    return this.eventsService
+      .getOrganizationStream()
+      .pipe(filter((event) => (event.data as Organization)?.id === user.organizationId));
   }
 
   @Sse('workflow/stream')
-  getWorkflowStream(
-    @CurrentUser() user: UserPayload
-  ): Observable<MessageEvent> {
-    return this.eventsService.getWorkflowStream().pipe(
-      filter(event => (event.data as any)?.organizationId === user.organizationId)
-    );
+  getWorkflowStream(@CurrentUser() user: UserPayload): Observable<MessageEvent> {
+    return this.eventsService
+      .getWorkflowStream()
+      .pipe(filter((event) => (event.data as any)?.organizationId === user.organizationId));
   }
 
   @Sse('conversation/stream')
-  getConversationsStream(
-    @CurrentUser() user: UserPayload
-  ): Observable<MessageEvent> {
-    return this.eventsService.getConversationsStream().pipe(
-      filter(event => (event.data as DashboardConversationDto)?.organizationId === user.organizationId)
-    );
+  getConversationsStream(@CurrentUser() user: UserPayload): Observable<MessageEvent> {
+    return this.eventsService
+      .getConversationsStream()
+      .pipe(
+        filter(
+          (event) =>
+            (event.data as DashboardConversationDto)?.organizationId === user.organizationId,
+        ),
+      );
   }
 }

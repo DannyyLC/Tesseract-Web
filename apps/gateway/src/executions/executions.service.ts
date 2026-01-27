@@ -1157,19 +1157,19 @@ export class ExecutionsService {
       },
     });
 
-    const paginatedData =  await CursorPaginatedResponseUtils.getInstance().build(
+    const paginatedData = await CursorPaginatedResponseUtils.getInstance().build(
       executions,
       pageSize,
       action,
     );
 
     const transformedData = paginatedData.items.map((execution) => {
-      const {id, ...rest} = execution;
+      const { id, ...rest } = execution;
       return rest;
     });
     return {
       ...paginatedData,
       items: transformedData,
-    }
+    };
   }
 }

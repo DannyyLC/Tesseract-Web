@@ -129,16 +129,10 @@ export class OrganizationsController {
     const apiResponse = new ApiResponseBuilder<boolean | keyof typeof InviteUserErrorsDto>();
     const result = await this.userService.invite(user.organizationId, body.email);
     if (typeof result !== 'string') {
-      apiResponse
-        .setStatusCode(200)
-        .setMessage('User invited successfully')
-        .setData(result);
+      apiResponse.setStatusCode(200).setMessage('User invited successfully').setData(result);
       return res.status(200).json(apiResponse.build());
     } else {
-      apiResponse
-        .setStatusCode(400)
-        .setMessage('User invitation failed')
-        .setErrors([result]);
+      apiResponse.setStatusCode(400).setMessage('User invitation failed').setErrors([result]);
       return res.status(400).json(apiResponse.build());
     }
   }
@@ -146,25 +140,16 @@ export class OrganizationsController {
   @Post('resend-invitation')
   async resendInvitation(
     @CurrentUser() user: UserPayload,
-    @Body() body: { email: string; },
+    @Body() body: { email: string },
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
-    const result = await this.userService.resendInvitation(
-      user.organizationId,
-      body.email,
-    );
+    const result = await this.userService.resendInvitation(user.organizationId, body.email);
     if (result) {
-      apiResponse
-        .setStatusCode(200)
-        .setMessage('Invitation resent successfully')
-        .setData(result);
+      apiResponse.setStatusCode(200).setMessage('Invitation resent successfully').setData(result);
       return res.status(200).json(apiResponse.build());
     } else {
-      apiResponse
-        .setStatusCode(400)
-        .setMessage('Invitation could not be resent')
-        .setData(result);
+      apiResponse.setStatusCode(400).setMessage('Invitation could not be resent').setData(result);
       return res.status(400).json(apiResponse.build());
     }
   }
@@ -175,9 +160,7 @@ export class OrganizationsController {
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
-    const result = await this.userService.cancelInvitation(
-      body.email
-    );
+    const result = await this.userService.cancelInvitation(body.email);
     if (result) {
       apiResponse
         .setStatusCode(200)

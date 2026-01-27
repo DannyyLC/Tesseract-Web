@@ -99,7 +99,7 @@ export class EventsService {
       case EventSubjectType.MESSAGE:
         const conversation = await this.prismaService.conversation.findFirst({
           where: {
-            id: data.conversationId
+            id: data.conversationId,
           },
           select: {
             title: true,
@@ -111,10 +111,10 @@ export class EventsService {
             createdAt: true,
             closedAt: true,
             workflowId: true,
-            userId: true, 
+            userId: true,
             endUserId: true,
             organizationId: true,
-          }
+          },
         });
         return conversation as DashboardConversationDto;
       default:

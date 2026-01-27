@@ -5,10 +5,7 @@ import { UsersController } from './controllers/user-ui/users.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [
-    DatabaseModule, 
-    NotificationsModule
-  ],
+  imports: [DatabaseModule, NotificationsModule],
   providers: [UsersService],
   exports: [UsersService],
   controllers: [UsersController],

@@ -2,7 +2,11 @@ import { UsersService } from '../../users.service';
 import { Controller, Get, Query, Res, UseGuards, Param, Patch, Delete, Body } from '@nestjs/common';
 import { Response } from 'express';
 import { DashboardUserDataDto, UpdateUserDto, UserDetailDto } from '../../dto';
-import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@workflow-automation/shared-types';
+import {
+  ApiResponse,
+  ApiResponseBuilder,
+  CursorPaginatedResponse,
+} from '@workflow-automation/shared-types';
 import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
@@ -11,7 +15,7 @@ import { UserPayload } from '../../../common/types/jwt-payload.type';
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
   @Get('dashboard')
   async getDashboardData(
@@ -34,7 +38,7 @@ export class UsersController {
         search,
         role,
         isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
-      }
+      },
     );
     if (result.items.length === 0) {
       apiResponse.setStatusCode(404).setMessage('No user data found for the organization');
@@ -52,7 +56,10 @@ export class UsersController {
   async getStats(@CurrentUser() user: UserPayload, @Res() res: Response): Promise<Response> {
     const apiResponse = new ApiResponseBuilder<any>();
     const stats = await this.usersService.getStats(user.organizationId);
-    apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage('User statistics retrieved successfully').setData(stats);
+    apiResponse
+      .setStatusCode(HttpStatusCode.Ok)
+      .setMessage('User statistics retrieved successfully')
+      .setData(stats);
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 
@@ -78,7 +85,10 @@ export class UsersController {
       emailVerified: foundUser.emailVerified,
     });
 
-    apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage('User details retrieved successfully').setData(userDetail);
+    apiResponse
+      .setStatusCode(HttpStatusCode.Ok)
+      .setMessage('User details retrieved successfully')
+      .setData(userDetail);
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 
@@ -94,7 +104,12 @@ export class UsersController {
 
     // 1. Update Role if provided
     if (updateUserDto.role) {
-      updatedUser = await this.usersService.updateRole(id, user.organizationId, updateUserDto.role, user.sub);
+      updatedUser = await this.usersService.updateRole(
+        id,
+        user.organizationId,
+        updateUserDto.role,
+        user.sub,
+      );
     }
 
     // 2. Update Status if provided
@@ -111,7 +126,10 @@ export class UsersController {
       updatedUser = await this.usersService.findOne(id, user.organizationId);
     }
 
-    apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage('User updated successfully').setData(updatedUser);
+    apiResponse
+      .setStatusCode(HttpStatusCode.Ok)
+      .setMessage('User updated successfully')
+      .setData(updatedUser);
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 

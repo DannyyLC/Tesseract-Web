@@ -65,14 +65,7 @@ import { JwtService } from '@nestjs/jwt';
     EventEmitterModule.forRoot(),
   ],
   controllers: [],
-  providers: [
-    CronJobsService,
-    AuthService,
-    JwtService
-  ],
-  exports: [
-    WinstonModule,
-    AuthService,
-  ],
+  providers: [CronJobsService, AuthService, JwtService],
+  exports: [WinstonModule, AuthService],
 })
 export class AppModule {}

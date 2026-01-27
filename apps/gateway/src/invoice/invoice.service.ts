@@ -49,9 +49,9 @@ export class InvoiceService {
       return null;
     }
     const paginatedData = await CursorPaginatedResponseUtils.getInstance().build(
-          invoices,
-          pageSize,
-          action,
+      invoices,
+      pageSize,
+      action,
     );
 
     const transformedData = paginatedData.items.map((invoice) => {
@@ -62,6 +62,6 @@ export class InvoiceService {
     return {
       ...paginatedData,
       items: transformedData,
-    }
+    };
   }
 }

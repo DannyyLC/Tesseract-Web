@@ -26,7 +26,12 @@ export class EndUsersController {
     @Res() res: Response,
   ): Promise<Response<ApiResponse<CursorPaginatedResponse<DashboardEndUserDto>>>> {
     const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardEndUserDto>>();
-    const result = await this.endUsersService.getDashboardData(user.organizationId, cursor, pageSize, paginationAction);
+    const result = await this.endUsersService.getDashboardData(
+      user.organizationId,
+      cursor,
+      pageSize,
+      paginationAction,
+    );
     apiResponse
       .setData(result)
       .setMessage('Dashboard end users data retrieved successfully')

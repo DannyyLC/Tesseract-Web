@@ -16,17 +16,18 @@ import {
   Res,
 } from '@nestjs/common';
 import { WorkflowsService } from '../../workflows.service';
-import { ExecutionsService } from '../../../executions/executions.service';
 import { UpdateWorkflowDto, ExecuteWorkflowDto } from '../../dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
-import { ApiResponseBuilder, CursorPaginatedResponse, WorkflowCategory } from '@workflow-automation/shared-types';
+import {
+  ApiResponseBuilder,
+  CursorPaginatedResponse,
+  WorkflowCategory,
+} from '@workflow-automation/shared-types';
 import { Response } from 'express';
 import { DashboardWorkflowDto } from '@/workflows/dto/dashboard-workflow.dto';
 import { WorkflowStatsDto } from '@/workflows/dto/workflow-stats.dto';
-import { WorkflowMetricsDto } from '@/workflows/dto/workflow-metrics.dto';
-import { HttpStatusCode } from 'axios';
 
 /**
  * Controller de Workflows
@@ -35,10 +36,7 @@ import { HttpStatusCode } from 'axios';
 @Controller('workflows')
 @UseGuards(JwtAuthGuard)
 export class WorkflowsController {
-  constructor(
-    private readonly workflowsService: WorkflowsService,
-    private readonly executionsService: ExecutionsService,
-  ) { }
+  constructor(private readonly workflowsService: WorkflowsService) {}
 
   /**
    * GET /workflows/dashboard
@@ -68,12 +66,15 @@ export class WorkflowsController {
       {
         search,
         isActive: isActiveBool,
-        category
-      }
+        category,
+      },
     );
 
     if (result.items.length === 0) {
-      apiResponse.setStatusCode(HttpStatus.OK).setMessage('No workflows found with current filters').setData(result);
+      apiResponse
+        .setStatusCode(HttpStatus.OK)
+        .setMessage('No workflows found with current filters')
+        .setData(result);
       return res.status(HttpStatus.OK).json(apiResponse.build());
     }
 
@@ -91,7 +92,7 @@ export class WorkflowsController {
   @Get('stats')
   async getStats(
     @CurrentUser() user: UserPayload,
-    @Res() res: Response
+    @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<WorkflowStatsDto>>> {
     const apiResponse = new ApiResponseBuilder<WorkflowStatsDto>();
     const stats = await this.workflowsService.getStats(user.organizationId);
@@ -203,5 +204,4 @@ export class WorkflowsController {
   ) {
     return this.workflowsService.getMetrics(user.organizationId, id, period);
   }
-
 }

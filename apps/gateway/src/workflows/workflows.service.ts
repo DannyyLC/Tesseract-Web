@@ -7,7 +7,12 @@ import { ExecutionsService } from '../executions/executions.service';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { AgentsService } from '../agents/agents.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
-import { PLANS, SubscriptionPlan, getWorkflowCreditCost, WorkflowCategory } from '@workflow-automation/shared-types';
+import {
+  PLANS,
+  SubscriptionPlan,
+  getWorkflowCreditCost,
+  WorkflowCategory,
+} from '@workflow-automation/shared-types';
 import { CreditsService } from '../credits/credits.service';
 import { LlmModelsService } from '../llm-models/llm-models.service';
 import { ConversationsService } from '../conversations/conversations.service';
@@ -37,7 +42,7 @@ export class WorkflowsService {
     private readonly creditsService: CreditsService,
     private readonly llmModelsService: LlmModelsService,
     private readonly conversationsService: ConversationsService,
-  ) { }
+  ) {}
 
   //==========================================================
   // CRUD DE WORKFLOWS
@@ -114,9 +119,7 @@ export class WorkflowsService {
       ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
       ...(filters?.category && { category: filters.category }),
       ...(filters?.search && {
-        OR: [
-          { name: { contains: filters.search, mode: 'insensitive' } },
-        ],
+        OR: [{ name: { contains: filters.search, mode: 'insensitive' } }],
       }),
     };
 
@@ -134,10 +137,7 @@ export class WorkflowsService {
         lastExecutedAt: true,
         createdAt: true,
       },
-      orderBy: [
-        { createdAt: 'desc' },
-        { id: 'desc' }
-      ],
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
 
     const paginatedRes = await CursorPaginatedResponseUtils.getInstance().build(
@@ -171,38 +171,39 @@ export class WorkflowsService {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [totalWorkflows, activeWorkflows, executionsMonth, creditsMonth, byCategory] = await Promise.all([
-      // Total Workflows
-      this.prisma.workflow.count({
-        where: { organizationId, deletedAt: null }
-      }),
-      // Active Workflows
-      this.prisma.workflow.count({
-        where: { organizationId, deletedAt: null, isActive: true }
-      }),
-      // Total Executions Month
-      this.prisma.execution.count({
-        where: {
-          organizationId,
-          startedAt: { gte: startOfMonth }
-        }
-      }),
-      // Credits Consumed Month (Query from CreditTransactions)
-      this.prisma.creditTransaction.aggregate({
-        _sum: { amount: true },
-        where: {
-          organizationId,
-          createdAt: { gte: startOfMonth },
-          amount: { lt: 0 } // Gastos son negativos
-        }
-      }),
-      // By Category
-      this.prisma.workflow.groupBy({
-        by: ['category'],
-        where: { organizationId, deletedAt: null },
-        _count: true
-      })
-    ]);
+    const [totalWorkflows, activeWorkflows, executionsMonth, creditsMonth, byCategory] =
+      await Promise.all([
+        // Total Workflows
+        this.prisma.workflow.count({
+          where: { organizationId, deletedAt: null },
+        }),
+        // Active Workflows
+        this.prisma.workflow.count({
+          where: { organizationId, deletedAt: null, isActive: true },
+        }),
+        // Total Executions Month
+        this.prisma.execution.count({
+          where: {
+            organizationId,
+            startedAt: { gte: startOfMonth },
+          },
+        }),
+        // Credits Consumed Month (Query from CreditTransactions)
+        this.prisma.creditTransaction.aggregate({
+          _sum: { amount: true },
+          where: {
+            organizationId,
+            createdAt: { gte: startOfMonth },
+            amount: { lt: 0 }, // Gastos son negativos
+          },
+        }),
+        // By Category
+        this.prisma.workflow.groupBy({
+          by: ['category'],
+          where: { organizationId, deletedAt: null },
+          _count: true,
+        }),
+      ]);
 
     const categoryStats: Record<string, number> = {};
     byCategory.forEach((item) => {
@@ -217,7 +218,7 @@ export class WorkflowsService {
       activeWorkflows,
       totalExecutionsMonth: executionsMonth,
       creditsConsumedMonth: Number(consumed.toFixed(2)),
-      byCategory: categoryStats
+      byCategory: categoryStats,
     };
   }
 
@@ -241,7 +242,7 @@ export class WorkflowsService {
         version: true,
         createdAt: true,
         updatedAt: true,
-      }
+      },
     });
 
     if (!workflow) {
@@ -254,10 +255,14 @@ export class WorkflowsService {
   /**
    * Obtener métricas detalladas de un workflow (Charts, KPIs)
    */
-  async getMetrics(organizationId: string, workflowId: string, period = '30d'): Promise<WorkflowMetricsDto> {
+  async getMetrics(
+    organizationId: string,
+    workflowId: string,
+    period = '30d',
+  ): Promise<WorkflowMetricsDto> {
     // Validate existence
     const wf = await this.prisma.workflow.findFirst({
-      where: { id: workflowId, organizationId }
+      where: { id: workflowId, organizationId },
     });
     if (!wf) throw new NotFoundException('Workflow no encontrado');
 
@@ -275,7 +280,7 @@ export class WorkflowsService {
       this.prisma.execution.aggregate({
         where: {
           workflowId,
-          startedAt: { gte: startDate }
+          startedAt: { gte: startDate },
         },
         _count: {
           id: true, // Total
@@ -290,9 +295,9 @@ export class WorkflowsService {
         by: ['status'],
         where: {
           workflowId,
-          startedAt: { gte: startDate }
+          startedAt: { gte: startDate },
         },
-        _count: true
+        _count: true,
       }),
 
       // C. Daily History (Raw SQL for Performance)
@@ -307,7 +312,7 @@ export class WorkflowsService {
           AND "startedAt" >= ${startDate}
         GROUP BY DATE("startedAt"), status
         ORDER BY date ASC
-      `
+      `,
     ]);
 
     // 4. Process Results
@@ -316,10 +321,13 @@ export class WorkflowsService {
     const totalExecutions = aggregations._count.id;
     const avgDuration = aggregations._avg.duration || 0;
     // Calculate Success Rate from GroupBy results
-    const statusCounts = failedExecutions.reduce((acc, curr) => {
-      acc[curr.status] = curr._count;
-      return acc;
-    }, {} as Record<string, number>);
+    const statusCounts = failedExecutions.reduce(
+      (acc, curr) => {
+        acc[curr.status] = curr._count;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     const successfulCount = statusCounts['completed'] || 0;
     const failedCount = statusCounts['failed'] || 0;
@@ -335,13 +343,13 @@ export class WorkflowsService {
           workflowId,
           startedAt: { gte: startDate },
           status: 'failed',
-          error: { not: null }
+          error: { not: null },
         },
         select: { error: true },
-        take: 1000 // Limit sample size just in case, though unlikely to hit limit often
+        take: 1000, // Limit sample size just in case, though unlikely to hit limit often
       });
 
-      failures.forEach(f => {
+      failures.forEach((f) => {
         let errorKey = 'GENERIC_ERROR';
         const errText = f.error || '';
         if (errText.toLowerCase().includes('timeout')) errorKey = 'TIMEOUT';
@@ -354,7 +362,7 @@ export class WorkflowsService {
     }
 
     // Execution History Chart (Daily)
-    const historyMap = new Map<string, { count: number, success: number, failed: number }>();
+    const historyMap = new Map<string, { count: number; success: number; failed: number }>();
 
     // Raw query returns BigInt for counts in some drivers, map it
     historyRaw.forEach((row: any) => {
@@ -372,10 +380,12 @@ export class WorkflowsService {
       if (row.status === 'failed') day.failed += count;
     });
 
-    const executionHistoryChart = Array.from(historyMap.entries()).map(([date, stats]) => ({
-      date,
-      ...stats
-    })).sort((a, b) => a.date.localeCompare(b.date));
+    const executionHistoryChart = Array.from(historyMap.entries())
+      .map(([date, stats]) => ({
+        date,
+        ...stats,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     return {
       workflowId,
@@ -383,7 +393,7 @@ export class WorkflowsService {
       successRate: parseFloat(successRate.toFixed(1)),
       avgDuration: parseFloat(avgDuration.toFixed(2)),
       executionHistoryChart,
-      errorDistribution
+      errorDistribution,
     };
   }
 
@@ -623,7 +633,7 @@ export class WorkflowsService {
       } else {
         this.logger.warn(
           `No se encontró mensaje del asistente en ejecución ${execution.id}. ` +
-          `Messages: ${JSON.stringify(messages)}`,
+            `Messages: ${JSON.stringify(messages)}`,
         );
       }
 
@@ -684,7 +694,7 @@ export class WorkflowsService {
 
       this.logger.log(
         `Costo total de ejecución ${execution.id}: $${costUSD} ` +
-        `(breakdown: ${JSON.stringify(costBreakdown)})`,
+          `(breakdown: ${JSON.stringify(costBreakdown)})`,
       );
 
       // 8. ACTUALIZAR EXECUTION Y CONVERSATION EN PARALELO
@@ -736,7 +746,7 @@ export class WorkflowsService {
 
       this.logger.log(
         `Créditos descontados para ejecución exitosa ${execution.id}: ` +
-        `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
+          `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
       );
 
       // 10. RETORNAR EJECUCIÓN CON RELACIONES COMPLETAS (requiere query con joins)
@@ -1229,7 +1239,7 @@ export class WorkflowsService {
       if (agentTools.length > 0 && Object.keys(filtered).length === 0) {
         this.logger.warn(
           `Agent "${agentName}" tiene tools configurados pero ninguno es válido. ` +
-          `Tools configurados: ${JSON.stringify(agentTools)}`,
+            `Tools configurados: ${JSON.stringify(agentTools)}`,
         );
       }
     }
@@ -1366,7 +1376,7 @@ export class WorkflowsService {
       const availableModels = Array.from(activeModelNames).slice(0, 10).join(', ');
       throw new InvalidWorkflowConfigException(
         `Invalid models: ${invalidModels.join(', ')}. ` +
-        `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
+          `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
       );
     }
   }

@@ -80,19 +80,19 @@ export class EmailService {
   async sendOrganizationInvitationToEmail(
     email: string,
     organizationName: string,
-  ) : Promise<{ sentMessageInfo: nodemailer.SentMessageInfo, verificationCode: string } | null> {
+  ): Promise<{ sentMessageInfo: nodemailer.SentMessageInfo; verificationCode: string } | null> {
     let sentMessageInfo: nodemailer.SentMessageInfo = null;
     const verificationCode = await this.generateVerificationCode();
-    
+
     try {
       sentMessageInfo = await this.transporter.sendMail({
         to: email,
         subject: `Invitación para unirte a ${organizationName}`,
         html: this.emailInvitationTemplate({
           inviteUrl: `localhost:3001/accept-invitation?code=${verificationCode}&email=${encodeURIComponent(email)}`,
-          organizationName, 
-      })
-    });
+          organizationName,
+        }),
+      });
       return { sentMessageInfo, verificationCode };
     } catch (error) {
       this.logger.error(
@@ -110,7 +110,7 @@ export class EmailService {
       isVerificationCodeDuplicate = await this.prisma.userVerification.findFirst({
         where: { verificationCode },
       });
-    } while(isVerificationCodeDuplicate);
+    } while (isVerificationCodeDuplicate);
     return verificationCode;
   }
 }

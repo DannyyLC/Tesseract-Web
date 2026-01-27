@@ -14,7 +14,6 @@ export class EndUsersService {
     pageSize: number = 10,
     paginationAction: 'next' | 'prev' | null = null,
   ): Promise<CursorPaginatedResponse<DashboardEndUserDto>> {
-    
     const endUsers = await this.prismaService.endUser.findMany({
       where: {
         organizationId: idOrganization,
@@ -35,19 +34,19 @@ export class EndUsersService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    const paginatedData = await CursorPaginatedResponseUtils.getInstance().build( 
-        endUsers,
-        pageSize,
-        paginationAction,
-      );
+    const paginatedData = await CursorPaginatedResponseUtils.getInstance().build(
+      endUsers,
+      pageSize,
+      paginationAction,
+    );
     const transformmedData = paginatedData.items.map((eu) => {
-        const { id, ...rest } = eu;
-        return rest;
+      const { id, ...rest } = eu;
+      return rest;
     });
-    
+
     return {
-        ...paginatedData,
-        items: transformmedData,
-    }
+      ...paginatedData,
+      items: transformmedData,
+    };
   }
 }

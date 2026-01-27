@@ -15,7 +15,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserPayload } from '../common/types/jwt-payload.type';
 import { DashboardExecutionDto, ExecutionQueryDto, ExecutionStatsQueryDto } from './dto';
-import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@workflow-automation/shared-types';
+import {
+  ApiResponse,
+  ApiResponseBuilder,
+  CursorPaginatedResponse,
+} from '@workflow-automation/shared-types';
 import { Response } from 'express';
 /**
  * Controller de Executions

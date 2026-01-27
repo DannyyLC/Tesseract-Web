@@ -5,10 +5,7 @@ import { OrganizationsController } from './controllers/user-ui/organizations.con
 import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [
-    DatabaseModule,
-    UsersModule,
-  ],
+  imports: [DatabaseModule, UsersModule],
   controllers: [OrganizationsController],
   providers: [OrganizationsService],
   exports: [OrganizationsService],

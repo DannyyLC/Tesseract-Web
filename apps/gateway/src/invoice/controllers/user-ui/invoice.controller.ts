@@ -21,7 +21,12 @@ export class InvoiceController {
     @Query('action') action: 'next' | 'prev' | null = null,
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<CursorPaginatedResponse<DashboardInvoiceDto>>>> {
-    const result = await this.invoiceService.getDashboardData(user.organizationId, cursor, pageSize, action);
+    const result = await this.invoiceService.getDashboardData(
+      user.organizationId,
+      cursor,
+      pageSize,
+      action,
+    );
     const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardInvoiceDto>>();
     if (!result) {
       apiResponse.setStatusCode(404).setMessage('No invoices found for the specified organization');

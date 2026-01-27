@@ -50,7 +50,7 @@ export class UsersService {
     private readonly emailService: EmailService,
     private readonly authService: AuthService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
-  ) { }
+  ) {}
 
   /**
    * Invitar usuario a la organización
@@ -142,10 +142,10 @@ export class UsersService {
         });
         await this.prisma.user.update({
           where: { email: userVerification.email },
-            data: { 
-              emailVerified: true,
-              isActive: true
-            },
+          data: {
+            emailVerified: true,
+            isActive: true,
+          },
         });
         return {
           email: existingUser.email,
@@ -157,7 +157,7 @@ export class UsersService {
           avatar: existingUser.avatar,
           timezone: existingUser.timezone,
           emailVerified: existingUser.emailVerified,
-        }
+        };
       }
 
       const hashedPassword = await this.authService.hashPassword(pass);
@@ -169,7 +169,7 @@ export class UsersService {
           password: hashedPassword,
           organizationId: userVerification.organizationName,
           isActive: true,
-          emailVerified: true
+          emailVerified: true,
         },
       });
       await this.prisma.userVerification.deleteMany({
@@ -207,23 +207,22 @@ export class UsersService {
   /**
    * Reenviar invitación a usuario pendiente
    */
-  async resendInvitation(
-    userEmail: string,
-    organizationId: string,
-  ): Promise<boolean> {
+  async resendInvitation(userEmail: string, organizationId: string): Promise<boolean> {
     const userVerification = await this.prisma.userVerification.findFirst({
       where: {
         organizationName: organizationId,
         email: userEmail,
-      }
+      },
     });
     if (!userVerification) {
-      this.logger.error(`resendInvitation >> No pending invitation found for ${userEmail} in org ${organizationId}`);
-      return false;  
+      this.logger.error(
+        `resendInvitation >> No pending invitation found for ${userEmail} in org ${organizationId}`,
+      );
+      return false;
     }
     const emailSentInfo = await this.emailService.sendOrganizationInvitationToEmail(
       userEmail,
-      organizationId
+      organizationId,
     );
     if (!emailSentInfo) {
       this.logger.error(`resendInvitation >> Error sending invitation email to ${userEmail}`);
@@ -237,26 +236,24 @@ export class UsersService {
       data: {
         verificationCode: emailSentInfo.verificationCode,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días para aceptar
-      }
+      },
     });
     if (modifiedRecords.count === 0) {
       this.logger.error(`resendInvitation >> Error updating verification record for ${userEmail}`);
       return false;
     }
-    
+
     return true;
   }
 
   /**
    * Cancelar invitación pendiente (elimina el usuario que nunca aceptó)
    */
-  async cancelInvitation(
-    userEmail: string
-  ): Promise<boolean> {
+  async cancelInvitation(userEmail: string): Promise<boolean> {
     const userVerification = await this.prisma.userVerification.findFirst({
       where: {
         email: userEmail,
-      }
+      },
     });
     if (!userVerification) {
       this.logger.error(`cancelInvitation >> No pending invitation found for ${userEmail}`);
@@ -265,7 +262,7 @@ export class UsersService {
     const deletedRecords = await this.prisma.userVerification.deleteMany({
       where: {
         email: userEmail,
-      }
+      },
     });
     if (deletedRecords.count === 0) {
       this.logger.error(`cancelInvitation >> Error deleting verification record for ${userEmail}`);

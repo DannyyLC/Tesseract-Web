@@ -155,7 +155,7 @@ export class AuthController {
    * POST /auth/refresh
    * Refresca el access token usando el refresh token de la cookie
    *
-   * 🔐 Lee el refreshToken desde la cookie (NO desde el body)
+   * Lee el refreshToken desde la cookie (NO desde el body)
    *
    * Body: {} (vacío, no se necesita enviar nada)
    *
@@ -219,7 +219,7 @@ export class AuthController {
    * GET /auth/me
    * Obtiene la información del usuario autenticado
    *
-   * 🔐 El accessToken se lee automáticamente desde la cookie
+   * El accessToken se lee automáticamente desde la cookie
    *
    * Headers: (ninguno requerido, la cookie se envía automáticamente)
    *

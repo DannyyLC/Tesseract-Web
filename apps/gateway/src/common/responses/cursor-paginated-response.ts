@@ -3,7 +3,7 @@ import { CursorPaginatedResponse, PaginatedResponse } from '@workflow-automation
 export class CursorPaginatedResponseUtils {
   private static instance: CursorPaginatedResponseUtils;
 
-  private constructor() { }
+  private constructor() {}
 
   static getInstance(): CursorPaginatedResponseUtils {
     if (!CursorPaginatedResponseUtils.instance) {
@@ -21,9 +21,7 @@ export class CursorPaginatedResponseUtils {
     let hasNextPage = false;
     let hasPrevPage = false;
 
-
     if (paginationAction === 'prev') {
-
       if (items.length > take) {
         hasPrevPage = true;
         data = items.slice(1);
@@ -32,8 +30,7 @@ export class CursorPaginatedResponseUtils {
         data = items;
       }
       hasNextPage = true;
-    }
-    else {
+    } else {
       if (items.length > take) {
         hasNextPage = true;
         data = items.slice(0, take);

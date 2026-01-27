@@ -26,4 +26,4 @@ import { ExternalWorkflowsController } from './controllers/external/workflows.co
   providers: [WorkflowsService],
   exports: [WorkflowsService],
 })
-export class WorkflowsModule { }
+export class WorkflowsModule {}
