@@ -1,7 +1,8 @@
 import { Injectable, Logger, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { DashboardConversationDto } from './dto/dashboard-conversation.dto';
-import { CursorPaginatedResponse, PaginatedResponse } from '@workflow-automation/shared-types';
+import { ConversationStatsDto } from './dto/conversation-stats.dto';
+import { CursorPaginatedResponse } from '@workflow-automation/shared-types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { Conversation } from '@workflow-platform/database';
 
@@ -16,7 +17,7 @@ import { Conversation } from '@workflow-platform/database';
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Busca o crea una conversación para la ejecución
@@ -281,5 +282,40 @@ export class ConversationsService {
       where: { id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  /**
+   * Obtiene estadísticas de conversaciones para una organización
+   */
+  async getStats(organizationId: string): Promise<ConversationStatsDto> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    const [totalConversations, activeConversations, totalMessagesMonth] = await Promise.all([
+      this.prisma.conversation.count({
+        where: { organizationId, deletedAt: null },
+      }),
+      this.prisma.conversation.count({
+        where: { organizationId, status: 'active', deletedAt: null },
+      }),
+      this.prisma.message.count({
+        where: {
+          conversation: {
+            organizationId,
+          },
+          createdAt: {
+            gte: startOfMonth,
+            lte: endOfMonth,
+          },
+        },
+      }),
+    ]);
+
+    return {
+      totalConversations,
+      activeConversations,
+      totalMessagesMonth,
+    };
   }
 }

@@ -1,4 +1,9 @@
-import { DashboardConversationDto, UpdateConversationDto } from '../../dto';
+import {
+  DashboardConversationDto,
+  UpdateConversationDto,
+  ConversationStatsDto,
+  ConversationDetailDto,
+} from '../../dto';
 import { ConversationsService } from '../../conversations.service';
 import {
   Body,
@@ -25,7 +30,7 @@ import { UserPayload } from '../../../common/types/jwt-payload.type';
 @Controller('conversations')
 @UseGuards(JwtAuthGuard)
 export class ConversationsController {
-  constructor(private readonly conversationsService: ConversationsService) {}
+  constructor(private readonly conversationsService: ConversationsService) { }
 
   @Get('dashboard')
   async getDashboardData(
@@ -49,17 +54,16 @@ export class ConversationsController {
     });
 
     const items: DashboardConversationDto[] = paginatedResponse.items.map((c) => ({
+      id: c.id,
       title: c.title,
       channel: c.channel,
       status: c.status,
       isHumanInTheLoop: c.isHumanInTheLoop,
       messageCount: c.messageCount,
       lastMessageAt: c.lastMessageAt,
-      createdAt: c.createdAt,
       closedAt: c.closedAt,
       workflowId: c.workflowId,
       userId: c.userId,
-      endUserId: c.endUserId,
       isInternal: !!c.userId,
     }));
 
@@ -73,21 +77,56 @@ export class ConversationsController {
     return res.status(200).json(apiResponse.build());
   }
 
+  @Get('stats')
+  async getStats(
+    @CurrentUser() user: UserPayload,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponse<ConversationStatsDto>>> {
+    const apiResponse = new ApiResponseBuilder<ConversationStatsDto>();
+    const stats = await this.conversationsService.getStats(user.organizationId);
+    apiResponse
+      .setData(stats)
+      .setMessage('Conversation stats retrieved successfully')
+      .setSuccess(true);
+    return res.status(200).json(apiResponse.build());
+  }
+
   @Get(':id')
   async getById(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
     @Res() res: Response,
-  ): Promise<Response<ApiResponse<any>>> {
-    const apiResponse = new ApiResponseBuilder<any>();
+  ): Promise<Response<ApiResponse<ConversationDetailDto>>> {
+    const apiResponse = new ApiResponseBuilder<ConversationDetailDto>();
 
     const conversation = await this.conversationsService.findOne(user.organizationId, id);
     if (!conversation) {
       throw new NotFoundException(`Conversation with ID ${id} not found`);
     }
 
+    const detailDto: ConversationDetailDto = {
+      id: conversation.id,
+      title: conversation.title,
+      channel: conversation.channel,
+      status: conversation.status,
+      isHumanInTheLoop: conversation.isHumanInTheLoop,
+      messageCount: conversation.messageCount,
+      lastMessageAt: conversation.lastMessageAt,
+      createdAt: conversation.createdAt,
+      closedAt: conversation.closedAt,
+      workflowId: conversation.workflowId,
+      userId: conversation.userId,
+      endUserId: conversation.endUserId,
+      messages: conversation.messages.map((msg) => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        createdAt: msg.createdAt,
+      })),
+    };
+
     apiResponse
-      .setData(conversation)
+      .setData(detailDto)
       .setMessage('Conversation retrieved successfully')
       .setSuccess(true);
 
