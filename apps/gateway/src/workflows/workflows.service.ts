@@ -42,7 +42,7 @@ export class WorkflowsService {
     private readonly creditsService: CreditsService,
     private readonly llmModelsService: LlmModelsService,
     private readonly conversationsService: ConversationsService,
-  ) {}
+  ) { }
 
   //==========================================================
   // CRUD DE WORKFLOWS
@@ -633,7 +633,7 @@ export class WorkflowsService {
       } else {
         this.logger.warn(
           `No se encontró mensaje del asistente en ejecución ${execution.id}. ` +
-            `Messages: ${JSON.stringify(messages)}`,
+          `Messages: ${JSON.stringify(messages)}`,
         );
       }
 
@@ -694,7 +694,7 @@ export class WorkflowsService {
 
       this.logger.log(
         `Costo total de ejecución ${execution.id}: $${costUSD} ` +
-          `(breakdown: ${JSON.stringify(costBreakdown)})`,
+        `(breakdown: ${JSON.stringify(costBreakdown)})`,
       );
 
       // 8. ACTUALIZAR EXECUTION Y CONVERSATION EN PARALELO
@@ -717,7 +717,7 @@ export class WorkflowsService {
           messageCount: { increment: messageIncrement },
           lastMessageAt: new Date(),
           ...(totalTokens > 0 ? { totalTokens: { increment: totalTokens } } : {}),
-          ...(costUSD > 0 ? { totalCost: { increment: costUSD } } : {}),
+          ...(costUSD > 0 ? { totalCost: { increment: Number(costUSD.toFixed(9)) } } : {}),
         }),
       ]);
 
@@ -746,7 +746,7 @@ export class WorkflowsService {
 
       this.logger.log(
         `Créditos descontados para ejecución exitosa ${execution.id}: ` +
-          `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
+        `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
       );
 
       // 10. RETORNAR EJECUCIÓN CON RELACIONES COMPLETAS (requiere query con joins)
@@ -1239,7 +1239,7 @@ export class WorkflowsService {
       if (agentTools.length > 0 && Object.keys(filtered).length === 0) {
         this.logger.warn(
           `Agent "${agentName}" tiene tools configurados pero ninguno es válido. ` +
-            `Tools configurados: ${JSON.stringify(agentTools)}`,
+          `Tools configurados: ${JSON.stringify(agentTools)}`,
         );
       }
     }
@@ -1376,7 +1376,7 @@ export class WorkflowsService {
       const availableModels = Array.from(activeModelNames).slice(0, 10).join(', ');
       throw new InvalidWorkflowConfigException(
         `Invalid models: ${invalidModels.join(', ')}. ` +
-          `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
+        `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
       );
     }
   }
