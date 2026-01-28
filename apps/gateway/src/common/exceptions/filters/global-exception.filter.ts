@@ -20,9 +20,6 @@ interface ErrorResponse {
   message: string;
   statusCode: number;
   timestamp: string;
-  path: string;
-  metadata?: any;
-  stack?: string; // Solo en desarrollo
 }
 
 /**
@@ -79,7 +76,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
    */
   private buildErrorResponse(exception: unknown, request: Request): ErrorResponse {
     const timestamp = new Date().toISOString();
-    const path = request.url;
     const isProduction = process.env.NODE_ENV === 'production';
 
     // ============================================
@@ -92,10 +88,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message: exception.message,
         statusCode: exception.getStatus(),
         timestamp,
-        path,
-        metadata: exception.metadata,
-        // En desarrollo mostramos el stack trace, en producción NO
-        stack: !isProduction ? exception.stack : undefined,
       };
     }
 
@@ -123,8 +115,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message,
         statusCode: status,
         timestamp,
-        path,
-        stack: !isProduction ? exception.stack : undefined,
       };
     }
 
@@ -132,7 +122,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // Errores de Prisma
     // ============================================
     if (this.isPrismaError(exception)) {
-      return this.handlePrismaError(exception as any, timestamp, path, isProduction);
+      return this.handlePrismaError(exception as any, timestamp, isProduction);
     }
 
     // ============================================
@@ -148,8 +138,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         : ((exception as Error).message ?? 'Unknown error'),
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       timestamp,
-      path,
-      stack: !isProduction ? (exception as Error).stack : undefined,
     };
   }
 
@@ -164,7 +152,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   private handlePrismaError(
     exception: any,
     timestamp: string,
-    path: string,
     isProduction: boolean,
   ): ErrorResponse {
     const code = exception.code;
@@ -178,8 +165,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message: `A record with this ${field} already exists`,
         statusCode: HttpStatus.CONFLICT,
         timestamp,
-        path,
-        metadata: { field, constraintCode: code },
       };
     }
 
@@ -191,7 +176,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message: 'The requested record was not found',
         statusCode: HttpStatus.NOT_FOUND,
         timestamp,
-        path,
       };
     }
 
@@ -204,8 +188,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message: `Invalid reference: ${field}`,
         statusCode: HttpStatus.BAD_REQUEST,
         timestamp,
-        path,
-        metadata: { field, constraintCode: code },
       };
     }
 
@@ -217,7 +199,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message: 'The relation between records is invalid',
         statusCode: HttpStatus.BAD_REQUEST,
         timestamp,
-        path,
       };
     }
 
@@ -228,8 +209,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       message: isProduction ? 'A database error occurred' : exception.message,
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       timestamp,
-      path,
-      metadata: !isProduction ? { prismaCode: code } : undefined,
     };
   }
 
