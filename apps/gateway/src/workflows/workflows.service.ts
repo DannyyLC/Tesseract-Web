@@ -565,6 +565,13 @@ export class WorkflowsService {
     // Asociar la ejecución a la conversación
     await this.executionsService.linkToConversation(execution.id, conversation.id);
 
+    // VALIDACIÓN IMPORTANTE: Bloquear mensajes internos a externos si HITL está desactivado
+    if (userId && conversation.endUserId && !conversation.isHumanInTheLoop) {
+      throw new ForbiddenException(
+        'Cannot send message to external conversation without Human in the Loop enabled',
+      );
+    }
+
     // 4.1 CHECK HITL BYPASS (Internal User acting as AI)
     if (conversation.isHumanInTheLoop && userId) {
       this.logger.log(`HITL Execution: User ${userId} acting as assistant.`);
@@ -868,6 +875,13 @@ export class WorkflowsService {
     );
 
     await this.executionsService.linkToConversation(execution.id, conversation.id);
+
+    // VALIDACIÓN IMPORTANTE: Bloquear mensajes internos a externos si HITL está desactivado
+    if (userId && conversation.endUserId && !conversation.isHumanInTheLoop) {
+      throw new ForbiddenException(
+        'Cannot send message to external conversation without Human in the Loop enabled',
+      );
+    }
 
     // 4.1 CHECK HITL BYPASS (Internal User acting as AI)
     if (conversation.isHumanInTheLoop && userId) {
