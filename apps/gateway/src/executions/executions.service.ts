@@ -1125,7 +1125,9 @@ export class ExecutionsService {
       where: {
         organizationId,
       },
-      take: pageSize,
+      take:  action === 'next' || action === null
+          ? pageSize + 1
+          : -(pageSize + 1),
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
       select: {

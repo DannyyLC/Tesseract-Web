@@ -102,6 +102,7 @@ export class EventsService {
             id: data.conversationId,
           },
           select: {
+            id: true,
             title: true,
             channel: true,
             status: true,

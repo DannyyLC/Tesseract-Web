@@ -22,6 +22,8 @@ import { CronJobsService } from './cron-jobs.service';
 import { EndUsersModule } from './end-users/end-users.module';
 import { AuthService } from './auth/auth.service';
 import { JwtService } from '@nestjs/jwt';
+import { TenantToolModule } from './tenant-tool/tenant-tool.module';
+import { PrismaService } from './database/prisma.service';
 
 @Global()
 @Module({
@@ -63,9 +65,10 @@ import { JwtService } from '@nestjs/jwt';
     ScheduleModule.forRoot(),
     EndUsersModule,
     EventEmitterModule.forRoot(),
+    TenantToolModule,
   ],
   controllers: [],
-  providers: [CronJobsService, AuthService, JwtService],
+  providers: [CronJobsService, AuthService, JwtService, PrismaService],
   exports: [WinstonModule, AuthService],
 })
 export class AppModule {}

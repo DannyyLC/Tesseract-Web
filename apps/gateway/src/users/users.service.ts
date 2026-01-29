@@ -789,7 +789,9 @@ export class UsersService {
     };
 
     const users = await this.prisma.user.findMany({
-      take: paginationAction === 'prev' ? -(take + 1) : take + 1,
+      take:  paginationAction === 'next' || paginationAction === null
+          ? take + 1
+          : -(take + 1),
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
       where,
