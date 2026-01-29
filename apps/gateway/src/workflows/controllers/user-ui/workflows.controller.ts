@@ -105,7 +105,7 @@ export class WorkflowsController {
    * Obtener un workflow específico
    */
   @Get(':id')
-  findOne(@CurrentUser() user: UserPayload, @Param('id') id: string) {
+  async getById(@CurrentUser() user: UserPayload, @Param('id') id: string) {
     return this.workflowsService.findOne(user.organizationId, id);
   }
 
@@ -114,7 +114,7 @@ export class WorkflowsController {
    * Actualizar un workflow
    */
   @Put(':id')
-  update(
+  async update(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
     @Body() updateDto: UpdateWorkflowDto,
@@ -127,7 +127,7 @@ export class WorkflowsController {
    * Eliminar un workflow (soft delete)
    */
   @Delete(':id')
-  remove(@CurrentUser() user: UserPayload, @Param('id') id: string) {
+  async remove(@CurrentUser() user: UserPayload, @Param('id') id: string) {
     return this.workflowsService.remove(user.organizationId, id);
   }
 

@@ -597,7 +597,7 @@ export class WorkflowsService {
         messageCount: { increment: 1 },
       });
 
-      return this.executionsService.findOneForClient(execution.id, organizationId);
+      return this.executionsService.getByIdFull(execution.id, organizationId);
     }
 
     // OBTENER HISTORIAL ANTES de guardar el mensaje del usuario
@@ -757,7 +757,7 @@ export class WorkflowsService {
       );
 
       // 10. RETORNAR EJECUCIÓN CON RELACIONES COMPLETAS (requiere query con joins)
-      return this.executionsService.findOneForClient(execution.id, organizationId);
+      return this.executionsService.getByIdFull(execution.id, organizationId);
     } catch (error) {
       // MANEJAR ERRORES - NO SE DESCONTARÁN CRÉDITOS EN EJECUCIONES FALLIDAS
       this.logger.error(

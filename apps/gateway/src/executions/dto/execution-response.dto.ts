@@ -46,15 +46,11 @@ export class ExecutionApiKeyDto {
 }
 
 /**
- * DTO para respuesta de ejecución (vista cliente)
- * No incluye campos internos como cost, tokensUsed, errorStack
+ * DTO para respuesta de ejecución
  */
 export class ExecutionResponseDto {
   @Expose()
   id: string;
-
-  @Expose()
-  status: string;
 
   @Expose()
   startedAt: Date;
@@ -66,22 +62,7 @@ export class ExecutionResponseDto {
   duration?: number;
 
   @Expose()
-  result?: any;
-
-  @Expose()
-  error?: string;
-
-  @Expose()
   trigger: string;
-
-  @Expose()
-  triggerData?: any;
-
-  @Expose()
-  logs?: string;
-
-  @Expose()
-  stepResults?: any;
 
   @Expose()
   retryCount: number;
@@ -118,21 +99,9 @@ export class ExecutionResponseDto {
   @Expose()
   userId?: string;
 
+  // Solo enviamos el nombre de la API Key si existe
   @Expose()
-  apiKeyId?: string;
-
-  // Relaciones
-  @Expose()
-  @Type(() => ExecutionWorkflowDto)
-  workflow?: ExecutionWorkflowDto;
-
-  @Expose()
-  @Type(() => ExecutionUserDto)
-  user?: ExecutionUserDto;
-
-  @Expose()
-  @Type(() => ExecutionApiKeyDto)
-  apiKey?: ExecutionApiKeyDto;
+  apiKeyName?: string;
 }
 
 /**

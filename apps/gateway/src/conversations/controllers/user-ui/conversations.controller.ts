@@ -65,6 +65,7 @@ export class ConversationsController {
       workflowId: c.workflowId,
       userId: c.userId,
       isInternal: !!c.userId,
+      organizationId: c.organizationId,
     }));
 
     apiResponse

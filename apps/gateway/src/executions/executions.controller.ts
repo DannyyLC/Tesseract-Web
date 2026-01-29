@@ -7,7 +7,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
-  ValidationPipe,
+  Delete,
   Res,
 } from '@nestjs/common';
 import { ExecutionsService } from './executions.service';
@@ -37,29 +37,42 @@ import { Response } from 'express';
 @Controller('executions')
 @UseGuards(JwtAuthGuard)
 export class ExecutionsController {
-  constructor(private readonly executionsService: ExecutionsService) {}
+  constructor(private readonly executionsService: ExecutionsService) { }
 
   /**
-   * GET /executions
-   * Lista todas las ejecuciones de la organización con paginación cursor
+   * GET /executions/dashboard
+   * Obtener datos para el dashboard de ejecuciones (paginado)
    */
-  @Get()
-  async findAll(
+  @Get('dashboard')
+  async getDashboardData(
     @CurrentUser() user: UserPayload,
-    @Query(new ValidationPipe({ transform: true })) query: ExecutionQueryDto,
-  ) {
-    return this.executionsService.findAll(user.organizationId, {
-      limit: query.limit,
-      cursor: query.cursor,
-      status: query.status,
-      workflowId: query.workflowId,
-      trigger: query.trigger,
-      startDate: query.startDate ? new Date(query.startDate) : undefined,
-      endDate: query.endDate ? new Date(query.endDate) : undefined,
-      wasOverage: query.wasOverage,
-      userId: query.userId,
-      apiKeyId: query.apiKeyId,
-    });
+    @Query('cursor') cursor: string | null = null,
+    @Query('pageSize') pageSize: number = 10,
+    @Query('action') action: 'next' | 'prev' | null = null,
+    @Query('workflowId') workflowId: string | undefined,
+    @Query('userId') userId: string | undefined,
+    @Query('startDate') startDate: Date | undefined,
+    @Query('endDate') endDate: Date | undefined,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponse<CursorPaginatedResponse<DashboardExecutionDto>>>> {
+    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardExecutionDto>>();
+    const data = await this.executionsService.getDashboardData(
+      user.organizationId,
+      cursor,
+      pageSize,
+      action,
+      {
+        workflowId,
+        userId,
+        startDate,
+        endDate,
+      },
+    );
+    apiResponse
+      .setData(data)
+      .setMessage('Dashboard executions data retrieved successfully')
+      .setSuccess(true);
+    return res.status(200).json(apiResponse.build());
   }
 
   /**
@@ -69,10 +82,16 @@ export class ExecutionsController {
   @Get('stats')
   async getStats(
     @CurrentUser() user: UserPayload,
-    @Query(new ValidationPipe({ transform: true }))
-    query: ExecutionStatsQueryDto,
+    @Query() query: ExecutionStatsQueryDto,
+    @Res() res: Response,
   ) {
-    return this.executionsService.getStats(user.organizationId, query.period);
+    const apiResponse = new ApiResponseBuilder<any>();
+    const stats = await this.executionsService.getStats(user.organizationId, query.period);
+    apiResponse
+      .setData(stats)
+      .setMessage('Execution stats retrieved successfully')
+      .setSuccess(true);
+    return res.status(HttpStatus.OK).json(apiResponse.build());
   }
 
   /**
@@ -80,8 +99,18 @@ export class ExecutionsController {
    * Obtiene detalles completos de una ejecución específica
    */
   @Get(':id')
-  async findOne(@CurrentUser() user: UserPayload, @Param('id') id: string) {
-    return this.executionsService.findOneForClient(id, user.organizationId);
+  async getById(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const apiResponse = new ApiResponseBuilder<any>();
+    const execution = await this.executionsService.findOneForClient(id, user.organizationId);
+    apiResponse
+      .setData(execution)
+      .setMessage('Execution details retrieved successfully')
+      .setSuccess(true);
+    return res.status(HttpStatus.OK).json(apiResponse.build());
   }
 
   /**
@@ -90,35 +119,33 @@ export class ExecutionsController {
    */
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
-  async cancel(@CurrentUser() user: UserPayload, @Param('id') id: string) {
+  async cancel(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const apiResponse = new ApiResponseBuilder<any>();
     const execution = await this.executionsService.cancel(id, user.organizationId);
-
-    return {
-      success: true,
-      message: 'Ejecución cancelada exitosamente',
-      execution,
-    };
+    apiResponse
+      .setData(execution)
+      .setMessage('Ejecución cancelada exitosamente')
+      .setSuccess(true);
+    return res.status(HttpStatus.OK).json(apiResponse.build());
   }
 
-  @Get('dashboard')
-  async getDashboardData(
+  /**
+   * DELETE /executions/:id
+   * Eliminar una ejecución (Soft Delete)
+   */
+  @Delete(':id')
+  async remove(
     @CurrentUser() user: UserPayload,
-    @Query('cursor') cursor: string | null = null,
-    @Query('pageSize') pageSize: number = 10,
-    @Query('action') action: 'next' | 'prev' | null = null,
+    @Param('id') id: string,
     @Res() res: Response,
-  ): Promise<Response<ApiResponse<CursorPaginatedResponse<DashboardExecutionDto>>>> {
-    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardExecutionDto>>();
-    const data = await this.executionsService.getDashboardData(
-      user.organizationId,
-      cursor,
-      pageSize,
-      action,
-    );
-    apiResponse
-      .setData(data)
-      .setMessage('Dashboard executions data retrieved successfully')
-      .setSuccess(true);
-    return res.status(200).json(apiResponse.build());
+  ) {
+    const apiResponse = new ApiResponseBuilder<void>();
+    await this.executionsService.remove(id, user.organizationId);
+    apiResponse.setStatusCode(HttpStatus.OK).setMessage('Execution deleted successfully');
+    return res.status(HttpStatus.OK).json(apiResponse.build());
   }
 }
