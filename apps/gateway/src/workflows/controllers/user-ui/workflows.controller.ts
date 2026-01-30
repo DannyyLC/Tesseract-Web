@@ -149,6 +149,7 @@ export class WorkflowsController {
       { ...executeDto.metadata, channel: 'dashboard' },
       user.sub,
       undefined, // apiKeyId
+      'manual', // trigger: UI executions are manual
     );
 
     // Transformar respuesta para ocultar metadata interna (DTO simplificado)
@@ -187,6 +188,7 @@ export class WorkflowsController {
       { ...executeDto.metadata, channel: 'dashboard' },
       user.sub,
       undefined, // apiKeyId
+      'manual', // trigger: UI executions are manual
     );
 
     return new StreamableFile(stream as any);

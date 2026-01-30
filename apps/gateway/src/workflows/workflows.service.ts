@@ -476,6 +476,7 @@ export class WorkflowsService {
     metadata?: Record<string, any>,
     userId?: string, // Opcional: quién ejecuta desde UI
     apiKeyId?: string, // Opcional: qué API key ejecuta
+    trigger: 'api' | 'manual' | 'webhook' | 'schedule' = 'api',
   ) {
     // 1. VALIDACIONES PREVIAS - Cargar workflow con TODO lo necesario en 1 query
     const workflow = await this.prisma.workflow.findFirst({
@@ -537,7 +538,7 @@ export class WorkflowsService {
     }
 
     // 3. CREAR REGISTRO DE EJECUCIÓN
-    const execution = await this.executionsService.create(workflowId, 'api', {
+    const execution = await this.executionsService.create(workflowId, trigger, {
       input,
       metadata,
       organizationId: org.id,
@@ -789,6 +790,7 @@ export class WorkflowsService {
     metadata?: Record<string, any>,
     userId?: string, // Opcional: quién ejecuta desde UI
     apiKeyId?: string, // Opcional: qué API key ejecuta
+    trigger: 'api' | 'manual' | 'webhook' | 'schedule' = 'api',
   ): Promise<NodeJS.ReadableStream> {
     // 1. VALIDACIONES PREVIAS (Misma lógica que execute)
     const workflow = await this.prisma.workflow.findFirst({
@@ -849,7 +851,7 @@ export class WorkflowsService {
     }
 
     // 3. CREAR REGISTRO DE EJECUCIÓN
-    const execution = await this.executionsService.create(workflowId, 'api', {
+    const execution = await this.executionsService.create(workflowId, trigger, {
       input,
       metadata,
       organizationId: org.id,

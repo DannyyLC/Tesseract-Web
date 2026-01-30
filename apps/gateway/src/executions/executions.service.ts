@@ -1181,9 +1181,11 @@ export class ExecutionsService {
       userId?: string;
       startDate?: Date;
       endDate?: Date;
+      status?: string;
+      trigger?: string;
     } = {},
   ): Promise<CursorPaginatedResponse<DashboardExecutionDto>> {
-    const { workflowId, userId, startDate, endDate } = filters;
+    const { workflowId, userId, startDate, endDate, status, trigger } = filters;
 
     const where: any = {
       organizationId,
@@ -1192,6 +1194,8 @@ export class ExecutionsService {
 
     if (workflowId) where.workflowId = workflowId;
     if (userId) where.userId = userId;
+    if (status) where.status = status;
+    if (trigger) where.trigger = trigger;
 
     if (startDate || endDate) {
       where.startedAt = {};
@@ -1215,8 +1219,6 @@ export class ExecutionsService {
         duration: true,
         trigger: true,
         credits: true,
-        // error: true,
-        // retryCount: true,
         workflowId: true,
         userId: true,
         workflow: {

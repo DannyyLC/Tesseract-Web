@@ -53,6 +53,8 @@ export class ExecutionsController {
     @Query('userId') userId: string | undefined,
     @Query('startDate') startDate: Date | undefined,
     @Query('endDate') endDate: Date | undefined,
+    @Query('status') status: string | undefined,
+    @Query('trigger') trigger: string | undefined,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<CursorPaginatedResponse<DashboardExecutionDto>>>> {
     const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardExecutionDto>>();
@@ -66,6 +68,8 @@ export class ExecutionsController {
         userId,
         startDate,
         endDate,
+        status,
+        trigger,
       },
     );
     apiResponse

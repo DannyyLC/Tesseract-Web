@@ -17,7 +17,7 @@ import 'winston-daily-rotate-file';
 import { BillingModule } from './billing/billing.module';
 import { InvoiceModule } from './invoice/invoice.module';
 import { UsersModule } from './users/users.module';
-import { Cron, ScheduleModule } from '@nestjs/schedule';
+import { ScheduleModule } from '@nestjs/schedule';
 import { CronJobsService } from './cron-jobs.service';
 import { EndUsersModule } from './end-users/end-users.module';
 import { AuthService } from './auth/auth.service';
@@ -71,4 +71,4 @@ import { PrismaService } from './database/prisma.service';
   providers: [CronJobsService, AuthService, JwtService, PrismaService],
   exports: [WinstonModule, AuthService],
 })
-export class AppModule {}
+export class AppModule { }

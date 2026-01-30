@@ -18,7 +18,7 @@ import { ExecuteWorkflowDto } from '../../../workflows/dto';
 @Controller('v1/workflows')
 @UseGuards(ApiKeyGuard)
 export class ExternalWorkflowsController {
-  constructor(private readonly workflowsService: WorkflowsService) {}
+  constructor(private readonly workflowsService: WorkflowsService) { }
 
   /**
    * POST /workflows/:id/execute
@@ -44,6 +44,7 @@ export class ExternalWorkflowsController {
       executeDto.metadata,
       undefined, // userId (no hay user real)
       apiKey.apiKeyId, // apiKeyId
+      'api', // trigger: External API executions are api
     );
 
     // Transformar respuesta para ocultar metadata interna (DTO simplificado)
@@ -87,6 +88,7 @@ export class ExternalWorkflowsController {
       executeDto.metadata,
       undefined, // userId
       apiKey.apiKeyId, // apiKeyId
+      'api', // trigger: External API executions are api
     );
 
     return new StreamableFile(stream as any);
