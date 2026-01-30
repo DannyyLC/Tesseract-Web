@@ -232,30 +232,20 @@ export class ExecutionsService {
       },
       select: {
         id: true,
-        // status: true, // Removed per request
         startedAt: true,
         finishedAt: true,
         duration: true,
-        // result: true,
-        // error: true,
         trigger: true,
-        // triggerData: true,
-        // logs: true,
-        // stepResults: true,
-        retryCount: true,
         createdAt: true,
         updatedAt: true,
-        // Campos de créditos
         credits: true,
         balanceBefore: true,
         balanceAfter: true,
         wasOverage: true,
-        // Relaciones
         workflowId: true,
         organizationId: true,
         conversationId: true,
         userId: true,
-        // apiKeyId: true, // Removed, ensuring map uses name if needed
         apiKey: {
           select: {
             name: true,
