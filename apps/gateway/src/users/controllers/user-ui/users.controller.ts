@@ -15,7 +15,7 @@ import { UserPayload } from '../../../common/types/jwt-payload.type';
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
   @Get('dashboard')
   async getDashboardData(

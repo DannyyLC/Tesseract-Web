@@ -78,7 +78,6 @@ _Nota: Enviar dentro de OrganizationDTO si es posible_
 
 ---
 
-
 ## 8. Execution (Ejecuciones de Workflows)
 
 - `[SEND]` `status`
@@ -110,7 +109,7 @@ _Nota: Enviar dentro de OrganizationDTO si es posible_
 
 ## 15. WhatsAppConfig (Configuraciones de WhatsApp)
 
-> ⚠️ **Nada de whatsapp funciona aun** - Ignorar
+> **Nada de whatsapp funciona aun** - Ignorar
 
 - `phoneNumber` - Número de teléfono
 - `displayName` - Nombre para mostrar
@@ -144,7 +143,6 @@ _Nota: Enviar dentro de OrganizationDTO si es posible_
 - `success` - Si fue exitoso
 - `errorMessage` - Mensaje de error (si falló)
 - `timestamp` - Cuándo ocurrió
-
 
 ## Users
 

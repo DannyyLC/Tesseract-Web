@@ -21,7 +21,7 @@ export class ExecutionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   /**
    * Crear una nueva ejecución
@@ -156,7 +156,7 @@ export class ExecutionsService {
 
     this.logger.log(
       `Ejecución ${executionId} actualizada a estado: ${status} ` +
-      `(duración: ${duration}s, tokens: ${data?.tokensUsed ?? 0}, cost: $${data?.cost ?? 0})`,
+        `(duración: ${duration}s, tokens: ${data?.tokensUsed ?? 0}, cost: $${data?.cost ?? 0})`,
     );
 
     // Emitir evento de actualización
@@ -1205,10 +1205,7 @@ export class ExecutionsService {
 
     const executions = await this.prisma.execution.findMany({
       where,
-      take:
-        action === 'next' || action === null
-          ? pageSize + 1
-          : -(pageSize + 1),
+      take: action === 'next' || action === null ? pageSize + 1 : -(pageSize + 1),
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
       select: {
@@ -1231,7 +1228,6 @@ export class ExecutionsService {
             name: true,
           },
         },
-
       },
       orderBy: {
         startedAt: 'desc',

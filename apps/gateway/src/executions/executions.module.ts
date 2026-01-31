@@ -7,4 +7,4 @@ import { ExecutionsController } from './controllers/user-ui/executions.controlle
   providers: [ExecutionsService],
   exports: [ExecutionsService],
 })
-export class ExecutionsModule { }
+export class ExecutionsModule {}

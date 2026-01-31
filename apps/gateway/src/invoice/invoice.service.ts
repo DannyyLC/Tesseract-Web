@@ -23,9 +23,7 @@ export class InvoiceService {
       where: { organizationId },
       cursor: cursor ? { id: cursor } : undefined,
       skip: cursor ? 1 : 0,
-      take:  action === 'next' || action === null
-          ? pageSize + 1
-          : -(pageSize + 1),
+      take: action === 'next' || action === null ? pageSize + 1 : -(pageSize + 1),
       select: {
         id: true,
         invoiceNumber: true,

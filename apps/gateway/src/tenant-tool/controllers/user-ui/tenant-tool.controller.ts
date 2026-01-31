@@ -9,29 +9,27 @@ import { DashboardTenantToolDto } from '../../../tenant-tool/dto/dashboard-tenan
 @Controller('tenant-tool')
 @UseGuards(JwtAuthGuard)
 export class TenantToolController {
-    constructor(
-        private readonly tenantToolService: TenantToolService,
-    ) {}
+  constructor(private readonly tenantToolService: TenantToolService) {}
 
-    @Get('dashboard')
-    async getDashboardData(
-        @CurrentUser() user: UserPayload,
-        @Query('cursor') cursor: string | null = null,
-        @Query('pageSize') pageSize: number = 10,
-        @Query('action') action: 'next' | 'prev' | null = null,
-        @Res() res: Response,
-    ):Promise<Response<CursorPaginatedResponse<DashboardTenantToolDto>>> {
-        const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardTenantToolDto>>();
-        const result = await this.tenantToolService.getDashboardData(
-            user.organizationId,
-            cursor,
-            pageSize,
-            action,
-        );
-        apiResponse
-            .setData(result)
-            .setMessage('Dashboard tenant tool data retrieved successfully')
-            .setSuccess(true);
-        return res.status(200).json(apiResponse.build());
-    }
+  @Get('dashboard')
+  async getDashboardData(
+    @CurrentUser() user: UserPayload,
+    @Query('cursor') cursor: string | null = null,
+    @Query('pageSize') pageSize: number = 10,
+    @Query('action') action: 'next' | 'prev' | null = null,
+    @Res() res: Response,
+  ): Promise<Response<CursorPaginatedResponse<DashboardTenantToolDto>>> {
+    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardTenantToolDto>>();
+    const result = await this.tenantToolService.getDashboardData(
+      user.organizationId,
+      cursor,
+      pageSize,
+      action,
+    );
+    apiResponse
+      .setData(result)
+      .setMessage('Dashboard tenant tool data retrieved successfully')
+      .setSuccess(true);
+    return res.status(200).json(apiResponse.build());
+  }
 }

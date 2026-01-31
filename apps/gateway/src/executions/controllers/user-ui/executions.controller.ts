@@ -37,7 +37,7 @@ import { Response } from 'express';
 @Controller('executions')
 @UseGuards(JwtAuthGuard)
 export class ExecutionsController {
-  constructor(private readonly executionsService: ExecutionsService) { }
+  constructor(private readonly executionsService: ExecutionsService) {}
 
   /**
    * GET /executions/dashboard
@@ -103,11 +103,7 @@ export class ExecutionsController {
    * Obtiene detalles completos de una ejecución específica
    */
   @Get(':id')
-  async getById(
-    @CurrentUser() user: UserPayload,
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async getById(@CurrentUser() user: UserPayload, @Param('id') id: string, @Res() res: Response) {
     const apiResponse = new ApiResponseBuilder<any>();
     const execution = await this.executionsService.findOneForClient(id, user.organizationId);
     apiResponse
@@ -123,17 +119,10 @@ export class ExecutionsController {
    */
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
-  async cancel(
-    @CurrentUser() user: UserPayload,
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async cancel(@CurrentUser() user: UserPayload, @Param('id') id: string, @Res() res: Response) {
     const apiResponse = new ApiResponseBuilder<any>();
     const execution = await this.executionsService.cancel(id, user.organizationId);
-    apiResponse
-      .setData(execution)
-      .setMessage('Ejecución cancelada exitosamente')
-      .setSuccess(true);
+    apiResponse.setData(execution).setMessage('Ejecución cancelada exitosamente').setSuccess(true);
     return res.status(HttpStatus.OK).json(apiResponse.build());
   }
 
@@ -142,11 +131,7 @@ export class ExecutionsController {
    * Eliminar una ejecución (Soft Delete)
    */
   @Delete(':id')
-  async remove(
-    @CurrentUser() user: UserPayload,
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async remove(@CurrentUser() user: UserPayload, @Param('id') id: string, @Res() res: Response) {
     const apiResponse = new ApiResponseBuilder<void>();
     await this.executionsService.remove(id, user.organizationId);
     apiResponse.setStatusCode(HttpStatus.OK).setMessage('Execution deleted successfully');

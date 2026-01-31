@@ -19,9 +19,8 @@ export class EndUsersService {
         organizationId: idOrganization,
       },
       skip: cursor ? 1 : 0,
-      take:  paginationAction === 'next' || paginationAction === null
-          ? pageSize + 1
-          : -(pageSize + 1),
+      take:
+        paginationAction === 'next' || paginationAction === null ? pageSize + 1 : -(pageSize + 1),
       cursor: cursor ? { id: cursor } : undefined,
       select: {
         id: true,

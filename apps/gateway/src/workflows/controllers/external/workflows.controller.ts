@@ -18,7 +18,7 @@ import { ExecuteWorkflowDto } from '../../../workflows/dto';
 @Controller('v1/workflows')
 @UseGuards(ApiKeyGuard)
 export class ExternalWorkflowsController {
-  constructor(private readonly workflowsService: WorkflowsService) { }
+  constructor(private readonly workflowsService: WorkflowsService) {}
 
   /**
    * POST /workflows/:id/execute

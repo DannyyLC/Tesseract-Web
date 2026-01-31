@@ -36,7 +36,7 @@ import { WorkflowStatsDto } from '@/workflows/dto/workflow-stats.dto';
 @Controller('workflows')
 @UseGuards(JwtAuthGuard)
 export class WorkflowsController {
-  constructor(private readonly workflowsService: WorkflowsService) { }
+  constructor(private readonly workflowsService: WorkflowsService) {}
 
   /**
    * GET /workflows/dashboard

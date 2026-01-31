@@ -1,5 +1,5 @@
 export class ConversationStatsDto {
-    totalConversations: number;
-    activeConversations: number;
-    totalMessagesMonth: number;
+  totalConversations: number;
+  activeConversations: number;
+  totalMessagesMonth: number;
 }

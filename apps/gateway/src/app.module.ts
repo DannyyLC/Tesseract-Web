@@ -71,4 +71,4 @@ import { PrismaService } from './database/prisma.service';
   providers: [CronJobsService, AuthService, JwtService, PrismaService],
   exports: [WinstonModule, AuthService],
 })
-export class AppModule { }
+export class AppModule {}
