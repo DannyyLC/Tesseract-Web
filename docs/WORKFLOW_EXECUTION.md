@@ -6,7 +6,7 @@ Esta guía explica cómo levantar el entorno completo y ejecutar workflows tanto
 
 Antes de ejecutar cualquier request, asegúrate de que la base de datos esté lista y los servicios corriendo.
 
-### A. Levantar Infraestructura (Base de Datos & Redis)
+### A. Levantar Infraestructura (Base de Datos)
 
 Si no tienes los contenedores corriendo:
 
