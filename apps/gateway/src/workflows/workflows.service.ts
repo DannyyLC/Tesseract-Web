@@ -278,15 +278,71 @@ export class WorkflowsService {
     });
     if (!wf) throw new NotFoundException('Workflow no encontrado');
 
-    // Date math
+    // Determine granularity and date range
+    const now = new Date();
     let startDate = new Date();
-    if (period === 'all') startDate = wf.createdAt;
-    else if (period === '24h') startDate.setHours(startDate.getHours() - 24);
-    else if (period === '7d') startDate.setDate(startDate.getDate() - 7);
-    else if (period === '90d') startDate.setDate(startDate.getDate() - 90);
-    else startDate.setDate(startDate.getDate() - 30);
+    let granularity: 'hour' | 'day' | 'week' | 'month';
+    let groupByClause: string;
 
-    // 3. Parallel Queries for Efficiency
+    if (period === '24h') {
+      // Today from 00:00 to current hour (hourly granularity)
+      startDate = new Date(now);
+      startDate.setHours(0, 0, 0, 0);
+      granularity = 'hour';
+      groupByClause = `TO_CHAR("startedAt", 'YYYY-MM-DD HH24:00:00')`;
+    } else if (period === 'all') {
+      // Adaptive granularity based on workflow age
+      const daysSinceCreation = Math.floor(
+        (now.getTime() - wf.createdAt.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      if (daysSinceCreation > 365) {
+        granularity = 'month';
+        groupByClause = `TO_CHAR("startedAt", 'YYYY-MM')`;
+        // Normalize to start of month
+        startDate = new Date(wf.createdAt);
+        startDate.setDate(1);
+        startDate.setHours(0, 0, 0, 0);
+      } else if (daysSinceCreation > 90) {
+        granularity = 'week';
+        groupByClause = `TO_CHAR("startedAt", 'IYYY-"W"IW')`;
+        // Normalize to start of week (Monday)
+        startDate = new Date(wf.createdAt);
+        const day = startDate.getDay();
+        const diff = startDate.getDate() - day + (day === 0 ? -6 : 1);
+        startDate.setDate(diff);
+        startDate.setHours(0, 0, 0, 0);
+      } else {
+        granularity = 'day';
+        groupByClause = `TO_CHAR("startedAt", 'YYYY-MM-DD')`;
+        // Normalize to start of day
+        startDate = new Date(wf.createdAt);
+        startDate.setHours(0, 0, 0, 0);
+      }
+    } else {
+      // 7d, 30d, 90d - daily granularity
+      granularity = 'day';
+      groupByClause = `TO_CHAR("startedAt", 'YYYY-MM-DD')`;
+
+      if (period === '7d') {
+        startDate.setDate(startDate.getDate() - 6);
+      } else if (period === '90d') {
+        startDate.setDate(startDate.getDate() - 89);
+      } else {
+        startDate.setDate(startDate.getDate() - 29);
+      }
+
+      // Clamp to createdAt if workflow is newer than the requested period
+      const workflowCreatedAt = new Date(wf.createdAt);
+      if (workflowCreatedAt > startDate) {
+        startDate = workflowCreatedAt;
+      }
+
+      // Normalize to start of day
+      startDate.setHours(0, 0, 0, 0);
+    }
+
+    // Parallel Queries for Efficiency
     const [aggregations, failedExecutions, historyRaw] = await Promise.all([
       // A. KPI Aggregations (DB does the math)
       this.prisma.execution.aggregate({
@@ -312,22 +368,31 @@ export class WorkflowsService {
         _count: true,
       }),
 
-      // C. Daily History (Raw SQL for Performance)
-      // Group by Day and Status
-      this.prisma.$queryRaw<Array<{ date: Date; status: string; count: BigInt }>>`
+      // C. Dynamic History (Raw SQL with adaptive grouping)
+      // Using TO_CHAR consistently to ensure string format matches JavaScript
+      // C. Dynamic History (Raw SQL with adaptive grouping)
+      // Using TO_CHAR consistently to ensure string format matches JavaScript
+      this.prisma.$queryRawUnsafe<
+        Array<{ date: string; success: number; failed: number; count: number }>
+      >(
+        `
         SELECT 
-          DATE("startedAt") as date, 
-          status, 
-          COUNT(*)::int as count 
+          ${groupByClause} as date,
+          COUNT(CASE WHEN status = 'completed' THEN 1 END)::int as success,
+          COUNT(CASE WHEN status = 'failed' THEN 1 END)::int as failed,
+          COUNT(*)::int as count
         FROM executions 
-        WHERE "workflowId" = ${workflowId} 
-          AND "startedAt" >= ${startDate}
-        GROUP BY DATE("startedAt"), status
+        WHERE "workflowId" = $1 
+          AND "startedAt" >= $2
+        GROUP BY ${groupByClause}
         ORDER BY date ASC
       `,
+        workflowId,
+        startDate,
+      ),
     ]);
 
-    // 4. Process Results
+    // Process Results
 
     // KPI Processing
     const totalExecutions = aggregations._count.id;
@@ -343,11 +408,9 @@ export class WorkflowsService {
 
     const successfulCount = statusCounts['completed'] || 0;
     const failedCount = statusCounts['failed'] || 0;
-    const validTotal = successfulCount + failedCount || 1;
     const successRate = totalExecutions > 0 ? (successfulCount / totalExecutions) * 100 : 0;
 
     // Error Distribution Processing
-    // Optimization: Trigger separate query ONLY if there are failures, and fetch ONLY error text
     const errorDistribution: Record<string, number> = {};
     if (failedCount > 0) {
       const failures = await this.prisma.execution.findMany({
@@ -358,7 +421,7 @@ export class WorkflowsService {
           error: { not: null },
         },
         select: { error: true },
-        take: 1000, // Limit sample size just in case, though unlikely to hit limit often
+        take: 1000,
       });
 
       failures.forEach((f) => {
@@ -373,40 +436,107 @@ export class WorkflowsService {
       });
     }
 
-    // Execution History Chart (Daily)
-    const historyMap = new Map<string, { count: number; success: number; failed: number }>();
-
-    // Raw query returns BigInt for counts in some drivers, map it
-    historyRaw.forEach((row: any) => {
-      // row.date is usually a Date object or string depending on driver
-      const dateStr = new Date(row.date).toISOString().split('T')[0];
-      const count = Number(row.count); // Convert BigInt
-
-      if (!historyMap.has(dateStr)) {
-        historyMap.set(dateStr, { count: 0, success: 0, failed: 0 });
-      }
-
-      const day = historyMap.get(dateStr)!;
-      day.count += count;
-      if (row.status === 'completed') day.success += count;
-      if (row.status === 'failed') day.failed += count;
-    });
-
-    const executionHistoryChart = Array.from(historyMap.entries())
-      .map(([date, stats]) => ({
-        date,
-        ...stats,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+    // Fill gaps in execution history
+    const executionHistoryChart = this.fillHistoryGaps(
+      historyRaw,
+      startDate,
+      now,
+      granularity,
+    );
 
     return {
       workflowId,
       totalExecutions,
       successRate: parseFloat(successRate.toFixed(1)),
       avgDuration: parseFloat(avgDuration.toFixed(2)),
+      granularity,
       executionHistoryChart,
       errorDistribution,
     };
+  }
+
+  /**
+   * Fill gaps in execution history to ensure complete chart data
+   */
+  private fillHistoryGaps(
+    rawData: Array<{ date: string; success: number; failed: number; count: number }>,
+    startDate: Date,
+    endDate: Date,
+    granularity: 'hour' | 'day' | 'week' | 'month',
+  ): Array<{ date: string; count: number; success: number; failed: number }> {
+    // Create a map from raw data (normalize keys to match our format)
+    const dataMap = new Map<string, { count: number; success: number; failed: number }>();
+    rawData.forEach((row) => {
+      // SQL returns strings, use them directly
+      const dateStr = String(row.date).trim();
+      dataMap.set(dateStr, {
+        count: Number(row.count),
+        success: Number(row.success),
+        failed: Number(row.failed),
+      });
+    });
+
+    // Generate all time slots
+    const result: Array<{ date: string; count: number; success: number; failed: number }> = [];
+    const current = new Date(startDate);
+
+    // Loop until we reach the current period (not including incomplete future periods)
+    while (current < endDate) {
+      let dateKey: string;
+      let shouldBreak = false;
+
+      if (granularity === 'hour') {
+        dateKey = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')} ${String(current.getHours()).padStart(2, '0')}:00:00`;
+        current.setHours(current.getHours() + 1);
+        // Stop if we've passed the current hour
+        if (current > endDate) shouldBreak = true;
+      } else if (granularity === 'day') {
+        dateKey = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+        current.setDate(current.getDate() + 1);
+        // Stop if we've passed today
+        if (current > endDate) shouldBreak = true;
+      } else if (granularity === 'week') {
+        // ISO week format: YYYY-WNN
+        const year = current.getFullYear();
+        const weekNum = this.getISOWeek(current);
+        dateKey = `${year}-W${String(weekNum).padStart(2, '0')}`;
+        current.setDate(current.getDate() + 7);
+        // Stop if we've passed the current week
+        if (current > endDate) shouldBreak = true;
+      } else {
+        // month
+        dateKey = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
+        current.setMonth(current.getMonth() + 1);
+        // Stop if we've passed the current month
+        if (current > endDate) shouldBreak = true;
+      }
+
+      result.push({
+        date: dateKey,
+        count: dataMap.get(dateKey)?.count || 0,
+        success: dataMap.get(dateKey)?.success || 0,
+        failed: dataMap.get(dateKey)?.failed || 0,
+      });
+
+      if (shouldBreak) break;
+    }
+
+    return result;
+  }
+
+  /**
+   * Get ISO week number for a date
+   */
+  private getISOWeek(date: Date): number {
+    const target = new Date(date.valueOf());
+    const dayNr = (date.getDay() + 6) % 7;
+    target.setDate(target.getDate() - dayNr + 3);
+    const firstThursday = target.valueOf();
+    target.setMonth(0, 1);
+    if (target.getDay() !== 4) {
+      target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
+    }
+    return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
   }
 
   /**
