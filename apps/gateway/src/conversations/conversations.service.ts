@@ -17,7 +17,7 @@ import { Conversation } from '@workflow-platform/database';
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Busca o crea una conversación para la ejecución
@@ -289,8 +289,19 @@ export class ConversationsService {
    */
   async getStats(organizationId: string): Promise<ConversationStatsDto> {
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    // Get organization's ACTIVE subscription to use their billing period
+    // Fallback to calendar month for FREE plan or canceled subscriptions
+    const subscription = await this.prisma.subscription.findFirst({
+      where: {
+        organizationId,
+        status: 'ACTIVE', // Only use active subscriptions
+      },
+      select: { currentPeriodStart: true },
+    });
+
+    const startOfPeriod =
+      subscription?.currentPeriodStart ?? new Date(now.getFullYear(), now.getMonth(), 1);
 
     const [totalConversations, activeConversations, totalMessagesMonth] = await Promise.all([
       this.prisma.conversation.count({
@@ -305,8 +316,7 @@ export class ConversationsService {
             organizationId,
           },
           createdAt: {
-            gte: startOfMonth,
-            lte: endOfMonth,
+            gte: startOfPeriod,
           },
         },
       }),
