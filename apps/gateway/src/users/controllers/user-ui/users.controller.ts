@@ -133,6 +133,18 @@ export class UsersController {
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 
+  @Patch(':id/transfer-ownership')
+  async transferOwnership(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ): Promise<Response> {
+    const apiResponse = new ApiResponseBuilder<void>();
+    await this.usersService.transferOwnership(id, user.organizationId, user.sub);
+    apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage('User ownership transferred successfully');
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
   @Delete(':id')
   async remove(
     @CurrentUser() user: UserPayload,

@@ -8,6 +8,7 @@ import Stripe from 'stripe';
 import { SUBSCRIPTION_PLANS } from './billing.constants';
 import { PrismaService } from '../database/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { PLANS } from '@workflow-automation/shared-types';
 
 @Injectable()
 export class BillingService {
@@ -422,6 +423,9 @@ export class BillingService {
     ]);
 
     this.logger.log(`Synced subscription ${sub.id} for org ${organizationId} to plan ${planName}`);
+
+    // ENFORCE PLAN LIMITS (Downgrade Logic)
+    await this.enforceLimits(organizationId, planName);
   }
 
   private async handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -444,5 +448,199 @@ export class BillingService {
     this.logger.log(
       `Subscription ${subscription.id} deleted. Org ${organizationId} downgraded to FREE.`,
     );
+
+    // ENFORCE PLAN LIMITS (Downgrade to FREE)
+    await this.enforceLimits(organizationId, 'FREE');
+  }
+
+  /**
+   * Enforce Resource Limits based on Plan
+   * Deactivates excess Workflows, API Keys, and Users.
+   */
+  private async enforceLimits(organizationId: string, newPlan: SubscriptionPlan) {
+    this.logger.log(`Enforcing limits for org ${organizationId} on plan ${newPlan}`);
+
+    // DETERMINE EFFECTIVE LIMITS
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        customMaxUsers: true,
+        customMaxWorkflows: true,
+        customMaxApiKeys: true,
+      },
+    });
+
+    if (!organization) return;
+
+    const defaultLimits = PLANS[newPlan];
+
+    // Disable Overages if downgrading to FREE
+    if (newPlan === 'FREE') {
+      await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: { allowOverages: false },
+      });
+      this.logger.log(`Disabled overages for org ${organizationId} (FREE plan)`);
+    }
+
+    const maxWorkflows =
+      organization.customMaxWorkflows ?? defaultLimits.limits?.maxWorkflows;
+    const maxApiKeys = organization.customMaxApiKeys ?? defaultLimits.limits?.maxApiKeys;
+    const maxUsers = organization.customMaxUsers ?? defaultLimits.limits?.maxUsers;
+
+    // ENFORCE WORKFLOW LIMITS
+    if (maxWorkflows !== -1) {
+      const activeWorkflows = await this.prisma.workflow.findMany({
+        where: {
+          organizationId,
+          isActive: true,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          _count: {
+            select: { executions: true },
+          },
+        },
+      });
+
+      // Sort by executions (DESC)
+      activeWorkflows.sort((a, b) => b._count.executions - a._count.executions);
+
+      if (activeWorkflows.length > maxWorkflows) {
+        const workflowsToDeactivate = activeWorkflows.slice(maxWorkflows);
+
+        const idsToDeactivate = workflowsToDeactivate.map((w) => w.id);
+
+        if (idsToDeactivate.length > 0) {
+          await this.prisma.workflow.updateMany({
+            where: { id: { in: idsToDeactivate } },
+            data: { isActive: false },
+          });
+          this.logger.log(`Deactivated ${idsToDeactivate.length} excess workflows.`);
+        }
+      }
+    }
+
+    // ENFORCE API KEY LIMITS
+    if (maxApiKeys !== -1) {
+      const currentlyActiveWorkflows = await this.prisma.workflow.findMany({
+        where: { organizationId, isActive: true, deletedAt: null },
+        select: { id: true },
+      });
+      const activeWorkflowIds = currentlyActiveWorkflows.map((w) => w.id);
+
+      // Fetch all active API keys
+      const activeApiKeys = await this.prisma.apiKey.findMany({
+        where: {
+          organizationId,
+          isActive: true,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          workflowId: true,
+          _count: {
+            select: { executions: true },
+          },
+        },
+      });
+
+      // Filter: Only keep keys for currently active workflows
+      const validApiKeys = activeApiKeys.filter((k) => activeWorkflowIds.includes(k.workflowId));
+      const invalidApiKeys = activeApiKeys.filter((k) => !activeWorkflowIds.includes(k.workflowId));
+
+      // Sort valid keys by executions (DESC)
+      validApiKeys.sort((a, b) => b._count.executions - a._count.executions);
+
+      // Determine which to keep from the valid ones
+      const keysToDeactivateFromValid = validApiKeys.slice(maxApiKeys);
+
+      // Collect all IDs to deactivate
+      const idsToDeactivate = [
+        ...invalidApiKeys.map((k) => k.id),
+        ...keysToDeactivateFromValid.map((k) => k.id),
+      ];
+
+      if (idsToDeactivate.length > 0) {
+        await this.prisma.apiKey.updateMany({
+          where: { id: { in: idsToDeactivate } },
+          data: { isActive: false },
+        });
+        this.logger.log(`Deactivated ${idsToDeactivate.length} excess API keys.`);
+      }
+    }
+
+    // ENFORCE USER LIMITS
+    if (maxUsers !== -1) {
+      const activeUsers = await this.prisma.user.findMany({
+        where: {
+          organizationId,
+          isActive: true,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          role: true,
+          lastLoginAt: true,
+        },
+      });
+
+      if (activeUsers.length > maxUsers) {
+        const usersToKeep: string[] = [];
+        let slotsRemaining = maxUsers;
+
+        // Always keep OWNER
+        const owners = activeUsers.filter((u) => u.role === 'owner');
+        owners.forEach((u) => usersToKeep.push(u.id));
+        slotsRemaining -= owners.length;
+
+        if (owners.length > 1) {
+          this.logger.warn(`Organization ${organizationId} has multiple owners! Keeping all.`);
+        }
+
+        // Keep ADMINs (sorted by recent login)
+        if (slotsRemaining > 0) {
+          const admins = activeUsers.filter((u) => u.role === 'admin');
+          // Sort nulls last (never logged in) or oldest last
+          admins.sort((a, b) => {
+            const timeA = a.lastLoginAt ? a.lastLoginAt.getTime() : 0;
+            const timeB = b.lastLoginAt ? b.lastLoginAt.getTime() : 0;
+            return timeB - timeA; // Descending
+          });
+
+          const adminsToKeep = admins.slice(0, slotsRemaining);
+          adminsToKeep.forEach((u) => usersToKeep.push(u.id));
+          slotsRemaining -= adminsToKeep.length;
+        }
+
+        // Keep VIEWERS/Others (sorted by recent login)
+        if (slotsRemaining > 0) {
+          const others = activeUsers.filter((u) => u.role !== 'owner' && u.role !== 'admin');
+          others.sort((a, b) => {
+            const timeA = a.lastLoginAt ? a.lastLoginAt.getTime() : 0;
+            const timeB = b.lastLoginAt ? b.lastLoginAt.getTime() : 0;
+            return timeB - timeA;
+          });
+
+          const othersToKeep = others.slice(0, slotsRemaining);
+          othersToKeep.forEach((u) => usersToKeep.push(u.id));
+          slotsRemaining -= othersToKeep.length;
+        }
+
+        // Deactivate the rest
+        const idsToDeactivate = activeUsers
+          .filter((u) => !usersToKeep.includes(u.id))
+          .map((u) => u.id);
+
+        if (idsToDeactivate.length > 0) {
+          await this.prisma.user.updateMany({
+            where: { id: { in: idsToDeactivate } },
+            data: { isActive: false },
+          });
+          this.logger.log(`Deactivated ${idsToDeactivate.length} excess users.`);
+        }
+      }
+    }
   }
 }
