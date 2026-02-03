@@ -1,28 +1,21 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { DatabaseModule } from '../database/database.module';
+import { AuthService } from './auth.service';
+import { AuthController } from './controllers/user-ui/auth.controller';
 import { ApiKeyGuard } from './guards/api-key.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { AuthService } from './auth.service';
-import { AuthController } from './controllers/user-ui/auth.controller';
-import { NotificationsModule } from '../notifications/notifications.module';
-import { OrganizationsModule } from '../organizations/organizations.module';
-
 /**
  * AuthModule agrupa toda la funcionalidad de autenticación
  */
 @Module({
   imports: [
     // Database para PrismaService
-    DatabaseModule,
-    OrganizationsModule,
     // Passport con estrategia por defecto 'jwt'
     PassportModule.register({ defaultStrategy: 'jwt' }),
-    NotificationsModule,
     // Configuración de JWT
     JwtModule.registerAsync({
       imports: [ConfigModule],

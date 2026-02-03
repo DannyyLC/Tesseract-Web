@@ -1,44 +1,41 @@
 import {
-  Injectable,
-  ConflictException,
-  UnauthorizedException,
-  NotFoundException,
   BadRequestException,
   Inject,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { SubscriptionPlan } from '@workflow-automation/shared-types';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { PrismaService } from '../database/prisma.service';
-import { LoginDto } from './dto/login.dto';
-import { UserPayload } from '../common/types/user-payload.type';
-import { SubscriptionPlan } from '@workflow-automation/shared-types';
-import * as speakeasy from 'speakeasy';
-import * as qrcode from 'qrcode';
-import { CreateUserDto } from '../users/dto';
-import { User } from '@workflow-platform/database';
-import { OrganizationsService } from '../organizations/organizations.service';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { Logger } from 'winston';
-import { VerificationCodeDto } from './dto/verification-code.dto';
-import { StartVerificationFlowDto } from './dto/start-verification-flow.dto';
 import * as nodemailer from 'nodemailer';
+import * as qrcode from 'qrcode';
+import * as speakeasy from 'speakeasy';
+import { Logger } from 'winston';
+import { UserPayload } from '../common/types/user-payload.type';
+import { PrismaService } from '../database/prisma.service';
 import { EmailService } from '../notifications/email/email.service';
+import { OrganizationsService } from '../organizations/organizations.service';
+import { CreateUserDto } from '../users/dto';
 import { StepOneErrors, StepThreeErrors } from './dto/error-singup-codes.dto';
+import { LoginDto } from './dto/login.dto';
+import { StartVerificationFlowDto } from './dto/start-verification-flow.dto';
+import { VerificationCodeDto } from './dto/verification-code.dto';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
  */
 @Injectable()
 export class AuthService {
-  private readonly SALT_ROUNDS = 10;
+  static readonly SALT_ROUNDS = 10;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly organizationsService: OrganizationsService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
     private readonly emailService: EmailService,
   ) {}
@@ -57,6 +54,7 @@ export class AuthService {
 
     // 1. Validar credenciales y obtener usuario con organización
     const { user, organization } = await this.validateUser(dto.email, dto.password);
+    console.log(user, organization);
     const payload: UserPayload = {
       sub: user.id,
       email: user.email,
@@ -70,6 +68,7 @@ export class AuthService {
     // 2. Si 2FA no está habilitado, login directo
     if (!user.twoFactorEnabled) {
       // Generar tokens finales
+      console.log('Generating tokens without 2FA');
       const tokens = await this.generateTokens(
         user.id,
         user.email,
@@ -80,7 +79,7 @@ export class AuthService {
         organization.plan,
         dto.rememberMe,
       );
-
+      console.log('Tokens generated:', tokens);
       // Actualizar lastLoginAt
       await this.prisma.user.update({
         where: { id: user.id },
@@ -297,7 +296,7 @@ export class AuthService {
     });
 
     // 4. Generar hash del refresh token
-    const refreshTokenHash = await this.hashPassword(refreshToken);
+    const refreshTokenHash = await AuthService.hashPassword(refreshToken);
 
     // 5. Generar familyId para token rotation
     const familyId = crypto.randomUUID();
@@ -491,8 +490,8 @@ export class AuthService {
    * @param password - Contraseña en texto plano
    * @returns Contraseña hasheada
    */
-  async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, this.SALT_ROUNDS);
+  static async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, AuthService.SALT_ROUNDS);
   }
 
   //==============================================================
@@ -676,7 +675,7 @@ export class AuthService {
     });
     let createdResult: any = null;
     // Hashear password
-    const hashedPassword = await this.hashPassword(user.password);
+    const hashedPassword = await AuthService.hashPassword(user.password);
     if (userVerificationRow) {
       try {
         // Iniciar transacción para asegurar atomicidad

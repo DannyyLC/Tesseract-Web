@@ -32,8 +32,8 @@ export class EventsController {
       .getConversationsStream()
       .pipe(
         filter(
-          (event) =>
-            (event.data as DashboardConversationDto)?.organizationId === user.organizationId,
+          (event) => 
+            event.data === user.organizationId,
         ),
       );
   }

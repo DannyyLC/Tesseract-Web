@@ -26,8 +26,8 @@ import {
   WorkflowCategory,
 } from '@workflow-automation/shared-types';
 import { Response } from 'express';
-import { DashboardWorkflowDto } from '@/workflows/dto/dashboard-workflow.dto';
-import { WorkflowStatsDto } from '@/workflows/dto/workflow-stats.dto';
+import { DashboardWorkflowDto } from '../../../workflows/dto/dashboard-workflow.dto';
+import { WorkflowStatsDto } from '../../../workflows/dto/workflow-stats.dto';
 
 /**
  * Controller de Workflows

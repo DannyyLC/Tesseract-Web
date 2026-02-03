@@ -1,12 +1,11 @@
+import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiResponseBuilder, CursorPaginatedResponse } from '@workflow-automation/shared-types';
-import { InvoiceService } from '../../invoice.service';
-import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
-import { DashboardInvoiceDto } from '@/invoice/dto/dashboard-invoice.dto';
-import { Request, Response } from 'express';
-import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { Response } from 'express';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
-import { User } from '@workflow-platform/database';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
+import { DashboardInvoiceDto } from '../../../invoice/dto/dashboard-invoice.dto';
+import { InvoiceService } from '../../invoice.service';
 
 @Controller('invoice')
 @UseGuards(JwtAuthGuard)

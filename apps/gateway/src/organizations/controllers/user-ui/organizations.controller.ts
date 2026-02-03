@@ -1,25 +1,24 @@
+import { Body, Controller, Get, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
+import { ApiResponse, ApiResponseBuilder } from '@workflow-automation/shared-types';
+import { Organization } from '@workflow-platform/database';
+import { Response } from 'express';
+import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { UserPayload } from '../../../common/types/jwt-payload.type';
+import { InviteUserErrorsDto } from '../../../users/dto/invite-user-errors.dto';
 import {
   CreateOrganizationDto,
-  UpdateOrganizationDto,
-  DeactivateOrganizationDto,
   DashboardOrganizationDto,
+  DeactivateOrganizationDto,
+  UpdateOrganizationDto,
 } from '../../dto';
 import { OrganizationsService } from '../../organizations.service';
-import { Body, Controller, Get, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
-import { ApiResponseBuilder } from '@workflow-automation/shared-types';
-import { Response } from 'express';
-import { Organization } from '@workflow-platform/database';
-import { InviteUserErrorsDto } from '../../../users/dto/invite-user-errors.dto';
-import { UsersService } from '../../../users/users.service';
-import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
-import { UserPayload } from '../../../common/types/jwt-payload.type';
+import { DashboardUserDataDto } from '../../../users/dto';
 @Controller('organizations')
 @UseGuards(JwtAuthGuard)
 export class OrganizationsController {
   constructor(
-    private readonly organizationsService: OrganizationsService,
-    private readonly userService: UsersService,
+    private readonly organizationsService: OrganizationsService
   ) {}
   @Get('dashboard/:id')
   async getDashboardData(
@@ -127,7 +126,7 @@ export class OrganizationsController {
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<boolean | keyof typeof InviteUserErrorsDto>>> {
     const apiResponse = new ApiResponseBuilder<boolean | keyof typeof InviteUserErrorsDto>();
-    const result = await this.userService.invite(user.organizationId, body.email);
+    const result = await this.organizationsService.invite(user.organizationId, body.email);
     if (typeof result !== 'string') {
       apiResponse.setStatusCode(200).setMessage('User invited successfully').setData(result);
       return res.status(200).json(apiResponse.build());
@@ -144,7 +143,7 @@ export class OrganizationsController {
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
-    const result = await this.userService.resendInvitation(user.organizationId, body.email);
+    const result = await this.organizationsService.resendInvitation(body.email,user.organizationId);
     if (result) {
       apiResponse.setStatusCode(200).setMessage('Invitation resent successfully').setData(result);
       return res.status(200).json(apiResponse.build());
@@ -160,7 +159,7 @@ export class OrganizationsController {
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
-    const result = await this.userService.cancelInvitation(body.email);
+    const result = await this.organizationsService.cancelInvitation(body.email);
     if (result) {
       apiResponse
         .setStatusCode(200)
@@ -171,6 +170,32 @@ export class OrganizationsController {
       apiResponse
         .setStatusCode(400)
         .setMessage('Invitation could not be cancelled')
+        .setData(result);
+      return res.status(400).json(apiResponse.build());
+    }
+  }
+
+  @Post('accept-invitation')
+  async acceptInvitation(
+    @Body() body: { user: string; password: string, verificationCode: string },
+    @Res() res: Response
+  ): Promise<Response<ApiResponse<DashboardUserDataDto | null>>> {
+    const apiResponse = new ApiResponseBuilder<DashboardUserDataDto | null>();
+    const result = await this.organizationsService.createUserFromInvitation(
+      body.user,
+      body.password,
+      body.verificationCode
+    );
+    if (result) {
+      apiResponse
+        .setStatusCode(200)
+        .setMessage('Invitation accepted successfully')
+        .setData(result);
+      return res.status(200).json(apiResponse.build());
+    } else {
+      apiResponse
+        .setStatusCode(400)
+        .setMessage('Invitation could not be accepted')
         .setData(result);
       return res.status(400).json(apiResponse.build());
     }

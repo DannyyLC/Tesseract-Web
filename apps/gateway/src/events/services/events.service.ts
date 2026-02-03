@@ -1,11 +1,11 @@
+import { DashboardOrganizationDto } from '../../organizations/dto';
+import { DashboardUserDataDto } from '../../users/dto';
 import { Injectable, MessageEvent } from '@nestjs/common';
-import { last, Observable, Subject } from 'rxjs';
-import { EventSubjectType } from '../utils/subjects-enum';
-import { DashboardOrganizationDto } from '@/organizations/dto';
-import { DashboardWorkflowDto } from '@/workflows/dto';
+import { Observable, Subject } from 'rxjs';
 import { ConversationsService } from '../../conversations/conversations.service';
-import { PrismaService } from '../../database/prisma.service';
 import { DashboardConversationDto } from '../../conversations/dto';
+import { PrismaService } from '../../database/prisma.service';
+import { EventSubjectType } from '../utils/subjects-enum';
 
 @Injectable()
 export class EventsService {
@@ -118,6 +118,26 @@ export class EventsService {
           },
         });
         return conversation as DashboardConversationDto;
+
+      case EventSubjectType.USER:
+        return {
+          id: data.id,
+          email: data.email,
+          name: data.name,
+          role: data.role,
+          isActive: data.isActive,
+          createdAt: data.createdAt,
+          organizationId: data.organizationId,
+          lastLoginAt: data.lastLoginAt,
+          avatar: data.avatar,
+          timezone: data.timezone,
+          emailVerified: data.emailVerified,
+        } as DashboardUserDataDto;
+      case EventSubjectType.CREDIT_BALANCE:
+        return {
+          balance: data.balance,
+          currentMonthSpent: data.currentMonthSpent //TODO;
+        };
       default:
         break;
     }

@@ -1,19 +1,17 @@
 import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
-  ForbiddenException,
-  BadRequestException,
-  Inject,
 } from '@nestjs/common';
-import { PrismaService } from '../database/prisma.service';
-import { UpdateProfileDto, UserFiltersDto, DashboardUserDataDto } from './dto';
-import { User, Organization, Prisma } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
+import { CursorPaginatedResponse } from '@workflow-automation/shared-types';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
-import { CursorPaginatedResponse } from '@workflow-automation/shared-types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
-import { InviteUserErrorsDto } from './dto/invite-user-errors.dto';
-import { EmailService } from '../notifications/email/email.service';
+import { PrismaService } from '../database/prisma.service';
+import { DashboardUserDataDto, UpdateProfileDto, UserFiltersDto } from './dto';
 import { AuthService } from '../auth/auth.service';
 
 interface PaginatedUsers {
@@ -47,152 +45,9 @@ interface UserActivity {
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailService: EmailService,
-    private readonly authService: AuthService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+    private readonly authService: AuthService,
   ) {}
-
-  /**
-   * Invitar usuario a la organización
-   */
-  async invite(organizationId: string, email: string): Promise<boolean | InviteUserErrorsDto> {
-    // Validar que la organización existe y está activa
-    const isOrganizationValid = await this.validateOrganization(organizationId);
-
-    if (!isOrganizationValid) {
-      return InviteUserErrorsDto.ORGANIZATION_NOT_VALID;
-    }
-    // Validar límite de usuarios del plan
-    const isUserLimitValid = await this.validateUserLimit(organizationId);
-    if (!isUserLimitValid) {
-      return InviteUserErrorsDto.INVITE_LIMIT_EXCEEDED;
-    }
-
-    // Validar email único global
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser && existingUser.isActive) {
-      return InviteUserErrorsDto.USER_ALREADY_REGISTERED;
-    }
-
-    const existingVerification = await this.prisma.userVerification.findFirst({
-      where: {
-        email: email,
-      },
-    });
-
-    if (existingVerification && existingVerification.expiresAt < new Date()) {
-      return InviteUserErrorsDto.USER_ALREADY_INVITED;
-    } else if (existingVerification && existingVerification.expiresAt >= new Date()) {
-      await this.prisma.userVerification.deleteMany({
-        where: {
-          email: email,
-        },
-      });
-    }
-
-    const emailSentInfo = await this.emailService.sendOrganizationInvitationToEmail(
-      email,
-      isOrganizationValid.name,
-    );
-
-    if (!emailSentInfo) {
-      return InviteUserErrorsDto.ERROR_SENDING_EMAIL;
-    }
-
-    try {
-      const userVerification = await this.prisma.userVerification.create({
-        data: {
-          email: email,
-          verificationCode: emailSentInfo.verificationCode,
-          organizationName: organizationId,
-          userName: '',
-          isFromInvitation: true,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días para aceptar
-        },
-      });
-      return true;
-    } catch (error) {
-      this.logger.error(`invite >> Error creating user verification for ${email}: ${error}`);
-      return InviteUserErrorsDto.ERROR_SENDING_EMAIL;
-    }
-  }
-
-  async createUserFromInvitation(
-    userName: string,
-    pass: string,
-    verificationCode: string,
-  ): Promise<DashboardUserDataDto | null> {
-    const userVerification = await this.prisma.userVerification.findFirst({
-      where: { verificationCode },
-    });
-    if (!userVerification || userVerification.expiresAt < new Date()) {
-      return null;
-    }
-
-    try {
-      const existingUser = await this.prisma.user.findUnique({
-        where: { email: userVerification.email },
-      });
-      if (existingUser) {
-        await this.prisma.userVerification.deleteMany({
-          where: { verificationCode },
-        });
-        await this.prisma.user.update({
-          where: { email: userVerification.email },
-          data: {
-            emailVerified: true,
-            isActive: true,
-          },
-        });
-        return {
-          email: existingUser.email,
-          name: existingUser.name,
-          role: existingUser.role,
-          isActive: existingUser.isActive,
-          lastLoginAt: existingUser.lastLoginAt,
-          createdAt: existingUser.createdAt,
-          avatar: existingUser.avatar,
-          timezone: existingUser.timezone,
-          emailVerified: existingUser.emailVerified,
-        };
-      }
-
-      const hashedPassword = await this.authService.hashPassword(pass);
-
-      const newUser = await this.prisma.user.create({
-        data: {
-          email: userVerification.email,
-          name: userName,
-          password: hashedPassword,
-          organizationId: userVerification.organizationName,
-          isActive: true,
-          emailVerified: true,
-        },
-      });
-      await this.prisma.userVerification.deleteMany({
-        where: { verificationCode },
-      });
-      return {
-        email: newUser.email,
-        name: newUser.name,
-        role: newUser.role,
-        isActive: newUser.isActive,
-        lastLoginAt: newUser.lastLoginAt,
-        createdAt: newUser.createdAt,
-        avatar: newUser.avatar,
-        timezone: newUser.timezone,
-        emailVerified: newUser.emailVerified,
-      };
-    } catch (error) {
-      this.logger.error(
-        `createUserFromInvitation >> Error creating user from invitation: ${error}`,
-      );
-      return null;
-    }
-  }
 
   async validateEmailUnique(email: string): Promise<boolean> {
     const existingUser = await this.prisma.user.findUnique({
@@ -204,74 +59,7 @@ export class UsersService {
     }
     return true;
   }
-  /**
-   * Reenviar invitación a usuario pendiente
-   */
-  async resendInvitation(userEmail: string, organizationId: string): Promise<boolean> {
-    const userVerification = await this.prisma.userVerification.findFirst({
-      where: {
-        organizationName: organizationId,
-        email: userEmail,
-      },
-    });
-    if (!userVerification) {
-      this.logger.error(
-        `resendInvitation >> No pending invitation found for ${userEmail} in org ${organizationId}`,
-      );
-      return false;
-    }
-    const emailSentInfo = await this.emailService.sendOrganizationInvitationToEmail(
-      userEmail,
-      organizationId,
-    );
-    if (!emailSentInfo) {
-      this.logger.error(`resendInvitation >> Error sending invitation email to ${userEmail}`);
-      return false;
-    }
-
-    const modifiedRecords = await this.prisma.userVerification.updateMany({
-      where: {
-        email: userEmail,
-      },
-      data: {
-        verificationCode: emailSentInfo.verificationCode,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días para aceptar
-      },
-    });
-    if (modifiedRecords.count === 0) {
-      this.logger.error(`resendInvitation >> Error updating verification record for ${userEmail}`);
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * Cancelar invitación pendiente (elimina el usuario que nunca aceptó)
-   */
-  async cancelInvitation(userEmail: string): Promise<boolean> {
-    const userVerification = await this.prisma.userVerification.findFirst({
-      where: {
-        email: userEmail,
-      },
-    });
-    if (!userVerification) {
-      this.logger.error(`cancelInvitation >> No pending invitation found for ${userEmail}`);
-      return false;
-    }
-    const deletedRecords = await this.prisma.userVerification.deleteMany({
-      where: {
-        email: userEmail,
-      },
-    });
-    if (deletedRecords.count === 0) {
-      this.logger.error(`cancelInvitation >> Error deleting verification record for ${userEmail}`);
-      return false;
-    }
-
-    return true;
-  }
-
+ 
   // ==================== READ ====================
   /**
    * Obtener usuario por ID (solo si pertenece a la org)
@@ -659,50 +447,7 @@ export class UsersService {
     };
   }
 
-  // ==================== PRIVATE VALIDATIONS ====================
-  /**
-   * Validar límite de usuarios del plan
-   */
-  private async validateUserLimit(organizationId: string): Promise<boolean> {
-    const org = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-      include: { subscription: true },
-    });
-
-    if (!org) {
-      return false;
-    }
-
-    // Obtener límite del plan
-    const planLimits = {
-      FREE: 1,
-      STARTER: 3,
-      GROWTH: 10,
-      BUSINESS: 25,
-      PRO: 50,
-      ENTERPRISE: null, // Sin límite
-    };
-
-    const maxUsers = org.customMaxUsers ?? planLimits[org.plan];
-
-    // Si es ENTERPRISE o sin límite, permitir
-    if (maxUsers === null) {
-      return true;
-    }
-
-    // Contar usuarios activos
-    const currentUserCount = await this.prisma.user.count({
-      where: {
-        organizationId,
-        deletedAt: null,
-      },
-    });
-
-    if (currentUserCount >= maxUsers) {
-      return false;
-    }
-    return true;
-  }
+  
 
   /**
    * Validar jerarquía de roles
@@ -749,20 +494,7 @@ export class UsersService {
     }
   }
 
-  /**
-   * Validar que la organización existe y está activa
-   */
-  private async validateOrganization(organizationId: string): Promise<Organization | null> {
-    const org = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-    });
 
-    if (!org || !org.isActive || org.deletedAt || org.deactivatedAt) {
-      return null;
-    }
-
-    return org;
-  }
 
   async getDashboardData(
     organizationId: string,
