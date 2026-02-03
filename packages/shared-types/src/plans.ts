@@ -117,7 +117,7 @@ export const WORKFLOW_CATEGORIES: Record<WorkflowCategory, WorkflowCategoryConfi
 /**
  * Precio por crédito en overage
  */
-export const OVERAGE_PRICE_PER_CREDIT = 0.01; // $0.01 USD por crédito
+export const OVERAGE_PRICE_PER_CREDIT = 0.19; // $0.19 USD por crédito
 
 /**
  * Configuración completa de todos los planes
@@ -133,8 +133,8 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
     },
     limits: {
       maxUsers: 1,
-      maxWorkflows: 1,
-      maxApiKeys: 1,
+      maxWorkflows: 3,
+      maxApiKeys: 3,
       monthlyCredits: 0,
       overageLimit: 0,
       allowOverages: false,
@@ -151,7 +151,7 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
     },
     limits: {
       maxUsers: 10,
-      maxWorkflows: 3,
+      maxWorkflows: 10,
       maxApiKeys: 50,
       monthlyCredits: 150,
       overageLimit: 150,
@@ -169,7 +169,7 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
     },
     limits: {
       maxUsers: 25,
-      maxWorkflows: 7,
+      maxWorkflows: 25,
       maxApiKeys: 100,
       monthlyCredits: 500,
       overageLimit: 500,
@@ -188,7 +188,7 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
     },
     limits: {
       maxUsers: 50,
-      maxWorkflows: 12,
+      maxWorkflows: 100, 
       maxApiKeys: 250,
       monthlyCredits: 1500,
       overageLimit: 1500,
@@ -206,7 +206,7 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
     },
     limits: {
       maxUsers: 100,
-      maxWorkflows: 25,
+      maxWorkflows: 250,
       maxApiKeys: 500,
       monthlyCredits: 5000,
       overageLimit: 5000,
