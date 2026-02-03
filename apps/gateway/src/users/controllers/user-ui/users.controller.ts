@@ -22,7 +22,7 @@ export class UsersController {
     @CurrentUser() user: UserPayload,
     @Res() res: Response,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize') pageSize: number = 10,
+    @Query('pageSize') pageSize = 10,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('search') search?: string,
     @Query('role') role?: string,

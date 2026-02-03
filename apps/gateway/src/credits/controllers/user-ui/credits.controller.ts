@@ -16,7 +16,7 @@ export class CreditsController {
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize') pageSize: number = 10,
+    @Query('pageSize') pageSize = 10,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Res() res: Response,
   ): Promise<Response> {

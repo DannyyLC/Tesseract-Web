@@ -16,7 +16,7 @@ export class InvoiceService {
   async getDashboardData(
     organizationId: string,
     cursor: string | null = null,
-    pageSize: number = 10,
+    pageSize = 10,
     action: 'next' | 'prev' | null = null,
   ): Promise<CursorPaginatedResponse<DashboardInvoiceDto> | null> {
     const invoices = await this.prismaService.invoice.findMany({

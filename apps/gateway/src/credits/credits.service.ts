@@ -240,7 +240,7 @@ export class CreditsService {
   async getDashboardData(
     organizationId: string,
     cursor?: string | null,
-    pageSize: number = 10,
+    pageSize = 10,
     paginationAction?: 'next' | 'prev' | null,
   ): Promise<DashboardCreditsDto | null> {
     const balance = await this.prisma.creditBalance.findUnique({
@@ -273,7 +273,7 @@ export class CreditsService {
   async getCreditTransactionsForOrganization(
     organizationId: string,
     cursor?: string | null,
-    pageSize: number = 10,
+    pageSize = 10,
     paginationAction?: 'next' | 'prev' | null,
   ): Promise<CursorPaginatedResponse<DashboardCreditTransactionDto>> {
     const creditTransactions = await this.prisma.creditTransaction.findMany({

@@ -86,13 +86,13 @@ export class BillingService {
   async handleWebhookEvent(event: Stripe.Event): Promise<void> {
     switch (event.type) {
       case 'invoice.payment_succeeded':
-        await this.handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
+        await this.handleInvoicePaymentSucceeded(event.data.object);
         break;
       case 'customer.subscription.updated':
-        await this.handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        await this.handleSubscriptionUpdated(event.data.object);
         break;
       case 'customer.subscription.deleted':
-        await this.handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        await this.handleSubscriptionDeleted(event.data.object);
         break;
       default:
         this.logger.log(`Unhandled event type ${event.type}`);
@@ -113,7 +113,7 @@ export class BillingService {
       typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription.id;
 
     // Use organizationId from invoice metadata or subscription metadata
-    let organizationId =
+    const organizationId =
       invoice.subscription_details?.metadata?.organizationId || invoice.metadata?.organizationId;
 
     if (!organizationId) {
@@ -214,7 +214,7 @@ export class BillingService {
       where: { organizationId },
     });
 
-    if (!sub || !sub.stripeSubscriptionId) {
+    if (!sub?.stripeSubscriptionId) {
       throw new BadRequestException('No active subscription found');
     }
 
@@ -236,7 +236,7 @@ export class BillingService {
       where: { organizationId },
     });
 
-    if (!sub || !sub.stripeSubscriptionId) {
+    if (!sub?.stripeSubscriptionId) {
       throw new BadRequestException('No active subscription found');
     }
 
@@ -259,7 +259,7 @@ export class BillingService {
       where: { organizationId },
     });
 
-    if (!sub || !sub.stripeSubscriptionId) {
+    if (!sub?.stripeSubscriptionId) {
       throw new BadRequestException('No active subscription found to change');
     }
 
@@ -309,7 +309,7 @@ export class BillingService {
         sub.stripeSubscriptionId,
       )) as any;
 
-      let scheduleId = subscriptions.schedule as string;
+      const scheduleId = subscriptions.schedule as string;
 
       if (scheduleId) {
         // Update existing schedule

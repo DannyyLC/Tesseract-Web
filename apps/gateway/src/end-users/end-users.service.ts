@@ -11,7 +11,7 @@ export class EndUsersService {
   async getDashboardData(
     idOrganization: string,
     cursor: string | null = null,
-    pageSize: number = 10,
+    pageSize = 10,
     paginationAction: 'next' | 'prev' | null = null,
   ): Promise<CursorPaginatedResponse<DashboardEndUserDto>> {
     const endUsers = await this.prismaService.endUser.findMany({

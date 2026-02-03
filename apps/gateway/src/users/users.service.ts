@@ -499,7 +499,7 @@ export class UsersService {
   async getDashboardData(
     organizationId: string,
     cursor?: string | null,
-    take: number = 10,
+    take = 10,
     paginationAction: 'next' | 'prev' | null = null,
     filters?: {
       search?: string;

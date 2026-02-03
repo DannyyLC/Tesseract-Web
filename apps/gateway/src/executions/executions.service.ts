@@ -1174,7 +1174,7 @@ export class ExecutionsService {
   async getDashboardData(
     organizationId: string,
     cursor: string | null = null,
-    pageSize: number = 10,
+    pageSize = 10,
     action: 'next' | 'prev' | null = null,
     filters: {
       workflowId?: string;
