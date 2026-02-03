@@ -44,6 +44,7 @@ export class ExternalWorkflowsController {
       executeDto.metadata,
       undefined, // userId (no hay user real)
       apiKey.apiKeyId, // apiKeyId
+      'api', // trigger: External API executions are api
     );
 
     // Transformar respuesta para ocultar metadata interna (DTO simplificado)
@@ -87,6 +88,7 @@ export class ExternalWorkflowsController {
       executeDto.metadata,
       undefined, // userId
       apiKey.apiKeyId, // apiKeyId
+      'api', // trigger: External API executions are api
     );
 
     return new StreamableFile(stream as any);

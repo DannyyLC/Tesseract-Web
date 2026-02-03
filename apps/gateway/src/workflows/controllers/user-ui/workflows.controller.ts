@@ -36,7 +36,7 @@ import { WorkflowStatsDto } from '../../../workflows/dto/workflow-stats.dto';
 @Controller('workflows')
 @UseGuards(JwtAuthGuard)
 export class WorkflowsController {
-  constructor(private readonly workflowsService: WorkflowsService) { }
+  constructor(private readonly workflowsService: WorkflowsService) {}
 
   /**
    * GET /workflows/dashboard
@@ -105,7 +105,7 @@ export class WorkflowsController {
    * Obtener un workflow específico
    */
   @Get(':id')
-  findOne(@CurrentUser() user: UserPayload, @Param('id') id: string) {
+  async getById(@CurrentUser() user: UserPayload, @Param('id') id: string) {
     return this.workflowsService.findOne(user.organizationId, id);
   }
 
@@ -114,7 +114,7 @@ export class WorkflowsController {
    * Actualizar un workflow
    */
   @Put(':id')
-  update(
+  async update(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
     @Body() updateDto: UpdateWorkflowDto,
@@ -127,7 +127,7 @@ export class WorkflowsController {
    * Eliminar un workflow (soft delete)
    */
   @Delete(':id')
-  remove(@CurrentUser() user: UserPayload, @Param('id') id: string) {
+  async remove(@CurrentUser() user: UserPayload, @Param('id') id: string) {
     return this.workflowsService.remove(user.organizationId, id);
   }
 
@@ -149,6 +149,7 @@ export class WorkflowsController {
       { ...executeDto.metadata, channel: 'dashboard' },
       user.sub,
       undefined, // apiKeyId
+      'manual', // trigger: UI executions are manual
     );
 
     // Transformar respuesta para ocultar metadata interna (DTO simplificado)
@@ -187,6 +188,7 @@ export class WorkflowsController {
       { ...executeDto.metadata, channel: 'dashboard' },
       user.sub,
       undefined, // apiKeyId
+      'manual', // trigger: UI executions are manual
     );
 
     return new StreamableFile(stream as any);

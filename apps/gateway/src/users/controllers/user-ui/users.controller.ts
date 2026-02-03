@@ -64,7 +64,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  async findOne(
+  async getById(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
     @Res() res: Response,

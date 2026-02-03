@@ -9,4 +9,5 @@ export class DashboardConversationDto {
   closedAt: Date | null;
   workflowId: string;
   userId: string | null;
+  organizationId: string | null;
 }

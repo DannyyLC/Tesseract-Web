@@ -278,9 +278,8 @@ export class CreditsService {
   ): Promise<CursorPaginatedResponse<DashboardCreditTransactionDto>> {
     const creditTransactions = await this.prisma.creditTransaction.findMany({
       where: { organizationId },
-      take:  paginationAction === 'next' || paginationAction === null
-          ? pageSize + 1
-          : -(pageSize + 1),
+      take:
+        paginationAction === 'next' || paginationAction === null ? pageSize + 1 : -(pageSize + 1),
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
       select: {

@@ -958,8 +958,9 @@ model Execution {
   retryCount Int @default(0)
 
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   // Relaciones
   workflowId String
@@ -995,6 +996,7 @@ model Execution {
   @@index([organizationId, wasOverage])
   @@index([organizationId, userId, startedAt])
   @@index([organizationId, apiKeyId, startedAt])
+  @@index([deletedAt]) // Soft delete support
   @@map("executions")
 }
 

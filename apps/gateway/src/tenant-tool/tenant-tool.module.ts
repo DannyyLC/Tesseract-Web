@@ -4,6 +4,6 @@ import { TenantToolController } from './controllers/user-ui/tenant-tool.controll
 
 @Module({
   providers: [TenantToolService],
-  controllers: [TenantToolController]
+  controllers: [TenantToolController],
 })
 export class TenantToolModule {}

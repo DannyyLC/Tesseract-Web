@@ -30,7 +30,7 @@ import { UserPayload } from '../../../common/types/jwt-payload.type';
 @Controller('conversations')
 @UseGuards(JwtAuthGuard)
 export class ConversationsController {
-  constructor(private readonly conversationsService: ConversationsService) { }
+  constructor(private readonly conversationsService: ConversationsService) {}
 
   @Get('dashboard')
   async getDashboardData(
@@ -65,6 +65,7 @@ export class ConversationsController {
       workflowId: c.workflowId,
       userId: c.userId,
       isInternal: !!c.userId,
+      organizationId: c.organizationId,
     }));
 
     apiResponse

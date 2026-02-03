@@ -133,8 +133,8 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
     },
     limits: {
       maxUsers: 1,
-      maxWorkflows: 0,
-      maxApiKeys: 0,
+      maxWorkflows: 1,
+      maxApiKeys: 1,
       monthlyCredits: 0,
       overageLimit: 0,
       allowOverages: false,
@@ -154,7 +154,7 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       maxWorkflows: 3,
       maxApiKeys: 50,
       monthlyCredits: 150,
-      overageLimit: 150, // 1 mes extra de créditos
+      overageLimit: 150,
       allowOverages: true,
     },
   },

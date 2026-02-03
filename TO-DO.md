@@ -78,46 +78,6 @@ _Nota: Enviar dentro de OrganizationDTO si es posible_
 
 ---
 
-## 6. User (Usuarios de la Organización)
-
-- `[SEND]` `email`
-- `[SEND]` `name`
-- `[SEND]` `role`
-- `[SEND]` `isActive`
-- `[SEND]` `lastLoginAt`
-- `[SEND]` `createdAt`
-- `[SEND]` `avatar`
-- `[SEND]` `timezone`
-
----
-
-## 7. Workflow (Agentes/Workflows)
-
-- `[SEND]` `id`
-- `[SEND]` `name`
-- `[SEND]` `description`
-- `[SEND]` `category`
-- `[SEND]` `isActive`
-- `[SEND]` `isPaused`
-- `[SEND]` `version`
-- `[SEND]` `triggerType`
-- `[SEND]` `schedule`
-
-**Límites:**
-
-- `[SEND]` `maxTokensPerExecution`
-
-**Estadísticas:**
-
-- `[SEND]` `totalExecutions`
-- `[SEND]` `successfulExecutions`
-- `[SEND]` `failedExecutions`
-- `[SEND]` `totalCreditsConsumed`
-- `[SEND]` `lastExecutedAt`
-- `[SEND]` `avgExecutionTime`
-
----
-
 ## 8. Execution (Ejecuciones de Workflows)
 
 - `[SEND]` `status`
@@ -140,48 +100,6 @@ _Nota: Enviar dentro de OrganizationDTO si es posible_
 
 ---
 
-## 9. Conversation (Conversaciones)
-
-- `[SEND]` `title`
-- `[SEND]` `channel`
-- `[SEND]` `status`
-- `[SEND]` `isHumanInTheLoop`
-- `[SEND]` `messageCount`
-- `[SEND]` `lastMessageAt`
-- `[SEND]` `createdAt`
-- `[SEND]` `closedAt`
-
-**Relaciones:**
-
-- `[SEND]` `workflowId`
-- `[SEND]` `userId`
-- `[SEND]` `endUserId`
-
----
-
-## 10. Message (Mensajes de Conversaciones)
-
-- `[SEND]` `role`
-- `[SEND]` `content`
-- `[SEND]` `attachments`
-- `[SEND]` `model` (Opcional, puede ser informativo)
-- `[SEND]` `createdAt`
-
----
-
-## 11. EndUser (Clientes Externos)
-
-- `[SEND]` `phoneNumber`
-- `[SEND]` `email`
-- `[SEND]` `externalId`
-- `[SEND]` `name`
-- `[SEND]` `avatar`
-- `[SEND]` `metadata`
-- `[SEND]` `lastSeenAt`
-- `[SEND]` `createdAt`
-
----
-
 ## 12. TenantTool (Conexiones con Tools)
 
 - `[SEND]` `id`
@@ -189,20 +107,9 @@ _Nota: Enviar dentro de OrganizationDTO si es posible_
 
 ---
 
-## 14. ApiKey (API Keys)
-
-- `[SEND]` `name`
-- `[SEND]` `description`
-- `[SEND]` `isActive`
-- `[SEND]` `lastUsedAt`
-- `[SEND]` `expiresAt`
-- `[SEND]` `createdAt`
-
----
-
 ## 15. WhatsAppConfig (Configuraciones de WhatsApp)
 
-> ⚠️ **Nada de whatsapp funciona aun** - Ignorar
+> **Nada de whatsapp funciona aun** - Ignorar
 
 - `phoneNumber` - Número de teléfono
 - `displayName` - Nombre para mostrar
@@ -236,10 +143,6 @@ _Nota: Enviar dentro de OrganizationDTO si es posible_
 - `success` - Si fue exitoso
 - `errorMessage` - Mensaje de error (si falló)
 - `timestamp` - Cuándo ocurrió
-
-## Email
-
-En users.service.ts falta poner la implementacion del envio de emails. para esto se crea un servicio dedicado y se usa el metodo aqui
 
 ## Users
 

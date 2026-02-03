@@ -224,6 +224,7 @@ export class ExecutionsService {
     const execution = await this.prisma.execution.findFirst({
       where: {
         id: executionId,
+        deletedAt: null,
         workflow: {
           organizationId,
           deletedAt: null,
@@ -231,30 +232,51 @@ export class ExecutionsService {
       },
       select: {
         id: true,
-        status: true,
         startedAt: true,
         finishedAt: true,
         duration: true,
-        result: true,
-        error: true,
         trigger: true,
-        triggerData: true,
-        logs: true,
-        stepResults: true,
-        retryCount: true,
         createdAt: true,
         updatedAt: true,
-        // Campos de créditos para clientes
         credits: true,
         balanceBefore: true,
         balanceAfter: true,
         wasOverage: true,
-        // Relaciones
         workflowId: true,
         organizationId: true,
         conversationId: true,
         userId: true,
-        apiKeyId: true,
+        apiKey: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!execution) {
+      throw new NotFoundException('Ejecución no encontrada');
+    }
+
+    // Flatten apiKeyName
+    const { apiKey, ...rest } = execution;
+    return {
+      ...rest,
+      apiKeyName: apiKey?.name,
+    };
+  }
+
+  /**
+   * Obtener una ejecución con TODOS los detalles (Internal Use)
+   */
+  async getByIdFull(executionId: string, organizationId: string) {
+    const execution = await this.prisma.execution.findFirst({
+      where: {
+        id: executionId,
+        organizationId,
+        deletedAt: null,
+      },
+      include: {
         workflow: {
           select: {
             id: true,
@@ -270,12 +292,7 @@ export class ExecutionsService {
             email: true,
           },
         },
-        apiKey: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
+        apiKey: true,
       },
     });
 
@@ -763,6 +780,7 @@ export class ExecutionsService {
     }
 
     const where: any = {
+      deletedAt: null,
       workflow: {
         organizationId,
         deletedAt: null,
@@ -909,7 +927,18 @@ export class ExecutionsService {
    * @param organizationId - ID de la organización (para verificar ownership)
    */
   async cancel(executionId: string, organizationId: string) {
-    const execution = await this.findOneForClient(executionId, organizationId);
+    const execution = await this.prisma.execution.findFirst({
+      where: {
+        id: executionId,
+        organizationId,
+        deletedAt: null,
+      },
+      select: { status: true },
+    });
+
+    if (!execution) {
+      throw new NotFoundException('Ejecución no encontrada');
+    }
 
     if (!['pending', 'running'].includes(execution.status)) {
       throw new Error(`No se puede cancelar una ejecución con estado: ${execution.status}`);
@@ -917,6 +946,33 @@ export class ExecutionsService {
 
     return this.updateStatus(executionId, 'cancelled', {
       error: 'Execution cancelled by user',
+    });
+  }
+
+  /**
+   * Eliminar una ejecución (Soft Delete)
+   *
+   * @param executionId - ID de la ejecución
+   * @param organizationId - ID de la organización
+   */
+  async remove(executionId: string, organizationId: string) {
+    const execution = await this.prisma.execution.findFirst({
+      where: {
+        id: executionId,
+        organizationId,
+        deletedAt: null,
+      },
+    });
+
+    if (!execution) {
+      throw new NotFoundException('Ejecución no encontrada');
+    }
+
+    await this.prisma.execution.update({
+      where: { id: executionId },
+      data: {
+        deletedAt: new Date(),
+      },
     });
   }
 
@@ -1120,14 +1176,36 @@ export class ExecutionsService {
     cursor: string | null = null,
     pageSize: number = 10,
     action: 'next' | 'prev' | null = null,
+    filters: {
+      workflowId?: string;
+      userId?: string;
+      startDate?: Date;
+      endDate?: Date;
+      status?: string;
+      trigger?: string;
+    } = {},
   ): Promise<CursorPaginatedResponse<DashboardExecutionDto>> {
+    const { workflowId, userId, startDate, endDate, status, trigger } = filters;
+
+    const where: any = {
+      organizationId,
+      deletedAt: null,
+    };
+
+    if (workflowId) where.workflowId = workflowId;
+    if (userId) where.userId = userId;
+    if (status) where.status = status;
+    if (trigger) where.trigger = trigger;
+
+    if (startDate || endDate) {
+      where.startedAt = {};
+      if (startDate) where.startedAt.gte = startDate;
+      if (endDate) where.startedAt.lte = endDate;
+    }
+
     const executions = await this.prisma.execution.findMany({
-      where: {
-        organizationId,
-      },
-      take:  action === 'next' || action === null
-          ? pageSize + 1
-          : -(pageSize + 1),
+      where,
+      take: action === 'next' || action === null ? pageSize + 1 : -(pageSize + 1),
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
       select: {
@@ -1138,8 +1216,6 @@ export class ExecutionsService {
         duration: true,
         trigger: true,
         credits: true,
-        error: true,
-        retryCount: true,
         workflowId: true,
         userId: true,
         workflow: {
@@ -1152,7 +1228,6 @@ export class ExecutionsService {
             name: true,
           },
         },
-        conversationId: true,
       },
       orderBy: {
         startedAt: 'desc',
@@ -1166,7 +1241,8 @@ export class ExecutionsService {
     );
 
     const transformedData = paginatedData.items.map((execution) => {
-      const { id, ...rest } = execution;
+      // Return ID as well
+      const { ...rest } = execution;
       return rest;
     });
     return {

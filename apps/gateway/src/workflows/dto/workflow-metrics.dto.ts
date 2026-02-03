@@ -3,6 +3,7 @@ export class WorkflowMetricsDto {
   totalExecutions: number;
   successRate: number;
   avgDuration: number;
+  granularity: 'hour' | 'day' | 'week' | 'month';
   executionHistoryChart: {
     date: string;
     count: number;
