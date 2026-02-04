@@ -140,7 +140,7 @@ export class UsersController {
     @Res() res: Response,
   ): Promise<Response> {
     const apiResponse = new ApiResponseBuilder<void>();
-    await this.usersService.transferOwnership(id, user.organizationId, user.sub);
+    await this.usersService.transferOwnership(user.sub, id, user.organizationId);
     apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage('User ownership transferred successfully');
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
