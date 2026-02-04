@@ -14,6 +14,7 @@ import {
   Header,
   StreamableFile,
   Res,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { WorkflowsService } from '../../workflows.service';
 import { UpdateWorkflowDto, ExecuteWorkflowDto } from '../../dto';
@@ -47,7 +48,7 @@ export class WorkflowsController {
     @CurrentUser() user: UserPayload,
     @Res() res: Response,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize') pageSize = 10,
+    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('search') search?: string,
     @Query('isActive') isActive?: string,

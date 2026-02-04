@@ -1,5 +1,5 @@
 import { UsersService } from '../../users.service';
-import { Controller, Get, Query, Res, UseGuards, Param, Patch, Delete, Body } from '@nestjs/common';
+import { Controller, Get, Query, Res, UseGuards, Param, Patch, Delete, Body, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
 import { Response } from 'express';
 import { DashboardUserDataDto, UpdateUserDto, UserDetailDto } from '../../dto';
 import {
@@ -22,7 +22,7 @@ export class UsersController {
     @CurrentUser() user: UserPayload,
     @Res() res: Response,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize') pageSize = 10,
+    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('search') search?: string,
     @Query('role') role?: string,

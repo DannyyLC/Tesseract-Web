@@ -16,6 +16,8 @@ import {
   Query,
   Res,
   UseGuards,
+  DefaultValuePipe,
+  ParseIntPipe
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -36,7 +38,7 @@ export class ConversationsController {
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize') pageSize = 10,
+    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('workflowId') workflowId: string | undefined,
     @Query('userId') userId: string | undefined,
