@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   Headers,
   BadRequestException,
@@ -54,19 +55,19 @@ export class BillingController {
 
     // 2. Create Stripe Customer if not exists
     if (!customerId) {
-      customerId = await this.billingService.createCustomer({
-        email: userEmail,
-        name: organization.name || userName,
-        metadata: {
-          organizationId: organizationId,
-        },
-      });
-
-      // Save to DB
-      await this.prisma.organization.update({
-        where: { id: organizationId },
-        data: { stripeCustomerId: customerId },
-      });
+        customerId = await this.billingService.createCustomer({
+          email: userEmail,
+          name: organization.name || userName,
+          metadata: {
+            organizationId: organizationId,
+          },
+        });
+  
+        // Save to DB
+        await this.prisma.organization.update({
+          where: { id: organizationId },
+          data: { stripeCustomerId: customerId },
+        });
     }
 
     // 3. Resolve Price ID
@@ -93,6 +94,50 @@ export class BillingController {
     });
 
     return { url: sessionUrl };
+  }
+
+  @Post('portal')
+  @UseGuards(JwtAuthGuard)
+  async createPortalSession(@Req() req: any) {
+    const organizationId = req.user.organizationId;
+    if (!organizationId) {
+       throw new BadRequestException('User does not belong to an organization');
+    }
+
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!organization?.stripeCustomerId) {
+       throw new BadRequestException('Organization has no billing account');
+    }
+
+    const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
+    const returnUrl = `${frontendUrl}/billing`;
+
+    const url = await this.billingService.createCustomerPortalSession(
+      organization.stripeCustomerId,
+      returnUrl
+    );
+
+    return { url };
+  }
+
+  @Get('plans')
+  getPlans() {
+    return Object.values(SUBSCRIPTION_PLANS);
+  }
+
+  @Get('subscription')
+  @UseGuards(JwtAuthGuard)
+  async getSubscription(@Req() req: any) {
+    const organizationId = req.user.organizationId;
+    
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { organizationId },
+    });
+
+    return subscription || { status: 'NO_SUBSCRIPTION', plan: 'FREE' };
   }
 
   @Post('webhook')
