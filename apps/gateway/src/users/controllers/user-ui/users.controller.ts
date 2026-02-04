@@ -115,9 +115,9 @@ export class UsersController {
     // 2. Update Status if provided
     if (updateUserDto.isActive !== undefined) {
       if (updateUserDto.isActive) {
-        updatedUser = await this.usersService.activate(id, user.organizationId);
+        updatedUser = await this.usersService.activate(id, user.organizationId, user.sub);
       } else {
-        updatedUser = await this.usersService.deactivate(id, user.organizationId);
+        updatedUser = await this.usersService.deactivate(id, user.organizationId, user.sub);
       }
     }
 
