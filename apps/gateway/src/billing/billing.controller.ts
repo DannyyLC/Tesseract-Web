@@ -7,6 +7,7 @@ import {
   BadRequestException,
   Req,
   UseGuards,
+  Delete,
 } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { ConfigService } from '@nestjs/config';
@@ -125,7 +126,7 @@ export class BillingController {
 
   @Get('plans')
   getPlans() {
-    return Object.values(SUBSCRIPTION_PLANS);
+    return Object.values(SUBSCRIPTION_PLANS).map(({ priceIdEnvKey, ...plan }) => plan);
   }
 
   @Get('subscription')
@@ -138,6 +139,17 @@ export class BillingController {
     });
 
     return subscription || { status: 'NO_SUBSCRIPTION', plan: 'FREE' };
+  }
+
+  @Delete('subscription')
+  @UseGuards(JwtAuthGuard)
+  async cancelSubscription(@Req() req: any) {
+    const organizationId = req.user.organizationId;
+    if (!organizationId) {
+       throw new BadRequestException('User does not belong to an organization');
+    }
+    await this.billingService.cancelSubscription(organizationId);
+    return { message: 'Subscription cancelled successfully' };
   }
 
   @Post('webhook')
