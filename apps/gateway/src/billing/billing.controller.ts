@@ -8,6 +8,7 @@ import {
   Req,
   UseGuards,
   Delete,
+  Put,
 } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { ConfigService } from '@nestjs/config';
@@ -17,6 +18,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SubscriptionPlan } from '@prisma/client';
 import { SUBSCRIPTION_PLANS } from './billing.constants';
 import { StripeClient } from './stripe.client';
+import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 
 @Controller('billing')
 export class BillingController {
@@ -139,6 +141,33 @@ export class BillingController {
     });
 
     return subscription || { status: 'NO_SUBSCRIPTION', plan: 'FREE' };
+  }
+
+  @Put('subscription')
+  @UseGuards(JwtAuthGuard)
+  async updateSubscription(@Req() req: any, @Body() body: UpdateSubscriptionDto) {
+    const organizationId = req.user.organizationId;
+    if (!organizationId) {
+       throw new BadRequestException('User does not belong to an organization');
+    }
+    
+    // Validate Plan exists
+    if (!SUBSCRIPTION_PLANS[body.plan]) {
+        throw new BadRequestException(`Invalid plan: ${body.plan}`);
+    }
+
+    await this.billingService.changePlan(organizationId, body.plan);
+    return { message: 'Plan update initiated successfully' };
+  }
+
+  @Get('dashboard')
+  @UseGuards(JwtAuthGuard)
+  async getDashboardData(@Req() req: any) {
+    const organizationId = req.user.organizationId;
+    if (!organizationId) {
+       throw new BadRequestException('User does not belong to an organization');
+    }
+    return this.billingService.getBillingDashboard(organizationId);
   }
 
   @Delete('subscription')

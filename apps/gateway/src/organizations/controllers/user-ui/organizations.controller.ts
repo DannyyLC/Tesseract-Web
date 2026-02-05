@@ -20,6 +20,7 @@ export class OrganizationsController {
   constructor(
     private readonly organizationsService: OrganizationsService
   ) {}
+
   @Get('dashboard/:id')
   async getDashboardData(
     @Res() res: Response,
@@ -39,25 +40,6 @@ export class OrganizationsController {
         .setMessage('Dashboard data retrieved successfully')
         .setData(result);
       return res.status(200).json(apiResponse.build());
-    }
-  }
-
-  @Post('create')
-  async createOrganization(
-    @Body() body: CreateOrganizationDto,
-    @Res() res: Response,
-  ): Promise<Response<ApiResponseBuilder<Organization>>> {
-    const result = await this.organizationsService.create(body);
-    const apiResponse = new ApiResponseBuilder<Organization>();
-    if (!result) {
-      apiResponse.setStatusCode(400).setMessage('Organization could not be created');
-      return res.status(400).json(apiResponse.build());
-    } else {
-      apiResponse
-        .setStatusCode(201)
-        .setMessage('Organization created successfully')
-        .setData(result);
-      return res.status(201).json(apiResponse.build());
     }
   }
 

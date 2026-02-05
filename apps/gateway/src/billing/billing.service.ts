@@ -794,47 +794,76 @@ export class BillingService {
         }
 
         // Keep ADMINs (sorted by recent login)
-        if (slotsRemaining > 0) {
+      const usersToKeepIds = usersToKeep.map((id: any) => ({ id }));
+      
+      // Keep ADMINs (sorted by recent login)
+      if (slotsRemaining > 0) {
           const admins = activeUsers.filter((u: any) => u.role === 'admin');
-          // Sort nulls last (never logged in) or oldest last
           admins.sort((a: any, b: any) => {
             const timeA = a.lastLoginAt ? a.lastLoginAt.getTime() : 0;
             const timeB = b.lastLoginAt ? b.lastLoginAt.getTime() : 0;
-            return timeB - timeA; // Descending
+            return timeB - timeA; 
           });
 
           const adminsToKeep = admins.slice(0, slotsRemaining);
           adminsToKeep.forEach((u: any) => usersToKeep.push(u.id));
           slotsRemaining -= adminsToKeep.length;
+      }
+
+       // Keep VIEWERS (sorted by recent login)
+       if (slotsRemaining > 0) {
+           const viewers = activeUsers.filter((u: any) => u.role === 'viewer');
+           viewers.sort((a: any, b: any) => {
+             const timeA = a.lastLoginAt ? a.lastLoginAt.getTime() : 0;
+             const timeB = b.lastLoginAt ? b.lastLoginAt.getTime() : 0;
+             return timeB - timeA; // Descending
+           });
+           const viewersToKeep = viewers.slice(0, slotsRemaining);
+           viewersToKeep.forEach((u: any) => usersToKeep.push(u.id));
+           slotsRemaining -= viewersToKeep.length;
         }
 
-        // Keep VIEWERS/Others (sorted by recent login)
-        if (slotsRemaining > 0) {
-          const others = activeUsers.filter((u: any) => u.role !== 'owner' && u.role !== 'admin');
-          others.sort((a: any, b: any) => {
-            const timeA = a.lastLoginAt ? a.lastLoginAt.getTime() : 0;
-            const timeB = b.lastLoginAt ? b.lastLoginAt.getTime() : 0;
-            return timeB - timeA;
-          });
+      const usersToDeactivate = activeUsers.filter((u: any) => !usersToKeep.includes(u.id));
 
-          const othersToKeep = others.slice(0, slotsRemaining);
-          othersToKeep.forEach((u: any) => usersToKeep.push(u.id));
-          slotsRemaining -= othersToKeep.length;
-        }
-
-        // Deactivate the rest
-        const idsToDeactivate = activeUsers
-          .filter((u: any) => !usersToKeep.includes(u.id))
-          .map((u: any) => u.id);
-
-        if (idsToDeactivate.length > 0) {
+      if (usersToDeactivate.length > 0) {
           await this.prisma.user.updateMany({
-            where: { id: { in: idsToDeactivate } },
-            data: { isActive: false },
+              where: { id: { in: usersToDeactivate.map((u: any) => u.id) } },
+              data: { isActive: false }
           });
-          this.logger.log(`Deactivated ${idsToDeactivate.length} excess users.`);
-        }
+          this.logger.log(`Deactivated ${usersToDeactivate.length} excess users.`);
       }
     }
+    }
+  }
+
+  /**
+   * Get Aggregated Billing Dashboard Data
+   */
+  async getBillingDashboard(organizationId: string) {
+    const [organization, subscription, creditBalance] = await this.prisma.$transaction([
+      this.prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { plan: true },
+      }),
+      this.prisma.subscription.findUnique({
+        where: { organizationId },
+      }),
+      this.prisma.creditBalance.findUnique({
+        where: { organizationId },
+      }),
+    ]);
+
+    if (!organization) throw new BadRequestException('Organization not found');
+
+    return {
+      plan: organization.plan,
+      status: subscription?.status || 'NO_SUBSCRIPTION',
+      nextBillingDate: subscription?.currentPeriodEnd || null,
+      cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd || false,
+      credits: {
+        available: creditBalance?.balance || 0,
+        usedThisMonth: creditBalance?.currentMonthSpent || 0,
+      },
+    };
   }
 }
