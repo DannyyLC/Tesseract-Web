@@ -41,18 +41,6 @@ export class OrganizationsController {
     }
   }
 
-  @Patch('overages')
-  async toggleOverages(
-    @CurrentUser() user: UserPayload,
-    @Body() body: { allowOverages: boolean },
-    @Res() res: Response
-  ): Promise<Response> {
-    const apiResponse = new ApiResponseBuilder<Organization>();
-    const result = await this.organizationsService.toggleOverages(user.organizationId, body.allowOverages);
-    apiResponse.setStatusCode(200).setMessage('Overages setting updated successfully').setData(result);
-    return res.status(200).json(apiResponse.build());
-  }
-
   @Patch('update')
   async updateOrganization(
     @Body() body: UpdateOrganizationDto,

@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Headers,
   BadRequestException,
@@ -9,6 +10,7 @@ import {
   UseGuards,
   Delete,
   Put,
+  Res,
 } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { ConfigService } from '@nestjs/config';
@@ -20,6 +22,12 @@ import { SUBSCRIPTION_PLANS } from './billing.constants';
 import { StripeClient } from './stripe.client';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { BillingDashboardDto } from './dto/billing-dashboard.dto';
+import { OrganizationsService } from '../organizations/organizations.service';
+import { ApiResponseBuilder } from '@workflow-automation/shared-types';
+import { Organization } from '@workflow-platform/database';
+import { UserPayload } from '../common/types/jwt-payload.type';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Response } from 'express';
 
 @Controller('billing')
 export class BillingController {
@@ -28,6 +36,7 @@ export class BillingController {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly stripeClient: StripeClient,
+    private readonly organizationsService: OrganizationsService,
   ) {}
 
   @Post('checkout')
@@ -213,5 +222,18 @@ export class BillingController {
     }
 
     return { received: true };
+  }
+
+  @Patch('overages')
+  @UseGuards(JwtAuthGuard)
+  async toggleOverages(
+    @CurrentUser() user: UserPayload,
+    @Body() body: { allowOverages: boolean },
+    @Res() res: Response
+  ): Promise<Response> {
+    const apiResponse = new ApiResponseBuilder<Organization>();
+    const result = await this.organizationsService.toggleOverages(user.organizationId, body.allowOverages);
+    apiResponse.setStatusCode(200).setMessage('Overages setting updated successfully').setData(result);
+    return res.status(200).json(apiResponse.build());
   }
 }
