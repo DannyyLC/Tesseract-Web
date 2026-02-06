@@ -105,7 +105,7 @@ export class WorkflowsService {
   async getDashboardData(
     organizationId: string,
     cursor?: string | null,
-    take: number = 10,
+    take = 10,
     paginationAction: 'next' | 'prev' | null = null,
     filters?: {
       search?: string;
@@ -373,7 +373,7 @@ export class WorkflowsService {
       // C. Dynamic History (Raw SQL with adaptive grouping)
       // Using TO_CHAR consistently to ensure string format matches JavaScript
       this.prisma.$queryRawUnsafe<
-        Array<{ date: string; success: number; failed: number; count: number }>
+        { date: string; success: number; failed: number; count: number }[]
       >(
         `
         SELECT 
@@ -406,8 +406,8 @@ export class WorkflowsService {
       {} as Record<string, number>,
     );
 
-    const successfulCount = statusCounts['completed'] || 0;
-    const failedCount = statusCounts['failed'] || 0;
+    const successfulCount = statusCounts.completed || 0;
+    const failedCount = statusCounts.failed || 0;
     const successRate = totalExecutions > 0 ? (successfulCount / totalExecutions) * 100 : 0;
 
     // Error Distribution Processing
@@ -459,11 +459,11 @@ export class WorkflowsService {
    * Fill gaps in execution history to ensure complete chart data
    */
   private fillHistoryGaps(
-    rawData: Array<{ date: string; success: number; failed: number; count: number }>,
+    rawData: { date: string; success: number; failed: number; count: number }[],
     startDate: Date,
     endDate: Date,
     granularity: 'hour' | 'day' | 'week' | 'month',
-  ): Array<{ date: string; count: number; success: number; failed: number }> {
+  ): { date: string; count: number; success: number; failed: number }[] {
     // Create a map from raw data (normalize keys to match our format)
     const dataMap = new Map<string, { count: number; success: number; failed: number }>();
     rawData.forEach((row) => {
@@ -477,7 +477,7 @@ export class WorkflowsService {
     });
 
     // Generate all time slots
-    const result: Array<{ date: string; count: number; success: number; failed: number }> = [];
+    const result: { date: string; count: number; success: number; failed: number }[] = [];
     const current = new Date(startDate);
 
     // Loop until we reach the current period (not including incomplete future periods)
@@ -800,7 +800,7 @@ export class WorkflowsService {
         try {
           // Convertir formato para batch query
           const usageForBatch: Record<string, any> = {};
-          for (const [modelName, usage] of Object.entries(usageByModel) as [string, any][]) {
+          for (const [modelName, usage] of Object.entries(usageByModel)) {
             usageForBatch[modelName] = {
               inputTokens: usage.input_tokens ?? 0,
               outputTokens: usage.output_tokens ?? 0,
@@ -1213,7 +1213,7 @@ export class WorkflowsService {
           // 3. Calcular Costos
           if (Object.keys(usageByModel).length > 0) {
             const usageForBatch: Record<string, any> = {};
-            for (const [modelName, usage] of Object.entries(usageByModel) as [string, any][]) {
+            for (const [modelName, usage] of Object.entries(usageByModel)) {
               usageForBatch[modelName] = {
                 inputTokens: usage.input_tokens ?? 0,
                 outputTokens: usage.output_tokens ?? 0,
@@ -1370,7 +1370,7 @@ export class WorkflowsService {
     // 3. Filtrar tool_instances por agente según su configuración
     const agentToolInstances: Record<string, Record<string, any>> = {};
 
-    for (const [agentName, agentConfig] of Object.entries(agentsConfig) as [string, any][]) {
+    for (const [agentName, agentConfig] of Object.entries(agentsConfig)) {
       const agentTools = agentConfig.tools ?? [];
       const filtered: Record<string, any> = {};
 
@@ -1404,7 +1404,7 @@ export class WorkflowsService {
 
     // 4. Limpiar agents_config - remover campo 'tools' (redundante, ya está en agent_tool_instances)
     const cleanedAgentsConfig: Record<string, any> = {};
-    for (const [agentName, agentConfig] of Object.entries(agentsConfig) as [string, any][]) {
+    for (const [agentName, agentConfig] of Object.entries(agentsConfig)) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { tools: _tools, ...configWithoutTools } = agentConfig;
       cleanedAgentsConfig[agentName] = configWithoutTools;
@@ -1501,7 +1501,7 @@ export class WorkflowsService {
     const modelsToValidate = new Set<string>();
 
     // Recolectar todos los modelos (principal + fallbacks)
-    for (const agentConfig of Object.values(agentsConfig) as any[]) {
+    for (const agentConfig of Object.values(agentsConfig)) {
       if (agentConfig.model) {
         modelsToValidate.add(agentConfig.model);
       }

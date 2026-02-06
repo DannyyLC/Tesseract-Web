@@ -10,7 +10,7 @@ export interface DashboardUserDataDto {
   id?: string;
   email: string;
   name: string;
-  role: String;
+  role: string;
   isActive: boolean;
   lastLoginAt: Date | null;
   createdAt: Date;

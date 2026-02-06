@@ -1,7 +1,7 @@
 export interface DashboardMessageDto {
   role: string;
   content: string;
-  attachments: Object | null;
+  attachments: object | null;
   model: string | null;
   createdAt: Date;
 }

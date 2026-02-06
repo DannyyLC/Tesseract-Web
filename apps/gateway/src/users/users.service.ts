@@ -211,29 +211,32 @@ export class UsersService {
   /**
    * Activar usuario
    */
-  async activate(userId: string, organizationId: string): Promise<User> {
+  async activate(userId: string, organizationId: string, actorId: string): Promise<User> {
     // Verificar que el usuario existe
-    await this.findOne(userId, organizationId);
+    const user = await this.findOne(userId, organizationId);
 
-    const user = await this.prisma.user.update({
+    // Verificar permisos del actor
+    const actor = await this.findOne(actorId, organizationId);
+    this.validateActionPermission(actor.role, user.role);
+
+    const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data: { isActive: true },
     });
 
-    return user;
+    return updatedUser;
   }
 
   /**
    * Desactivar usuario
    */
-  async deactivate(userId: string, organizationId: string): Promise<User> {
+  async deactivate(userId: string, organizationId: string, actorId: string): Promise<User> {
     // Verificar que el usuario existe
     const user = await this.findOne(userId, organizationId);
 
-    // NO se puede desactivar al owner
-    if (user.role === 'owner') {
-      throw new ForbiddenException('Cannot deactivate owner. Transfer ownership first.');
-    }
+    // Verificar permisos del actor
+    const actor = await this.findOne(actorId, organizationId);
+    this.validateActionPermission(actor.role, user.role);
 
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
@@ -298,14 +301,11 @@ export class UsersService {
     // Verificar que el usuario existe
     const user = await this.findOne(userId, organizationId);
 
-    // NO se puede eliminar al owner
-    await this.validateNotOwner(user);
-
-    // Verificar que el actor tiene permisos
+    // Verificar permisos del actor
     const actor = await this.findOne(actorId, organizationId);
-    if (actor.role !== 'owner' && actor.role !== 'admin') {
-      throw new ForbiddenException('Only owner or admin can delete users');
-    }
+    
+    // Validar permisos (incluye protección de Owner y jerk arquía)
+    this.validateActionPermission(actor.role, user.role);
 
     // Soft delete
     await this.prisma.user.update({
@@ -497,7 +497,7 @@ export class UsersService {
   async getDashboardData(
     organizationId: string,
     cursor?: string | null,
-    take: number = 10,
+    take = 10,
     paginationAction: 'next' | 'prev' | null = null,
     filters?: {
       search?: string;
@@ -567,5 +567,36 @@ export class UsersService {
       nextPageAvailable: paginatedUserRes.nextPageAvailable,
       pageSize: paginatedUserRes.pageSize,
     };
+  }
+
+  /**
+   * Validar permisos para acciones (activate, deactivate, remove)
+   * Permite Admin vs Admin
+   */
+  private validateActionPermission(actorRole: string, targetRole: string): void {
+    // 1. Solo admin y owner pueden ejecutar acciones
+    if (actorRole !== 'owner' && actorRole !== 'admin') {
+      throw new ForbiddenException('Only owner or admin can perform this action');
+    }
+
+    // 2. Nadie puede modificar al owner
+    if (targetRole === 'owner') {
+      throw new ForbiddenException('Cannot modify owner. Transfer ownership first.');
+    }
+
+    const hierarchy: Record<string, number> = {
+      super_admin: 5,
+      owner: 4,
+      admin: 3,
+      viewer: 1,
+    };
+
+    const actorLevel = hierarchy[actorRole] || 0;
+    const targetLevel = hierarchy[targetRole] || 0;
+
+    // 3. Jerarguía: actor debe ser >= target
+    if (actorLevel < targetLevel) {
+      throw new ForbiddenException('Insufficient permissions to modify this user');
+    }
   }
 }

@@ -4,10 +4,11 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { CreditsService } from '../credits/credits.service';
 import { TransactionType, SubscriptionPlan } from '@prisma/client';
-import Stripe from 'stripe';
+import { PLANS } from '@workflow-automation/shared-types';
+import { ConfigService } from '@nestjs/config';
 import { SUBSCRIPTION_PLANS } from './billing.constants';
 import { PrismaService } from '../database/prisma.service';
-import { ConfigService } from '@nestjs/config';
+import Stripe from 'stripe';
 
 @Injectable()
 export class BillingService {
@@ -81,22 +82,140 @@ export class BillingService {
   }
 
   /**
+   * Create Stripe Customer Portal Session
+   */
+  async createCustomerPortalSession(customerId: string, returnUrl: string): Promise<string> {
+    const session = await this.stripeClient.stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: returnUrl,
+    });
+    return session.url as string;
+  }
+
+  /**
    * Handle Stripe Webhook Events
    */
   async handleWebhookEvent(event: Stripe.Event): Promise<void> {
     switch (event.type) {
+      case 'invoice.created':
+        await this.handleInvoiceCreated(event.data.object);
+        break;
+      case 'invoice.payment_failed':
+        await this.handleInvoicePaymentFailed(event.data.object);
+        break;
       case 'invoice.payment_succeeded':
-        await this.handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
+        await this.handleInvoicePaymentSucceeded(event.data.object);
         break;
       case 'customer.subscription.updated':
-        await this.handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        await this.handleSubscriptionUpdated(event.data.object);
         break;
       case 'customer.subscription.deleted':
-        await this.handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        await this.handleSubscriptionDeleted(event.data.object);
         break;
       default:
         this.logger.log(`Unhandled event type ${event.type}`);
     }
+  }
+
+  /**
+   * Handle Invoice Created
+   * SNAPSHOT LOGIC: Check for negative balance and bill it immediately
+   */
+  private async handleInvoiceCreated(invoiceObject: Stripe.Invoice) {
+    const invoice = invoiceObject as any;
+    
+    // Only process subscription invoices
+    if (invoice.subscription && invoice.billing_reason === 'subscription_cycle') {
+       const organizationId = invoice.subscription_details?.metadata?.organizationId || invoice.metadata?.organizationId;
+       
+       if (!organizationId) {
+         this.logger.warn(`Invoice ${invoice.id} created but no organizationId found`);
+         return;
+       }
+
+       // 1. Check Credit Balance
+       const creditBalance = await this.prisma.creditBalance.findUnique({
+         where: { organizationId },
+       });
+
+       if (!creditBalance) return;
+
+       // 2. If negative balance, create Invoice Item for Overage
+       if (creditBalance.balance < 0) {
+         const overageCredits = Math.abs(creditBalance.balance);
+         
+         // Use Stripe Product Price for Overage
+         const overagePriceId = this.configService.get('STRIPE_PRICE_OVERAGE');
+         
+         if (!overagePriceId) {
+            this.logger.error('STRIPE_PRICE_OVERAGE not configured in environment');
+            return;
+         }
+
+         if (overageCredits > 0) {
+            this.logger.log(`Org ${organizationId} has ${overageCredits} negative credits. Adding invoice item via Price ID ${overagePriceId}`);
+            
+            // Add Invoice Item to THIS invoice using Price ID
+            await this.stripeClient.stripe.invoiceItems.create({
+              customer: invoice.customer as string,
+              invoice: invoice.id,
+              price: overagePriceId,
+              quantity: overageCredits,
+            } as any);
+
+            // 3. Mark as "Invoiced" in DB (Snapshot)
+            await this.prisma.creditBalance.update({
+              where: { organizationId },
+              data: {
+                invoicedOverageCredits: overageCredits,
+              }
+            });
+         }
+       }
+    }
+  }
+
+
+  /**
+   * Handle Invoice Payment Failed
+   * Logic: Treat as "Soft Cancellation" - limit risk but allow recovery
+   */
+  private async handleInvoicePaymentFailed(invoiceObject: Stripe.Invoice) {
+      const invoice = invoiceObject as any;
+      const organizationId = invoice.subscription_details?.metadata?.organizationId || invoice.metadata?.organizationId;
+      
+      if (!organizationId) {
+          this.logger.warn(`Invoice ${invoice.id} payment failed but no organizationId found`);
+          return;
+      }
+      
+      this.logger.warn(`Invoice ${invoice.id} payment failed for Org ${organizationId}. Revoking access.`);
+      
+      // 1. Disable Overages Immediately
+      await this.prisma.organization.update({
+          where: { id: organizationId },
+          data: { allowOverages: false }
+      });
+      
+      // 2. Mark Subscription as benign "canceled at end" to prevent infinite renewal attempts
+      // Or relies on Stripe's "Smart Retries". 
+      // User asked to "cancel subscription" logic.
+      
+      const subId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+      if (subId) {
+          // Verify it exists in our DB
+          const sub = await this.prisma.subscription.findUnique({ where: { organizationId }});
+          if (sub) {
+              await this.prisma.subscription.update({
+                  where: { id: sub.id },
+                  data: { 
+                      status: 'PAST_DUE', // Internal status to show in UI
+                      // We don't necessarily set cancelAtPeriodEnd=true here because we want them to PAY.
+                      // But we blocked overages.
+                  }
+              });
+          }
+      }
   }
 
   private async handleInvoicePaymentSucceeded(invoiceObject: Stripe.Invoice) {
@@ -113,7 +232,7 @@ export class BillingService {
       typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription.id;
 
     // Use organizationId from invoice metadata or subscription metadata
-    let organizationId =
+    const organizationId =
       invoice.subscription_details?.metadata?.organizationId || invoice.metadata?.organizationId;
 
     if (!organizationId) {
@@ -129,7 +248,7 @@ export class BillingService {
     let planName = 'UNKNOWN';
 
     const plan = Object.values(SUBSCRIPTION_PLANS).find(
-      (p: { priceUSD: number; credits: number; name: string }) =>
+      (p: any) =>
         p.priceUSD * 100 === amountPaidCents,
     );
 
@@ -151,6 +270,47 @@ export class BillingService {
     }
 
     if (creditsToAdd > 0) {
+      // RECONCILIATION LOGIC
+      
+      const creditBalance = await this.prisma.creditBalance.findUnique({ where: { organizationId }});
+      const invoicedOverage = creditBalance?.invoicedOverageCredits || 0;
+      
+      // 1. Calculate strictly adds
+      // Actually, we first "pay back" the invoiced amount effectively.
+      // Logic:
+      // Current Balance: -110
+      // Invoiced: 100 (We just got paid for this)
+      // Credits To Add: 1000 (New Plan)
+      
+      // Temporary Balance after payment = -110 + 100 = -10.
+      // Gap = -10.
+      
+      const currentBalance = creditBalance?.balance || 0;
+      const balanceAfterPayment = currentBalance + invoicedOverage;
+      
+      let gapCredits = 0;
+      if (balanceAfterPayment < 0) {
+        gapCredits = Math.abs(balanceAfterPayment);
+      }
+      
+      // If there is a gap, we bill it for NEXT month
+      if (gapCredits > 0) {
+         const overagePriceId = this.configService.get('STRIPE_PRICE_OVERAGE');
+         
+         if (overagePriceId) {
+            this.logger.log(`Org ${organizationId} has gap of ${gapCredits} credits. Billing for next month via Price ID.`);
+            
+            await this.stripeClient.stripe.invoiceItems.create({
+              customer: invoice.customer as string,
+              price: overagePriceId,
+              quantity: gapCredits,
+              description: `Overage Adjustment (Prev Month: ${gapCredits} credits)`, 
+            } as any);
+         } else {
+             this.logger.error('STRIPE_PRICE_OVERAGE missing during reconciliation gap billing');
+         }
+      }
+
       // SYNC DB STATE
 
       // 1. Update Organization Plan
@@ -160,7 +320,6 @@ export class BillingService {
       });
 
       // 2. Upsert Subscription
-      // Safely get period dates from line items or invoice period
       const periodStart = invoice.period_start ? new Date(invoice.period_start * 1000) : new Date();
       const periodEnd = invoice.period_end ? new Date(invoice.period_end * 1000) : new Date();
       const priceId = invoice.lines?.data?.[0]?.price?.id;
@@ -170,7 +329,7 @@ export class BillingService {
         create: {
           organizationId,
           plan: planName as SubscriptionPlan,
-          status: 'ACTIVE', // SubscriptionStatus.ACTIVE
+          status: 'ACTIVE',
           currentPeriodStart: periodStart,
           currentPeriodEnd: periodEnd,
           stripeSubscriptionId: subscriptionId,
@@ -183,23 +342,53 @@ export class BillingService {
           currentPeriodEnd: periodEnd,
           stripeSubscriptionId: subscriptionId,
           stripePriceId: priceId,
-          pendingPlanChange: null, // Clear any pending change since we just processed a payment for this plan
+          pendingPlanChange: null,
         },
       });
 
+      // 3. Update Balance
+      // Logic: We want user to start with `creditsToAdd`.
+      // Formula: NewBalance = creditsToAdd. 
+      // Why? Because we billed the gap. So effectively we cleared the debt.
+      // Wait, if we use `creditsService.addCredits`, it adds to existing balance.
+      // Existing: -110.
+      // We want result: 1000.
+      // So we need to add: 1110.
+      // Breakdown: 100 (Payback Invoiced) + 10 (Payback Gap) + 1000 (New).
+      
+      const correctionAmount = invoicedOverage + gapCredits;
+      const totalGrant = creditsToAdd + correctionAmount;
+      
+      // We record the transaction
       await this.creditsService.addCredits(
         organizationId,
-        creditsToAdd,
+        totalGrant,
         TransactionType.SUBSCRIPTION_RENEWAL,
-        `Plan ${planName} Payment (Invoice ${invoice.number})`,
-        { stripeInvoiceId: invoice.id, stripeSubscriptionId: subscriptionId, plan: planName },
-        amountPaidCents / 100, // Cost in USD
+        `Plan ${planName} Payment + Overage Reconciliation`,
+        { 
+            stripeInvoiceId: invoice.id, 
+            plan: planName, 
+            invoicedOverage,
+            gapCredits,
+            stripeLineItems: invoice.lines?.data?.map((l: any) => ({
+              description: l.description,
+              amountUSD: l.amount / 100,
+              quantity: l.quantity,
+            })) || [], 
+        },
+        amountPaidCents / 100, 
         subscriptionId,
         invoice.id,
       );
+      
+      // Reset InvoicedOverageCredits
+      await this.prisma.creditBalance.update({
+        where: { organizationId },
+        data: { invoicedOverageCredits: 0 }
+      });
 
       this.logger.log(
-        `Added ${creditsToAdd} credits to org ${organizationId} for invoice ${invoice.id} (Plan: ${planName})`,
+        `Processed renewal for org ${organizationId}. Plan: ${creditsToAdd}. Overage Paid: ${invoicedOverage}. Gap Billed: ${gapCredits}.`,
       );
     } else {
       this.logger.warn(`No credits added for invoice ${invoice.id} (Amount: ${amountPaidCents})`);
@@ -214,7 +403,7 @@ export class BillingService {
       where: { organizationId },
     });
 
-    if (!sub || !sub.stripeSubscriptionId) {
+    if (!sub?.stripeSubscriptionId) {
       throw new BadRequestException('No active subscription found');
     }
 
@@ -226,6 +415,12 @@ export class BillingService {
       where: { id: sub.id },
       data: { cancelAtPeriodEnd: true },
     });
+    
+    // Disable Overages Immediately to prevent risk
+    await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: { allowOverages: false }
+    });
   }
 
   /**
@@ -236,7 +431,7 @@ export class BillingService {
       where: { organizationId },
     });
 
-    if (!sub || !sub.stripeSubscriptionId) {
+    if (!sub?.stripeSubscriptionId) {
       throw new BadRequestException('No active subscription found');
     }
 
@@ -259,7 +454,7 @@ export class BillingService {
       where: { organizationId },
     });
 
-    if (!sub || !sub.stripeSubscriptionId) {
+    if (!sub?.stripeSubscriptionId) {
       throw new BadRequestException('No active subscription found to change');
     }
 
@@ -309,7 +504,7 @@ export class BillingService {
         sub.stripeSubscriptionId,
       )) as any;
 
-      let scheduleId = subscriptions.schedule as string;
+      const scheduleId = subscriptions.schedule as string;
 
       if (scheduleId) {
         // Update existing schedule
@@ -422,6 +617,9 @@ export class BillingService {
     ]);
 
     this.logger.log(`Synced subscription ${sub.id} for org ${organizationId} to plan ${planName}`);
+
+    // ENFORCE PLAN LIMITS (Downgrade Logic)
+    await this.enforceLimits(organizationId, planName);
   }
 
   private async handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -444,5 +642,228 @@ export class BillingService {
     this.logger.log(
       `Subscription ${subscription.id} deleted. Org ${organizationId} downgraded to FREE.`,
     );
+
+    // ENFORCE PLAN LIMITS (Downgrade to FREE)
+    await this.enforceLimits(organizationId, 'FREE');
+  }
+
+  /**
+   * Enforce Resource Limits based on Plan
+   * Deactivates excess Workflows, API Keys, and Users.
+   */
+  private async enforceLimits(organizationId: string, newPlan: SubscriptionPlan) {
+    this.logger.log(`Enforcing limits for org ${organizationId} on plan ${newPlan}`);
+
+    // DETERMINE EFFECTIVE LIMITS
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        customMaxUsers: true,
+        customMaxWorkflows: true,
+        customMaxApiKeys: true,
+      },
+    });
+
+    if (!organization) return;
+
+    const defaultLimits = PLANS[newPlan];
+
+    // Disable Overages if downgrading to FREE
+    if (newPlan === 'FREE') {
+      await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: { allowOverages: false },
+      });
+      this.logger.log(`Disabled overages for org ${organizationId} (FREE plan)`);
+    }
+
+    const maxWorkflows =
+      organization.customMaxWorkflows ?? defaultLimits.limits?.maxWorkflows;
+    const maxApiKeys = organization.customMaxApiKeys ?? defaultLimits.limits?.maxApiKeys;
+    const maxUsers = organization.customMaxUsers ?? defaultLimits.limits?.maxUsers;
+
+    // ENFORCE WORKFLOW LIMITS
+    if (maxWorkflows !== -1) {
+      const activeWorkflows = await this.prisma.workflow.findMany({
+        where: {
+          organizationId,
+          isActive: true,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          _count: {
+            select: { executions: true },
+          },
+        },
+      });
+
+      // Sort by executions (DESC)
+      activeWorkflows.sort((a: any, b: any) => b._count.executions - a._count.executions);
+
+      if (activeWorkflows.length > maxWorkflows) {
+        const workflowsToDeactivate = activeWorkflows.slice(maxWorkflows);
+
+        const idsToDeactivate = workflowsToDeactivate.map((w: any) => w.id);
+
+        if (idsToDeactivate.length > 0) {
+          await this.prisma.workflow.updateMany({
+            where: { id: { in: idsToDeactivate } },
+            data: { isActive: false },
+          });
+          this.logger.log(`Deactivated ${idsToDeactivate.length} excess workflows.`);
+        }
+      }
+    }
+
+    // ENFORCE API KEY LIMITS
+    if (maxApiKeys !== -1) {
+      const currentlyActiveWorkflows = await this.prisma.workflow.findMany({
+        where: { organizationId, isActive: true, deletedAt: null },
+        select: { id: true },
+      });
+      const activeWorkflowIds = currentlyActiveWorkflows.map((w) => w.id);
+
+      // Fetch all active API keys
+      const activeApiKeys = await this.prisma.apiKey.findMany({
+        where: {
+          organizationId,
+          isActive: true,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          workflowId: true,
+          _count: {
+            select: { executions: true },
+          },
+        },
+      });
+
+      // Filter: Only keep keys for currently active workflows
+      const validApiKeys = activeApiKeys.filter((k: any) => activeWorkflowIds.includes(k.workflowId));
+      const invalidApiKeys = activeApiKeys.filter((k: any) => !activeWorkflowIds.includes(k.workflowId));
+
+      // Sort valid keys by executions (DESC)
+      validApiKeys.sort((a: any, b: any) => b._count.executions - a._count.executions);
+
+      // Determine which to keep from the valid ones
+      const keysToDeactivateFromValid = validApiKeys.slice(maxApiKeys);
+
+      // Collect all IDs to deactivate
+      const idsToDeactivate = [
+        ...invalidApiKeys.map((k: any) => k.id),
+        ...keysToDeactivateFromValid.map((k: any) => k.id),
+      ];
+
+      if (idsToDeactivate.length > 0) {
+        await this.prisma.apiKey.updateMany({
+          where: { id: { in: idsToDeactivate } },
+          data: { isActive: false },
+        });
+        this.logger.log(`Deactivated ${idsToDeactivate.length} excess API keys.`);
+      }
+    }
+
+    // ENFORCE USER LIMITS
+    if (maxUsers !== -1) {
+      const activeUsers = await this.prisma.user.findMany({
+        where: {
+          organizationId,
+          isActive: true,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          role: true,
+          lastLoginAt: true,
+        },
+      });
+
+      if (activeUsers.length > maxUsers) {
+        const usersToKeep: string[] = [];
+        let slotsRemaining = maxUsers;
+
+        // Always keep OWNER
+        const owners = activeUsers.filter((u: any) => u.role === 'owner');
+        owners.forEach((u: any) => usersToKeep.push(u.id));
+        slotsRemaining -= owners.length;
+
+        if (owners.length > 1) {
+          this.logger.warn(`Organization ${organizationId} has multiple owners! Keeping all.`);
+        }
+
+        // Keep ADMINs (sorted by recent login)
+      const usersToKeepIds = usersToKeep.map((id: any) => ({ id }));
+      
+      // Keep ADMINs (sorted by recent login)
+      if (slotsRemaining > 0) {
+          const admins = activeUsers.filter((u: any) => u.role === 'admin');
+          admins.sort((a: any, b: any) => {
+            const timeA = a.lastLoginAt ? a.lastLoginAt.getTime() : 0;
+            const timeB = b.lastLoginAt ? b.lastLoginAt.getTime() : 0;
+            return timeB - timeA; 
+          });
+
+          const adminsToKeep = admins.slice(0, slotsRemaining);
+          adminsToKeep.forEach((u: any) => usersToKeep.push(u.id));
+          slotsRemaining -= adminsToKeep.length;
+      }
+
+       // Keep VIEWERS (sorted by recent login)
+       if (slotsRemaining > 0) {
+           const viewers = activeUsers.filter((u: any) => u.role === 'viewer');
+           viewers.sort((a: any, b: any) => {
+             const timeA = a.lastLoginAt ? a.lastLoginAt.getTime() : 0;
+             const timeB = b.lastLoginAt ? b.lastLoginAt.getTime() : 0;
+             return timeB - timeA; // Descending
+           });
+           const viewersToKeep = viewers.slice(0, slotsRemaining);
+           viewersToKeep.forEach((u: any) => usersToKeep.push(u.id));
+           slotsRemaining -= viewersToKeep.length;
+        }
+
+      const usersToDeactivate = activeUsers.filter((u: any) => !usersToKeep.includes(u.id));
+
+      if (usersToDeactivate.length > 0) {
+          await this.prisma.user.updateMany({
+              where: { id: { in: usersToDeactivate.map((u: any) => u.id) } },
+              data: { isActive: false }
+          });
+          this.logger.log(`Deactivated ${usersToDeactivate.length} excess users.`);
+      }
+    }
+    }
+  }
+
+  /**
+   * Get Aggregated Billing Dashboard Data
+   */
+  async getBillingDashboard(organizationId: string) {
+    const [organization, subscription, creditBalance] = await this.prisma.$transaction([
+      this.prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { plan: true },
+      }),
+      this.prisma.subscription.findUnique({
+        where: { organizationId },
+      }),
+      this.prisma.creditBalance.findUnique({
+        where: { organizationId },
+      }),
+    ]);
+
+    if (!organization) throw new BadRequestException('Organization not found');
+
+    return {
+      plan: organization.plan,
+      status: subscription?.status || 'NO_SUBSCRIPTION',
+      nextBillingDate: subscription?.currentPeriodEnd || null,
+      cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd || false,
+      credits: {
+        available: creditBalance?.balance || 0,
+        usedThisMonth: creditBalance?.currentMonthSpent || 0,
+      },
+    };
   }
 }

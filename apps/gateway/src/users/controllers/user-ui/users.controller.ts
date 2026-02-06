@@ -1,5 +1,5 @@
 import { UsersService } from '../../users.service';
-import { Controller, Get, Query, Res, UseGuards, Param, Patch, Delete, Body } from '@nestjs/common';
+import { Controller, Get, Query, Res, UseGuards, Param, Patch, Delete, Body, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
 import { Response } from 'express';
 import { DashboardUserDataDto, UpdateUserDto, UserDetailDto } from '../../dto';
 import {
@@ -22,7 +22,7 @@ export class UsersController {
     @CurrentUser() user: UserPayload,
     @Res() res: Response,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize') pageSize: number = 10,
+    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('search') search?: string,
     @Query('role') role?: string,
@@ -115,9 +115,9 @@ export class UsersController {
     // 2. Update Status if provided
     if (updateUserDto.isActive !== undefined) {
       if (updateUserDto.isActive) {
-        updatedUser = await this.usersService.activate(id, user.organizationId);
+        updatedUser = await this.usersService.activate(id, user.organizationId, user.sub);
       } else {
-        updatedUser = await this.usersService.deactivate(id, user.organizationId);
+        updatedUser = await this.usersService.deactivate(id, user.organizationId, user.sub);
       }
     }
 
@@ -130,6 +130,18 @@ export class UsersController {
       .setStatusCode(HttpStatusCode.Ok)
       .setMessage('User updated successfully')
       .setData(updatedUser);
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Patch(':id/transfer-ownership')
+  async transferOwnership(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ): Promise<Response> {
+    const apiResponse = new ApiResponseBuilder<void>();
+    await this.usersService.transferOwnership(user.sub, id, user.organizationId);
+    apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage('User ownership transferred successfully');
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 

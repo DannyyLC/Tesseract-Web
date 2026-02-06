@@ -11,7 +11,7 @@ export class TenantToolService {
   async getDashboardData(
     organizationId: string,
     cursor: string | null = null,
-    pageSize: number = 10,
+    pageSize = 10,
     paginationAction: 'next' | 'prev' | null = null,
   ): Promise<CursorPaginatedResponse<DashboardTenantToolDto>> {
     const tenantTools = await this.prismaService.tenantTool.findMany({

@@ -37,4 +37,3 @@ export const SUBSCRIPTION_PLANS = {
   },
 };
 
-export const OVERAGE_PRICE_PER_CREDIT = 0.01;

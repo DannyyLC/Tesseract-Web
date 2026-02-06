@@ -1,11 +1,14 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   Headers,
   BadRequestException,
   Req,
   UseGuards,
+  Delete,
+  Put,
 } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { ConfigService } from '@nestjs/config';
@@ -15,6 +18,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SubscriptionPlan } from '@prisma/client';
 import { SUBSCRIPTION_PLANS } from './billing.constants';
 import { StripeClient } from './stripe.client';
+import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 
 @Controller('billing')
 export class BillingController {
@@ -54,19 +58,19 @@ export class BillingController {
 
     // 2. Create Stripe Customer if not exists
     if (!customerId) {
-      customerId = await this.billingService.createCustomer({
-        email: userEmail,
-        name: organization.name || userName,
-        metadata: {
-          organizationId: organizationId,
-        },
-      });
-
-      // Save to DB
-      await this.prisma.organization.update({
-        where: { id: organizationId },
-        data: { stripeCustomerId: customerId },
-      });
+        customerId = await this.billingService.createCustomer({
+          email: userEmail,
+          name: organization.name || userName,
+          metadata: {
+            organizationId: organizationId,
+          },
+        });
+  
+        // Save to DB
+        await this.prisma.organization.update({
+          where: { id: organizationId },
+          data: { stripeCustomerId: customerId },
+        });
     }
 
     // 3. Resolve Price ID
@@ -93,6 +97,88 @@ export class BillingController {
     });
 
     return { url: sessionUrl };
+  }
+
+  @Post('portal')
+  @UseGuards(JwtAuthGuard)
+  async createPortalSession(@Req() req: any) {
+    const organizationId = req.user.organizationId;
+    if (!organizationId) {
+       throw new BadRequestException('User does not belong to an organization');
+    }
+
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!organization?.stripeCustomerId) {
+       throw new BadRequestException('Organization has no billing account');
+    }
+
+    const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
+    const returnUrl = `${frontendUrl}/billing`;
+
+    const url = await this.billingService.createCustomerPortalSession(
+      organization.stripeCustomerId,
+      returnUrl
+    );
+
+    return { url };
+  }
+
+  @Get('plans')
+  getPlans() {
+    return Object.values(SUBSCRIPTION_PLANS).map(({ priceIdEnvKey, ...plan }) => plan);
+  }
+
+  @Get('subscription')
+  @UseGuards(JwtAuthGuard)
+  async getSubscription(@Req() req: any) {
+    const organizationId = req.user.organizationId;
+    
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { organizationId },
+    });
+
+    return subscription || { status: 'NO_SUBSCRIPTION', plan: 'FREE' };
+  }
+
+  @Put('subscription')
+  @UseGuards(JwtAuthGuard)
+  async updateSubscription(@Req() req: any, @Body() body: UpdateSubscriptionDto) {
+    const organizationId = req.user.organizationId;
+    if (!organizationId) {
+       throw new BadRequestException('User does not belong to an organization');
+    }
+    
+    // Validate Plan exists
+    if (!SUBSCRIPTION_PLANS[body.plan]) {
+        throw new BadRequestException(`Invalid plan: ${body.plan}`);
+    }
+
+    await this.billingService.changePlan(organizationId, body.plan);
+    return { message: 'Plan update initiated successfully' };
+  }
+
+  @Get('dashboard')
+  @UseGuards(JwtAuthGuard)
+  async getDashboardData(@Req() req: any) {
+    const organizationId = req.user.organizationId;
+    if (!organizationId) {
+       throw new BadRequestException('User does not belong to an organization');
+    }
+    return this.billingService.getBillingDashboard(organizationId);
+  }
+
+  @Delete('subscription')
+  @UseGuards(JwtAuthGuard)
+  async cancelSubscription(@Req() req: any) {
+    const organizationId = req.user.organizationId;
+    if (!organizationId) {
+       throw new BadRequestException('User does not belong to an organization');
+    }
+    await this.billingService.cancelSubscription(organizationId);
+    return { message: 'Subscription cancelled successfully' };
   }
 
   @Post('webhook')

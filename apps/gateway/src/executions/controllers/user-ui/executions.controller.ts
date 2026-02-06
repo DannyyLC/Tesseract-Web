@@ -9,6 +9,8 @@ import {
   HttpStatus,
   Delete,
   Res,
+  ParseIntPipe,
+  DefaultValuePipe
 } from '@nestjs/common';
 import { ExecutionsService } from '../../executions.service';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
@@ -47,7 +49,7 @@ export class ExecutionsController {
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize') pageSize: number = 10,
+    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('workflowId') workflowId: string | undefined,
     @Query('userId') userId: string | undefined,

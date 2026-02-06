@@ -4,7 +4,7 @@ export class DashboardEndUserDto {
   externalId: string | null;
   name: string | null;
   avatar: string | null;
-  metadata: Object | null;
+  metadata: object | null;
   lastSeenAt: Date | null;
   createdAt: Date;
 }

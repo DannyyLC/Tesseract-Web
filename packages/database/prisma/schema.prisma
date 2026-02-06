@@ -198,6 +198,9 @@ model CreditBalance {
   currentMonthSpent   Float @default(0) // Créditos gastados este mes
   currentMonthCostUSD Float @default(0) // Costo real en USD este mes (para análisis interno)
 
+  // Overage Billing Snapshot (Temporal)
+  invoicedOverageCredits Float @default(0) // Créditos de overage ya facturados (snapshot invoice.created) pero aun no pagados
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
