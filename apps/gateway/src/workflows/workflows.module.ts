@@ -8,6 +8,7 @@ import { ConversationsModule } from '../conversations/conversations.module';
 import { CreditsModule } from '../credits/credits.module';
 import { LlmModelsModule } from '../llm-models/llm-models.module';
 import { ExternalWorkflowsController } from './controllers/external/workflows.controller';
+import { UtilityModule } from '../utility/utility.module';
 
 /**
  * WorkflowsModule
@@ -15,6 +16,7 @@ import { ExternalWorkflowsController } from './controllers/external/workflows.co
  */
 @Module({
   imports: [
+    UtilityModule,
     ExecutionsModule,
     OrganizationsModule,
     AgentsModule,

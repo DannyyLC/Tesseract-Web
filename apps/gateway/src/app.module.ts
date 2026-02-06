@@ -25,8 +25,8 @@ import { EmailService } from './notifications/email/email.service';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TenantToolModule } from './tenant-tool/tenant-tool.module';
 import { UsersModule } from './users/users.module';
+import { UtilityModule } from './utility/utility.module';
 
-@Global()
 @Module({
   imports: [
     WinstonModule.forRoot({
@@ -50,8 +50,6 @@ import { UsersModule } from './users/users.module';
       ],
       ignoreEnvFile: false,
     }),
-
-    DatabaseModule,
     AuthModule,
     OrganizationsModule,
     ConversationsModule,
@@ -67,9 +65,10 @@ import { UsersModule } from './users/users.module';
     EndUsersModule,
     EventEmitterModule.forRoot(),
     TenantToolModule,
+    UtilityModule,
   ],
   controllers: [],
-  providers: [CronJobsService, AuthService, JwtService, PrismaService, EmailService],
-  exports: [WinstonModule, AuthService, EmailService],
+  providers: [CronJobsService],
+  exports: [WinstonModule],
 })
 export class AppModule {}

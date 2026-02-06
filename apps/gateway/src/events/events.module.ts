@@ -2,11 +2,11 @@ import { Module } from '@nestjs/common';
 import { EventsService } from './services/events.service';
 import { EventsController } from './controllers/events.controller';
 import { ConversationsModule } from '../conversations/conversations.module';
-import { DatabaseModule } from '../database/database.module';
+import { UtilityModule } from '../utility/utility.module';
 
 @Module({
   imports: [
-    DatabaseModule, // <-- Use forwardRef here if needed
+    UtilityModule, 
     ConversationsModule,
   ],
   providers: [EventsService],

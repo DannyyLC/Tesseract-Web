@@ -1,8 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ExecutionsService } from './executions.service';
 import { ExecutionsController } from './controllers/user-ui/executions.controller';
+import { UtilityModule } from '../utility/utility.module';
 
 @Module({
+  imports: [
+    UtilityModule
+  ],
   controllers: [ExecutionsController],
   providers: [ExecutionsService],
   exports: [ExecutionsService],

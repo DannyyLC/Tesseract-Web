@@ -12,7 +12,6 @@ import { Logger } from 'winston';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { PrismaService } from '../database/prisma.service';
 import { DashboardUserDataDto, UpdateProfileDto, UserFiltersDto } from './dto';
-import { AuthService } from '../auth/auth.service';
 
 interface PaginatedUsers {
   data: User[];
@@ -45,8 +44,7 @@ interface UserActivity {
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
-    private readonly authService: AuthService,
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger
   ) {}
 
   async validateEmailUnique(email: string): Promise<boolean> {

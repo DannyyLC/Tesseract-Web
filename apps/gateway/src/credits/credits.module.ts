@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
 import { CreditsService } from './credits.service';
-import { DatabaseModule } from '../database/database.module';
-
+import { UtilityModule } from '../utility/utility.module';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [UtilityModule],
   providers: [CreditsService],
   exports: [CreditsService],
   controllers: [],
