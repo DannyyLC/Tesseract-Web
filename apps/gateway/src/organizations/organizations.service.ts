@@ -18,6 +18,7 @@ import {
   UpdateSettingsDto,
 } from './dto';
 import { DashboardSubscriptionDto } from './dto/dashboard-subscription.dto';
+import { UtilityService } from '../utility/utility.service';
 
 
 /**
@@ -31,6 +32,7 @@ export class OrganizationsService {
     private readonly prisma: PrismaService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
     private readonly emailService: EmailService,
+    private readonly utilityService: UtilityService,
   ) {}
 
   // ============================================
@@ -836,7 +838,7 @@ export class OrganizationsService {
         };
       }
 
-      const hashedPassword = await AuthService.hashPassword(pass);
+      const hashedPassword = await this.utilityService.hashPassword(pass);
 
       const newUser = await this.prisma.user.create({
         data: {

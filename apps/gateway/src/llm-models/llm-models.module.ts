@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { LlmModelsService } from './llm-models.service';
-import { DatabaseModule } from '../database/database.module';
+import { UtilityModule } from '../utility/utility.module';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [
+    UtilityModule
+  ],
   providers: [LlmModelsService],
   exports: [LlmModelsService],
 })

@@ -24,6 +24,7 @@ import { StepOneErrors, StepThreeErrors } from './dto/error-singup-codes.dto';
 import { LoginDto } from './dto/login.dto';
 import { StartVerificationFlowDto } from './dto/start-verification-flow.dto';
 import { VerificationCodeDto } from './dto/verification-code.dto';
+import { UtilityService } from '../utility/utility.service';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
@@ -38,6 +39,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
     private readonly emailService: EmailService,
+    private readonly utilityService: UtilityService,
   ) {}
 
   //==============================================================
@@ -296,7 +298,7 @@ export class AuthService {
     });
 
     // 4. Generar hash del refresh token
-    const refreshTokenHash = await AuthService.hashPassword(refreshToken);
+    const refreshTokenHash = await this.utilityService.hashPassword(refreshToken);
 
     // 5. Generar familyId para token rotation
     const familyId = crypto.randomUUID();
@@ -483,17 +485,6 @@ export class AuthService {
     };
   }
 
-  // ==================== PASSWORD UTILITIES ====================
-  /**
-   * Hashea una contraseña usando bcrypt
-   *
-   * @param password - Contraseña en texto plano
-   * @returns Contraseña hasheada
-   */
-  static async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, AuthService.SALT_ROUNDS);
-  }
-
   //==============================================================
   // TOKENS
   //==============================================================
@@ -675,7 +666,7 @@ export class AuthService {
     });
     let createdResult: any = null;
     // Hashear password
-    const hashedPassword = await AuthService.hashPassword(user.password);
+    const hashedPassword = await this.utilityService.hashPassword(user.password);
     if (userVerificationRow) {
       try {
         // Iniciar transacción para asegurar atomicidad

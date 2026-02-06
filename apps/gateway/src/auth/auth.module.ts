@@ -8,6 +8,8 @@ import { ApiKeyGuard } from './guards/api-key.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { UtilityModule } from '../utility/utility.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 /**
  * AuthModule agrupa toda la funcionalidad de autenticación
  */
@@ -15,6 +17,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   imports: [
     // Database para PrismaService
     // Passport con estrategia por defecto 'jwt'
+    UtilityModule,
+    NotificationsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     // Configuración de JWT
     JwtModule.registerAsync({
