@@ -82,6 +82,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Organización inactiva');
     }
 
+    if(user.organization.deletedAt) {
+      this.logger.warn(`Organización eliminada: ${user.organization.name}`);
+      throw new UnauthorizedException('Organización eliminada');
+    }
+
     // 7. Validar que el email coincida (seguridad adicional)
     if (user.email !== payload.email) {
       this.logger.error(

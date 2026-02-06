@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiResponse, ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { Organization } from '@workflow-platform/database';
 import { Response } from 'express';
@@ -7,9 +7,7 @@ import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
 import { InviteUserErrorsDto } from '../../../users/dto/invite-user-errors.dto';
 import {
-  CreateOrganizationDto,
   DashboardOrganizationDto,
-  DeactivateOrganizationDto,
   UpdateOrganizationDto,
 } from '../../dto';
 import { OrganizationsService } from '../../organizations.service';
@@ -43,6 +41,18 @@ export class OrganizationsController {
     }
   }
 
+  @Patch('overages')
+  async toggleOverages(
+    @CurrentUser() user: UserPayload,
+    @Body() body: { allowOverages: boolean },
+    @Res() res: Response
+  ): Promise<Response> {
+    const apiResponse = new ApiResponseBuilder<Organization>();
+    const result = await this.organizationsService.toggleOverages(user.organizationId, body.allowOverages);
+    apiResponse.setStatusCode(200).setMessage('Overages setting updated successfully').setData(result);
+    return res.status(200).json(apiResponse.build());
+  }
+
   @Patch('update')
   async updateOrganization(
     @Body() body: UpdateOrganizationDto,
@@ -62,40 +72,20 @@ export class OrganizationsController {
     }
   }
 
-  @Post('deactivate/:id')
-  async deactivateOrganization(
-    @Body() body: DeactivateOrganizationDto,
-    @Param('id') id: string,
-    @Res() res: Response,
+  @Delete('delete')
+  async deleteOrganization(
+    @CurrentUser() user: UserPayload,
+    @Res() res: Response
   ): Promise<Response<ApiResponseBuilder<Organization>>> {
-    const result = await this.organizationsService.deactivate(id, body.deactivatedBy, body.reason);
+    const result = await this.organizationsService.softDelete(user.organizationId, user.sub);
     const apiResponse = new ApiResponseBuilder<Organization>();
     if (!result) {
-      apiResponse.setStatusCode(500).setMessage('Organization could not be deactivated');
-      return res.status(500).json(apiResponse.build());
+      apiResponse.setStatusCode(400).setMessage('Organization could not be deleted');
+      return res.status(400).json(apiResponse.build());
     } else {
       apiResponse
         .setStatusCode(200)
-        .setMessage('Organization deactivated successfully')
-        .setData(result);
-      return res.status(200).json(apiResponse.build());
-    }
-  }
-
-  @Patch('activate/:id')
-  async activateOrganization(
-    @Param('id') id: string,
-    @Res() res: Response,
-  ): Promise<Response<ApiResponseBuilder<Organization>>> {
-    const result = await this.organizationsService.reactivate(id);
-    const apiResponse = new ApiResponseBuilder<Organization>();
-    if (!result) {
-      apiResponse.setStatusCode(500).setMessage('Organization could not be activated');
-      return res.status(500).json(apiResponse.build());
-    } else {
-      apiResponse
-        .setStatusCode(200)
-        .setMessage('Organization activated successfully')
+        .setMessage('Organization deleted successfully')
         .setData(result);
       return res.status(200).json(apiResponse.build());
     }
