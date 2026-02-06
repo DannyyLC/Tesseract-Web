@@ -66,8 +66,12 @@ export interface Plan {
     currency: string;
   };
   limits: PlanLimits;
-  popular?: boolean; // Badge "Más popular"
   stripePriceId?: string; // Stripe Price ID (opcional hasta integrar)
+  
+  // UI
+  features: string[]; // Lista de características para mostrar en pricing
+  highlightFeature?: string; // Feature destacado (ej: "+1 Workflow de regalo")
+  popular?: boolean; // Si es el plan recomendado
 }
 
 /**
@@ -139,6 +143,12 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       overageLimit: 0,
       allowOverages: false,
     },
+    features: [
+      '1 Usuario',
+      '3 Workflows activos',
+      'Sin créditos mensuales',
+    ],
+    popular: false,
   },
 
   [SubscriptionPlan.STARTER]: {
@@ -157,6 +167,13 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       overageLimit: 150,
       allowOverages: true,
     },
+    features: [
+      '10 Usuarios',
+      '10 Workflows activos',
+      '150 Créditos mensuales',
+      'Soporte estándar por email',
+    ],
+    popular: false,
   },
 
   [SubscriptionPlan.GROWTH]: {
@@ -175,6 +192,13 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       overageLimit: 500,
       allowOverages: true,
     },
+    features: [
+      '25 Usuarios',
+      '25 Workflows activos',
+      '500 Créditos mensuales',
+      'Soporte prioritario 24h',
+    ],
+    highlightFeature: '+1 Workflow de regalo',
     popular: true,
   },
 
@@ -194,6 +218,14 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       overageLimit: 1500,
       allowOverages: true,
     },
+    features: [
+      '50 Usuarios',
+      '100 Workflows activos',
+      '1500 Créditos mensuales',
+      'Soporte pioritario 12h',
+    ],
+    highlightFeature: '1 hrs Consultoría',
+    popular: false,
   },
 
   [SubscriptionPlan.PRO]: {
@@ -212,6 +244,14 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       overageLimit: 5000,
       allowOverages: true,
     },
+    features: [
+      '100 Usuarios',
+      '250 Workflows activos',
+      '5000 Créditos mensuales',
+      'Account Manager',
+    ],
+    highlightFeature: '3 hrs Consultoría',
+    popular: false,
   },
 
   [SubscriptionPlan.ENTERPRISE]: {
@@ -230,6 +270,11 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       overageLimit: -1, // Ilimitado (se configura custom)
       allowOverages: true,
     },
+    features: [
+      'Todo es personalizado',
+      'Contáctanos',
+    ],
+    popular: false,
   },
 };
 

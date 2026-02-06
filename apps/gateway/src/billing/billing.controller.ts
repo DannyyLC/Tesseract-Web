@@ -19,6 +19,7 @@ import { SubscriptionPlan } from '@prisma/client';
 import { SUBSCRIPTION_PLANS } from './billing.constants';
 import { StripeClient } from './stripe.client';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
+import { BillingDashboardDto } from './dto/billing-dashboard.dto';
 
 @Controller('billing')
 export class BillingController {
@@ -162,7 +163,7 @@ export class BillingController {
 
   @Get('dashboard')
   @UseGuards(JwtAuthGuard)
-  async getDashboardData(@Req() req: any) {
+  async getDashboardData(@Req() req: any): Promise<BillingDashboardDto> {
     const organizationId = req.user.organizationId;
     if (!organizationId) {
        throw new BadRequestException('User does not belong to an organization');
