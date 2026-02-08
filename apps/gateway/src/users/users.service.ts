@@ -12,6 +12,8 @@ import { Logger } from 'winston';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { PrismaService } from '../database/prisma.service';
 import { DashboardUserDataDto, UpdateProfileDto, UserFiltersDto } from './dto';
+import { NotificationEventDto } from '../events/app-notifications/notification.dto';
+import { notificationsEnum } from '../events/app-notifications/notifications.enum';
 
 interface PaginatedUsers {
   data: User[];
@@ -44,7 +46,7 @@ interface UserActivity {
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
   async validateEmailUnique(email: string): Promise<boolean> {
@@ -57,7 +59,7 @@ export class UsersService {
     }
     return true;
   }
- 
+
   // ==================== READ ====================
   /**
    * Obtener usuario por ID (solo si pertenece a la org)
@@ -303,7 +305,7 @@ export class UsersService {
 
     // Verificar permisos del actor
     const actor = await this.findOne(actorId, organizationId);
-    
+
     // Validar permisos (incluye protección de Owner y jerk arquía)
     this.validateActionPermission(actor.role, user.role);
 
@@ -445,8 +447,6 @@ export class UsersService {
     };
   }
 
-  
-
   /**
    * Validar jerarquía de roles
    * owner > admin > editor > viewer
@@ -491,8 +491,6 @@ export class UsersService {
       throw new ForbiddenException('Cannot delete owner. Transfer ownership first.');
     }
   }
-
-
 
   async getDashboardData(
     organizationId: string,
@@ -598,5 +596,24 @@ export class UsersService {
     if (actorLevel < targetLevel) {
       throw new ForbiddenException('Insufficient permissions to modify this user');
     }
+  }
+
+  async getNotificationsForUser(userId: string): Promise<NotificationEventDto[]> {
+    const userNotifications = await this.prisma.userNotification.findMany({
+      where: {
+        userId,
+      },
+    });
+
+    const notifications = userNotifications.map((userNotification) => ({
+      id: userNotification.notificationId,
+      notificationCode: userNotification.notificationId,
+      isRead: userNotification.isRead,
+      title:
+        notificationsEnum[userNotification.notificationId as keyof typeof notificationsEnum].title,
+      desc: notificationsEnum[userNotification.notificationId as keyof typeof notificationsEnum]
+        .desc,
+    }));
+    return notifications as NotificationEventDto[];
   }
 }

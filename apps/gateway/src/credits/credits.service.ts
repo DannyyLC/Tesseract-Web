@@ -246,6 +246,7 @@ export class CreditsService {
     const balance = await this.prisma.creditBalance.findUnique({
       where: { organizationId },
       select: {
+        id: true,
         balance: true,
         currentMonthSpent: true,
       },
@@ -302,14 +303,6 @@ export class CreditsService {
       paginationAction,
     );
 
-    const transformmedData = paginatedTransactions.items.map((ct) => {
-      const { id, ...rest } = ct;
-      return rest;
-    });
-
-    return {
-      ...paginatedTransactions,
-      items: transformmedData,
-    };
+    return paginatedTransactions
   }
 }

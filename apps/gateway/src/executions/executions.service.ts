@@ -1240,14 +1240,6 @@ export class ExecutionsService {
       action,
     );
 
-    const transformedData = paginatedData.items.map((execution) => {
-      // Return ID as well
-      const { ...rest } = execution;
-      return rest;
-    });
-    return {
-      ...paginatedData,
-      items: transformedData,
-    };
+    return paginatedData;
   }
 }

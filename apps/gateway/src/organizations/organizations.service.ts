@@ -19,6 +19,7 @@ import {
 } from './dto';
 import { DashboardSubscriptionDto } from './dto/dashboard-subscription.dto';
 import { UtilityService } from '../utility/utility.service';
+import { notificationsEnum } from '@/events/app-notifications/notifications.enum';
 
 
 /**
@@ -110,9 +111,9 @@ export class OrganizationsService {
    * Actualiza la información de una organización
    * Solo el owner puede actualizar
    */
-  async update(dto: UpdateOrganizationDto): Promise<Organization | null> {
+  async update(id: string, dto: UpdateOrganizationDto): Promise<Organization | null> {
     const organization = await this.prisma.organization.findUnique({
-      where: { id: dto.id },
+      where: { id: id },
     });
 
     if (!organization) {
@@ -122,7 +123,7 @@ export class OrganizationsService {
     let updated: Organization | null = null;
     try {
       updated = await this.prisma.organization.update({
-        where: { id: dto.id },
+        where: { id: id },
         data: {
           name: dto.name ?? organization.name,
           // El plan solo puede ser actualizado por super admins
@@ -130,7 +131,7 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      this.logger.error(`Error al actualizar organización "${dto.id}": ${error}`);
+      this.logger.error(`Error al actualizar organización "${id}": ${error}`);
       return null;
     }
 
@@ -637,6 +638,7 @@ export class OrganizationsService {
     const subscription = await this.prisma.subscription.findFirst({
       where: { organizationId },
       select: {
+        id: true,
         plan: true,
         status: true,
         currentPeriodStart: true,
@@ -723,6 +725,11 @@ export class OrganizationsService {
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días para aceptar
         },
       });
+      await this.utilityService.sendNotificationToAppClients(
+        organizationId,
+        ['admin'],
+        '0000-0010'
+      )
       return true;
     } catch (error) {
       this.logger.error(`invite >> Error creating user verification for ${email}: ${error}`);

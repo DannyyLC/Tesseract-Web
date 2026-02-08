@@ -350,6 +350,7 @@ model User {
   executionsManual Execution[]
   conversations    Conversation[]
   auditLogs        AuditLog[]
+  notifications    UserNotification[]
 
   @@index([email])
   @@index([organizationId])
@@ -1141,4 +1142,23 @@ model UserVerification {
   @@index([email])
   @@index([expiresAt])
   @@map("user_verifications")
+}
+
+model Notification {
+  id  String @id @default(uuid())
+  code String @unique
+  users UserNotification[]
+  createdAt DateTime @default(now())
+  @@map("notifications")
+}
+
+model UserNotification {
+  userId String
+  notificationId String
+  isRead Boolean @default(false)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  @@id([userId, notificationId])
+  @@map("user_notifications")
 }

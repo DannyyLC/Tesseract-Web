@@ -54,14 +54,6 @@ export class InvoiceService {
       action,
     );
 
-    const transformedData = paginatedData.items.map((invoice) => {
-      const { id, ...rest } = invoice;
-      return rest;
-    });
-
-    return {
-      ...paginatedData,
-      items: transformedData,
-    };
+    return paginatedData;
   }
 }

@@ -1,4 +1,5 @@
 export class DashboardEndUserDto {
+  id: string;
   phoneNumber: string | null;
   email: string | null;
   externalId: string | null;

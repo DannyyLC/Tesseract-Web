@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiResponse, ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { Organization } from '@workflow-platform/database';
 import { Response } from 'express';
@@ -45,10 +45,11 @@ export class OrganizationsController {
 
   @Patch('update')
   async updateOrganization(
+    @Query('id') id: string,
     @Body() body: UpdateOrganizationDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<Organization>>> {
-    const result = await this.organizationsService.update(body);
+    const result = await this.organizationsService.update(id, body);
     const apiResponse = new ApiResponseBuilder<Organization>();
     if (!result) {
       apiResponse.setStatusCode(400).setMessage('Organization could not be updated');

@@ -11,6 +11,7 @@ import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
+import { NotificationEventDto } from '../../../events/app-notifications/notification.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -156,4 +157,18 @@ export class UsersController {
     apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage('User deleted successfully');
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
+
+    @Get('notifications')
+    async getAppNotifications(
+      @CurrentUser() user: UserPayload,
+      @Res() res: Response
+    ): Promise<Response<ApiResponse<NotificationEventDto[]>>> {
+      const apiResponse = new ApiResponseBuilder<NotificationEventDto[]>();
+      const notifications = await this.usersService.getNotificationsForUser(user.organizationId);
+      apiResponse
+        .setStatusCode(HttpStatusCode.Ok)
+        .setMessage('User notifications retrieved successfully')
+        .setData(notifications);
+      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+    }
 }

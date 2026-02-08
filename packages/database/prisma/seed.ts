@@ -30,6 +30,7 @@ async function main() {
   await prisma.endUser.deleteMany();
   await prisma.user.deleteMany();
   await prisma.organization.deleteMany();
+  await prisma.notification.deleteMany();
   console.log('✅ Datos limpiados\n');
 
   // ============================================
@@ -1237,6 +1238,34 @@ async function main() {
       },
     },
   });
+
+  await prisma.notification.createMany({
+    data: [
+      {
+        code: "0000-0001"
+      },
+      {
+        code: "0000-0010"
+      },
+      {
+        code: "0000-0011"
+      },
+      {
+        code: "0000-0100"
+      },
+      {
+        code: "0000-0101"
+      },
+      {
+        code: "0000-0110"
+      },
+      {
+        code: "0000-0111"
+      },
+      {
+        code: "0000-1000"
+      }
+  ]});
 
   console.log(`✅ Ejecución ADVANCED creada (25 créditos gastados)\n`);
 

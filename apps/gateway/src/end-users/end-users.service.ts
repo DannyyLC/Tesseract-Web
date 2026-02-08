@@ -40,14 +40,7 @@ export class EndUsersService {
       pageSize,
       paginationAction,
     );
-    const transformmedData = paginatedData.items.map((eu) => {
-      const { id, ...rest } = eu;
-      return rest;
-    });
 
-    return {
-      ...paginatedData,
-      items: transformmedData,
-    };
+    return paginatedData as CursorPaginatedResponse<DashboardEndUserDto>;
   }
 }

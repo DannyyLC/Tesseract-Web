@@ -1,6 +1,7 @@
 import { TransactionType } from '@workflow-platform/database';
 
 export interface DashboardCreditTransactionDto {
+  id: string;
   type: TransactionType;
   amount: number;
   balanceBefore: number;

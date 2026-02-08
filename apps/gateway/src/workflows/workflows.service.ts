@@ -1,30 +1,32 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
-import { Transform, PassThrough } from 'stream';
-import { PrismaService } from '../database/prisma.service';
-import { CreateWorkflowDto } from './dto/create-workflow.dto';
-import { UpdateWorkflowDto } from './dto/update-workflow.dto';
-import { ExecutionsService } from '../executions/executions.service';
-import { OrganizationsService } from '../organizations/organizations.service';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  CursorPaginatedResponse,
+  getWorkflowCreditCost,
+  PaginatedResponse,
+  PLANS,
+  SubscriptionPlan,
+  WorkflowCategory,
+} from '@workflow-automation/shared-types';
+import { PassThrough, Transform } from 'stream';
 import { AgentsService } from '../agents/agents.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
 import {
-  PLANS,
-  SubscriptionPlan,
-  getWorkflowCreditCost,
-  WorkflowCategory,
-} from '@workflow-automation/shared-types';
-import { CreditsService } from '../credits/credits.service';
-import { LlmModelsService } from '../llm-models/llm-models.service';
-import { ConversationsService } from '../conversations/conversations.service';
-import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
-import { WorkflowStatsDto } from './dto/workflow-stats.dto';
-import { WorkflowMetricsDto } from './dto/workflow-metrics.dto';
-import {
+  InvalidWorkflowConfigException,
   WorkflowNotFoundException,
   WorkflowPausedException,
-  InvalidWorkflowConfigException,
 } from '../common/exceptions';
-import { DashboardWorkflowDto } from './dto/dashboard-workflow.dto';
+import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
+import { ConversationsService } from '../conversations/conversations.service';
+import { CreditsService } from '../credits/credits.service';
+import { PrismaService } from '../database/prisma.service';
+import { ExecutionsService } from '../executions/executions.service';
+import { LlmModelsService } from '../llm-models/llm-models.service';
+import { OrganizationsService } from '../organizations/organizations.service';
+import { CreateWorkflowDto } from './dto/create-workflow.dto';
+import { UpdateWorkflowDto } from './dto/update-workflow.dto';
+import { WorkflowMetricsDto } from './dto/workflow-metrics.dto';
+import { WorkflowStatsDto } from './dto/workflow-stats.dto';
+import { DashboardWorkflowDto } from './dto';
 
 /**
  * Service que maneja la lógica de negocio de workflows
@@ -112,7 +114,7 @@ export class WorkflowsService {
       isActive?: boolean;
       category?: WorkflowCategory;
     },
-  ) {
+  ): Promise<CursorPaginatedResponse<DashboardWorkflowDto>> {
     const where: any = {
       organizationId,
       deletedAt: null,
@@ -125,7 +127,7 @@ export class WorkflowsService {
 
     const workflows = await this.prisma.workflow.findMany({
       take: paginationAction === 'prev' ? -(take + 1) : take + 1,
-      skip: cursor ? 1 : 0,
+      skip: cursor && paginationAction ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
       where,
       select: {
