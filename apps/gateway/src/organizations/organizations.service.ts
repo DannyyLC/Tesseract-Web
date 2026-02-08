@@ -429,6 +429,48 @@ export class OrganizationsService {
     return updated;
   }
 
+  /**
+   * Toggle Allow Overages Logic
+   */
+  async toggleOverages(organizationId: string, allow: boolean) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: { subscription: true }
+    });
+
+    if (!organization) throw new NotFoundException('Organization not found');
+
+    if (allow) {
+       // Validate RULES before activating
+       
+       // 1. Plan cannot be FREE
+       if (organization.plan === 'FREE') {
+           throw new BadRequestException('Cannot enable overages on FREE plan');
+       }
+
+       // 2. Subscription must be valid (not canceled, not past_due?)
+       // User said: "si esta cancelada la suscripcion por ejemplol o si esta en free no permita activarla"
+       if (!organization.subscription) {
+           throw new BadRequestException('No active subscription found');
+       }
+
+       if (organization.subscription.status === 'CANCELED' || organization.subscription.status === 'PAST_DUE') {
+           throw new BadRequestException('Cannot enable overages with a CANCELED or PAST_DUE subscription');
+       }
+
+       // Checks if it is set to cancel at period end? 
+       // Often if it cancels at period end, we might want to prevent overages too to reduce risk.
+       if (organization.subscription.cancelAtPeriodEnd) {
+           throw new BadRequestException('Cannot enable overages when subscription is scheduled for cancellation');
+       }
+    }
+
+    return this.prisma.organization.update({
+      where: { id: organizationId },
+      data: { allowOverages: allow }
+    });
+  }
+
   // ============================================
   // DESACTIVACIÓN / REACTIVACIÓN
   // ============================================
@@ -521,6 +563,42 @@ export class OrganizationsService {
 
     this.logger.info(`Organización ${organization.name} reactivada`);
 
+    return updated;
+  }
+
+  /**
+   * Soft Delete Organization
+   * Marks organization as deleted, effectively removing it from view and access.
+   */
+  async softDelete(organizationId: string, userId: string): Promise<Organization | null> {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      this.logger.warn(`No se encontró la organización con ID: ${organizationId}`);
+      return null;
+    }
+
+    // Safety check: Don't double delete
+    if (organization.deletedAt) return organization;
+
+    let updated: Organization | null = null;
+    try {
+      updated = await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: {
+          isActive: false, // Deactivate access immediately
+          deletedAt: new Date(),
+          // Optional: We could track deletedBy if schema supported it, or just rely on logs
+        },
+      });
+      // Log the deletion
+      this.logger.info(`Organization ${organization.name} (${organizationId}) soft-deleted by user ${userId}`);
+    } catch (error) {
+       this.logger.error(`Error deleting organization ${organizationId}: ${error}`);
+       return null;
+    }
     return updated;
   }
 

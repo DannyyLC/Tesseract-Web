@@ -4,10 +4,11 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { CreditsService } from '../credits/credits.service';
 import { TransactionType, SubscriptionPlan } from '@prisma/client';
-import { PLANS } from '@workflow-automation/shared-types';
+import { PLANS, getPlanLimits, SubscriptionPlan as SharedSubscriptionPlan } from '@workflow-automation/shared-types';
 import { ConfigService } from '@nestjs/config';
 import { SUBSCRIPTION_PLANS } from './billing.constants';
 import { PrismaService } from '../database/prisma.service';
+import { BillingDashboardDto } from './dto/billing-dashboard.dto'; 
 import Stripe from 'stripe';
 
 @Injectable()
@@ -249,12 +250,12 @@ export class BillingService {
 
     const plan = Object.values(SUBSCRIPTION_PLANS).find(
       (p: any) =>
-        p.priceUSD * 100 === amountPaidCents,
+        p.price.monthly * 100 === amountPaidCents,
     );
 
     if (plan) {
-      creditsToAdd = plan.credits;
-      planName = plan.name;
+      creditsToAdd = plan.limits.monthlyCredits;
+      planName = plan.type;
     } else {
       // Fallback: If amount doesn't match exact plan (e.g. proration + tax? or partial),
       // we might needing a better lookup via Price ID from lines.
@@ -480,7 +481,7 @@ export class BillingService {
 
     // 5. Determine if Upgrade or Downgrade
     const currentPlanConfig = SUBSCRIPTION_PLANS[sub.plan];
-    const isUpgrade = planConfig.priceUSD > (currentPlanConfig?.priceUSD || 0);
+    const isUpgrade = planConfig.price.monthly > (currentPlanConfig?.price.monthly || 0);
 
     if (isUpgrade) {
       // UPGRADE: Immediate change + Charge difference now
@@ -839,21 +840,57 @@ export class BillingService {
   /**
    * Get Aggregated Billing Dashboard Data
    */
-  async getBillingDashboard(organizationId: string) {
-    const [organization, subscription, creditBalance] = await this.prisma.$transaction([
-      this.prisma.organization.findUnique({
-        where: { id: organizationId },
-        select: { plan: true },
-      }),
-      this.prisma.subscription.findUnique({
-        where: { organizationId },
-      }),
-      this.prisma.creditBalance.findUnique({
-        where: { organizationId },
-      }),
-    ]);
+  async getBillingDashboard(organizationId: string): Promise<BillingDashboardDto> {
+    const [organization, subscription, creditBalance, workflowCount, apiKeyCount, userCount] =
+      await this.prisma.$transaction([
+        this.prisma.organization.findUnique({
+          where: { id: organizationId },
+          select: { plan: true },
+        }),
+        this.prisma.subscription.findUnique({
+          where: { organizationId },
+        }),
+        this.prisma.creditBalance.findUnique({
+          where: { organizationId },
+        }),
+        // Resource Counts
+        this.prisma.workflow.count({
+          where: {
+            organizationId,
+            isActive: true,
+            deletedAt: null,
+          },
+        }),
+        this.prisma.apiKey.count({
+          where: {
+            organizationId,
+            isActive: true,
+            deletedAt: null,
+          },
+        }),
+        this.prisma.user.count({
+          where: {
+            organizationId,
+            isActive: true,
+            deletedAt: null,
+          },
+        }),
+      ]);
 
     if (!organization) throw new BadRequestException('Organization not found');
+
+    // Get effective limits (including custom Enterprise overrides)
+    // Map subscription fields to EnterprisePlanConfig if needed
+    const enterpriseConfig = subscription
+      ? {
+          customMonthlyPrice: subscription.customMonthlyPrice ?? undefined,
+          customMonthlyCredits: subscription.customMonthlyCredits ?? undefined,
+          customMaxWorkflows: subscription.customMaxWorkflows ?? undefined,
+          customOverageLimit: subscription.customOverageLimit ?? undefined,
+        }
+      : undefined;
+
+    const limits = getPlanLimits(organization.plan as unknown as SharedSubscriptionPlan, enterpriseConfig);
 
     return {
       plan: organization.plan,
@@ -863,6 +900,21 @@ export class BillingService {
       credits: {
         available: creditBalance?.balance || 0,
         usedThisMonth: creditBalance?.currentMonthSpent || 0,
+        limit: limits.monthlyCredits,
+      },
+      usage: {
+        workflows: {
+          used: workflowCount,
+          limit: limits.maxWorkflows,
+        },
+        apiKeys: {
+          used: apiKeyCount,
+          limit: limits.maxApiKeys,
+        },
+        users: {
+          used: userCount,
+          limit: limits.maxUsers,
+        },
       },
     };
   }

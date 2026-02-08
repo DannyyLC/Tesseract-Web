@@ -1,39 +1,29 @@
+import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
+
 export const SUBSCRIPTION_PLANS = {
-  STARTER: {
-    name: 'STARTER',
+  [SubscriptionPlan.STARTER]: {
+    ...PLANS[SubscriptionPlan.STARTER],
     priceIdEnvKey: 'STRIPE_PRICE_STARTER',
-    credits: 150,
-    priceUSD: 25,
   },
-  GROWTH: {
-    name: 'GROWTH',
+  [SubscriptionPlan.GROWTH]: {
+    ...PLANS[SubscriptionPlan.GROWTH],
     priceIdEnvKey: 'STRIPE_PRICE_GROWTH',
-    credits: 500,
-    priceUSD: 79,
   },
-  BUSINESS: {
-    name: 'BUSINESS',
+  [SubscriptionPlan.BUSINESS]: {
+    ...PLANS[SubscriptionPlan.BUSINESS],
     priceIdEnvKey: 'STRIPE_PRICE_BUSINESS',
-    credits: 1500,
-    priceUSD: 199,
   },
-  PRO: {
-    name: 'PRO',
+  [SubscriptionPlan.PRO]: {
+    ...PLANS[SubscriptionPlan.PRO],
     priceIdEnvKey: 'STRIPE_PRICE_PRO',
-    credits: 5000,
-    priceUSD: 499,
   },
-  FREE: {
-    name: 'FREE',
-    priceIdEnvKey: 'STRIPE_PRICE_FREE', // Likely null or special handle
-    credits: 0,
-    priceUSD: 0,
+  [SubscriptionPlan.FREE]: {
+    ...PLANS[SubscriptionPlan.FREE],
+    priceIdEnvKey: 'STRIPE_PRICE_FREE',
   },
-  ENTERPRISE: {
-    name: 'ENTERPRISE',
+  [SubscriptionPlan.ENTERPRISE]: {
+    ...PLANS[SubscriptionPlan.ENTERPRISE],
     priceIdEnvKey: 'STRIPE_PRICE_ENTERPRISE',
-    credits: 10000, // Placeholder
-    priceUSD: 999, // Placeholder
   },
 };
 

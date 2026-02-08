@@ -18,22 +18,7 @@
 
 ---
 
-## 2. CreditBalance (Balance de Créditos)
-
-- `[SEND]` `balance` - Balance actual de créditos
-- `[SEND]` `currentMonthSpent` - Créditos gastados este mes
-
----
-
 ## 3. Subscription (Suscripción Activa)
-
-_Nota: Enviar dentro de OrganizationDTO si es posible_
-
-- `[SEND]` `plan`
-- `[SEND]` `status` - Estado: ACTIVE, CANCELED, PAST_DUE, INCOMPLETE
-- `[SEND]` `currentPeriodStart`
-- `[SEND]` `currentPeriodEnd`
-- `[SEND]` `cancelAtPeriodEnd`
 
 **Para planes ENTERPRISE:**
 
@@ -75,28 +60,6 @@ _Nota: Enviar dentro de OrganizationDTO si es posible_
 - `[SEND]` `stripePdfUrl`
 - `[SEND]` `paidAt`
 - `[SEND]` `dueAt`
-
----
-
-## 8. Execution (Ejecuciones de Workflows)
-
-- `[SEND]` `status`
-- `[SEND]` `startedAt`
-- `[SEND]` `finishedAt`
-- `[SEND]` `duration`
-- `[SEND]` `trigger`
-
-**Costos:**
-
-- `[SEND]` `credits`
-- `[SEND]` `error`
-- `[SEND]` `retryCount`
-
-**Relaciones:**
-
-- `[SEND]` `workflowId` (o workflow name/category)
-- `[SEND]` `userId` (o user name)
-- `[SEND]` `conversationId`
 
 ---
 
