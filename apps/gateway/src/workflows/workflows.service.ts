@@ -127,7 +127,7 @@ export class WorkflowsService {
 
     const workflows = await this.prisma.workflow.findMany({
       take: paginationAction === 'prev' ? -(take + 1) : take + 1,
-      skip: cursor && paginationAction ? 1 : 0,
+      skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
       where,
       select: {
