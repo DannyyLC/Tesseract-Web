@@ -12,8 +12,10 @@ import {
 } from '../../dto';
 import { OrganizationsService } from '../../organizations.service';
 import { DashboardUserDataDto } from '../../../users/dto';
+import { ApiBearerAuth } from '@nestjs/swagger';
 @Controller('organizations')
 @UseGuards(JwtAuthGuard)
+@ApiBearerAuth('access-token')
 export class OrganizationsController {
   constructor(
     private readonly organizationsService: OrganizationsService

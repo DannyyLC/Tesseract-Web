@@ -3,6 +3,8 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { GlobalExceptionFilter } from './common/exceptions';
 import cookieParser from 'cookie-parser';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { dirname } from 'path';
 
 async function bootstrap() {
   try {
@@ -35,9 +37,28 @@ async function bootstrap() {
       }),
     );
 
+    if (process.env.NODE_ENV !== 'production') {
+      const config = new DocumentBuilder()
+      .setTitle('Tesseract API Gateway')
+      .setDescription('API Gateway para Tesseract, gestionando usuarios, organizaciones, créditos, facturación y más.')
+      .setVersion('1.0')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Ingrese su token JWT para autenticación',
+        },
+        'access-token',
+      )
+      .build();
+      const document = SwaggerModule.createDocument(app, config);
+      SwaggerModule.setup('api/docs', app, document);
+    }
+
     const port = process.env.PORT ?? 3000;
     await app.listen(port);
-
+    console.log(__dirname)
     console.log(`Gateway corriendo en http://localhost:${port}/api`);
   } catch (error) {
     console.error('Error fatal al iniciar la aplicación:', error);

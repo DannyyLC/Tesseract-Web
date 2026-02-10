@@ -26,6 +26,22 @@ import { CreateUserDto } from '../../../users/dto';
 import { StepOneErrors, StepThreeErrors } from '../../dto/error-singup-codes.dto';
 import { User } from '@workflow-platform/database';
 import { UnauthorizedException } from '@nestjs/common';
+import { ApiOperation, ApiProperty } from '@nestjs/swagger';
+import { UtilityService } from '../../../utility/utility.service';
+import {
+  loginSwaggerDesc,
+  refreshSwaggerDesc,
+  meSwaggerDesc,
+  logoutSwaggerDesc,
+  logoutAllSwaggerDesc,
+  verify2FASwaggerDesc,
+  signupStepOneSwaggerDesc,
+  signupStepTwoSwaggerDesc,
+  signupStepThreeSwaggerDesc,
+  setup2FASwaggerDesc
+} from '../../../api_docs/controllers/auth';
+import { Verify } from 'crypto';
+import { Verify2FACodeDto } from '../../dto/verify-2fa-code.dto';
 
 /**
  * AuthController maneja todos los endpoints de autenticación
@@ -65,6 +81,10 @@ export class AuthController {
    *   401 - Cuenta inactiva o eliminada
    */
   @Post('login')
+   @ApiOperation({ 
+    summary: 'Login de usuario con email y password',
+    description: loginSwaggerDesc
+  })
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) response: Response) {
     const responseBuilder = new ApiResponseBuilder();
     try {
@@ -95,7 +115,11 @@ export class AuthController {
         responseBuilder
           .setSuccess(true)
           .setStatusCode(HttpStatusCode.Ok)
-          .setData({ user: result.user, rememberMe })
+          .setData(
+           process.env.NODE_ENV === 'production' ?
+              { user: result.user, rememberMe } :
+              { user: result.user, rememberMe, accessToken: result.accessToken, refreshToken: result.refreshToken }
+          )
           .setMessage('Login successful');
       } else if (result.status === '2fa_required') {
         // Requiere 2FA
@@ -128,6 +152,10 @@ export class AuthController {
 
   @Post('2fa/setup')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Iniciar configuración de 2FA',
+    description: setup2FASwaggerDesc
+  })
   async setup2FA(@CurrentUser() user: UserPayload, @Res() response: Response) {
     const responseBuilder = new ApiResponseBuilder();
     try {
@@ -176,6 +204,10 @@ export class AuthController {
    */
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Refrescar access token',
+    description: refreshSwaggerDesc
+  })
   async refresh(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     // Leer refreshToken desde la cookie
     const refreshToken = request.cookies?.refreshToken;
@@ -241,6 +273,10 @@ export class AuthController {
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Obtener perfil de usuario',
+    description: meSwaggerDesc
+  })
   getProfile(@CurrentUser() user: UserPayload) {
     return user;
   }
@@ -268,6 +304,10 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Cerrar sesión',
+    description: logoutSwaggerDesc
+  })
   async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     // Leer refreshToken desde la cookie
     const refreshToken = request.cookies?.refreshToken;
@@ -307,6 +347,10 @@ export class AuthController {
   @Post('logout-all')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Cerrar sesión en todos los dispositivos',
+    description: logoutAllSwaggerDesc
+  })
   async logoutAll(
     @CurrentUser() user: UserPayload,
     @Res({ passthrough: true }) response: Response,
@@ -330,15 +374,19 @@ export class AuthController {
 
   @Post('verify2facode')
   @UseGuards(TempTokenGuard)
+  @ApiOperation({
+    summary: 'Verificar código 2FA',
+    description: verify2FASwaggerDesc
+  })
   async verify2FA(
     @CurrentUser() user: UserPayload,
-    @Body('code2FA') authCode: string,
+    @Body() authCode: Verify2FACodeDto,
     @Res({ passthrough: true }) response: Response,
   ) {
     let result = null;
     const responseBuilder = new ApiResponseBuilder();
     try {
-      result = await this.authService.verify2FACode(user, authCode);
+      result = await this.authService.verify2FACode(user, authCode.code2FA);
     } catch {
       responseBuilder
         .setSuccess(false)
@@ -391,7 +439,11 @@ export class AuthController {
     response.send(responseBuilder.build());
   }
 
-  @Post('signup-step-one')
+  @Post('2fasignup-step-one')
+  @ApiOperation({
+    summary: 'Registro paso 1: enviar email de verificación',
+    description: signupStepOneSwaggerDesc
+  })
   async signupStep1(
     @Body() payload: StartVerificationFlowDto,
     @Res() response: Response,
@@ -422,7 +474,11 @@ export class AuthController {
     }
   }
 
-  @Post('signup-step-two')
+  @Post('2fasignup-step-two')
+  @ApiOperation({
+    summary: 'Registro paso 2: verificar código de email',
+    description: signupStepTwoSwaggerDesc
+  })
   async signupStep2(
     @Body() verificationCode: VerificationCodeDto,
     @Res() response: Response,
@@ -448,7 +504,11 @@ export class AuthController {
     }
   }
 
-  @Post('signup-step-three')
+  @Post('2fasignup-step-three')
+  @ApiOperation({
+    summary: 'Registro paso 3: crear usuario',
+    description: signupStepThreeSwaggerDesc
+  })
   async signupStep3(
     @Body() body: CreateUserDto,
     @Res() res: Response,

@@ -804,9 +804,9 @@ export class WorkflowsService {
           const usageForBatch: Record<string, any> = {};
           for (const [modelName, usage] of Object.entries(usageByModel)) {
             usageForBatch[modelName] = {
-              inputTokens: usage.input_tokens ?? 0,
-              outputTokens: usage.output_tokens ?? 0,
-              totalTokens: usage.total_tokens ?? 0,
+              inputTokens: (usage as { input_tokens?: number })?.input_tokens ?? 0,
+              outputTokens: (usage as { output_tokens?: number })?.output_tokens ?? 0,
+              totalTokens: (usage as { total_tokens?: number })?.total_tokens ?? 0,
             };
           }
 
@@ -1217,9 +1217,9 @@ export class WorkflowsService {
             const usageForBatch: Record<string, any> = {};
             for (const [modelName, usage] of Object.entries(usageByModel)) {
               usageForBatch[modelName] = {
-                inputTokens: usage.input_tokens ?? 0,
-                outputTokens: usage.output_tokens ?? 0,
-                totalTokens: usage.total_tokens ?? 0,
+                inputTokens: (usage as { input_tokens?: number })?.input_tokens ?? 0,
+                outputTokens: (usage as { output_tokens?: number })?.output_tokens ?? 0,
+                totalTokens: (usage as { total_tokens?: number })?.total_tokens ?? 0,
               };
             }
             try {
@@ -1373,7 +1373,7 @@ export class WorkflowsService {
     const agentToolInstances: Record<string, Record<string, any>> = {};
 
     for (const [agentName, agentConfig] of Object.entries(agentsConfig)) {
-      const agentTools = agentConfig.tools ?? [];
+      const agentTools = (agentConfig as { tools?: any[] }).tools ?? [];
       const filtered: Record<string, any> = {};
 
       for (const tool of agentTools) {
@@ -1408,7 +1408,7 @@ export class WorkflowsService {
     const cleanedAgentsConfig: Record<string, any> = {};
     for (const [agentName, agentConfig] of Object.entries(agentsConfig)) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { tools: _tools, ...configWithoutTools } = agentConfig;
+      const { tools: _tools, ...configWithoutTools } = agentConfig as any;
       cleanedAgentsConfig[agentName] = configWithoutTools;
     }
 
