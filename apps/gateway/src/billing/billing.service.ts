@@ -845,7 +845,7 @@ export class BillingService {
       await this.prisma.$transaction([
         this.prisma.organization.findUnique({
           where: { id: organizationId },
-          select: { plan: true },
+          select: { plan: true, allowOverages: true },
         }),
         this.prisma.subscription.findUnique({
           where: { organizationId },
@@ -897,6 +897,7 @@ export class BillingService {
       status: subscription?.status || 'NO_SUBSCRIPTION',
       nextBillingDate: subscription?.currentPeriodEnd || null,
       cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd || false,
+      allowOverages: organization.allowOverages,
       credits: {
         available: creditBalance?.balance || 0,
         usedThisMonth: creditBalance?.currentMonthSpent || 0,
