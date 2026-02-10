@@ -1,47 +1,43 @@
 import {
-  Controller,
-  Post,
-  Get,
   Body,
-  UseGuards,
+  Controller,
+  Get,
   HttpCode,
   HttpStatus,
-  Res,
+  Post,
   Req,
-  Query,
+  Res,
+  UnauthorizedException,
+  UseGuards
 } from '@nestjs/common';
-import { Request, Response } from 'express';
-import { AuthService } from '../../auth.service';
-import { LoginDto } from '../../dto/login.dto';
-import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
-import { CurrentUser } from '../../decorators/current-user.decorator';
-import { UserPayload } from '../../../common/types/jwt-payload.type';
-import { TempTokenGuard } from '../../guards/temp-token.guard';
+import { ApiOperation } from '@nestjs/swagger';
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { HttpStatusCode } from 'axios';
-import { StartVerificationFlowDto } from '../../../auth/dto/start-verification-flow.dto';
-import { VerificationCodeDto } from '../../../auth/dto/verification-code.dto';
+import { Request, Response } from 'express';
 import * as nodemailer from 'nodemailer';
-import { CreateUserDto } from '../../../users/dto';
-import { StepOneErrors, StepThreeErrors } from '../../dto/error-singup-codes.dto';
-import { User } from '@workflow-platform/database';
-import { UnauthorizedException } from '@nestjs/common';
-import { ApiOperation, ApiProperty } from '@nestjs/swagger';
-import { UtilityService } from '../../../utility/utility.service';
 import {
   loginSwaggerDesc,
-  refreshSwaggerDesc,
-  meSwaggerDesc,
-  logoutSwaggerDesc,
   logoutAllSwaggerDesc,
-  verify2FASwaggerDesc,
+  logoutSwaggerDesc,
+  meSwaggerDesc,
+  refreshSwaggerDesc,
+  setup2FASwaggerDesc,
   signupStepOneSwaggerDesc,
-  signupStepTwoSwaggerDesc,
   signupStepThreeSwaggerDesc,
-  setup2FASwaggerDesc
+  signupStepTwoSwaggerDesc,
+  verify2FASwaggerDesc
 } from '../../../api_docs/controllers/auth';
-import { Verify } from 'crypto';
+import { StartVerificationFlowDto } from '../../../auth/dto/start-verification-flow.dto';
+import { VerificationCodeDto } from '../../../auth/dto/verification-code.dto';
+import { UserPayload } from '../../../common/types/jwt-payload.type';
+import { CreateUserDto } from '../../../users/dto';
+import { AuthService } from '../../auth.service';
+import { CurrentUser } from '../../decorators/current-user.decorator';
+import { StepOneErrors, StepThreeErrors } from '../../dto/error-singup-codes.dto';
+import { LoginDto } from '../../dto/login.dto';
 import { Verify2FACodeDto } from '../../dto/verify-2fa-code.dto';
+import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
+import { TempTokenGuard } from '../../guards/temp-token.guard';
 
 /**
  * AuthController maneja todos los endpoints de autenticación
