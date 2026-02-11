@@ -143,11 +143,7 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       overageLimit: 0,
       allowOverages: false,
     },
-    features: [
-      '1 Usuario',
-      '3 Workflows activos',
-      'Sin créditos mensuales',
-    ],
+    features: [],
     popular: false,
   },
 
@@ -168,9 +164,6 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       allowOverages: true,
     },
     features: [
-      '10 Usuarios',
-      '10 Workflows activos',
-      '150 Créditos mensuales',
       'Soporte estándar por email',
     ],
     popular: false,
@@ -193,9 +186,6 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       allowOverages: true,
     },
     features: [
-      '25 Usuarios',
-      '25 Workflows activos',
-      '500 Créditos mensuales',
       'Soporte prioritario 24h',
     ],
     highlightFeature: '+1 Workflow de regalo',
@@ -219,9 +209,6 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       allowOverages: true,
     },
     features: [
-      '50 Usuarios',
-      '100 Workflows activos',
-      '1500 Créditos mensuales',
       'Soporte pioritario 12h',
     ],
     highlightFeature: '1 hrs Consultoría',
@@ -245,9 +232,6 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
       allowOverages: true,
     },
     features: [
-      '100 Usuarios',
-      '250 Workflows activos',
-      '5000 Créditos mensuales',
       'Account Manager',
     ],
     highlightFeature: '3 hrs Consultoría',

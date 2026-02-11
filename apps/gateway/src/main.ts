@@ -4,7 +4,6 @@ import { ValidationPipe } from '@nestjs/common';
 import { GlobalExceptionFilter } from './common/exceptions';
 import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { dirname } from 'path';
 
 async function bootstrap() {
   try {
@@ -58,7 +57,6 @@ async function bootstrap() {
 
     const port = process.env.PORT ?? 3000;
     await app.listen(port);
-    console.log(__dirname)
     console.log(`Gateway corriendo en http://localhost:${port}/api`);
   } catch (error) {
     console.error('Error fatal al iniciar la aplicación:', error);
