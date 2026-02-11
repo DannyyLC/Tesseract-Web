@@ -150,7 +150,7 @@ export class BillingController {
       where: { organizationId },
     });
 
-    return subscription || { status: 'NO_SUBSCRIPTION', plan: 'FREE' };
+    return subscription || { status: 'ACTIVE', plan: 'FREE', currentPeriodStart: null, currentPeriodEnd: null };
   }
 
   @Put('subscription')

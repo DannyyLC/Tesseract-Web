@@ -682,9 +682,9 @@ export class AuthService {
             data: {
               name: userVerificationRow.organizationName,
               slug: slug,
-              plan: SubscriptionPlan.STARTER,
-              isActive: true, // Asumimos default true
-              allowOverages: false, // Default seguro
+              plan: SubscriptionPlan.FREE,
+              isActive: true, 
+              allowOverages: false, 
             },
           });
 
@@ -706,7 +706,7 @@ export class AuthService {
               email: userVerificationRow.email,
               name: userVerificationRow.userName,
               password: hashedPassword,
-              role: 'owner', // El primer usuario es owner
+              role: 'owner', 
               organizationId: newOrganization.id,
               isActive: true,
               emailVerified: userVerificationRow.isEmailVerified,

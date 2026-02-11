@@ -697,7 +697,7 @@ model TenantTool {
   // Workflows que usan esta tool
   workflows Workflow[] @relation("WorkflowToTenantTool")
 
-  @@unique([organizationId, displayName]) // Un org puede tener múltiples conexiones de la misma tool con nombres diferentes
+  @@unique([organizationId, displayName])
   @@index([organizationId])
   @@index([toolCatalogId])
   @@index([isConnected])
@@ -1145,20 +1145,22 @@ model UserVerification {
 }
 
 model Notification {
-  id  String @id @default(uuid())
-  code String @unique
-  users UserNotification[]
-  createdAt DateTime @default(now())
+  id        String             @id @default(uuid())
+  code      String             @unique
+  users     UserNotification[]
+  createdAt DateTime           @default(now())
+
   @@map("notifications")
 }
 
 model UserNotification {
-  userId String
+  userId         String
   notificationId String
-  isRead Boolean @default(false)
-  createdAt DateTime @default(now())
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
   @@id([userId, notificationId])
   @@map("user_notifications")
 }

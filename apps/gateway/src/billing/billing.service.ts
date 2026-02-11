@@ -894,7 +894,7 @@ export class BillingService {
 
     return {
       plan: organization.plan,
-      status: subscription?.status || 'NO_SUBSCRIPTION',
+      status: subscription?.status || 'ACTIVE',
       nextBillingDate: subscription?.currentPeriodEnd || null,
       cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd || false,
       allowOverages: organization.allowOverages,
