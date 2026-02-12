@@ -728,9 +728,6 @@ export class OrganizationsService {
     });
 
     if (!subscription) {
-      this.logger.error(
-        `getDashboardData method >> No subscription found for organization ${organizationId}`,
-      );
       return null;
     }
     return subscription;
