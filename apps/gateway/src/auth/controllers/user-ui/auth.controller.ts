@@ -281,7 +281,7 @@ export class AuthController {
    * POST /auth/logout
    * Cierra sesión invalidando el refresh token y limpiando las cookies
    *
-   * 🔐 Lee el refreshToken desde la cookie y la elimina
+   * Lee el refreshToken desde la cookie y la elimina
    *
    * Headers: (ninguno requerido, las cookies se envían automáticamente)
    * Body: {} (vacío)

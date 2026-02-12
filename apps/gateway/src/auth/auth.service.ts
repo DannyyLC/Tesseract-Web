@@ -267,7 +267,9 @@ export class AuthService {
     organizationName: string,
     plan: string,
     rememberMe?: boolean,
+    prismaClient?: any, // Optional transaction client
   ) {
+    const prisma = prismaClient || this.prisma;
     // 1. Crear payload para el JWT
     const payload: UserPayload = {
       sub: userId,
@@ -307,7 +309,7 @@ export class AuthService {
     const expiresAtDate = new Date();
     expiresAtDate.setDate(expiresAtDate.getDate() + (rememberMe ? 30 : 7));
 
-    await this.prisma.refreshToken.create({
+    await prisma.refreshToken.create({
       data: {
         tokenHash: refreshTokenHash,
         familyId,
@@ -728,6 +730,7 @@ export class AuthService {
             newOrganization.name,
             newOrganization.plan,
             false, // rememberMe default false
+            tx // Pass transaction client
           );
 
           // 5. Update lastLogin
