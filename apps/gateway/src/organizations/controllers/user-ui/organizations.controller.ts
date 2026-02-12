@@ -2,10 +2,8 @@ import {
   Body,
   Controller,
   Get,
-  Param,
   Patch,
   Post,
-  Query,
   Res,
   UseGuards,
   Delete,
@@ -27,7 +25,6 @@ import { OrganizationsService } from '../../organizations.service';
 import { DashboardUserDataDto } from '../../../users/dto';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import {
-  dashboardSwaggerDesc,
   updateOrganizationSwaggerDesc,
   deleteOrganizationSwaggerDesc,
   inviteUserSwaggerDesc,
