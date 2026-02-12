@@ -148,6 +148,19 @@ export class BillingController {
     
     const subscription = await this.prisma.subscription.findUnique({
       where: { organizationId },
+      select: {
+        plan: true,
+        status: true,
+        currentPeriodStart: true,
+        currentPeriodEnd: true,
+        cancelAtPeriodEnd: true,
+        pendingPlanChange: true,
+        planChangeRequestedAt: true,
+        customMonthlyPrice: true,
+        customMonthlyCredits: true,
+        customMaxWorkflows: true,
+        customFeatures: true,
+      }
     });
 
     return subscription || { status: 'ACTIVE', plan: 'FREE', currentPeriodStart: null, currentPeriodEnd: null };
@@ -228,11 +241,17 @@ export class BillingController {
   @UseGuards(JwtAuthGuard)
   async toggleOverages(
     @CurrentUser() user: UserPayload,
-    @Body() body: { allowOverages: boolean },
+    @Body() body: { allowOverages: boolean; overageLimit?: number },
     @Res() res: Response
   ): Promise<Response> {
     const apiResponse = new ApiResponseBuilder<Organization>();
-    const result = await this.organizationsService.toggleOverages(user.organizationId, body.allowOverages);
+    const result = await this.organizationsService.toggleOverages(user.organizationId, body.allowOverages, body.overageLimit);
+    
+    if (!result) {
+        apiResponse.setStatusCode(400).setMessage('Failed to update overages setting');
+        return res.status(400).json(apiResponse.build());
+    }
+
     apiResponse.setStatusCode(200).setMessage('Overages setting updated successfully').setData(result);
     return res.status(200).json(apiResponse.build());
   }

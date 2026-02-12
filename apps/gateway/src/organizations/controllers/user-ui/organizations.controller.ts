@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Res, UseGuards, Delete } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Res, UseGuards, Delete } from '@nestjs/common';
 import { ApiResponse, ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { Organization } from '@workflow-platform/database';
 import { Response } from 'express';
@@ -13,6 +13,7 @@ import {
 import { OrganizationsService } from '../../organizations.service';
 import { DashboardUserDataDto } from '../../../users/dto';
 import { ApiBearerAuth } from '@nestjs/swagger';
+
 @Controller('organizations')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')
@@ -21,13 +22,13 @@ export class OrganizationsController {
     private readonly organizationsService: OrganizationsService
   ) {}
 
-  @Get('dashboard/:id')
+  @Get('dashboard')
   async getDashboardData(
     @Res() res: Response,
-    @Param('id') id: string,
+    @CurrentUser() user: UserPayload,
   ): Promise<Response<ApiResponseBuilder<DashboardOrganizationDto>>> {
     const apiResponse = new ApiResponseBuilder<DashboardOrganizationDto>();
-    const result = await this.organizationsService.getDashboardData(id);
+    const result = await this.organizationsService.getDashboardData(user.organizationId);
 
     if (!result) {
       apiResponse
@@ -45,11 +46,11 @@ export class OrganizationsController {
 
   @Patch('update')
   async updateOrganization(
-    @Query('id') id: string,
+    @CurrentUser() user: UserPayload,
     @Body() body: UpdateOrganizationDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<Organization>>> {
-    const result = await this.organizationsService.update(id, body);
+    const result = await this.organizationsService.update(user.organizationId, body);
     const apiResponse = new ApiResponseBuilder<Organization>();
     if (!result) {
       apiResponse.setStatusCode(400).setMessage('Organization could not be updated');

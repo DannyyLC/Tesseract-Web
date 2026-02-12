@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
+import { PLANS, SubscriptionPlan, getPlanLimits, SubscriptionPlan as SharedSubscriptionPlan } from '@workflow-automation/shared-types';
 import { Organization } from '@workflow-platform/database';
 import { randomBytes } from 'crypto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
@@ -430,45 +430,77 @@ export class OrganizationsService {
   }
 
   /**
-   * Toggle Allow Overages Logic
+   * Toggle Overages and Set Limit
    */
-  async toggleOverages(organizationId: string, allow: boolean) {
+  async toggleOverages(organizationId: string, allowOverages: boolean, limit?: number): Promise<Organization | null> {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
       include: { subscription: true }
     });
 
-    if (!organization) throw new NotFoundException('Organization not found');
+    if (!organization) {
+      this.logger.warn(`Organization not found ID: ${organizationId}`);
+      return null;
+    }
 
-    if (allow) {
-       // Validate RULES before activating
-       
-       // 1. Plan cannot be FREE
-       if (organization.plan === 'FREE') {
-           throw new BadRequestException('Cannot enable overages on FREE plan');
-       }
+    // 1. Validate if Plan allows Overages (e.g. FREE plan doesn't)
+    // We reuse getPlanLimits to check monthlyCredits
+    // Cast to SharedSubscriptionPlan to match expected type
+    const limits = getPlanLimits(organization.plan as unknown as SharedSubscriptionPlan);
+    
+    if (allowOverages && limits.monthlyCredits === 0) {
+        throw new BadRequestException('El plan actual no permite habilitar sobregiros (0 créditos mensuales).');
+    }
 
-       // 2. Subscription must be valid (not canceled, not past_due?)
-       // User said: "si esta cancelada la suscripcion por ejemplol o si esta en free no permita activarla"
+    // 2. Validate user logic: "si esta cancelada la suscripcion... no permita activarla"
+    if (allowOverages) {
        if (!organization.subscription) {
-           throw new BadRequestException('No active subscription found');
+           throw new BadRequestException('No se pueden habilitar overages sin una suscripción activa');
        }
 
        if (organization.subscription.status === 'CANCELED' || organization.subscription.status === 'PAST_DUE') {
-           throw new BadRequestException('Cannot enable overages with a CANCELED or PAST_DUE subscription');
+           throw new BadRequestException('No se pueden habilitar overages con una suscripción CANCELADA o VENCIDA');
        }
 
-       // Checks if it is set to cancel at period end? 
-       // Often if it cancels at period end, we might want to prevent overages too to reduce risk.
        if (organization.subscription.cancelAtPeriodEnd) {
-           throw new BadRequestException('Cannot enable overages when subscription is scheduled for cancellation');
+           throw new BadRequestException('No se pueden habilitar overages cuando la suscripción está programada para cancelarse');
        }
     }
 
-    return this.prisma.organization.update({
-      where: { id: organizationId },
-      data: { allowOverages: allow }
-    });
+    // 3. Validate Limit Cap
+    // Limit can't be greater than monthly credits
+    let finalLimit = limit;
+    
+    if (allowOverages) {
+        if (limit !== undefined && limit !== null) {
+            if (limit > limits.monthlyCredits) {
+                throw new BadRequestException(`El límite de sobregiro (${limit}) no puede exceder los créditos mensuales del plan (${limits.monthlyCredits}).`);
+            }
+            finalLimit = limit;
+        } else if (organization.overageLimit === null) {
+            // Default to max if enabling for first time without specific limit
+            finalLimit = limits.monthlyCredits;
+        }
+    } else {
+        finalLimit = 0; // Reset logic if disabled
+    }
+
+    let updated: Organization | null = null;
+    try {
+      updated = await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: {
+          allowOverages,
+          overageLimit: finalLimit
+        },
+      });
+    } catch (error) {
+      this.logger.error(`Error al actualizar overages de organización "${organizationId}": ${error}`);
+      return null;
+    }
+
+    this.logger.info(`Overages ${allowOverages ? 'enabled' : 'disabled'} for ${organization.name} (Limit: ${finalLimit})`);
+    return updated;
   }
 
   // ============================================
@@ -716,7 +748,6 @@ export class OrganizationsService {
     const subscription = await this.prisma.subscription.findFirst({
       where: { organizationId },
       select: {
-        id: true,
         plan: true,
         status: true,
         currentPeriodStart: true,
