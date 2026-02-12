@@ -1,12 +1,12 @@
-export const signupStepTwoSwaggerDesc = `### Registro - Paso 2: Verificar Código de Email
-Este endpoint verifica el código de verificación enviado al email del usuario durante el registro.
+export const signupStepTwoSwaggerDesc = `### Signup - Step 2: Verify Email Code
+This endpoint verifies the verification code sent to the user's email during signup.
 
-#### Reglas de negocio:
-1. El campo **code** es obligatorio en el body.
-2. El código debe ser válido y no estar expirado.
+#### Business rules:
+1. The **code** field is required in the body.
+2. The code must be valid and not expired.
 
-> **Nota:** Este es el segundo paso del registro de usuario.
+> **Note:** This is the second step of user signup.
 
-#### Respuestas
-- **200 OK**: Email verificado exitosamente.
-- **400 Bad Request**: Código inválido o expirado.`
+#### Responses
+- **200 OK**: Email successfully verified.
+- **400 Bad Request**: Invalid or expired code.`

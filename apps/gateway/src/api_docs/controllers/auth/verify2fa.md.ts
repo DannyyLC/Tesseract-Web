@@ -1,13 +1,13 @@
-export const verify2FASwaggerDesc = `### Verificar Código 2FA
-Este endpoint permite verificar el código de autenticación de dos factores (2FA) enviado por el usuario.
+export const verify2FASwaggerDesc = `### Verify 2FA Code
+This endpoint allows you to verify the two-factor authentication (2FA) code sent by the user.
 
-#### Reglas de negocio:
-1. El usuario debe tener un flujo de 2FA iniciado (token temporal en la cookie).
-2. El campo **code2FA** es obligatorio en el body.
+#### Business rules:
+1. The user must have an active 2FA flow.
+2. The **code2FA** field is required in the body.
 
-> **Nota:** Si el código es válido, se establecen los tokens de sesión.
+> **Note:** If the code is valid, session tokens are set. This step is necessary in the login flow when 2FA is enabled.
 
-#### Respuestas
-- **200 OK**: 2FA verificado exitosamente.
-- **401 Unauthorized**: Código 2FA inválido o expirado.
-- **500 Internal Server Error**: Error verificando el código.`
+#### Responses
+- **200 OK**: 2FA successfully verified.
+- **401 Unauthorized**: Invalid or expired 2FA code.
+- **500 Internal Server Error**: Error verifying the code.`

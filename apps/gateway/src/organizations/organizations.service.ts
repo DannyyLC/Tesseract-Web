@@ -4,22 +4,20 @@ import { Organization } from '@workflow-platform/database';
 import { randomBytes } from 'crypto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
-import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../database/prisma.service';
 import { EmailService } from '../notifications/email/email.service';
 import { DashboardUserDataDto } from '../users/dto';
 import { InviteUserErrorsDto } from '../users/dto/invite-user-errors.dto';
+import { UtilityService } from '../utility/utility.service';
 import {
   CreateOrganizationDto,
   DashboardOrganizationDto,
+  DashboardSubscriptionDto,
   UpdateCustomLimitsDto,
   UpdateOrganizationDto,
   UpdateOverageSettingsDto,
-  UpdateSettingsDto,
+  UpdateSettingsDto
 } from './dto';
-import { DashboardSubscriptionDto } from './dto/dashboard-subscription.dto';
-import { UtilityService } from '../utility/utility.service';
-import { notificationsEnum } from '@/events/app-notifications/notifications.enum';
 
 
 /**

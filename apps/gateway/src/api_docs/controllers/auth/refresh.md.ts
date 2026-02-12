@@ -1,12 +1,12 @@
 export const refreshSwaggerDesc = `### Refresh Token
-Este endpoint permite refrescar el access token usando el refresh token almacenado en la cookie.
+This endpoint allows you to refresh the access token using the refresh token stored in the cookie.
 
-#### Reglas de negocio:
-1. El refresh token debe estar presente en la cookie.
-2. No se requiere body en la petición.
+#### Business rules:
+1. The refresh token must be present in the cookie.
+2. No body is required in the request.
 
-> **Nota:** El refresh token antiguo se invalida (token rotation).
+> **Note:** The old refresh token is invalidated (token rotation).
 
-#### Respuestas
-- **200 OK**: Tokens actualizados correctamente.
-- **401 Unauthorized**: Refresh token inválido o no encontrado.`
+#### Responses
+- **200 OK**: Tokens updated successfully.
+- **401 Unauthorized**: Invalid or missing refresh token.`

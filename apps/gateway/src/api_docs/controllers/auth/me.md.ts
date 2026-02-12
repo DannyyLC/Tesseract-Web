@@ -1,12 +1,12 @@
-export const meSwaggerDesc = `### Obtener Perfil de Usuario
-Este endpoint retorna la información del usuario autenticado.
+export const meSwaggerDesc = `### Get User Profile
+This endpoint returns the information of the authenticated user.
 
-#### Reglas de negocio:
-1. El usuario debe estar autenticado (token válido en la cookie).
-2. No se requiere body ni parámetros.
+#### Business rules:
+1. The user must be authenticated (valid token in the cookie).
+2. No body or parameters are required.
 
-> **Nota:** El access token se lee automáticamente desde la cookie.
+> **Note:** The access token is automatically read from the cookie.
 
-#### Respuestas
-- **200 OK**: Información del usuario autenticado.
-- **401 Unauthorized**: Token inválido o expirado.`
+#### Responses
+- **200 OK**: Authenticated user information.
+- **401 Unauthorized**: Invalid or expired token.`

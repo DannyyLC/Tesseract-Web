@@ -1,12 +1,12 @@
-export const setup2FASwaggerDesc = `### Configuración de 2FA
-Este endpoint inicia el proceso de configuración de autenticación de dos factores (2FA) para el usuario autenticado.
+export const setup2FASwaggerDesc = `### 2FA Setup
+This endpoint starts the two-factor authentication (2FA) setup process for the authenticated user.
 
-#### Reglas de negocio:
-1. El usuario debe estar autenticado (token válido).
-2. No se requiere body en la petición.
+#### Business rules:
+1. The user must be authenticated (valid token).
+2. No body is required in the request.
 
-> **Nota:** Devuelve los datos necesarios para configurar 2FA en una app de autenticación.
+> **Note:** Returns the necessary data to set up 2FA in an authenticator app.
 
-#### Respuestas
-- **200 OK**: Proceso de configuración de 2FA iniciado correctamente.
-- **500 Internal Server Error**: Error iniciando la configuración de 2FA.`
+#### Responses
+- **200 OK**: 2FA setup process started successfully and returns the QR code to link with an authenticator app.
+- **500 Internal Server Error**: Error starting the 2FA setup.`
