@@ -29,6 +29,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.7",
     "@nestjs/swagger": "^11.2.3",
+    "@nestjs/throttler": "^6.5.0",
     "@workflow-automation/shared-types": "*",
     "@workflow-platform/database": "*",
     "axios": "^1.13.2",

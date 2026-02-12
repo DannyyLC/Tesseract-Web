@@ -11,6 +11,7 @@ import {
   UseGuards
 } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { HttpStatusCode } from 'axios';
 import { Request, Response } from 'express';
@@ -77,6 +78,7 @@ export class AuthController {
    *   401 - Cuenta inactiva o eliminada
    */
   @Post('login')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiOperation({ 
    summary: 'User login with email and password',
     description: loginSwaggerDesc
@@ -146,7 +148,9 @@ export class AuthController {
     }
   }
 
+
   @Post('2fa/setup')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Start 2FA setup',
@@ -362,13 +366,8 @@ export class AuthController {
     return { message: 'Sesión cerrada en todos los dispositivos' };
   }
 
-  //   @Post('2fa/setup')
-  // @UseGuards(TempTokenGuard)
-  // async setup2FA(@CurrentUser() user : UserPayload) {
-  //   return this.authService.setup2FA(user.sub);
-  // }
-
   @Post('verify2facode')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(TempTokenGuard)
   @ApiOperation({
     summary: 'Verify 2FA code',
@@ -436,6 +435,7 @@ export class AuthController {
   }
 
   @Post('2fasignup-step-one')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({
     summary: 'Signup step 1: send verification email',
     description: signupStepOneSwaggerDesc
@@ -471,6 +471,7 @@ export class AuthController {
   }
 
   @Post('2fasignup-step-two')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({
     summary: 'Signup step 2: verify email code',
     description: signupStepTwoSwaggerDesc
@@ -501,6 +502,7 @@ export class AuthController {
   }
 
   @Post('2fasignup-step-three')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({
     summary: 'Signup step 3: create user',
     description: signupStepThreeSwaggerDesc

@@ -1,5 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { AuthModule } from './auth/auth.module';
@@ -42,6 +44,10 @@ import { UtilityModule } from './utility/utility.module';
         new winston.transports.Console(),
       ],
     }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 10,
+    }]),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [
@@ -68,7 +74,13 @@ import { UtilityModule } from './utility/utility.module';
     UtilityModule,
   ],
   controllers: [],
-  providers: [CronJobsService],
+  providers: [
+    CronJobsService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
   exports: [WinstonModule],
 })
 export class AppModule {}
