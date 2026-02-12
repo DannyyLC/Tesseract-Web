@@ -1,12 +1,12 @@
 export const logoutSwaggerDesc = `### Logout
-Este endpoint cierra la sesión del usuario, invalida el refresh token y limpia las cookies de autenticación.
+This endpoint logs out the user, invalidates the refresh token, and clears authentication cookies.
 
-#### Reglas de negocio:
-1. El refresh token debe estar presente en la cookie.
-2. No se requiere body en la petición.
+#### Business rules:
+1. The refresh token must be present in the cookie.
+2. No body is required in the request.
 
-> **Nota:** Solo invalida el refresh token específico de esta sesión.
+> **Note:** Only invalidates the refresh token specific to this session.
 
-#### Respuestas
-- **200 OK**: Sesión cerrada exitosamente.
-- **401 Unauthorized**: Token inválido o expirado.`
+#### Responses
+- **200 OK**: Session closed successfully.
+- **401 Unauthorized**: Invalid or expired token.`

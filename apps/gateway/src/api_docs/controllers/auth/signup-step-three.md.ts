@@ -1,12 +1,12 @@
-export const signupStepThreeSwaggerDesc = `### Registro - Paso 3: Crear Usuario
-Este endpoint completa el registro creando el usuario en el sistema.
+export const signupStepThreeSwaggerDesc = `### Signup - Step 3: Create User
+This endpoint completes the signup by creating the user in the system.
 
-#### Reglas de negocio:
-1. El body debe contener los datos requeridos para el usuario (nombre, email, password, etc.).
-2. El email debe haber sido verificado previamente.
+#### Business rules:
+1. The body must contain the required user data (name, email, password, etc.).
+2. The email must have been previously verified.
 
-> **Nota:** Este es el paso final del registro de usuario.
+> **Note:** This is the final step of user signup.
 
-#### Respuestas
-- **201 Created**: Usuario registrado exitosamente.
-- **400 Bad Request**: Error en el registro o datos inválidos.`
+#### Responses
+- **201 Created**: User successfully registered.
+- **400 Bad Request**: Registration error or invalid data.`

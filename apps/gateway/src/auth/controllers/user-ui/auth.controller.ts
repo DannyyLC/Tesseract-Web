@@ -77,8 +77,8 @@ export class AuthController {
    *   401 - Cuenta inactiva o eliminada
    */
   @Post('login')
-   @ApiOperation({ 
-    summary: 'Login de usuario con email y password',
+  @ApiOperation({ 
+   summary: 'User login with email and password',
     description: loginSwaggerDesc
   })
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) response: Response) {
@@ -149,7 +149,7 @@ export class AuthController {
   @Post('2fa/setup')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
-    summary: 'Iniciar configuración de 2FA',
+    summary: 'Start 2FA setup',
     description: setup2FASwaggerDesc
   })
   async setup2FA(@CurrentUser() user: UserPayload, @Res() response: Response) {
@@ -201,7 +201,7 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Refrescar access token',
+    summary: 'Refresh access token',
     description: refreshSwaggerDesc
   })
   async refresh(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
@@ -270,7 +270,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
-    summary: 'Obtener perfil de usuario',
+    summary: 'Get user profile',
     description: meSwaggerDesc
   })
   getProfile(@CurrentUser() user: UserPayload) {
@@ -301,7 +301,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Cerrar sesión',
+    summary: 'Logout',
     description: logoutSwaggerDesc
   })
   async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
@@ -344,7 +344,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Cerrar sesión en todos los dispositivos',
+    summary: 'Logout from all devices',
     description: logoutAllSwaggerDesc
   })
   async logoutAll(
@@ -371,7 +371,7 @@ export class AuthController {
   @Post('verify2facode')
   @UseGuards(TempTokenGuard)
   @ApiOperation({
-    summary: 'Verificar código 2FA',
+    summary: 'Verify 2FA code',
     description: verify2FASwaggerDesc
   })
   async verify2FA(
@@ -437,7 +437,7 @@ export class AuthController {
 
   @Post('2fasignup-step-one')
   @ApiOperation({
-    summary: 'Registro paso 1: enviar email de verificación',
+    summary: 'Signup step 1: send verification email',
     description: signupStepOneSwaggerDesc
   })
   async signupStep1(
@@ -472,7 +472,7 @@ export class AuthController {
 
   @Post('2fasignup-step-two')
   @ApiOperation({
-    summary: 'Registro paso 2: verificar código de email',
+    summary: 'Signup step 2: verify email code',
     description: signupStepTwoSwaggerDesc
   })
   async signupStep2(
@@ -502,7 +502,7 @@ export class AuthController {
 
   @Post('2fasignup-step-three')
   @ApiOperation({
-    summary: 'Registro paso 3: crear usuario',
+    summary: 'Signup step 3: create user',
     description: signupStepThreeSwaggerDesc
   })
   async signupStep3(
@@ -512,8 +512,8 @@ export class AuthController {
     const apiResponse = new ApiResponseBuilder<any | keyof typeof StepThreeErrors>();
     const result = await this.authService.signupStepThree(body);
     if (typeof result === 'string') {
-      apiResponse.setStatusCode(400).setMessage('User registration failed').setErrors([result]);
-      return res.status(400).json(apiResponse.build());
+      apiResponse.setStatusCode(HttpStatusCode.BadRequest).setMessage('User registration failed').setErrors([result]);
+      return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     } else {
       // Determinar si estamos en producción
       const isProduction = process.env.NODE_ENV === 'production';
@@ -536,10 +536,10 @@ export class AuthController {
       });
 
       apiResponse
-        .setStatusCode(201)
+        .setStatusCode(HttpStatusCode.Created)
         .setMessage('User registered successfully')
         .setData({ user: result.user, rememberMe: false });
-      return res.status(201).json(apiResponse.build());
+      return res.status(HttpStatusCode.Created).json(apiResponse.build());
     }
   }
 }

@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Patch, Post, Res, UseGuards, Delete } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Res,
+  UseGuards,
+  Delete,
+} from '@nestjs/common';
 import { ApiResponse, ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { Organization } from '@workflow-platform/database';
 import { Response } from 'express';
@@ -9,18 +20,26 @@ import { InviteUserErrorsDto } from '../../../users/dto/invite-user-errors.dto';
 import {
   DashboardOrganizationDto,
   UpdateOrganizationDto,
+  EmailDto,
+  AcceptInvitationDto
 } from '../../dto';
 import { OrganizationsService } from '../../organizations.service';
 import { DashboardUserDataDto } from '../../../users/dto';
-import { ApiBearerAuth } from '@nestjs/swagger';
-
+import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import {
+  dashboardSwaggerDesc,
+  updateOrganizationSwaggerDesc,
+  deleteOrganizationSwaggerDesc,
+  inviteUserSwaggerDesc,
+  resendInvitationSwaggerDesc,
+  cancelInvitationSwaggerDesc,
+  acceptInvitationSwaggerDesc,
+} from '../../../api_docs/controllers/organization';
 @Controller('organizations')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')
 export class OrganizationsController {
-  constructor(
-    private readonly organizationsService: OrganizationsService
-  ) {}
+  constructor(private readonly organizationsService: OrganizationsService) {}
 
   @Get('dashboard')
   async getDashboardData(
@@ -45,6 +64,7 @@ export class OrganizationsController {
   }
 
   @Patch('update')
+  @ApiOperation({ summary: 'Update Organization', description: updateOrganizationSwaggerDesc })
   async updateOrganization(
     @CurrentUser() user: UserPayload,
     @Body() body: UpdateOrganizationDto,
@@ -65,9 +85,10 @@ export class OrganizationsController {
   }
 
   @Delete('delete')
+  @ApiOperation({ summary: 'Delete Organization', description: deleteOrganizationSwaggerDesc })
   async deleteOrganization(
     @CurrentUser() user: UserPayload,
-    @Res() res: Response
+    @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<Organization>>> {
     const result = await this.organizationsService.softDelete(user.organizationId, user.sub);
     const apiResponse = new ApiResponseBuilder<Organization>();
@@ -84,9 +105,10 @@ export class OrganizationsController {
   }
 
   @Post('invite-user')
+  @ApiOperation({ summary: 'Invite User to Organization', description: inviteUserSwaggerDesc })
   async inviteUser(
     @CurrentUser() user: UserPayload,
-    @Body() body: { email: string },
+    @Body() body: EmailDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<boolean | keyof typeof InviteUserErrorsDto>>> {
     const apiResponse = new ApiResponseBuilder<boolean | keyof typeof InviteUserErrorsDto>();
@@ -101,13 +123,17 @@ export class OrganizationsController {
   }
 
   @Post('resend-invitation')
+  @ApiOperation({ summary: 'Resend Invitation', description: resendInvitationSwaggerDesc })
   async resendInvitation(
     @CurrentUser() user: UserPayload,
-    @Body() body: { email: string },
+    @Body() body: EmailDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
-    const result = await this.organizationsService.resendInvitation(body.email,user.organizationId);
+    const result = await this.organizationsService.resendInvitation(
+      body.email,
+      user.organizationId,
+    );
     if (result) {
       apiResponse.setStatusCode(200).setMessage('Invitation resent successfully').setData(result);
       return res.status(200).json(apiResponse.build());
@@ -118,8 +144,9 @@ export class OrganizationsController {
   }
 
   @Post('cancel-invitation')
+  @ApiOperation({ summary: 'Cancel Invitation', description: cancelInvitationSwaggerDesc })
   async cancelInvitation(
-    @Body() body: { email: string },
+    @Body() body: EmailDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
@@ -140,27 +167,22 @@ export class OrganizationsController {
   }
 
   @Post('accept-invitation')
+  @ApiOperation({ summary: 'Accept Invitation', description: acceptInvitationSwaggerDesc })
   async acceptInvitation(
-    @Body() body: { user: string; password: string, verificationCode: string },
-    @Res() res: Response
+    @Body() body: AcceptInvitationDto,
+    @Res() res: Response,
   ): Promise<Response<ApiResponse<DashboardUserDataDto | null>>> {
     const apiResponse = new ApiResponseBuilder<DashboardUserDataDto | null>();
     const result = await this.organizationsService.createUserFromInvitation(
       body.user,
       body.password,
-      body.verificationCode
+      body.verificationCode,
     );
     if (result) {
-      apiResponse
-        .setStatusCode(200)
-        .setMessage('Invitation accepted successfully')
-        .setData(result);
+      apiResponse.setStatusCode(200).setMessage('Invitation accepted successfully').setData(result);
       return res.status(200).json(apiResponse.build());
     } else {
-      apiResponse
-        .setStatusCode(400)
-        .setMessage('Invitation could not be accepted')
-        .setData(result);
+      apiResponse.setStatusCode(400).setMessage('Invitation could not be accepted').setData(result);
       return res.status(400).json(apiResponse.build());
     }
   }

@@ -1,10 +1,10 @@
 export const loginSwaggerDesc =  `### Login
-Este endpoint permite obtener las credenciales de acceso.
+This endpoint allows you to obtain access credentials.
 
-#### Reglas de negocio:
-1. El campo **email** es obligatorio.
-2. El campo **password** es obligatorio.
-3. El campo **rememberMe** es opcional.
+#### Business rules:
+1. The **email** field is required.
+2. The **password** field is required.
+3. The **rememberMe** field is optional.
 
-> **Nota:** Este end-point es publico.
+> **Note:** This endpoint is public.
 `

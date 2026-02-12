@@ -1,12 +1,12 @@
-export const signupStepOneSwaggerDesc = `### Registro - Paso 1: Enviar Email de Verificación
-Este endpoint inicia el proceso de registro enviando un email de verificación al usuario.
+export const signupStepOneSwaggerDesc = `### Signup - Step 1: Send Verification Email
+This endpoint starts the signup process by sending a verification email to the user.
 
-#### Reglas de negocio:
-1. El campo **email** es obligatorio.
-2. El email debe ser válido y no estar registrado previamente.
+#### Business rules:
+1. The **email** field is required.
+2. The email must be valid and not already registered.
 
-> **Nota:** Este es el primer paso del registro de usuario.
+> **Note:** This is the first step of user signup.
 
-#### Respuestas
-- **200 OK**: Email de verificación enviado exitosamente.
-- **500 Internal Server Error**: Error enviando el email o email ya registrado.`
+#### Responses
+- **200 OK**: Verification email sent successfully.
+- **500 Internal Server Error**: Error sending the email or email already registered.`
