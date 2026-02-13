@@ -1072,6 +1072,11 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
+    // Verify current password is not the same as new password
+    if (dto.currentPassword === dto.newPassword) {
+      throw new BadRequestException('New password cannot be the same as current password');
+    }
+
     // 1. Verify current password
     if (!user.password) {
       // Should not happen for password-based users, but safety check for future OAuth
