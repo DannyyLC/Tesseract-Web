@@ -191,6 +191,87 @@ export class AuthService {
   //==============================================================
   // VALIDATIONS
   //==============================================================
+
+  /**
+   * Valida o crea un usuario de Google
+   */
+  async validateGoogleUser(details: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    googleId: string;
+    avatar?: string;
+  }) {
+    // 1. Buscar usuario por email
+    let user = await this.prisma.user.findUnique({
+      where: { email: details.email },
+      include: { organization: true },
+    });
+
+    // 2. Si el usuario existe, vincular googleId si no lo tiene
+    if (user) {
+      if (!user.googleId) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { googleId: details.googleId, avatar: user.avatar || details.avatar },
+          include: { organization: true },
+        });
+      }
+      return { user, organization: user.organization };
+    }
+
+    // 3. Si no existe, crear usuario y organización ("Magic Creation")
+    
+    // Generar nombre de organización basado en el nombre del usuario
+    const orgName = `${details.firstName}'s Organization`;
+    
+    // Iniciar transacción para crear todo junto
+    const newUserResult = await this.prisma.$transaction(async (tx) => {
+      // 3.1 Crear Organización
+      const slug = await OrganizationsService.generateUniqueSlug(orgName, tx);
+
+      const newOrganization = await tx.organization.create({
+        data: {
+          name: orgName,
+          slug: slug,
+          plan: SubscriptionPlan.FREE,
+          isActive: true,
+          allowOverages: false,
+        },
+      });
+
+      // 3.2 Crear Balance
+      await tx.creditBalance.create({
+        data: {
+          organizationId: newOrganization.id,
+          balance: 0,
+          lifetimeEarned: 0,
+          lifetimeSpent: 0,
+          currentMonthSpent: 0,
+          currentMonthCostUSD: 0,
+        },
+      });
+
+      // 3.3 Crear Usuario
+      const newUser = await tx.user.create({
+        data: {
+          email: details.email,
+          name: `${details.firstName} ${details.lastName}`,
+          googleId: details.googleId,
+          avatar: details.avatar,
+          role: 'owner',
+          organizationId: newOrganization.id,
+          isActive: true,
+          emailVerified: true, // Google emails are verified
+        },
+      });
+
+      return { user: newUser, organization: newOrganization };
+    });
+
+    return newUserResult;
+  }
+
   /**
    * Valida las credenciales del usuario
    *
@@ -218,6 +299,10 @@ export class AuthService {
     }
 
     // 3. Verificar contraseña
+    if (!user.password) {
+      this.logger.warn(`Usuario sin contraseña intentando login con password: ${email}`);
+      throw new UnauthorizedException('Debe iniciar sesión con Google');
+    }
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       this.logger.warn(`Contraseña inválida para: ${email}`);

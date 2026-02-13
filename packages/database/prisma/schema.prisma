@@ -309,10 +309,11 @@ model Invoice {
 // USER (Empleado de una Organization)
 // ============================================
 model User {
-  id       String @id @default(uuid())
-  email    String @unique
+  id       String  @id @default(uuid())
+  email    String  @unique
   name     String
-  password String
+  password String?
+  googleId String? @unique
 
   // Verificación
   emailVerified                 Boolean   @default(false)

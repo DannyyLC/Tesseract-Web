@@ -11,6 +11,7 @@ import {
   UnauthorizedException,
   UseGuards
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { ApiResponse, ApiResponseBuilder } from '@workflow-automation/shared-types';
@@ -55,6 +56,70 @@ import { TempTokenGuard } from '../../guards/temp-token.guard';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  /**
+   * INICIO DE SESIÓN CON GOOGLE
+   * Redirige al usuario a la página de consentimiento de Google
+   */
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) 
+  @ApiOperation({
+    summary: 'Iniciar Login con Google',
+    description: 'Redirige al usuario a la página de autenticación de Google.',
+  })
+  async googleAuth(@Req() _req: Request) {
+    // El guardia inicia el flujo de OAuth2
+  }
+
+  /**
+   * CALLBACK DE GOOGLE
+   * Google redirige aquí tras la autenticación exitosa
+   */
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({
+    summary: 'Callback de Google OAuth',
+    description: 'Maneja el retorno desde Google, crea/vincula usuario y devuelve cookies de sesión.',
+  })
+  async googleAuthRedirect(@Req() req: any, @Res({ passthrough: true }) res: Response) {
+    // req.user contiene el usuario validado/creado por GoogleStrategy -> AuthService.validateGoogleUser
+    const user = req.user;
+
+    // Generar tokens JWT para este usuario
+    const tokens = await this.authService.generateTokens(
+      user.user.id,
+      user.user.email,
+      user.user.name,
+      user.user.role,
+      user.organization.id,
+      user.organization.name,
+      user.organization.plan,
+      true, // Remember Me por defecto para social login
+    );
+
+    // Setear cookies
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    res.cookie('access_token', tokens.accessToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax', // Lax es necesario para que la cookie se setee tras el redirect de Google
+      maxAge: 24 * 60 * 60 * 1000, // 1 día
+    });
+    
+    res.cookie('refresh_token', tokens.refreshToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
+    });
+
+    // Redirigir al Frontend
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    return res.redirect(`${frontendUrl}/dashboard`);
+  }
 
   /**
    * POST /auth/login

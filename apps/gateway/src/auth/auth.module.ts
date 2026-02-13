@@ -8,6 +8,7 @@ import { ApiKeyGuard } from './guards/api-key.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
 import { UtilityModule } from '../utility/utility.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 /**
@@ -36,7 +37,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [ApiKeyGuard, JwtAuthGuard, RolesGuard, JwtStrategy, AuthService],
+  providers: [ApiKeyGuard, JwtAuthGuard, RolesGuard, JwtStrategy, GoogleStrategy, AuthService],
   exports: [ApiKeyGuard, JwtAuthGuard, RolesGuard, AuthService, PassportModule],
 })
 export class AuthModule {}
