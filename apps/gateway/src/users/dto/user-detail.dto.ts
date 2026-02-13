@@ -4,11 +4,12 @@ export class UserDetailDto {
   email: string;
   role: string;
   isActive: boolean;
-  avatar: string | null;
-  timezone: string | null;
-  lastLoginAt: Date | null;
-  createdAt: Date;
-  emailVerified: boolean;
+  readonly avatar: string | null;
+  readonly timezone: string | null;
+  readonly lastLoginAt: Date | null;
+  readonly createdAt: Date;
+  readonly emailVerified: boolean;
+  readonly twoFactorEnabled: boolean;
 
   constructor(partial: Partial<UserDetailDto>) {
     Object.assign(this, partial);

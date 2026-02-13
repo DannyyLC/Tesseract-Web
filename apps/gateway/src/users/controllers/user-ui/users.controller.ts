@@ -101,6 +101,7 @@ export class UsersController {
       lastLoginAt: foundUser.lastLoginAt,
       createdAt: foundUser.createdAt,
       emailVerified: foundUser.emailVerified,
+      twoFactorEnabled: foundUser.twoFactorEnabled,
     });
 
     apiResponse
