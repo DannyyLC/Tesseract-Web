@@ -20,11 +20,12 @@ import { PrismaService } from '../database/prisma.service';
 import { EmailService } from '../notifications/email/email.service';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { CreateUserDto } from '../users/dto';
+import { UtilityService } from '../utility/utility.service';
 import { StepOneErrors, StepThreeErrors } from './dto/error-singup-codes.dto';
+import { ForgotPassErrors } from './dto/forgot-password-error-codes.dto';
 import { LoginDto } from './dto/login.dto';
 import { StartVerificationFlowDto } from './dto/start-verification-flow.dto';
 import { VerificationCodeDto } from './dto/verification-code.dto';
-import { UtilityService } from '../utility/utility.service';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
@@ -685,8 +686,8 @@ export class AuthService {
               name: userVerificationRow.organizationName,
               slug: slug,
               plan: SubscriptionPlan.FREE,
-              isActive: true, 
-              allowOverages: false, 
+              isActive: true,
+              allowOverages: false,
             },
           });
 
@@ -708,7 +709,7 @@ export class AuthService {
               email: userVerificationRow.email,
               name: userVerificationRow.userName,
               password: hashedPassword,
-              role: 'owner', 
+              role: 'owner',
               organizationId: newOrganization.id,
               isActive: true,
               emailVerified: userVerificationRow.isEmailVerified,
@@ -730,7 +731,7 @@ export class AuthService {
             newOrganization.name,
             newOrganization.plan,
             false, // rememberMe default false
-            tx // Pass transaction client
+            tx, // Pass transaction client
           );
 
           // 5. Update lastLogin
@@ -757,6 +758,127 @@ export class AuthService {
       );
       return StepThreeErrors.EMAIL_NOT_VERIFIED;
     }
+
+    return createdResult;
+  }
+
+  async disable2FA(userId: string, codeVerification: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (user && user.twoFactorSecret) {
+      const verified = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token: codeVerification,
+      });
+      if (verified) {
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { twoFactorEnabled: false, twoFactorSecret: null },
+        });
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async resetPasswordStepOne(
+    email: string,
+  ): Promise<nodemailer.SentMessageInfo | ForgotPassErrors> {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    if (!user) {
+      return ForgotPassErrors.EMAIL_NOT_REGISTERED;
+    }
+
+    const existingVerification = await this.prisma.userVerification.findFirst({
+      where: {
+        email,
+        expiresAt: { gt: new Date() },
+      },
+    });
+    if (existingVerification) {
+      if (existingVerification.expiresAt > new Date()) {
+        this.prisma.userVerification.deleteMany({
+          where: {
+            email,
+          },
+        }).catch((error) => {
+          this.logger.error(
+            `forgotPasswordStepOne >> Error eliminando filas de verificación antiguas para email ${email}: ${error}`,
+          );
+          return ForgotPassErrors.SERVER_INTERNAL_ERROR;
+        });
+      } else {
+        this.logger.warn(`Intentando enviar código de reseteo a email ${email} pero ya hay un proceso en curso`);
+        return ForgotPassErrors.ALREADY_IN_PROGRESS;
+      }
+    }
+
+    const result = await this.emailService.sendPasswordResetCodeByEmail(email);
+    if (!result || !result.sentMessageInfo || result.sentMessageInfo.success === false) {
+      this.logger.error(`authService >> forgotPasswordStepOne >> Email no aceptado para ${email}`);
+      return ForgotPassErrors.SEND_EMAIL_ERROR;
+    }
+
+    this.prisma.userVerification
+      .create({
+        data: {
+          email,
+          userName: '',
+          organizationName: '',
+          verificationCode: result.verificationCode,
+          expiresAt: new Date(Date.now() + 15 * 60 * 1000), // Expira en 15 minutos
+          isEmailVerified: false,
+        },
+      })
+      .catch((error) => {
+        this.logger.error(
+          `authService >> forgotPasswordStepOne >> Error creando fila de verificación para email ${email}: ${error}`,
+        );
+      });
+
+    return result.sentMessageInfo;
+  }
+
+  async resetPasswordStepTwo(
+    verificationCode: string,
+    newPassword: string,
+  ): Promise<boolean | ForgotPassErrors> {
+
+    const userVerificationRow = await this.prisma.userVerification.findFirst({
+      where: {
+        verificationCode,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!userVerificationRow) {
+      return ForgotPassErrors.VERIFICATION_CODE_INVALID;
+    }
+
+    const hashedPassword = await this.utilityService.hashPassword(newPassword);
+
+    const createdResult = await this.prisma.$transaction(async (tx) => {
+      await this.prisma.user
+        .update({
+          where: { email: userVerificationRow.email },
+          data: { password: hashedPassword },
+        });
+
+      await this.prisma.userVerification
+        .deleteMany({
+          where: { email: userVerificationRow.email },
+        });
+        return true;
+    }).catch((error) => {      this.logger.error(
+        `authService >> forgotPasswordStepTwo >> Error en transacción para email ${userVerificationRow.email}: ${error}`,
+      );
+      return ForgotPassErrors.SERVER_INTERNAL_ERROR;
+    });
 
     return createdResult;
   }

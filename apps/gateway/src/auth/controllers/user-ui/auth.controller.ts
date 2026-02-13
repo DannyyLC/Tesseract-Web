@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { ApiResponseBuilder } from '@workflow-automation/shared-types';
+import { ApiResponse, ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { HttpStatusCode } from 'axios';
 import { Request, Response } from 'express';
 import * as nodemailer from 'nodemailer';
@@ -39,6 +39,9 @@ import { LoginDto } from '../../dto/login.dto';
 import { Verify2FACodeDto } from '../../dto/verify-2fa-code.dto';
 import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
 import { TempTokenGuard } from '../../guards/temp-token.guard';
+import { ForgotPassErrors } from '../../../auth/dto/forgot-password-error-codes.dto';
+import { ResetPasswordDto } from '../../../auth/dto/reset-password.dto';
+import { ForgotPassDto } from '../../../auth/dto/forgot-pass.dto';
 
 /**
  * AuthController maneja todos los endpoints de autenticación
@@ -79,9 +82,9 @@ export class AuthController {
    */
   @Post('login')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
-  @ApiOperation({ 
-   summary: 'User login with email and password',
-    description: loginSwaggerDesc
+  @ApiOperation({
+    summary: 'User login with email and password',
+    description: loginSwaggerDesc,
   })
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) response: Response) {
     const responseBuilder = new ApiResponseBuilder();
@@ -114,9 +117,14 @@ export class AuthController {
           .setSuccess(true)
           .setStatusCode(HttpStatusCode.Ok)
           .setData(
-           process.env.NODE_ENV === 'production' ?
-              { user: result.user, rememberMe } :
-              { user: result.user, rememberMe, accessToken: result.accessToken, refreshToken: result.refreshToken }
+            process.env.NODE_ENV === 'production'
+              ? { user: result.user, rememberMe }
+              : {
+                  user: result.user,
+                  rememberMe,
+                  accessToken: result.accessToken,
+                  refreshToken: result.refreshToken,
+                },
           )
           .setMessage('Login successful');
       } else if (result.status === '2fa_required') {
@@ -148,13 +156,12 @@ export class AuthController {
     }
   }
 
-
   @Post('2fa/setup')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Start 2FA setup',
-    description: setup2FASwaggerDesc
+    description: setup2FASwaggerDesc,
   })
   async setup2FA(@CurrentUser() user: UserPayload, @Res() response: Response) {
     const responseBuilder = new ApiResponseBuilder();
@@ -206,7 +213,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Refresh access token',
-    description: refreshSwaggerDesc
+    description: refreshSwaggerDesc,
   })
   async refresh(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     // Leer refreshToken desde la cookie
@@ -275,7 +282,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Get user profile',
-    description: meSwaggerDesc
+    description: meSwaggerDesc,
   })
   getProfile(@CurrentUser() user: UserPayload) {
     return user;
@@ -306,7 +313,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Logout',
-    description: logoutSwaggerDesc
+    description: logoutSwaggerDesc,
   })
   async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     // Leer refreshToken desde la cookie
@@ -349,7 +356,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Logout from all devices',
-    description: logoutAllSwaggerDesc
+    description: logoutAllSwaggerDesc,
   })
   async logoutAll(
     @CurrentUser() user: UserPayload,
@@ -371,7 +378,7 @@ export class AuthController {
   @UseGuards(TempTokenGuard)
   @ApiOperation({
     summary: 'Verify 2FA code',
-    description: verify2FASwaggerDesc
+    description: verify2FASwaggerDesc,
   })
   async verify2FA(
     @CurrentUser() user: UserPayload,
@@ -438,7 +445,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({
     summary: 'Signup step 1: send verification email',
-    description: signupStepOneSwaggerDesc
+    description: signupStepOneSwaggerDesc,
   })
   async signupStep1(
     @Body() payload: StartVerificationFlowDto,
@@ -474,7 +481,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({
     summary: 'Signup step 2: verify email code',
-    description: signupStepTwoSwaggerDesc
+    description: signupStepTwoSwaggerDesc,
   })
   async signupStep2(
     @Body() verificationCode: VerificationCodeDto,
@@ -505,7 +512,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({
     summary: 'Signup step 3: create user',
-    description: signupStepThreeSwaggerDesc
+    description: signupStepThreeSwaggerDesc,
   })
   async signupStep3(
     @Body() body: CreateUserDto,
@@ -514,7 +521,10 @@ export class AuthController {
     const apiResponse = new ApiResponseBuilder<any | keyof typeof StepThreeErrors>();
     const result = await this.authService.signupStepThree(body);
     if (typeof result === 'string') {
-      apiResponse.setStatusCode(HttpStatusCode.BadRequest).setMessage('User registration failed').setErrors([result]);
+      apiResponse
+        .setStatusCode(HttpStatusCode.BadRequest)
+        .setMessage('User registration failed')
+        .setErrors([result]);
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     } else {
       // Determinar si estamos en producción
@@ -542,6 +552,82 @@ export class AuthController {
         .setMessage('User registered successfully')
         .setData({ user: result.user, rememberMe: false });
       return res.status(HttpStatusCode.Created).json(apiResponse.build());
+    }
+  }
+
+  @Post('2fa/disable')
+  @UseGuards(JwtAuthGuard)
+  async disable2FA(
+    @CurrentUser() user: UserPayload,
+    @Body() verificationCode: Verify2FACodeDto,
+    @Res() response: Response,
+  ): Promise<Response<ApiResponseBuilder<boolean>>> {
+    const responseBuilder = new ApiResponseBuilder<boolean>();
+    const isDisabled = await this.authService.disable2FA(user.sub, verificationCode.code2FA);
+    if (isDisabled) {
+      responseBuilder
+        .setSuccess(true)
+        .setStatusCode(HttpStatusCode.Ok)
+        .setData(true)
+        .setMessage('2FA disabled successfully');
+      response.statusCode = HttpStatus.OK;
+      return response.send(responseBuilder.build());
+    } else {
+      responseBuilder
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.BadRequest)
+        .setData(false)
+        .setMessage('Invalid 2FA code, unable to disable 2FA');
+      response.statusCode = HttpStatus.BAD_REQUEST;
+      return response.send(responseBuilder.build());
+    }
+  }
+
+  @Post('reset-password-step-one')
+  async resetPasswordStepOne(
+    @Body() body: ForgotPassDto,
+    @Res() response: Response,
+  ): Promise<Response<ApiResponse<boolean | keyof typeof ForgotPassErrors>>> {
+    const responseBuilder = new ApiResponseBuilder<boolean | keyof typeof ForgotPassErrors>();
+    const result = await this.authService.resetPasswordStepOne(body.email);
+    if (!Object.values(ForgotPassErrors).includes(result)) {
+      responseBuilder
+        .setSuccess(true)
+        .setStatusCode(HttpStatusCode.Ok)
+        .setData(true)
+        .setMessage('Verification code sent to email if it is registered');
+      return response.status(HttpStatusCode.Ok).json(responseBuilder.build());
+    } else {
+      responseBuilder
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.InternalServerError)
+        .setData(result)
+        .setMessage('Error processing forgot password request');
+      return response.status(HttpStatusCode.InternalServerError).json(responseBuilder.build());
+    } 
+  }
+
+  @Post('reset-password-step-two')
+  async resetPasswordStepTwo(
+    @Body() body: ResetPasswordDto,
+    @Res() response: Response,
+  ): Promise<Response<ApiResponse<boolean | keyof typeof ForgotPassErrors>>> {
+    const responseBuilder = new ApiResponseBuilder<boolean | keyof typeof ForgotPassErrors>();
+    const result = await this.authService.resetPasswordStepTwo(body.verificationCode, body.newPassword);
+    if (result === true) {
+      responseBuilder
+        .setSuccess(true)
+        .setStatusCode(HttpStatusCode.Ok)
+        .setData(true)
+        .setMessage('Password reset successfully');
+      return response.status(HttpStatusCode.Ok).json(responseBuilder.build());
+    } else {
+      responseBuilder
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.BadRequest)
+        .setData(result)
+        .setMessage('Error resetting password');
+      return response.status(HttpStatusCode.BadRequest).json(responseBuilder.build());
     }
   }
 }

@@ -14,6 +14,7 @@ export class EmailService {
   private transporter: nodemailer.Transporter;
   private emailVerificationTemplate: handlebars.TemplateDelegate;
   private emailInvitationTemplate: handlebars.TemplateDelegate;
+  private emailPasswordResetTemplate: handlebars.TemplateDelegate;
 
   constructor(
     private readonly jwtService: JwtService,
@@ -40,6 +41,7 @@ export class EmailService {
 
     this.emailVerificationTemplate = this.loadTemplate('email_verification_view.hbs');
     this.emailInvitationTemplate = this.loadTemplate('email_invitation_view.hbs');
+    this.emailPasswordResetTemplate = this.loadTemplate('restore_password_es.html');
   }
 
   private loadTemplate(templateName: string): handlebars.TemplateDelegate {
@@ -112,5 +114,27 @@ export class EmailService {
       });
     } while (isVerificationCodeDuplicate);
     return verificationCode;
+  }
+
+  async sendPasswordResetCodeByEmail(
+    email: string
+  ): Promise<{ sentMessageInfo: nodemailer.SentMessageInfo | null; verificationCode: string } | null> {
+    const verificationCode = await this.generateVerificationCode();
+    let sentMessageInfo: nodemailer.SentMessageInfo = null;
+    try {
+      sentMessageInfo = await this.transporter.sendMail({
+        to: email,
+        subject: 'Código de restablecimiento de contraseña',
+        html: this.emailPasswordResetTemplate({
+          verificationCode,
+        }),
+      });
+    } catch (error) {
+      this.logger.error(
+        `sendPasswordResetCodeByEmail >> Error enviando email a ${email}: ${error}`,
+      );
+      return null;
+    }
+    return { sentMessageInfo, verificationCode };
   }
 }
