@@ -86,22 +86,47 @@ export class AuthController {
   async googleAuthRedirect(@Req() req: any, @Res({ passthrough: true }) res: Response) {
     // req.user contiene el usuario validado/creado por GoogleStrategy -> AuthService.validateGoogleUser
     const user = req.user;
+    const isProduction = process.env.NODE_ENV === 'production';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
 
-    // Generar tokens JWT para este usuario
+    // Verificar si el usuario tiene 2FA habilitado
+    if (user.user.twoFactorEnabled) {
+      // Si tiene 2FA, generar temp token y redirigir a página de verificación
+      const payload: UserPayload = {
+        sub: user.user.id,
+        email: user.user.email,
+        name: user.user.name,
+        role: user.user.role,
+        organizationId: user.organization.id,
+        rememberMe: true, // Remember Me por defecto para social login
+      };
+
+      // Usar el mismo método que usa login() para generar temp token
+      const tempToken = this.authService.generateTempToken(payload);
+
+      res.cookie('temp2FAToken', tempToken, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax',
+        maxAge: 15 * 60 * 1000, // 15 minutos
+        path: '/api/auth',
+      });
+
+      // Redirigir a página de verificación 2FA
+      return res.redirect(`${frontendUrl}/verify-2fa`);
+    }
+
+    // Si NO tiene 2FA, login directo (flujo normal)
     const tokens = await this.authService.generateTokens(
       user.user.id,
       user.user.email,
       user.user.name,
       user.user.role,
       user.organization.id,
-      user.organization.name,
-      user.organization.plan,
       true, // Remember Me por defecto para social login
     );
 
     // Setear cookies
-    const isProduction = process.env.NODE_ENV === 'production';
-    
     res.cookie('accessToken', tokens.accessToken, {
       httpOnly: true,
       secure: isProduction,
@@ -118,8 +143,7 @@ export class AuthController {
       path: '/api/auth',
     });
 
-    // Redirigir al Frontend
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    // Redirigir al Dashboard
     return res.redirect(`${frontendUrl}/dashboard`);
   }
 

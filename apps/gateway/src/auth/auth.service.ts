@@ -69,8 +69,6 @@ export class AuthService {
       name: user.name,
       role: user.role,
       organizationId: organization.id,
-      organizationName: organization.name,
-      plan: organization.plan,
       rememberMe: dto.rememberMe,
     };
     // 2. Si 2FA no está habilitado, login directo
@@ -83,8 +81,6 @@ export class AuthService {
         user.name,
         user.role,
         organization.id,
-        organization.name,
-        organization.plan,
         dto.rememberMe,
       );
       console.log('Tokens generated:', tokens);
@@ -108,16 +104,25 @@ export class AuthService {
       };
     }
 
-    // 3. Si 2FA está habilitado, flujo intermedio
-    const tempToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('TEMP_TOKEN_SECRET') ?? 'temp-token-secret',
-      expiresIn: '15m',
-    });
+    // 3. Si 2FA está habilitado, generar temp token
+    const tempToken = this.generateTempToken(payload);
 
     return {
       status: '2fa_required',
       tempToken,
     };
+  }
+
+  /**
+   * Genera un token temporal para el flujo de 2FA
+   * @param payload - Payload del usuario
+   * @returns Token temporal válido por 15 minutos
+   */
+  generateTempToken(payload: UserPayload): string {
+    return this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('TEMP_TOKEN_SECRET') ?? 'temp-token-secret',
+      expiresIn: '15m',
+    });
   }
 
   /**
@@ -399,8 +404,6 @@ export class AuthService {
    * @param name - Nombre del usuario
    * @param role - Rol del usuario
    * @param organizationId - ID de la organización
-   * @param organizationName - Nombre de la organización
-   * @param plan - Plan de la organización
    * @returns Access token y refresh token
    */
   async generateTokens(
@@ -409,8 +412,6 @@ export class AuthService {
     name: string,
     role: string,
     organizationId: string,
-    organizationName: string,
-    plan: string,
     rememberMe?: boolean,
     prismaClient?: any, // Optional transaction client
   ) {
@@ -422,8 +423,6 @@ export class AuthService {
       name,
       role,
       organizationId,
-      organizationName,
-      plan,
       rememberMe,
     };
 
@@ -528,8 +527,6 @@ export class AuthService {
         payload.name,
         payload.role,
         payload.organizationId,
-        payload.organizationName,
-        payload.plan,
         payload.rememberMe,
       );
 
@@ -674,8 +671,6 @@ export class AuthService {
         userPayload.name,
         userPayload.role,
         userPayload.organizationId,
-        userPayload.organizationName,
-        userPayload.plan,
         userPayload.rememberMe,
       );
 
@@ -685,7 +680,13 @@ export class AuthService {
         data: { lastLoginAt: new Date() },
       });
 
-      this.logger.info(`Login exitoso: ${userPayload.email} (${userPayload.organizationName})`);
+      // Fetch organization for response
+      const organization = await this.prisma.organization.findUnique({
+        where: { id: userPayload.organizationId },
+        select: { name: true, slug: true, plan: true },
+      });
+
+      this.logger.info(`Login exitoso: ${userPayload.email} (${organization?.name})`);
       return {
         user: {
           id: userPayload.sub,
@@ -695,9 +696,9 @@ export class AuthService {
         },
         organization: {
           id: userPayload.organizationId,
-          name: userPayload.organizationName,
-          slug: organization.slug,
-          plan: userPayload.plan,
+          name: organization?.name || '',
+          slug: organization?.slug || '',
+          plan: organization?.plan || 'free',
         },
         ...tokens,
         rememberMe: userPayload.rememberMe,
@@ -899,8 +900,6 @@ export class AuthService {
             newUser.name,
             newUser.role,
             newOrganization.id,
-            newOrganization.name,
-            newOrganization.plan,
             false, // rememberMe default false
             tx, // Pass transaction client
           );
