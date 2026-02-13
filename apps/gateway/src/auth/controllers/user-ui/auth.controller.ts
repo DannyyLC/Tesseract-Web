@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -28,20 +29,25 @@ import {
   signupStepTwoSwaggerDesc,
   verify2FASwaggerDesc
 } from '../../../api_docs/controllers/auth';
-import { StartVerificationFlowDto } from '../../../auth/dto/start-verification-flow.dto';
-import { VerificationCodeDto } from '../../../auth/dto/verification-code.dto';
-import { UserPayload } from '../../../common/types/jwt-payload.type';
+
 import { CreateUserDto } from '../../../users/dto';
+import { UserPayload } from '../../../common/types/jwt-payload.type';
 import { AuthService } from '../../auth.service';
 import { CurrentUser } from '../../decorators/current-user.decorator';
-import { StepOneErrors, StepThreeErrors } from '../../dto/error-singup-codes.dto';
-import { LoginDto } from '../../dto/login.dto';
-import { Verify2FACodeDto } from '../../dto/verify-2fa-code.dto';
+import {
+  ChangePasswordDto,
+  ForgotPassDto,
+  ForgotPassErrors,
+  LoginDto,
+  ResetPasswordDto,
+  StartVerificationFlowDto,
+  StepOneErrors,
+  StepThreeErrors,
+  VerificationCodeDto,
+  Verify2FACodeDto,
+} from '../../dto';
 import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
 import { TempTokenGuard } from '../../guards/temp-token.guard';
-import { ForgotPassErrors } from '../../../auth/dto/forgot-password-error-codes.dto';
-import { ResetPasswordDto } from '../../../auth/dto/reset-password.dto';
-import { ForgotPassDto } from '../../../auth/dto/forgot-pass.dto';
 
 /**
  * AuthController maneja todos los endpoints de autenticación
@@ -556,6 +562,7 @@ export class AuthController {
   }
 
   @Post('2fa/disable')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(JwtAuthGuard)
   async disable2FA(
     @CurrentUser() user: UserPayload,
@@ -584,6 +591,7 @@ export class AuthController {
   }
 
   @Post('reset-password-step-one')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async resetPasswordStepOne(
     @Body() body: ForgotPassDto,
     @Res() response: Response,
@@ -608,6 +616,7 @@ export class AuthController {
   }
 
   @Post('reset-password-step-two')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async resetPasswordStepTwo(
     @Body() body: ResetPasswordDto,
     @Res() response: Response,
@@ -628,6 +637,53 @@ export class AuthController {
         .setData(result)
         .setMessage('Error resetting password');
       return response.status(HttpStatusCode.BadRequest).json(responseBuilder.build());
+    }
+  }
+  
+  @Post('change-password')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Change password',
+    description: 'Allows a logged-in user to change their password. Requires verified current password and 2FA if enabled.',
+  })
+  async changePassword(
+    @CurrentUser() user: UserPayload,
+    @Body() changePasswordDto: ChangePasswordDto,
+    @Res() response: Response,
+  ) {
+    const responseBuilder = new ApiResponseBuilder();
+    try {
+      const result = await this.authService.changePassword(user.sub, changePasswordDto);
+
+      // Limpiar cookies porque el servicio revoca todas las sesiones (incluida esta)
+      // para forzar re-login con la nueva contraseña
+      response.clearCookie('accessToken', { path: '/' });
+      response.clearCookie('refreshToken', { path: '/api/auth' });
+      response.clearCookie('temp2FAToken', { path: '/api/auth' });
+
+      responseBuilder
+        .setSuccess(true)
+        .setStatusCode(HttpStatusCode.Ok)
+        .setData(result)
+        .setMessage('Password changed successfully');
+
+      response.statusCode = HttpStatus.OK;
+      return response.send(responseBuilder.build());
+    } catch (error) {
+      // Manejar error específico de 2FA requerido
+      if (error instanceof ForbiddenException && error.message === '2FA_REQUIRED') {
+         responseBuilder
+          .setSuccess(false)
+          .setStatusCode(HttpStatusCode.Forbidden)
+          .setMessage('2FA_REQUIRED')
+          .setErrors(['2FA code is required to change password']);
+        
+        response.statusCode = HttpStatus.FORBIDDEN;
+        return response.send(responseBuilder.build());
+      }
+
+      throw error;
     }
   }
 }

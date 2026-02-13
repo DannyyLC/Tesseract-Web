@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -21,11 +22,15 @@ import { EmailService } from '../notifications/email/email.service';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { CreateUserDto } from '../users/dto';
 import { UtilityService } from '../utility/utility.service';
-import { StepOneErrors, StepThreeErrors } from './dto/error-singup-codes.dto';
-import { ForgotPassErrors } from './dto/forgot-password-error-codes.dto';
-import { LoginDto } from './dto/login.dto';
-import { StartVerificationFlowDto } from './dto/start-verification-flow.dto';
-import { VerificationCodeDto } from './dto/verification-code.dto';
+import {
+  ChangePasswordDto,
+  ForgotPassErrors,
+  LoginDto,
+  StartVerificationFlowDto,
+  StepOneErrors,
+  StepThreeErrors,
+  VerificationCodeDto,
+} from './dto';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
@@ -789,6 +794,7 @@ export class AuthService {
   ): Promise<nodemailer.SentMessageInfo | ForgotPassErrors> {
     const user = await this.prisma.user.findUnique({
       where: { email },
+      include: { organization: true },
     });
     if (!user) {
       return ForgotPassErrors.EMAIL_NOT_REGISTERED;
@@ -800,86 +806,114 @@ export class AuthService {
         expiresAt: { gt: new Date() },
       },
     });
+
     if (existingVerification) {
-      if (existingVerification.expiresAt > new Date()) {
-        this.prisma.userVerification.deleteMany({
-          where: {
-            email,
-          },
-        }).catch((error) => {
-          this.logger.error(
-            `forgotPasswordStepOne >> Error eliminando filas de verificación antiguas para email ${email}: ${error}`,
-          );
-          return ForgotPassErrors.SERVER_INTERNAL_ERROR;
-        });
-      } else {
-        this.logger.warn(`Intentando enviar código de reseteo a email ${email} pero ya hay un proceso en curso`);
-        return ForgotPassErrors.ALREADY_IN_PROGRESS;
-      }
+      return ForgotPassErrors.ALREADY_IN_PROGRESS;
     }
 
-    const result = await this.emailService.sendPasswordResetCodeByEmail(email);
-    if (!result || !result.sentMessageInfo || result.sentMessageInfo.success === false) {
-      this.logger.error(`authService >> forgotPasswordStepOne >> Email no aceptado para ${email}`);
+    // Usar EmailService para generar y enviar el código
+    const emailResult = await this.emailService.sendPasswordResetCodeByEmail(email);
+
+    if (!emailResult || !emailResult.sentMessageInfo || emailResult.sentMessageInfo.success === false) {
       return ForgotPassErrors.SEND_EMAIL_ERROR;
     }
 
-    this.prisma.userVerification
-      .create({
-        data: {
-          email,
-          userName: '',
-          organizationName: '',
-          verificationCode: result.verificationCode,
-          expiresAt: new Date(Date.now() + 15 * 60 * 1000), // Expira en 15 minutos
-          isEmailVerified: false,
-        },
-      })
-      .catch((error) => {
-        this.logger.error(
-          `authService >> forgotPasswordStepOne >> Error creando fila de verificación para email ${email}: ${error}`,
-        );
-      });
+    // Guardar código en la base de datos
+    await this.prisma.userVerification.create({
+      data: {
+        email,
+        organizationName: user.organization.name,
+        userName: user.name,
+        verificationCode: emailResult.verificationCode,
+        isEmailVerified: false,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutos
+      },
+    });
 
-    return result.sentMessageInfo;
+    return emailResult.sentMessageInfo;
   }
 
-  async resetPasswordStepTwo(
-    verificationCode: string,
-    newPassword: string,
-  ): Promise<boolean | ForgotPassErrors> {
-
-    const userVerificationRow = await this.prisma.userVerification.findFirst({
+  async resetPasswordStepTwo(verificationCode: string, newPassword: string): Promise<boolean | ForgotPassErrors> {
+    const verification = await this.prisma.userVerification.findFirst({
       where: {
         verificationCode,
         expiresAt: { gt: new Date() },
       },
     });
 
-    if (!userVerificationRow) {
+    if (!verification) {
       return ForgotPassErrors.VERIFICATION_CODE_INVALID;
     }
 
+    // Hashear nueva contraseña
     const hashedPassword = await this.utilityService.hashPassword(newPassword);
 
-    const createdResult = await this.prisma.$transaction(async (tx) => {
-      await this.prisma.user
-        .update({
-          where: { email: userVerificationRow.email },
-          data: { password: hashedPassword },
-        });
-
-      await this.prisma.userVerification
-        .deleteMany({
-          where: { email: userVerificationRow.email },
-        });
-        return true;
-    }).catch((error) => {      this.logger.error(
-        `authService >> forgotPasswordStepTwo >> Error en transacción para email ${userVerificationRow.email}: ${error}`,
-      );
-      return ForgotPassErrors.SERVER_INTERNAL_ERROR;
+    // Actualizar contraseña del usuario
+    await this.prisma.user.update({
+      where: { email: verification.email },
+      data: { password: hashedPassword },
     });
 
-    return createdResult;
+    // Revocar todos los refresh tokens (seguridad)
+    const user = await this.prisma.user.findUnique({ where: { email: verification.email } });
+    if(user) await this.logoutAll(user.id);
+
+
+    // Eliminar registro de verificación
+    await this.prisma.userVerification.deleteMany({
+      where: { email: verification.email },
+    });
+
+    return true;
+  }
+
+  //==============================================================
+  // CHANGE PASSWORD (LOGGED IN)
+  //==============================================================
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    // 1. Verify current password
+    if (!user.password) {
+      // Should not happen for password-based users, but safety check for future OAuth
+      throw new BadRequestException('User has no password set.');
+    }
+
+    const isMatch = await bcrypt.compare(dto.currentPassword, user.password);
+    if (!isMatch) {
+      throw new UnauthorizedException('Invalid current password');
+    }
+
+    // 2. 2FA Check
+    if (user.twoFactorEnabled) {
+      if (!dto.code2FA) {
+        throw new ForbiddenException('2FA_REQUIRED');
+      }
+      
+      const verified = speakeasy.totp.verify({
+        secret: user.twoFactorSecret!,
+        encoding: 'base32',
+        token: dto.code2FA,
+      });
+
+      if (!verified) {
+        throw new UnauthorizedException('Invalid 2FA code');
+      }
+    }
+
+    // 3. Update Password
+    const hashedPassword = await this.utilityService.hashPassword(dto.newPassword);
+    
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { 
+        password: hashedPassword,
+      }
+    });
+
+    await this.logoutAll(userId);
+
+    return { message: 'Password changed successfully. Please login again.' };
   }
 }
