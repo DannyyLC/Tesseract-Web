@@ -785,10 +785,12 @@ export class OrganizationsService {
       where: { email },
     });
 
-    if (existingUser && existingUser.isActive) {
-      return InviteUserErrorsDto.USER_ALREADY_REGISTERED;
+    if (existingUser && !existingUser.deletedAt) {      
+      await this.emailService.sendOrganizationExistsEmail(email, isOrganizationValid.name);
+      return true; 
     }
 
+    // Si el usuario está eliminado (deletedAt !== null) o no existe, continuar con invitación normal
     const existingVerification = await this.prisma.userVerification.findFirst({
       where: {
         email: email
@@ -934,6 +936,7 @@ export class OrganizationsService {
           data: {
             emailVerified: true,
             isActive: true,
+            organizationId: userVerification.organizationName,
           },
         });
         return {

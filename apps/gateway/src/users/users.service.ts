@@ -598,6 +598,75 @@ export class UsersService {
     }
   }
 
+  /**
+   * Leave organization (self-service)
+   * User voluntarily leaves their current organization
+   */
+  async leaveOrganization(
+    userId: string,
+    organizationId: string,
+    confirmationText: string,
+    code2FA?: string,
+  ): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { organization: true },
+    });
+
+    // 1. Validar que el usuario existe
+    if (!user || user.organizationId !== organizationId) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    // 2. Validar que NO es Owner
+    if (user.role === 'owner') {
+      throw new BadRequestException(
+        'El propietario no puede abandonar la organización. Transfiere la propiedad primero.',
+      );
+    }
+
+    // 3. Validar confirmación por nombre
+    if (confirmationText !== user.organization.name) {
+      throw new BadRequestException('El nombre de la organización no coincide');
+    }
+
+    // 4. Validar 2FA si está habilitado
+    if (user.twoFactorEnabled) {
+      if (!code2FA) {
+        throw new ForbiddenException('Código 2FA requerido');
+      }
+
+      const speakeasy = require('speakeasy');
+      const verified = speakeasy.totp.verify({
+        secret: user.twoFactorSecret!,
+        encoding: 'base32',
+        token: code2FA,
+      });
+
+      if (!verified) {
+        throw new BadRequestException('Código 2FA inválido');
+      }
+    }
+
+    // 5. Soft-delete del usuario
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt: new Date(),
+        isActive: false,
+      },
+    });
+
+    // 6. Log de auditoría
+    this.logger.info(
+      `User ${user.email} left organization ${user.organization.name} voluntarily`,
+    );
+
+    return {
+      message: 'Has abandonado la organización exitosamente.',
+    };
+  }
+
   async getNotificationsForUser(userId: string): Promise<NotificationEventDto[]> {
     const userNotifications = await this.prisma.userNotification.findMany({
       where: {

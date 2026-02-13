@@ -15,6 +15,7 @@ export class EmailService {
   private emailVerificationTemplate: handlebars.TemplateDelegate;
   private emailInvitationTemplate: handlebars.TemplateDelegate;
   private emailPasswordResetTemplate: handlebars.TemplateDelegate;
+  private emailOrganizationExistsTemplate: handlebars.TemplateDelegate;
 
   constructor(
     private readonly jwtService: JwtService,
@@ -42,6 +43,7 @@ export class EmailService {
     this.emailVerificationTemplate = this.loadTemplate('email_verification_view.hbs');
     this.emailInvitationTemplate = this.loadTemplate('email_invitation_view.hbs');
     this.emailPasswordResetTemplate = this.loadTemplate('restore_password_es.html');
+    this.emailOrganizationExistsTemplate = this.loadTemplate('email_organization_exists.hbs');
   }
 
   private loadTemplate(templateName: string): handlebars.TemplateDelegate {
@@ -136,5 +138,25 @@ export class EmailService {
       return null;
     }
     return { sentMessageInfo, verificationCode };
+  }
+
+  async sendOrganizationExistsEmail(
+    email: string,
+    organizationName: string,
+  ): Promise<nodemailer.SentMessageInfo | null> {
+    try {
+      return await this.transporter.sendMail({
+        to: email,
+        subject: `Invitación para unirte a ${organizationName}`,
+        html: this.emailOrganizationExistsTemplate({
+          organizationName,
+        }),
+      });
+    } catch (error) {
+      this.logger.error(
+        `sendOrganizationExistsEmail >> Error enviando email a ${email}: ${error}`,
+      );
+      return null;
+    }
   }
 }

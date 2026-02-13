@@ -102,18 +102,20 @@ export class AuthController {
     // Setear cookies
     const isProduction = process.env.NODE_ENV === 'production';
     
-    res.cookie('access_token', tokens.accessToken, {
+    res.cookie('accessToken', tokens.accessToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'lax', // Lax es necesario para que la cookie se setee tras el redirect de Google
+      sameSite: 'lax', 
       maxAge: 24 * 60 * 60 * 1000, // 1 día
+      path: '/',
     });
     
-    res.cookie('refresh_token', tokens.refreshToken, {
+    res.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
+      path: '/api/auth',
     });
 
     // Redirigir al Frontend

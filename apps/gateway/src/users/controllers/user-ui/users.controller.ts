@@ -1,7 +1,24 @@
 import { UsersService } from '../../users.service';
-import { Controller, Get, Query, Res, UseGuards, Param, Patch, Delete, Body, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
+import { 
+  Controller, 
+  Get, 
+  Query, 
+  Res, 
+  UseGuards, 
+  Param, 
+  Patch, 
+  Delete, 
+  Body, 
+  ParseIntPipe, 
+  DefaultValuePipe 
+} from '@nestjs/common';
 import { Response } from 'express';
-import { DashboardUserDataDto, UpdateUserDto, UserDetailDto } from '../../dto';
+import { 
+  DashboardUserDataDto, 
+  LeaveOrganizationDto, 
+  UpdateUserDto, 
+  UserDetailDto 
+} from '../../dto';
 import {
   ApiResponse,
   ApiResponseBuilder,
@@ -155,6 +172,29 @@ export class UsersController {
     const apiResponse = new ApiResponseBuilder<void>();
     await this.usersService.remove(id, user.organizationId, user.sub);
     apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage('User deleted successfully');
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Delete('me/organization')
+  async leaveOrganization(
+    @CurrentUser() user: UserPayload,
+    @Body() dto: LeaveOrganizationDto,
+    @Res() res: Response,
+  ): Promise<Response> {
+    const apiResponse = new ApiResponseBuilder<{ message: string }>();
+    
+    const result = await this.usersService.leaveOrganization(
+      user.sub,
+      user.organizationId,
+      dto.confirmationText,
+      dto.code2FA,
+    );
+
+    apiResponse
+      .setStatusCode(HttpStatusCode.Ok)
+      .setMessage(result.message)
+      .setData(result);
+    
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 

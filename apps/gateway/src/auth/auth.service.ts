@@ -208,8 +208,62 @@ export class AuthService {
       include: { organization: true },
     });
 
-    // 2. Si el usuario existe, vincular googleId si no lo tiene
+    // 2. Si el usuario existe
     if (user) {
+      // 2a. Si está eliminado (Soft Delete), lo reactivamos/reciclamos
+      if (user.deletedAt) {
+        // Generar nueva organización para este usuario "renacido"
+        const orgName = `${details.firstName}'s Organization`;
+        const userId = user.id; // Capture ID to avoid TS null error inside transaction
+        
+        const reactivatedUser = await this.prisma.$transaction(async (tx) => {
+          // Crear nueva Org
+          const slug = await OrganizationsService.generateUniqueSlug(orgName, tx);
+          const newOrganization = await tx.organization.create({
+            data: {
+              name: orgName,
+              slug: slug,
+              plan: SubscriptionPlan.FREE,
+              isActive: true,
+              allowOverages: false,
+            },
+          });
+
+          // Crear Balance
+          await tx.creditBalance.create({
+            data: {
+              organizationId: newOrganization.id,
+              balance: 0,
+              lifetimeEarned: 0,
+              lifetimeSpent: 0,
+              currentMonthSpent: 0,
+              currentMonthCostUSD: 0,
+            },
+          });
+
+          // Actualizar Usuario (Reciclar ID)
+          return await tx.user.update({
+            where: { id: userId },
+            data: {
+              deletedAt: null, // Reactivar
+              email: details.email, // Confirmar email
+              name: `${details.firstName} ${details.lastName}`,
+              googleId: details.googleId,
+              avatar: details.avatar,
+              role: 'owner', // Vuelve a ser Owner de su nueva org
+              organizationId: newOrganization.id, // Movemos al usuario a la nueva org
+              isActive: true,
+              emailVerified: true,
+              lastLoginAt: new Date(),
+            },
+            include: { organization: true },
+          });
+        });
+
+        return { user: reactivatedUser, organization: reactivatedUser.organization };
+      }
+
+      // 2b. Si NO está eliminado, flujo normal de vinculación
       if (!user.googleId) {
         user = await this.prisma.user.update({
           where: { id: user.id },
@@ -660,7 +714,7 @@ export class AuthService {
       where: { email: payload.email },
     });
 
-    if (emailExists) {
+    if (emailExists && !emailExists.deletedAt) {
       return StepOneErrors.EMAIL_ALREADY_EXISTS;
     }
 
@@ -747,9 +801,6 @@ export class AuthService {
     return true;
   }
 
-  /**
-   * Crear usuario
-   */
   async signupStepThree(user: CreateUserDto): Promise<any | keyof typeof StepThreeErrors> {
     const userVerificationRow = await this.prisma.userVerification.findFirst({
       where: {
@@ -762,7 +813,6 @@ export class AuthService {
     const hashedPassword = await this.utilityService.hashPassword(user.password);
     if (userVerificationRow) {
       try {
-        // Iniciar transacción para asegurar atomicidad
         // Iniciar transacción para asegurar atomicidad
         createdResult = await this.prisma.$transaction(async (tx) => {
           // 1. Crear Organización
@@ -793,18 +843,49 @@ export class AuthService {
             },
           });
 
-          // 2. Crear Usuario
-          const newUser = await tx.user.create({
-            data: {
-              email: userVerificationRow.email,
-              name: userVerificationRow.userName,
-              password: hashedPassword,
-              role: 'owner',
-              organizationId: newOrganization.id,
-              isActive: true,
-              emailVerified: userVerificationRow.isEmailVerified,
-            },
+          // 2. Crear o Reactivar Usuario
+          // Verificar si ya existe (para reactivación)
+          const existingUser = await tx.user.findUnique({
+            where: { email: userVerificationRow.email },
           });
+
+          let newUser;
+
+          if (existingUser && existingUser.deletedAt) {
+             // REACTIVACIÓN
+             newUser = await tx.user.update({
+               where: { id: existingUser.id },
+               data: {
+                 deletedAt: null, // Reactivar
+                 name: userVerificationRow.userName,
+                 password: hashedPassword,
+                 role: 'owner',
+                 organizationId: newOrganization.id,
+                 isActive: true,
+                 emailVerified: true,
+                 emailVerificationToken: null,
+                 emailVerificationTokenExpires: null,
+                 lastLoginAt: new Date(),
+               },
+             });
+          } else if (existingUser && !existingUser.deletedAt) {
+             // Esto no debería pasar, pero por seguridad lanzamos error
+             throw new Error('El usuario ya existe y está activo');
+          } else {
+             // CREACIÓN NUEVA
+             newUser = await tx.user.create({
+               data: {
+                 email: userVerificationRow.email,
+                 name: userVerificationRow.userName,
+                 password: hashedPassword,
+                 role: 'owner',
+                 organizationId: newOrganization.id,
+                 isActive: true,
+                 emailVerified: true,
+                 lastLoginAt: new Date(),
+               },
+             });
+          }
 
           // 3. Borrar verificación
           await tx.userVerification.deleteMany({
