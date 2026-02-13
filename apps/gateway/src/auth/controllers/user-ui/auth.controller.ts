@@ -283,6 +283,40 @@ export class AuthController {
     }
   }
 
+  @Post('2fa/enable')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Enable 2FA after setup',
+    description: 'Activates 2FA by verifying the 6-digit code from the authenticator app. User must be authenticated with JWT.',
+  })
+  async enable2FA(
+    @CurrentUser() user: UserPayload,
+    @Body() verificationCode: Verify2FACodeDto,
+    @Res() response: Response,
+  ): Promise<Response<ApiResponseBuilder<boolean>>> {
+    const responseBuilder = new ApiResponseBuilder<boolean>();
+    const isEnabled = await this.authService.enable2FA(user.sub, verificationCode.code2FA);
+    
+    if (isEnabled) {
+      responseBuilder
+        .setSuccess(true)
+        .setStatusCode(HttpStatusCode.Ok)
+        .setData(true)
+        .setMessage('2FA enabled successfully');
+      response.statusCode = HttpStatus.OK;
+      return response.send(responseBuilder.build());
+    } else {
+      responseBuilder
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.BadRequest)
+        .setData(false)
+        .setMessage('Invalid 2FA code or 2FA not set up');
+      response.statusCode = HttpStatus.BAD_REQUEST;
+      return response.send(responseBuilder.build());
+    }
+  }
+
   /**
    * POST /auth/refresh
    * Refresca el access token usando el refresh token de la cookie

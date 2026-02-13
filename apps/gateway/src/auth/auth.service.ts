@@ -644,6 +644,39 @@ export class AuthService {
     return { qr };
   }
 
+  /**
+   * Enable 2FA after setup (first-time activation)
+   * Used when user is already authenticated and wants to activate 2FA
+   * @param userId - User ID
+   * @param authCode - 6-digit code from authenticator app
+   * @returns true if enabled successfully, false if code is invalid
+   */
+  async enable2FA(userId: string, authCode: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user?.twoFactorSecret) {
+      return false;
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: 'base32',
+      token: authCode,
+    });
+
+    if (verified) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { twoFactorEnabled: true },
+      });
+      return true;
+    }
+
+    return false;
+  }
+
   async verify2FACode(userPayload: UserPayload, authCode: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userPayload.sub },
