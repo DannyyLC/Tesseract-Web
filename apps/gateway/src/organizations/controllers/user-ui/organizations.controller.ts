@@ -19,7 +19,8 @@ import {
   DashboardOrganizationDto,
   UpdateOrganizationDto,
   EmailDto,
-  AcceptInvitationDto
+  AcceptInvitationDto,
+  DeleteOrganizationDto
 } from '../../dto';
 import { OrganizationsService } from '../../organizations.service';
 import { DashboardUserDataDto } from '../../../users/dto';
@@ -85,9 +86,10 @@ export class OrganizationsController {
   @ApiOperation({ summary: 'Delete Organization', description: deleteOrganizationSwaggerDesc })
   async deleteOrganization(
     @CurrentUser() user: UserPayload,
+    @Body() dto:  DeleteOrganizationDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<Organization>>> {
-    const result = await this.organizationsService.softDelete(user.organizationId, user.sub);
+    const result = await this.organizationsService.softDelete(user.organizationId, user.sub, dto.confirmationText, dto.code2FA);
     const apiResponse = new ApiResponseBuilder<Organization>();
     if (!result) {
       apiResponse.setStatusCode(400).setMessage('Organization could not be deleted');

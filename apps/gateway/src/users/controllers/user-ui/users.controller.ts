@@ -198,8 +198,8 @@ export class UsersController {
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 
-    @Get('notifications')
-    async getAppNotifications(
+  @Get('notifications')
+  async getAppNotifications(
       @CurrentUser() user: UserPayload,
       @Res() res: Response
     ): Promise<Response<ApiResponse<NotificationEventDto[]>>> {
@@ -210,5 +210,5 @@ export class UsersController {
         .setMessage('User notifications retrieved successfully')
         .setData(notifications);
       return res.status(HttpStatusCode.Ok).json(apiResponse.build());
-    }
+  }
 }

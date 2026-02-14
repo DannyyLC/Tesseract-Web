@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PLANS, SubscriptionPlan, getPlanLimits, SubscriptionPlan as SharedSubscriptionPlan } from '@workflow-automation/shared-types';
 import { Organization } from '@workflow-platform/database';
 import { randomBytes } from 'crypto';
@@ -18,7 +18,6 @@ import {
   UpdateOverageSettingsDto,
   UpdateSettingsDto
 } from './dto';
-
 
 /**
  * Servicio para gestionar organizaciones
@@ -600,30 +599,75 @@ export class OrganizationsService {
    * Soft Delete Organization
    * Marks organization as deleted, effectively removing it from view and access.
    */
-  async softDelete(organizationId: string, userId: string): Promise<Organization | null> {
+  async softDelete(
+    organizationId: string, 
+    userId: string,
+    confirmationText: string,
+    code2FA?: string,
+  ): Promise<Organization | null> {
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { organization: true },
+    });
+
+    // Verificar que el usuario existe
+    if (!user) {
+      throw new NotFoundException(`No se encontró el usuario con ID: ${userId}`);
+    }
+
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
     });
 
+    // Verificar que la organizacion existe
     if (!organization) {
       this.logger.warn(`No se encontró la organización con ID: ${organizationId}`);
       return null;
     }
 
+    // Verificar que el usuario pertenece a la organizacion
+    if (user.organizationId !== organizationId) {
+      throw new ForbiddenException('El usuario no pertenece a la organizacion');
+    }
+
     // Safety check: Don't double delete
     if (organization.deletedAt) return organization;
+
+    if (user.role !== 'owner') {
+      throw new ForbiddenException('No tienes los permisos requeridos');
+    }
+
+    // Validar confirmación por nombre
+    if (confirmationText !== user.organization.name) {
+      throw new BadRequestException('El nombre de la organización no coincide');
+    }
+
+    if (user.twoFactorEnabled) {
+      if (!code2FA) {
+        throw new ForbiddenException('Código 2FA requerido');
+      }
+      const speakeasy = require('speakeasy');
+      const verified = speakeasy.totp.verify({
+        secret: user.twoFactorSecret!,
+        encoding: 'base32',
+        token: code2FA,
+      }); 
+
+      if (!verified) {
+        throw new BadRequestException('Código 2FA inválido');
+      }
+    }
 
     let updated: Organization | null = null;
     try {
       updated = await this.prisma.organization.update({
         where: { id: organizationId },
         data: {
-          isActive: false, // Deactivate access immediately
+          isActive: false, 
           deletedAt: new Date(),
-          // Optional: We could track deletedBy if schema supported it, or just rely on logs
         },
       });
-      // Log the deletion
       this.logger.info(`Organization ${organization.name} (${organizationId}) soft-deleted by user ${userId}`);
     } catch (error) {
        this.logger.error(`Error deleting organization ${organizationId}: ${error}`);

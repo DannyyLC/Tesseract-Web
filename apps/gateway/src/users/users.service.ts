@@ -483,15 +483,6 @@ export class UsersService {
     }
   }
 
-  /**
-   * Validar que NO se puede eliminar al owner
-   */
-  private validateNotOwner(user: User): void {
-    if (user.role === 'owner') {
-      throw new ForbiddenException('Cannot delete owner. Transfer ownership first.');
-    }
-  }
-
   async getDashboardData(
     organizationId: string,
     cursor?: string | null,
@@ -608,6 +599,7 @@ export class UsersService {
     confirmationText: string,
     code2FA?: string,
   ): Promise<{ message: string }> {
+    
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { organization: true },
