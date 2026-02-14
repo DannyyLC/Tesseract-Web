@@ -9,7 +9,6 @@ export class UserDetailDto {
   readonly lastLoginAt: Date | null;
   readonly createdAt: Date;
   readonly emailVerified: boolean;
-  readonly twoFactorEnabled: boolean;
 
   constructor(partial: Partial<UserDetailDto>) {
     Object.assign(this, partial);

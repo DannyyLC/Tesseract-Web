@@ -1072,21 +1072,24 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    // Verify current password is not the same as new password
-    if (dto.currentPassword === dto.newPassword) {
-      throw new BadRequestException('New password cannot be the same as current password');
-    }
+    // 1. Verify current password logic
+    if (user.password) {
+      // If user has a password, currentPassword is REQUIRED
+      if (!dto.currentPassword) {
+        throw new BadRequestException('Current password is required');
+      }
 
-    // 1. Verify current password
-    if (!user.password) {
-      // Should not happen for password-based users, but safety check for future OAuth
-      throw new BadRequestException('User has no password set.');
-    }
+      // Validate new password is not same as old
+      if (dto.currentPassword === dto.newPassword) {
+        throw new BadRequestException('New password cannot be the same as current password');
+      }
 
-    const isMatch = await bcrypt.compare(dto.currentPassword, user.password);
-    if (!isMatch) {
-      throw new UnauthorizedException('Invalid current password');
+      const isMatch = await bcrypt.compare(dto.currentPassword, user.password);
+      if (!isMatch) {
+        throw new UnauthorizedException('Invalid current password');
+      }
     }
+    // If user.password is null (e.g. Google User), allow setting password without currentPassword check
 
     // 2. 2FA Check
     if (user.twoFactorEnabled) {
@@ -1118,5 +1121,16 @@ export class AuthService {
     await this.logoutAll(userId);
 
     return { message: 'Password changed successfully. Please login again.' };
+  }
+
+  async getUserSecurityStatus(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { password: true, twoFactorEnabled: true },
+    });
+    return {
+      hasPassword: !!user?.password,
+      twoFactorEnabled: user?.twoFactorEnabled ?? false,
+    };
   }
 }

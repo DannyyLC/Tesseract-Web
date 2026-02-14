@@ -415,8 +415,9 @@ export class AuthController {
     summary: 'Get user profile',
     description: meSwaggerDesc,
   })
-  getProfile(@CurrentUser() user: UserPayload) {
-    return user;
+  async getProfile(@CurrentUser() user: UserPayload) {
+    const securityStatus = await this.authService.getUserSecurityStatus(user.sub);
+    return { ...user, ...securityStatus };
   }
 
   /**

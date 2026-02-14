@@ -3,12 +3,14 @@ import { IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class ChangePasswordDto {
   @ApiProperty({
-    description: 'Current password of the user',
+    description: 'Current password of the user (required if user has a password)',
     example: 'OldPassword123!',
+    required: false,
   })
   @IsString()
   @IsNotEmpty()
-  currentPassword: string;
+  @IsOptional()
+  currentPassword?: string;
 
   @ApiProperty({
     description: 'New password for the user',
