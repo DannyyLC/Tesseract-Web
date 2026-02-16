@@ -63,4 +63,29 @@ export class CronJobsService {
       );
     }
   }
+
+  // Runs every day at midnight (00:00)
+  @Cron('0 0 * * *')
+  async handleNotificationCleanup() {
+    // Auto-soft-delete read notifications older than 30 days to clear the user's feed
+    // but keep them in the database for history/audit.
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    
+    const result = await this.prisma.userNotification.updateMany({
+      where: {
+        isRead: true,
+        createdAt: { lt: thirtyDaysAgo },
+        deletedAt: null,
+      },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+
+    if (result.count > 0) {
+      this.logger.log(
+        `Daily Notification Auto-Archive: Soft-deleted ${result.count} old read notifications`,
+      );
+    }
+  }
 }
