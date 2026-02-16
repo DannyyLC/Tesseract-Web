@@ -11,9 +11,10 @@ import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { PrismaService } from '../database/prisma.service';
-import { DashboardUserDataDto, UpdateProfileDto, UserFiltersDto } from './dto';
 import { NotificationEventDto } from '../events/app-notifications/notification.dto';
 import { notificationsEnum } from '../events/app-notifications/notifications.enum';
+import { EmailService } from '../notifications/email/email.service';
+import { DashboardUserDataDto, UpdateProfileDto, UserFiltersDto } from './dto';
 
 interface PaginatedUsers {
   data: User[];
@@ -47,6 +48,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+    private readonly emailService: EmailService,
   ) {}
 
   async validateEmailUnique(email: string): Promise<boolean> {
@@ -159,19 +161,24 @@ export class UsersService {
     userId: string,
     organizationId: string,
     data: UpdateProfileDto,
-  ): Promise<User> {
-    // Verificar que el usuario existe y pertenece a la org
-    await this.findOne(userId, organizationId);
+  ): Promise<User | null> {
+    var user = null;
+    try {
+      // Verificar que el usuario existe y pertenece a la org
+      await this.findOne(userId, organizationId);
 
-    // Actualizar solo campos permitidos
-    const user = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...(data.name && { name: data.name }),
-        ...(data.avatar && { avatar: data.avatar }),
-        ...(data.timezone && { timezone: data.timezone }),
-      },
-    });
+      // Actualizar solo campos permitidos
+      user = await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          ...(data.name && { name: data.name }),
+          ...(data.avatar && { avatar: data.avatar }),
+          ...(data.timezone && { timezone: data.timezone }),
+        },
+      });
+    } catch (error) {
+      this.logger.error(`Error updating user profile for userId ${userId}: ${error}`);
+    }
 
     return user;
   }
@@ -599,7 +606,6 @@ export class UsersService {
     confirmationText: string,
     code2FA?: string,
   ): Promise<{ message: string }> {
-    
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { organization: true },
@@ -650,9 +656,7 @@ export class UsersService {
     });
 
     // 6. Log de auditoría
-    this.logger.info(
-      `User ${user.email} left organization ${user.organization.name} voluntarily`,
-    );
+    this.logger.info(`User ${user.email} left organization ${user.organization.name} voluntarily`);
 
     return {
       message: 'Has abandonado la organización exitosamente.',
@@ -676,5 +680,29 @@ export class UsersService {
         .desc,
     }));
     return notifications as NotificationEventDto[];
+  }
+
+  async requestServiceInfoByEmail(
+    userName: string,
+    email: string,
+    userMessage: string,
+  ): Promise<boolean> {
+    try {
+      const emailResult = await this.emailService.sendServiceRequestEmail(
+        process.env.SMTP_VERIFIED_EMAIL_FROM || 'verified-email@yourdomain.com',
+        process.env.SMTP_EMAIL_FROM || 'fractaliaindustries@gmail.com',
+        email,
+        userName,
+        userMessage,
+      );
+      if (!emailResult) {
+        this.logger.error(`Failed to send service information request email for user ${email}`);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      this.logger.error('Error sending service information request email', error);
+      return false;
+    }
   }
 }

@@ -10,7 +10,8 @@ import {
   Delete, 
   Body, 
   ParseIntPipe, 
-  DefaultValuePipe 
+  DefaultValuePipe, 
+  Post
 } from '@nestjs/common';
 import { Response } from 'express';
 import { 
@@ -29,6 +30,8 @@ import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
 import { NotificationEventDto } from '../../../events/app-notifications/notification.dto';
+import { UpdateProfileDto } from '../../dto';
+import { ServiceInfoRequestDto } from '../../../users/dto/service-info-request.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -110,7 +113,7 @@ export class UsersController {
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 
-  @Patch(':id')
+  @Patch(':id/update-status-or-role')
   async update(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
@@ -147,6 +150,30 @@ export class UsersController {
     apiResponse
       .setStatusCode(HttpStatusCode.Ok)
       .setMessage('User updated successfully')
+      .setData(updatedUser);
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Patch(':id/update-profile')
+  async updateProfile(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Body() updateProfileDto: UpdateProfileDto,
+    @Res() res: Response,
+  ): Promise<Response> {
+    const apiResponse = new ApiResponseBuilder<any>();
+    const updatedUser = await this.usersService.updateProfile(id, user.organizationId, updateProfileDto);
+    if (!updatedUser) {
+      apiResponse
+        .setMessage('User not found or profile update failed')
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.NotFound);
+      return res.status(HttpStatusCode.NotFound).json(apiResponse.build());
+    }
+
+    apiResponse
+      .setStatusCode(HttpStatusCode.Ok)
+      .setMessage('User profile updated successfully')
       .setData(updatedUser);
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
@@ -210,5 +237,28 @@ export class UsersController {
         .setMessage('User notifications retrieved successfully')
         .setData(notifications);
       return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Post('request-service-info-by-email')
+  async requestServiceInfoByEmail(
+    @CurrentUser() user: UserPayload,
+    @Body() message: ServiceInfoRequestDto,
+    @Res() res: Response
+  ): Promise<Response<ApiResponse<boolean>>> {
+    const apiResponse = new ApiResponseBuilder<boolean>();
+    const emailResult = await this.usersService.requestServiceInfoByEmail(user.name,user.email, message.userMsg);
+    if (!emailResult) {
+      apiResponse
+        .setMessage('Failed to send service information request email')
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.InternalServerError);
+      return res.status(HttpStatusCode.InternalServerError).json(apiResponse.build());
+    }
+
+    apiResponse
+      .setMessage('Service information request email sent successfully')
+      .setSuccess(true)
+      .setStatusCode(HttpStatusCode.Ok);
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 }

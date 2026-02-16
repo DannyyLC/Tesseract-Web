@@ -16,6 +16,7 @@ export class EmailService {
   private emailInvitationTemplate: handlebars.TemplateDelegate;
   private emailPasswordResetTemplate: handlebars.TemplateDelegate;
   private emailOrganizationExistsTemplate: handlebars.TemplateDelegate;
+  private emailServiceRequestTemplate: handlebars.TemplateDelegate;
 
   constructor(
     private readonly jwtService: JwtService,
@@ -44,6 +45,7 @@ export class EmailService {
     this.emailInvitationTemplate = this.loadTemplate('email_invitation_view.hbs');
     this.emailPasswordResetTemplate = this.loadTemplate('restore_password_es.html');
     this.emailOrganizationExistsTemplate = this.loadTemplate('email_organization_exists.hbs');
+    this.emailServiceRequestTemplate = this.loadTemplate('request_services_info.hbs');
   }
 
   private loadTemplate(templateName: string): handlebars.TemplateDelegate {
@@ -155,6 +157,32 @@ export class EmailService {
     } catch (error) {
       this.logger.error(
         `sendOrganizationExistsEmail >> Error enviando email a ${email}: ${error}`,
+      );
+      return null;
+    }
+  }
+
+  async sendServiceRequestEmail(
+    fromEmail: string,
+    targetEmail: string,
+    userEmail: string,
+    userName: string,
+    userMessage: string,
+  ): Promise<nodemailer.SentMessageInfo | null> {
+    try {
+      return await this.transporter.sendMail({
+        from: fromEmail,
+        to: targetEmail,
+        subject: 'Solicitud de información de servicios',
+        html: this.emailServiceRequestTemplate({
+          user_email: userEmail,
+          user_name: userName,
+          user_message: userMessage,
+        }),
+      });
+    } catch (error) {
+      this.logger.error(
+        `sendServiceRequestEmail >> Error enviando email a ${targetEmail}: ${error}`,
       );
       return null;
     }

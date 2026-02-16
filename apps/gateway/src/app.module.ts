@@ -28,6 +28,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { TenantToolModule } from './tenant-tool/tenant-tool.module';
 import { UsersModule } from './users/users.module';
 import { UtilityModule } from './utility/utility.module';
+import { ToolsCatalogModule } from './tools-catalog/tools-catalog.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { UtilityModule } from './utility/utility.module';
     EventEmitterModule.forRoot(),
     TenantToolModule,
     UtilityModule,
+    ToolsCatalogModule
   ],
   controllers: [],
   providers: [
