@@ -73,6 +73,37 @@ export class UsersController {
     }
   }
 
+  @Get('notifications')
+  async getAppNotifications(
+      @CurrentUser() user: UserPayload,
+      @Res() res: Response,
+      @Query('cursor') cursor: string | null = null,
+      @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number
+    ): Promise<Response<ApiResponse<CursorPaginatedResponse<NotificationEventDto>>>> {
+      const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<NotificationEventDto>>();
+      // Cast to any if needed or ensure service returns strict match
+      const notifications = await this.usersService.getNotificationsForUser(user.sub, user.organizationId, cursor, pageSize);
+      apiResponse
+        .setStatusCode(HttpStatusCode.Ok)
+        .setMessage('User notifications retrieved successfully')
+        .setData(notifications);
+      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Get('notifications/unread-count')
+  async getUnreadNotificationsCount(
+      @CurrentUser() user: UserPayload,
+      @Res() res: Response,
+    ): Promise<Response<ApiResponse<number>>> {
+      const apiResponse = new ApiResponseBuilder<number>();
+      const count = await this.usersService.getUnreadNotificationsCount(user.sub, user.organizationId);
+      apiResponse
+        .setStatusCode(HttpStatusCode.Ok)
+        .setMessage('User unread notifications count retrieved successfully')
+        .setData(count);
+      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
   @Get('stats')
   async getStats(@CurrentUser() user: UserPayload, @Res() res: Response): Promise<Response> {
     const apiResponse = new ApiResponseBuilder<any>();
@@ -223,37 +254,6 @@ export class UsersController {
       .setData(result);
     
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
-  }
-
-  @Get('notifications')
-  async getAppNotifications(
-      @CurrentUser() user: UserPayload,
-      @Res() res: Response,
-      @Query('cursor') cursor: string | null = null,
-      @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number
-    ): Promise<Response<ApiResponse<CursorPaginatedResponse<NotificationEventDto>>>> {
-      const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<NotificationEventDto>>();
-      // Cast to any if needed or ensure service returns strict match
-      const notifications = await this.usersService.getNotificationsForUser(user.sub, user.organizationId, cursor, pageSize);
-      apiResponse
-        .setStatusCode(HttpStatusCode.Ok)
-        .setMessage('User notifications retrieved successfully')
-        .setData(notifications);
-      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
-  }
-
-  @Get('notifications/unread-count')
-  async getUnreadNotificationsCount(
-      @CurrentUser() user: UserPayload,
-      @Res() res: Response,
-    ): Promise<Response<ApiResponse<number>>> {
-      const apiResponse = new ApiResponseBuilder<number>();
-      const count = await this.usersService.getUnreadNotificationsCount(user.sub, user.organizationId);
-      apiResponse
-        .setStatusCode(HttpStatusCode.Ok)
-        .setMessage('User unread notifications count retrieved successfully')
-        .setData(count);
-      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 
   @Patch('notifications/:id/read')
