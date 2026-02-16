@@ -122,6 +122,7 @@ model Organization {
   creditTransactions CreditTransaction[]
   invoices           Invoice[]
   conversations      Conversation[]
+  userNotifications  UserNotification[]
 
   @@index([slug])
   @@index([deletedAt])
@@ -1155,13 +1156,18 @@ model Notification {
 }
 
 model UserNotification {
+  id             String       @id @default(uuid())
   userId         String
+  organizationId String
   notificationId String
   isRead         Boolean      @default(false)
+  parameters     Json?        @db.JsonB // ["$500", "16/02/2026"] - Para rellenar los %s del template
   createdAt      DateTime     @default(now())
+  deletedAt      DateTime?
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
 
-  @@id([userId, notificationId])
+  @@index([userId, organizationId])
   @@map("user_notifications")
 }

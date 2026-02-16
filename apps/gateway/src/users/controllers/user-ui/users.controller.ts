@@ -228,15 +228,67 @@ export class UsersController {
   @Get('notifications')
   async getAppNotifications(
       @CurrentUser() user: UserPayload,
-      @Res() res: Response
-    ): Promise<Response<ApiResponse<NotificationEventDto[]>>> {
-      const apiResponse = new ApiResponseBuilder<NotificationEventDto[]>();
-      const notifications = await this.usersService.getNotificationsForUser(user.organizationId);
+      @Res() res: Response,
+      @Query('cursor') cursor: string | null = null,
+      @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number
+    ): Promise<Response<ApiResponse<CursorPaginatedResponse<NotificationEventDto>>>> {
+      const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<NotificationEventDto>>();
+      // Cast to any if needed or ensure service returns strict match
+      const notifications = await this.usersService.getNotificationsForUser(user.sub, user.organizationId, cursor, pageSize);
       apiResponse
         .setStatusCode(HttpStatusCode.Ok)
         .setMessage('User notifications retrieved successfully')
         .setData(notifications);
       return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Get('notifications/unread-count')
+  async getUnreadNotificationsCount(
+      @CurrentUser() user: UserPayload,
+      @Res() res: Response,
+    ): Promise<Response<ApiResponse<number>>> {
+      const apiResponse = new ApiResponseBuilder<number>();
+      const count = await this.usersService.getUnreadNotificationsCount(user.sub, user.organizationId);
+      apiResponse
+        .setStatusCode(HttpStatusCode.Ok)
+        .setMessage('User unread notifications count retrieved successfully')
+        .setData(count);
+      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Patch('notifications/:id/read')
+  async markNotificationAsRead(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Res() res: Response
+  ): Promise<Response> {
+    const apiResponse = new ApiResponseBuilder<void>();
+    await this.usersService.markNotificationAsRead(user.sub, user.organizationId, id);
+    apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage('Notification marked as read');
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Patch('notifications/read-all')
+  async markAllNotificationsAsRead(
+    @CurrentUser() user: UserPayload,
+    @Res() res: Response
+  ): Promise<Response> {
+    const apiResponse = new ApiResponseBuilder<void>();
+    await this.usersService.markAllNotificationsAsRead(user.sub, user.organizationId);
+    apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage('All notifications marked as read');
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Delete('notifications/:id')
+  async deleteNotification(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Res() res: Response
+  ): Promise<Response> {
+    const apiResponse = new ApiResponseBuilder<void>();
+    await this.usersService.deleteNotification(user.sub, user.organizationId, id);
+    apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage('Notification deleted successfully');
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 
   @Post('request-service-info-by-email')

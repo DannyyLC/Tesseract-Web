@@ -663,23 +663,128 @@ export class UsersService {
     };
   }
 
-  async getNotificationsForUser(userId: string): Promise<NotificationEventDto[]> {
+  async getNotificationsForUser(
+    userId: string,
+    organizationId: string,
+    cursor?: string | null,
+    pageSize = 10,
+  ): Promise<CursorPaginatedResponse<NotificationEventDto>> {
+    const where: Prisma.UserNotificationWhereInput = {
+      userId,
+      organizationId,
+      deletedAt: null,
+    };
+
     const userNotifications = await this.prisma.userNotification.findMany({
-      where: {
-        userId,
+      take: pageSize + 1, // Fetch one extra to determine if next page exists
+      cursor: cursor ? { id: cursor } : undefined,
+      where,
+      include: {
+        notification: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
       },
     });
 
-    const notifications = userNotifications.map((userNotification) => ({
-      id: userNotification.notificationId,
-      notificationCode: userNotification.notificationId,
-      isRead: userNotification.isRead,
-      title:
-        notificationsEnum[userNotification.notificationId as keyof typeof notificationsEnum].title,
-      desc: notificationsEnum[userNotification.notificationId as keyof typeof notificationsEnum]
-        .desc,
-    }));
-    return notifications as NotificationEventDto[];
+    const paginatedResponse = await CursorPaginatedResponseUtils.getInstance().build(
+      userNotifications,
+      pageSize,
+      null, // action not needed for simple next/prev based purely on ID cursor
+    );
+
+    const items = paginatedResponse.items.map((userNotification) => {
+      const code = userNotification.notification.code;
+      const params = (userNotification.parameters as string[]) || [];
+
+      let title = '';
+      let desc = '';
+
+      if (notificationsEnum[code as keyof typeof notificationsEnum]) {
+        title = notificationsEnum[code as keyof typeof notificationsEnum].title;
+        let baseDesc = notificationsEnum[code as keyof typeof notificationsEnum].desc;
+
+        // Replace %s with parameters
+        if (params.length > 0) {
+          params.forEach((param) => {
+            baseDesc = baseDesc.replace('%s', param);
+          });
+        }
+        desc = baseDesc;
+      } else {
+        // Fallback if code not found in enum
+        title = 'Notificación';
+        desc = 'Tienes una nueva notificación.';
+      }
+
+      return {
+        id: userNotification.id, // Now using the unique UUID of the UserNotification
+        notificationCode: code,
+        isRead: userNotification.isRead,
+        title,
+        desc,
+        createdAt: userNotification.createdAt,
+      };
+    });
+
+    return {
+      items,
+      nextCursor: paginatedResponse.nextCursor,
+      prevCursor: paginatedResponse.prevCursor,
+      nextPageAvailable: paginatedResponse.nextPageAvailable,
+      pageSize: paginatedResponse.pageSize,
+    };
+  }
+
+  async getUnreadNotificationsCount(userId: string, organizationId: string): Promise<number> {
+    return this.prisma.userNotification.count({
+      where: {
+        userId,
+        organizationId,
+        isRead: false,
+        deletedAt: null,
+      },
+    });
+  }
+
+  async markNotificationAsRead(userId: string, organizationId: string, notificationId: string): Promise<void> {
+    await this.prisma.userNotification.updateMany({
+      where: {
+        id: notificationId,
+        userId,
+        organizationId,
+      },
+      data: {
+        isRead: true,
+      },
+    });
+  }
+
+  async markAllNotificationsAsRead(userId: string, organizationId: string): Promise<void> {
+    await this.prisma.userNotification.updateMany({
+      where: {
+        userId,
+        organizationId,
+        isRead: false,
+        deletedAt: null,
+      },
+      data: {
+        isRead: true,
+      },
+    });
+  }
+
+  async deleteNotification(userId: string, organizationId: string, notificationId: string): Promise<void> {
+    await this.prisma.userNotification.updateMany({
+      where: {
+        id: notificationId,
+        userId,
+        organizationId,
+      },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
   }
 
   async requestServiceInfoByEmail(

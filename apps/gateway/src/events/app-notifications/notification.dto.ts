@@ -10,4 +10,5 @@ export interface NotificationEventDto {
   isRead?: boolean;
   title: string;
   desc: string;
+  createdAt?: Date;
 }
