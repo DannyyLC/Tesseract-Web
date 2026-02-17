@@ -790,15 +790,40 @@ export class UsersService {
   async requestServiceInfoByEmail(
     userName: string,
     email: string,
+    subject: string,
     userMessage: string,
+    organizationId: string
   ): Promise<boolean> {
     try {
+      // 1. Obtener nombre de la organización
+      // Podríamos confiar en que el usuario tiene org, pero validamos por seguridad
+      const organization = await this.prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { name: true },
+      });
+
+      const organizationName = organization?.name || 'Organización desconocida';
+
+      // 2. Obtener fecha y hora actual
+      // Formato legible: DD/MM/YYYY HH:MM:SS (o similar)
+      const now = new Date();
+      const dateString = now.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      const timeString = now.toLocaleTimeString('es-ES');
+      const dateTime = `${dateString} a las ${timeString}`;
+
       const emailResult = await this.emailService.sendServiceRequestEmail(
         process.env.SMTP_VERIFIED_EMAIL_FROM || 'verified-email@yourdomain.com',
         process.env.SMTP_EMAIL_FROM || 'fractaliaindustries@gmail.com',
         email,
         userName,
+        subject,
         userMessage,
+        organizationName,
+        dateTime
       );
       if (!emailResult) {
         this.logger.error(`Failed to send service information request email for user ${email}`);

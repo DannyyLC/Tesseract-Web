@@ -167,19 +167,26 @@ export class EmailService {
     targetEmail: string,
     userEmail: string,
     userName: string,
+    subject: string,
     userMessage: string,
+    organizationName: string,
+    date: string,
   ): Promise<nodemailer.SentMessageInfo | null> {
     try {
       return await this.transporter.sendMail({
         from: fromEmail,
         to: targetEmail,
-        subject: 'Solicitud de información de servicios',
+        subject: `Solicitud de Info: ${subject}`,
         html: this.emailServiceRequestTemplate({
           user_email: userEmail,
           user_name: userName,
+          subject,
           user_message: userMessage,
+          organization_name: organizationName,
+          date,
         }),
       });
+
     } catch (error) {
       this.logger.error(
         `sendServiceRequestEmail >> Error enviando email a ${targetEmail}: ${error}`,

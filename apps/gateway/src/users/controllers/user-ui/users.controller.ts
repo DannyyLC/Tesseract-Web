@@ -298,7 +298,7 @@ export class UsersController {
     @Res() res: Response
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
-    const emailResult = await this.usersService.requestServiceInfoByEmail(user.name,user.email, message.userMsg);
+    const emailResult = await this.usersService.requestServiceInfoByEmail(user.name, user.email, message.subject, message.userMsg, user.organizationId);
     if (!emailResult) {
       apiResponse
         .setMessage('Failed to send service information request email')
