@@ -32,6 +32,7 @@ import { UserPayload } from '../../../common/types/jwt-payload.type';
 import { NotificationEventDto } from '../../../events/app-notifications/notification.dto';
 import { UpdateProfileDto } from '../../dto';
 import { ServiceInfoRequestDto } from '../../../users/dto/service-info-request.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -292,13 +293,15 @@ export class UsersController {
   }
 
   @Post('request-service-info-by-email')
+  @Throttle({ default: { limit: 1, ttl: 60000 } })
   async requestServiceInfoByEmail(
     @CurrentUser() user: UserPayload,
     @Body() message: ServiceInfoRequestDto,
     @Res() res: Response
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
-    const emailResult = await this.usersService.requestServiceInfoByEmail(user.name, user.email, message.subject, message.userMsg, user.organizationId);
+    const userMsg = message.userMsg || 'El usuario no proporcionó ningún mensaje adicional.';
+    const emailResult = await this.usersService.requestServiceInfoByEmail(user.name, user.email, message.subject, userMsg, user.organizationId);
     if (!emailResult) {
       apiResponse
         .setMessage('Failed to send service information request email')

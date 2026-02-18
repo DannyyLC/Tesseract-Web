@@ -1,9 +1,9 @@
-import { IsNotEmpty, IsString } from "class-validator";
+import { IsNotEmpty, IsString, IsOptional } from "class-validator";
 
 export class ServiceInfoRequestDto {
     @IsString()
-    @IsNotEmpty()
-    userMsg: string;
+    @IsOptional()
+    userMsg?: string;
 
     @IsString()
     @IsNotEmpty()
