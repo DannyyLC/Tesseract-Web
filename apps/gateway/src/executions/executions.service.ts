@@ -846,41 +846,26 @@ export class ExecutionsService {
     // Top workflows por número de ejecuciones
     const workflowStats = new Map<string, { name: string; total: number; successful: number }>();
 
-    executions.forEach((e: any) => {
-      const existing = workflowStats.get(e.workflowId) ?? {
-        name: e.workflow.name,
-        total: 0,
-        successful: 0,
-      };
-      existing.total += 1;
-      if (e.status === 'completed') {
-        existing.successful += 1;
-      }
-      workflowStats.set(e.workflowId, existing);
-    });
+    // Inicializar mapa de fechas para dailyStats
+    const dailyStatsMap = new Map<string, number>();
+    const msInDay = 24 * 60 * 60 * 1000;
+    
+    if (startDate) {
+        // Si hay fecha de inicio definida (todos los casos menos 'all'), rellenar huecos
+        let currentDate = new Date(startDate);
+        const endDateStats = new Date(); // Hoy
+        
+        while (currentDate <= endDateStats) {
+            const dateStr = currentDate.toISOString().split('T')[0];
+            dailyStatsMap.set(dateStr, 0);
+            currentDate = new Date(currentDate.getTime() + msInDay);
+        }
+    }
 
-    const topWorkflows = Array.from(workflowStats.entries())
-      .map(([workflowId, stats]) => ({
-        workflowId,
-        workflowName: stats.name,
-        executions: stats.total,
-        successRate: stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
-      }))
-      .sort((a, b) => b.executions - a.executions)
-      .slice(0, 10);
-
-    // Calcular estadísticas de créditos
-    const totalCreditsConsumed = executions.reduce(
-      (sum: number, e: any) => sum + (e.credits ?? 0),
-      0,
-    );
-
-    const executionsInOverage = executions.filter((e: any) => e.wasOverage === true).length;
-
-    const overageRate = total > 0 ? (executionsInOverage / total) * 100 : 0;
-
-    const avgCreditsPerExecution = total > 0 ? totalCreditsConsumed / total : 0;
-
+    // Inicializar acumuladores de créditos y categorías
+    let totalCreditsConsumed = 0;
+    let executionsInOverage = 0;
+    
     // Agrupar por categoría de workflow
     const byWorkflowCategory: Record<string, { count: number; credits: number }> = {
       LIGHT: { count: 0, credits: 0 },
@@ -889,12 +874,67 @@ export class ExecutionsService {
     };
 
     executions.forEach((e: any) => {
-      const category = e.workflow?.category;
-      if (category && byWorkflowCategory[category]) {
-        byWorkflowCategory[category].count += 1;
-        byWorkflowCategory[category].credits += e.credits ?? 0;
-      }
+        // Stats por workflow
+        const existing = workflowStats.get(e.workflowId) ?? {
+            name: e.workflow.name,
+            total: 0,
+            successful: 0,
+        };
+        existing.total += 1;
+        if (e.status === 'completed') {
+            existing.successful += 1;
+        }
+        workflowStats.set(e.workflowId, existing);
+
+        // Stats por categoría
+        const category = e.workflow?.category;
+        if (category && byWorkflowCategory[category]) {
+            byWorkflowCategory[category].count += 1;
+            byWorkflowCategory[category].credits += e.credits ?? 0;
+        }
+
+        // Stats de créditos generales
+        totalCreditsConsumed += e.credits ?? 0;
+        if (e.wasOverage) {
+            executionsInOverage++;
+        }
+
+        // Daily Stats
+        if (e.startedAt) {
+            const dateStr = new Date(e.startedAt).toISOString().split('T')[0];
+            // Si el periodo es 'all', inicializamos dinámicamente. Si es fijo, ya está inicializado (o ignoramos si cae fuera por alguna razón rara)
+            if (!dailyStatsMap.has(dateStr)) {
+                 if (period === 'all') {
+                     dailyStatsMap.set(dateStr, 0); // Inicializar si es 'all'
+                 }
+            }
+            
+            if (dailyStatsMap.has(dateStr)) {
+                dailyStatsMap.set(dateStr, (dailyStatsMap.get(dateStr) || 0) + 1);
+            }
+        }
     });
+
+    const topWorkflows = Array.from(workflowStats.entries())
+      .map(([workflowId, stats]) => ({
+        workflowId,
+        workflowName: stats.name,
+        executions: stats.total,
+        successRate: stats.total > 0 ? parseFloat(((stats.successful / stats.total) * 100).toFixed(2)) : 0,
+      }))
+      .sort((a, b) => b.executions - a.executions)
+      .slice(0, 10);
+
+    // Calcular tasas finales de créditos
+    const overageRate = total > 0 ? (executionsInOverage / total) * 100 : 0;
+    const avgCreditsPerExecution = total > 0 ? totalCreditsConsumed / total : 0;
+
+    // Convertir dailyStatsMap a array
+    // Si es 'all', ordenamos por fecha. Si es fijo, ya va en orden de inserción (pero ordenamos por seguridad)
+    const dailyStats = Array.from(dailyStatsMap.entries())
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
 
     return {
       period,
@@ -906,9 +946,10 @@ export class ExecutionsService {
       successRate: parseFloat(successRate.toFixed(2)),
       avgDuration: parseFloat(avgDuration.toFixed(2)),
       totalDuration,
+      dailyStats,     // [NUEVO]
       byStatus,
       byTrigger,
-      topWorkflows,
+      topWorkflows,   // [EXISTENTE] Confirmado formato
       // Estadísticas de créditos
       credits: {
         totalConsumed: totalCreditsConsumed,
@@ -917,6 +958,7 @@ export class ExecutionsService {
         overageRate: parseFloat(overageRate.toFixed(2)),
         byCategory: byWorkflowCategory,
       },
+      // ... otros campos o cierre de objeto
     };
   }
 
