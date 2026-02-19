@@ -29,4 +29,13 @@ export class LoginDto {
     required: false,
   })
   rememberMe?: boolean;
+
+  @IsString()
+  @IsOptional()
+  @ApiProperty({
+    description: 'Token de verificación de Turnstile',
+    example: '0.xxxxxxx',
+    required: false,
+  })
+  turnstileToken?: string;
 }

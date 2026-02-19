@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class StartVerificationFlowDto {
   @ApiProperty({ description: 'Nombre de usuario que inicia el flujo de verificación' })
@@ -15,4 +15,9 @@ export class StartVerificationFlowDto {
   @IsString()
   @IsNotEmpty()
   organizationName: string;
+
+  @ApiProperty({ description: 'Token de verificación de Turnstile', required: false })
+  @IsString()
+  @IsOptional()
+  turnstileToken?: string;
 }

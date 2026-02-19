@@ -1,6 +1,8 @@
 import {
   Body,
+  BadRequestException,
   Controller,
+  Logger,
   ForbiddenException,
   Get,
   HttpCode,
@@ -34,6 +36,7 @@ import {
 import { CreateUserDto } from '../../../users/dto';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
 import { AuthService } from '../../auth.service';
+import { TurnstileService } from '../../turnstile.service';
 import { CurrentUser } from '../../decorators/current-user.decorator';
 import {
   ChangePasswordDto,
@@ -55,7 +58,10 @@ import { TempTokenGuard } from '../../guards/temp-token.guard';
  */
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly turnstileService: TurnstileService,
+  ) {}
 
   /**
    * INICIO DE SESIÓN CON GOOGLE
@@ -186,6 +192,7 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) response: Response) {
     const responseBuilder = new ApiResponseBuilder();
     try {
+      await this.turnstileService.verifyToken(loginDto.turnstileToken);
       const result: any = await this.authService.login(loginDto);
       const isProduction = process.env.NODE_ENV === 'production';
 
@@ -243,7 +250,23 @@ export class AuthController {
 
       response.statusCode = HttpStatus.OK;
       response.send(responseBuilder.build());
-    } catch (error) {
+    } catch (error: any) {
+       if (error instanceof BadRequestException) {
+        Logger.error('Turnstile Verification Failed', { 
+           error: error.message, 
+           tokenReceived: loginDto.turnstileToken ? 'YES' : 'NO' 
+        });
+        
+        responseBuilder
+          .setSuccess(false)
+          .setStatusCode(HttpStatusCode.BadRequest)
+          .setMessage(error.message);
+        response.statusCode = HttpStatus.BAD_REQUEST;
+        return response.send(responseBuilder.build());
+      }
+      
+      Logger.error('Login error:', error); 
+      
       responseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.Unauthorized)
@@ -588,6 +611,17 @@ export class AuthController {
     const apiResponseBuilder = new ApiResponseBuilder<
       nodemailer.SentMessageInfo | keyof typeof StepOneErrors
     >();
+    try {
+      await this.turnstileService.verifyToken(payload.turnstileToken);
+    } catch (error) {
+       apiResponseBuilder
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.BadRequest)
+        .setMessage('Invalid Turnstile token');
+        response.statusCode = HttpStatus.BAD_REQUEST;
+        return response.send(apiResponseBuilder.build());
+    }
+
     const result = await this.authService.signupStepOne(payload);
 
     if (typeof result !== 'string') {

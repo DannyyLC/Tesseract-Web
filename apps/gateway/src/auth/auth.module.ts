@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
+import { TurnstileService } from './turnstile.service';
 import { AuthController } from './controllers/user-ui/auth.controller';
 import { ApiKeyGuard } from './guards/api-key.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -37,7 +38,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [ApiKeyGuard, JwtAuthGuard, RolesGuard, JwtStrategy, GoogleStrategy, AuthService],
-  exports: [ApiKeyGuard, JwtAuthGuard, RolesGuard, AuthService, PassportModule],
+  providers: [ApiKeyGuard, JwtAuthGuard, RolesGuard, JwtStrategy, GoogleStrategy, AuthService, TurnstileService],
+  exports: [ApiKeyGuard, JwtAuthGuard, RolesGuard, AuthService, PassportModule, TurnstileService],
 })
 export class AuthModule {}
