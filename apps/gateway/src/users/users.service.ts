@@ -682,9 +682,10 @@ export class UsersService {
       include: {
         notification: true,
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: [
+        { isRead: 'asc' },
+        { createdAt: 'desc' },
+      ],
     });
 
     const paginatedResponse = await CursorPaginatedResponseUtils.getInstance().build(
