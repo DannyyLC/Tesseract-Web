@@ -751,12 +751,36 @@ export class AuthController {
   }
 
   @Post('reset-password-step-one')
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   async resetPasswordStepOne(
     @Body() body: ForgotPassDto,
     @Res() response: Response,
   ): Promise<Response<ApiResponse<boolean | keyof typeof ForgotPassErrors>>> {
     const responseBuilder = new ApiResponseBuilder<boolean | keyof typeof ForgotPassErrors>();
+    
+    try {
+      await this.turnstileService.verifyToken(body.turnstileToken);
+    } catch (error: any) {
+       if (error instanceof BadRequestException) {
+        Logger.error('Turnstile Verification Failed in password reset', { 
+           error: error.message, 
+           tokenReceived: body.turnstileToken ? 'YES' : 'NO' 
+        });
+        
+        responseBuilder
+          .setSuccess(false)
+          .setStatusCode(HttpStatusCode.BadRequest)
+          .setMessage(error.message);
+        return response.status(HttpStatus.BAD_REQUEST).json(responseBuilder.build());
+      }
+      
+      responseBuilder
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.InternalServerError)
+        .setMessage('Error verifying captcha');
+      return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(responseBuilder.build());
+    }
+
     const result = await this.authService.resetPasswordStepOne(body.email);
     if (!Object.values(ForgotPassErrors).includes(result)) {
       responseBuilder
@@ -769,14 +793,14 @@ export class AuthController {
       responseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.InternalServerError)
-        .setData(result)
+        .setData(result as keyof typeof ForgotPassErrors)
         .setMessage('Error processing forgot password request');
       return response.status(HttpStatusCode.InternalServerError).json(responseBuilder.build());
     } 
   }
 
   @Post('reset-password-step-two')
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   async resetPasswordStepTwo(
     @Body() body: ResetPasswordDto,
     @Res() response: Response,
