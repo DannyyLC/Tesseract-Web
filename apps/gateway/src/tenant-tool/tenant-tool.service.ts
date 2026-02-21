@@ -68,16 +68,17 @@ export class TenantToolService {
   async createTenantTool(
     data: CreateTenantToolDto,
     organizationId: string,
+    userId: string,
   ) {
     try {
       return await this.prismaService.tenantTool.create({
         data: {
           toolCatalogId: data.toolCatalogId,
           displayName: data.displayName,
-          credentialPath: data.credentialPath,
           config: data.config,
-          oauthProvider: data.oauthProvider,
+          allowedFunctions: data.allowedFunctions,
           organizationId: organizationId,
+          createdByUserId: userId,
           workflows: {
             connect: data.workflowId ? [{ id: data.workflowId }] : [],
           },

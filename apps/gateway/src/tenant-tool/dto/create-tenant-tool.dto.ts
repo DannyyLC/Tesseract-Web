@@ -12,17 +12,13 @@ export class CreateTenantToolDto {
   @ApiProperty({ description: 'Display name for this tenant tool', example: 'Google Calendar - Sales' })
   displayName: string;
 
-  @IsString()
-  @ApiPropertyOptional({ description: 'Credential path in secret manager', example: 'projects/tesseract/secrets/org-123-hubspot', nullable: true })
-  credentialPath?: string | null;
-
   @IsObject()
   @ApiPropertyOptional({ description: 'Custom configuration for the tenant tool', example: '{ "portal_id": "123", "default_pipeline": "ventas" }'})
   config?: any;
 
-  @IsString()
-  @ApiPropertyOptional({ description: 'OAuth provider for the tool', example: 'google', nullable: true })
-  oauthProvider?: string | null;
+  @IsObject()
+  @ApiPropertyOptional({ description: 'Allowed functions for this tenant tool', example: '["list_events", "create_event"]', nullable: true })
+  allowedFunctions?: any;
 
   @IsString()
   @ApiPropertyOptional({ description: 'Workflow ID to connect', example: 'workflow-uuid', nullable: true })

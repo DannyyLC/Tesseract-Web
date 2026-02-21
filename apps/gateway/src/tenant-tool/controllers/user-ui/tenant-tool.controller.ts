@@ -69,7 +69,7 @@ export class TenantToolController {
     @Res() res: Response,
   ) {
     const apiResponse = new ApiResponseBuilder<CreateTenantToolDto | null>();
-    const created = await this.tenantToolService.createTenantTool(body, user.organizationId);
+    const created = await this.tenantToolService.createTenantTool(body, user.organizationId, user.sub);
     if (!created) {
       apiResponse
         .setSuccess(false)

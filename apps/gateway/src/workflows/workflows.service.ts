@@ -7,8 +7,9 @@ import {
   SubscriptionPlan,
   WorkflowCategory,
 } from '@workflow-automation/shared-types';
-import { PassThrough, Transform } from 'stream';
+import { Transform, PassThrough } from 'stream';
 import { AgentsService } from '../agents/agents.service';
+import { ToolsService } from '../tools/tools.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
 import {
   InvalidWorkflowConfigException,
@@ -44,6 +45,7 @@ export class WorkflowsService {
     private readonly creditsService: CreditsService,
     private readonly llmModelsService: LlmModelsService,
     private readonly conversationsService: ConversationsService,
+    private readonly toolsService: ToolsService,
   ) { }
 
   //==========================================================
@@ -640,6 +642,7 @@ export class WorkflowsService {
         // Incluir tenantTools desde el inicio (evita query duplicado)
         tenantTools: {
           include: {
+            credential: true,
             toolCatalog: {
               include: {
                 functions: true,
@@ -755,7 +758,7 @@ export class WorkflowsService {
     // 5. EJECUTAR WORKFLOW CON EL SERVICIO DE AGENTS
     try {
       // Construir el payload completo con credenciales y configuración
-      const payload = this.buildAgentPayload(
+      const payload = await this.buildAgentPayload(
         workflow,
         conversation,
         userMessage,
@@ -953,6 +956,7 @@ export class WorkflowsService {
         },
         tenantTools: {
           include: {
+            credential: true,
             toolCatalog: {
               include: {
                 functions: true,
@@ -1075,7 +1079,7 @@ export class WorkflowsService {
 
     // 5. EJECUTAR STREAM
     try {
-      const payload = this.buildAgentPayload(
+      const payload = await this.buildAgentPayload(
         workflow,
         conversation,
         userMessage,
@@ -1334,7 +1338,7 @@ export class WorkflowsService {
    * @param messageHistory - Historial de mensajes previo (sin incluir el mensaje actual)
    * @returns Payload listo para enviar al AgentsService
    */
-  private buildAgentPayload(
+  private async buildAgentPayload(
     workflow: any,
     conversation: any,
     userMessage: string,
@@ -1353,6 +1357,9 @@ export class WorkflowsService {
     // 2. Construir tool_instances con UUIDs como keys
     const toolInstances: Record<string, any> = {};
 
+    // Obtener las credenciales descifradas de manera segura
+    const credentialsMap = await this.toolsService.populateDecryptedCredentials(workflow.tenantTools);
+
     for (const tenantTool of workflow.tenantTools) {
       const toolId = tenantTool.id; // UUID del TenantTool
       const toolName = tenantTool.toolCatalog.toolName;
@@ -1362,11 +1369,10 @@ export class WorkflowsService {
         tool_name: toolName,
         display_name: tenantTool.displayName,
         config: tenantTool.config ?? {},
-        enabled_functions: tenantTool.toolCatalog.functions.map((fn: any) => fn.functionName),
+        // Priorizar el RBAC a nivel de auth (allowedFunctions)
+        enabled_functions: tenantTool.allowedFunctions || tenantTool.toolCatalog.functions.map((fn: any) => fn.functionName),
+        credentials: credentialsMap[toolId] || undefined,
       };
-
-      // TODO: Agregar credenciales cuando se implemente
-      // if (tenantTool.credentialPath) { ... }
     }
 
     // 3. Filtrar tool_instances por agente según su configuración
