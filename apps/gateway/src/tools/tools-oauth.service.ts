@@ -46,44 +46,24 @@ export class ToolsOauthService {
       ? tool.allowedFunctions 
       : tool.toolCatalog.functions.map((f: any) => f.functionName);
 
-    // Mapeo Dinámico de funciones a Scopes (Ejemplo MVP)
-    // En el futuro, esto debería venir directamente de una columna 'scopes' en ToolFunction en Prisma.
-    let scopesList: string[] = [];
+    // Mapeo Dinámico de funciones a Scopes directo desde la Base de Datos
+    // Filtramos las funciones del catálogo que el usuario "encendió" para esta herramienta
+    const allowedFunctions = tool.toolCatalog.functions.filter((f: any) => 
+      allowedFunctionNames.includes(f.functionName)
+    );
 
-    for (const funcName of allowedFunctionNames) {
-      switch (funcName) {
-        // Ejemplos de Google Calendar
-        case 'list_events':
-        case 'get_event':
-        case 'check_availability':
-          scopesList.push('https://www.googleapis.com/auth/calendar.readonly');
-          break;
-        case 'create_event':
-        case 'update_event':
-        case 'delete_event':
-          scopesList.push('https://www.googleapis.com/auth/calendar.events');
-          break;
-        
-        // Ejemplos de Gmail (Si Tesseract fuera a leer mails)
-        case 'read_emails':
-        case 'search_emails':
-          scopesList.push('https://www.googleapis.com/auth/gmail.readonly');
-          break;
-        case 'send_email':
-          scopesList.push('https://www.googleapis.com/auth/gmail.send');
-          break;
-          
-        // Identidad Básica (Si la función lo requiere)
-        case 'get_user_profile':
-          scopesList.push('https://www.googleapis.com/auth/userinfo.email');
-          scopesList.push('https://www.googleapis.com/auth/userinfo.profile');
-          break;
-      }
+    // Extraemos todos los scopes de esas funciones, aplanamos la lista y quitamos duplicados con Set
+    const scopesList = Array.from(new Set(
+      allowedFunctions.flatMap((f: any) => f.oauthScopes || [])
+    ));
+
+    // Opcional: Asegurar que siempre pidamos el perfil básico para identificar a quién le dimos el token
+    if (!scopesList.includes('https://www.googleapis.com/auth/userinfo.email') && tool.toolCatalog.provider === 'google') {
+      scopesList.push('https://www.googleapis.com/auth/userinfo.email');
+      scopesList.push('https://www.googleapis.com/auth/userinfo.profile');
     }
 
-    // Asegurar que no haya duplicados y tener al menos el de email para identificar al usuario
-    scopesList.push('https://www.googleapis.com/auth/userinfo.email');
-    const scopes = Array.from(new Set(scopesList)).join(' ');
+    const scopes = scopesList.join(' ');
 
     // Empaquetar IDs en el state
     const statePayload = {

@@ -605,9 +605,10 @@ model ToolCatalog {
   isActive Boolean @default(false) // Si está lista para producción
   isInBeta Boolean @default(false) // Si está en testing/beta
 
-  // Metadata para UI
-  icon     String? // URL o nombre del ícono
-  category String? // "productivity", "crm", "communication"
+  // Metadata para UI y Auth
+  icon       String? // URL o nombre del ícono
+  category   String? // "productivity", "crm", "communication"
+  authConfig Json? // Configuraciones específicas de OAuth como clientId o custom fields
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -639,6 +640,9 @@ model ToolFunction {
 
   // Categorización (para UI y control)
   category String? @default("general") // "read", "write", "delete"
+
+  // OAuth Scopes que esta función específica requiere
+  oauthScopes String[] @default([])
 
   // Control de disponibilidad
   isActive Boolean @default(false) // Si está lista para uso
