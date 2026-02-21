@@ -26,4 +26,8 @@ export class UpsertCredentialsDto {
   @IsOptional()
   @ApiPropertyOptional({ description: 'Raw scopes granted' })
   scopes?: string[];
+
+  @IsOptional()
+  @ApiPropertyOptional({ description: 'User profile fetched from provider (e.g. email, name, picture)' })
+  profile?: Record<string, any>;
 }

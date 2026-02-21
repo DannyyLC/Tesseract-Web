@@ -107,16 +107,41 @@ export class ToolsOauthService {
         grant_type: 'authorization_code',
       });
 
+      // 2. Usar el nuevo Access Token para extraer el perfil del usuario (Paso 3.5)
+      const profile = await this.fetchGoogleUserProfile(data.access_token);
+
       // data contiene: access_token, refresh_token, expires_in, token_type, scope
       return {
         accessToken: data.access_token,
         refreshToken: data.refresh_token, // Puede ser undefined si el usuario no dio consentimiento (o si no es su primer login sin prompt=consent)
         expiresIn: data.expires_in, // Segundos
         scopes: data.scope ? data.scope.split(' ') : [],
+        profile,
       };
     } catch (error: any) {
       this.logger.error(`Error exchanging Google code: ${error?.response?.data?.error_description || error.message}`);
       throw new BadRequestException('Failed to exchange authorization code with Google');
+    }
+  }
+
+  /**
+   * Obtiene la información básica del usuario (email, picture) usando el Access Token fresco.
+   */
+  private async fetchGoogleUserProfile(accessToken: string) {
+    try {
+      const { data } = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return {
+        email: data.email,
+        name: data.name,
+        picture: data.picture,
+      };
+    } catch (error: any) {
+      this.logger.warn(`Failed to fetch Google user profile: ${error.message}. Scopes might be missing.`);
+      return null;
     }
   }
 

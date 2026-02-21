@@ -75,6 +75,15 @@ export class ToolsService {
 
     const expiresAt = data.expiresAt ? new Date(data.expiresAt) : new Date(Date.now() + 3600 * 1000);
 
+    // Preparamos el profile para mezclarlo con cualquier config existente
+    let updatedConfig = tool.config && typeof tool.config === 'object' ? tool.config : {};
+    if (data.profile) {
+      updatedConfig = {
+        ...updatedConfig,
+        profile: data.profile,
+      };
+    }
+
     // Transaction to safely update both shell (TenantTool) and vault (TenantToolCredential)
     await this.prisma.$transaction(async (tx) => {
       await tx.tenantToolCredential.upsert({
@@ -101,7 +110,7 @@ export class ToolsService {
         data: { 
           status: 'connected', 
           isConnected: true, 
-          // Assign ownership if it wasn't set during creation
+          config: updatedConfig,
           ...(tool.createdByUserId ? {} : { createdByUserId: userId })
         }
       });
