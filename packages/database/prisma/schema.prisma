@@ -353,6 +353,7 @@ model User {
   conversations    Conversation[]
   auditLogs        AuditLog[]
   notifications    UserNotification[]
+  tenantTools      TenantTool[]
 
   @@index([email])
   @@index([organizationId])
@@ -672,38 +673,71 @@ model TenantTool {
   // Identificación personalizada
   displayName String // "Google Calendar - Ventas", "HubSpot Portal US"
 
-  // Credenciales (referencia a Secret Manager)
-  credentialPath String? // "projects/tesseract/secrets/org-123-hubspot"
-
   // Configuración específica del tenant (NO secretos)
   config Json? // { "portal_id": "123", "default_pipeline": "ventas" }
 
+  // Funciones permitidas al momento de crear la tool (autorización granular)
+  // Ej: ["create_event", "list_events"]
+  allowedFunctions Json? @db.JsonB
+
   // Estado de conexión
   isConnected     Boolean   @default(false)
+  status          String    @default("connected") // connected, error, expired_auth
   connectionError String? // Último error si falló
   connectedAt     DateTime?
   lastUsedAt      DateTime?
 
-  // Metadata OAuth (para refresh tokens)
-  oauthProvider  String? // "google", "microsoft", "hubspot"
-  tokenExpiresAt DateTime? // Cuándo expira el access token
-
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete para preservar histórico de ejecuciones
 
   // Relación con organización
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  // Quién autorizó esta conexión OAuth. Solo este usuario debería poder editar/eliminar la tool.
+  createdByUserId String?
+  user            User?   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
   // Workflows que usan esta tool
-  workflows Workflow[] @relation("WorkflowToTenantTool")
+  workflows  Workflow[]            @relation("WorkflowToTenantTool")
+  credential TenantToolCredential?
 
   @@unique([organizationId, displayName])
   @@index([organizationId])
   @@index([toolCatalogId])
   @@index([isConnected])
+  @@index([deletedAt])
   @@map("tenant_tools")
+}
+
+// ============================================
+// TENANT TOOL CREDENTIAL (Bóveda PII)
+// ============================================
+model TenantToolCredential {
+  id String @id @default(uuid())
+
+  // Relación 1:1 con la herramienta
+  tenantToolId String     @unique
+  tenantTool   TenantTool @relation(fields: [tenantToolId], references: [id], onDelete: Cascade)
+
+  // Proveedor de la identidad
+  oauthProvider String // "google", "hubspot", etc.
+
+  // Tokens Cifrados con KMS + Tink
+  encryptedAccessToken  String   @db.Text
+  encryptedRefreshToken String?  @db.Text
+  tokenExpiresAt        DateTime
+
+  // Scopes reales otorgados por el usuario
+  scopes Json? @db.JsonB
+
+  // Timestamps (NO deletedAt)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tenant_tool_credentials")
 }
 
 // ============================================
