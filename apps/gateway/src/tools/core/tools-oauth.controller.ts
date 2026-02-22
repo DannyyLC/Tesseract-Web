@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Req, Res, UseGuards, BadRequestException, Logger } from '@nestjs/common';
+import { Controller, Get, Query, Res, UseGuards, BadRequestException, Logger } from '@nestjs/common';
 import { Response } from 'express';
 import { ToolsOauthService } from './tools-oauth.service';
 import { ToolsService } from './tools.service';
