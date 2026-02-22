@@ -12,3 +12,4 @@ export * from './roles';
 export * from './plans';
 
 export * from './api/api_response';
+export * from './integrations';

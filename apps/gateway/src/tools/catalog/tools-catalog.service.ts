@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { GetToolsDto } from './dto/get-tools.dto';
 import { CursorPaginatedResponseUtils } from '../../common/responses/cursor-paginated-response';
-import { CursorPaginatedResponse } from '@workflow-automation/shared-types';
+import { CursorPaginatedResponse, GetToolsDto } from '@workflow-automation/shared-types';
 import { Prisma } from '@workflow-platform/database';
 
 @Injectable()

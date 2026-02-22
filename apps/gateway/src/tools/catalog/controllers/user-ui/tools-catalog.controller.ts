@@ -1,9 +1,9 @@
-import { GetToolsDto } from '../../dto/get-tools.dto';
-import { Controller, DefaultValuePipe, Get, HttpStatus, ParseIntPipe, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@workflow-automation/shared-types';
+import { Controller, DefaultValuePipe, Get, ParseIntPipe, Query, Res, UseGuards } from '@nestjs/common';
+import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse, GetToolsDto } from '@workflow-automation/shared-types';
 import { Response } from 'express';
-import { ToolsCatalogService } from '../../tools-catalog.service';
+import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '../../../../auth/guards/jwt-auth.guard';
+import { ToolsCatalogService } from '../../tools-catalog.service';
 
 @Controller('tools-catalog')
 @UseGuards(JwtAuthGuard)
@@ -20,24 +20,26 @@ export class ToolsCatalogController {
   ): Promise<Response<ApiResponse<CursorPaginatedResponse<GetToolsDto>>>> {
     const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<GetToolsDto>>();
 
-    const tools = await this.toolsCatalogService.getAllToolsWithFunctions(
-        cursor,
-        pageSize,
-        action,
-        search ? { search } : undefined
+    const result = await this.toolsCatalogService.getAllToolsWithFunctions(
+      cursor,
+      pageSize,
+      action,
+      search ? { search } : undefined
     );
-    if (!tools) {
-        apiResponse
+
+    if (result.items.length === 0) {
+      apiResponse
         .setMessage('No tools found')
         .setSuccess(false)
-        .setStatusCode(HttpStatus.NOT_FOUND);
+        .setStatusCode(HttpStatusCode.NotFound);
+      return res.status(HttpStatusCode.NotFound).json(apiResponse.build());
     } else {
-        apiResponse
-        .setData(tools)
+      apiResponse
+        .setData(result)
         .setMessage('Tools retrieved successfully')
-        .setStatusCode(HttpStatus.OK)
+        .setStatusCode(HttpStatusCode.Ok)
         .setSuccess(true);
+      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
     }
-    return res.json(apiResponse.build());
   }
 }
