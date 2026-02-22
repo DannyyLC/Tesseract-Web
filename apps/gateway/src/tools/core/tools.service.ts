@@ -1,8 +1,8 @@
 import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
-import { PrismaService } from '../database/prisma.service';
+import { PrismaService } from '../../database/prisma.service';
 import { KmsService } from './kms.service';
 import { UpsertCredentialsDto } from './dto/upsert-credentials.dto';
-import { CreateTenantToolDto } from './dto/create-tenant-tool.dto';
+import { CreateTenantToolDto } from '../tenant/dto/create-tenant-tool.dto';
 import { ToolsOauthService } from './tools-oauth.service';
 
 @Injectable()

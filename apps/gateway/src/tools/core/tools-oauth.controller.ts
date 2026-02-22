@@ -2,9 +2,9 @@ import { Controller, Get, Query, Req, Res, UseGuards, BadRequestException, Logge
 import { Response } from 'express';
 import { ToolsOauthService } from './tools-oauth.service';
 import { ToolsService } from './tools.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { UserPayload } from '../common/types/jwt-payload.type';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { UserPayload } from '../../common/types/jwt-payload.type';
 import { ConfigService } from '@nestjs/config';
 
 @Controller('tools/oauth')

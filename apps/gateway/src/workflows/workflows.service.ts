@@ -9,7 +9,7 @@ import {
 } from '@workflow-automation/shared-types';
 import { Transform, PassThrough } from 'stream';
 import { AgentsService } from '../agents/agents.service';
-import { ToolsService } from '../tools/tools.service';
+import { ToolsService } from '../tools/core/tools.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
 import {
   InvalidWorkflowConfigException,

@@ -2,12 +2,12 @@ import { Body, Controller, Get, Param, Post, Put, Query, Res, UseGuards } from '
 import { ApiResponseBuilder, CursorPaginatedResponse } from '@workflow-automation/shared-types';
 import { HttpStatusCode } from 'axios';
 import { Response } from 'express';
-import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
-import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
-import { UserPayload } from '../../../common/types/jwt-payload.type';
-import { DashboardTenantToolDto } from '../../../tenant-tool/dto/dashboard-tenant-tool.dto';
-import { WorkflowIdsDto } from '../../../tenant-tool/dto/workflow-ids.dto';
-import { TenantToolService } from '../../../tenant-tool/tenant-tool.service';
+import { CurrentUser } from '../../../../auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../../../../auth/guards/jwt-auth.guard';
+import { UserPayload } from '../../../../common/types/jwt-payload.type';
+import { DashboardTenantToolDto } from '../../dto/dashboard-tenant-tool.dto';
+import { WorkflowIdsDto } from '../../dto/workflow-ids.dto';
+import { TenantToolService } from '../../tenant-tool.service';
 import { CreateTenantToolDto } from '../../dto/create-tenant-tool.dto';
 import { UpdateTenantToolDto } from '../../dto/update-tenant-tool.dto';
 

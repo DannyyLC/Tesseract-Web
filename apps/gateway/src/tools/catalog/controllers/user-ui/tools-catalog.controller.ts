@@ -1,9 +1,9 @@
-import { GetToolsDto } from '@/tools-catalog/dto/get-tools.dto';
+import { GetToolsDto } from '../../dto/get-tools.dto';
 import { Controller, DefaultValuePipe, Get, HttpStatus, ParseIntPipe, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@workflow-automation/shared-types';
 import { Response } from 'express';
 import { ToolsCatalogService } from '../../tools-catalog.service';
-import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../../../auth/guards/jwt-auth.guard';
 
 @Controller('tools-catalog')
 @UseGuards(JwtAuthGuard)

@@ -19,11 +19,11 @@ import { EndUsersModule } from './end-users/end-users.module';
 import { EventsModule } from './events/events.module';
 import { InvoiceModule } from './invoice/invoice.module';
 import { NotificationsModule } from './notifications/notifications.module';
-import { TenantToolModule } from './tenant-tool/tenant-tool.module';
+import { TenantToolModule } from './tools/tenant/tenant-tool.module';
 import { UsersModule } from './users/users.module';
 import { UtilityModule } from './utility/utility.module';
-import { ToolsCatalogModule } from './tools-catalog/tools-catalog.module';
-import { ToolsModule } from './tools/tools.module';
+import { ToolsCatalogModule } from './tools/catalog/tools-catalog.module';
+import { ToolsModule } from './tools/core/tools.module';
 
 @Module({
   imports: [

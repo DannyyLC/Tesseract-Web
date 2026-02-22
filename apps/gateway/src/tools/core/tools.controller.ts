@@ -2,12 +2,12 @@ import { Body, Controller, Delete, Get, Param, Post, Res, UseGuards } from '@nes
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { HttpStatusCode } from 'axios';
 import { Response } from 'express';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { UserPayload } from '../common/types/user-payload.type';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { UserPayload } from '../../common/types/user-payload.type';
 import { ToolsService } from './tools.service';
 import { UpsertCredentialsDto } from './dto/upsert-credentials.dto';
-import { CreateTenantToolDto } from './dto/create-tenant-tool.dto';
+import { CreateTenantToolDto } from '../tenant/dto/create-tenant-tool.dto';
 
 @Controller('tools')
 @UseGuards(JwtAuthGuard)

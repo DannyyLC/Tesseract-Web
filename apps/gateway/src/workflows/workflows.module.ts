@@ -9,7 +9,7 @@ import { CreditsModule } from '../credits/credits.module';
 import { LlmModelsModule } from '../llm-models/llm-models.module';
 import { ExternalWorkflowsController } from './controllers/external/workflows.controller';
 import { UtilityModule } from '../utility/utility.module';
-import { ToolsModule } from '../tools/tools.module';
+import { ToolsModule } from '../tools/core/tools.module';
 
 /**
  * WorkflowsModule

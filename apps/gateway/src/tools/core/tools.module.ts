@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ToolsService } from './tools.service';
 import { KmsService } from './kms.service';
-import { DatabaseModule } from '../database/database.module';
+import { DatabaseModule } from '../../database/database.module';
 import { ToolsController } from './tools.controller';
 import { ToolsOauthController } from './tools-oauth.controller';
 import { ToolsOauthService } from './tools-oauth.service';
