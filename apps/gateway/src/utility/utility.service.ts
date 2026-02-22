@@ -60,6 +60,7 @@ export class UtilityService {
         const notificationEntries = users.map((user) => ({
           userId: user.id,
           notificationId: notification.id,
+          organizationId: organizationId,
           isRead: false,
         }));
         await this.prismaService.userNotification.createMany({

@@ -125,6 +125,37 @@ export class ToolsOauthService {
   }
 
   /**
+   * Usa un Refresh Token previamente guardado para obtener un nuevo Access Token de Google.
+   */
+  async refreshGoogleToken(refreshToken: string) {
+    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+    const clientSecret = this.configService.get<string>('GOOGLE_CLIENT_SECRET');
+
+    if (!clientId || !clientSecret) {
+      throw new Error('Google OAuth credentials not configured');
+    }
+
+    try {
+      const { data } = await axios.post('https://oauth2.googleapis.com/token', {
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+      });
+
+      return {
+        accessToken: data.access_token,
+        expiresIn: data.expires_in, // Segundos
+        // Notar que Google rara vez envía un nuevo refresh_token aquí, a menos que el anterior esté por caducar por políticas raras.
+        refreshToken: data.refresh_token || refreshToken,
+      };
+    } catch (error: any) {
+      this.logger.error(`Error refreshing Google token: ${error?.response?.data?.error_description || error.message}`);
+      throw new BadRequestException('Failed to refresh Google authorization token');
+    }
+  }
+
+  /**
    * Obtiene la información básica del usuario (email, picture) usando el Access Token fresco.
    */
   private async fetchGoogleUserProfile(accessToken: string) {
