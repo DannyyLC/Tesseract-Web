@@ -5,7 +5,7 @@ import { Response } from 'express';
 import { CurrentUser } from '../../../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../../auth/guards/jwt-auth.guard';
 import { UserPayload } from '../../../../common/types/jwt-payload.type';
-import { DashboardTenantToolDto } from '../../dto/dashboard-tenant-tool.dto';
+import { DashboardTenantToolDto } from '@workflow-automation/shared-types';
 import { WorkflowIdsDto } from '../../dto/workflow-ids.dto';
 import { TenantToolService } from '../../tenant-tool.service';
 import { CreateTenantToolDto } from '../../dto/create-tenant-tool.dto';
@@ -116,6 +116,27 @@ export class TenantToolController {
       .setSuccess(true)
       .setData(updated)
       .setMessage('Workflows added to tenant tool successfully');
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Post('remove-workflows/:id')
+  async removeWorkflowsFromTenantTool(
+    @Param('id') id: string,
+    @Body() body: WorkflowIdsDto,
+    @Res() res: Response,
+  ) {
+    const apiResponse = new ApiResponseBuilder<UpdateTenantToolDto | null>();
+    const updated = await this.tenantToolService.removeWorkflowFromTenantTool(id, body.workflowIds);
+    if (!updated) {
+      apiResponse
+        .setSuccess(false)
+        .setMessage('Error removing workflows from tenant tool');
+      return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
+    }
+    apiResponse
+      .setSuccess(true)
+      .setData(updated)
+      .setMessage('Workflows removed from tenant tool successfully');
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post, Res, UseGuards, Body } from '@nestjs/common';
 import { ApiResponseBuilder } from '@workflow-automation/shared-types';
 import { HttpStatusCode } from 'axios';
 import { Response } from 'express';
@@ -7,66 +7,11 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserPayload } from '../../common/types/user-payload.type';
 import { ToolsService } from './tools.service';
 import { UpsertCredentialsDto } from './dto/upsert-credentials.dto';
-import { CreateTenantToolDto } from '../tenant/dto/create-tenant-tool.dto';
 
 @Controller('tools')
 @UseGuards(JwtAuthGuard)
 export class ToolsController {
   constructor(private readonly toolsService: ToolsService) {}
-
-  @Get('catalog')
-  async getToolCatalog(
-    @Res() res: Response,
-  ) {
-    const apiResponse = new ApiResponseBuilder<any[]>();
-    try {
-      const catalog = await this.toolsService.getToolCatalog();
-      apiResponse.setSuccess(true).setData(catalog);
-      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
-    } catch (error: any) {
-      apiResponse
-        .setSuccess(false)
-        .setMessage(error?.message || 'Error fetching tool catalog');
-      return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
-    }
-  }
-
-  @Get()
-  async getTenantTools(
-    @CurrentUser() user: UserPayload,
-    @Res() res: Response,
-  ) {
-    const apiResponse = new ApiResponseBuilder<any[]>();
-    try {
-      const tools = await this.toolsService.getTenantTools(user.organizationId);
-      apiResponse.setSuccess(true).setData(tools);
-      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
-    } catch (error: any) {
-      apiResponse
-        .setSuccess(false)
-        .setMessage(error?.message || 'Error fetching tools');
-      return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
-    }
-  }
-
-  @Post()
-  async createTenantTool(
-    @CurrentUser() user: UserPayload,
-    @Body() body: CreateTenantToolDto,
-    @Res() res: Response,
-  ) {
-    const apiResponse = new ApiResponseBuilder<any>();
-    try {
-      const tool = await this.toolsService.createTenantTool(user.organizationId, user.sub, body);
-      apiResponse.setSuccess(true).setData(tool).setMessage('Tool instance created');
-      return res.status(HttpStatusCode.Created).json(apiResponse.build());
-    } catch (error: any) {
-      apiResponse
-        .setSuccess(false)
-        .setMessage(error?.message || 'Error creating tool instance');
-      return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
-    }
-  }
 
   @Post(':toolId/credentials')
   async upsertCredentials(

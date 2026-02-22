@@ -2,7 +2,6 @@ import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nest
 import { PrismaService } from '../../database/prisma.service';
 import { KmsService } from './kms.service';
 import { UpsertCredentialsDto } from './dto/upsert-credentials.dto';
-import { CreateTenantToolDto } from '../tenant/dto/create-tenant-tool.dto';
 import { ToolsOauthService } from './tools-oauth.service';
 
 @Injectable()
@@ -15,80 +14,6 @@ export class ToolsService {
     @Inject(forwardRef(() => ToolsOauthService))
     private readonly toolsOauthService: ToolsOauthService,
   ) {}
-
-  /**
-   * Obtiene el catálogo global de herramientas disponibles para conectar.
-   */
-  async getToolCatalog() {
-    return this.prisma.toolCatalog.findMany({
-      where: {
-        isActive: true,
-      },
-      include: {
-        functions: {
-          select: {
-            functionName: true,
-            displayName: true,
-            description: true,
-          }
-        }
-      },
-      orderBy: { displayName: 'asc' }
-    });
-  }
-
-  /**
-   * Obtiene todas las instancias de herramientas conectadas o pendientes de un Tenant.
-   */
-  async getTenantTools(organizationId: string) {
-    return this.prisma.tenantTool.findMany({
-      where: {
-        organizationId,
-        deletedAt: null,
-      },
-      include: {
-        toolCatalog: {
-          select: {
-            toolName: true,
-            displayName: true,
-            icon: true,
-            category: true,
-          }
-        },
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-  }
-
-  /**
-   * Crea una nueva instancia de herramienta para el org (el cascarón sin credenciales aún).
-   */
-  async createTenantTool(orgId: string, userId: string, data: CreateTenantToolDto) {
-    // Validar si la base ToolCatalog existe
-    const catalogItem = await this.prisma.toolCatalog.findUnique({
-      where: { id: data.toolCatalogId }
-    });
-
-    if (!catalogItem) {
-      throw new NotFoundException('Tool Catalog item not found');
-    }
-
-    return this.prisma.tenantTool.create({
-      data: {
-        organizationId: orgId,
-        toolCatalogId: data.toolCatalogId,
-        displayName: data.displayName,
-        config: data.config ?? {},
-        allowedFunctions: data.allowedFunctions ?? undefined, // Undefined so it either sets the array or ignores the field
-        createdByUserId: userId,
-        status: 'pending_auth',
-        isConnected: false,
-      },
-      include: {
-        toolCatalog: true,
-      }
-    });
-  }
 
   /**
    * Decrypts credentials for an array of TenantTools that already include the `credential` relation.

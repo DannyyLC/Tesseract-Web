@@ -3,7 +3,7 @@ import { CursorPaginatedResponse } from '@workflow-automation/shared-types';
 import { CursorPaginatedResponseUtils } from '../../common/responses/cursor-paginated-response';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateTenantToolDto } from '../tenant/dto/create-tenant-tool.dto';
-import { DashboardTenantToolDto } from './dto/dashboard-tenant-tool.dto';
+import { DashboardTenantToolDto } from '@workflow-automation/shared-types';
 import { UpdateTenantToolDto } from './dto/update-tenant-tool.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
@@ -33,6 +33,18 @@ export class TenantToolService {
         select: {
           id: true,
           displayName: true,
+          status: true,
+          isConnected: true,
+          createdAt: true,
+          toolCatalog: {
+            select: {
+              toolName: true,
+              displayName: true,
+              icon: true,
+              category: true,
+              provider: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -56,6 +68,18 @@ export class TenantToolService {
         select: {
           id: true,
           displayName: true,
+          status: true,
+          isConnected: true,
+          createdAt: true,
+          toolCatalog: {
+            select: {
+              toolName: true,
+              displayName: true,
+              icon: true,
+              category: true,
+              provider: true,
+            },
+          },
         },
       });
       return tenantTool;
@@ -123,6 +147,22 @@ export class TenantToolService {
       });
     } catch (error: any) {
       this.logger.error(`Error adding workflows to tenant tool with ID ${tenantToolId}: ${error?.message || 'Unknown error'}`);
+      return null;
+    }
+  }
+
+  async removeWorkflowFromTenantTool(tenantToolId: string, workflowIds: string[]) {
+    try {
+      return await this.prismaService.tenantTool.update({
+        where: { id: tenantToolId },
+        data: {
+          workflows: {
+            disconnect: workflowIds.map((id) => ({ id })),
+          },
+        },
+      });
+    } catch (error: any) {
+      this.logger.error(`Error removing workflows from tenant tool with ID ${tenantToolId}: ${error?.message || 'Unknown error'}`);
       return null;
     }
   }
