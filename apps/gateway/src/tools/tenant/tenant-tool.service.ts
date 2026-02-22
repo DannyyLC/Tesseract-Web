@@ -115,18 +115,11 @@ export class TenantToolService {
   }
 
   async updateTenantTool(id: string, data: UpdateTenantToolDto) {
-    const { workflows, ...restData } = data;
-    const workflowConnectionArray = workflows?.map((workflowId) => ({ id: workflowId }));
     try {
       return await this.prismaService.tenantTool.update({
         where: { id },
         data: {
-          ...restData,
-          ...(workflows && {
-            workflows: {
-              set: workflowConnectionArray || [],
-            },
-          }),
+          displayName: data.displayName,
         },
       });
     } catch (error: any) {
