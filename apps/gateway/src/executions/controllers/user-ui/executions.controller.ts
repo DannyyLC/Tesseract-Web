@@ -21,7 +21,7 @@ import {
   ApiResponse,
   ApiResponseBuilder,
   CursorPaginatedResponse,
-} from '@workflow-automation/shared-types';
+} from '@tesseract/types';
 import { Response } from 'express';
 /**
  * Controller de Executions

@@ -3,7 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { DashboardInvoiceDto } from './dto/dashboard-invoice.dto';
-import { CursorPaginatedResponse } from '@workflow-automation/shared-types';
+import { CursorPaginatedResponse } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 
 @Injectable()

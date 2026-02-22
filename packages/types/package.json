@@ -1,7 +1,7 @@
 {
-  "name": "@workflow-automation/shared-types",
+  "name": "@tesseract/types",
   "version": "1.0.0",
-  "description": "Shared types, enums, and utilities for Workflow Automation",
+  "description": "Shared types, enums, and utilities for Tesseract",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

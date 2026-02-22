@@ -1,4 +1,4 @@
-import { CursorPaginatedResponse, PaginatedResponse } from '@workflow-automation/shared-types';
+import { CursorPaginatedResponse, PaginatedResponse } from '@tesseract/types';
 
 export class CursorPaginatedResponseUtils {
   private static instance: CursorPaginatedResponseUtils;

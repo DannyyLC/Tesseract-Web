@@ -1,5 +1,5 @@
 import { IsEmail, IsNotEmpty, IsString, MinLength, IsEnum, IsOptional } from 'class-validator';
-import { UserRole } from '@workflow-automation/shared-types';
+import { UserRole } from '@tesseract/types';
 
 export class InviteUserDto {
   @IsEmail({}, { message: 'Invalid email format' })

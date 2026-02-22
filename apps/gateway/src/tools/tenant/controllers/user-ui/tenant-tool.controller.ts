@@ -1,11 +1,11 @@
 import { Body, Controller, Get, Param, Post, Put, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiResponseBuilder, CursorPaginatedResponse } from '@workflow-automation/shared-types';
+import { ApiResponseBuilder, CursorPaginatedResponse } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { Response } from 'express';
 import { CurrentUser } from '../../../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../../auth/guards/jwt-auth.guard';
 import { UserPayload } from '../../../../common/types/jwt-payload.type';
-import { DashboardTenantToolDto } from '@workflow-automation/shared-types';
+import { DashboardTenantToolDto } from '@tesseract/types';
 import { WorkflowIdsDto } from '../../dto/workflow-ids.dto';
 import { TenantToolService } from '../../tenant-tool.service';
 import { CreateTenantToolDto } from '../../dto/create-tenant-tool.dto';

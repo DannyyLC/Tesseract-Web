@@ -1,5 +1,5 @@
 import { IsString, MinLength, MaxLength, IsNotEmpty, IsOptional, IsIn } from 'class-validator';
-import { SubscriptionPlan } from '@workflow-automation/shared-types';
+import { SubscriptionPlan } from '@tesseract/types';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateOrganizationDto {

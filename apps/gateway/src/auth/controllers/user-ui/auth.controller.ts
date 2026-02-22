@@ -16,7 +16,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { ApiResponse, ApiResponseBuilder } from '@workflow-automation/shared-types';
+import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { Request, Response } from 'express';
 import * as nodemailer from 'nodemailer';

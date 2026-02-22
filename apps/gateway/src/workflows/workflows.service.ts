@@ -6,7 +6,7 @@ import {
   PLANS,
   SubscriptionPlan,
   WorkflowCategory,
-} from '@workflow-automation/shared-types';
+} from '@tesseract/types';
 import { Transform, PassThrough } from 'stream';
 import { AgentsService } from '../agents/agents.service';
 import { ToolsService } from '../tools/core/tools.service';

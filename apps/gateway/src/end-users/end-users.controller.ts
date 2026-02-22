@@ -6,7 +6,7 @@ import {
   ApiResponseBuilder,
   CursorPaginatedResponse,
   PaginatedResponse,
-} from '@workflow-automation/shared-types';
+} from '@tesseract/types';
 import { DashboardEndUserDto } from './dto/dashboard-end-user.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserPayload } from '../common/types/jwt-payload.type';

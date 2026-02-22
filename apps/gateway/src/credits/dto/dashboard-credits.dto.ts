@@ -1,4 +1,4 @@
-import { CursorPaginatedResponse } from '@workflow-automation/shared-types';
+import { CursorPaginatedResponse } from '@tesseract/types';
 import { DashboardCreditTransactionDto } from './dashboard-credit-transaction.dto';
 
 export interface DashboardCreditsDto {

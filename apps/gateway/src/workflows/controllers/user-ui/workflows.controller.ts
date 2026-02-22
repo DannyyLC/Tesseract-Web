@@ -25,7 +25,7 @@ import {
   ApiResponseBuilder,
   CursorPaginatedResponse,
   WorkflowCategory,
-} from '@workflow-automation/shared-types';
+} from '@tesseract/types';
 import { Response } from 'express';
 import { DashboardWorkflowDto } from '../../../workflows/dto/dashboard-workflow.dto';
 import { WorkflowStatsDto } from '../../../workflows/dto/workflow-stats.dto';

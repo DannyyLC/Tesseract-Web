@@ -20,8 +20,8 @@
     "incremental": true,
     "baseUrl": "./",
     "paths": {
-      "@workflow-platform/database": ["./packages/database/src"],
-      "@workflow-platform/shared-types": ["./packages/shared-types/src"]
+      "@tesseract/database": ["./packages/database/src"],
+      "@tesseract/types": ["packages/types/src"]
     },
     "outDir": "./dist"
   },

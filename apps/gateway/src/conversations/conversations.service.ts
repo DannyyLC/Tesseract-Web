@@ -2,9 +2,9 @@ import { Injectable, Logger, ForbiddenException, NotFoundException } from '@nest
 import { PrismaService } from '../database/prisma.service';
 import { DashboardConversationDto } from './dto/dashboard-conversation.dto';
 import { ConversationStatsDto } from './dto/conversation-stats.dto';
-import { CursorPaginatedResponse } from '@workflow-automation/shared-types';
+import { CursorPaginatedResponse } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
-import { Conversation } from '@workflow-platform/database';
+import { Conversation } from '@tesseract/database';
 
 /**
  * ConversationsService

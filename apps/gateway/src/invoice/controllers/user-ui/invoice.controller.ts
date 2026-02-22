@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiResponseBuilder, CursorPaginatedResponse } from '@workflow-automation/shared-types';
+import { ApiResponseBuilder, CursorPaginatedResponse } from '@tesseract/types';
 import { Response } from 'express';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';

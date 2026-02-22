@@ -8,8 +8,8 @@ import {
   UseGuards,
   Delete,
 } from '@nestjs/common';
-import { ApiResponse, ApiResponseBuilder } from '@workflow-automation/shared-types';
-import { Organization } from '@workflow-platform/database';
+import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
+import { Organization } from '@tesseract/database';
 import { Response } from 'express';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';

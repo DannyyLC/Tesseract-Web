@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { CursorPaginatedResponse } from '@workflow-automation/shared-types';
+import { CursorPaginatedResponse } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../../common/responses/cursor-paginated-response';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateTenantToolDto } from '../tenant/dto/create-tenant-tool.dto';
-import { DashboardTenantToolDto } from '@workflow-automation/shared-types';
+import { DashboardTenantToolDto } from '@tesseract/types';
 import { UpdateTenantToolDto } from './dto/update-tenant-tool.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';

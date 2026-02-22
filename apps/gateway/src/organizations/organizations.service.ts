@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { PLANS, SubscriptionPlan, getPlanLimits, SubscriptionPlan as SharedSubscriptionPlan } from '@workflow-automation/shared-types';
-import { Organization } from '@workflow-platform/database';
+import { PLANS, SubscriptionPlan, getPlanLimits, SubscriptionPlan as SharedSubscriptionPlan } from '@tesseract/types';
+import { Organization } from '@tesseract/database';
 import { randomBytes } from 'crypto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';

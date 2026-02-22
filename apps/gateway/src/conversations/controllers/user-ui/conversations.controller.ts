@@ -24,7 +24,7 @@ import {
   ApiResponse,
   ApiResponseBuilder,
   CursorPaginatedResponse,
-} from '@workflow-automation/shared-types';
+} from '@tesseract/types';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';

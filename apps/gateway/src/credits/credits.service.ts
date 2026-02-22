@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { WorkflowCategory, TransactionType } from '@prisma/client';
-import { CursorPaginatedResponse, getWorkflowCreditCost } from '@workflow-automation/shared-types';
-import { CreditBalance } from '@workflow-platform/database';
+import { CursorPaginatedResponse, getWorkflowCreditCost } from '@tesseract/types';
+import { CreditBalance } from '@tesseract/database';
 import { DashboardCreditsDto } from './dto/dashboard-credits.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';

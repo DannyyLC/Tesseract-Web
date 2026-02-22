@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { SubscriptionPlan } from '@workflow-automation/shared-types';
+import { SubscriptionPlan } from '@tesseract/types';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';

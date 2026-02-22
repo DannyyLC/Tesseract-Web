@@ -1,4 +1,4 @@
-import { SubscriptionPlan } from '@workflow-platform/database';
+import { SubscriptionPlan } from '@tesseract/database';
 import { DashboardSubscriptionDto } from './dashboard-subscription.dto';
 import { ApiProperty } from '@nestjs/swagger';
 

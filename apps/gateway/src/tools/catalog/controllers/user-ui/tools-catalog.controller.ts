@@ -1,5 +1,5 @@
 import { Controller, DefaultValuePipe, Get, ParseIntPipe, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse, GetToolsDto } from '@workflow-automation/shared-types';
+import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse, GetToolsDto } from '@tesseract/types';
 import { Response } from 'express';
 import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '../../../../auth/guards/jwt-auth.guard';

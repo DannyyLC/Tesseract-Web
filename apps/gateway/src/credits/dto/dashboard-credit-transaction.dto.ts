@@ -1,4 +1,4 @@
-import { TransactionType } from '@workflow-platform/database';
+import { TransactionType } from '@tesseract/database';
 
 export interface DashboardCreditTransactionDto {
   id: string;

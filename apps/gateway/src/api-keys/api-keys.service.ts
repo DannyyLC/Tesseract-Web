@@ -9,7 +9,7 @@ import { ApiKeyUtil } from '../auth/utils/api-key.util';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { UpdateApiKeyDto } from './dto/update-api-key.dto';
 import { ApiKeyResponseDto, ApiKeyListDto } from './dto/response-api-key.dto';
-import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
+import { PLANS, SubscriptionPlan } from '@tesseract/types';
 
 @Injectable()
 export class ApiKeysService {

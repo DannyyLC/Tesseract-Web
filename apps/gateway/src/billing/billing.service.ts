@@ -4,7 +4,7 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { CreditsService } from '../credits/credits.service';
 import { TransactionType, SubscriptionPlan } from '@prisma/client';
-import { PLANS, getPlanLimits, SubscriptionPlan as SharedSubscriptionPlan } from '@workflow-automation/shared-types';
+import { PLANS, getPlanLimits, SubscriptionPlan as SharedSubscriptionPlan } from '@tesseract/types';
 import { ConfigService } from '@nestjs/config';
 import { SUBSCRIPTION_PLANS } from './billing.constants';
 import { PrismaService } from '../database/prisma.service';

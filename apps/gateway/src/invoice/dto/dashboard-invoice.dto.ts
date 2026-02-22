@@ -1,4 +1,4 @@
-import { InvoiceStatus, InvoiceType } from '@workflow-platform/database';
+import { InvoiceStatus, InvoiceType } from '@tesseract/database';
 
 export interface DashboardInvoiceDto {
   id: string;

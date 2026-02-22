@@ -1,5 +1,5 @@
 import { Controller, Delete, Param, Res, UseGuards } from '@nestjs/common';
-import { ApiResponseBuilder } from '@workflow-automation/shared-types';
+import { ApiResponseBuilder } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { Response } from 'express';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';

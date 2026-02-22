@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { UserRole } from '@workflow-automation/shared-types';
+import { UserRole } from '@tesseract/types';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { UserPayload } from '../../common/types/jwt-payload.type';
 

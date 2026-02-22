@@ -1,4 +1,4 @@
-import { PLANS, SubscriptionPlan } from '@workflow-automation/shared-types';
+import { PLANS, SubscriptionPlan } from '@tesseract/types';
 
 export const SUBSCRIPTION_PLANS = {
   [SubscriptionPlan.STARTER]: {

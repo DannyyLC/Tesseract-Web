@@ -36,7 +36,7 @@ export default [
           './apps/gateway/tsconfig.json',
           './apps/gateway/tsconfig.spec.json',
           './packages/database/tsconfig.json',
-          './packages/shared-types/tsconfig.json',
+          './packages/types/tsconfig.json',
         ],
         tsconfigRootDir: import.meta.dirname,
       },

@@ -21,8 +21,8 @@ module.exports = {
     '!src/main.ts',
   ],
   moduleNameMapper: {
-    '^@workflow-automation/shared-types$': '<rootDir>/../../packages/shared-types/src',
-    '^@workflow-platform/database$': '<rootDir>/../../packages/database/src',
+    '^@tesseract/types$': '<rootDir>/../../packages/types/src',
+    '^@tesseract/database$': '<rootDir>/../../packages/database/src',
   },
   // Configuración para tests e2e - evita que Jest se quede colgado
   detectOpenHandles: true,  // Detecta conexiones abiertas (útil para debugging)

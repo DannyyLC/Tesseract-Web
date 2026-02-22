@@ -1,4 +1,4 @@
-import { WorkflowCategory } from '@workflow-automation/shared-types';
+import { WorkflowCategory } from '@tesseract/types';
 
 export class DashboardWorkflowDto {
   id: string;

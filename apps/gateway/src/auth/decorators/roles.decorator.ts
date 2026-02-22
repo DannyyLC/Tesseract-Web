@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { UserRole } from '@workflow-automation/shared-types';
+import { UserRole } from '@tesseract/types';
 
 /**
  * Clave para almacenar los roles requeridos en los metadatos del endpoint
