@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, DefaultValuePipe, Get, Param, ParseIntPipe, Post, Put, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiResponseBuilder, CursorPaginatedResponse } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { Response } from 'express';
@@ -20,7 +20,7 @@ export class TenantToolController {
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize') pageSize = 10,
+    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Res() res: Response,
   ): Promise<Response<CursorPaginatedResponse<DashboardTenantToolDto>>> {
