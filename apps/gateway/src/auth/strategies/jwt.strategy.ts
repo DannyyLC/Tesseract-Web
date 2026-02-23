@@ -82,7 +82,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Organización inactiva');
     }
 
-    if(user.organization.deletedAt) {
+    if (user.organization.deletedAt) {
       this.logger.warn(`Organización eliminada: ${user.organization.name}`);
       throw new UnauthorizedException('Organización eliminada');
     }

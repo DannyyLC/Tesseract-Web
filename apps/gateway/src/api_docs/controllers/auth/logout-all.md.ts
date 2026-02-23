@@ -9,4 +9,4 @@ This endpoint logs out the user on all devices, invalidating all refresh tokens 
 
 #### Responses
 - **200 OK**: Session closed on all devices.
-- **401 Unauthorized**: Invalid or expired token.`
+- **401 Unauthorized**: Invalid or expired token.`;

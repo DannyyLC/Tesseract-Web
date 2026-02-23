@@ -10,4 +10,4 @@ This endpoint allows you to verify the two-factor authentication (2FA) code sent
 #### Responses
 - **200 OK**: 2FA successfully verified.
 - **401 Unauthorized**: Invalid or expired 2FA code.
-- **500 Internal Server Error**: Error verifying the code.`
+- **500 Internal Server Error**: Error verifying the code.`;

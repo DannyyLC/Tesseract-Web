@@ -682,10 +682,7 @@ export class UsersService {
       include: {
         notification: true,
       },
-      orderBy: [
-        { isRead: 'asc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ isRead: 'asc' }, { createdAt: 'desc' }],
     });
 
     const paginatedResponse = await CursorPaginatedResponseUtils.getInstance().build(
@@ -748,7 +745,11 @@ export class UsersService {
     });
   }
 
-  async markNotificationAsRead(userId: string, organizationId: string, notificationId: string): Promise<void> {
+  async markNotificationAsRead(
+    userId: string,
+    organizationId: string,
+    notificationId: string,
+  ): Promise<void> {
     await this.prisma.userNotification.updateMany({
       where: {
         id: notificationId,
@@ -775,7 +776,11 @@ export class UsersService {
     });
   }
 
-  async deleteNotification(userId: string, organizationId: string, notificationId: string): Promise<void> {
+  async deleteNotification(
+    userId: string,
+    organizationId: string,
+    notificationId: string,
+  ): Promise<void> {
     await this.prisma.userNotification.updateMany({
       where: {
         id: notificationId,
@@ -793,7 +798,7 @@ export class UsersService {
     email: string,
     subject: string,
     userMessage: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<boolean> {
     try {
       // 1. Obtener nombre de la organización
@@ -824,7 +829,7 @@ export class UsersService {
         subject,
         userMessage,
         organizationName,
-        dateTime
+        dateTime,
       );
       if (!emailResult) {
         this.logger.error(`Failed to send service information request email for user ${email}`);

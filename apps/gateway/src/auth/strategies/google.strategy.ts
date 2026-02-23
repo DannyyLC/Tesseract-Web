@@ -18,11 +18,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     });
   }
 
-  async validate(
-    _accessToken: string,
-    _refreshToken: string,
-    profile: Profile,
-  ): Promise<any> {
+  async validate(_accessToken: string, _refreshToken: string, profile: Profile): Promise<any> {
     // Aquí llamaremos al servicio para validar/crear el usuario
     const user = await this.authService.validateGoogleUser({
       email: profile.emails?.[0].value || '',
@@ -31,7 +27,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       googleId: profile.id,
       avatar: profile.photos?.[0].value,
     });
-    
+
     return user;
   }
 }

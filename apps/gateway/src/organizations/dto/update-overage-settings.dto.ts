@@ -2,7 +2,9 @@ import { IsBoolean, IsNumber, IsOptional, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateOverageSettingsDto {
-  @ApiProperty({ description: 'Whether the organization is allowed to exceed its usage limits (overages).' })
+  @ApiProperty({
+    description: 'Whether the organization is allowed to exceed its usage limits (overages).',
+  })
   @IsBoolean()
   allowOverages: boolean;
 

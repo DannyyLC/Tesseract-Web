@@ -9,4 +9,4 @@ This endpoint logs out the user, invalidates the refresh token, and clears authe
 
 #### Responses
 - **200 OK**: Session closed successfully.
-- **401 Unauthorized**: Invalid or expired token.`
+- **401 Unauthorized**: Invalid or expired token.`;

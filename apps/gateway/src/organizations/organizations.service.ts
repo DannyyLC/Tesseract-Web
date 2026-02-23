@@ -1,5 +1,16 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { PLANS, SubscriptionPlan, getPlanLimits, SubscriptionPlan as SharedSubscriptionPlan } from '@tesseract/types';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  PLANS,
+  SubscriptionPlan,
+  getPlanLimits,
+  SubscriptionPlan as SharedSubscriptionPlan,
+} from '@tesseract/types';
 import { Organization } from '@tesseract/database';
 import { randomBytes } from 'crypto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
@@ -16,7 +27,7 @@ import {
   UpdateCustomLimitsDto,
   UpdateOrganizationDto,
   UpdateOverageSettingsDto,
-  UpdateSettingsDto
+  UpdateSettingsDto,
 } from './dto';
 
 /**
@@ -25,7 +36,6 @@ import {
  */
 @Injectable()
 export class OrganizationsService {
-
   constructor(
     private readonly prisma: PrismaService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
@@ -429,10 +439,14 @@ export class OrganizationsService {
   /**
    * Toggle Overages and Set Limit
    */
-  async toggleOverages(organizationId: string, allowOverages: boolean, limit?: number): Promise<Organization | null> {
+  async toggleOverages(
+    organizationId: string,
+    allowOverages: boolean,
+    limit?: number,
+  ): Promise<Organization | null> {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
-      include: { subscription: true }
+      include: { subscription: true },
     });
 
     if (!organization) {
@@ -444,42 +458,53 @@ export class OrganizationsService {
     // We reuse getPlanLimits to check monthlyCredits
     // Cast to SharedSubscriptionPlan to match expected type
     const limits = getPlanLimits(organization.plan as unknown as SharedSubscriptionPlan);
-    
+
     if (allowOverages && limits.monthlyCredits === 0) {
-        throw new BadRequestException('El plan actual no permite habilitar sobregiros (0 créditos mensuales).');
+      throw new BadRequestException(
+        'El plan actual no permite habilitar sobregiros (0 créditos mensuales).',
+      );
     }
 
     // 2. Validate user logic: "si esta cancelada la suscripcion... no permita activarla"
     if (allowOverages) {
-       if (!organization.subscription) {
-           throw new BadRequestException('No se pueden habilitar overages sin una suscripción activa');
-       }
+      if (!organization.subscription) {
+        throw new BadRequestException('No se pueden habilitar overages sin una suscripción activa');
+      }
 
-       if (organization.subscription.status === 'CANCELED' || organization.subscription.status === 'PAST_DUE') {
-           throw new BadRequestException('No se pueden habilitar overages con una suscripción CANCELADA o VENCIDA');
-       }
+      if (
+        organization.subscription.status === 'CANCELED' ||
+        organization.subscription.status === 'PAST_DUE'
+      ) {
+        throw new BadRequestException(
+          'No se pueden habilitar overages con una suscripción CANCELADA o VENCIDA',
+        );
+      }
 
-       if (organization.subscription.cancelAtPeriodEnd) {
-           throw new BadRequestException('No se pueden habilitar overages cuando la suscripción está programada para cancelarse');
-       }
+      if (organization.subscription.cancelAtPeriodEnd) {
+        throw new BadRequestException(
+          'No se pueden habilitar overages cuando la suscripción está programada para cancelarse',
+        );
+      }
     }
 
     // 3. Validate Limit Cap
     // Limit can't be greater than monthly credits
     let finalLimit = limit;
-    
+
     if (allowOverages) {
-        if (limit !== undefined && limit !== null) {
-            if (limit > limits.monthlyCredits) {
-                throw new BadRequestException(`El límite de sobregiro (${limit}) no puede exceder los créditos mensuales del plan (${limits.monthlyCredits}).`);
-            }
-            finalLimit = limit;
-        } else if (organization.overageLimit === null) {
-            // Default to max if enabling for first time without specific limit
-            finalLimit = limits.monthlyCredits;
+      if (limit !== undefined && limit !== null) {
+        if (limit > limits.monthlyCredits) {
+          throw new BadRequestException(
+            `El límite de sobregiro (${limit}) no puede exceder los créditos mensuales del plan (${limits.monthlyCredits}).`,
+          );
         }
+        finalLimit = limit;
+      } else if (organization.overageLimit === null) {
+        // Default to max if enabling for first time without specific limit
+        finalLimit = limits.monthlyCredits;
+      }
     } else {
-        finalLimit = 0; // Reset logic if disabled
+      finalLimit = 0; // Reset logic if disabled
     }
 
     let updated: Organization | null = null;
@@ -488,15 +513,19 @@ export class OrganizationsService {
         where: { id: organizationId },
         data: {
           allowOverages,
-          overageLimit: finalLimit
+          overageLimit: finalLimit,
         },
       });
     } catch (error) {
-      this.logger.error(`Error al actualizar overages de organización "${organizationId}": ${error}`);
+      this.logger.error(
+        `Error al actualizar overages de organización "${organizationId}": ${error}`,
+      );
       return null;
     }
 
-    this.logger.info(`Overages ${allowOverages ? 'enabled' : 'disabled'} for ${organization.name} (Limit: ${finalLimit})`);
+    this.logger.info(
+      `Overages ${allowOverages ? 'enabled' : 'disabled'} for ${organization.name} (Limit: ${finalLimit})`,
+    );
     return updated;
   }
 
@@ -600,12 +629,11 @@ export class OrganizationsService {
    * Marks organization as deleted, effectively removing it from view and access.
    */
   async softDelete(
-    organizationId: string, 
+    organizationId: string,
     userId: string,
     confirmationText: string,
     code2FA?: string,
   ): Promise<Organization | null> {
-
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { organization: true },
@@ -652,7 +680,7 @@ export class OrganizationsService {
         secret: user.twoFactorSecret!,
         encoding: 'base32',
         token: code2FA,
-      }); 
+      });
 
       if (!verified) {
         throw new BadRequestException('Código 2FA inválido');
@@ -664,14 +692,16 @@ export class OrganizationsService {
       updated = await this.prisma.organization.update({
         where: { id: organizationId },
         data: {
-          isActive: false, 
+          isActive: false,
           deletedAt: new Date(),
         },
       });
-      this.logger.info(`Organization ${organization.name} (${organizationId}) soft-deleted by user ${userId}`);
+      this.logger.info(
+        `Organization ${organization.name} (${organizationId}) soft-deleted by user ${userId}`,
+      );
     } catch (error) {
-       this.logger.error(`Error deleting organization ${organizationId}: ${error}`);
-       return null;
+      this.logger.error(`Error deleting organization ${organizationId}: ${error}`);
+      return null;
     }
     return updated;
   }
@@ -829,15 +859,15 @@ export class OrganizationsService {
       where: { email },
     });
 
-    if (existingUser && !existingUser.deletedAt) {      
+    if (existingUser && !existingUser.deletedAt) {
       await this.emailService.sendOrganizationExistsEmail(email, isOrganizationValid.name);
-      return true; 
+      return true;
     }
 
     // Si el usuario está eliminado (deletedAt !== null) o no existe, continuar con invitación normal
     const existingVerification = await this.prisma.userVerification.findFirst({
       where: {
-        email: email
+        email: email,
       },
     });
 
@@ -878,8 +908,8 @@ export class OrganizationsService {
       await this.utilityService.sendNotificationToAppClients(
         organizationId,
         ['admin'],
-        '0000-0010'
-      )
+        '0000-0010',
+      );
       return true;
     } catch (error) {
       this.logger.error(`invite >> Error creating user verification for ${email}: ${error}`);
@@ -964,9 +994,9 @@ export class OrganizationsService {
 
     try {
       const existingUser = await this.prisma.user.findUnique({
-        where: { 
-          email: userVerification.email
-         },
+        where: {
+          email: userVerification.email,
+        },
       });
       if (existingUser) {
         await this.prisma.userVerification.deleteMany({

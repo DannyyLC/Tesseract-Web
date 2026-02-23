@@ -9,4 +9,4 @@ This endpoint verifies the verification code sent to the user's email during sig
 
 #### Responses
 - **200 OK**: Email successfully verified.
-- **400 Bad Request**: Invalid or expired code.`
+- **400 Bad Request**: Invalid or expired code.`;

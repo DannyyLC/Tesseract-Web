@@ -400,5 +400,4 @@ export class EventsService {
   getAppNotificationsStream(): Observable<MessageEvent> {
     return this.utilityService.getAppNotificationsSubject().asObservable();
   }
-
 }

@@ -17,14 +17,10 @@ import {
   Res,
   UseGuards,
   DefaultValuePipe,
-  ParseIntPipe
+  ParseIntPipe,
 } from '@nestjs/common';
 import { Response } from 'express';
-import {
-  ApiResponse,
-  ApiResponseBuilder,
-  CursorPaginatedResponse,
-} from '@tesseract/types';
+import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@tesseract/types';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';

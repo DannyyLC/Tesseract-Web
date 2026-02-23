@@ -120,9 +120,10 @@ export class EmailService {
     return verificationCode;
   }
 
-  async sendPasswordResetCodeByEmail(
-    email: string
-  ): Promise<{ sentMessageInfo: nodemailer.SentMessageInfo | null; verificationCode: string } | null> {
+  async sendPasswordResetCodeByEmail(email: string): Promise<{
+    sentMessageInfo: nodemailer.SentMessageInfo | null;
+    verificationCode: string;
+  } | null> {
     const verificationCode = await this.generateVerificationCode();
     let sentMessageInfo: nodemailer.SentMessageInfo = null;
     try {
@@ -155,9 +156,7 @@ export class EmailService {
         }),
       });
     } catch (error) {
-      this.logger.error(
-        `sendOrganizationExistsEmail >> Error enviando email a ${email}: ${error}`,
-      );
+      this.logger.error(`sendOrganizationExistsEmail >> Error enviando email a ${email}: ${error}`);
       return null;
     }
   }
@@ -186,7 +185,6 @@ export class EmailService {
           date,
         }),
       });
-
     } catch (error) {
       this.logger.error(
         `sendServiceRequestEmail >> Error enviando email a ${targetEmail}: ${error}`,

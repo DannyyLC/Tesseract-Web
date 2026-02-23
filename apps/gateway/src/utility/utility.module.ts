@@ -3,9 +3,7 @@ import { UtilityService } from './utility.service';
 import { DatabaseModule } from '../database/database.module';
 
 @Module({
-  imports: [
-    DatabaseModule,
-  ],
+  imports: [DatabaseModule],
   providers: [UtilityService],
   exports: [UtilityService],
 })

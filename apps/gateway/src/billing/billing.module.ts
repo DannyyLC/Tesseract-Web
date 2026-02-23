@@ -8,12 +8,7 @@ import { UtilityModule } from '../utility/utility.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 
 @Module({
-  imports: [
-    UtilityModule,
-    ConfigModule, 
-    CreditsModule,
-    OrganizationsModule,
-  ],
+  imports: [UtilityModule, ConfigModule, CreditsModule, OrganizationsModule],
   controllers: [BillingController],
   providers: [BillingService, StripeClient],
   exports: [BillingService],

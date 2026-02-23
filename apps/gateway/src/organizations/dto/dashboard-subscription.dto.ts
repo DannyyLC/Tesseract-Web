@@ -14,7 +14,9 @@ export class DashboardSubscriptionDto {
   @ApiProperty({ description: 'End date of the current billing period.' })
   currentPeriodEnd: Date;
 
-  @ApiProperty({ description: 'Whether the subscription will be cancelled at the end of the current period.' })
+  @ApiProperty({
+    description: 'Whether the subscription will be cancelled at the end of the current period.',
+  })
   cancelAtPeriodEnd: boolean;
 
   @ApiProperty({ description: 'Custom monthly price for the subscription, if applicable.' })
@@ -23,7 +25,9 @@ export class DashboardSubscriptionDto {
   @ApiProperty({ description: 'Custom monthly credits for the subscription, if applicable.' })
   customMonthlyCredits?: number | null;
 
-  @ApiProperty({ description: 'Custom maximum number of workflows for the subscription, if applicable.' })
+  @ApiProperty({
+    description: 'Custom maximum number of workflows for the subscription, if applicable.',
+  })
   customMaxWorkflows?: number | null;
 
   @ApiProperty({ description: 'Custom features for the subscription, if applicable.' })

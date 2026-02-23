@@ -4,9 +4,7 @@ import { EndUsersController } from './end-users.controller';
 import { UtilityModule } from '../utility/utility.module';
 
 @Module({
-  imports: [
-    UtilityModule
-  ],
+  imports: [UtilityModule],
   providers: [EndUsersService],
   controllers: [EndUsersController],
 })

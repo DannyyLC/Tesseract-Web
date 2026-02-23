@@ -46,7 +46,7 @@ export class WorkflowsService {
     private readonly llmModelsService: LlmModelsService,
     private readonly conversationsService: ConversationsService,
     private readonly toolsService: ToolsService,
-  ) { }
+  ) {}
 
   //==========================================================
   // CRUD DE WORKFLOWS
@@ -441,12 +441,7 @@ export class WorkflowsService {
     }
 
     // Fill gaps in execution history
-    const executionHistoryChart = this.fillHistoryGaps(
-      historyRaw,
-      startDate,
-      now,
-      granularity,
-    );
+    const executionHistoryChart = this.fillHistoryGaps(historyRaw, startDate, now, granularity);
 
     return {
       workflowId,
@@ -788,7 +783,7 @@ export class WorkflowsService {
       } else {
         this.logger.warn(
           `No se encontró mensaje del asistente en ejecución ${execution.id}. ` +
-          `Messages: ${JSON.stringify(messages)}`,
+            `Messages: ${JSON.stringify(messages)}`,
         );
       }
 
@@ -849,7 +844,7 @@ export class WorkflowsService {
 
       this.logger.log(
         `Costo total de ejecución ${execution.id}: $${costUSD} ` +
-        `(breakdown: ${JSON.stringify(costBreakdown)})`,
+          `(breakdown: ${JSON.stringify(costBreakdown)})`,
       );
 
       // 8. ACTUALIZAR EXECUTION Y CONVERSATION EN PARALELO
@@ -901,7 +896,7 @@ export class WorkflowsService {
 
       this.logger.log(
         `Créditos descontados para ejecución exitosa ${execution.id}: ` +
-        `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
+          `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
       );
 
       // 10. RETORNAR EJECUCIÓN CON RELACIONES COMPLETAS (requiere query con joins)
@@ -1358,7 +1353,9 @@ export class WorkflowsService {
     const toolInstances: Record<string, any> = {};
 
     // Obtener las credenciales descifradas de manera segura
-    const credentialsMap = await this.toolsService.populateDecryptedCredentials(workflow.tenantTools);
+    const credentialsMap = await this.toolsService.populateDecryptedCredentials(
+      workflow.tenantTools,
+    );
 
     for (const tenantTool of workflow.tenantTools) {
       const toolId = tenantTool.id; // UUID del TenantTool
@@ -1370,7 +1367,9 @@ export class WorkflowsService {
         display_name: tenantTool.displayName,
         config: tenantTool.config ?? {},
         // Priorizar el RBAC a nivel de auth (allowedFunctions)
-        enabled_functions: tenantTool.allowedFunctions || tenantTool.toolCatalog.functions.map((fn: any) => fn.functionName),
+        enabled_functions:
+          tenantTool.allowedFunctions ||
+          tenantTool.toolCatalog.functions.map((fn: any) => fn.functionName),
         credentials: credentialsMap[toolId] || undefined,
       };
     }
@@ -1405,7 +1404,7 @@ export class WorkflowsService {
       if (agentTools.length > 0 && Object.keys(filtered).length === 0) {
         this.logger.warn(
           `Agent "${agentName}" tiene tools configurados pero ninguno es válido. ` +
-          `Tools configurados: ${JSON.stringify(agentTools)}`,
+            `Tools configurados: ${JSON.stringify(agentTools)}`,
         );
       }
     }
@@ -1542,7 +1541,7 @@ export class WorkflowsService {
       const availableModels = Array.from(activeModelNames).slice(0, 10).join(', ');
       throw new InvalidWorkflowConfigException(
         `Invalid models: ${invalidModels.join(', ')}. ` +
-        `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
+          `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
       );
     }
   }

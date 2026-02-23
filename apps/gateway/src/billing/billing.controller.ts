@@ -68,19 +68,19 @@ export class BillingController {
 
     // 2. Create Stripe Customer if not exists
     if (!customerId) {
-        customerId = await this.billingService.createCustomer({
-          email: userEmail,
-          name: organization.name || userName,
-          metadata: {
-            organizationId: organizationId,
-          },
-        });
-  
-        // Save to DB
-        await this.prisma.organization.update({
-          where: { id: organizationId },
-          data: { stripeCustomerId: customerId },
-        });
+      customerId = await this.billingService.createCustomer({
+        email: userEmail,
+        name: organization.name || userName,
+        metadata: {
+          organizationId: organizationId,
+        },
+      });
+
+      // Save to DB
+      await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: { stripeCustomerId: customerId },
+      });
     }
 
     // 3. Resolve Price ID
@@ -114,7 +114,7 @@ export class BillingController {
   async createPortalSession(@Req() req: any) {
     const organizationId = req.user.organizationId;
     if (!organizationId) {
-       throw new BadRequestException('User does not belong to an organization');
+      throw new BadRequestException('User does not belong to an organization');
     }
 
     const organization = await this.prisma.organization.findUnique({
@@ -122,7 +122,7 @@ export class BillingController {
     });
 
     if (!organization?.stripeCustomerId) {
-       throw new BadRequestException('Organization has no billing account');
+      throw new BadRequestException('Organization has no billing account');
     }
 
     const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
@@ -130,7 +130,7 @@ export class BillingController {
 
     const url = await this.billingService.createCustomerPortalSession(
       organization.stripeCustomerId,
-      returnUrl
+      returnUrl,
     );
 
     return { url };
@@ -145,7 +145,7 @@ export class BillingController {
   @UseGuards(JwtAuthGuard)
   async getSubscription(@Req() req: any) {
     const organizationId = req.user.organizationId;
-    
+
     const subscription = await this.prisma.subscription.findUnique({
       where: { organizationId },
       select: {
@@ -160,10 +160,17 @@ export class BillingController {
         customMonthlyCredits: true,
         customMaxWorkflows: true,
         customFeatures: true,
-      }
+      },
     });
 
-    return subscription || { status: 'ACTIVE', plan: 'FREE', currentPeriodStart: null, currentPeriodEnd: null };
+    return (
+      subscription || {
+        status: 'ACTIVE',
+        plan: 'FREE',
+        currentPeriodStart: null,
+        currentPeriodEnd: null,
+      }
+    );
   }
 
   @Put('subscription')
@@ -171,12 +178,12 @@ export class BillingController {
   async updateSubscription(@Req() req: any, @Body() body: UpdateSubscriptionDto) {
     const organizationId = req.user.organizationId;
     if (!organizationId) {
-       throw new BadRequestException('User does not belong to an organization');
+      throw new BadRequestException('User does not belong to an organization');
     }
-    
+
     // Validate Plan exists
     if (!SUBSCRIPTION_PLANS[body.plan]) {
-        throw new BadRequestException(`Invalid plan: ${body.plan}`);
+      throw new BadRequestException(`Invalid plan: ${body.plan}`);
     }
 
     await this.billingService.changePlan(organizationId, body.plan);
@@ -188,7 +195,7 @@ export class BillingController {
   async getDashboardData(@Req() req: any): Promise<BillingDashboardDto> {
     const organizationId = req.user.organizationId;
     if (!organizationId) {
-       throw new BadRequestException('User does not belong to an organization');
+      throw new BadRequestException('User does not belong to an organization');
     }
     return this.billingService.getBillingDashboard(organizationId);
   }
@@ -198,7 +205,7 @@ export class BillingController {
   async cancelSubscription(@Req() req: any) {
     const organizationId = req.user.organizationId;
     if (!organizationId) {
-       throw new BadRequestException('User does not belong to an organization');
+      throw new BadRequestException('User does not belong to an organization');
     }
     await this.billingService.cancelSubscription(organizationId);
     return { message: 'Subscription cancelled successfully' };
@@ -242,17 +249,24 @@ export class BillingController {
   async toggleOverages(
     @CurrentUser() user: UserPayload,
     @Body() body: { allowOverages: boolean; overageLimit?: number },
-    @Res() res: Response
+    @Res() res: Response,
   ): Promise<Response> {
     const apiResponse = new ApiResponseBuilder<Organization>();
-    const result = await this.organizationsService.toggleOverages(user.organizationId, body.allowOverages, body.overageLimit);
-    
+    const result = await this.organizationsService.toggleOverages(
+      user.organizationId,
+      body.allowOverages,
+      body.overageLimit,
+    );
+
     if (!result) {
-        apiResponse.setStatusCode(400).setMessage('Failed to update overages setting');
-        return res.status(400).json(apiResponse.build());
+      apiResponse.setStatusCode(400).setMessage('Failed to update overages setting');
+      return res.status(400).json(apiResponse.build());
     }
 
-    apiResponse.setStatusCode(200).setMessage('Overages setting updated successfully').setData(result);
+    apiResponse
+      .setStatusCode(200)
+      .setMessage('Overages setting updated successfully')
+      .setData(result);
     return res.status(200).json(apiResponse.build());
   }
 }

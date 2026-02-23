@@ -17,7 +17,7 @@ import { Conversation } from '@tesseract/database';
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Busca o crea una conversación para la ejecución

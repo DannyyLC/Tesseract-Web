@@ -40,10 +40,12 @@ import { ToolsModule } from './tools/core/tools.module';
         new winston.transports.Console(),
       ],
     }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 10,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 10,
+      },
+    ]),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [
@@ -69,7 +71,7 @@ import { ToolsModule } from './tools/core/tools.module';
     TenantToolModule,
     UtilityModule,
     ToolsCatalogModule,
-    ToolsModule
+    ToolsModule,
   ],
   controllers: [],
   providers: [

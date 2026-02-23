@@ -10,18 +10,14 @@ import {
   Delete,
   Res,
   ParseIntPipe,
-  DefaultValuePipe
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { ExecutionsService } from '../../executions.service';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
 import { DashboardExecutionDto, ExecutionStatsQueryDto } from '../../dto';
-import {
-  ApiResponse,
-  ApiResponseBuilder,
-  CursorPaginatedResponse,
-} from '@tesseract/types';
+import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@tesseract/types';
 import { Response } from 'express';
 /**
  * Controller de Executions

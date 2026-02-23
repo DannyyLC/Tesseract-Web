@@ -9,4 +9,4 @@ This endpoint starts the two-factor authentication (2FA) setup process for the a
 
 #### Responses
 - **200 OK**: 2FA setup process started successfully and returns the QR code to link with an authenticator app.
-- **500 Internal Server Error**: Error starting the 2FA setup.`
+- **500 Internal Server Error**: Error starting the 2FA setup.`;

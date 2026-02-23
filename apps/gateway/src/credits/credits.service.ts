@@ -303,6 +303,6 @@ export class CreditsService {
       paginationAction,
     );
 
-    return paginatedTransactions
+    return paginatedTransactions;
   }
 }

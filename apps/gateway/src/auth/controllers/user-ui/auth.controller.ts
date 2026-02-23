@@ -11,7 +11,7 @@ import {
   Req,
   Res,
   UnauthorizedException,
-  UseGuards
+  UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiOperation } from '@nestjs/swagger';
@@ -30,7 +30,7 @@ import {
   signupStepOneSwaggerDesc,
   signupStepThreeSwaggerDesc,
   signupStepTwoSwaggerDesc,
-  verify2FASwaggerDesc
+  verify2FASwaggerDesc,
 } from '../../../api_docs/controllers/auth';
 
 import { CreateUserDto } from '../../../users/dto';
@@ -69,7 +69,7 @@ export class AuthController {
    */
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({
     summary: 'Iniciar Login con Google',
     description: 'Redirige al usuario a la página de autenticación de Google.',
@@ -87,7 +87,8 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({
     summary: 'Callback de Google OAuth',
-    description: 'Maneja el retorno desde Google, crea/vincula usuario y devuelve cookies de sesión.',
+    description:
+      'Maneja el retorno desde Google, crea/vincula usuario y devuelve cookies de sesión.',
   })
   async googleAuthRedirect(@Req() req: any, @Res({ passthrough: true }) res: Response) {
     // req.user contiene el usuario validado/creado por GoogleStrategy -> AuthService.validateGoogleUser
@@ -136,11 +137,11 @@ export class AuthController {
     res.cookie('accessToken', tokens.accessToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'lax', 
+      sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000, // 1 día
       path: '/',
     });
-    
+
     res.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
       secure: isProduction,
@@ -251,12 +252,12 @@ export class AuthController {
       response.statusCode = HttpStatus.OK;
       response.send(responseBuilder.build());
     } catch (error: any) {
-       if (error instanceof BadRequestException) {
-        Logger.error('Turnstile Verification Failed', { 
-           error: error.message, 
-           tokenReceived: loginDto.turnstileToken ? 'YES' : 'NO' 
+      if (error instanceof BadRequestException) {
+        Logger.error('Turnstile Verification Failed', {
+          error: error.message,
+          tokenReceived: loginDto.turnstileToken ? 'YES' : 'NO',
         });
-        
+
         responseBuilder
           .setSuccess(false)
           .setStatusCode(HttpStatusCode.BadRequest)
@@ -264,9 +265,9 @@ export class AuthController {
         response.statusCode = HttpStatus.BAD_REQUEST;
         return response.send(responseBuilder.build());
       }
-      
-      Logger.error('Login error:', error); 
-      
+
+      Logger.error('Login error:', error);
+
       responseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.Unauthorized)
@@ -311,7 +312,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Enable 2FA after setup',
-    description: 'Activates 2FA by verifying the 6-digit code from the authenticator app. User must be authenticated with JWT.',
+    description:
+      'Activates 2FA by verifying the 6-digit code from the authenticator app. User must be authenticated with JWT.',
   })
   async enable2FA(
     @CurrentUser() user: UserPayload,
@@ -320,7 +322,7 @@ export class AuthController {
   ): Promise<Response<ApiResponseBuilder<boolean>>> {
     const responseBuilder = new ApiResponseBuilder<boolean>();
     const isEnabled = await this.authService.enable2FA(user.sub, verificationCode.code2FA);
-    
+
     if (isEnabled) {
       responseBuilder
         .setSuccess(true)
@@ -614,12 +616,12 @@ export class AuthController {
     try {
       await this.turnstileService.verifyToken(payload.turnstileToken);
     } catch (error) {
-       apiResponseBuilder
+      apiResponseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.BadRequest)
         .setMessage('Invalid Turnstile token');
-        response.statusCode = HttpStatus.BAD_REQUEST;
-        return response.send(apiResponseBuilder.build());
+      response.statusCode = HttpStatus.BAD_REQUEST;
+      return response.send(apiResponseBuilder.build());
     }
 
     const result = await this.authService.signupStepOne(payload);
@@ -757,23 +759,23 @@ export class AuthController {
     @Res() response: Response,
   ): Promise<Response<ApiResponse<boolean | keyof typeof ForgotPassErrors>>> {
     const responseBuilder = new ApiResponseBuilder<boolean | keyof typeof ForgotPassErrors>();
-    
+
     try {
       await this.turnstileService.verifyToken(body.turnstileToken);
     } catch (error: any) {
-       if (error instanceof BadRequestException) {
-        Logger.error('Turnstile Verification Failed in password reset', { 
-           error: error.message, 
-           tokenReceived: body.turnstileToken ? 'YES' : 'NO' 
+      if (error instanceof BadRequestException) {
+        Logger.error('Turnstile Verification Failed in password reset', {
+          error: error.message,
+          tokenReceived: body.turnstileToken ? 'YES' : 'NO',
         });
-        
+
         responseBuilder
           .setSuccess(false)
           .setStatusCode(HttpStatusCode.BadRequest)
           .setMessage(error.message);
         return response.status(HttpStatus.BAD_REQUEST).json(responseBuilder.build());
       }
-      
+
       responseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.InternalServerError)
@@ -796,7 +798,7 @@ export class AuthController {
         .setData(result as keyof typeof ForgotPassErrors)
         .setMessage('Error processing forgot password request');
       return response.status(HttpStatusCode.InternalServerError).json(responseBuilder.build());
-    } 
+    }
   }
 
   @Post('reset-password-step-two')
@@ -806,7 +808,10 @@ export class AuthController {
     @Res() response: Response,
   ): Promise<Response<ApiResponse<boolean | keyof typeof ForgotPassErrors>>> {
     const responseBuilder = new ApiResponseBuilder<boolean | keyof typeof ForgotPassErrors>();
-    const result = await this.authService.resetPasswordStepTwo(body.verificationCode, body.newPassword);
+    const result = await this.authService.resetPasswordStepTwo(
+      body.verificationCode,
+      body.newPassword,
+    );
     if (result === true) {
       responseBuilder
         .setSuccess(true)
@@ -823,13 +828,14 @@ export class AuthController {
       return response.status(HttpStatusCode.BadRequest).json(responseBuilder.build());
     }
   }
-  
+
   @Post('change-password')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Change password',
-    description: 'Allows a logged-in user to change their password. Requires verified current password and 2FA if enabled.',
+    description:
+      'Allows a logged-in user to change their password. Requires verified current password and 2FA if enabled.',
   })
   async changePassword(
     @CurrentUser() user: UserPayload,
@@ -857,12 +863,12 @@ export class AuthController {
     } catch (error) {
       // Manejar error específico de 2FA requerido
       if (error instanceof ForbiddenException && error.message === '2FA_REQUIRED') {
-         responseBuilder
+        responseBuilder
           .setSuccess(false)
           .setStatusCode(HttpStatusCode.Forbidden)
           .setMessage('2FA_REQUIRED')
           .setErrors(['2FA code is required to change password']);
-        
+
         response.statusCode = HttpStatus.FORBIDDEN;
         return response.send(responseBuilder.build());
       }

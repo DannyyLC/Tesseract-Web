@@ -4,9 +4,7 @@ import { InvoiceController } from './controllers/user-ui/invoice.controller';
 import { UtilityModule } from '../utility/utility.module';
 
 @Module({
-  imports: [
-    UtilityModule
-  ],
+  imports: [UtilityModule],
   providers: [InvoiceService],
   controllers: [InvoiceController],
 })

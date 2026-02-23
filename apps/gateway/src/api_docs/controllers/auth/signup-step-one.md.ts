@@ -9,4 +9,4 @@ This endpoint starts the signup process by sending a verification email to the u
 
 #### Responses
 - **200 OK**: Verification email sent successfully.
-- **500 Internal Server Error**: Error sending the email or email already registered.`
+- **500 Internal Server Error**: Error sending the email or email already registered.`;

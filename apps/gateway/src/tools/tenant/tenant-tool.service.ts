@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { CursorPaginatedResponse } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../../common/responses/cursor-paginated-response';
 import { PrismaService } from '../../database/prisma.service';
@@ -7,6 +7,7 @@ import { DashboardTenantToolDto } from '@tesseract/types';
 import { UpdateTenantToolDto } from './dto/update-tenant-tool.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class TenantToolService {
@@ -23,7 +24,11 @@ export class TenantToolService {
   ): Promise<CursorPaginatedResponse<DashboardTenantToolDto> | null> {
     try {
       const tenantTools = await this.prismaService.tenantTool.findMany({
-        where: { organizationId },
+        where: {
+          organizationId,
+          deletedAt: null,
+          status: { not: 'deleted' },
+        },
         cursor: cursor ? { id: cursor } : undefined,
         skip: cursor ? 1 : 0,
         take:
@@ -59,9 +64,7 @@ export class TenantToolService {
     }
   }
 
-  async getTenantToolById(
-    id: string
-  ): Promise<DashboardTenantToolDto | null> {
+  async getTenantToolById(id: string): Promise<DashboardTenantToolDto | null> {
     try {
       const tenantTool = await this.prismaService.tenantTool.findUnique({
         where: { id },
@@ -84,16 +87,14 @@ export class TenantToolService {
       });
       return tenantTool;
     } catch (error: any) {
-      this.logger.error(`Error fetching tenant tool with ID ${id}: ${error?.message || 'Unknown error'}`);
+      this.logger.error(
+        `Error fetching tenant tool with ID ${id}: ${error?.message || 'Unknown error'}`,
+      );
       return null;
     }
   }
 
-  async createTenantTool(
-    data: CreateTenantToolDto,
-    organizationId: string,
-    userId: string,
-  ) {
+  async createTenantTool(data: CreateTenantToolDto, organizationId: string, userId: string) {
     try {
       return await this.prismaService.tenantTool.create({
         data: {
@@ -123,7 +124,9 @@ export class TenantToolService {
         },
       });
     } catch (error: any) {
-      this.logger.error(`Error updating tenant tool with ID ${id}: ${error?.message || 'Unknown error'}`);
+      this.logger.error(
+        `Error updating tenant tool with ID ${id}: ${error?.message || 'Unknown error'}`,
+      );
       return null;
     }
   }
@@ -139,7 +142,9 @@ export class TenantToolService {
         },
       });
     } catch (error: any) {
-      this.logger.error(`Error adding workflows to tenant tool with ID ${tenantToolId}: ${error?.message || 'Unknown error'}`);
+      this.logger.error(
+        `Error adding workflows to tenant tool with ID ${tenantToolId}: ${error?.message || 'Unknown error'}`,
+      );
       return null;
     }
   }
@@ -155,8 +160,79 @@ export class TenantToolService {
         },
       });
     } catch (error: any) {
-      this.logger.error(`Error removing workflows from tenant tool with ID ${tenantToolId}: ${error?.message || 'Unknown error'}`);
+      this.logger.error(
+        `Error removing workflows from tenant tool with ID ${tenantToolId}: ${error?.message || 'Unknown error'}`,
+      );
       return null;
     }
+  }
+
+  /**
+   * Executes a strict Hard-Delete on the OAuth credentials and a Soft-Delete on the tool instance.
+   */
+  async deleteTool(tenantToolId: string, orgId: string, userId: string, role: string) {
+    const tool = await this.prismaService.tenantTool.findFirst({
+      where: { id: tenantToolId, organizationId: orgId },
+    });
+
+    if (!tool) {
+      throw new NotFoundException('Tool not found');
+    }
+
+    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== 'owner') {
+      throw new Error('No tienes permisos para desconectar esta herramienta');
+    }
+
+    await this.prismaService.$transaction(async (tx) => {
+      // HARD DELETE of PII Secrets Bóveda
+      await tx.tenantToolCredential.deleteMany({
+        where: { tenantToolId },
+      });
+
+      // SOFT DELETE of shell (to keep execution history) y status update
+      await tx.tenantTool.update({
+        where: { id: tenantToolId },
+        data: {
+          status: 'deleted',
+          isConnected: false,
+          deletedAt: new Date(),
+        },
+      });
+    });
+  }
+
+  /**
+   * Wipes sensitive credentials and configuration data, resetting the tool to a
+   * 'pending' state. This allows for reconnection while ensuring no PII persists.
+   */
+  async disconnectTool(tenantToolId: string, orgId: string, userId: string, role: string) {
+    const tool = await this.prismaService.tenantTool.findFirst({
+      where: { id: tenantToolId, organizationId: orgId },
+    });
+
+    if (!tool) {
+      throw new NotFoundException('Tool not found');
+    }
+
+    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== 'owner') {
+      throw new Error('No tienes permisos para desconectar esta herramienta');
+    }
+
+    await this.prismaService.$transaction(async (tx) => {
+      // HARD DELETE of PII Secrets Bóveda
+      await tx.tenantToolCredential.deleteMany({
+        where: { tenantToolId },
+      });
+
+      // SOFT DELETE of shell (to keep execution history) y status update
+      await tx.tenantTool.update({
+        where: { id: tenantToolId },
+        data: {
+          status: 'pending',
+          isConnected: false,
+          config: Prisma.DbNull,
+        },
+      });
+    });
   }
 }

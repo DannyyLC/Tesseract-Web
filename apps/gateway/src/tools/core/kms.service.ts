@@ -10,7 +10,7 @@ export class KmsService implements OnModuleInit {
   private readonly locationId = process.env.GCP_KMS_LOCATION || 'global';
   private readonly keyRingId = process.env.GCP_KMS_KEY_RING || 'tesseract-key-ring';
   private readonly cryptoKeyId = process.env.GCP_KMS_CRYPTO_KEY || 'oauth-tokens-key';
-  
+
   private keyName: string;
 
   constructor() {
@@ -33,7 +33,7 @@ export class KmsService implements OnModuleInit {
   async encrypt(plaintext: string): Promise<string> {
     if (!plaintext) return plaintext;
     try {
-      // NOTE: Using direct KMS encryption for MVP. Envelope encryption with Tink 
+      // NOTE: Using direct KMS encryption for MVP. Envelope encryption with Tink
       // can be swapped in here transparently as it scales.
       const buffer = Buffer.from(plaintext, 'utf8');
       const [result] = await this.kmsClient.encrypt({

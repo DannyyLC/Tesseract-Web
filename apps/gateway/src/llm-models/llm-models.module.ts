@@ -3,9 +3,7 @@ import { LlmModelsService } from './llm-models.service';
 import { UtilityModule } from '../utility/utility.module';
 
 @Module({
-  imports: [
-    UtilityModule
-  ],
+  imports: [UtilityModule],
   providers: [LlmModelsService],
   exports: [LlmModelsService],
 })

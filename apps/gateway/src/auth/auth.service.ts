@@ -4,7 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-  UnauthorizedException
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -220,7 +220,7 @@ export class AuthService {
         // Generar nueva organización para este usuario "renacido"
         const orgName = `${details.firstName}'s Organization`;
         const userId = user.id; // Capture ID to avoid TS null error inside transaction
-        
+
         const reactivatedUser = await this.prisma.$transaction(async (tx) => {
           // Crear nueva Org
           const slug = await OrganizationsService.generateUniqueSlug(orgName, tx);
@@ -280,10 +280,10 @@ export class AuthService {
     }
 
     // 3. Si no existe, crear usuario y organización ("Magic Creation")
-    
+
     // Generar nombre de organización basado en el nombre del usuario
     const orgName = `${details.firstName}'s Organization`;
-    
+
     // Iniciar transacción para crear todo junto
     const newUserResult = await this.prisma.$transaction(async (tx) => {
       // 3.1 Crear Organización
@@ -886,39 +886,39 @@ export class AuthService {
           let newUser;
 
           if (existingUser && existingUser.deletedAt) {
-             // REACTIVACIÓN
-             newUser = await tx.user.update({
-               where: { id: existingUser.id },
-               data: {
-                 deletedAt: null, // Reactivar
-                 name: userVerificationRow.userName,
-                 password: hashedPassword,
-                 role: 'owner',
-                 organizationId: newOrganization.id,
-                 isActive: true,
-                 emailVerified: true,
-                 emailVerificationToken: null,
-                 emailVerificationTokenExpires: null,
-                 lastLoginAt: new Date(),
-               },
-             });
+            // REACTIVACIÓN
+            newUser = await tx.user.update({
+              where: { id: existingUser.id },
+              data: {
+                deletedAt: null, // Reactivar
+                name: userVerificationRow.userName,
+                password: hashedPassword,
+                role: 'owner',
+                organizationId: newOrganization.id,
+                isActive: true,
+                emailVerified: true,
+                emailVerificationToken: null,
+                emailVerificationTokenExpires: null,
+                lastLoginAt: new Date(),
+              },
+            });
           } else if (existingUser && !existingUser.deletedAt) {
-             // Esto no debería pasar, pero por seguridad lanzamos error
-             throw new Error('El usuario ya existe y está activo');
+            // Esto no debería pasar, pero por seguridad lanzamos error
+            throw new Error('El usuario ya existe y está activo');
           } else {
-             // CREACIÓN NUEVA
-             newUser = await tx.user.create({
-               data: {
-                 email: userVerificationRow.email,
-                 name: userVerificationRow.userName,
-                 password: hashedPassword,
-                 role: 'owner',
-                 organizationId: newOrganization.id,
-                 isActive: true,
-                 emailVerified: true,
-                 lastLoginAt: new Date(),
-               },
-             });
+            // CREACIÓN NUEVA
+            newUser = await tx.user.create({
+              data: {
+                email: userVerificationRow.email,
+                name: userVerificationRow.userName,
+                password: hashedPassword,
+                role: 'owner',
+                organizationId: newOrganization.id,
+                isActive: true,
+                emailVerified: true,
+                lastLoginAt: new Date(),
+              },
+            });
           }
 
           // 3. Borrar verificación
@@ -1012,7 +1012,11 @@ export class AuthService {
     // Usar EmailService para generar y enviar el código
     const emailResult = await this.emailService.sendPasswordResetCodeByEmail(email);
 
-    if (!emailResult || !emailResult.sentMessageInfo || emailResult.sentMessageInfo.success === false) {
+    if (
+      !emailResult ||
+      !emailResult.sentMessageInfo ||
+      emailResult.sentMessageInfo.success === false
+    ) {
       return ForgotPassErrors.SEND_EMAIL_ERROR;
     }
 
@@ -1031,7 +1035,10 @@ export class AuthService {
     return emailResult.sentMessageInfo;
   }
 
-  async resetPasswordStepTwo(verificationCode: string, newPassword: string): Promise<boolean | ForgotPassErrors> {
+  async resetPasswordStepTwo(
+    verificationCode: string,
+    newPassword: string,
+  ): Promise<boolean | ForgotPassErrors> {
     const verification = await this.prisma.userVerification.findFirst({
       where: {
         verificationCode,
@@ -1054,8 +1061,7 @@ export class AuthService {
 
     // Revocar todos los refresh tokens (seguridad)
     const user = await this.prisma.user.findUnique({ where: { email: verification.email } });
-    if(user) await this.logoutAll(user.id);
-
+    if (user) await this.logoutAll(user.id);
 
     // Eliminar registro de verificación
     await this.prisma.userVerification.deleteMany({
@@ -1096,7 +1102,7 @@ export class AuthService {
       if (!dto.code2FA) {
         throw new ForbiddenException('2FA_REQUIRED');
       }
-      
+
       const verified = speakeasy.totp.verify({
         secret: user.twoFactorSecret!,
         encoding: 'base32',
@@ -1110,12 +1116,12 @@ export class AuthService {
 
     // 3. Update Password
     const hashedPassword = await this.utilityService.hashPassword(dto.newPassword);
-    
+
     await this.prisma.user.update({
       where: { id: userId },
-      data: { 
+      data: {
         password: hashedPassword,
-      }
+      },
     });
 
     await this.logoutAll(userId);

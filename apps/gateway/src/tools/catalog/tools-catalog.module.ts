@@ -5,9 +5,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { UtilityModule } from '../../utility/utility.module';
 
 @Module({
-  imports: [
-    UtilityModule
-  ],
+  imports: [UtilityModule],
   providers: [ToolsCatalogService, PrismaService],
   controllers: [ToolsCatalogController],
 })

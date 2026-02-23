@@ -1,4 +1,17 @@
-import { Body, Controller, DefaultValuePipe, Get, Param, ParseIntPipe, Post, Put, Query, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  DefaultValuePipe,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Put,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiResponseBuilder, CursorPaginatedResponse } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { Response } from 'express';
@@ -46,22 +59,6 @@ export class TenantToolController {
     return res.status(200).json(apiResponse.build());
   }
 
-  @Get(':id')
-  async getTenantToolById(@Param('id') id: string, @Res() res: Response) {
-    const apiResponse = new ApiResponseBuilder<any>();
-    const tenantTool = await this.tenantToolService.getTenantToolById(id);
-    if (!tenantTool) {
-      apiResponse.setSuccess(false).setMessage('Tenant tool not found');
-      return res.status(HttpStatusCode.NotFound).json(apiResponse.build());
-    }
-
-    apiResponse
-      .setSuccess(true)
-      .setData(tenantTool)
-      .setMessage('Tenant tool retrieved successfully');
-    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
-  }
-
   @Post('create')
   async createTenantTool(
     @CurrentUser() user: UserPayload,
@@ -69,11 +66,13 @@ export class TenantToolController {
     @Res() res: Response,
   ) {
     const apiResponse = new ApiResponseBuilder<CreateTenantToolDto | null>();
-    const created = await this.tenantToolService.createTenantTool(body, user.organizationId, user.sub);
+    const created = await this.tenantToolService.createTenantTool(
+      body,
+      user.organizationId,
+      user.sub,
+    );
     if (!created) {
-      apiResponse
-        .setSuccess(false)
-        .setMessage('Error creating tenant tool');
+      apiResponse.setSuccess(false).setMessage('Error creating tenant tool');
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     }
     apiResponse.setSuccess(true).setData(created).setMessage('Tenant tool created successfully');
@@ -89,9 +88,7 @@ export class TenantToolController {
     const apiResponse = new ApiResponseBuilder<UpdateTenantToolDto | null>();
     const updated = await this.tenantToolService.updateTenantTool(id, body);
     if (!updated) {
-      apiResponse
-        .setSuccess(false)
-        .setMessage('Error updating tenant tool');
+      apiResponse.setSuccess(false).setMessage('Error updating tenant tool');
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     }
     apiResponse.setSuccess(true).setData(updated).setMessage('Tenant tool updated successfully');
@@ -107,9 +104,7 @@ export class TenantToolController {
     const apiResponse = new ApiResponseBuilder<UpdateTenantToolDto | null>();
     const updated = await this.tenantToolService.addWorkflowToTenantTool(id, body.workflowIds);
     if (!updated) {
-      apiResponse
-        .setSuccess(false)
-        .setMessage('Error adding workflows to tenant tool');
+      apiResponse.setSuccess(false).setMessage('Error adding workflows to tenant tool');
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     }
     apiResponse
@@ -128,9 +123,7 @@ export class TenantToolController {
     const apiResponse = new ApiResponseBuilder<UpdateTenantToolDto | null>();
     const updated = await this.tenantToolService.removeWorkflowFromTenantTool(id, body.workflowIds);
     if (!updated) {
-      apiResponse
-        .setSuccess(false)
-        .setMessage('Error removing workflows from tenant tool');
+      apiResponse.setSuccess(false).setMessage('Error removing workflows from tenant tool');
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     }
     apiResponse
@@ -138,5 +131,55 @@ export class TenantToolController {
       .setData(updated)
       .setMessage('Workflows removed from tenant tool successfully');
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Get(':id')
+  async getTenantToolById(@Param('id') id: string, @Res() res: Response) {
+    const apiResponse = new ApiResponseBuilder<any>();
+    const tenantTool = await this.tenantToolService.getTenantToolById(id);
+    if (!tenantTool) {
+      apiResponse.setSuccess(false).setMessage('Tenant tool not found');
+      return res.status(HttpStatusCode.NotFound).json(apiResponse.build());
+    }
+
+    apiResponse
+      .setSuccess(true)
+      .setData(tenantTool)
+      .setMessage('Tenant tool retrieved successfully');
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Delete(':toolId')
+  async deleteTool(
+    @Param('toolId') toolId: string,
+    @CurrentUser() user: UserPayload,
+    @Res() res: Response,
+  ) {
+    const apiResponse = new ApiResponseBuilder<boolean>();
+    try {
+      await this.tenantToolService.deleteTool(toolId, user.organizationId, user.sub, user.role);
+      apiResponse.setSuccess(true).setData(true).setMessage('Tool soft-deleted and secrets wiped');
+      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+    } catch (error: any) {
+      apiResponse.setSuccess(false).setMessage(error?.message || 'Error deleting tool');
+      return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
+    }
+  }
+
+  @Delete('disconnect/:toolId')
+  async disconnectTool(
+    @Param('toolId') toolId: string,
+    @CurrentUser() user: UserPayload,
+    @Res() res: Response,
+  ) {
+    const apiResponse = new ApiResponseBuilder<boolean>();
+    try {
+      await this.tenantToolService.disconnectTool(toolId, user.organizationId, user.sub, user.role);
+      apiResponse.setSuccess(true).setData(true).setMessage('Tool disconnected successfully');
+      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+    } catch (error: any) {
+      apiResponse.setSuccess(false).setMessage(error?.message || 'Error disconnecting tool');
+      return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
+    }
   }
 }

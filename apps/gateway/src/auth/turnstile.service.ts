@@ -34,7 +34,7 @@ export class TurnstileService {
           headers: {
             'Content-Type': 'application/json',
           },
-        }
+        },
       );
 
       const data = response.data;

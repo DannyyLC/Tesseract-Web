@@ -4,9 +4,7 @@ import { TenantToolController } from './controllers/user-ui/tenant-tool.controll
 import { UtilityModule } from '../../utility/utility.module';
 
 @Module({
-  imports: [
-    UtilityModule
-  ],
+  imports: [UtilityModule],
   providers: [TenantToolService],
   controllers: [TenantToolController],
 })

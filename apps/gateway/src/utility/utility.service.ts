@@ -12,7 +12,7 @@ export class UtilityService {
 
   constructor(
     private readonly prismaService: PrismaService,
-    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
   async hashPassword(password: string): Promise<string> {
@@ -66,7 +66,8 @@ export class UtilityService {
         await this.prismaService.userNotification.createMany({
           data: notificationEntries,
         });
-        const notificationDetails = notificationsEnum[notificationCode as keyof typeof notificationsEnum]
+        const notificationDetails =
+          notificationsEnum[notificationCode as keyof typeof notificationsEnum];
         this.appNotificationsSubject.next({
           id: Date.now().toString(),
           data: {
@@ -77,15 +78,17 @@ export class UtilityService {
               notificationCode,
               title: notificationDetails.title,
               desc: notificationDetails.desc,
-            }
+            },
           },
           type: 'UserNotification.created',
           retry: 3000,
         });
-
       }
     } catch (error) {
-      this.logger.error('UtilityService - sendNotificationToAppClients >> Error sending notification to app clients:', error);
+      this.logger.error(
+        'UtilityService - sendNotificationToAppClients >> Error sending notification to app clients:',
+        error,
+      );
     }
   }
 

@@ -9,4 +9,4 @@ This endpoint completes the signup by creating the user in the system.
 
 #### Responses
 - **201 Created**: User successfully registered.
-- **400 Bad Request**: Registration error or invalid data.`
+- **400 Bad Request**: Registration error or invalid data.`;

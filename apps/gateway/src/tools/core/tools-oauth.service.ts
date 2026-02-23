@@ -16,14 +16,18 @@ export class ToolsOauthService {
    * Genera la URL de autorización de Google para OAuth 2.0.
    * Empaqueta el tenantToolId de forma segura en el parámetro 'state'.
    */
-  async generateGoogleAuthUrl(tenantToolId: string, organizationId: string, userId: string): Promise<string> {
+  async generateGoogleAuthUrl(
+    tenantToolId: string,
+    organizationId: string,
+    userId: string,
+  ): Promise<string> {
     const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
     if (!clientId) {
       throw new Error('GOOGLE_CLIENT_ID not configured');
     }
 
     const redirectUri = this.getRedirectUri();
-    
+
     // Obtener la herramienta y sus scopes configurados en el catálogo
     const tool = await this.prisma.tenantTool.findUnique({
       where: { id: tenantToolId, organizationId },
@@ -31,9 +35,9 @@ export class ToolsOauthService {
         toolCatalog: {
           include: {
             functions: true,
-          }
+          },
         },
-      }
+      },
     });
 
     if (!tool) {
@@ -42,23 +46,27 @@ export class ToolsOauthService {
 
     // Extraer las funciones permitidas para esta instancia específica de la herramienta
     // O si no hay filtro explícito, tomar todas las funciones del catálogo para esta tool
-    const allowedFunctionNames = tool.allowedFunctions && Array.isArray(tool.allowedFunctions) 
-      ? tool.allowedFunctions 
-      : tool.toolCatalog.functions.map((f: any) => f.functionName);
+    const allowedFunctionNames =
+      tool.allowedFunctions && Array.isArray(tool.allowedFunctions)
+        ? tool.allowedFunctions
+        : tool.toolCatalog.functions.map((f: any) => f.functionName);
 
     // Mapeo Dinámico de funciones a Scopes directo desde la Base de Datos
     // Filtramos las funciones del catálogo que el usuario "encendió" para esta herramienta
-    const allowedFunctions = tool.toolCatalog.functions.filter((f: any) => 
-      allowedFunctionNames.includes(f.functionName)
+    const allowedFunctions = tool.toolCatalog.functions.filter((f: any) =>
+      allowedFunctionNames.includes(f.functionName),
     );
 
     // Extraemos todos los scopes de esas funciones, aplanamos la lista y quitamos duplicados con Set
-    const scopesList = Array.from(new Set(
-      allowedFunctions.flatMap((f: any) => f.oauthScopes || [])
-    ));
+    const scopesList = Array.from(
+      new Set(allowedFunctions.flatMap((f: any) => f.oauthScopes || [])),
+    );
 
     // Opcional: Asegurar que siempre pidamos el perfil básico para identificar a quién le dimos el token
-    if (!scopesList.includes('https://www.googleapis.com/auth/userinfo.email') && tool.toolCatalog.provider === 'google') {
+    if (
+      !scopesList.includes('https://www.googleapis.com/auth/userinfo.email') &&
+      tool.toolCatalog.provider === 'google'
+    ) {
       scopesList.push('https://www.googleapis.com/auth/userinfo.email');
       scopesList.push('https://www.googleapis.com/auth/userinfo.profile');
     }
@@ -119,7 +127,9 @@ export class ToolsOauthService {
         profile,
       };
     } catch (error: any) {
-      this.logger.error(`Error exchanging Google code: ${error?.response?.data?.error_description || error.message}`);
+      this.logger.error(
+        `Error exchanging Google code: ${error?.response?.data?.error_description || error.message}`,
+      );
       throw new BadRequestException('Failed to exchange authorization code with Google');
     }
   }
@@ -150,7 +160,9 @@ export class ToolsOauthService {
         refreshToken: data.refresh_token || refreshToken,
       };
     } catch (error: any) {
-      this.logger.error(`Error refreshing Google token: ${error?.response?.data?.error_description || error.message}`);
+      this.logger.error(
+        `Error refreshing Google token: ${error?.response?.data?.error_description || error.message}`,
+      );
       throw new BadRequestException('Failed to refresh Google authorization token');
     }
   }
@@ -171,7 +183,9 @@ export class ToolsOauthService {
         picture: data.picture,
       };
     } catch (error: any) {
-      this.logger.warn(`Failed to fetch Google user profile: ${error.message}. Scopes might be missing.`);
+      this.logger.warn(
+        `Failed to fetch Google user profile: ${error.message}. Scopes might be missing.`,
+      );
       return null;
     }
   }
@@ -179,9 +193,10 @@ export class ToolsOauthService {
   private getRedirectUri(): string {
     const customUrl = this.configService.get<string>('GOOGLE_TOOLS_CALLBACK_URL');
     if (customUrl) return customUrl;
-    
+
     // Fallback normal usando la base URL de la API del entorno
-    const baseApiUrl = this.configService.get<string>('DOMAIN_BASE_URL') || 'http://localhost:3000/api';
+    const baseApiUrl =
+      this.configService.get<string>('DOMAIN_BASE_URL') || 'http://localhost:3000/api';
     return `${baseApiUrl}/tools/oauth/google/callback`;
   }
 }

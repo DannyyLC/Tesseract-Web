@@ -6,11 +6,7 @@ import { UtilityModule } from '../utility/utility.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 
 @Module({
-  imports: [
-    UtilityModule, 
-    ConversationsModule,
-    OrganizationsModule
-  ],
+  imports: [UtilityModule, ConversationsModule, OrganizationsModule],
   providers: [EventsService],
   exports: [EventsService],
   controllers: [EventsController],

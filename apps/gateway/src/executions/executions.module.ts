@@ -4,9 +4,7 @@ import { ExecutionsController } from './controllers/user-ui/executions.controlle
 import { UtilityModule } from '../utility/utility.module';
 
 @Module({
-  imports: [
-    UtilityModule
-  ],
+  imports: [UtilityModule],
   controllers: [ExecutionsController],
   providers: [ExecutionsService],
   exports: [ExecutionsService],

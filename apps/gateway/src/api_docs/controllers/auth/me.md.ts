@@ -9,4 +9,4 @@ This endpoint returns the information of the authenticated user.
 
 #### Responses
 - **200 OK**: Authenticated user information.
-- **401 Unauthorized**: Invalid or expired token.`
+- **401 Unauthorized**: Invalid or expired token.`;

@@ -70,7 +70,7 @@ export class CronJobsService {
     // Auto-soft-delete read notifications older than 30 days to clear the user's feed
     // but keep them in the database for history/audit.
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    
+
     const result = await this.prisma.userNotification.updateMany({
       where: {
         isRead: true,

@@ -1,4 +1,12 @@
-import { Controller, Get, Query, Res, UseGuards, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  Res,
+  UseGuards,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { Response } from 'express';
 import { ToolsOauthService } from './tools-oauth.service';
 import { ToolsService } from './tools.service';
@@ -44,7 +52,7 @@ export class ToolsOauthController {
   /**
    * Google redirecciona de regreso a este endpoint.
    * Cambiamos el 'code' temporal por tokens a largo plazo y los guardamos en KMS.
-   * NOTA: Este endpoint es llamado por Google, por lo que NO tiene un JwtAuthGuard. 
+   * NOTA: Este endpoint es llamado por Google, por lo que NO tiene un JwtAuthGuard.
    * La validación de quién lo hizo reside en la firma secreta del 'state' devuelto.
    */
   @Get('google/callback')

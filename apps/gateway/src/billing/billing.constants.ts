@@ -26,4 +26,3 @@ export const SUBSCRIPTION_PLANS = {
     priceIdEnvKey: 'STRIPE_PRICE_ENTERPRISE',
   },
 };
-

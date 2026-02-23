@@ -21,11 +21,7 @@ import { UpdateWorkflowDto, ExecuteWorkflowDto } from '../../dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
-import {
-  ApiResponseBuilder,
-  CursorPaginatedResponse,
-  WorkflowCategory,
-} from '@tesseract/types';
+import { ApiResponseBuilder, CursorPaginatedResponse, WorkflowCategory } from '@tesseract/types';
 import { Response } from 'express';
 import { DashboardWorkflowDto } from '../../../workflows/dto/dashboard-workflow.dto';
 import { WorkflowStatsDto } from '../../../workflows/dto/workflow-stats.dto';

@@ -1,30 +1,26 @@
 import { UsersService } from '../../users.service';
-import { 
-  Controller, 
-  Get, 
-  Query, 
-  Res, 
-  UseGuards, 
-  Param, 
-  Patch, 
-  Delete, 
-  Body, 
-  ParseIntPipe, 
-  DefaultValuePipe, 
-  Post
+import {
+  Controller,
+  Get,
+  Query,
+  Res,
+  UseGuards,
+  Param,
+  Patch,
+  Delete,
+  Body,
+  ParseIntPipe,
+  DefaultValuePipe,
+  Post,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { 
-  DashboardUserDataDto, 
-  LeaveOrganizationDto, 
-  UpdateUserDto, 
-  UserDetailDto 
-} from '../../dto';
 import {
-  ApiResponse,
-  ApiResponseBuilder,
-  CursorPaginatedResponse,
-} from '@tesseract/types';
+  DashboardUserDataDto,
+  LeaveOrganizationDto,
+  UpdateUserDto,
+  UserDetailDto,
+} from '../../dto';
+import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
@@ -76,33 +72,41 @@ export class UsersController {
 
   @Get('notifications')
   async getAppNotifications(
-      @CurrentUser() user: UserPayload,
-      @Res() res: Response,
-      @Query('cursor') cursor: string | null = null,
-      @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number
-    ): Promise<Response<ApiResponse<CursorPaginatedResponse<NotificationEventDto>>>> {
-      const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<NotificationEventDto>>();
-      // Cast to any if needed or ensure service returns strict match
-      const notifications = await this.usersService.getNotificationsForUser(user.sub, user.organizationId, cursor, pageSize);
-      apiResponse
-        .setStatusCode(HttpStatusCode.Ok)
-        .setMessage('User notifications retrieved successfully')
-        .setData(notifications);
-      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+    @CurrentUser() user: UserPayload,
+    @Res() res: Response,
+    @Query('cursor') cursor: string | null = null,
+    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
+  ): Promise<Response<ApiResponse<CursorPaginatedResponse<NotificationEventDto>>>> {
+    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<NotificationEventDto>>();
+    // Cast to any if needed or ensure service returns strict match
+    const notifications = await this.usersService.getNotificationsForUser(
+      user.sub,
+      user.organizationId,
+      cursor,
+      pageSize,
+    );
+    apiResponse
+      .setStatusCode(HttpStatusCode.Ok)
+      .setMessage('User notifications retrieved successfully')
+      .setData(notifications);
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 
   @Get('notifications/unread-count')
   async getUnreadNotificationsCount(
-      @CurrentUser() user: UserPayload,
-      @Res() res: Response,
-    ): Promise<Response<ApiResponse<number>>> {
-      const apiResponse = new ApiResponseBuilder<number>();
-      const count = await this.usersService.getUnreadNotificationsCount(user.sub, user.organizationId);
-      apiResponse
-        .setStatusCode(HttpStatusCode.Ok)
-        .setMessage('User unread notifications count retrieved successfully')
-        .setData(count);
-      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+    @CurrentUser() user: UserPayload,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponse<number>>> {
+    const apiResponse = new ApiResponseBuilder<number>();
+    const count = await this.usersService.getUnreadNotificationsCount(
+      user.sub,
+      user.organizationId,
+    );
+    apiResponse
+      .setStatusCode(HttpStatusCode.Ok)
+      .setMessage('User unread notifications count retrieved successfully')
+      .setData(count);
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 
   @Get('stats')
@@ -194,7 +198,11 @@ export class UsersController {
     @Res() res: Response,
   ): Promise<Response> {
     const apiResponse = new ApiResponseBuilder<any>();
-    const updatedUser = await this.usersService.updateProfile(id, user.organizationId, updateProfileDto);
+    const updatedUser = await this.usersService.updateProfile(
+      id,
+      user.organizationId,
+      updateProfileDto,
+    );
     if (!updatedUser) {
       apiResponse
         .setMessage('User not found or profile update failed')
@@ -218,7 +226,9 @@ export class UsersController {
   ): Promise<Response> {
     const apiResponse = new ApiResponseBuilder<void>();
     await this.usersService.transferOwnership(user.sub, id, user.organizationId);
-    apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage('User ownership transferred successfully');
+    apiResponse
+      .setStatusCode(HttpStatusCode.Ok)
+      .setMessage('User ownership transferred successfully');
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 
@@ -241,7 +251,7 @@ export class UsersController {
     @Res() res: Response,
   ): Promise<Response> {
     const apiResponse = new ApiResponseBuilder<{ message: string }>();
-    
+
     const result = await this.usersService.leaveOrganization(
       user.sub,
       user.organizationId,
@@ -249,11 +259,8 @@ export class UsersController {
       dto.code2FA,
     );
 
-    apiResponse
-      .setStatusCode(HttpStatusCode.Ok)
-      .setMessage(result.message)
-      .setData(result);
-    
+    apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage(result.message).setData(result);
+
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 
@@ -261,7 +268,7 @@ export class UsersController {
   async markNotificationAsRead(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
-    @Res() res: Response
+    @Res() res: Response,
   ): Promise<Response> {
     const apiResponse = new ApiResponseBuilder<void>();
     await this.usersService.markNotificationAsRead(user.sub, user.organizationId, id);
@@ -272,7 +279,7 @@ export class UsersController {
   @Patch('notifications/read-all')
   async markAllNotificationsAsRead(
     @CurrentUser() user: UserPayload,
-    @Res() res: Response
+    @Res() res: Response,
   ): Promise<Response> {
     const apiResponse = new ApiResponseBuilder<void>();
     await this.usersService.markAllNotificationsAsRead(user.sub, user.organizationId);
@@ -284,7 +291,7 @@ export class UsersController {
   async deleteNotification(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
-    @Res() res: Response
+    @Res() res: Response,
   ): Promise<Response> {
     const apiResponse = new ApiResponseBuilder<void>();
     await this.usersService.deleteNotification(user.sub, user.organizationId, id);
@@ -297,11 +304,17 @@ export class UsersController {
   async requestServiceInfoByEmail(
     @CurrentUser() user: UserPayload,
     @Body() message: ServiceInfoRequestDto,
-    @Res() res: Response
+    @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
     const userMsg = message.userMsg || 'El usuario no proporcionó ningún mensaje adicional.';
-    const emailResult = await this.usersService.requestServiceInfoByEmail(user.name, user.email, message.subject, userMsg, user.organizationId);
+    const emailResult = await this.usersService.requestServiceInfoByEmail(
+      user.name,
+      user.email,
+      message.subject,
+      userMsg,
+      user.organizationId,
+    );
     if (!emailResult) {
       apiResponse
         .setMessage('Failed to send service information request email')

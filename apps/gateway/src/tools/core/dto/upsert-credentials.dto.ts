@@ -28,6 +28,8 @@ export class UpsertCredentialsDto {
   scopes?: string[];
 
   @IsOptional()
-  @ApiPropertyOptional({ description: 'User profile fetched from provider (e.g. email, name, picture)' })
+  @ApiPropertyOptional({
+    description: 'User profile fetched from provider (e.g. email, name, picture)',
+  })
   profile?: Record<string, any>;
 }

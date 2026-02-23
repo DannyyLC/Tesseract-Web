@@ -1,4 +1,3 @@
-
 export * from './login.md';
 export * from './refresh.md';
 export * from './me.md';
@@ -9,4 +8,3 @@ export * from './signup-step-one.md';
 export * from './signup-step-two.md';
 export * from './signup-step-three.md';
 export * from './setup-2fa.md';
-

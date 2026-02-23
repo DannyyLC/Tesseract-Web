@@ -5,10 +5,7 @@ import { UtilityModule } from '../utility/utility.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [
-    UtilityModule,
-    NotificationsModule
-  ],
+  imports: [UtilityModule, NotificationsModule],
   providers: [UsersService],
   exports: [UsersService],
   controllers: [UsersController],

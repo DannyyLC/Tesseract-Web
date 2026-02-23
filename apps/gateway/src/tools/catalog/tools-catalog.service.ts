@@ -25,7 +25,7 @@ export class ToolsCatalogService {
         ],
       }),
     };
-    
+
     const tools = await this.prisma.toolCatalog.findMany({
       where,
       skip: cursor ? 1 : 0,

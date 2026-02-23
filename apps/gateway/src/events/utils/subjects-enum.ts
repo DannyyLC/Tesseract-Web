@@ -20,5 +20,5 @@ export enum EventSubjectType {
   USER_VERIFICATION = 'UserVerification',
   WHATSAPP_CONFIG = 'WhatsappConfig',
   WORKFLOW = 'Workflow',
-  USER_NOTIFICATION = 'UserNotification'
+  USER_NOTIFICATION = 'UserNotification',
 }

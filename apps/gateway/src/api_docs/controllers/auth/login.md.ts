@@ -1,4 +1,4 @@
-export const loginSwaggerDesc =  `### Login
+export const loginSwaggerDesc = `### Login
 This endpoint allows you to obtain access credentials.
 
 #### Business rules:
@@ -7,4 +7,4 @@ This endpoint allows you to obtain access credentials.
 3. The **rememberMe** field is optional.
 
 > **Note:** This endpoint is public.
-`
+`;

@@ -38,19 +38,21 @@ async function bootstrap() {
 
     if (process.env.NODE_ENV !== 'production') {
       const config = new DocumentBuilder()
-      .setTitle('Tesseract API Gateway')
-      .setDescription('API Gateway para Tesseract, gestionando usuarios, organizaciones, créditos, facturación y más.')
-      .setVersion('1.0')
-      .addBearerAuth(
-        {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-          description: 'Ingrese su token JWT para autenticación',
-        },
-        'access-token',
-      )
-      .build();
+        .setTitle('Tesseract API Gateway')
+        .setDescription(
+          'API Gateway para Tesseract, gestionando usuarios, organizaciones, créditos, facturación y más.',
+        )
+        .setVersion('1.0')
+        .addBearerAuth(
+          {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+            description: 'Ingrese su token JWT para autenticación',
+          },
+          'access-token',
+        )
+        .build();
       const document = SwaggerModule.createDocument(app, config);
       SwaggerModule.setup('api/docs', app, document);
     }

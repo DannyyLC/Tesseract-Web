@@ -38,7 +38,15 @@ import { NotificationsModule } from '../notifications/notifications.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [ApiKeyGuard, JwtAuthGuard, RolesGuard, JwtStrategy, GoogleStrategy, AuthService, TurnstileService],
+  providers: [
+    ApiKeyGuard,
+    JwtAuthGuard,
+    RolesGuard,
+    JwtStrategy,
+    GoogleStrategy,
+    AuthService,
+    TurnstileService,
+  ],
   exports: [ApiKeyGuard, JwtAuthGuard, RolesGuard, AuthService, PassportModule, TurnstileService],
 })
 export class AuthModule {}

@@ -9,4 +9,4 @@ This endpoint allows you to refresh the access token using the refresh token sto
 
 #### Responses
 - **200 OK**: Tokens updated successfully.
-- **401 Unauthorized**: Invalid or missing refresh token.`
+- **401 Unauthorized**: Invalid or missing refresh token.`;

@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Patch,
-  Post,
-  Res,
-  UseGuards,
-  Delete,
-} from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Res, UseGuards, Delete } from '@nestjs/common';
 import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
 import { Organization } from '@tesseract/database';
 import { Response } from 'express';
@@ -20,7 +11,7 @@ import {
   UpdateOrganizationDto,
   EmailDto,
   AcceptInvitationDto,
-  DeleteOrganizationDto
+  DeleteOrganizationDto,
 } from '../../dto';
 import { OrganizationsService } from '../../organizations.service';
 import { DashboardUserDataDto } from '../../../users/dto';
@@ -86,10 +77,15 @@ export class OrganizationsController {
   @ApiOperation({ summary: 'Delete Organization', description: deleteOrganizationSwaggerDesc })
   async deleteOrganization(
     @CurrentUser() user: UserPayload,
-    @Body() dto:  DeleteOrganizationDto,
+    @Body() dto: DeleteOrganizationDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<Organization>>> {
-    const result = await this.organizationsService.softDelete(user.organizationId, user.sub, dto.confirmationText, dto.code2FA);
+    const result = await this.organizationsService.softDelete(
+      user.organizationId,
+      user.sub,
+      dto.confirmationText,
+      dto.code2FA,
+    );
     const apiResponse = new ApiResponseBuilder<Organization>();
     if (!result) {
       apiResponse.setStatusCode(400).setMessage('Organization could not be deleted');
