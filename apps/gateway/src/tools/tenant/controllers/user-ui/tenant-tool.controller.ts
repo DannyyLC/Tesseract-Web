@@ -149,23 +149,6 @@ export class TenantToolController {
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 
-  @Delete(':toolId')
-  async deleteTool(
-    @Param('toolId') toolId: string,
-    @CurrentUser() user: UserPayload,
-    @Res() res: Response,
-  ) {
-    const apiResponse = new ApiResponseBuilder<boolean>();
-    try {
-      await this.tenantToolService.deleteTool(toolId, user.organizationId, user.sub, user.role);
-      apiResponse.setSuccess(true).setData(true).setMessage('Tool soft-deleted and secrets wiped');
-      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
-    } catch (error: any) {
-      apiResponse.setSuccess(false).setMessage(error?.message || 'Error deleting tool');
-      return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
-    }
-  }
-
   @Delete('disconnect/:toolId')
   async disconnectTool(
     @Param('toolId') toolId: string,
@@ -179,6 +162,23 @@ export class TenantToolController {
       return res.status(HttpStatusCode.Ok).json(apiResponse.build());
     } catch (error: any) {
       apiResponse.setSuccess(false).setMessage(error?.message || 'Error disconnecting tool');
+      return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
+    }
+  }
+
+  @Delete(':toolId')
+  async deleteTool(
+    @Param('toolId') toolId: string,
+    @CurrentUser() user: UserPayload,
+    @Res() res: Response,
+  ) {
+    const apiResponse = new ApiResponseBuilder<boolean>();
+    try {
+      await this.tenantToolService.deleteTool(toolId, user.organizationId, user.sub, user.role);
+      apiResponse.setSuccess(true).setData(true).setMessage('Tool soft-deleted and secrets wiped');
+      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+    } catch (error: any) {
+      apiResponse.setSuccess(false).setMessage(error?.message || 'Error deleting tool');
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     }
   }
