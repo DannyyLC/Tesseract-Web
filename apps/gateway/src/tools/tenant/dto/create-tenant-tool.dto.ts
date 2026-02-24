@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsObject, IsString, isString } from 'class-validator';
+import { IsArray, IsNotEmpty, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class CreateTenantToolDto {
   @IsString()
@@ -15,6 +15,7 @@ export class CreateTenantToolDto {
   })
   displayName: string;
 
+  @IsOptional()
   @IsObject()
   @ApiPropertyOptional({
     description: 'Custom configuration for the tenant tool',
@@ -22,7 +23,8 @@ export class CreateTenantToolDto {
   })
   config?: any;
 
-  @IsObject()
+  @IsOptional()
+  @IsArray()
   @ApiPropertyOptional({
     description: 'Allowed functions for this tenant tool',
     example: '["list_events", "create_event"]',
@@ -30,6 +32,7 @@ export class CreateTenantToolDto {
   })
   allowedFunctions?: any;
 
+  @IsOptional()
   @IsString()
   @ApiPropertyOptional({
     description: 'Workflow ID to connect',
