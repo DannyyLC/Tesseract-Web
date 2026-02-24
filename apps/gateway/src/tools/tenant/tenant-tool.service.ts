@@ -41,6 +41,7 @@ export class TenantToolService {
           status: true,
           isConnected: true,
           createdAt: true,
+          allowedFunctions: true,
           toolCatalog: {
             select: {
               toolName: true,
@@ -74,6 +75,7 @@ export class TenantToolService {
           status: true,
           isConnected: true,
           createdAt: true,
+          allowedFunctions: true,
           toolCatalog: {
             select: {
               toolName: true,
@@ -96,22 +98,42 @@ export class TenantToolService {
 
   async createTenantTool(data: CreateTenantToolDto, organizationId: string, userId: string) {
     try {
-      return await this.prismaService.tenantTool.create({
+      // Fetch tool catalog to check provider
+      const catalog = await this.prismaService.toolCatalog.findUnique({
+        where: { id: data.toolCatalogId },
+        select: { provider: true },
+      });
+
+      if (!catalog) {
+        throw new NotFoundException('Tool catalog entry not found');
+      }
+
+      // Determine if it should be connected immediately
+      // If provider is 'none', 'custom' or empty, it doesn't need OAuth
+      const noAuthRequired =
+        !catalog.provider ||
+        catalog.provider.toLowerCase() === 'none' ||
+        catalog.provider.toLowerCase() === 'custom';
+
+      const tenantTool = await this.prismaService.tenantTool.create({
         data: {
-          toolCatalogId: data.toolCatalogId,
           displayName: data.displayName,
-          config: data.config,
+          organizationId,
+          toolCatalogId: data.toolCatalogId,
           allowedFunctions: data.allowedFunctions,
-          organizationId: organizationId,
+          config: data.config,
           createdByUserId: userId,
+          isConnected: noAuthRequired,
+          status: noAuthRequired ? 'connected' : 'pending',
           workflows: {
             connect: data.workflowId ? [{ id: data.workflowId }] : [],
           },
         },
       });
+      return tenantTool;
     } catch (error: any) {
       this.logger.error(`Error creating tenant tool: ${error?.message || 'Unknown error'}`);
-      return null;
+      throw error;
     }
   }
 

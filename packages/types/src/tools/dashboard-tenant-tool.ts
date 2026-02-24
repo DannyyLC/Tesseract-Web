@@ -11,4 +11,5 @@ export interface DashboardTenantToolDto {
     category: string | null;
     provider: string | null;
   };
+  allowedFunctions?: any;
 }
