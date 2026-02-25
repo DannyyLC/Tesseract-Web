@@ -13,3 +13,27 @@ export interface DashboardTenantToolDto {
   };
   allowedFunctions?: any;
 }
+
+export interface DashboardTenantToolCatalogDto {
+  toolName: string;
+  displayName: string;
+  icon: string;
+  category: string;
+  provider: string;
+}
+
+export interface CreateTenantToolDto {
+  toolCatalogId: string;
+  displayName: string;
+  config?: Record<string, unknown>;
+  allowedFunctions?: string[];
+  workflowId?: string;
+}
+
+export interface UpdateTenantToolDto {
+  displayName?: string;
+}
+
+export interface WorkflowIdsDto {
+  workflowIds: string[];
+}

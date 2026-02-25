@@ -21,3 +21,9 @@ export interface RegisterDto {
   email: string;
   password: string;
 }
+
+/** Frontend compat: Payload simplificado para usar durante la creación sin nombre */
+export interface CreateUserDto {
+  email: string;
+  password: string;
+}
