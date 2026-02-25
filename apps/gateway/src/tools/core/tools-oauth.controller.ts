@@ -63,12 +63,12 @@ export class ToolsOauthController {
     @Res() res: Response,
   ) {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3001';
-    const errorRedirect = `${frontendUrl}/dashboard/integrations?error=oauth_failed`;
+    const errorRedirect = `${frontendUrl}/tools?error=oauth_failed`;
 
     // 1. Manejar si el usuario denegó permisos
     if (error) {
       this.logger.warn(`User denied Google OAuth access. Error: ${error}`);
-      return res.redirect(`${frontendUrl}/dashboard/integrations?error=access_denied`);
+      return res.redirect(`${frontendUrl}/tools?error=access_denied`);
     }
 
     if (!code || !state) {
@@ -102,10 +102,10 @@ export class ToolsOauthController {
       this.logger.log(`Successfully connected Google Tool ${tenantToolId} for user ${userId}`);
 
       // 5. Redirigir al UI con éxito
-      return res.redirect(`${frontendUrl}/dashboard/integrations?status=success`);
+      return res.redirect(`${frontendUrl}/tools?status=success`);
     } catch (err: any) {
       this.logger.error(`Failed to handle Google callback: ${err.message}`);
-      return res.redirect(`${frontendUrl}/dashboard/integrations?error=callback_processing_failed`);
+      return res.redirect(`${frontendUrl}/tools?error=callback_processing_failed`);
     }
   }
 }
