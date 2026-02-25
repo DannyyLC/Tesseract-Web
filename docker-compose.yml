@@ -13,6 +13,43 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - tesseract_net
+
+  agents:
+    build:
+      context: ./apps/agents
+      dockerfile: Dockerfile
+    container_name: tesseract-agents
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    networks:
+      - tesseract_net
+
+  gateway:
+    build:
+      context: .
+      dockerfile: apps/gateway/Dockerfile
+    container_name: tesseract-gateway
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_URL=postgresql://workflow_user:workflow_password@postgres:5432/workflow_db?schema=public
+      - AGENTS_API_URL=http://agents:8000
+    depends_on:
+      - postgres
+    networks:
+      - tesseract_net
+
+networks:
+  tesseract_net:
+    driver: bridge
 
 volumes:
   postgres_data:

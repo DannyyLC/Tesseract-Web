@@ -16,7 +16,7 @@ export class AgentsService {
     private readonly configService: ConfigService,
   ) {
     this.agentsServiceUrl = this.configService.get<string>(
-      'AGENTS_SERVICE_URL',
+      'AGENTS_API_URL',
       'http://localhost:8000',
     );
     this.agentsServiceTimeout = this.configService.get<number>(
