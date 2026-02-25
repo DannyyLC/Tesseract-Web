@@ -30,6 +30,7 @@ from typing import Any, Optional
 from langchain_core.tools import BaseTool, tool
 from datetime import datetime, timedelta
 import logging
+import pytz
 
 logger = logging.getLogger(__name__)
 
@@ -324,10 +325,14 @@ class GoogleCalendarClient:
                 event['summary'] = summary
             
             if start_time:
+                event.setdefault('start', {})
                 event['start']['dateTime'] = start_time
+                event['start']['timeZone'] = self.timezone
             
             if end_time:
+                event.setdefault('end', {})
                 event['end']['dateTime'] = end_time
+                event['end']['timeZone'] = self.timezone
             
             if description:
                 event['description'] = description
@@ -434,12 +439,14 @@ def load_google_calendar_tools(
             Mensaje indicando si está disponible o ocupado
         """
         try:
+            local_tz = pytz.timezone(timezone)
             # Convertir a formato ISO 8601
             start_dt = datetime.fromisoformat(f"{date}T{time}:00")
+            start_dt = local_tz.localize(start_dt)
             end_dt = start_dt + timedelta(minutes=duration_minutes)
             
-            start_iso = start_dt.isoformat() + 'Z'
-            end_iso = end_dt.isoformat() + 'Z'
+            start_iso = start_dt.isoformat()
+            end_iso = end_dt.isoformat()
             
             result = client.check_availability(start_iso, end_iso)
             
@@ -481,12 +488,14 @@ def load_google_calendar_tools(
             Confirmación con ID y link del evento
         """
         try:
+            local_tz = pytz.timezone(timezone)
             # Convertir a formato ISO 8601
             start_dt = datetime.fromisoformat(f"{date}T{start_time}:00")
+            start_dt = local_tz.localize(start_dt)
             end_dt = start_dt + timedelta(minutes=duration_minutes)
             
-            start_iso = start_dt.isoformat() + 'Z'
-            end_iso = end_dt.isoformat() + 'Z'
+            start_iso = start_dt.isoformat()
+            end_iso = end_dt.isoformat()
             
             # Procesar attendees
             attendee_list = [
@@ -528,9 +537,13 @@ def load_google_calendar_tools(
             Lista formateada de eventos
         """
         try:
+            local_tz = pytz.timezone(timezone)
             # Convertir a ISO 8601
-            start_iso = f"{start_date}T00:00:00"
-            end_iso = f"{end_date}T23:59:59"
+            start_dt = local_tz.localize(datetime.fromisoformat(f"{start_date}T00:00:00"))
+            end_dt = local_tz.localize(datetime.fromisoformat(f"{end_date}T23:59:59"))
+            
+            start_iso = start_dt.isoformat()
+            end_iso = end_dt.isoformat()
             
             events = client.list_events(start_iso, end_iso, max_results)
             
@@ -542,7 +555,8 @@ def load_google_calendar_tools(
                 attendees_str = f" - Asistentes: {', '.join(event['attendees'])}" if event['attendees'] else ""
                 result.append(
                     f"\n{event['summary']}\n"
-                    f"{event['start']}{attendees_str}"
+                    f"{event['start']}{attendees_str}\n"
+                    f"ID: {event['event_id']}"
                 )
             
             return "\n".join(result)
@@ -596,19 +610,42 @@ def load_google_calendar_tools(
             Confirmación con los cambios realizados
         """
         try:
+            local_tz = pytz.timezone(timezone)
             # Preparar parámetros a actualizar
             update_params = {"event_id": event_id}
             
             if title:
                 update_params["summary"] = title
             
-            if date and start_time:
-                start_dt = datetime.fromisoformat(f"{date}T{start_time}:00")
-                update_params["start_time"] = start_dt.isoformat() + 'Z'
+            if date or start_time or duration_minutes > 0:
+                # Obtener el evento actual para rellenar los datos faltantes
+                existing = client.get_event(event_id)
+                current_start = existing['start']
+                current_end = existing['end']
                 
-                if duration_minutes > 0:
-                    end_dt = start_dt + timedelta(minutes=duration_minutes)
-                    update_params["end_time"] = end_dt.isoformat() + 'Z'
+                if 'T' in current_start:
+                    curr_dt = datetime.fromisoformat(current_start.replace('Z', '+00:00')).astimezone(local_tz)
+                    curr_date = curr_dt.strftime("%Y-%m-%d")
+                    curr_time = curr_dt.strftime("%H:%M")
+                else:
+                    curr_date = current_start
+                    curr_time = "00:00"
+                    
+                if 'T' in current_end and 'T' in current_start:
+                    curr_end_dt = datetime.fromisoformat(current_end.replace('Z', '+00:00')).astimezone(local_tz)
+                    curr_duration = int((curr_end_dt - curr_dt).total_seconds() / 60)
+                else:
+                    curr_duration = 60
+
+                target_date = date if date else curr_date
+                target_time = start_time if start_time else curr_time
+                target_duration = duration_minutes if duration_minutes > 0 else curr_duration
+                
+                start_dt = local_tz.localize(datetime.fromisoformat(f"{target_date}T{target_time}:00"))
+                end_dt = start_dt + timedelta(minutes=target_duration)
+                
+                update_params["start_time"] = start_dt.isoformat()
+                update_params["end_time"] = end_dt.isoformat()
             
             if description:
                 update_params["description"] = description
@@ -666,6 +703,8 @@ def load_google_calendar_tools(
             
             if event.get('link'):
                 result.append(f"{event['link']}")
+                
+            result.append(f"ID: {event_id}")
             
             return "\n".join(result)
         
