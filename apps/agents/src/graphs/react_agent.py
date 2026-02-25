@@ -36,6 +36,8 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 import logging
+from datetime import datetime
+import pytz
 
 from core.context import TenantContext
 from tools.registry import load_tools, get_llm
@@ -125,13 +127,39 @@ def call_model(state: ReactAgentState, ctx: TenantContext, llm_with_tools) -> di
     # ==========================================
     messages = state["messages"]
     
-    # Agregar system prompt si existe y no está en el historial
+    # Obtener configuración del agente
     agent_config = ctx.get_agent_config("default")
-    system_prompt = agent_config.get("system_prompt")
+    base_system_prompt = agent_config.get("system_prompt", "")
     
-    # Si hay system prompt y el primer mensaje no es system, agregarlo
-    if system_prompt and (not messages or messages[0].type != "system"):
-        messages = [SystemMessage(content=system_prompt)] + messages
+    # Inyectar contexto de tiempo actual para evitar alucinaciones temporales
+    try:
+        local_tz = pytz.timezone(ctx.timezone)
+    except pytz.UnknownTimeZoneError:
+        local_tz = pytz.UTC
+        logger.warning(f"[{ctx.workflow_id}] Unknown timezone '{ctx.timezone}', falling back to UTC")
+        
+    current_time = datetime.now(local_tz)
+    # Formatear amigable (ej: "Wednesday, October 25, 2026")
+    date_str = current_time.strftime("%A, %B %d, %Y")
+    time_str = current_time.strftime("%I:%M %p")
+    
+    time_context = (
+        f"\n---\n"
+        f"SYSTEM DYNAMIC CONTEXT:\n"
+        f"Today's Date: {date_str}\n"
+        f"Current Local Time: {time_str} (Timezone: {ctx.timezone})\n"
+        f"---\n"
+    )
+    
+    system_prompt = base_system_prompt + time_context if base_system_prompt else time_context
+    
+    # Si hay system prompt y el primer mensaje no es system, agregarlo o reemplazarlo
+    if system_prompt:
+        if not messages or messages[0].type != "system":
+            messages = [SystemMessage(content=system_prompt)] + messages
+        else:
+            # Reemplazar el existente para mantener siempre la hora actualizada
+            messages[0] = SystemMessage(content=system_prompt)
     
     logger.info(
         f"[{ctx.workflow_id}] Calling LLM with {len(messages)} messages, "
