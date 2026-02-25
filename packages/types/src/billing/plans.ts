@@ -17,7 +17,7 @@ import { WorkflowCategory, ModelTier } from '@prisma/client';
  * Planes de suscripción disponibles
  */
 export enum SubscriptionPlan {
-  FREE = 'FREE', // Plan gratuito (sin pago)
+  FREE = 'FREE',
   STARTER = 'STARTER',
   GROWTH = 'GROWTH',
   BUSINESS = 'BUSINESS',

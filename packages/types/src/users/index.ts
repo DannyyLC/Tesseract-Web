@@ -1,4 +1,9 @@
-import { UserRole } from '../roles';
+export enum UserRole {
+  SUPER_ADMIN = 'super_admin',
+  OWNER = 'owner',
+  ADMIN = 'admin',
+  VIEWER = 'viewer',
+}
 
 export interface DashboardUserDataDto {
   id: string;

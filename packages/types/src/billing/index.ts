@@ -1,4 +1,5 @@
-import { SubscriptionPlan } from '../plans';
+export * from './plans';
+import { SubscriptionPlan } from './plans';
 
 export interface BillingDashboardData {
   plan: SubscriptionPlan;

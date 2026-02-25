@@ -1,8 +1,6 @@
 import { CursorPaginatedResponse } from '../api/api_response';
-import { WorkflowCategory } from '../plans';
+import { WorkflowCategory } from '../billing/plans';
 
-// Re-export enum for frontend
-export { WorkflowCategory };
 
 export interface DashboardExecutionDto {
   status: string;
