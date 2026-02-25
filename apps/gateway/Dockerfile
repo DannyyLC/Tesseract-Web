@@ -52,7 +52,8 @@ COPY apps/gateway/package.json ./apps/gateway/
 RUN npm ci --omit=dev
 
 # Copiar Prisma client generado y el schema (necesario a veces en runtime)
-COPY --from=builder /app/packages/database/node_modules/.prisma ./packages/database/node_modules/.prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
 
 # Copiar los builds compilados (dist) del Gateway y paquetes dependientes
