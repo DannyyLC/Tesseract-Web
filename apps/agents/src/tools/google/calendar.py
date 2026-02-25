@@ -78,12 +78,16 @@ class GoogleCalendarClient:
             from googleapiclient.discovery import build
             
             # Crear credenciales OAuth
+            access_token = self.credentials.get("accessToken") or self.credentials.get("access_token")
+            if not access_token:
+                raise ValueError("Missing access token in credentials")
+                
             creds = Credentials(
-                token=self.credentials["access_token"],
-                refresh_token=self.credentials.get("refresh_token"),
+                token=access_token,
+                refresh_token=self.credentials.get("refreshToken") or self.credentials.get("refresh_token"),
                 token_uri="https://oauth2.googleapis.com/token",
-                client_id=self.credentials.get("client_id"),
-                client_secret=self.credentials.get("client_secret"),
+                client_id=self.credentials.get("clientId") or self.credentials.get("client_id"),
+                client_secret=self.credentials.get("clientSecret") or self.credentials.get("client_secret"),
                 scopes=["https://www.googleapis.com/auth/calendar"]
             )
             
@@ -434,8 +438,8 @@ def load_google_calendar_tools(
             start_dt = datetime.fromisoformat(f"{date}T{time}:00")
             end_dt = start_dt + timedelta(minutes=duration_minutes)
             
-            start_iso = start_dt.isoformat()
-            end_iso = end_dt.isoformat()
+            start_iso = start_dt.isoformat() + 'Z'
+            end_iso = end_dt.isoformat() + 'Z'
             
             result = client.check_availability(start_iso, end_iso)
             
@@ -481,8 +485,8 @@ def load_google_calendar_tools(
             start_dt = datetime.fromisoformat(f"{date}T{start_time}:00")
             end_dt = start_dt + timedelta(minutes=duration_minutes)
             
-            start_iso = start_dt.isoformat()
-            end_iso = end_dt.isoformat()
+            start_iso = start_dt.isoformat() + 'Z'
+            end_iso = end_dt.isoformat() + 'Z'
             
             # Procesar attendees
             attendee_list = [
@@ -600,11 +604,11 @@ def load_google_calendar_tools(
             
             if date and start_time:
                 start_dt = datetime.fromisoformat(f"{date}T{start_time}:00")
-                update_params["start_time"] = start_dt.isoformat()
+                update_params["start_time"] = start_dt.isoformat() + 'Z'
                 
                 if duration_minutes > 0:
                     end_dt = start_dt + timedelta(minutes=duration_minutes)
-                    update_params["end_time"] = end_dt.isoformat()
+                    update_params["end_time"] = end_dt.isoformat() + 'Z'
             
             if description:
                 update_params["description"] = description
