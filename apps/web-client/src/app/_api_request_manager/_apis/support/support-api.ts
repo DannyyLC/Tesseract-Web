@@ -1,6 +1,5 @@
 import ApiRequestManager from '../../api_request_manager';
-import { ApiResponse } from '../../api_response.model';
-import { ServiceInfoRequestDto } from '../../../_model/support.dto';
+import { ServiceInfoRequestDto, ApiResponse } from '@tesseract/types';
 
 class SupportApi {
   public apiRequestManager: ApiRequestManager;

@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { fetchUser, updateUser } from './userThunks';
-import { User } from '../../_model/models.model';
+import { User } from '@tesseract/types';
 
 interface UserState {
   user: User | null;

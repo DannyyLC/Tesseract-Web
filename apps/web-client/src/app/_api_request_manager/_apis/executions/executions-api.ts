@@ -1,11 +1,11 @@
 import ApiRequestManager from '../../api_request_manager';
-import { ApiResponse } from '../../api_response.model';
-import { PaginatedResponse } from '@/app/_model/common.dto';
 import {
   DashboardExecutionDataDto,
   ExecutionsStatsDto,
   ExecutionDto,
-} from '@/app/_model/executions.dto';
+  ApiResponse,
+  PaginatedResponse
+} from '@tesseract/types';
 
 class ExecutionsApi {
   public apiRequestManager: ApiRequestManager;

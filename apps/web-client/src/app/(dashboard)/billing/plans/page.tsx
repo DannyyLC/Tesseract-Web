@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useBillingDashboard, useBillingMutations } from '@/hooks/useBilling';
 import { usePlans } from '@/hooks/useBilling';
 import { useWorkflowStats } from '@/hooks/useWorkflows';
-import { SubscriptionPlan, BillingPlan } from '@/app/_model/billing.dto';
+import { SubscriptionPlan, BillingPlan } from '@tesseract/types';
 import PlanGrid from '../_components/PlanGrid';
 import InfoSections from '../_components/InfoSections';
 import SpecializedCards from '../_components/SpecializedCards';

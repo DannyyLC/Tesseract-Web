@@ -1,7 +1,5 @@
 import ApiRequestManager from '../../api_request_manager';
-import { ApiResponse } from '../../api_response.model';
-import { PaginatedResponse } from '@/app/_model/common.dto';
-import { GetToolsDto } from '../../../_model/tools.dto';
+import { GetToolsDto, PaginatedResponse, ApiResponse } from '@tesseract/types';
 
 class ToolCatalogApi {
   public apiRequestManager: ApiRequestManager;

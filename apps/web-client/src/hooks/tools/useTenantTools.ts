@@ -4,7 +4,7 @@ import {
   CreateTenantToolDto,
   DashboardTenantToolDto,
   UpdateTenantToolDto,
-} from '../../app/_model/tools.dto';
+} from '@tesseract/types';
 
 // ─── Dashboard (scroll infinito) ─────────────────────────────────────────────
 interface DashboardParams {

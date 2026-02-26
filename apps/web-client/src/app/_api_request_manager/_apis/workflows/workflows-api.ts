@@ -1,11 +1,11 @@
 import ApiRequestManager from '../../api_request_manager';
-import { ApiResponse } from '../../api_response.model';
 import {
   WorkflowStatsDto,
   WorkflowMetricsDto,
   WorkflowCategory,
   WorkflowsResponse,
-} from '../../../_model/workflows.dto';
+  ApiResponse
+} from '@tesseract/types';
 
 class WorkflowsApi {
   public apiRequestManager: ApiRequestManager;

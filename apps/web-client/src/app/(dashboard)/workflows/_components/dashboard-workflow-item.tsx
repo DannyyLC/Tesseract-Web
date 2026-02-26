@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { DashboardWorkflowDto } from '@/app/_model/workflows.dto';
+import { DashboardWorkflowDto } from '@tesseract/types';
 
 interface DashboardWorkflowItemProps {
   workflow: DashboardWorkflowDto;

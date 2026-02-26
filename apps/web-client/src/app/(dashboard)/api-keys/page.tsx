@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useApiKeysList, useApiKeyMutations } from '@/hooks/useApiKey';
 import { useInfiniteDashboardWorkflows } from '@/hooks/useWorkflows';
-import { ApiKeyList } from '@/app/_model/api-keys.dto';
+import { ApiKeyListDto } from '@tesseract/types';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
@@ -57,7 +57,7 @@ export default function ApiKeysPage() {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
   // Selected Data
-  const [selectedKey, setSelectedKey] = useState<ApiKeyList | null>(null);
+  const [selectedKey, setSelectedKey] = useState<ApiKeyListDto | null>(null);
   const [createdKeyToken, setCreatedKeyToken] = useState<string>('');
 
   // Form States
@@ -113,7 +113,7 @@ export default function ApiKeysPage() {
     setIsCreateModalOpen(true);
   };
 
-  const openEditModal = (key: ApiKeyList) => {
+  const openEditModal = (key: ApiKeyListDto) => {
     setSelectedKey(key);
     setFormData({
       name: key.name,

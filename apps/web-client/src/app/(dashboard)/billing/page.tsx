@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBillingDashboard, useBillingMutations, usePlans, useSubscription } from '@/hooks/useBilling';
-import { SubscriptionPlan } from '@/app/_model/billing.dto';
+import { SubscriptionPlan } from '@tesseract/types';
 import BillingHero from './_components/BillingHero';
 import UsageCard from './_components/UsageCard';
 import Loading from '@/app/(dashboard)/loading';

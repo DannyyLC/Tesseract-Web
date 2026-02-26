@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, UserPlus, Edit3, Trash2, UserCheck, Loader2, Power, ArrowRightLeft, AlertTriangle } from 'lucide-react';
 import { useUsersDashboard, useUserStats, useUserMutations } from '@/hooks/useUsers';
 import { useAuth } from '@/hooks/useAuth';
-import { DashboardUserDataDto, UserRole } from '@/app/_model/users.dto';
+import { DashboardUserDataDto, UserRole } from '@tesseract/types';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';

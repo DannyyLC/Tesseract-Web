@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/app/_api_request_manager/_apis/root-api';
-import { CreateApiKeyDto, UpdateApiKeyDto } from '@/app/_model/api-keys.dto';
+import { CreateApiKeyDto, UpdateApiKeyDto } from '@tesseract/types';
 
 // Hook para obtener la listas de api-keys
 export function useApiKeysList() {

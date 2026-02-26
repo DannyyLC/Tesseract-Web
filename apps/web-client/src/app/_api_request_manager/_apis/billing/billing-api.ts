@@ -7,8 +7,8 @@ import {
   UpdateSubscriptionDto,
   BillingDashboardData,
   SubscriptionPlan,
-  ToggleOveragesDto
-} from '@/app/_model/billing.dto';
+  ToggleOveragesDto,
+} from '@tesseract/types';
 
 class BillingApi {
   public apiRequestManager: ApiRequestManager;

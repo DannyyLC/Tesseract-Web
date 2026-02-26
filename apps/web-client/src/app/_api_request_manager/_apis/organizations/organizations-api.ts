@@ -1,12 +1,13 @@
 import ApiRequestManager from '../../api_request_manager';
-import { ApiResponse } from '../../api_response.model';
 import {
   DashboardOrganizationDto,
   UpdateOrganizationDto,
   InviteUserDto,
   AcceptInvitationDto,
-} from '@/app/_model/organizations.dto';
-import { Organization, User } from '@/app/_model/models.model';
+  ApiResponse,
+  Organization,
+  User
+} from '@tesseract/types';
 
 class OrganizationsApi {
   private requestManager: ApiRequestManager;

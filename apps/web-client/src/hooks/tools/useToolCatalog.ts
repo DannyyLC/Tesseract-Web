@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import RootApi from '@/app/_api_request_manager/_apis/root-api';
-import { GetToolsDto } from '../../app/_model/tools.dto';
+import { GetToolsDto } from '@tesseract/types';
 
 interface UseToolCatalogParams {
   pageSize?: number;

@@ -36,3 +36,27 @@ export interface UpdateUserDto {
   role?: UserRole;
   isActive?: boolean;
 }
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  password?: string | null;
+  googleId?: string | null;
+  emailVerified: boolean;
+  emailVerificationToken?: string | null;
+  emailVerificationTokenExpires?: Date | null;
+  passwordResetToken?: string | null;
+  passwordResetExpires?: Date | null;
+  twoFactorEnabled: boolean;
+  twoFactorSecret?: string | null;
+  role: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date | null;
+  lastLoginAt?: Date | null;
+  avatar?: string | null;
+  timezone?: string | null;
+  organizationId: string;
+}

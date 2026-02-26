@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
-import { DashboardConversationDto } from '@/app/_model/conversations.dto';
+import { DashboardConversationDto } from '@tesseract/types';
 import { useConversationMutations } from '@/hooks/useConversations';
 import { Modal } from '@/components/ui/modal';
 

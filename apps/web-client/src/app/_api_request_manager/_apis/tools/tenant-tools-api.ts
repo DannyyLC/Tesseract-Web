@@ -1,12 +1,12 @@
 import ApiRequestManager from '../../api_request_manager';
-import { ApiResponse } from '../../api_response.model';
-import { PaginatedResponse } from '../../../_model/common.dto';
 import {
   CreateTenantToolDto,
   DashboardTenantToolDto,
   UpdateTenantToolDto,
   WorkflowIdsDto,
-} from '../../../_model/tools.dto';
+  PaginatedResponse,
+  ApiResponse,
+} from '@tesseract/types';
 
 class TenantToolsApi {
   public apiRequestManager: ApiRequestManager;

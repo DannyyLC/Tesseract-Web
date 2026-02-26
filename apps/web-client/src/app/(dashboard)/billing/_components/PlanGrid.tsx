@@ -1,7 +1,7 @@
 'use client';
 
 import { Check, Loader2, Zap, TrendingUp, Briefcase, Crown, AlertCircle, Rocket, Building2 } from 'lucide-react';
-import { BillingPlan, SubscriptionPlan } from '@/app/_model/billing.dto';
+import { BillingPlan, SubscriptionPlan } from '@tesseract/types';
 
 interface PlanGridProps {
   plans: BillingPlan[];

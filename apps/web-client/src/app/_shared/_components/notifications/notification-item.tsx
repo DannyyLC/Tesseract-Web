@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PanInfo, motion, useMotionValue, useTransform } from 'framer-motion';
 import { Trash2 } from 'lucide-react';
-import { NotificationEventDto } from '@/app/_model/notifications.dto';
+import { NotificationEventDto } from '@tesseract/types';
 
 const formatTimeAgo = (date: Date | string) => {
   const now = new Date();

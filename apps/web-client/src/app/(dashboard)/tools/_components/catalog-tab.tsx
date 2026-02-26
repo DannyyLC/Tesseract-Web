@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 import { useToolCatalog, flattenToolCatalog } from '@/hooks/tools/useToolCatalog';
 import { useInfiniteTenantToolsDashboard, flattenTenantTools } from '@/hooks/tools/useTenantTools';
-import { GetToolsDto } from '@/app/_model/tools.dto';
+import { GetToolsDto } from '@tesseract/types';
 import { CatalogToolCard } from './catalog-tool-card';
 import { ConnectToolModal } from './connect-tool-modal';
 

@@ -1,5 +1,4 @@
 import ApiRequestManager from '../../api_request_manager';
-import { ApiResponse } from '../../api_response.model';
 import { 
   StartVerificationFlowDto,
   VerificationCodeDto,
@@ -8,8 +7,9 @@ import {
   ResetPasswordDto,
   ChangePasswordDto,
   Verify2FACodeDto,
-  ForgotPassDto
-} from '@/app/_model/auth.dto';
+  ForgotPassDto,
+  ApiResponse,
+} from '@tesseract/types';
 
 class AuthApi {
   public apiRequestManager: ApiRequestManager;

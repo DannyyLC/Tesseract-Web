@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Loader2, KeyRound, CheckCircle2, Check } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { useTenantToolMutations } from '@/hooks/tools/useTenantTools';
-import { GetToolsDto } from '@/app/_model/tools.dto';
+import { GetToolsDto } from '@tesseract/types';
 import { toast } from 'sonner';
 import RootApi from '@/app/_api_request_manager/_apis/root-api';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';

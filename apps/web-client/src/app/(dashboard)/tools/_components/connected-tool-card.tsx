@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { MoreVertical, Unplug, Pencil, KeyRound, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { DashboardTenantToolDto } from '@/app/_model/tools.dto';
+import { DashboardTenantToolDto } from '@tesseract/types';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import ToolsOauthApi from '@/app/_api_request_manager/_apis/tools/tools-oauth-api';
 

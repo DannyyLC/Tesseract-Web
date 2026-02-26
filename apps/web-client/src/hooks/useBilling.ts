@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/app/_api_request_manager/_apis/root-api';
-import { SubscriptionPlan } from '@/app/_model/billing.dto';
+import { SubscriptionPlan } from '@tesseract/types';
 
 // Hook para obtener los planes de suscripción
 export function usePlans() {

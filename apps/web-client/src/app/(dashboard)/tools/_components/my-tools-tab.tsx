@@ -8,7 +8,7 @@ import {
   flattenTenantTools,
   useTenantToolMutations,
 } from '@/hooks/tools/useTenantTools';
-import { DashboardTenantToolDto } from '@/app/_model/tools.dto';
+import { DashboardTenantToolDto } from '@tesseract/types';
 import { toast } from 'sonner';
 import { ConnectedToolCard } from './connected-tool-card';
 import { RenameToolModal } from './rename-tool-modal';

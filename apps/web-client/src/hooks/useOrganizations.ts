@@ -4,7 +4,7 @@ import {
   UpdateOrganizationDto,
   InviteUserDto,
   AcceptInvitationDto,
-} from '@/app/_model/organizations.dto';
+} from '@tesseract/types';
 
 
 // Hook para obtener el dashboard de la organización

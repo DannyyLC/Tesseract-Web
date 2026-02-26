@@ -7,7 +7,7 @@ import { Search, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDashboardWorkflows, useWorkflowStats } from '@/hooks/useWorkflows';
 import { useSupportMutations } from '@/hooks/useSupport';
-import { WorkflowCategory } from '@/app/_model/workflows.dto';
+import { WorkflowCategory } from '@tesseract/types';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
 import DashboardWorkflowItem from './_components/dashboard-workflow-item';

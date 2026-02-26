@@ -1,7 +1,5 @@
 import ApiRequestManager from '../../api_request_manager';
-import { ApiResponse } from '../../api_response.model';
-import { PaginatedResponse } from '../../../_model/common.dto';
-import { NotificationEventDto } from '../../../_model/notifications.dto';
+import { NotificationEventDto, PaginatedResponse, ApiResponse} from '@tesseract/types';
 
 class NotificationsApi {
   public apiRequestManager: ApiRequestManager;

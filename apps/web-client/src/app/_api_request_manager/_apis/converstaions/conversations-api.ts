@@ -5,9 +5,9 @@ import {
   UpdateConversationDto,
   ConversationsStatsDto,
   ConversationDetailDto,
-} from '@/app/_model/conversations.dto';
-import { PaginatedResponse } from '@/app/_model/common.dto';
-import { ApiResponse } from '../../api_response.model';
+  PaginatedResponse,
+  ApiResponse,
+} from '@tesseract/types';
 
 class ConversationsApi {
   public apiRequestManager: ApiRequestManager;

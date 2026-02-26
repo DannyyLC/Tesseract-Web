@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, CreditCard } from 'lucide-react';
 import { useBillingMutations } from '@/hooks/useBilling';
-import { SubscriptionPlan } from '@/app/_model/billing.dto';
+import { SubscriptionPlan } from '@tesseract/types';
 
 import { toast } from 'sonner';
 

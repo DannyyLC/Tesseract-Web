@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import RootApi from '@/app/_api_request_manager/_apis/root-api';
-import { UpdateUserDto } from '@/app/_model/users.dto';
+import { UpdateUserDto } from '@tesseract/types';
 
 interface DashboardParams {
   cursor?: string | null;

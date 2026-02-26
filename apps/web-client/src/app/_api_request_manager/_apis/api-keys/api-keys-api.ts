@@ -2,9 +2,9 @@ import ApiRequestManager from '../../api_request_manager';
 import {
   CreateApiKeyDto,
   UpdateApiKeyDto,
-  ApiKeyList,
-  ApiKeyResponse,
-} from '../../../_model/api-keys.dto';
+  ApiKeyListDto,
+  ApiKeyResponseDto,
+} from '@tesseract/types';
 
 class ApiKeysApi {
   public apiRequestManager: ApiRequestManager;
@@ -18,8 +18,8 @@ class ApiKeysApi {
    * Crea una nueva API Key para la organización especificada.
    * Endpoint: POST /api-keys
    */
-  public async create(data: CreateApiKeyDto): Promise<ApiKeyResponse> {
-    const response = await this.apiRequestManager.post<ApiKeyResponse>(
+  public async create(data: CreateApiKeyDto): Promise<ApiKeyResponseDto> {
+    const response = await this.apiRequestManager.post<ApiKeyResponseDto>(
       `${ApiKeysApi.BASE_URL}`,
       data
     );
@@ -30,8 +30,8 @@ class ApiKeysApi {
    * Obtiene todas las API Keys de una organización.
    * Endpoint: GET /api-keys
    */
-  public async findAll(): Promise<ApiKeyList[]> {
-    const response = await this.apiRequestManager.get<ApiKeyList[]>(`${ApiKeysApi.BASE_URL}`);
+  public async findAll(): Promise<ApiKeyListDto[]> {
+    const response = await this.apiRequestManager.get<ApiKeyListDto[]>(`${ApiKeysApi.BASE_URL}`);
     return response.data;
   }
 
@@ -39,8 +39,8 @@ class ApiKeysApi {
    * Obtiene una API Key específica por su ID.
    * Endpoint: GET /api-keys/{apiKeyId}
    */
-  public async findOne(apiKeyId: string): Promise<ApiKeyList> {
-    const response = await this.apiRequestManager.get<ApiKeyList>(
+  public async findOne(apiKeyId: string): Promise<ApiKeyListDto> {
+    const response = await this.apiRequestManager.get<ApiKeyListDto>(
       `${ApiKeysApi.BASE_URL}/${apiKeyId}`
     );
     return response.data;
@@ -50,8 +50,8 @@ class ApiKeysApi {
    * Actualiza una API Key existente.
    * Endpoint: PATCH /api-keys/{apiKeyId}
    */
-  public async update(apiKeyId: string, data: UpdateApiKeyDto): Promise<ApiKeyList> {
-    const response = await this.apiRequestManager.patch<ApiKeyList>(
+  public async update(apiKeyId: string, data: UpdateApiKeyDto): Promise<ApiKeyListDto> {
+    const response = await this.apiRequestManager.patch<ApiKeyListDto>(
       `${ApiKeysApi.BASE_URL}/${apiKeyId}`,
       data
     );

@@ -1,6 +1,5 @@
 import ApiRequestManager from '../../api_request_manager';
-import { ApiResponse, CursorPaginatedResponse } from '../../api_response.model';
-import { DashboardUserDataDto, UpdateUserDto } from '../../../_model/users.dto';
+import { DashboardUserDataDto, UpdateUserDto, ApiResponse, CursorPaginatedResponse } from '@tesseract/types';
 
 class UsersApi {
   public apiRequestManager: ApiRequestManager;

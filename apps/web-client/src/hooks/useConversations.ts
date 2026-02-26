@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/app/_api_request_manager/_apis/root-api';
-import { UpdateConversationDto } from '@/app/_model/conversations.dto';
+import { UpdateConversationDto } from '@tesseract/types';
 
 interface DashboardParams {
   cursor?: string | null;

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Zap, ChevronDown, ChevronUp } from 'lucide-react';
-import { GetToolsDto } from '@/app/_model/tools.dto';
+import { GetToolsDto } from '@tesseract/types';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 
 interface CatalogToolCardProps {

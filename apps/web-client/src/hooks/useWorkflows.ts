@@ -7,7 +7,7 @@ import WorkflowsStream from '@/app/_api_request_manager/_apis/workflows/workflow
 // REST API HOOKS
 // ============================================================================
 // Hook para obtener el dashboard de workflows (Foto inicial)
-import { WorkflowCategory } from '@/app/_model/workflows.dto';
+import { WorkflowCategory } from '@tesseract/types';
 
 // Hook para obtener el dashboard de workflows con filtros
 export function useDashboardWorkflows(
