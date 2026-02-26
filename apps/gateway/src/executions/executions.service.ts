@@ -793,6 +793,7 @@ export class ExecutionsService {
       where,
       select: {
         id: true,
+        startedAt: true,
         status: true,
         trigger: true,
         duration: true,
