@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { Play, MessageSquare, BarChart3, Search, Loader2 } from 'lucide-react';
+import { MessageSquare, Search, Loader2 } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { useConversationsDashboard, useConversationsStats } from '@/hooks/useConversations';
 import { useInfiniteDashboardWorkflows } from '@/hooks/useWorkflows';

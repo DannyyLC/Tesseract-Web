@@ -4,7 +4,7 @@ import { Icon } from '@iconify/react';
 
 interface DynamicIconProps {
   /** Iconify icon identifier, e.g. "mdi:calculator", "logos:google", "simple-icons:openai" */
-  name: string;
+  name?: string | null;
   size?: number;
   className?: string;
 }
@@ -19,5 +19,6 @@ interface DynamicIconProps {
  *  - simple-icons: Monochrome brands    (simple-icons:openai)
  */
 export function DynamicIcon({ name, size = 20, className }: DynamicIconProps) {
-  return <Icon icon={name} width={size} height={size} className={className} />;
+  const iconName = name || 'lucide:box';
+  return <Icon icon={iconName} width={size} height={size} className={className} />;
 }

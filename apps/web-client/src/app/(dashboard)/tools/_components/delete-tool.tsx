@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, TriangleAlert, Unplug } from 'lucide-react';
+import { Loader2, TriangleAlert } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 
 interface DeleteToolModalProps {

@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, Presentation, ArrowRight, Handshake } from 'lucide-react';
+import { Building2, ArrowRight, Handshake } from 'lucide-react';
 
 export default function SpecializedCards() {
   return (

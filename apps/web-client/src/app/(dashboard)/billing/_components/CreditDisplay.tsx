@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 interface CreditDisplayProps {
   balance: number;

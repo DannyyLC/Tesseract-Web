@@ -4,12 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Search,
-  CheckCircle2,
-  XCircle,
-  Activity,
-  ArrowUpRight,
-  ArrowDownRight,
-  Clock,
 } from 'lucide-react';
 import { useDashboardExecutions, useExecutionsStats } from '@/hooks/useExecutions';
 import { useInfiniteDashboardWorkflows } from '@/hooks/useWorkflows';

@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Shield, CreditCard } from 'lucide-react';
 import { useBillingMutations } from '@/hooks/useBilling';
 import { SubscriptionPlan } from '@tesseract/types';
-
 import { toast } from 'sonner';
 
 interface BillingHeroProps {

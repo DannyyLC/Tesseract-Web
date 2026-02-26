@@ -57,7 +57,7 @@ export interface PlanLimits {
 /**
  * Información completa de un plan
  */
-export interface Plan {
+export interface BillingPlan {
   type: SubscriptionPlan;
   name: string;
   description: string;
@@ -126,7 +126,7 @@ export const OVERAGE_PRICE_PER_CREDIT = 0.19; // $0.19 USD por crédito
 /**
  * Configuración completa de todos los planes
  */
-export const PLANS: Record<SubscriptionPlan, Plan> = {
+export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
   [SubscriptionPlan.FREE]: {
     type: SubscriptionPlan.FREE,
     name: 'Free',
@@ -258,7 +258,7 @@ export const PLANS: Record<SubscriptionPlan, Plan> = {
 /**
  * Obtiene la configuración de un plan
  */
-export function getPlan(planType: SubscriptionPlan): Plan {
+export function getPlan(planType: SubscriptionPlan): BillingPlan {
   return PLANS[planType];
 }
 
@@ -364,7 +364,7 @@ export function calculateOverageCost(overageCredits: number): number {
 /**
  * Obtiene todos los planes ordenados por precio
  */
-export function getOrderedPlans(): Plan[] {
+export function getOrderedPlans(): BillingPlan[] {
   return [
     PLANS[SubscriptionPlan.FREE],
     PLANS[SubscriptionPlan.STARTER],

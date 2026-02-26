@@ -1,4 +1,4 @@
-import AuthScreen from '@/app/(auth)/_components/AuthScreen';
+import AuthScreen from '../_components/AuthScreen';
 
 export const metadata = {
   title: 'Login | Tesseract',

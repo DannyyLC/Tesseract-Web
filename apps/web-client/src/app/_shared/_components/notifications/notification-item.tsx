@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { PanInfo, motion, useMotionValue, useTransform } from 'framer-motion';
 import { Trash2 } from 'lucide-react';
 import { NotificationEventDto } from '@tesseract/types';

@@ -1,13 +1,10 @@
 'use client';
 
 import {
-  Activity,
   Headphones,
   Mail,
-  Slack,
   Cpu,
   Sparkles,
-  CloudLightning,
   MessageSquare,
   Zap,
 } from 'lucide-react';

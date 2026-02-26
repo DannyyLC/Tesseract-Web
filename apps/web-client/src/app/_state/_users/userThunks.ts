@@ -1,7 +1,6 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import ApiRequestManager from '../../_api_request_manager/api_request_manager';
-import { User } from '@tesseract/types';
-import { ApiResponse } from '@/app/_api_request_manager/api_response.model';
+import { User, ApiResponse } from '@tesseract/types';
 
 export const fetchUser = createAsyncThunk(
   'user/fetchUser',
