@@ -1,0 +1,125 @@
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+
+class ApiRequestManager {
+  private static instance: ApiRequestManager;
+  private axiosInstance: AxiosInstance;
+
+  private constructor() {
+    this.axiosInstance = axios.create({
+      baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api',
+      timeout: 10000, // 10 seconds
+      withCredentials: true, // Importante para enviar cookies httpOnly
+    });
+
+    // Optional: Add interceptors
+    this.axiosInstance.interceptors.request.use(
+      (config) => {
+        // Add auth token or other headers here
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+    // Flag to prevent infinite loops
+    let isRefreshing = false;
+
+    this.axiosInstance.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+
+        // Si recibimos 401 y no hemos intentado refrescar aún
+        if (
+          error.response?.status === 401 &&
+          !originalRequest._retry &&
+          !isRefreshing &&
+          !originalRequest.url.includes('/login') &&
+          !originalRequest.url.includes('/signup') &&
+          !originalRequest.url.includes('/verify-2fa') &&
+          !originalRequest.url.includes('/forgot-password')
+        ) {
+          originalRequest._retry = true;
+          isRefreshing = true;
+
+          try {
+            // Importación explícita para evitar ciclos si es necesario, pero aquí usamos axios directo
+            // Llamamos al endpoint de refresh
+            await this.axiosInstance.post('/auth/refresh');
+
+            isRefreshing = false;
+            // Reintentamos la petición original
+            return this.axiosInstance(originalRequest);
+          } catch (refreshError) {
+            isRefreshing = false;
+            // Si falla el refresh (token expirado o inválido), redirigimos al login
+            // SOLO si no estamos ya en el login, signup, verify-2fa o forgot-password para evitar bucles
+            if (
+              typeof window !== 'undefined' &&
+              window.location.pathname !== '/login' &&
+              window.location.pathname !== '/signup' &&
+              window.location.pathname !== '/verify-2fa' &&
+              window.location.pathname !== '/forgot-password'
+            ) {
+              window.location.href = '/login';
+            }
+            return Promise.reject(refreshError);
+          }
+        }
+
+        // Extraemos el mensaje de error del backend si existe
+        const serverMessage = error.response?.data?.message || error.response?.data?.error;
+        const finalMessage = serverMessage || error.message || 'Ocurrió un error inesperado';
+
+        // Creamos un error personalizado que incluye la respuesta completa para acceder a campos específicos como 'errors'
+        const customError: any = new Error(finalMessage);
+        customError.response = error.response;
+        // También podemos adjuntar directamente los errores si existen para facilitar el acceso
+        if (error.response?.data?.errors) {
+          customError.errors = error.response.data.errors;
+        }
+
+        return Promise.reject(customError);
+      }
+    );
+  }
+
+  public static getInstance(): ApiRequestManager {
+    if (!ApiRequestManager.instance) {
+      ApiRequestManager.instance = new ApiRequestManager();
+    }
+    return ApiRequestManager.instance;
+  }
+
+  public async get<T>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+    return this.axiosInstance.get<T>(url, config);
+  }
+
+  public async post<T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> {
+    return this.axiosInstance.post<T>(url, data, config);
+  }
+
+  public async put<T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> {
+    return this.axiosInstance.put<T>(url, data, config);
+  }
+
+  public async delete<T>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+    return this.axiosInstance.delete<T>(url, config);
+  }
+
+  public async patch<T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> {
+    return this.axiosInstance.patch<T>(url, data, config);
+  }
+}
+
+export default ApiRequestManager;

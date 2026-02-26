@@ -64,3 +64,15 @@ htmlcov/
 .ruff_cache/
 *.cover
 .hypothesis/
+
+# Next.js & Frontend specific
+.next/
+out/
+build/
+coverage/
+next-env.d.ts
+.vercel/
+*.pem
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
