@@ -23,9 +23,9 @@
       }
     ],
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"],
+      "@tesseract/types": ["../../packages/types/src"],
+      "@tesseract/database": ["../../packages/database/src"]
     }
   },
   "include": [
