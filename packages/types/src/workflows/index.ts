@@ -1,4 +1,4 @@
-import { CursorPaginatedResponse } from '../api/api_response';
+import { PaginatedResponse } from '../api/api_response';
 import { WorkflowCategory } from '../billing/plans';
 
 
@@ -28,7 +28,7 @@ export interface DashboardWorkflowDto {
   lastExecutedAt?: string | null;
 }
 
-export type WorkflowsResponse = CursorPaginatedResponse<DashboardWorkflowDto>;
+export type WorkflowsResponse = PaginatedResponse<DashboardWorkflowDto>;
 
 export interface WorkflowStatsDto {
   totalWorkflows: number;

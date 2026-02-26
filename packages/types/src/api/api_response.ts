@@ -18,9 +18,7 @@ export interface PaginatedResponse<T> {
 export interface CursorPaginatedResponse<T> {
   items: T[];
   nextCursor: string | null;
-  prevCursor: string | null;
-  pageSize: number;
-  nextPageAvailable: boolean;
+  hasMore: boolean;
 }
 
 export class ApiResponseBuilder<T = any> {

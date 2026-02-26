@@ -37,7 +37,7 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
   // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; displayName: string } | null>(null);
   // Connect/Config modal state
-  const [configTarget, setConfigTarget] = useState<{ id: string; displayName: string; provider: string } | null>(null);
+  const [configTarget, setConfigTarget] = useState<{ id: string; displayName: string; provider: string | null } | null>(null);
 
   // Notify parent of count changes so it can update the tab badge
   // without firing a separate API call
