@@ -4,7 +4,6 @@ import { Request, Response } from 'express';
 import {
   ApiResponse,
   ApiResponseBuilder,
-  CursorPaginatedResponse,
   PaginatedResponse,
 } from '@tesseract/types';
 import { DashboardEndUserDto } from './dto/dashboard-end-user.dto';
@@ -24,8 +23,8 @@ export class EndUsersController {
     @Query('pageSize') pageSize = 10,
     @Query('paginationAction') paginationAction: 'next' | 'prev' | null = null,
     @Res() res: Response,
-  ): Promise<Response<ApiResponse<CursorPaginatedResponse<DashboardEndUserDto>>>> {
-    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardEndUserDto>>();
+  ): Promise<Response<ApiResponse<PaginatedResponse<DashboardEndUserDto>>>> {
+    const apiResponse = new ApiResponseBuilder<PaginatedResponse<DashboardEndUserDto>>();
     const result = await this.endUsersService.getDashboardData(
       user.organizationId,
       cursor,

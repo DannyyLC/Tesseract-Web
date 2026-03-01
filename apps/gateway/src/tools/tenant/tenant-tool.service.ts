@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { CursorPaginatedResponse } from '@tesseract/types';
+import { PaginatedResponse } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../../common/responses/cursor-paginated-response';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateTenantToolDto } from '../tenant/dto/create-tenant-tool.dto';
@@ -21,7 +21,7 @@ export class TenantToolService {
     cursor: string | null = null,
     pageSize = 10,
     paginationAction: 'next' | 'prev' | null = null,
-  ): Promise<CursorPaginatedResponse<DashboardTenantToolDto> | null> {
+  ): Promise<PaginatedResponse<DashboardTenantToolDto> | null> {
     try {
       const tenantTools = await this.prismaService.tenantTool.findMany({
         where: {

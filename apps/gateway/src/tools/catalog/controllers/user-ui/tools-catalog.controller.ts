@@ -10,7 +10,7 @@ import {
 import {
   ApiResponse,
   ApiResponseBuilder,
-  CursorPaginatedResponse,
+  PaginatedResponse,
   GetToolsDto,
 } from '@tesseract/types';
 import { Response } from 'express';
@@ -30,8 +30,8 @@ export class ToolsCatalogController {
     @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('search') search: string | null = null,
-  ): Promise<Response<ApiResponse<CursorPaginatedResponse<GetToolsDto>>>> {
-    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<GetToolsDto>>();
+  ): Promise<Response<ApiResponse<PaginatedResponse<GetToolsDto>>>> {
+    const apiResponse = new ApiResponseBuilder<PaginatedResponse<GetToolsDto>>();
 
     const result = await this.toolsCatalogService.getAllToolsWithFunctions(
       cursor,

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { WorkflowCategory, TransactionType } from '@prisma/client';
-import { CursorPaginatedResponse, getWorkflowCreditCost } from '@tesseract/types';
+import { PaginatedResponse, getWorkflowCreditCost } from '@tesseract/types';
 import { CreditBalance } from '@tesseract/database';
 import { DashboardCreditsDto } from './dto/dashboard-credits.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
@@ -276,7 +276,7 @@ export class CreditsService {
     cursor?: string | null,
     pageSize = 10,
     paginationAction?: 'next' | 'prev' | null,
-  ): Promise<CursorPaginatedResponse<DashboardCreditTransactionDto>> {
+  ): Promise<PaginatedResponse<DashboardCreditTransactionDto>> {
     const creditTransactions = await this.prisma.creditTransaction.findMany({
       where: { organizationId },
       take:

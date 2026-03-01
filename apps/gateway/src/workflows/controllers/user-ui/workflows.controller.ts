@@ -21,7 +21,7 @@ import { UpdateWorkflowDto, ExecuteWorkflowDto } from '../../dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
-import { ApiResponseBuilder, CursorPaginatedResponse, WorkflowCategory } from '@tesseract/types';
+import { ApiResponseBuilder, PaginatedResponse, WorkflowCategory } from '@tesseract/types';
 import { Response } from 'express';
 import { DashboardWorkflowDto } from '../../../workflows/dto/dashboard-workflow.dto';
 import { WorkflowStatsDto } from '../../../workflows/dto/workflow-stats.dto';
@@ -49,8 +49,8 @@ export class WorkflowsController {
     @Query('search') search?: string,
     @Query('isActive') isActive?: string,
     @Query('category') category?: WorkflowCategory,
-  ): Promise<Response<ApiResponseBuilder<CursorPaginatedResponse<DashboardWorkflowDto>>>> {
-    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardWorkflowDto>>();
+  ): Promise<Response<ApiResponseBuilder<PaginatedResponse<DashboardWorkflowDto>>>> {
+    const apiResponse = new ApiResponseBuilder<PaginatedResponse<DashboardWorkflowDto>>();
 
     // Parse boolean filter (query params come as strings)
     const isActiveBool = isActive === 'true' ? true : isActive === 'false' ? false : undefined;

@@ -12,7 +12,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiResponseBuilder, CursorPaginatedResponse } from '@tesseract/types';
+import { ApiResponseBuilder, PaginatedResponse } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { Response } from 'express';
 import { CurrentUser } from '../../../../auth/decorators/current-user.decorator';
@@ -36,8 +36,8 @@ export class TenantToolController {
     @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Res() res: Response,
-  ): Promise<Response<CursorPaginatedResponse<DashboardTenantToolDto>>> {
-    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardTenantToolDto>>();
+  ): Promise<Response<PaginatedResponse<DashboardTenantToolDto>>> {
+    const apiResponse = new ApiResponseBuilder<PaginatedResponse<DashboardTenantToolDto>>();
     const result = await this.tenantToolService.getDashboardData(
       user.organizationId,
       cursor,

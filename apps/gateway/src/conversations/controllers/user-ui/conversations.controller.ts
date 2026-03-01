@@ -20,7 +20,7 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@tesseract/types';
+import { ApiResponse, ApiResponseBuilder, PaginatedResponse } from '@tesseract/types';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
@@ -39,8 +39,8 @@ export class ConversationsController {
     @Query('workflowId') workflowId: string | undefined,
     @Query('userId') userId: string | undefined,
     @Res() res: Response,
-  ): Promise<Response<ApiResponse<CursorPaginatedResponse<DashboardConversationDto>>>> {
-    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardConversationDto>>();
+  ): Promise<Response<ApiResponse<PaginatedResponse<DashboardConversationDto>>>> {
+    const apiResponse = new ApiResponseBuilder<PaginatedResponse<DashboardConversationDto>>();
 
     const paginatedResponse = await this.conversationsService.findAll({
       organizationId: user.organizationId,

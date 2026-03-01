@@ -17,7 +17,7 @@ import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
 import { DashboardExecutionDto, ExecutionStatsQueryDto } from '../../dto';
-import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@tesseract/types';
+import { ApiResponse, ApiResponseBuilder, PaginatedResponse } from '@tesseract/types';
 import { Response } from 'express';
 /**
  * Controller de Executions
@@ -54,8 +54,8 @@ export class ExecutionsController {
     @Query('status') status: string | undefined,
     @Query('trigger') trigger: string | undefined,
     @Res() res: Response,
-  ): Promise<Response<ApiResponse<CursorPaginatedResponse<DashboardExecutionDto>>>> {
-    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardExecutionDto>>();
+  ): Promise<Response<ApiResponse<PaginatedResponse<DashboardExecutionDto>>>> {
+    const apiResponse = new ApiResponseBuilder<PaginatedResponse<DashboardExecutionDto>>();
     const data = await this.executionsService.getDashboardData(
       user.organizationId,
       cursor,

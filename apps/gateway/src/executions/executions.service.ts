@@ -3,7 +3,7 @@ import { PrismaService } from '../database/prisma.service';
 import { DashboardExecutionDto } from './dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
-import { CursorPaginatedResponse } from '../../../../packages/types/dist/api/api_response';
+import { PaginatedResponse } from '../../../../packages/types/dist/api/api_response';
 
 /**
  * Service que maneja el historial de ejecuciones
@@ -1227,7 +1227,7 @@ export class ExecutionsService {
       status?: string;
       trigger?: string;
     } = {},
-  ): Promise<CursorPaginatedResponse<DashboardExecutionDto>> {
+  ): Promise<PaginatedResponse<DashboardExecutionDto>> {
     const { workflowId, userId, startDate, endDate, status, trigger } = filters;
 
     const where: any = {
