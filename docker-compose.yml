@@ -40,7 +40,7 @@ services:
     env_file:
       - .env
     environment:
-      - POSTGRES_URL=postgresql://workflow_user:workflow_password@postgres:5432/workflow_db?schema=public
+      - DATABASE_URL=postgresql://workflow_user:workflow_password@postgres:5432/workflow_db?schema=public
       - AGENTS_API_URL=http://agents:8000
     depends_on:
       - postgres
