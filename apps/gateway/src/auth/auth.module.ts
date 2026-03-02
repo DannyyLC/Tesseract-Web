@@ -27,7 +27,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const expiresIn = configService.get<string>('JWT_EXPIRES_IN') ?? '15m';
+        const expiresIn = configService.get<string>('JWT_EXPIRES_IN') ?? '5m';
         return {
           secret: configService.get<string>('JWT_SECRET') ?? 'your-secret-key-change-in-production',
           signOptions: {
