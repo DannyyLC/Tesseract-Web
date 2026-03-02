@@ -21,17 +21,19 @@ import { UpdateWorkflowDto, ExecuteWorkflowDto } from '../../dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
-import { ApiResponseBuilder, PaginatedResponse, WorkflowCategory } from '@tesseract/types';
+import { ApiResponseBuilder, PaginatedResponse, UserRole, WorkflowCategory } from '@tesseract/types';
 import { Response } from 'express';
 import { DashboardWorkflowDto } from '../../../workflows/dto/dashboard-workflow.dto';
 import { WorkflowStatsDto } from '../../../workflows/dto/workflow-stats.dto';
+import { RolesGuard } from '../../../auth/guards/roles.guard';
+import { Roles } from '../../../auth/decorators/roles.decorator';
 
 /**
  * Controller de Workflows
  * Maneja todas las peticiones HTTP relacionadas con workflows
  */
 @Controller('workflows')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class WorkflowsController {
   constructor(private readonly workflowsService: WorkflowsService) {}
 
@@ -40,6 +42,7 @@ export class WorkflowsController {
    * Obtener datos para el dashboard de workflows (paginado)
    */
   @Get('dashboard')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Res() res: Response,
@@ -87,6 +90,7 @@ export class WorkflowsController {
    * Obtener estadísticas globales de la organización
    */
   @Get('stats')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getStats(
     @CurrentUser() user: UserPayload,
     @Res() res: Response,
@@ -102,6 +106,7 @@ export class WorkflowsController {
    * Obtener un workflow específico
    */
   @Get(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getById(@CurrentUser() user: UserPayload, @Param('id') id: string) {
     return this.workflowsService.findOne(user.organizationId, id);
   }
@@ -111,6 +116,7 @@ export class WorkflowsController {
    * Actualizar un workflow
    */
   @Put(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async update(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
@@ -124,6 +130,7 @@ export class WorkflowsController {
    * Eliminar un workflow (soft delete)
    */
   @Delete(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async remove(@CurrentUser() user: UserPayload, @Param('id') id: string) {
     return this.workflowsService.remove(user.organizationId, id);
   }
@@ -134,6 +141,7 @@ export class WorkflowsController {
    */
   @Post(':id/execute')
   @HttpCode(HttpStatus.CREATED)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async execute(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
@@ -173,6 +181,7 @@ export class WorkflowsController {
   @Header('Content-Type', 'text/event-stream')
   @Header('Cache-Control', 'no-cache')
   @Header('Connection', 'keep-alive')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async executeStream(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
@@ -196,6 +205,7 @@ export class WorkflowsController {
    * Obtiene métricas detalladas de un workflow (Charts, KPIs)
    */
   @Get(':id/metrics')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getMetrics(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,

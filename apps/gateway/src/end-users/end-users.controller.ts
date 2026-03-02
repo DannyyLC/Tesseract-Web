@@ -5,18 +5,22 @@ import {
   ApiResponse,
   ApiResponseBuilder,
   PaginatedResponse,
+  UserRole,
 } from '@tesseract/types';
 import { DashboardEndUserDto } from './dto/dashboard-end-user.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserPayload } from '../common/types/jwt-payload.type';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('end-users')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class EndUsersController {
   constructor(private readonly endUsersService: EndUsersService) {}
 
   @Get('dashboard')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,

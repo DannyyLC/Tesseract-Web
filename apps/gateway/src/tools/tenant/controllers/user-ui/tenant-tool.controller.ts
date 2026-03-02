@@ -12,7 +12,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiResponseBuilder, PaginatedResponse } from '@tesseract/types';
+import { ApiResponseBuilder, PaginatedResponse, UserRole } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { Response } from 'express';
 import { CurrentUser } from '../../../../auth/decorators/current-user.decorator';
@@ -23,13 +23,16 @@ import { WorkflowIdsDto } from '../../dto/workflow-ids.dto';
 import { TenantToolService } from '../../tenant-tool.service';
 import { CreateTenantToolDto } from '../../dto/create-tenant-tool.dto';
 import { UpdateTenantToolDto } from '../../dto/update-tenant-tool.dto';
+import { RolesGuard } from '../../../../auth/guards/roles.guard';
+import { Roles } from '../../../../auth/decorators/roles.decorator';
 
 @Controller('tenant-tool')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class TenantToolController {
   constructor(private readonly tenantToolService: TenantToolService) {}
 
   @Get('dashboard')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
@@ -60,6 +63,7 @@ export class TenantToolController {
   }
 
   @Post('create')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async createTenantTool(
     @CurrentUser() user: UserPayload,
     @Body() body: CreateTenantToolDto,
@@ -80,6 +84,7 @@ export class TenantToolController {
   }
 
   @Put('update/:id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async updateTenantTool(
     @Param('id') id: string,
     @Body() body: UpdateTenantToolDto,
@@ -96,6 +101,7 @@ export class TenantToolController {
   }
 
   @Post('add-workflows/:id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async addWorkflowsToTenantTool(
     @Param('id') id: string,
     @Body() body: WorkflowIdsDto,
@@ -115,6 +121,7 @@ export class TenantToolController {
   }
 
   @Post('remove-workflows/:id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async removeWorkflowsFromTenantTool(
     @Param('id') id: string,
     @Body() body: WorkflowIdsDto,
@@ -134,6 +141,7 @@ export class TenantToolController {
   }
 
   @Get(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getTenantToolById(@Param('id') id: string, @Res() res: Response) {
     const apiResponse = new ApiResponseBuilder<any>();
     const tenantTool = await this.tenantToolService.getTenantToolById(id);
@@ -150,6 +158,7 @@ export class TenantToolController {
   }
 
   @Delete('disconnect/:toolId')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async disconnectTool(
     @Param('toolId') toolId: string,
     @CurrentUser() user: UserPayload,
@@ -167,6 +176,7 @@ export class TenantToolController {
   }
 
   @Delete(':toolId')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async deleteTool(
     @Param('toolId') toolId: string,
     @CurrentUser() user: UserPayload,

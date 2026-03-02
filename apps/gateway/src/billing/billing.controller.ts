@@ -23,11 +23,13 @@ import { StripeClient } from './stripe.client';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { BillingDashboardDto } from './dto/billing-dashboard.dto';
 import { OrganizationsService } from '../organizations/organizations.service';
-import { ApiResponseBuilder } from '@tesseract/types';
+import { ApiResponseBuilder, UserRole } from '@tesseract/types';
 import { Organization } from '@tesseract/database';
 import { UserPayload } from '../common/types/jwt-payload.type';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Response } from 'express';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('billing')
 export class BillingController {
@@ -40,7 +42,8 @@ export class BillingController {
   ) {}
 
   @Post('checkout')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER)
   async createCheckoutSession(@Req() req: any, @Body() body: { plan: string | SubscriptionPlan }) {
     const organizationId = req.user.organizationId;
     const userEmail = req.user.email;
@@ -109,8 +112,10 @@ export class BillingController {
     return { url: sessionUrl };
   }
 
+
   @Post('portal')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER)
   async createPortalSession(@Req() req: any) {
     const organizationId = req.user.organizationId;
     if (!organizationId) {
@@ -142,7 +147,8 @@ export class BillingController {
   }
 
   @Get('subscription')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async getSubscription(@Req() req: any) {
     const organizationId = req.user.organizationId;
 
@@ -174,7 +180,8 @@ export class BillingController {
   }
 
   @Put('subscription')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER)
   async updateSubscription(@Req() req: any, @Body() body: UpdateSubscriptionDto) {
     const organizationId = req.user.organizationId;
     if (!organizationId) {
@@ -191,7 +198,8 @@ export class BillingController {
   }
 
   @Get('dashboard')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async getDashboardData(@Req() req: any): Promise<BillingDashboardDto> {
     const organizationId = req.user.organizationId;
     if (!organizationId) {
@@ -201,7 +209,8 @@ export class BillingController {
   }
 
   @Delete('subscription')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER)
   async cancelSubscription(@Req() req: any) {
     const organizationId = req.user.organizationId;
     if (!organizationId) {
@@ -245,7 +254,8 @@ export class BillingController {
   }
 
   @Patch('overages')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async toggleOverages(
     @CurrentUser() user: UserPayload,
     @Body() body: { allowOverages: boolean; overageLimit?: number },
