@@ -12,18 +12,22 @@ import {
   ApiResponseBuilder,
   CursorPaginatedResponse,
   GetToolsDto,
+  UserRole,
 } from '@tesseract/types';
 import { Response } from 'express';
 import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '../../../../auth/guards/jwt-auth.guard';
 import { ToolsCatalogService } from '../../tools-catalog.service';
+import { RolesGuard } from '../../../../auth/guards/roles.guard';
+import { Roles } from '../../../../auth/decorators/roles.decorator';
 
 @Controller('tools-catalog')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ToolsCatalogController {
   constructor(private readonly toolsCatalogService: ToolsCatalogService) {}
 
   @Get()
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getAllToolsWithFunctions(
     @Res() res: Response,
     @Query('cursor') cursor: string | null = null,

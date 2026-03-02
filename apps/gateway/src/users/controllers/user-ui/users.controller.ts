@@ -20,7 +20,7 @@ import {
   UpdateUserDto,
   UserDetailDto,
 } from '../../dto';
-import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@tesseract/types';
+import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse, UserRole } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
@@ -29,6 +29,8 @@ import { NotificationEventDto } from '../../../events/app-notifications/notifica
 import { UpdateProfileDto } from '../../dto';
 import { ServiceInfoRequestDto } from '../../../users/dto/service-info-request.dto';
 import { Throttle } from '@nestjs/throttler';
+import { RolesGuard } from '../../../auth/guards/roles.guard';
+import { Roles } from '../../../auth/decorators/roles.decorator';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -150,6 +152,8 @@ export class UsersController {
   }
 
   @Patch(':id/update-status-or-role')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async update(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
@@ -219,6 +223,8 @@ export class UsersController {
   }
 
   @Patch(':id/transfer-ownership')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER)
   async transferOwnership(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,

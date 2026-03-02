@@ -1,18 +1,21 @@
 import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiResponseBuilder, CursorPaginatedResponse } from '@tesseract/types';
+import { ApiResponseBuilder, CursorPaginatedResponse, UserRole } from '@tesseract/types';
 import { Response } from 'express';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
 import { DashboardInvoiceDto } from '../../../invoice/dto/dashboard-invoice.dto';
 import { InvoiceService } from '../../invoice.service';
+import { RolesGuard } from '../../../auth/guards/roles.guard';
+import { Roles } from '../../../auth/decorators/roles.decorator';
 
 @Controller('invoice')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
 
   @Get('dashboard')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,

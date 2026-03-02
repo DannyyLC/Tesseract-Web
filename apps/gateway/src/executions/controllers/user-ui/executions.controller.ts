@@ -17,8 +17,10 @@ import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
 import { DashboardExecutionDto, ExecutionStatsQueryDto } from '../../dto';
-import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse } from '@tesseract/types';
+import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse, UserRole } from '@tesseract/types';
 import { Response } from 'express';
+import { RolesGuard } from '../../../auth/guards/roles.guard';
+import { Roles } from '../../../auth/decorators/roles.decorator';
 /**
  * Controller de Executions
  * Maneja el historial y estado de las ejecuciones de workflows
@@ -33,7 +35,7 @@ import { Response } from 'express';
  * - Obtener estadísticas de ejecuciones
  */
 @Controller('executions')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ExecutionsController {
   constructor(private readonly executionsService: ExecutionsService) {}
 
@@ -42,6 +44,7 @@ export class ExecutionsController {
    * Obtener datos para el dashboard de ejecuciones (paginado)
    */
   @Get('dashboard')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
@@ -82,6 +85,7 @@ export class ExecutionsController {
    * Obtiene estadísticas generales de ejecuciones de la organización
    */
   @Get('stats')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getStats(
     @CurrentUser() user: UserPayload,
     @Query() query: ExecutionStatsQueryDto,
@@ -101,6 +105,7 @@ export class ExecutionsController {
    * Obtiene detalles completos de una ejecución específica
    */
   @Get(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getById(@CurrentUser() user: UserPayload, @Param('id') id: string, @Res() res: Response) {
     const apiResponse = new ApiResponseBuilder<any>();
     const execution = await this.executionsService.findOneForClient(id, user.organizationId);
@@ -115,8 +120,10 @@ export class ExecutionsController {
    * POST /executions/:id/cancel
    * Cancela una ejecución en progreso
    */
+
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async cancel(@CurrentUser() user: UserPayload, @Param('id') id: string, @Res() res: Response) {
     const apiResponse = new ApiResponseBuilder<any>();
     const execution = await this.executionsService.cancel(id, user.organizationId);
@@ -129,6 +136,7 @@ export class ExecutionsController {
    * Eliminar una ejecución (Soft Delete)
    */
   @Delete(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async remove(@CurrentUser() user: UserPayload, @Param('id') id: string, @Res() res: Response) {
     const apiResponse = new ApiResponseBuilder<void>();
     await this.executionsService.remove(id, user.organizationId);
