@@ -24,6 +24,7 @@ import { UsersModule } from './users/users.module';
 import { UtilityModule } from './utility/utility.module';
 import { ToolsCatalogModule } from './tools/catalog/tools-catalog.module';
 import { ToolsModule } from './tools/core/tools.module';
+import { WhatsappConfigModule } from './whatsapp-config/whatsapp-config.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { ToolsModule } from './tools/core/tools.module';
     UtilityModule,
     ToolsCatalogModule,
     ToolsModule,
+    WhatsappConfigModule,
   ],
   controllers: [],
   providers: [
