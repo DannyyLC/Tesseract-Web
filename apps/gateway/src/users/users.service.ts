@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, User } from '@prisma/client';
-import { CursorPaginatedResponse } from '@tesseract/types';
+import { PaginatedResponse } from '@tesseract/types';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
@@ -500,7 +500,7 @@ export class UsersService {
       role?: string;
       isActive?: boolean;
     },
-  ): Promise<CursorPaginatedResponse<DashboardUserDataDto>> {
+  ): Promise<PaginatedResponse<DashboardUserDataDto>> {
     const where: Prisma.UserWhereInput = {
       organizationId,
       deletedAt: null,
@@ -668,7 +668,7 @@ export class UsersService {
     organizationId: string,
     cursor?: string | null,
     pageSize = 10,
-  ): Promise<CursorPaginatedResponse<NotificationEventDto>> {
+  ): Promise<PaginatedResponse<NotificationEventDto>> {
     const where: Prisma.UserNotificationWhereInput = {
       userId,
       organizationId,

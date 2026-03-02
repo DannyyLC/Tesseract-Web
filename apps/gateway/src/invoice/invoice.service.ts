@@ -3,7 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { DashboardInvoiceDto } from './dto/dashboard-invoice.dto';
-import { CursorPaginatedResponse } from '@tesseract/types';
+import { PaginatedResponse } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 
 @Injectable()
@@ -18,7 +18,7 @@ export class InvoiceService {
     cursor: string | null = null,
     pageSize = 10,
     action: 'next' | 'prev' | null = null,
-  ): Promise<CursorPaginatedResponse<DashboardInvoiceDto> | null> {
+  ): Promise<PaginatedResponse<DashboardInvoiceDto> | null> {
     const invoices = await this.prismaService.invoice.findMany({
       where: { organizationId },
       cursor: cursor ? { id: cursor } : undefined,

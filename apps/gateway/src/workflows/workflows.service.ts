@@ -1,6 +1,5 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
-  CursorPaginatedResponse,
   getWorkflowCreditCost,
   PaginatedResponse,
   PLANS,
@@ -116,7 +115,7 @@ export class WorkflowsService {
       isActive?: boolean;
       category?: WorkflowCategory;
     },
-  ): Promise<CursorPaginatedResponse<DashboardWorkflowDto>> {
+  ): Promise<PaginatedResponse<DashboardWorkflowDto>> {
     const where: any = {
       organizationId,
       deletedAt: null,

@@ -1,5 +1,4 @@
 import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { KmsService } from './kms.service';
 import { UpsertCredentialsDto } from './dto/upsert-credentials.dto';

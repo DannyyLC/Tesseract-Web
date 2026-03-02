@@ -20,7 +20,7 @@ import {
   UpdateUserDto,
   UserDetailDto,
 } from '../../dto';
-import { ApiResponse, ApiResponseBuilder, CursorPaginatedResponse, UserRole } from '@tesseract/types';
+import { ApiResponse, ApiResponseBuilder, PaginatedResponse, UserRole } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
@@ -47,8 +47,8 @@ export class UsersController {
     @Query('search') search?: string,
     @Query('role') role?: string,
     @Query('isActive') isActive?: string,
-  ): Promise<Response<ApiResponse<CursorPaginatedResponse<DashboardUserDataDto>>>> {
-    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardUserDataDto>>();
+  ): Promise<Response<ApiResponse<PaginatedResponse<DashboardUserDataDto>>>> {
+    const apiResponse = new ApiResponseBuilder<PaginatedResponse<DashboardUserDataDto>>();
     const result = await this.usersService.getDashboardData(
       user.organizationId,
       cursor,
@@ -78,8 +78,8 @@ export class UsersController {
     @Res() res: Response,
     @Query('cursor') cursor: string | null = null,
     @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
-  ): Promise<Response<ApiResponse<CursorPaginatedResponse<NotificationEventDto>>>> {
-    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<NotificationEventDto>>();
+  ): Promise<Response<ApiResponse<PaginatedResponse<NotificationEventDto>>>> {
+    const apiResponse = new ApiResponseBuilder<PaginatedResponse<NotificationEventDto>>();
     // Cast to any if needed or ensure service returns strict match
     const notifications = await this.usersService.getNotificationsForUser(
       user.sub,

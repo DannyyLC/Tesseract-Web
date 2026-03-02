@@ -1,7 +1,7 @@
 import { PrismaService } from '../database/prisma.service';
 import { Injectable } from '@nestjs/common';
 import { DashboardEndUserDto } from './dto/dashboard-end-user.dto';
-import { CursorPaginatedResponse } from '@tesseract/types';
+import { PaginatedResponse } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 
 @Injectable()
@@ -13,7 +13,7 @@ export class EndUsersService {
     cursor: string | null = null,
     pageSize = 10,
     paginationAction: 'next' | 'prev' | null = null,
-  ): Promise<CursorPaginatedResponse<DashboardEndUserDto>> {
+  ): Promise<PaginatedResponse<DashboardEndUserDto>> {
     const endUsers = await this.prismaService.endUser.findMany({
       where: {
         organizationId: idOrganization,
@@ -41,6 +41,6 @@ export class EndUsersService {
       paginationAction,
     );
 
-    return paginatedData as CursorPaginatedResponse<DashboardEndUserDto>;
+    return paginatedData as PaginatedResponse<DashboardEndUserDto>;
   }
 }

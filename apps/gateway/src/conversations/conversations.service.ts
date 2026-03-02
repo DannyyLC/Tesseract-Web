@@ -2,7 +2,7 @@ import { Injectable, Logger, ForbiddenException, NotFoundException } from '@nest
 import { PrismaService } from '../database/prisma.service';
 import { DashboardConversationDto } from './dto/dashboard-conversation.dto';
 import { ConversationStatsDto } from './dto/conversation-stats.dto';
-import { CursorPaginatedResponse } from '@tesseract/types';
+import { PaginatedResponse } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { Conversation } from '@tesseract/database';
 
@@ -149,7 +149,7 @@ export class ConversationsService {
     organizationId: string;
     workflowId?: string;
     userId?: string;
-  }): Promise<CursorPaginatedResponse<DashboardConversationDto>> {
+  }): Promise<PaginatedResponse<DashboardConversationDto>> {
     const {
       cursor,
       take,

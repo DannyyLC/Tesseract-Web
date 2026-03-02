@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiResponseBuilder, CursorPaginatedResponse, UserRole } from '@tesseract/types';
+import { ApiResponseBuilder, PaginatedResponse, UserRole } from '@tesseract/types';
 import { Response } from 'express';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
@@ -22,14 +22,14 @@ export class InvoiceController {
     @Query('pageSize') pageSize = 10,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Res() res: Response,
-  ): Promise<Response<ApiResponseBuilder<CursorPaginatedResponse<DashboardInvoiceDto>>>> {
+  ): Promise<Response<ApiResponseBuilder<PaginatedResponse<DashboardInvoiceDto>>>> {
     const result = await this.invoiceService.getDashboardData(
       user.organizationId,
       cursor,
       pageSize,
       action,
     );
-    const apiResponse = new ApiResponseBuilder<CursorPaginatedResponse<DashboardInvoiceDto>>();
+    const apiResponse = new ApiResponseBuilder<PaginatedResponse<DashboardInvoiceDto>>();
     if (!result) {
       apiResponse.setStatusCode(404).setMessage('No invoices found for the specified organization');
       return res.status(404).json(apiResponse.build());

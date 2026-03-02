@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CursorPaginatedResponseUtils } from '../../common/responses/cursor-paginated-response';
-import { CursorPaginatedResponse, GetToolsDto } from '@tesseract/types';
+import { PaginatedResponse, GetToolsDto } from '@tesseract/types';
 import { Prisma } from '@tesseract/database';
 
 @Injectable()
@@ -15,7 +15,7 @@ export class ToolsCatalogService {
     filters?: {
       search?: string;
     },
-  ): Promise<CursorPaginatedResponse<GetToolsDto>> {
+  ): Promise<PaginatedResponse<GetToolsDto>> {
     const where: Prisma.ToolCatalogWhereInput = {
       ...(filters?.search && {
         OR: [

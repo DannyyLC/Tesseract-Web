@@ -1,4 +1,4 @@
-import { CursorPaginatedResponse, PaginatedResponse } from '@tesseract/types';
+import { PaginatedResponse } from '@tesseract/types';
 
 export class CursorPaginatedResponseUtils {
   private static instance: CursorPaginatedResponseUtils;
@@ -16,7 +16,7 @@ export class CursorPaginatedResponseUtils {
     items: T[],
     take: number,
     paginationAction?: 'next' | 'prev' | null,
-  ): Promise<CursorPaginatedResponse<T>> {
+  ): Promise<PaginatedResponse<T>> {
     let data: T[] = [];
     let hasNextPage = false;
     let hasPrevPage = false;
