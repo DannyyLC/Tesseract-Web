@@ -5,7 +5,7 @@ export interface MessageMetadata {
 
 export interface Message {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: string;
   content: string;
   createdAt: Date;
   metadata?: MessageMetadata;
@@ -41,10 +41,11 @@ export interface DashboardConversationDto {
   status: string; // 'open' | 'closed' | 'snoozed' etc.
   isHumanInTheLoop: boolean;
   messageCount: number;
-  lastMessageAt: Date;
+  lastMessageAt: Date | null;
   workflowId: string;
   closedAt: Date | null;
   userId: string | null;
+  organizationId: string | null;
   isInternal: boolean;
 }
 

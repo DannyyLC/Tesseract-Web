@@ -5,6 +5,9 @@ import {
   PLANS,
   SubscriptionPlan,
   WorkflowCategory,
+  DashboardWorkflowDto,
+  WorkflowStatsDto,
+  WorkflowMetricsDto,
 } from '@tesseract/types';
 import { Transform, PassThrough } from 'stream';
 import { AgentsService } from '../agents/agents.service';
@@ -24,9 +27,6 @@ import { LlmModelsService } from '../llm-models/llm-models.service';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
-import { WorkflowMetricsDto } from './dto/workflow-metrics.dto';
-import { WorkflowStatsDto } from './dto/workflow-stats.dto';
-import { DashboardWorkflowDto } from './dto';
 
 /**
  * Service que maneja la lógica de negocio de workflows

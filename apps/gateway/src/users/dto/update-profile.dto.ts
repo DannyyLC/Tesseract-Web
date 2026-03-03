@@ -1,6 +1,7 @@
 import { IsString, IsOptional, MinLength, IsUrl } from 'class-validator';
+import { UpdateProfileDto as IUpdateProfileDto } from '@tesseract/types';
 
-export class UpdateProfileDto {
+export class UpdateProfileDto implements IUpdateProfileDto {
   @IsString()
   @IsOptional()
   @MinLength(2, { message: 'Name must be at least 2 characters long' })

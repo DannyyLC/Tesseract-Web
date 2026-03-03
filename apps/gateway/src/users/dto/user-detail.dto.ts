@@ -1,4 +1,6 @@
-export class UserDetailDto {
+import { UserDetailDto as IUserDetailDto } from '@tesseract/types';
+
+export class UserDetailDto implements IUserDetailDto {
   id: string;
   name: string;
   email: string;

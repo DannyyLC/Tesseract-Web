@@ -1,7 +1,7 @@
 import { IsEnum, IsBoolean, IsOptional } from 'class-validator';
-import { UserRole } from '@tesseract/types';
+import { UserRole, UpdateUserDto as IUpdateUserDto } from '@tesseract/types';
 
-export class UpdateUserDto {
+export class UpdateUserDto implements IUpdateUserDto {
   @IsEnum(UserRole)
   @IsOptional()
   role?: UserRole;

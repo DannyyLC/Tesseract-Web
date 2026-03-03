@@ -1,6 +1,7 @@
 import { IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { LeaveOrganizationDto as ILeaveOrganizationDto } from '@tesseract/types';
 
-export class LeaveOrganizationDto {
+export class LeaveOrganizationDto implements ILeaveOrganizationDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(1)

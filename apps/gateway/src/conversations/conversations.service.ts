@@ -1,8 +1,10 @@
 import { Injectable, Logger, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { DashboardConversationDto } from './dto/dashboard-conversation.dto';
-import { ConversationStatsDto } from './dto/conversation-stats.dto';
-import { PaginatedResponse } from '@tesseract/types';
+import { 
+  DashboardConversationDto, 
+  ConversationsStatsDto as ConversationStatsDto, 
+  PaginatedResponse
+} from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { Conversation } from '@tesseract/database';
 
@@ -186,11 +188,19 @@ export class ConversationsService {
       },
     });
 
-    return CursorPaginatedResponseUtils.getInstance().build<Conversation>(
+    const paginatedResult = await CursorPaginatedResponseUtils.getInstance().build<Conversation>(
       conversations,
       take ?? 10,
       paginationAction,
     );
+
+    return {
+      ...paginatedResult,
+      items: paginatedResult.items.map((c) => ({
+        ...c,
+        isInternal: !!c.userId,
+      })) as DashboardConversationDto[],
+    };
   }
 
   /**

@@ -1,4 +1,8 @@
-export class DashboardEndUserDto {
+// ============================================================
+// End Users — Shared types for end user display
+// ============================================================
+
+export interface DashboardEndUserDto {
   id: string;
   phoneNumber: string | null;
   email: string | null;

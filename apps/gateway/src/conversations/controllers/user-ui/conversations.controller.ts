@@ -1,9 +1,11 @@
 import {
-  DashboardConversationDto,
   UpdateConversationDto,
-  ConversationStatsDto,
   ConversationDetailDto,
 } from '../../dto';
+import { 
+  DashboardConversationDto, 
+  ConversationsStatsDto as ConversationStatsDto 
+} from '@tesseract/types';
 import { ConversationsService } from '../../conversations.service';
 import {
   Body,

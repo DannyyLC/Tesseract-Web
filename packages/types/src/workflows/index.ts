@@ -25,7 +25,7 @@ export interface DashboardWorkflowDto {
   description?: string | null;
   isActive: boolean;
   category: WorkflowCategory;
-  lastExecutedAt?: string | null;
+  lastExecutedAt?: Date | null;
 }
 
 export type WorkflowsResponse = PaginatedResponse<DashboardWorkflowDto>;
@@ -51,4 +51,29 @@ export interface WorkflowMetricsDto {
     failed: number;
   }[];
   errorDistribution: Record<string, number>;
+}
+
+/**
+ * Workflow configuration shape — used by the frontend workflow builder
+ */
+export interface WorkflowConfig {
+  type: 'agent';
+  graph: {
+    type: 'react' | 'supervisor' | 'router' | 'sequential' | 'parallel';
+    config?: Record<string, any>;
+  };
+  agents: Record<
+    string,
+    {
+      model: string;
+      temperature?: number;
+      system_prompt?: string;
+      tools?: (string | { id: string; functions?: string[] })[];
+    }
+  >;
+}
+
+export interface ExecuteWorkflowDto {
+  input: Record<string, any>;
+  metadata?: Record<string, any>;
 }

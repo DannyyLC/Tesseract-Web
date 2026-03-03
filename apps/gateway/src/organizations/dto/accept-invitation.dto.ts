@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { AcceptInvitationDto as IAcceptInvitationDto } from '@tesseract/types';
 
-export class AcceptInvitationDto {
+export class AcceptInvitationDto implements IAcceptInvitationDto {
   @ApiProperty({ description: 'Username of the invited user.' })
   user: string;
 

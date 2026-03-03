@@ -1,13 +1,13 @@
-import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
 import { EndUsersService } from './end-users.service';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import {
   ApiResponse,
   ApiResponseBuilder,
   PaginatedResponse,
   UserRole,
+  DashboardEndUserDto,
 } from '@tesseract/types';
-import { DashboardEndUserDto } from './dto/dashboard-end-user.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserPayload } from '../common/types/jwt-payload.type';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
