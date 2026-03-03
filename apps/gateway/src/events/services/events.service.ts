@@ -40,13 +40,13 @@ export class EventsService {
     private readonly prismaService: PrismaService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {
-    this.prismaService.dbMutations$.subscribe(async (mutation) => {
+    this.prismaService.dbMutations$.subscribe((mutation) => {
       const { model, operation, data } = mutation;
-      await this.emitEvent(model, operation, data);
+      void this.emitEvent(model as EventSubjectType, operation, data);
     });
   }
 
-  async emitEvent(model: string, action: string, data: any) {
+  async emitEvent(model: EventSubjectType, action: string, data: any) {
     if (
       action === 'upsertd' ||
       action === 'updateManyd' ||
@@ -166,7 +166,7 @@ export class EventsService {
     }
   }
 
-  async getFormattedData(model: string, data: any): Promise<any> {
+  async getFormattedData(model: EventSubjectType, data: any): Promise<any> {
     switch (model) {
       case EventSubjectType.ORGANIZATION:
         return {
@@ -208,7 +208,7 @@ export class EventsService {
           organizationId: data.organizationId,
           isInternal: !!data.userId,
         } as DashboardConversationDto;
-      case EventSubjectType.MESSAGE:
+      case EventSubjectType.MESSAGE: {
         const conversation = await this.prismaService.conversation.findFirst({
           where: {
             id: data.conversationId,
@@ -234,6 +234,7 @@ export class EventsService {
           ...conversation,
           isInternal: !!conversation.userId,
         } as unknown as DashboardConversationDto;
+      }
 
       case EventSubjectType.USER:
         return {

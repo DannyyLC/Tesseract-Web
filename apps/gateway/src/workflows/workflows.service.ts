@@ -1411,7 +1411,7 @@ export class WorkflowsService {
     // 4. Limpiar agents_config - remover campo 'tools' (redundante, ya está en agent_tool_instances)
     const cleanedAgentsConfig: Record<string, any> = {};
     for (const [agentName, agentConfig] of Object.entries(agentsConfig)) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       const { tools: _tools, ...configWithoutTools } = agentConfig as any;
       cleanedAgentsConfig[agentName] = configWithoutTools;
     }

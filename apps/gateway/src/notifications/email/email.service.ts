@@ -70,9 +70,9 @@ export class EmailService {
           name: payload.userName,
         }),
       });
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(
-        `startVerificationEmailFlow >> Error enviando email a ${payload.email}: ${error}`,
+        `startVerificationEmailFlow >> Error enviando email a ${payload.email}: ${error?.message ?? 'Unknown error'}`,
       );
       return { sentMessageInfo: null, verificationCode: verificationCode };
     }
@@ -100,9 +100,9 @@ export class EmailService {
         }),
       });
       return { sentMessageInfo, verificationCode };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(
-        `sendOrganizationInvitationToEmail >> Error enviando email a ${email}: ${error}`,
+        `sendOrganizationInvitationToEmail >> Error enviando email a ${email}: ${error?.message ?? 'Unknown error'}`,
       );
       return null;
     }
@@ -134,9 +134,9 @@ export class EmailService {
           verificationCode,
         }),
       });
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(
-        `sendPasswordResetCodeByEmail >> Error enviando email a ${email}: ${error}`,
+        `sendPasswordResetCodeByEmail >> Error enviando email a ${email}: ${error?.message ?? 'Unknown error'}`,
       );
       return null;
     }
@@ -155,8 +155,8 @@ export class EmailService {
           organizationName,
         }),
       });
-    } catch (error) {
-      this.logger.error(`sendOrganizationExistsEmail >> Error enviando email a ${email}: ${error}`);
+    } catch (error: any) {
+      this.logger.error(`sendOrganizationExistsEmail >> Error enviando email a ${email}: ${error?.message ?? 'Unknown error'}`);
       return null;
     }
   }
@@ -185,9 +185,9 @@ export class EmailService {
           date,
         }),
       });
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(
-        `sendServiceRequestEmail >> Error enviando email a ${targetEmail}: ${error}`,
+        `sendServiceRequestEmail >> Error enviando email a ${targetEmail}: ${error?.message ?? 'Unknown error'}`,
       );
       return null;
     }
