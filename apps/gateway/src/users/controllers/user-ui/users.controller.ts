@@ -33,7 +33,7 @@ import { RolesGuard } from '../../../auth/guards/roles.guard';
 import { Roles } from '../../../auth/decorators/roles.decorator';
 
 @Controller('users')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -152,7 +152,6 @@ export class UsersController {
   }
 
   @Patch(':id/update-status-or-role')
-  @UseGuards(RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   async update(
     @CurrentUser() user: UserPayload,
@@ -202,6 +201,16 @@ export class UsersController {
     @Res() res: Response,
   ): Promise<Response> {
     const apiResponse = new ApiResponseBuilder<any>();
+
+    // Solo permitir que el usuario edite su propio perfil
+    if (id !== user.sub) {
+      apiResponse
+        .setMessage('You can only update your own profile')
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.Forbidden);
+      return res.status(HttpStatusCode.Forbidden).json(apiResponse.build());
+    }
+
     const updatedUser = await this.usersService.updateProfile(
       id,
       user.organizationId,
@@ -223,7 +232,6 @@ export class UsersController {
   }
 
   @Patch(':id/transfer-ownership')
-  @UseGuards(RolesGuard)
   @Roles(UserRole.OWNER)
   async transferOwnership(
     @CurrentUser() user: UserPayload,
@@ -239,6 +247,7 @@ export class UsersController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async remove(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,

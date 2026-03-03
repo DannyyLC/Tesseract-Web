@@ -79,7 +79,7 @@ export class OrganizationsController {
   
   @Delete('delete')
   @ApiOperation({ summary: 'Delete Organization', description: deleteOrganizationSwaggerDesc })
-  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @Roles(UserRole.OWNER)
   async deleteOrganization(
     @CurrentUser() user: UserPayload,
     @Body() dto: DeleteOrganizationDto,
@@ -171,7 +171,6 @@ export class OrganizationsController {
 
   @Post('accept-invitation')
   @ApiOperation({ summary: 'Accept Invitation', description: acceptInvitationSwaggerDesc })
-  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async acceptInvitation(
     @Body() body: AcceptInvitationDto,
     @Res() res: Response,

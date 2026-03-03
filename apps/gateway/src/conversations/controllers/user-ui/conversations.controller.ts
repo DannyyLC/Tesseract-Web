@@ -139,7 +139,7 @@ export class ConversationsController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async update(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,

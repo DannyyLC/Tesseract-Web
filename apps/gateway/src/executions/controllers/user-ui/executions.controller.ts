@@ -120,7 +120,6 @@ export class ExecutionsController {
    * POST /executions/:id/cancel
    * Cancela una ejecución en progreso
    */
-
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
