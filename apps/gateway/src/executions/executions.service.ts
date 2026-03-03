@@ -911,7 +911,7 @@ export class ExecutionsService {
         }
 
         if (dailyStatsMap.has(dateStr)) {
-          dailyStatsMap.set(dateStr, (dailyStatsMap.get(dateStr) || 0) + 1);
+          dailyStatsMap.set(dateStr, (dailyStatsMap.get(dateStr) ?? 0) + 1);
         }
       }
     });

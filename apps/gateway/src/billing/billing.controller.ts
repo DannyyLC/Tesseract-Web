@@ -47,7 +47,7 @@ export class BillingController {
   async createCheckoutSession(@Req() req: any, @Body() body: { plan: string | SubscriptionPlan }) {
     const organizationId = req.user.organizationId;
     const userEmail = req.user.email;
-    const userName = req.user.name || 'Admin User';
+    const userName = req.user.name ?? 'Admin User';
 
     if (!organizationId) {
       throw new BadRequestException('User does not belong to an organization');
@@ -73,7 +73,7 @@ export class BillingController {
     if (!customerId) {
       customerId = await this.billingService.createCustomer({
         email: userEmail,
-        name: organization.name || userName,
+        name: organization.name ?? userName,
         metadata: {
           organizationId: organizationId,
         },
@@ -95,7 +95,7 @@ export class BillingController {
     }
 
     // 4. Create Checkout Session
-    const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
+    const frontendUrl = this.configService.get('FRONTEND_URL') ?? 'http://localhost:3000';
 
     const sessionUrl = await this.billingService.createCheckoutSession({
       customerId,
@@ -129,7 +129,7 @@ export class BillingController {
       throw new BadRequestException('Organization has no billing account');
     }
 
-    const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
+    const frontendUrl = this.configService.get('FRONTEND_URL') ?? 'http://localhost:3000';
     const returnUrl = `${frontendUrl}/billing`;
 
     const url = await this.billingService.createCustomerPortalSession(
@@ -142,7 +142,7 @@ export class BillingController {
 
   @Get('plans')
   getPlans() {
-    return Object.values(SUBSCRIPTION_PLANS).map(({ priceIdEnvKey, ...plan }) => plan);
+    return Object.values(SUBSCRIPTION_PLANS).map(({ priceIdEnvKey: _priceIdEnvKey, ...plan }) => plan);
   }
 
   @Get('subscription')
@@ -169,7 +169,7 @@ export class BillingController {
     });
 
     return (
-      subscription || {
+      subscription ?? {
         status: 'ACTIVE',
         plan: 'FREE',
         currentPeriodStart: null,

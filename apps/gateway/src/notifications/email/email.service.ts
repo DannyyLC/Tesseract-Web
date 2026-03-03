@@ -95,7 +95,7 @@ export class EmailService {
         to: email,
         subject: `Invitación para unirte a ${organizationName}`,
         html: this.emailInvitationTemplate({
-          inviteUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/accept-invitation?code=${verificationCode}&email=${encodeURIComponent(email)}`,
+          inviteUrl: `${process.env.FRONTEND_URL ?? 'http://localhost:3001'}/accept-invitation?code=${verificationCode}&email=${encodeURIComponent(email)}`,
           organizationName,
         }),
       });

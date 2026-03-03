@@ -226,7 +226,7 @@ export class WorkflowsService {
     });
 
     // Credits amount comes negative for spending, convert to positive for "consumed"
-    const consumed = Math.abs(creditsMonth._sum.amount || 0);
+    const consumed = Math.abs(creditsMonth._sum.amount ?? 0);
 
     return {
       totalWorkflows,
@@ -399,7 +399,7 @@ export class WorkflowsService {
 
     // KPI Processing
     const totalExecutions = aggregations._count.id;
-    const avgDuration = aggregations._avg.duration || 0;
+    const avgDuration = aggregations._avg.duration ?? 0;
     // Calculate Success Rate from GroupBy results
     const statusCounts = failedExecutions.reduce(
       (acc, curr) => {
@@ -429,7 +429,7 @@ export class WorkflowsService {
 
       failures.forEach((f) => {
         let errorKey = 'GENERIC_ERROR';
-        const errText = f.error || '';
+        const errText = f.error ?? '';
         if (errText.toLowerCase().includes('timeout')) errorKey = 'TIMEOUT';
         else if (errText.includes('API')) errorKey = 'API_ERROR';
         else if (errText.includes('Rate limit')) errorKey = 'RATE_LIMIT';
@@ -511,9 +511,9 @@ export class WorkflowsService {
 
       result.push({
         date: dateKey,
-        count: dataMap.get(dateKey)?.count || 0,
-        success: dataMap.get(dateKey)?.success || 0,
-        failed: dataMap.get(dateKey)?.failed || 0,
+        count: dataMap.get(dateKey)?.count ?? 0,
+        success: dataMap.get(dateKey)?.success ?? 0,
+        failed: dataMap.get(dateKey)?.failed ?? 0,
       });
 
       if (shouldBreak) break;
@@ -1367,9 +1367,9 @@ export class WorkflowsService {
         config: tenantTool.config ?? {},
         // Priorizar el RBAC a nivel de auth (allowedFunctions)
         enabled_functions:
-          tenantTool.allowedFunctions ||
+          tenantTool.allowedFunctions ??
           tenantTool.toolCatalog.functions.map((fn: any) => fn.functionName),
-        credentials: credentialsMap[toolId] || undefined,
+        credentials: credentialsMap[toolId] ?? undefined,
       };
     }
 

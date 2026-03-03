@@ -895,7 +895,7 @@ export class OrganizationsService {
     }
 
     try {
-      const userVerification = await this.prisma.userVerification.create({
+      await this.prisma.userVerification.create({
         data: {
           email: email,
           verificationCode: emailSentInfo.verificationCode,

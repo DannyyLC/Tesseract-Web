@@ -68,7 +68,7 @@ export class ToolsService {
               this.logger.log(
                 `Successfully refreshed and re-encrypted token for tool ${tenantTool.id}`,
               );
-            } catch (refreshErr) {
+            } catch {
               this.logger.error(
                 `Failed to refresh token for tool ${tenantTool.id}. Manual re-auth might be required.`,
               );

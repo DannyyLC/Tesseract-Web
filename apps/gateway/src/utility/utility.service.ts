@@ -20,13 +20,13 @@ export class UtilityService {
     return bcrypt.hash(password, SALT_ROUNDS);
   }
 
-  async removeIdFromObject<T extends { id?: any }>(obj: T): Promise<Omit<T, 'id'>> {
-    const { id, ...rest } = obj;
+  removeIdFromObject<T extends { id?: unknown }>(obj: T): Omit<T, 'id'> {
+    const { id: _id, ...rest } = obj;
     return rest;
   }
 
-  async removeIdFromArray<T extends { id?: any }>(arr: T[]): Promise<Omit<T, 'id'>[]> {
-    return arr.map(({ id, ...rest }) => rest);
+  removeIdFromArray<T extends { id?: unknown }>(arr: T[]): Omit<T, 'id'>[] {
+    return arr.map(({ id: _id, ...rest }) => rest);
   }
 
   async sendNotificationToAppClients(

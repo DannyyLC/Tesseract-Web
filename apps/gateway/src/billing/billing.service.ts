@@ -128,7 +128,7 @@ export class BillingService {
     // Only process subscription invoices
     if (invoice.subscription && invoice.billing_reason === 'subscription_cycle') {
       const organizationId =
-        invoice.subscription_details?.metadata?.organizationId || invoice.metadata?.organizationId;
+        invoice.subscription_details?.metadata?.organizationId ?? invoice.metadata?.organizationId;
 
       if (!organizationId) {
         this.logger.warn(`Invoice ${invoice.id} created but no organizationId found`);
@@ -186,7 +186,7 @@ export class BillingService {
   private async handleInvoicePaymentFailed(invoiceObject: Stripe.Invoice) {
     const invoice = invoiceObject as any;
     const organizationId =
-      invoice.subscription_details?.metadata?.organizationId || invoice.metadata?.organizationId;
+      invoice.subscription_details?.metadata?.organizationId ?? invoice.metadata?.organizationId;
 
     if (!organizationId) {
       this.logger.warn(`Invoice ${invoice.id} payment failed but no organizationId found`);
@@ -240,7 +240,7 @@ export class BillingService {
 
     // Use organizationId from invoice metadata or subscription metadata
     const organizationId =
-      invoice.subscription_details?.metadata?.organizationId || invoice.metadata?.organizationId;
+      invoice.subscription_details?.metadata?.organizationId ?? invoice.metadata?.organizationId;
 
     if (!organizationId) {
       this.logger.error(`No organizationId found in invoice metadata for invoice ${invoice.id}`);
@@ -281,7 +281,7 @@ export class BillingService {
       const creditBalance = await this.prisma.creditBalance.findUnique({
         where: { organizationId },
       });
-      const invoicedOverage = creditBalance?.invoicedOverageCredits || 0;
+      const invoicedOverage = creditBalance?.invoicedOverageCredits ?? 0;
 
       // 1. Calculate strictly adds
       // Actually, we first "pay back" the invoiced amount effectively.
@@ -293,7 +293,7 @@ export class BillingService {
       // Temporary Balance after payment = -110 + 100 = -10.
       // Gap = -10.
 
-      const currentBalance = creditBalance?.balance || 0;
+      const currentBalance = creditBalance?.balance ?? 0;
       const balanceAfterPayment = currentBalance + invoicedOverage;
 
       let gapCredits = 0;
@@ -385,7 +385,7 @@ export class BillingService {
               description: l.description,
               amountUSD: l.amount / 100,
               quantity: l.quantity,
-            })) || [],
+            })) ?? [],
         },
         amountPaidCents / 100,
         subscriptionId,
@@ -481,7 +481,7 @@ export class BillingService {
 
     // 3. Get Real Price ID from Config (or fallback to Mock)
     const priceId =
-      this.configService.get(planConfig.priceIdEnvKey) || 'price_MISSING_CONFIG_' + newPlan;
+      this.configService.get(planConfig.priceIdEnvKey) ?? 'price_MISSING_CONFIG_' + newPlan;
 
     // 4. Retrieve Stripe Subscription to get the Item ID (required for update)
     const stripeSub = await this.stripeClient.stripe.subscriptions.retrieve(
@@ -491,7 +491,7 @@ export class BillingService {
 
     // 5. Determine if Upgrade or Downgrade
     const currentPlanConfig = SUBSCRIPTION_PLANS[sub.plan];
-    const isUpgrade = planConfig.price.monthly > (currentPlanConfig?.price.monthly || 0);
+    const isUpgrade = planConfig.price.monthly > (currentPlanConfig?.price.monthly ?? 0);
 
     if (isUpgrade) {
       // UPGRADE: Immediate change + Charge difference now
@@ -808,9 +808,6 @@ export class BillingService {
         }
 
         // Keep ADMINs (sorted by recent login)
-        const usersToKeepIds = usersToKeep.map((id: any) => ({ id }));
-
-        // Keep ADMINs (sorted by recent login)
         if (slotsRemaining > 0) {
           const admins = activeUsers.filter((u: any) => u.role === 'admin');
           admins.sort((a: any, b: any) => {
@@ -910,13 +907,13 @@ export class BillingService {
 
     return {
       plan: organization.plan,
-      status: subscription?.status || 'ACTIVE',
-      nextBillingDate: subscription?.currentPeriodEnd || null,
-      cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd || false,
+      status: subscription?.status ?? 'ACTIVE',
+      nextBillingDate: subscription?.currentPeriodEnd ?? null,
+      cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
       allowOverages: organization.allowOverages,
       credits: {
-        available: creditBalance?.balance || 0,
-        usedThisMonth: creditBalance?.currentMonthSpent || 0,
+        available: creditBalance?.balance ?? 0,
+        usedThisMonth: creditBalance?.currentMonthSpent ?? 0,
         limit: limits.monthlyCredits,
       },
       usage: {

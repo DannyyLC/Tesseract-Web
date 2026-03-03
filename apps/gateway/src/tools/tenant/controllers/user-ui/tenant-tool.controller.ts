@@ -170,7 +170,7 @@ export class TenantToolController {
       apiResponse.setSuccess(true).setData(true).setMessage('Tool disconnected successfully');
       return res.status(HttpStatusCode.Ok).json(apiResponse.build());
     } catch (error: any) {
-      apiResponse.setSuccess(false).setMessage(error?.message || 'Error disconnecting tool');
+      apiResponse.setSuccess(false).setMessage(error?.message ?? 'Error disconnecting tool');
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     }
   }
@@ -188,7 +188,7 @@ export class TenantToolController {
       apiResponse.setSuccess(true).setData(true).setMessage('Tool soft-deleted and secrets wiped');
       return res.status(HttpStatusCode.Ok).json(apiResponse.build());
     } catch (error: any) {
-      apiResponse.setSuccess(false).setMessage(error?.message || 'Error deleting tool');
+      apiResponse.setSuccess(false).setMessage(error?.message ?? 'Error deleting tool');
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     }
   }

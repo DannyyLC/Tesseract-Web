@@ -182,9 +182,7 @@ export class UsersController {
     }
 
     // If nothing updated (e.g. empty body), just fetch the user to return current state
-    if (!updatedUser) {
-      updatedUser = await this.usersService.findOne(id, user.organizationId);
-    }
+    updatedUser ??= await this.usersService.findOne(id, user.organizationId);
 
     apiResponse
       .setStatusCode(HttpStatusCode.Ok)
@@ -322,7 +320,7 @@ export class UsersController {
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
-    const userMsg = message.userMsg || 'El usuario no proporcionó ningún mensaje adicional.';
+    const userMsg = message.userMsg ?? 'El usuario no proporcionó ningún mensaje adicional.';
     const emailResult = await this.usersService.requestServiceInfoByEmail(
       user.name,
       user.email,

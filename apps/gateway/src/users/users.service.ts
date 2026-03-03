@@ -808,7 +808,7 @@ export class UsersService {
         select: { name: true },
       });
 
-      const organizationName = organization?.name || 'Organización desconocida';
+      const organizationName = organization?.name ?? 'Organización desconocida';
 
       // 2. Obtener fecha y hora actual
       // Formato legible: DD/MM/YYYY HH:MM:SS (o similar)
@@ -822,8 +822,8 @@ export class UsersService {
       const dateTime = `${dateString} a las ${timeString}`;
 
       const emailResult = await this.emailService.sendServiceRequestEmail(
-        process.env.SMTP_VERIFIED_EMAIL_FROM || 'verified-email@yourdomain.com',
-        process.env.SMTP_EMAIL_FROM || 'fractaliaindustries@gmail.com',
+        process.env.SMTP_VERIFIED_EMAIL_FROM ?? 'verified-email@yourdomain.com',
+        process.env.SMTP_EMAIL_FROM ?? 'fractaliaindustries@gmail.com',
         email,
         userName,
         subject,

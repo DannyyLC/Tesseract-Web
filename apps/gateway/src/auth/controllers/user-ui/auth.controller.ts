@@ -74,7 +74,7 @@ export class AuthController {
     summary: 'Iniciar Login con Google',
     description: 'Redirige al usuario a la página de autenticación de Google.',
   })
-  async googleAuth(@Req() _req: Request) {
+  async googleAuth() {
     // El guardia inicia el flujo de OAuth2
   }
 
@@ -94,7 +94,7 @@ export class AuthController {
     // req.user contiene el usuario validado/creado por GoogleStrategy -> AuthService.validateGoogleUser
     const user = req.user;
     const isProduction = process.env.NODE_ENV === 'production';
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3001';
 
     // Verificar si el usuario tiene 2FA habilitado
     if (user.user.twoFactorEnabled) {
@@ -199,7 +199,7 @@ export class AuthController {
 
       if (result.status === 'complete') {
         // Login directo (sin 2FA)
-        const rememberMe = result.rememberMe || false;
+        const rememberMe = result.rememberMe ?? false;
         const refreshMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : undefined; // 30 days if rememberMe, else Session
 
         response.cookie('accessToken', result.accessToken, {
@@ -297,7 +297,7 @@ export class AuthController {
 
       response.statusCode = HttpStatus.OK;
       return response.send(responseBuilder.build());
-    } catch (error) {
+    } catch {
       responseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.InternalServerError)
@@ -383,7 +383,7 @@ export class AuthController {
 
     // Determinar si estamos en producción
     const isProduction = process.env.NODE_ENV === 'production';
-    const rememberMe = result.rememberMe || false;
+    const rememberMe = result.rememberMe ?? false;
     const refreshMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : undefined;
 
     // Establecer nuevo accessToken
@@ -567,7 +567,7 @@ export class AuthController {
     }
     // Determinar si estamos en producción
     const isProduction = process.env.NODE_ENV === 'production';
-    const rememberMe = result.rememberMe || false;
+    const rememberMe = result.rememberMe ?? false;
     const refreshMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : undefined;
 
     // Establecer accessToken en cookie httpOnly

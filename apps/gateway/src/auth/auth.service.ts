@@ -272,7 +272,7 @@ export class AuthService {
       if (!user.googleId) {
         user = await this.prisma.user.update({
           where: { id: user.id },
-          data: { googleId: details.googleId, avatar: user.avatar || details.avatar },
+          data: { googleId: details.googleId, avatar: user.avatar ?? details.avatar },
           include: { organization: true },
         });
       }
@@ -415,7 +415,7 @@ export class AuthService {
     rememberMe?: boolean,
     prismaClient?: any, // Optional transaction client
   ) {
-    const prisma = prismaClient || this.prisma;
+    const prisma = prismaClient ?? this.prisma;
     // 1. Crear payload para el JWT
     const payload: UserPayload = {
       sub: userId,
@@ -729,9 +729,9 @@ export class AuthService {
         },
         organization: {
           id: userPayload.organizationId,
-          name: organization?.name || '',
-          slug: organization?.slug || '',
-          plan: organization?.plan || 'free',
+          name: organization?.name ?? '',
+          slug: organization?.slug ?? '',
+          plan: organization?.plan ?? 'free',
         },
         ...tokens,
         rememberMe: userPayload.rememberMe,
