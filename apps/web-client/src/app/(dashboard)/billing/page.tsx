@@ -54,7 +54,7 @@ export default function BillingPage() {
   const currentOverageLimit = subscriptionDetails?.customOverageLimit ?? 0;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-10 pb-20">
+    <div className="space-y-10 pb-20">
       {/* Header */}
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div className="space-y-2">

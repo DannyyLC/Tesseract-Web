@@ -158,7 +158,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 pb-16">
+    <div className="space-y-6 pb-16">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
