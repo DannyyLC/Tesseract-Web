@@ -50,7 +50,7 @@ export default function FilterDropdown({
         observer.disconnect();
       };
     },
-    [isLoadingMore, hasMore, onReachEnd]
+    [isLoadingMore, hasMore, onReachEnd],
   );
 
   // Close on click outside

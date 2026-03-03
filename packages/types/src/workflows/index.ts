@@ -1,7 +1,6 @@
 import { PaginatedResponse } from '../api/api_response';
 import { WorkflowCategory } from '../billing/plans';
 
-
 export interface DashboardExecutionDto {
   status: string;
   startedAt: string;

@@ -2,7 +2,17 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Key, LogOut, User as UserIcon, Mail, Calendar, Building2, ShieldCheck, MonitorX } from 'lucide-react';
+import {
+  Shield,
+  Key,
+  LogOut,
+  User as UserIcon,
+  Mail,
+  Calendar,
+  Building2,
+  ShieldCheck,
+  MonitorX,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUser } from '@/hooks/useUsers';
 import { LogoLoader } from '@/components/ui/logo-loader';
@@ -36,7 +46,9 @@ export default function ProfilePage() {
   if (!authUser || !userDetails) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
-        <p className="text-black/50 dark:text-white/50">No se pudo cargar la información del usuario</p>
+        <p className="text-black/50 dark:text-white/50">
+          No se pudo cargar la información del usuario
+        </p>
       </div>
     );
   }
@@ -241,8 +253,6 @@ export default function ProfilePage() {
               Cerrar todas
             </button>
           </div>
-
-
         </div>
       </motion.div>
 

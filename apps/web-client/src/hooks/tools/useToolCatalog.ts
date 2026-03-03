@@ -32,8 +32,6 @@ export function useToolCatalog(params: UseToolCatalogParams = {}) {
 /**
  * Helper para aplanar las páginas del catálogo en un array plano.
  */
-export function flattenToolCatalog(
-  data: ReturnType<typeof useToolCatalog>['data']
-): GetToolsDto[] {
+export function flattenToolCatalog(data: ReturnType<typeof useToolCatalog>['data']): GetToolsDto[] {
   return data?.pages.flatMap((page) => page.items) ?? [];
 }

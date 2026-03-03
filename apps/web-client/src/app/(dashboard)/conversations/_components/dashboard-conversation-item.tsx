@@ -105,7 +105,7 @@ export default function DashboardConversationItem({
         { id: conversation.id, data: { title: renameValue } },
         {
           onSuccess: () => setIsEditing(false),
-        }
+        },
       );
     } else {
       setRenameValue(conversation.title || '');

@@ -20,11 +20,13 @@ class TenantToolsApi {
    * Dashboard de tenant tools con cursor pagination.
    * Endpoint: GET /tenant-tool/dashboard
    */
-  public async getDashboardData(params: {
-    cursor?: string | null;
-    pageSize?: number;
-    action?: 'next' | 'prev' | null;
-  } = {}): Promise<PaginatedResponse<DashboardTenantToolDto>> {
+  public async getDashboardData(
+    params: {
+      cursor?: string | null;
+      pageSize?: number;
+      action?: 'next' | 'prev' | null;
+    } = {},
+  ): Promise<PaginatedResponse<DashboardTenantToolDto>> {
     const queryParams = new URLSearchParams();
 
     if (params.cursor) queryParams.append('cursor', params.cursor);
@@ -34,9 +36,8 @@ class TenantToolsApi {
     const queryString = queryParams.toString();
     const url = `${TenantToolsApi.BASE_URL}/dashboard${queryString ? `?${queryString}` : ''}`;
 
-    const result = await this.apiRequestManager.get<
-      ApiResponse<PaginatedResponse<DashboardTenantToolDto>>
-    >(url);
+    const result =
+      await this.apiRequestManager.get<ApiResponse<PaginatedResponse<DashboardTenantToolDto>>>(url);
 
     if (!result.data.data) {
       throw new Error('No data received from tenant tool dashboard endpoint');
@@ -51,7 +52,7 @@ class TenantToolsApi {
    */
   public async getById(id: string): Promise<DashboardTenantToolDto | null> {
     const result = await this.apiRequestManager.get<ApiResponse<DashboardTenantToolDto>>(
-      `${TenantToolsApi.BASE_URL}/${id}`
+      `${TenantToolsApi.BASE_URL}/${id}`,
     );
     return result.data.data ?? null;
   }
@@ -63,7 +64,7 @@ class TenantToolsApi {
   public async create(data: CreateTenantToolDto): Promise<CreateTenantToolDto | null> {
     const result = await this.apiRequestManager.post<ApiResponse<CreateTenantToolDto>>(
       `${TenantToolsApi.BASE_URL}/create`,
-      data
+      data,
     );
     return result.data.data ?? null;
   }
@@ -75,7 +76,7 @@ class TenantToolsApi {
   public async update(id: string, data: UpdateTenantToolDto): Promise<UpdateTenantToolDto | null> {
     const result = await this.apiRequestManager.put<ApiResponse<UpdateTenantToolDto>>(
       `${TenantToolsApi.BASE_URL}/update/${id}`,
-      data
+      data,
     );
     return result.data.data ?? null;
   }
@@ -88,7 +89,7 @@ class TenantToolsApi {
     const body: WorkflowIdsDto = { workflowIds };
     const result = await this.apiRequestManager.post<ApiResponse<void>>(
       `${TenantToolsApi.BASE_URL}/add-workflows/${id}`,
-      body
+      body,
     );
     return result.data.success;
   }
@@ -101,7 +102,7 @@ class TenantToolsApi {
     const body: WorkflowIdsDto = { workflowIds };
     const result = await this.apiRequestManager.post<ApiResponse<void>>(
       `${TenantToolsApi.BASE_URL}/remove-workflows/${id}`,
-      body
+      body,
     );
     return result.data.success;
   }
@@ -112,7 +113,7 @@ class TenantToolsApi {
    */
   public async disconnect(toolId: string): Promise<boolean> {
     const result = await this.apiRequestManager.delete<ApiResponse<boolean>>(
-      `${TenantToolsApi.BASE_URL}/disconnect/${toolId}`
+      `${TenantToolsApi.BASE_URL}/disconnect/${toolId}`,
     );
     return result.data.success;
   }
@@ -123,11 +124,10 @@ class TenantToolsApi {
    */
   public async deleteTool(toolId: string): Promise<boolean> {
     const result = await this.apiRequestManager.delete<ApiResponse<boolean>>(
-      `${TenantToolsApi.BASE_URL}/${toolId}`
+      `${TenantToolsApi.BASE_URL}/${toolId}`,
     );
     return result.data.success;
   }
 }
-
 
 export default TenantToolsApi;

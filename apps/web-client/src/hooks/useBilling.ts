@@ -79,7 +79,13 @@ export function useBillingMutations() {
   });
 
   const toggleOverages = useMutation({
-    mutationFn: async ({ allowOverages, overageLimit }: { allowOverages: boolean; overageLimit?: number }) => {
+    mutationFn: async ({
+      allowOverages,
+      overageLimit,
+    }: {
+      allowOverages: boolean;
+      overageLimit?: number;
+    }) => {
       const api = RootApi.getInstance().getBillingApi();
       return await api.toggleOverages(allowOverages, overageLimit);
     },

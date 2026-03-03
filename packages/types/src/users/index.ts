@@ -80,9 +80,7 @@ export interface UpdateProfileDto {
   timezone?: string;
 }
 
-
 export interface LeaveOrganizationDto {
   confirmationText: string;
   code2FA?: string;
 }
-

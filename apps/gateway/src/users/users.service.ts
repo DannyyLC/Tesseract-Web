@@ -162,7 +162,7 @@ export class UsersService {
     organizationId: string,
     data: UpdateProfileDto,
   ): Promise<User | null> {
-    var user = null;
+    let user = null;
     try {
       // Verificar que el usuario existe y pertenece a la org
       await this.findOne(userId, organizationId);

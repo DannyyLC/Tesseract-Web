@@ -10,11 +10,21 @@ export const metadata: Metadata = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+function Section({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section id={id} className="scroll-mt-24">
-      <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
-      <div className="space-y-3 text-[var(--text-secondary)] leading-relaxed">{children}</div>
+      <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
+        {title}
+      </h2>
+      <div className="space-y-3 leading-relaxed text-[var(--text-secondary)]">{children}</div>
     </section>
   );
 }
@@ -91,7 +101,6 @@ export default function PoliciesPage() {
 
         {/* Body */}
         <article className="min-w-0 flex-1 space-y-12">
-
           {/* Cancelación */}
           <Section id="cancelacion" title="Política de Cancelación">
             <p>

@@ -16,10 +16,26 @@ interface ConnectedToolCardProps {
 }
 
 const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }> = {
-  active:    { dot: 'bg-emerald-500', label: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', text: 'Conectado' },
-  connected: { dot: 'bg-emerald-500', label: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', text: 'Conectado' },
-  error:     { dot: 'bg-red-500',     label: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400',                 text: 'Error' },
-  pending:   { dot: 'bg-amber-500',   label: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400',         text: 'Pendiente' },
+  active: {
+    dot: 'bg-emerald-500',
+    label: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
+    text: 'Conectado',
+  },
+  connected: {
+    dot: 'bg-emerald-500',
+    label: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
+    text: 'Conectado',
+  },
+  error: {
+    dot: 'bg-red-500',
+    label: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400',
+    text: 'Error',
+  },
+  pending: {
+    dot: 'bg-amber-500',
+    label: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
+    text: 'Pendiente',
+  },
 };
 
 export function ConnectedToolCard({
@@ -59,11 +75,15 @@ export function ConnectedToolCard({
         <p className="text-xs text-black/40 dark:text-white/40">
           {tool.toolCatalog.displayName} · {tool.toolCatalog.category}
         </p>
-        <p className="mt-0.5 text-xs text-black/30 dark:text-white/30">Conectado el {connectedDate}</p>
+        <p className="mt-0.5 text-xs text-black/30 dark:text-white/30">
+          Conectado el {connectedDate}
+        </p>
       </div>
 
       {/* Status badge */}
-      <span className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium sm:flex ${status.label}`}>
+      <span
+        className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium sm:flex ${status.label}`}
+      >
         <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
         {status.text}
       </span>
@@ -79,14 +99,14 @@ export function ConnectedToolCard({
 
         {menuOpen && (
           <>
-            <div
-              className="fixed inset-0 z-10"
-              onClick={() => setMenuOpen(false)}
-            />
+            <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
             <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-black/5 bg-white shadow-xl dark:border-white/5 dark:bg-[#111]">
               {(tool.status === 'pending' || tool.status === 'error') && hasCredentials && (
                 <button
-                  onClick={() => { setMenuOpen(false); onConfigCredentials?.(tool.id); }}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onConfigCredentials?.(tool.id);
+                  }}
                   className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-black/70 transition-colors hover:bg-black/5 hover:text-black dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white"
                 >
                   <KeyRound size={14} />
@@ -94,7 +114,10 @@ export function ConnectedToolCard({
                 </button>
               )}
               <button
-                onClick={() => { setMenuOpen(false); onRename?.(tool.id); }}
+                onClick={() => {
+                  setMenuOpen(false);
+                  onRename?.(tool.id);
+                }}
                 className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-black/70 transition-colors hover:bg-black/5 hover:text-black dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white"
               >
                 <Pencil size={14} />
@@ -103,7 +126,10 @@ export function ConnectedToolCard({
               <div className="mx-3 my-1 h-px bg-black/5 dark:bg-white/5" />
               {tool.isConnected && hasCredentials && (
                 <button
-                  onClick={() => { setMenuOpen(false); onDisconnectCredentials?.(tool.id); }}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onDisconnectCredentials?.(tool.id);
+                  }}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
                 >
                   <Unplug size={14} />
@@ -111,7 +137,10 @@ export function ConnectedToolCard({
                 </button>
               )}
               <button
-                onClick={() => { setMenuOpen(false); onDelete?.(tool.id); }}
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDelete?.(tool.id);
+                }}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
               >
                 <Trash2 size={14} />

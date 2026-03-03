@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import {
   LayoutDashboard,
   Workflow,
@@ -56,12 +57,30 @@ const navSections: NavSection[] = [
 export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
 
+  const { data: user } = useAuth();
+  const role = user?.role || 'viewer';
+
   const isActiveRoute = (href: string) => {
     if (href === '/dashboard') {
       return pathname === '/dashboard' || pathname === '/';
     }
     return pathname.startsWith(href);
   };
+
+  const filteredNavSections = navSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        if (item.href === '/billing') {
+          return role === 'owner' || role === 'admin';
+        }
+        if (item.href === '/settings') {
+          return role === 'owner';
+        }
+        return true;
+      }),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <aside
@@ -92,7 +111,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
-        {navSections.map((section, sectionIndex) => (
+        {filteredNavSections.map((section, sectionIndex) => (
           <div key={section.title} className={sectionIndex > 0 ? 'mt-6' : ''}>
             {!isCollapsed && (
               <p className="mb-2 px-3 text-xs font-semibold tracking-wider text-black/30 dark:text-white/30">

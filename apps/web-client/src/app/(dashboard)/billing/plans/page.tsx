@@ -29,10 +29,10 @@ export default function PlansPage() {
 
   // Derive subscription state
   const subscription = {
-      plan: dashboardData?.plan || SubscriptionPlan.FREE,
-      status: dashboardData?.status,
-      currentPeriodEnd: dashboardData?.nextBillingDate,
-      cancelAtPeriodEnd: dashboardData?.cancelAtPeriodEnd
+    plan: dashboardData?.plan || SubscriptionPlan.FREE,
+    status: dashboardData?.status,
+    currentPeriodEnd: dashboardData?.nextBillingDate,
+    cancelAtPeriodEnd: dashboardData?.cancelAtPeriodEnd,
   };
 
   const handlePlanSelect = (planType: string) => {
@@ -46,14 +46,14 @@ export default function PlansPage() {
       return;
     }
 
-    const plan = plansData?.find(p => p.type === planType);
+    const plan = plansData?.find((p) => p.type === planType);
     if (plan) setSelectedPlan(plan);
   };
 
   const handleProceedWithAdvice = () => {
     setShowAdviceModal(false);
     if (pendingPlanType) {
-      const plan = plansData?.find(p => p.type === pendingPlanType);
+      const plan = plansData?.find((p) => p.type === pendingPlanType);
       if (plan) setSelectedPlan(plan);
       setPendingPlanType(null);
     }
@@ -85,8 +85,11 @@ export default function PlansPage() {
     }
   };
 
-  const currentPlanDetails = plansData?.find(p => p.type === subscription.plan);
-  const isUpgrade = selectedPlan && currentPlanDetails && selectedPlan.price.monthly > currentPlanDetails.price.monthly;
+  const currentPlanDetails = plansData?.find((p) => p.type === subscription.plan);
+  const isUpgrade =
+    selectedPlan &&
+    currentPlanDetails &&
+    selectedPlan.price.monthly > currentPlanDetails.price.monthly;
 
   if (isLoadingDashboard || isLoadingPlans) {
     return <Loading />;
@@ -96,9 +99,9 @@ export default function PlansPage() {
     <div className="mx-auto max-w-7xl space-y-12 pb-20">
       {/* Back Navigation */}
       <div>
-       <button 
-           onClick={() => router.back()}
-           className="group flex items-center gap-2 text-sm font-medium text-black/50 transition-colors hover:text-black dark:text-white/50 dark:hover:text-white"
+        <button
+          onClick={() => router.back()}
+          className="group flex items-center gap-2 text-sm font-medium text-black/50 transition-colors hover:text-black dark:text-white/50 dark:hover:text-white"
         >
           <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
           Atrás
@@ -107,18 +110,18 @@ export default function PlansPage() {
 
       {/* Header */}
       <div className="space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight text-black dark:text-white">
-            Planes de Suscripción 
-          </h1>
-          <p className="max-w-xl font-medium text-black/50 dark:text-white/50">
-            Administra tu plan actual, actualiza tu suscripción o cancela el servicio.
-          </p>
+        <h1 className="text-4xl font-bold tracking-tight text-black dark:text-white">
+          Planes de Suscripción
+        </h1>
+        <p className="max-w-xl font-medium text-black/50 dark:text-white/50">
+          Administra tu plan actual, actualiza tu suscripción o cancela el servicio.
+        </p>
       </div>
 
-       {/* Main Pricing Grid */}
-       <div className="space-y-8">
+      {/* Main Pricing Grid */}
+      <div className="space-y-8">
         <PlanGrid
-          plans={(plansData || []).filter(plan => plan.type !== SubscriptionPlan.ENTERPRISE)}
+          plans={(plansData || []).filter((plan) => plan.type !== SubscriptionPlan.ENTERPRISE)}
           currentPlan={subscription.plan}
           onUpgrade={handlePlanSelect}
           upgradingPlan={upgradingPlan}
@@ -133,7 +136,9 @@ export default function PlansPage() {
             disabled={subscription.cancelAtPeriodEnd}
             className="group flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-6 py-3 text-sm font-bold text-red-500/70 shadow-sm transition-all hover:border-red-500 hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
           >
-            {subscription.cancelAtPeriodEnd ? 'Cancelación Programada' : 'Cancelar suscripción actual'}
+            {subscription.cancelAtPeriodEnd
+              ? 'Cancelación Programada'
+              : 'Cancelar suscripción actual'}
           </button>
           <p className="text-[10px] font-medium uppercase tracking-widest text-black/30 dark:text-white/30">
             Al cancelar, mantendrás tus beneficios hasta el final del periodo
@@ -150,27 +155,33 @@ export default function PlansPage() {
         >
           <div className="space-y-4">
             <p className="text-sm text-black/70 dark:text-white/70">
-              Estás a punto de cambiar tu suscripción al plan <strong className="text-black dark:text-white">{selectedPlan.name}</strong> (${selectedPlan.price.monthly}/{selectedPlan.price.currency}).
+              Estás a punto de cambiar tu suscripción al plan{' '}
+              <strong className="text-black dark:text-white">{selectedPlan.name}</strong> ($
+              {selectedPlan.price.monthly}/{selectedPlan.price.currency}).
             </p>
-            
+
             {isUpgrade ? (
-               <div className="rounded-lg bg-blue-500/10 p-4 text-sm text-blue-600 dark:text-blue-400">
-                  <p><strong>Actualización Inmediata:</strong></p>
-                  <ul className="mt-2 list-disc pl-4 space-y-1">
-                    <li>Se cobrará el total de la nueva suscripción ahora.</li>
-                    <li>Los nuevos créditos se sumarán a tu balance actual.</li>
-                    <li>Tu fecha de facturación se reiniciará al día de hoy.</li>
-                  </ul>
-               </div>
+              <div className="rounded-lg bg-blue-500/10 p-4 text-sm text-blue-600 dark:text-blue-400">
+                <p>
+                  <strong>Actualización Inmediata:</strong>
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-4">
+                  <li>Se cobrará el total de la nueva suscripción ahora.</li>
+                  <li>Los nuevos créditos se sumarán a tu balance actual.</li>
+                  <li>Tu fecha de facturación se reiniciará al día de hoy.</li>
+                </ul>
+              </div>
             ) : (
-               <div className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-600 dark:text-amber-400">
-                  <p><strong>Cambio Programado:</strong></p>
-                   <ul className="mt-2 list-disc pl-4 space-y-1">
-                    <li>Tu plan actual seguirá activo hasta el final del periodo.</li>
-                    <li>El nuevo precio se cobrará en tu próxima fecha de renovación.</li>
-                    <li>Disfrutarás de los beneficios actuales hasta entonces.</li>
-                  </ul>
-               </div>
+              <div className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-600 dark:text-amber-400">
+                <p>
+                  <strong>Cambio Programado:</strong>
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-4">
+                  <li>Tu plan actual seguirá activo hasta el final del periodo.</li>
+                  <li>El nuevo precio se cobrará en tu próxima fecha de renovación.</li>
+                  <li>Disfrutarás de los beneficios actuales hasta entonces.</li>
+                </ul>
+              </div>
             )}
 
             <div className="flex justify-end gap-3 pt-4">
@@ -199,26 +210,28 @@ export default function PlansPage() {
         title="Sugerencia antes de contratar"
       >
         <div className="space-y-4">
-           <div className="rounded-lg bg-blue-500/10 p-4 text-sm text-blue-600 dark:text-blue-400">
-              <p>
-                Te sugiero que antes de contratar el plan te comuniques con nosotros para crear tus workflows, porque actualmente no podrías aprovechar todos los beneficios de la suscripción.
-              </p>
-           </div>
-           
-           <div className="flex justify-end gap-3 pt-4">
-              <button
-                onClick={handleProceedWithAdvice}
-                className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-black dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
-              >
-                Continuar de todos modos
-              </button>
-              <button
-                onClick={() => router.push('/support?reason=upgrade')}
-                className="flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-bold text-white hover:opacity-90 dark:bg-white dark:text-black"
-              >
-                Contactar Soporte
-              </button>
-            </div>
+          <div className="rounded-lg bg-blue-500/10 p-4 text-sm text-blue-600 dark:text-blue-400">
+            <p>
+              Te sugiero que antes de contratar el plan te comuniques con nosotros para crear tus
+              workflows, porque actualmente no podrías aprovechar todos los beneficios de la
+              suscripción.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              onClick={handleProceedWithAdvice}
+              className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-black dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
+            >
+              Continuar de todos modos
+            </button>
+            <button
+              onClick={() => router.push('/support?reason=upgrade')}
+              className="flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-bold text-white hover:opacity-90 dark:bg-white dark:text-black"
+            >
+              Contactar Soporte
+            </button>
+          </div>
         </div>
       </Modal>
 
@@ -228,33 +241,38 @@ export default function PlansPage() {
         title="Cancelar Suscripción"
       >
         <div className="space-y-4">
-           <div className="rounded-lg bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
-              <p className="font-bold mb-2">¿Estás seguro de que deseas cancelar?</p>
-              <p>
-                Perderás acceso a tus beneficios premium al finalizar el periodo de facturación actual.
-              </p>
-           </div>
-           
-           <p className="text-xs text-black/50 dark:text-white/50">
-             Si cancelas ahora, tu acceso continuará hasta el {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : 'final del periodo'}, pero no se renovará automáticamente.
-           </p>
+          <div className="rounded-lg bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
+            <p className="mb-2 font-bold">¿Estás seguro de que deseas cancelar?</p>
+            <p>
+              Perderás acceso a tus beneficios premium al finalizar el periodo de facturación
+              actual.
+            </p>
+          </div>
 
-           <div className="flex justify-end gap-3 pt-4">
-              <button
-                onClick={() => setShowCancelModal(false)}
-                className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-black dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
-              >
-                Mantener Suscripción
-              </button>
-              <button
-                onClick={confirmCancel}
-                disabled={isCanceling}
-                className="flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50"
-              >
-                {isCanceling && <Loader2 size={16} className="animate-spin" />}
-                Cancelar Suscripción
-              </button>
-            </div>
+          <p className="text-xs text-black/50 dark:text-white/50">
+            Si cancelas ahora, tu acceso continuará hasta el{' '}
+            {subscription.currentPeriodEnd
+              ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
+              : 'final del periodo'}
+            , pero no se renovará automáticamente.
+          </p>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              onClick={() => setShowCancelModal(false)}
+              className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-black dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
+            >
+              Mantener Suscripción
+            </button>
+            <button
+              onClick={confirmCancel}
+              disabled={isCanceling}
+              className="flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50"
+            >
+              {isCanceling && <Loader2 size={16} className="animate-spin" />}
+              Cancelar Suscripción
+            </button>
+          </div>
         </div>
       </Modal>
 
@@ -273,7 +291,7 @@ export default function PlansPage() {
 
       {/* Info Sections */}
       <div className="pt-10">
-         <InfoSections />
+        <InfoSections />
       </div>
     </div>
   );

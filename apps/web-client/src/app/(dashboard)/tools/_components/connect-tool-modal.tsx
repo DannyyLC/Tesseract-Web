@@ -47,7 +47,7 @@ export function ConnectToolModal({
 
   const toggleFunction = (name: string) => {
     setSelectedFunctions((prev) =>
-      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
     );
   };
 
@@ -117,7 +117,11 @@ export function ConnectToolModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={existingToolId ? 'Configurar credenciales' : `Conectar ${catalogTool?.displayName || 'Herramienta'}`}
+      title={
+        existingToolId
+          ? 'Configurar credenciales'
+          : `Conectar ${catalogTool?.displayName || 'Herramienta'}`
+      }
     >
       <div className="space-y-6 py-2">
         {isSuccess ? (
@@ -156,7 +160,9 @@ export function ConnectToolModal({
                     onClick={toggleAll}
                     className="text-[10px] font-bold uppercase tracking-wider text-black/40 hover:text-black dark:text-white/40 dark:hover:text-white"
                   >
-                    {selectedFunctions.length === functions.length ? 'Desmarcar todas' : 'Marcar todas'}
+                    {selectedFunctions.length === functions.length
+                      ? 'Desmarcar todas'
+                      : 'Marcar todas'}
                   </button>
                 </div>
                 <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
@@ -170,16 +176,24 @@ export function ConnectToolModal({
                           : 'border-black/5 bg-black/[0.02] hover:bg-black/[0.04] dark:border-white/5 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]'
                       }`}
                     >
-                      <div className={`flex h-5 w-5 items-center justify-center rounded-md border ${
-                        selectedFunctions.includes(fn.functionName)
-                          ? 'border-black bg-black text-white dark:border-white dark:bg-white dark:text-black'
-                          : 'border-black/20 bg-white dark:border-white/20 dark:bg-white/5'
-                      }`}>
-                        {selectedFunctions.includes(fn.functionName) && <Check size={12} strokeWidth={3} />}
+                      <div
+                        className={`flex h-5 w-5 items-center justify-center rounded-md border ${
+                          selectedFunctions.includes(fn.functionName)
+                            ? 'border-black bg-black text-white dark:border-white dark:bg-white dark:text-black'
+                            : 'border-black/20 bg-white dark:border-white/20 dark:bg-white/5'
+                        }`}
+                      >
+                        {selectedFunctions.includes(fn.functionName) && (
+                          <Check size={12} strokeWidth={3} />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <DynamicIcon name={fn.icon} size={14} className="text-black/40 dark:text-white/40" />
+                          <DynamicIcon
+                            name={fn.icon}
+                            size={14}
+                            className="text-black/40 dark:text-white/40"
+                          />
                           <p className="truncate text-xs font-semibold text-black dark:text-white">
                             {fn.displayName}
                           </p>
@@ -229,7 +243,8 @@ export function ConnectToolModal({
                   ) : (
                     <>
                       {isGoogle ? <GoogleIcon /> : <KeyRound size={18} />}
-                      {existingToolId ? 'Re-conectar con' : 'Conectar con'} {isGoogle ? 'Google' : provider}
+                      {existingToolId ? 'Re-conectar con' : 'Conectar con'}{' '}
+                      {isGoogle ? 'Google' : provider}
                     </>
                   )}
                 </button>

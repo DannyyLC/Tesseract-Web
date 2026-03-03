@@ -25,7 +25,7 @@ class BillingApi {
   public async createCheckoutSession(plan: string | SubscriptionPlan): Promise<CheckoutResponse> {
     const response = await this.apiRequestManager.post<CheckoutResponse>(
       `${BillingApi.BASE_URL}/checkout`,
-      { plan }
+      { plan },
     );
     return response.data;
   }
@@ -36,7 +36,7 @@ class BillingApi {
    */
   public async createPortalSession(): Promise<PortalResponse> {
     const response = await this.apiRequestManager.post<PortalResponse>(
-      `${BillingApi.BASE_URL}/portal`
+      `${BillingApi.BASE_URL}/portal`,
     );
     return response.data;
   }
@@ -46,7 +46,9 @@ class BillingApi {
    * Endpoint: GET /billing/plans
    */
   public async getPlans(): Promise<BillingPlan[]> {
-    const response = await this.apiRequestManager.get<BillingPlan[]>(`${BillingApi.BASE_URL}/plans`);
+    const response = await this.apiRequestManager.get<BillingPlan[]>(
+      `${BillingApi.BASE_URL}/plans`,
+    );
     return response.data;
   }
 
@@ -56,7 +58,7 @@ class BillingApi {
    */
   public async getSubscription(): Promise<SubscriptionDetails> {
     const response = await this.apiRequestManager.get<SubscriptionDetails>(
-      `${BillingApi.BASE_URL}/subscription`
+      `${BillingApi.BASE_URL}/subscription`,
     );
     return response.data;
   }
@@ -69,7 +71,7 @@ class BillingApi {
     const data: UpdateSubscriptionDto = { plan };
     const response = await this.apiRequestManager.put<{ message: string }>(
       `${BillingApi.BASE_URL}/subscription`,
-      data
+      data,
     );
     return response.data;
   }
@@ -80,7 +82,7 @@ class BillingApi {
    */
   public async getDashboardData(): Promise<BillingDashboardData> {
     const response = await this.apiRequestManager.get<BillingDashboardData>(
-      `${BillingApi.BASE_URL}/dashboard`
+      `${BillingApi.BASE_URL}/dashboard`,
     );
     return response.data;
   }
@@ -91,7 +93,7 @@ class BillingApi {
    */
   public async cancelSubscription(): Promise<{ message: string }> {
     const response = await this.apiRequestManager.delete<{ message: string }>(
-      `${BillingApi.BASE_URL}/subscription`
+      `${BillingApi.BASE_URL}/subscription`,
     );
     return response.data;
   }
@@ -100,11 +102,14 @@ class BillingApi {
    * Toggles the overage setting for the organization.
    * Endpoint: PATCH /billing/overages
    */
-  public async toggleOverages(allowOverages: boolean, overageLimit?: number): Promise<SubscriptionDetails> {
+  public async toggleOverages(
+    allowOverages: boolean,
+    overageLimit?: number,
+  ): Promise<SubscriptionDetails> {
     const data: ToggleOveragesDto = { allowOverages, overageLimit };
     const response = await this.apiRequestManager.patch<SubscriptionDetails>(
       `${BillingApi.BASE_URL}/overages`,
-      data
+      data,
     );
     return response.data;
   }

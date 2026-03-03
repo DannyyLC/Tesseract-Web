@@ -8,7 +8,7 @@ interface CreditDisplayProps {
 
 export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDisplayProps) {
   const isNegative = balance < 0;
-  
+
   // Format number with commas
   const formattedBalance = Math.abs(balance).toLocaleString();
 
@@ -23,35 +23,38 @@ export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDi
           <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-widest opacity-60">
             {isNegative ? (
               <>
-                 <AlertCircle size={16} className="text-red-500" />
-                 <span className="text-red-400">Balance Negativo (Overdraft)</span>
+                <AlertCircle size={16} className="text-red-500" />
+                <span className="text-red-400">Balance Negativo (Overdraft)</span>
               </>
             ) : (
-                <span>Créditos Disponibles</span>
+              <span>Créditos Disponibles</span>
             )}
           </div>
-          
+
           <div className="flex items-baseline gap-1">
-             <motion.span 
-               initial={{ opacity: 0, y: 20 }}
-               animate={{ opacity: 1, y: 0 }}
-               className={`font-geist-mono text-7xl font-light tracking-tighter ${isNegative ? 'text-red-400' : ''}`}
-             >
-                {isNegative ? '-' : ''}{formattedBalance}
-             </motion.span>
-             <span className="text-xl font-medium opacity-40">créditos</span>
+            <motion.span
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`font-geist-mono text-7xl font-light tracking-tighter ${isNegative ? 'text-red-400' : ''}`}
+            >
+              {isNegative ? '-' : ''}
+              {formattedBalance}
+            </motion.span>
+            <span className="text-xl font-medium opacity-40">créditos</span>
           </div>
         </div>
 
         <div className="flex flex-col items-end gap-2">
-           <div className={`rounded-full px-4 py-1.5 text-sm font-medium backdrop-blur-md ${isNegative ? 'bg-red-500/20 text-red-200 dark:text-red-800' : 'bg-white/10 text-white dark:bg-black/10 dark:text-black'}`}>
-              {isNegative ? 'Pago pendiente' : 'Activo'}
-           </div>
-           {isNegative && (
-               <p className="max-w-[200px] text-right text-xs opacity-60">
-                   El consumo excedente se facturará en el próximo ciclo.
-               </p>
-           )}
+          <div
+            className={`rounded-full px-4 py-1.5 text-sm font-medium backdrop-blur-md ${isNegative ? 'bg-red-500/20 text-red-200 dark:text-red-800' : 'bg-white/10 text-white dark:bg-black/10 dark:text-black'}`}
+          >
+            {isNegative ? 'Pago pendiente' : 'Activo'}
+          </div>
+          {isNegative && (
+            <p className="max-w-[200px] text-right text-xs opacity-60">
+              El consumo excedente se facturará en el próximo ciclo.
+            </p>
+          )}
         </div>
       </div>
     </div>

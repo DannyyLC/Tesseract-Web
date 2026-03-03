@@ -123,6 +123,6 @@ export function useUserMutations() {
     updateUser,
     deleteUser,
     transferOwnership,
-    leaveOrganization
+    leaveOrganization,
   };
 }

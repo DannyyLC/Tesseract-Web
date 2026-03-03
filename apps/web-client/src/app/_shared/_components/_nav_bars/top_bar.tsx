@@ -177,28 +177,27 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-2xl border border-black/5 bg-white shadow-xl shadow-black/10 dark:border-white/5 dark:bg-[#141414] dark:shadow-black/30 sm:w-96"
+                    className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-2xl border border-black/5 bg-white shadow-xl shadow-black/10 sm:w-96 dark:border-white/5 dark:bg-[#141414] dark:shadow-black/30"
                   >
                     <div className="flex items-center justify-between border-b border-black/5 p-4 dark:border-white/5">
                       <h3 className="font-semibold text-black dark:text-white">Notificaciones</h3>
                       {unreadCount > 0 && (
-                          <button 
-                            onClick={() => setIsMarkReadModalOpen(true)}
-                            disabled={markAllAsRead.isPending}
-                            className="flex items-center gap-1 text-xs font-medium text-blue-500 hover:text-blue-600 disabled:opacity-50"
-                          >
-                            {markAllAsRead.isPending ? (
-                                <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                                <CheckCheck size={12} />
-                            )}
-                            Marcar leídas
-                          </button>
+                        <button
+                          onClick={() => setIsMarkReadModalOpen(true)}
+                          disabled={markAllAsRead.isPending}
+                          className="flex items-center gap-1 text-xs font-medium text-blue-500 hover:text-blue-600 disabled:opacity-50"
+                        >
+                          {markAllAsRead.isPending ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <CheckCheck size={12} />
+                          )}
+                          Marcar leídas
+                        </button>
                       )}
                     </div>
-                    
-                    <NotificationList />
 
+                    <NotificationList />
                   </motion.div>
                 )}
               </AnimatePresence>

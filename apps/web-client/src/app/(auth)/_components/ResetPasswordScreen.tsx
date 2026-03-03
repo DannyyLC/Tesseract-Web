@@ -38,7 +38,10 @@ export default function ResetPasswordScreen() {
       toast.success('Contraseña actualizada exitosamente. Por favor, inicia sesión.');
       router.push('/login');
     } catch (error: any) {
-      toast.error(error.message || 'Error al restablecer la contraseña. El código puede ser inválido o haber expirado.');
+      toast.error(
+        error.message ||
+          'Error al restablecer la contraseña. El código puede ser inválido o haber expirado.',
+      );
     }
   };
 
@@ -51,13 +54,14 @@ export default function ResetPasswordScreen() {
           className="pointer-events-none absolute inset-y-0 right-0 z-20 hidden dark:block"
           style={{
             width: '100%',
-            background: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0) 50%, #000000 100%)',
+            background:
+              'linear-gradient(to right, transparent 0%, rgba(0,0,0,0) 50%, #000000 100%)',
           }}
         />
         <div className="z-5 absolute inset-0 opacity-30 dark:opacity-20">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,black,transparent)]" />
         </div>
-        
+
         {/* Floating Geometric Elements */}
         <div className="absolute left-20 top-20 z-10 h-32 w-32 rotate-45 animate-[spin_20s_linear_infinite] rounded-lg border border-white/10" />
         <div className="absolute bottom-32 right-32 z-10 h-24 w-24 -rotate-12 animate-[spin_15s_linear_infinite_reverse] rounded-lg border border-white/5" />
@@ -77,13 +81,13 @@ export default function ResetPasswordScreen() {
             </div>
             <div>
               <h1 className="text-5xl font-bold tracking-tight text-white">Tesseract</h1>
-              <p className="mt-1 text-sm uppercase tracking-widest text-white/40">Automation Platform</p>
+              <p className="mt-1 text-sm uppercase tracking-widest text-white/40">
+                Automation Platform
+              </p>
             </div>
           </div>
           <div className="max-w-lg space-y-4 text-center">
-            <h2 className="text-3xl font-semibold leading-tight text-white">
-              Nueva contraseña
-            </h2>
+            <h2 className="text-3xl font-semibold leading-tight text-white">Nueva contraseña</h2>
             <p className="text-lg leading-relaxed text-white/60">
               Asegúrate de guardar tu nueva contraseña
             </p>
@@ -116,14 +120,14 @@ export default function ResetPasswordScreen() {
             </div>
 
             <div className="w-full max-w-md space-y-8">
-               <div className="space-y-2 text-center">
-                 <h2 className="text-3xl font-bold text-black dark:text-white">
-                   Restablecer contraseña
-                 </h2>
-                 <p className="text-black/60 dark:text-white/60">
-                   Ingresa el código que hemos enviado a tu correo junto con tu nueva contraseña.
-                 </p>
-               </div>
+              <div className="space-y-2 text-center">
+                <h2 className="text-3xl font-bold text-black dark:text-white">
+                  Restablecer contraseña
+                </h2>
+                <p className="text-black/60 dark:text-white/60">
+                  Ingresa el código que hemos enviado a tu correo junto con tu nueva contraseña.
+                </p>
+              </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">

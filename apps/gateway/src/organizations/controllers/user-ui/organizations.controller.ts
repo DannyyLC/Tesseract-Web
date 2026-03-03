@@ -76,7 +76,7 @@ export class OrganizationsController {
       return res.status(200).json(apiResponse.build());
     }
   }
-  
+
   @Delete('delete')
   @ApiOperation({ summary: 'Delete Organization', description: deleteOrganizationSwaggerDesc })
   @Roles(UserRole.OWNER)

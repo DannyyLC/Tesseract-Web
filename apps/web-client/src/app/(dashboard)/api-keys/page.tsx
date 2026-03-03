@@ -97,13 +97,13 @@ export default function ApiKeysPage() {
 
       if (node) observer.current.observe(node);
     },
-    [isLoadingWorkflows, isFetchingNextPage, hasNextPage, fetchNextPage]
+    [isLoadingWorkflows, isFetchingNextPage, hasNextPage, fetchNextPage],
   );
   const { createApiKey, updateApiKey, deleteApiKey } = useApiKeyMutations();
 
   // Filtered Keys
   const filteredKeys = apiKeys.filter((key) =>
-    key.name.toLowerCase().includes(searchQuery.toLowerCase())
+    key.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   // --- Handlers ---

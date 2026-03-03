@@ -17,10 +17,12 @@ export default function SpecializedCards() {
                 Socio Estratégico
               </h3>
               <div className="flex flex-col">
-                 <span className="font-bold font-geist-mono text-black dark:text-white">$600 MXN / sesión</span>
-                 <span className="text-[10px] uppercase tracking-wide text-black/40 dark:text-white/40">
-                   * Primer diagnóstico GRATIS
-                 </span>
+                <span className="font-geist-mono font-bold text-black dark:text-white">
+                  $600 MXN / sesión
+                </span>
+                <span className="text-[10px] uppercase tracking-wide text-black/40 dark:text-white/40">
+                  * Primer diagnóstico GRATIS
+                </span>
               </div>
             </div>
           </div>
@@ -82,19 +84,21 @@ export default function SpecializedCards() {
 
           <div className="mt-8 flex-1 space-y-3">
             <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-white/30">
-               TU INFRAESTRUCTURA IDEAL
+              TU INFRAESTRUCTURA IDEAL
             </p>
             <p className="flex items-center gap-2 text-xs font-medium text-white/70">
               <span className="h-1.5 w-1.5 rounded-full bg-white" /> Servidores Dedicados (Opcional)
             </p>
             <p className="flex items-center gap-2 text-xs font-medium text-white/70">
-              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Límite de Workflows Personalizable
+              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Límite de Workflows
+              Personalizable
             </p>
             <p className="flex items-center gap-2 text-xs font-medium text-white/70">
-              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Personalización Completa del Entorno
+              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Personalización Completa del
+              Entorno
             </p>
-             <p className="mt-2 text-[10px] italic text-white/30">
-               * Todo configurable según tus necesidades.
+            <p className="mt-2 text-[10px] italic text-white/30">
+              * Todo configurable según tus necesidades.
             </p>
           </div>
 

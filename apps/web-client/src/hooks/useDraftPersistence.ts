@@ -114,7 +114,7 @@ export function useDraftPersistence(conversationId: string, workflowId?: string)
         saveAllDrafts(drafts);
       }, DEBOUNCE_MS);
     },
-    [getStorageKey, getAllDrafts, saveAllDrafts]
+    [getStorageKey, getAllDrafts, saveAllDrafts],
   );
 
   // Limpiar borrador de la conversación actual
@@ -141,7 +141,7 @@ export function useDraftPersistence(conversationId: string, workflowId?: string)
         }
       }
     },
-    [conversationId, workflowId, getAllDrafts, saveAllDrafts]
+    [conversationId, workflowId, getAllDrafts, saveAllDrafts],
   );
 
   // Limpiar timer al desmontar

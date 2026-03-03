@@ -37,7 +37,7 @@ export default function WorkflowChatPage() {
   // Si conversationId es 'new', no intentamos cargar la conversación
   const isNewConversation = conversationId === 'new';
   const { data: conversationData, isLoading: isLoadingConversation } = useConversation(
-    isNewConversation ? '' : conversationId
+    isNewConversation ? '' : conversationId,
   );
 
   // Gestión de URL y router (Moved up for early access)
@@ -47,7 +47,7 @@ export default function WorkflowChatPage() {
 
   // Obtener detalles del workflow usando el ID de la conversación o el query param
   const { data: workflow, isLoading: isLoadingWorkflow } = useWorkflow(
-    conversationData?.workflowId || workflowIdFromUrl || ''
+    conversationData?.workflowId || workflowIdFromUrl || '',
   );
 
   // Obtener detalles del usuario
@@ -80,7 +80,7 @@ export default function WorkflowChatPage() {
   // Draft persistence
   const { loadDraft, saveDraft, clearDraft, migrateDraft } = useDraftPersistence(
     conversationId,
-    workflowIdFromUrl || conversationData?.workflowId
+    workflowIdFromUrl || conversationData?.workflowId,
   );
 
   // Ref para guardar el ID de conversación pendiente mientras se hace streaming
@@ -157,7 +157,7 @@ export default function WorkflowChatPage() {
           for (let i = serverMessages.length - 1; i >= 0; i--) {
             const sMsg = serverMessages[i];
             const lIndex = currentMessages.findIndex(
-              (m) => m.id === sMsg.id || (m.content === sMsg.content && m.role === sMsg.role)
+              (m) => m.id === sMsg.id || (m.content === sMsg.content && m.role === sMsg.role),
             );
             if (lIndex !== -1) {
               matchIndexInLocal = lIndex;
@@ -309,7 +309,7 @@ export default function WorkflowChatPage() {
             // Limpiar borrador después de confirmación del backend
             clearDraft();
           }
-        }
+        },
       );
     }
   };
@@ -355,7 +355,7 @@ export default function WorkflowChatPage() {
                         { id: conversationId, data: { title: renameValue } },
                         {
                           onSuccess: () => setIsEditing(false),
-                        }
+                        },
                       );
                     } else {
                       setIsEditing(false);
@@ -371,7 +371,7 @@ export default function WorkflowChatPage() {
                       { id: conversationId, data: { title: renameValue } },
                       {
                         onSuccess: () => setIsEditing(false),
-                      }
+                      },
                     );
                   } else {
                     setIsEditing(false);

@@ -2,7 +2,16 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, UserPlus, Edit3, Trash2, Loader2, Power, ArrowRightLeft, AlertTriangle } from 'lucide-react';
+import {
+  Search,
+  UserPlus,
+  Edit3,
+  Trash2,
+  Loader2,
+  Power,
+  ArrowRightLeft,
+  AlertTriangle,
+} from 'lucide-react';
 import { useUsersDashboard, useUserStats, useUserMutations } from '@/hooks/useUsers';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardUserDataDto, UserRole } from '@tesseract/types';
@@ -312,7 +321,7 @@ export default function UsersPage() {
                       <div className="relative">
                         <div
                           className={`h-12 w-12 rounded-full ${getAvatarColor(
-                            user.name
+                            user.name,
                           )} flex flex-shrink-0 items-center justify-center`}
                         >
                           <span className="font-semibold text-white">{getInitials(user.name)}</span>
@@ -471,11 +480,11 @@ export default function UsersPage() {
                           key={role}
                           type="button"
                           onClick={() => setEditFormData({ ...editFormData, role })}
-                            className={`rounded-xl border px-4 py-3 transition-all ${
-                              isSelected
-                                ? `bg-black/5 dark:bg-white/5 ring-2 ring-black dark:ring-white border-black dark:border-white`
-                                : 'border-black/5 bg-white hover:bg-black/5 dark:border-white/5 dark:bg-[#141414] dark:hover:bg-white/5'
-                            }`}
+                          className={`rounded-xl border px-4 py-3 transition-all ${
+                            isSelected
+                              ? `border-black bg-black/5 ring-2 ring-black dark:border-white dark:bg-white/5 dark:ring-white`
+                              : 'border-black/5 bg-white hover:bg-black/5 dark:border-white/5 dark:bg-[#141414] dark:hover:bg-white/5'
+                          }`}
                         >
                           <span className={`text-sm font-medium ${config.color}`}>
                             {config.label}
@@ -599,8 +608,8 @@ export default function UsersPage() {
                 </div>
                 <p className="mt-2 text-sm opacity-90">
                   Al transferir la propiedad, perderás tu estatus de Owner y te convertirás en
-                  Admin. El usuario <strong>{modalUser.name}</strong> tendrá control total sobre
-                  la organización.
+                  Admin. El usuario <strong>{modalUser.name}</strong> tendrá control total sobre la
+                  organización.
                 </p>
               </div>
 
@@ -629,9 +638,7 @@ export default function UsersPage() {
                   disabled={transferOwnership.isPending || confirmTransferName !== 'confirmar'}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-yellow-500 px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   title={
-                    confirmTransferName !== 'confirmar'
-                      ? 'Escribe "confirmar" para habilitar'
-                      : ''
+                    confirmTransferName !== 'confirmar' ? 'Escribe "confirmar" para habilitar' : ''
                   }
                 >
                   {transferOwnership.isPending ? (

@@ -1,4 +1,4 @@
 export interface ServiceInfoRequestDto {
-    userMsg?: string;
-    subject: string;
+  userMsg?: string;
+  subject: string;
 }

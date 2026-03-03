@@ -13,12 +13,14 @@ class ToolCatalogApi {
    * Obtiene el catálogo de tools con sus funciones (cursor pagination)
    * Endpoint: GET /tools-catalog
    */
-  public async getAllToolsWithFunctions(params: {
-    cursor?: string | null;
-    pageSize?: number;
-    action?: 'next' | 'prev' | null;
-    search?: string | null;
-  } = {}): Promise<PaginatedResponse<GetToolsDto>> {
+  public async getAllToolsWithFunctions(
+    params: {
+      cursor?: string | null;
+      pageSize?: number;
+      action?: 'next' | 'prev' | null;
+      search?: string | null;
+    } = {},
+  ): Promise<PaginatedResponse<GetToolsDto>> {
     const queryParams = new URLSearchParams();
 
     if (params.cursor) queryParams.append('cursor', params.cursor);
@@ -29,7 +31,8 @@ class ToolCatalogApi {
     const queryString = queryParams.toString();
     const url = `${ToolCatalogApi.BASE_URL}${queryString ? `?${queryString}` : ''}`;
 
-    const result = await this.apiRequestManager.get<ApiResponse<PaginatedResponse<GetToolsDto>>>(url);
+    const result =
+      await this.apiRequestManager.get<ApiResponse<PaginatedResponse<GetToolsDto>>>(url);
 
     if (!result.data.data) {
       throw new Error('No data received from tools catalog endpoint');

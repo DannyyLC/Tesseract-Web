@@ -1,10 +1,7 @@
+import { UpdateConversationDto, ConversationDetailDto } from '../../dto';
 import {
-  UpdateConversationDto,
-  ConversationDetailDto,
-} from '../../dto';
-import { 
-  DashboardConversationDto, 
-  ConversationsStatsDto as ConversationStatsDto 
+  DashboardConversationDto,
+  ConversationsStatsDto as ConversationStatsDto,
 } from '@tesseract/types';
 import { ConversationsService } from '../../conversations.service';
 import {
@@ -80,7 +77,6 @@ export class ConversationsController {
       .setSuccess(true);
     return res.status(200).json(apiResponse.build());
   }
-
 
   @Get('stats')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)

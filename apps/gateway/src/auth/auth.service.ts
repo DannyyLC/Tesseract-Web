@@ -1012,11 +1012,7 @@ export class AuthService {
     // Usar EmailService para generar y enviar el código
     const emailResult = await this.emailService.sendPasswordResetCodeByEmail(email);
 
-    if (
-      !emailResult ||
-      !emailResult.sentMessageInfo ||
-      emailResult.sentMessageInfo.success === false
-    ) {
+    if (!emailResult?.sentMessageInfo || emailResult.sentMessageInfo.success === false) {
       return ForgotPassErrors.SEND_EMAIL_ERROR;
     }
 

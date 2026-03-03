@@ -112,7 +112,6 @@ export class BillingController {
     return { url: sessionUrl };
   }
 
-
   @Post('portal')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER)

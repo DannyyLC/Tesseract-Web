@@ -61,7 +61,7 @@ export default function ConversationsPage() {
 
       if (node) modalObserver.current.observe(node);
     },
-    [isFetchingNextModalWorkflows, hasNextModalWorkflows, fetchNextModalWorkflows]
+    [isFetchingNextModalWorkflows, hasNextModalWorkflows, fetchNextModalWorkflows],
   );
 
   // Helper to update URL

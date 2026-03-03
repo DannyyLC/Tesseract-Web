@@ -72,7 +72,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar herramientas..."
-            className="w-full rounded-full border-none bg-black/5 py-2.5 pl-10 pr-4 text-sm text-black transition-all placeholder:text-black/30 hover:bg-black/8 focus:outline-none focus:ring-2 focus:ring-black/10 dark:bg-white/5 dark:text-white dark:placeholder:text-white/30 dark:focus:ring-white/10"
+            className="hover:bg-black/8 w-full rounded-full border-none bg-black/5 py-2.5 pl-10 pr-4 text-sm text-black transition-all placeholder:text-black/30 focus:outline-none focus:ring-2 focus:ring-black/10 dark:bg-white/5 dark:text-white dark:placeholder:text-white/30 dark:focus:ring-white/10"
           />
         </div>
       </div>

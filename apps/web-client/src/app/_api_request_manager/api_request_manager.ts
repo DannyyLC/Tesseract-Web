@@ -17,7 +17,7 @@ class ApiRequestManager {
         // Add auth token or other headers here
         return config;
       },
-      (error) => Promise.reject(error)
+      (error) => Promise.reject(error),
     );
     // Flag to prevent infinite loops
     let isRefreshing = false;
@@ -78,7 +78,7 @@ class ApiRequestManager {
         }
 
         return Promise.reject(customError);
-      }
+      },
     );
   }
 
@@ -96,7 +96,7 @@ class ApiRequestManager {
   public async post<T>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<AxiosResponse<T>> {
     return this.axiosInstance.post<T>(url, data, config);
   }
@@ -104,7 +104,7 @@ class ApiRequestManager {
   public async put<T>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<AxiosResponse<T>> {
     return this.axiosInstance.put<T>(url, data, config);
   }
@@ -116,7 +116,7 @@ class ApiRequestManager {
   public async patch<T>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<AxiosResponse<T>> {
     return this.axiosInstance.patch<T>(url, data, config);
   }

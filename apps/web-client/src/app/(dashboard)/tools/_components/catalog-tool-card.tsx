@@ -20,7 +20,12 @@ interface CatalogToolCardProps {
 
 const CATEGORY_STYLE = 'bg-black/5 text-black/60 dark:bg-white/5 dark:text-white/60';
 
-export function CatalogToolCard({ tool, index, connectedCount = 0, onConnect }: CatalogToolCardProps) {
+export function CatalogToolCard({
+  tool,
+  index,
+  connectedCount = 0,
+  onConnect,
+}: CatalogToolCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -97,7 +102,10 @@ export function CatalogToolCard({ tool, index, connectedCount = 0, onConnect }: 
               </p>
               <div className="space-y-2">
                 {tool.functions.map((fn) => (
-                  <div key={fn.id} className="group/fn rounded-lg border border-black/5 bg-black/[0.01] p-2 dark:border-white/5 dark:bg-white/[0.01]">
+                  <div
+                    key={fn.id}
+                    className="group/fn rounded-lg border border-black/5 bg-black/[0.01] p-2 dark:border-white/5 dark:bg-white/[0.01]"
+                  >
                     <div className="flex items-center gap-2">
                       <div className="flex h-5 w-5 items-center justify-center rounded bg-black/5 text-black/50 dark:bg-white/10 dark:text-white/50">
                         <DynamicIcon name={fn.icon} size={12} />

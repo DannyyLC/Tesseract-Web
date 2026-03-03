@@ -16,7 +16,6 @@ import { DisconnectCredentialsToolModal } from './disconnect-tool-modal';
 import { DeleteToolModal } from './delete-tool';
 import { ConnectToolModal } from './connect-tool-modal';
 
-
 interface MyToolsTabProps {
   onAddTool?: () => void;
   /** Called whenever the total count of connected tools changes — used by the parent for the badge. */
@@ -31,13 +30,24 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
   const { disconnectTool, deleteTool } = useTenantToolMutations();
 
   // Rename modal state
-  const [renameTarget, setRenameTarget] = useState<{ id: string; displayName: string } | null>(null);
+  const [renameTarget, setRenameTarget] = useState<{ id: string; displayName: string } | null>(
+    null,
+  );
   // Disconnect modal state
-  const [disconnectTarget, setDisconnectTarget] = useState<{ id: string; displayName: string } | null>(null);
+  const [disconnectTarget, setDisconnectTarget] = useState<{
+    id: string;
+    displayName: string;
+  } | null>(null);
   // Delete modal state
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; displayName: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; displayName: string } | null>(
+    null,
+  );
   // Connect/Config modal state
-  const [configTarget, setConfigTarget] = useState<{ id: string; displayName: string; provider: string | null } | null>(null);
+  const [configTarget, setConfigTarget] = useState<{
+    id: string;
+    displayName: string;
+    provider: string | null;
+  } | null>(null);
 
   // Notify parent of count changes so it can update the tab badge
   // without firing a separate API call
@@ -115,10 +125,7 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
     return (
       <div className="space-y-3">
         {[...Array(4)].map((_, i) => (
-          <div
-            key={i}
-            className="h-20 animate-pulse rounded-2xl bg-black/5 dark:bg-white/5"
-          />
+          <div key={i} className="h-20 animate-pulse rounded-2xl bg-black/5 dark:bg-white/5" />
         ))}
       </div>
     );
@@ -197,7 +204,7 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
           onConfirm={confirmDisconnect}
         />
       )}
-      
+
       {/* Delete confirmation modal */}
       {deleteTarget && (
         <DeleteToolModal

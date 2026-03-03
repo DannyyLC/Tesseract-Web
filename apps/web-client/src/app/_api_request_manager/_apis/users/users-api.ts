@@ -1,5 +1,10 @@
 import ApiRequestManager from '../../api_request_manager';
-import { DashboardUserDataDto, UpdateUserDto, ApiResponse, CursorPaginatedResponse } from '@tesseract/types';
+import {
+  DashboardUserDataDto,
+  UpdateUserDto,
+  ApiResponse,
+  CursorPaginatedResponse,
+} from '@tesseract/types';
 
 class UsersApi {
   public apiRequestManager: ApiRequestManager;
@@ -20,7 +25,7 @@ class UsersApi {
       search?: string;
       role?: string;
       isActive?: boolean;
-    } = {}
+    } = {},
   ): Promise<CursorPaginatedResponse<DashboardUserDataDto>> {
     const queryParams = new URLSearchParams();
     if (params.cursor) queryParams.append('cursor', params.cursor);
@@ -35,7 +40,7 @@ class UsersApi {
 
     const result =
       await this.apiRequestManager.get<ApiResponse<CursorPaginatedResponse<DashboardUserDataDto>>>(
-        url
+        url,
       );
     return result.data.data!;
   }
@@ -55,7 +60,7 @@ class UsersApi {
    */
   public async findOne(id: string): Promise<DashboardUserDataDto> {
     const result = await this.apiRequestManager.get<ApiResponse<DashboardUserDataDto>>(
-      `${UsersApi.BASE_URL}/${id}`
+      `${UsersApi.BASE_URL}/${id}`,
     );
     return result.data.data!;
   }
@@ -66,7 +71,7 @@ class UsersApi {
   public async update(id: string, data: UpdateUserDto): Promise<DashboardUserDataDto> {
     const result = await this.apiRequestManager.patch<ApiResponse<DashboardUserDataDto>>(
       `${UsersApi.BASE_URL}/${id}`,
-      data
+      data,
     );
     return result.data.data!;
   }
@@ -84,7 +89,7 @@ class UsersApi {
   public async transferOwnership(id: string): Promise<void> {
     await this.apiRequestManager.patch<ApiResponse<void>>(
       `${UsersApi.BASE_URL}/${id}/transfer-ownership`,
-      {}
+      {},
     );
   }
 
@@ -97,7 +102,7 @@ class UsersApi {
   }): Promise<{ message: string }> {
     const result = await this.apiRequestManager.delete<ApiResponse<{ message: string }>>(
       `${UsersApi.BASE_URL}/me/organization`,
-      { data }
+      { data },
     );
     return result.data.data!;
   }

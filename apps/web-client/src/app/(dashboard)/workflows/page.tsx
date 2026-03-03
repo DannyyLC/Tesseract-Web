@@ -61,7 +61,7 @@ export default function WorkflowsPage() {
 
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
-    [searchParams, pathname, router]
+    [searchParams, pathname, router],
   );
 
   // Debounce Search Effect
@@ -87,7 +87,7 @@ export default function WorkflowsPage() {
     pageAction,
     debouncedSearch || undefined,
     apiIsActive,
-    selectedCategory
+    selectedCategory,
   );
 
   const workflows = workflowsData?.items ?? [];
@@ -129,7 +129,8 @@ export default function WorkflowsPage() {
     try {
       await requestServiceInfo.mutateAsync({
         subject: 'Implementación de nuevo Workflow',
-        userMsg: 'El usuario solicita una reunión para definir requerimientos de un nuevo workflow.',
+        userMsg:
+          'El usuario solicita una reunión para definir requerimientos de un nuevo workflow.',
       });
       toast.success('Solicitud enviada. Por favor, selecciona un horario para nuestra reunión.');
       setIsCreateModalOpen(false);
@@ -251,7 +252,7 @@ export default function WorkflowsPage() {
                     {getCategoryCount(cat)}
                   </span>
                 </div>
-              )
+              ),
             )}
           </div>
         </motion.div>
@@ -366,7 +367,7 @@ export default function WorkflowsPage() {
                   Para crear un nuevo workflow, necesitamos entender tus requerimientos específicos.
                 </p>
                 <p className="text-sm text-black/60 dark:text-white/60">
-                  Al confirmar, enviaremos una solicitud a nuestro equipo para agendar una reunión y 
+                  Al confirmar, enviaremos una solicitud a nuestro equipo para agendar una reunión y
                   definir los detalles de tu nueva automatización.
                 </p>
               </div>
@@ -383,9 +384,7 @@ export default function WorkflowsPage() {
                   disabled={requestServiceInfo.isPending}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-white dark:text-black"
                 >
-                  {requestServiceInfo.isPending && (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  )}
+                  {requestServiceInfo.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                   Solicitar Reunión
                 </button>
               </div>

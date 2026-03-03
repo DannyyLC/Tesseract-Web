@@ -90,7 +90,7 @@ export class BillingService {
       customer: customerId,
       return_url: returnUrl,
     });
-    return session.url as string;
+    return session.url;
   }
 
   /**

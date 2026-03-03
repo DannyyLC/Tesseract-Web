@@ -4,17 +4,26 @@ import LegalToc from '../_components/LegalToc';
 
 export const metadata: Metadata = {
   title: 'Política de Privacidad de Datos · Fractal',
-  description:
-    'Política de privacidad y protección de datos de Fractal, conforme a la LFPDPPP.',
+  description: 'Política de privacidad y protección de datos de Fractal, conforme a la LFPDPPP.',
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+function Section({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section id={id} className="scroll-mt-24">
-      <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
-      <div className="space-y-3 text-[var(--text-secondary)] leading-relaxed">{children}</div>
+      <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
+        {title}
+      </h2>
+      <div className="space-y-3 leading-relaxed text-[var(--text-secondary)]">{children}</div>
     </section>
   );
 }
@@ -74,8 +83,8 @@ export default function PrivacyPage() {
           Privacidad de Datos
         </h1>
         <p className="max-w-2xl text-[var(--text-secondary)]">
-          Descripción de cómo Fractal gestiona, protege y procesa los datos del Cliente, conforme
-          a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares
+          Descripción de cómo Fractal gestiona, protege y procesa los datos del Cliente, conforme a
+          la Ley Federal de Protección de Datos Personales en Posesión de los Particulares
           (LFPDPPP).
         </p>
       </div>
@@ -85,14 +94,11 @@ export default function PrivacyPage() {
 
         {/* Body */}
         <article className="min-w-0 flex-1 space-y-12">
-
           {/* Propiedad */}
           <Section id="propiedad" title="Propiedad de los Datos">
             <p>
               El Cliente es propietario del{' '}
-              <strong className="text-[var(--text-primary)]">
-                100 % de sus datos y workflows
-              </strong>
+              <strong className="text-[var(--text-primary)]">100 % de sus datos y workflows</strong>
               . Fractal actúa únicamente como{' '}
               <strong className="text-[var(--text-primary)]">Encargado de Procesamiento</strong>{' '}
               conforme a la LFPDPPP y no adquiere ningún derecho sobre dicha información.
@@ -155,9 +161,7 @@ export default function PrivacyPage() {
 
           {/* Derechos del Cliente */}
           <Section id="derechos" title="Derechos del Cliente">
-            <p>
-              Conforme a la LFPDPPP, el Cliente tiene derecho a:
-            </p>
+            <p>Conforme a la LFPDPPP, el Cliente tiene derecho a:</p>
             <BulletList
               items={[
                 'Acceder a sus datos almacenados en la Plataforma.',
@@ -175,8 +179,8 @@ export default function PrivacyPage() {
           {/* Nota final */}
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)] px-6 py-5 text-sm text-[var(--text-secondary)]">
             <p>
-              Para cualquier duda sobre el tratamiento de tus datos, escríbenos al área de privacidad
-              a través del panel de soporte.
+              Para cualquier duda sobre el tratamiento de tus datos, escríbenos al área de
+              privacidad a través del panel de soporte.
             </p>
           </div>
         </article>

@@ -18,8 +18,7 @@ export default function ToolsPage() {
   const [connectedCount, setConnectedCount] = useState(0);
 
   // Read active tab from URL — persists on refresh
-  const activeTab: Tab =
-    searchParams.get('tab') === 'catalog' ? 'catalog' : 'my-tools';
+  const activeTab: Tab = searchParams.get('tab') === 'catalog' ? 'catalog' : 'my-tools';
 
   const setActiveTab = useCallback(
     (tab: Tab) => {
@@ -55,7 +54,7 @@ export default function ToolsPage() {
       </div>
 
       {/* ─── Tab switcher ───────────────────────────────────────────────── */}
-      <div className="flex gap-1 rounded-2xl bg-black/[0.04] p-1 dark:bg-white/[0.04] sm:w-fit">
+      <div className="flex gap-1 rounded-2xl bg-black/[0.04] p-1 sm:w-fit dark:bg-white/[0.04]">
         {tabs.map((tab) => (
           <button
             key={tab.id}

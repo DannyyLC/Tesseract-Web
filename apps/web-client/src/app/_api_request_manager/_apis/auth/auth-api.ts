@@ -1,5 +1,5 @@
 import ApiRequestManager from '../../api_request_manager';
-import { 
+import {
   StartVerificationFlowDto,
   VerificationCodeDto,
   CreateUserDto,
@@ -24,10 +24,12 @@ class AuthApi {
     return `${baseUrl}${AuthApi.BASE_URL}/google`;
   }
 
-  public async signupStepOne(verificationFlowDto: StartVerificationFlowDto): Promise<ApiResponse<any>> {
+  public async signupStepOne(
+    verificationFlowDto: StartVerificationFlowDto,
+  ): Promise<ApiResponse<any>> {
     const result = await this.apiRequestManager.post<ApiResponse<any>>(
       `${AuthApi.BASE_URL}/2fasignup-step-one`,
-      verificationFlowDto
+      verificationFlowDto,
     );
 
     return result.data;
@@ -36,7 +38,7 @@ class AuthApi {
   public async signupStepTwo(verificationCodeDto: VerificationCodeDto): Promise<boolean> {
     const result = await this.apiRequestManager.post<ApiResponse<boolean>>(
       `${AuthApi.BASE_URL}/2fasignup-step-two`,
-      verificationCodeDto
+      verificationCodeDto,
     );
     return result.data?.data ?? false;
   }
@@ -44,7 +46,7 @@ class AuthApi {
   public async signupStepThree(signupDto: CreateUserDto): Promise<ApiResponse<any>> {
     const result = await this.apiRequestManager.post<ApiResponse<any>>(
       `${AuthApi.BASE_URL}/2fasignup-step-three`,
-      signupDto
+      signupDto,
     );
     return result.data.data;
   }
@@ -52,7 +54,7 @@ class AuthApi {
   public async login(loginDto: LoginDto): Promise<ApiResponse<any>> {
     const result = await this.apiRequestManager.post<ApiResponse<any>>(
       `${AuthApi.BASE_URL}/login`,
-      loginDto
+      loginDto,
     );
     return result.data;
   }
@@ -60,14 +62,14 @@ class AuthApi {
   public async verify2FACode(verify2FACodeDto: Verify2FACodeDto): Promise<ApiResponse<any>> {
     const result = await this.apiRequestManager.post<ApiResponse<any>>(
       `${AuthApi.BASE_URL}/verify2facode`,
-      verify2FACodeDto
+      verify2FACodeDto,
     );
     return result.data;
   }
 
   public async setup2FA(): Promise<ApiResponse<any>> {
     const result = await this.apiRequestManager.post<ApiResponse<any>>(
-      `${AuthApi.BASE_URL}/2fa/setup`
+      `${AuthApi.BASE_URL}/2fa/setup`,
     );
     return result.data;
   }
@@ -75,7 +77,7 @@ class AuthApi {
   public async enable2FA(verify2FACodeDto: Verify2FACodeDto): Promise<ApiResponse<boolean>> {
     const result = await this.apiRequestManager.post<ApiResponse<boolean>>(
       `${AuthApi.BASE_URL}/2fa/enable`,
-      verify2FACodeDto
+      verify2FACodeDto,
     );
     return result.data;
   }
@@ -83,7 +85,7 @@ class AuthApi {
   public async disable2FA(verify2FACodeDto: Verify2FACodeDto): Promise<boolean> {
     const result = await this.apiRequestManager.post<ApiResponse<boolean>>(
       `${AuthApi.BASE_URL}/2fa/disable`,
-      verify2FACodeDto
+      verify2FACodeDto,
     );
     return result.data?.data ?? false;
   }
@@ -91,7 +93,7 @@ class AuthApi {
   public async resetPasswordStepOne(dto: ForgotPassDto): Promise<ApiResponse<boolean>> {
     const result = await this.apiRequestManager.post<ApiResponse<boolean>>(
       `${AuthApi.BASE_URL}/reset-password-step-one`,
-      dto
+      dto,
     );
     return result.data;
   }
@@ -99,7 +101,7 @@ class AuthApi {
   public async resetPasswordStepTwo(resetDto: ResetPasswordDto): Promise<ApiResponse<boolean>> {
     const result = await this.apiRequestManager.post<ApiResponse<boolean>>(
       `${AuthApi.BASE_URL}/reset-password-step-two`,
-      resetDto
+      resetDto,
     );
     return result.data;
   }
@@ -107,7 +109,7 @@ class AuthApi {
   public async changePassword(changePasswordDto: ChangePasswordDto): Promise<ApiResponse<any>> {
     const result = await this.apiRequestManager.post<ApiResponse<any>>(
       `${AuthApi.BASE_URL}/change-password`,
-      changePasswordDto
+      changePasswordDto,
     );
     return result.data;
   }

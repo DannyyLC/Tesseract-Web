@@ -21,13 +21,13 @@ import { UpdateWorkflowDto, ExecuteWorkflowDto } from '../../dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
-import { 
-  ApiResponseBuilder, 
-  PaginatedResponse, 
-  UserRole, 
-  WorkflowCategory, 
-  DashboardWorkflowDto, 
-  WorkflowStatsDto 
+import {
+  ApiResponseBuilder,
+  PaginatedResponse,
+  UserRole,
+  WorkflowCategory,
+  DashboardWorkflowDto,
+  WorkflowStatsDto,
 } from '@tesseract/types';
 import { Response } from 'express';
 import { RolesGuard } from '../../../auth/guards/roles.guard';

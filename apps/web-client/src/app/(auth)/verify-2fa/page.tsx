@@ -25,7 +25,7 @@ export default function Verify2FAPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (code.length !== 6) {
       toast.error('El código debe tener 6 dígitos');
       return;

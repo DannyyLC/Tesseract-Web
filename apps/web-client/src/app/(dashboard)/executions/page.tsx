@@ -2,9 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import {
-  Search,
-} from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useDashboardExecutions, useExecutionsStats } from '@/hooks/useExecutions';
 import { useInfiniteDashboardWorkflows } from '@/hooks/useWorkflows';
 import { useInfiniteUsersDashboard } from '@/hooks/useUsers';

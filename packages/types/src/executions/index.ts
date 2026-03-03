@@ -42,7 +42,7 @@ export interface ExecutionsStatsDto {
   dailyStats?: {
     date: string;
     count: number;
- }[];
+  }[];
 }
 
 export interface ExecutionDto {

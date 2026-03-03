@@ -5,7 +5,7 @@ import { ApiKeyResponseDto } from '../../api-keys/dto/response-api-key.dto';
 import {
   DashboardConversationDto,
   DashboardEndUserDto,
-  DashboardWorkflowDto
+  DashboardWorkflowDto,
 } from '@tesseract/types';
 import { DashboardCreditTransactionDto } from '../../credits/dto/dashboard-credit-transaction.dto';
 import { DashboardCreditsDto } from '../../credits/dto/dashboard-credits.dto';
@@ -230,7 +230,10 @@ export class EventsService {
           },
         });
         if (!conversation) return null;
-        return { ...conversation, isInternal: !!conversation.userId } as unknown as DashboardConversationDto;
+        return {
+          ...conversation,
+          isInternal: !!conversation.userId,
+        } as unknown as DashboardConversationDto;
 
       case EventSubjectType.USER:
         return {

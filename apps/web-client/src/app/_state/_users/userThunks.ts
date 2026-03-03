@@ -12,7 +12,7 @@ export const fetchUser = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch user');
     }
-  }
+  },
 );
 
 export const updateUser = createAsyncThunk(
@@ -25,5 +25,5 @@ export const updateUser = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to update user');
     }
-  }
+  },
 );

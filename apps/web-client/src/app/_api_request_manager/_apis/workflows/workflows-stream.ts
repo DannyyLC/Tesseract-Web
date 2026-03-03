@@ -20,7 +20,7 @@ class WorkflowsStream {
     id: string,
     input: any,
     metadata?: any,
-    callbacks?: StreamCallbacks
+    callbacks?: StreamCallbacks,
   ): Promise<void> {
     const url = `${WorkflowsStream.API_URL}${WorkflowsStream.BASE_URL}/${id}/execute/stream`;
 
