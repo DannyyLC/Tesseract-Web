@@ -19,7 +19,6 @@ import { Throttle } from '@nestjs/throttler';
 import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { Request, Response } from 'express';
-import * as nodemailer from 'nodemailer';
 import {
   loginSwaggerDesc,
   logoutAllSwaggerDesc,
@@ -608,14 +607,12 @@ export class AuthController {
     @Body() payload: StartVerificationFlowDto,
     @Res() response: Response,
   ): Promise<
-    Response<ApiResponseBuilder<nodemailer.SentMessageInfo | keyof typeof StepOneErrors>>
+    Response<ApiResponseBuilder<object | keyof typeof StepOneErrors>>
   > {
-    const apiResponseBuilder = new ApiResponseBuilder<
-      nodemailer.SentMessageInfo | keyof typeof StepOneErrors
-    >();
+    const apiResponseBuilder = new ApiResponseBuilder<object | keyof typeof StepOneErrors>();
     try {
       await this.turnstileService.verifyToken(payload.turnstileToken);
-    } catch (error) {
+    } catch (_error) {
       apiResponseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.BadRequest)
@@ -685,8 +682,8 @@ export class AuthController {
   async signupStep3(
     @Body() body: CreateUserDto,
     @Res() res: Response,
-  ): Promise<Response<ApiResponseBuilder<any | keyof typeof StepThreeErrors>>> {
-    const apiResponse = new ApiResponseBuilder<any | keyof typeof StepThreeErrors>();
+  ): Promise<Response<ApiResponseBuilder<keyof typeof StepThreeErrors | Record<string, unknown>>>> {
+    const apiResponse = new ApiResponseBuilder<keyof typeof StepThreeErrors | Record<string, unknown>>();
     const result = await this.authService.signupStepThree(body);
     if (typeof result === 'string') {
       apiResponse
@@ -784,7 +781,7 @@ export class AuthController {
     }
 
     const result = await this.authService.resetPasswordStepOne(body.email);
-    if (!Object.values(ForgotPassErrors).includes(result)) {
+    if (!Object.values(ForgotPassErrors).includes(result as ForgotPassErrors)) {
       responseBuilder
         .setSuccess(true)
         .setStatusCode(HttpStatusCode.Ok)

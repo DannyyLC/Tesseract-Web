@@ -3,7 +3,7 @@ import { PrismaService } from '../database/prisma.service';
 import { DashboardExecutionDto } from './dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
-import { PaginatedResponse } from '../../../../packages/types/dist/api/api_response';
+import { PaginatedResponse } from '@tesseract/types';
 
 /**
  * Service que maneja el historial de ejecuciones

@@ -15,7 +15,9 @@ import {
 import { BillingService } from './billing.service';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
+import { Stripe } from 'stripe';
 import { PrismaService } from '../database/prisma.service';
+import { Logger } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SubscriptionPlan } from '@prisma/client';
 import { SUBSCRIPTION_PLANS } from './billing.constants';
@@ -40,11 +42,15 @@ export class BillingController {
     private readonly stripeClient: StripeClient,
     private readonly organizationsService: OrganizationsService,
   ) {}
+  private readonly logger = new Logger(BillingController.name);
 
   @Post('checkout')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER)
-  async createCheckoutSession(@Req() req: any, @Body() body: { plan: string | SubscriptionPlan }) {
+  async createCheckoutSession(
+    @Req() req: Request & { user: UserPayload },
+    @Body() body: { plan: string },
+  ) {
     const organizationId = req.user.organizationId;
     const userEmail = req.user.email;
     const userName = req.user.name ?? 'Admin User';
@@ -115,7 +121,7 @@ export class BillingController {
   @Post('portal')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER)
-  async createPortalSession(@Req() req: any) {
+  async createPortalSession(@Req() req: Request & { user: UserPayload }) {
     const organizationId = req.user.organizationId;
     if (!organizationId) {
       throw new BadRequestException('User does not belong to an organization');
@@ -148,7 +154,7 @@ export class BillingController {
   @Get('subscription')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  async getSubscription(@Req() req: any) {
+  async getSubscription(@Req() req: Request & { user: UserPayload }) {
     const organizationId = req.user.organizationId;
 
     const subscription = await this.prisma.subscription.findUnique({
@@ -181,7 +187,10 @@ export class BillingController {
   @Put('subscription')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER)
-  async updateSubscription(@Req() req: any, @Body() body: UpdateSubscriptionDto) {
+  async updateSubscription(
+    @Req() req: Request & { user: UserPayload },
+    @Body() body: UpdateSubscriptionDto,
+  ) {
     const organizationId = req.user.organizationId;
     if (!organizationId) {
       throw new BadRequestException('User does not belong to an organization');
@@ -199,7 +208,7 @@ export class BillingController {
   @Get('dashboard')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  async getDashboardData(@Req() req: any): Promise<BillingDashboardDto> {
+  async getDashboardData(@Req() req: Request & { user: UserPayload }): Promise<BillingDashboardDto> {
     const organizationId = req.user.organizationId;
     if (!organizationId) {
       throw new BadRequestException('User does not belong to an organization');
@@ -210,7 +219,7 @@ export class BillingController {
   @Delete('subscription')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER)
-  async cancelSubscription(@Req() req: any) {
+  async cancelSubscription(@Req() req: Request & { user: UserPayload }) {
     const organizationId = req.user.organizationId;
     if (!organizationId) {
       throw new BadRequestException('User does not belong to an organization');
@@ -231,22 +240,28 @@ export class BillingController {
     }
 
     // Verify signature and construct event
-    let event: any;
+    let event: Stripe.Event;
     try {
-      const rawBody = (request as any).rawBody;
+      const rawBody = (request as unknown as { rawBody: string }).rawBody;
       if (!rawBody) {
         throw new Error('Raw body not available. Ensure `rawBody: true` is set in main.ts');
       }
       event = this.stripeClient.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
-    } catch (err: any) {
-      console.error(`Webhook Signature Verification Failed: ${err.message}`);
-      throw new BadRequestException(`Webhook Error: ${err.message}`);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        this.logger.error(`Webhook Signature Verification Failed: ${err.message}`);
+        throw new BadRequestException(`Webhook Error: ${err.message}`);
+      }
+      throw new BadRequestException(`Webhook Error: Unknown error`);
     }
 
     try {
       await this.billingService.handleWebhookEvent(event);
-    } catch (err: any) {
-      throw new BadRequestException(`Webhook Processing Error: ${err.message}`);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        throw new BadRequestException(`Webhook Processing Error: ${err.message}`);
+      }
+      throw new BadRequestException(`Webhook Processing Error: Unknown error`);
     }
 
     return { received: true };

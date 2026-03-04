@@ -123,7 +123,7 @@ export class ConversationsService {
         select: { userId: true },
       });
 
-      if (existing && existing.userId) {
+      if (existing?.userId) {
         // Es una conversación interna (User), no debería tener HITL activado manualmente
         throw new ForbiddenException('Internal users cannot toggle Human in the Loop');
       }

@@ -17,7 +17,7 @@ export class KmsService implements OnModuleInit {
     this.kmsClient = new KeyManagementServiceClient();
   }
 
-  async onModuleInit() {
+  onModuleInit() {
     this.keyName = this.kmsClient.cryptoKeyPath(
       this.projectId,
       this.locationId,

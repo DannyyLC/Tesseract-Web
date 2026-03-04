@@ -35,7 +35,7 @@ export class CreditsService {
       });
     } catch (error) {
       this.logger.error(
-        `create method >> Error creando credit balance para org ${organizationId}: ${error}`,
+        `create method >> Error creando credit balance para org ${organizationId}: ${error instanceof Error ? error.message : String(error)}`,
       );
       return null;
     }

@@ -14,6 +14,7 @@ import { PrismaService } from '../database/prisma.service';
 import { NotificationEventDto } from '../events/app-notifications/notification.dto';
 import { notificationsEnum } from '../events/app-notifications/notifications.enum';
 import { EmailService } from '../notifications/email/email.service';
+import * as speakeasy from 'speakeasy';
 import { DashboardUserDataDto, UpdateProfileDto, UserFiltersDto } from './dto';
 
 interface PaginatedUsers {
@@ -177,7 +178,9 @@ export class UsersService {
         },
       });
     } catch (error) {
-      this.logger.error(`Error updating user profile for userId ${userId}: ${error}`);
+      this.logger.error(
+        `Error updating user profile for userId ${userId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     return user;
@@ -634,9 +637,12 @@ export class UsersService {
         throw new ForbiddenException('Código 2FA requerido');
       }
 
-      const speakeasy = require('speakeasy');
+      if (!user.twoFactorSecret) {
+        throw new BadRequestException('El usuario no tiene un secreto 2FA configurado');
+      }
+
       const verified = speakeasy.totp.verify({
-        secret: user.twoFactorSecret!,
+        secret: user.twoFactorSecret,
         encoding: 'base32',
         token: code2FA,
       });

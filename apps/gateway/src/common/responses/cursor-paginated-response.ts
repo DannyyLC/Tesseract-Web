@@ -3,6 +3,7 @@ import { PaginatedResponse } from '@tesseract/types';
 export class CursorPaginatedResponseUtils {
   private static instance: CursorPaginatedResponseUtils;
 
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   private constructor() {}
 
   static getInstance(): CursorPaginatedResponseUtils {
@@ -12,7 +13,7 @@ export class CursorPaginatedResponseUtils {
     return CursorPaginatedResponseUtils.instance;
   }
 
-  async build<T extends { id: string }>(
+  build<T extends { id: string }>(
     items: T[],
     take: number,
     paginationAction?: 'next' | 'prev' | null,
@@ -41,12 +42,12 @@ export class CursorPaginatedResponseUtils {
       hasPrevPage = paginationAction === 'next';
     }
 
-    return {
+    return Promise.resolve({
       items: data,
       nextCursor: hasNextPage && data.length > 0 ? data[data.length - 1].id : null,
       prevCursor: hasPrevPage && data.length > 0 ? data[0].id : null,
       nextPageAvailable: hasNextPage,
       pageSize: take ?? 10,
-    };
+    });
   }
 }
