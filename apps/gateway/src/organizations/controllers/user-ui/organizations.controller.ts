@@ -57,7 +57,7 @@ export class OrganizationsController {
 
   @Patch('update')
   @ApiOperation({ summary: 'Update Organization', description: updateOrganizationSwaggerDesc })
-  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @Roles(UserRole.OWNER)
   async updateOrganization(
     @CurrentUser() user: UserPayload,
     @Body() body: UpdateOrganizationDto,

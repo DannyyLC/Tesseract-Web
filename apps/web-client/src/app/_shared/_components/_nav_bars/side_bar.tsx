@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { ROLE_PERMISSIONS } from '@tesseract/types';
 import {
   LayoutDashboard,
   Workflow,
@@ -59,6 +60,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
   const { data: user } = useAuth();
   const role = user?.role || 'viewer';
+  const userPermissions = ROLE_PERMISSIONS[role] || [];
 
   const isActiveRoute = (href: string) => {
     if (href === '/dashboard') {
@@ -72,10 +74,10 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       ...section,
       items: section.items.filter((item) => {
         if (item.href === '/billing') {
-          return role === 'owner' || role === 'admin';
+          return userPermissions.includes('billing:read');
         }
         if (item.href === '/settings') {
-          return role === 'owner';
+          return userPermissions.includes('organization:delete');
         }
         return true;
       }),
