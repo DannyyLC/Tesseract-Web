@@ -35,9 +35,10 @@ export const getStatusConfig = (isActive: boolean) => {
     : { label: 'Inactivo', color: 'bg-zinc-400' };
 };
 
-export const formatTimeAgo = (dateString: string | null): string => {
-  if (!dateString) return 'Nunca';
-  const date = new Date(dateString);
+export const formatTimeAgo = (dateInput: Date | string | null): string => {
+  if (!dateInput) return 'Nunca';
+  
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);

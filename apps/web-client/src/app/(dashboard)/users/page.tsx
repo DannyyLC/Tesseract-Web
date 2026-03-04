@@ -27,6 +27,7 @@ import {
 } from '@/app/_shared/_utils/users.utils';
 import { UserDetails } from './_components/user-details';
 import { InviteUserModal } from './_components/InviteUserModal';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 type FilterRole = 'all' | 'owner' | 'admin' | 'viewer';
 
@@ -162,13 +163,15 @@ export default function UsersPage() {
             Gestión de miembros de tu organización
           </p>
         </div>
-        <button
-          onClick={() => setShowInviteModal(true)}
-          className="flex items-center gap-2 rounded-xl bg-black px-5 py-2.5 font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
-        >
-          <UserPlus size={18} />
-          Invitar Usuario
-        </button>
+        <PermissionGuard permissions="organization:invite_user">
+          <button
+            onClick={() => setShowInviteModal(true)}
+            className="flex items-center gap-2 rounded-xl bg-black px-5 py-2.5 font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+          >
+            <UserPlus size={18} />
+            Invitar Usuario
+          </button>
+        </PermissionGuard>
       </div>
 
       {/* Stats Cards */}
@@ -373,43 +376,49 @@ export default function UsersPage() {
 
                           <div className="flex flex-wrap gap-2">
                             {/* Transfer Ownership - Only for Owner */}
-                            {currentUser?.role === 'owner' && user.role !== 'owner' && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleTransferOpen(user);
-                                }}
-                                className="flex items-center gap-2 rounded-full border border-yellow-500/20 px-4 py-2 text-sm font-medium text-yellow-600 transition-all hover:bg-yellow-500/10 dark:text-yellow-400"
-                              >
-                                <ArrowRightLeft size={16} />
-                                Transferir Propiedad
-                              </button>
+                            {user.role !== 'owner' && (
+                              <PermissionGuard permissions="users:transfer_ownership">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleTransferOpen(user);
+                                  }}
+                                  className="flex items-center gap-2 rounded-full border border-yellow-500/20 px-4 py-2 text-sm font-medium text-yellow-600 transition-all hover:bg-yellow-500/10 dark:text-yellow-400"
+                                >
+                                  <ArrowRightLeft size={16} />
+                                  Transferir Propiedad
+                                </button>
+                              </PermissionGuard>
                             )}
 
-                            {/* Edit/Delete - Hidden for Viewers, and Admins cannot edit Owners */}
-                            {currentUser?.role !== 'viewer' &&
-                              !(currentUser?.role === 'admin' && user.role === 'owner') && (
+                            {/* Edit/Delete - Admins cannot edit Owners */}
+                            {!(currentUser?.role === 'admin' && user.role === 'owner') && (
                                 <>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditOpen(user);
-                                    }}
-                                    className="flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
-                                  >
-                                    <Edit3 size={16} />
-                                    Editar
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteOpen(user);
-                                    }}
-                                    className="flex items-center gap-2 rounded-full border border-red-500/20 px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-red-500/10 dark:text-red-400"
-                                  >
-                                    <Trash2 size={16} />
-                                    Eliminar
-                                  </button>
+                                  <PermissionGuard permissions="users:update">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditOpen(user);
+                                      }}
+                                      className="flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+                                    >
+                                      <Edit3 size={16} />
+                                      Editar
+                                    </button>
+                                  </PermissionGuard>
+                                  
+                                  <PermissionGuard permissions="users:delete">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteOpen(user);
+                                      }}
+                                      className="flex items-center gap-2 rounded-full border border-red-500/20 px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-red-500/10 dark:text-red-400"
+                                    >
+                                      <Trash2 size={16} />
+                                      Eliminar
+                                    </button>
+                                  </PermissionGuard>
                                 </>
                               )}
                           </div>

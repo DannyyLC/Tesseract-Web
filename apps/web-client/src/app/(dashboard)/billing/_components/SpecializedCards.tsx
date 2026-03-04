@@ -1,6 +1,7 @@
 'use client';
 
 import { Building2, ArrowRight, Handshake } from 'lucide-react';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 export default function SpecializedCards() {
   return (
@@ -62,10 +63,12 @@ export default function SpecializedCards() {
             </div>
           </div>
 
-          <button className="mt-8 flex items-center gap-2 text-sm font-bold text-black transition-all hover:gap-3 dark:text-white">
-            Agendar Consultoría
-            <ArrowRight size={16} />
-          </button>
+          <PermissionGuard permissions="billing:update_plan">
+            <button className="mt-8 flex items-center gap-2 text-sm font-bold text-black transition-all hover:gap-3 dark:text-white">
+              Agendar Consultoría
+              <ArrowRight size={16} />
+            </button>
+          </PermissionGuard>
         </div>
 
         {/* Decor */}
@@ -102,9 +105,11 @@ export default function SpecializedCards() {
             </p>
           </div>
 
-          <button className="mt-10 w-full rounded-xl bg-white py-3.5 font-bold text-black transition-all hover:scale-[1.02] active:scale-[0.98]">
-            Contactar para Negociar
-          </button>
+          <PermissionGuard permissions="billing:update_plan">
+            <button className="mt-10 w-full rounded-xl bg-white py-3.5 font-bold text-black transition-all hover:scale-[1.02] active:scale-[0.98]">
+              Contactar para Negociar
+            </button>
+          </PermissionGuard>
         </div>
 
         {/* Abstract shape */}

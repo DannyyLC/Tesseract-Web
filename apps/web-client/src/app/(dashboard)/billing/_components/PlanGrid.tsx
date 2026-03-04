@@ -2,6 +2,7 @@
 
 import { Check, Loader2, Zap, TrendingUp, Crown, Rocket, Building2 } from 'lucide-react';
 import { BillingPlan, SubscriptionPlan } from '@tesseract/types';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 interface PlanGridProps {
   plans: BillingPlan[];
@@ -146,23 +147,25 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
           </div>
 
           <div className="p-6 pt-0">
-            <button
-              onClick={() => onUpgrade(plan.type)}
-              disabled={upgradingPlan !== null || currentPlan === plan.type}
-              className={`flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold transition-all ${
-                currentPlan === plan.type
-                  ? 'cursor-not-allowed border-2 border-transparent bg-black/5 text-black/40 dark:bg-white/5 dark:text-white/40'
-                  : 'border-2 border-transparent bg-black text-white shadow-lg hover:opacity-90 dark:bg-white dark:text-black'
-              }`}
-            >
-              {upgradingPlan === plan.type ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : currentPlan === plan.type ? (
-                'Plan Actual'
-              ) : (
-                'Seleccionar'
-              )}
-            </button>
+            <PermissionGuard permissions="billing:update_plan">
+              <button
+                onClick={() => onUpgrade(plan.type)}
+                disabled={upgradingPlan !== null || currentPlan === plan.type}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold transition-all ${
+                  currentPlan === plan.type
+                    ? 'cursor-not-allowed border-2 border-transparent bg-black/5 text-black/40 dark:bg-white/5 dark:text-white/40'
+                    : 'border-2 border-transparent bg-black text-white shadow-lg hover:opacity-90 dark:bg-white dark:text-black'
+                }`}
+              >
+                {upgradingPlan === plan.type ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : currentPlan === plan.type ? (
+                  'Plan Actual'
+                ) : (
+                  'Seleccionar'
+                )}
+              </button>
+            </PermissionGuard>
           </div>
         </div>
       ))}

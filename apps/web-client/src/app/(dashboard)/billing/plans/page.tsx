@@ -12,6 +12,7 @@ import SpecializedCards from '../_components/SpecializedCards';
 import { Modal } from '@/components/ui/modal';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import Loading from '@/app/(dashboard)/loading';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 export default function PlansPage() {
   const router = useRouter();
@@ -96,9 +97,10 @@ export default function PlansPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-12 pb-20">
-      {/* Back Navigation */}
-      <div>
+    <PermissionGuard permissions="billing:read" redirect={true} fallbackRoute="/dashboard">
+      <div className="mx-auto max-w-7xl space-y-12 pb-20">
+        {/* Back Navigation */}
+        <div>
         <button
           onClick={() => router.back()}
           className="group flex items-center gap-2 text-sm font-medium text-black/50 transition-colors hover:text-black dark:text-white/50 dark:hover:text-white"
@@ -131,18 +133,20 @@ export default function PlansPage() {
       {/* Cancel Subscription */}
       {subscription.plan !== SubscriptionPlan.FREE && (
         <div className="flex flex-col items-center gap-4 pt-4">
-          <button
-            onClick={handleCancelClick}
-            disabled={subscription.cancelAtPeriodEnd}
-            className="group flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-6 py-3 text-sm font-bold text-red-500/70 shadow-sm transition-all hover:border-red-500 hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
-          >
-            {subscription.cancelAtPeriodEnd
-              ? 'Cancelación Programada'
-              : 'Cancelar suscripción actual'}
-          </button>
-          <p className="text-[10px] font-medium uppercase tracking-widest text-black/30 dark:text-white/30">
-            Al cancelar, mantendrás tus beneficios hasta el final del periodo
-          </p>
+          <PermissionGuard permissions="billing:cancel_subscription">
+            <button
+              onClick={handleCancelClick}
+              disabled={subscription.cancelAtPeriodEnd}
+              className="group flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-6 py-3 text-sm font-bold text-red-500/70 shadow-sm transition-all hover:border-red-500 hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
+            >
+              {subscription.cancelAtPeriodEnd
+                ? 'Cancelación Programada'
+                : 'Cancelar suscripción actual'}
+            </button>
+            <p className="text-[10px] font-medium uppercase tracking-widest text-black/30 dark:text-white/30">
+              Al cancelar, mantendrás tus beneficios hasta el final del periodo
+            </p>
+          </PermissionGuard>
         </div>
       )}
 
@@ -294,5 +298,6 @@ export default function PlansPage() {
         <InfoSections />
       </div>
     </div>
+    </PermissionGuard>
   );
 }
