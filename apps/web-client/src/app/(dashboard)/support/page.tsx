@@ -100,7 +100,7 @@ function SupportContent() {
 
   if (isNuevoWorkflow) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
+      <div className="p-6">
         <div className="mb-8 space-y-2 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-black dark:text-white">
             Agenda tu Reunión
@@ -127,9 +127,9 @@ function SupportContent() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
+    <div className="p-6 max-w-5xl">
       {/* Page Header */}
-      <div className="mb-8 space-y-2 text-center">
+      <div className="mb-8 space-y-2">
         <h1 className="text-3xl font-bold tracking-tight text-black dark:text-white">
           Centro de Soporte
         </h1>
