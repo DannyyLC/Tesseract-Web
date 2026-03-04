@@ -85,4 +85,17 @@ export class WhatsappConfigService {
             this.logger.error('Error updating WhatsApp phone number:', error);
         }
     }
+
+    async updateToken(configId: string, token: string): Promise<boolean> {
+        try {
+            await this.prismaService.whatsAppConfig.update({
+                where: { id: configId },
+                data: { credentialPath: token }
+            });
+        } catch (error) {
+            this.logger.error('Error updating WhatsApp token:', error);
+            return false;
+        }
+        return true;
+    }
 }

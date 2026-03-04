@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Res, Headers, Inject, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Res, Headers, Inject, UseGuards, Patch } from '@nestjs/common';
 import { Response } from 'express';
 import { HttpStatus } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
@@ -11,7 +11,7 @@ import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
 import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
 import { WhatsAppConfig } from '@tesseract/database';
-import { CreateConfigDto, SetupCredentialDto } from '../../dto';
+import { CreateConfigDto, SetupCredentialDto, UpdateTokenDto} from '../../dto';
 
 @Controller('whatsapp-config')
 export class WhatsappConfigController {
@@ -45,6 +45,7 @@ export class WhatsappConfigController {
             const phoneNumber = body.entry[0].changes[0].value.metadata.display_phone_number;
             const userNumber = body.entry[0].changes[0].value.messages[0].from;
             const messageId = body.entry[0].changes[0].value.messages[0].id;
+            const messageContent = body.entry[0].changes[0].value.messages[0].text?.body || '';
 
             // Get account credentials (from your DB)
             const account = await this.whatsappConfigService.getWhatsappConfigById(id);
@@ -59,6 +60,7 @@ export class WhatsappConfigController {
             // Send reply
             if (account.credentialPath) {
                 await this.sendReply(account.credentialPath, phoneNumberId, userNumber, messageId);
+                //TODO; Add logic to create conversation and add messages to it.
             }
             return res.status(HttpStatus.OK).send('EVENT_RECEIVED');
         } catch (error) {
@@ -134,6 +136,30 @@ export class WhatsappConfigController {
             .setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
             .setData(false)
             .setMessage('Failed to set up credentials');
+            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
+        }
+    }
+
+    @Patch("update-token/:id")
+    @UseGuards(JwtAuthGuard)
+    async updateToken(
+        @Param('id') id: string,
+        @Body() body: UpdateTokenDto,
+        @Res() res: Response
+    ): Promise<Response<ApiResponse<boolean>>> {
+        const apiResponse = new ApiResponseBuilder<boolean>();
+        const result = await this.whatsappConfigService.updateToken(id, body.token);
+        if (result) {
+            apiResponse
+            .setStatusCode(HttpStatus.OK)
+            .setData(true)
+            .setMessage('Token updated successfully');
+            return res.status(HttpStatus.OK).json(apiResponse.build());
+        } else {
+            apiResponse
+            .setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
+            .setData(false)
+            .setMessage('Failed to update token');
             return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
         }
     }
