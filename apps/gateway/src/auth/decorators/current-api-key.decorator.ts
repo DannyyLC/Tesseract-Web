@@ -8,8 +8,6 @@ import { ApiKeyPayload } from '../../common/types/api-key-payload.type';
  * @Post('execute')
  * @UseGuards(ApiKeyGuard)
  * execute(@CurrentApiKey() apiKey: ApiKeyPayload) {
- *   console.log(apiKey.apiKeyName);     // "Production Web"
- *   console.log(apiKey.organizationId); // ID de la organización
  * }
  *
  * Requisito: El endpoint debe estar protegido con ApiKeyGuard

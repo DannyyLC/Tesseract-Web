@@ -14,8 +14,6 @@ class SseRequestManager {
     const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const fullUrl = `${this.BASE_URL}${normalizedEndpoint}`;
 
-    console.log(`[SSE] Conectando a: ${fullUrl}`);
-
     // Creamos la conexión
     // withCredentials: true es CRITICO para que envíe las cookies de sesión (httpOnly)
     // tal como lo hace tu ApiRequestManager con axios.
