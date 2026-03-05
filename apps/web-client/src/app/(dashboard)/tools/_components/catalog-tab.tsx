@@ -86,7 +86,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
 
       {/* Loading skeleton */}
       {catalogLoading && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="h-52 animate-pulse rounded-2xl bg-black/5 dark:bg-white/5" />
           ))}
@@ -95,7 +95,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
 
       {/* Grid */}
       {!catalogLoading && allCatalogTools.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {allCatalogTools.map((tool, i) => (
             <CatalogToolCard
               key={tool.id}

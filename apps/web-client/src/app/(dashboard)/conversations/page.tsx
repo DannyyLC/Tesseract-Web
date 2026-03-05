@@ -11,6 +11,7 @@ import { useInfiniteUsersDashboard } from '@/hooks/useUsers';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import DashboardConversationItem from './_components/dashboard-conversation-item';
 import FilterDropdown from './_components/filter-dropdown';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 const formatNumber = (num: number): string => {
   if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -145,8 +146,9 @@ export default function ConversationsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <PermissionGuard permissions="conversations:read" redirect={true} fallbackRoute="/dashboard">
+      <div className="space-y-6">
+        {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-black dark:text-white">Conversaciones</h1>
@@ -155,21 +157,23 @@ export default function ConversationsPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            if (selectedWorkflow) {
-              router.push(`/conversations/new?workflowId=${selectedWorkflow}`);
-            } else {
-              // If no workflow is selected in filter, open modal
-              setIsCreateModalOpen(true);
-              setModalSearchQuery('');
-            }
-          }}
-          className="flex items-center gap-2 rounded-full bg-black px-6 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
-        >
-          <MessageSquare size={16} />
-          Nueva Conversación
-        </button>
+        <PermissionGuard permissions="conversations:update">
+          <button
+            onClick={() => {
+              if (selectedWorkflow) {
+                router.push(`/conversations/new?workflowId=${selectedWorkflow}`);
+              } else {
+                // If no workflow is selected in filter, open modal
+                setIsCreateModalOpen(true);
+                setModalSearchQuery('');
+              }
+            }}
+            className="flex items-center gap-2 rounded-full bg-black px-6 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
+          >
+            <MessageSquare size={16} />
+            Nueva Conversación
+          </button>
+        </PermissionGuard>
       </div>
 
       {/* Stats Cards */}
@@ -409,6 +413,7 @@ export default function ConversationsPage() {
           </Modal>
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </PermissionGuard>
   );
 }

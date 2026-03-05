@@ -15,6 +15,7 @@ import { RenameToolModal } from './rename-tool-modal';
 import { DisconnectCredentialsToolModal } from './disconnect-tool-modal';
 import { DeleteToolModal } from './delete-tool';
 import { ConnectToolModal } from './connect-tool-modal';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 interface MyToolsTabProps {
   onAddTool?: () => void;
@@ -148,13 +149,15 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
         <p className="mb-6 text-sm text-black/50 dark:text-white/50">
           Conecta tu primera herramienta desde el catálogo.
         </p>
-        <button
-          onClick={onAddTool}
-          className="flex items-center gap-2 rounded-full bg-black px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-80 dark:bg-white dark:text-black"
-        >
-          <Plus size={15} />
-          Explorar catálogo
-        </button>
+        <PermissionGuard permissions="tenant_tools:create">
+          <button
+            onClick={onAddTool}
+            className="flex items-center gap-2 rounded-full bg-black px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-80 dark:bg-white dark:text-black"
+          >
+            <Plus size={15} />
+            Explorar catálogo
+          </button>
+        </PermissionGuard>
       </motion.div>
     );
   }

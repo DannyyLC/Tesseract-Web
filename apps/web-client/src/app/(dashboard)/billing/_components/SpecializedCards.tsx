@@ -2,8 +2,11 @@
 
 import { Building2, ArrowRight, Handshake } from 'lucide-react';
 import PermissionGuard from '@/components/auth/PermissionGuard';
+import { useRouter } from 'next/navigation';
 
 export default function SpecializedCards() {
+  const router = useRouter();
+  
   return (
     <div className="grid gap-6 lg:grid-cols-5">
       {/* Consultancy */}
@@ -64,7 +67,10 @@ export default function SpecializedCards() {
           </div>
 
           <PermissionGuard permissions="billing:update_plan">
-            <button className="mt-8 flex items-center gap-2 text-sm font-bold text-black transition-all hover:gap-3 dark:text-white">
+            <button
+              onClick={() => router.push('/support?reason=consulting')}
+              className="mt-8 flex items-center gap-2 text-sm font-bold text-black transition-all hover:gap-3 dark:text-white"
+            >
               Agendar Consultoría
               <ArrowRight size={16} />
             </button>
@@ -106,7 +112,10 @@ export default function SpecializedCards() {
           </div>
 
           <PermissionGuard permissions="billing:update_plan">
-            <button className="mt-10 w-full rounded-xl bg-white py-3.5 font-bold text-black transition-all hover:scale-[1.02] active:scale-[0.98]">
+            <button
+              onClick={() => router.push('/support?reason=enterprise')}
+              className="mt-10 w-full rounded-xl bg-white py-3.5 font-bold text-black transition-all hover:opacity-80 active:scale-[0.98]"
+            >
               Contactar para Negociar
             </button>
           </PermissionGuard>

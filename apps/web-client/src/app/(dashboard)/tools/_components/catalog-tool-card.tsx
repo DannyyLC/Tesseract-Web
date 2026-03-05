@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import { GetToolsDto } from '@tesseract/types';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 interface CatalogToolCardProps {
   tool: GetToolsDto;
@@ -127,17 +128,19 @@ export function CatalogToolCard({
 
       {/* Footer */}
       <div className="mt-4 border-t border-black/5 pt-4 dark:border-white/5">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (tool.isActive) onConnect?.(tool);
-          }}
-          disabled={!tool.isActive}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-black py-2 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-white dark:text-black"
-        >
-          <Plus size={14} />
-          {connectedCount > 0 ? 'Conectar otra instancia' : 'Conectar'}
-        </button>
+        <PermissionGuard permissions="tenant_tools:create">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (tool.isActive) onConnect?.(tool);
+            }}
+            disabled={!tool.isActive}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-black py-2 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-white dark:text-black"
+          >
+            <Plus size={14} />
+            {connectedCount > 0 ? 'Conectar otra instancia' : 'Conectar'}
+          </button>
+        </PermissionGuard>
       </div>
     </motion.div>
   );

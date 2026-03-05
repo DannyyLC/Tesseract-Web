@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Wrench, LayoutGrid } from 'lucide-react';
 import { MyToolsTab } from './_components/my-tools-tab';
 import { CatalogTab } from './_components/catalog-tab';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 type Tab = 'my-tools' | 'catalog';
 
@@ -44,8 +45,9 @@ export default function ToolsPage() {
   ];
 
   return (
-    <div className="space-y-8">
-      {/* ─── Header ─────────────────────────────────────────────────────── */}
+    <PermissionGuard permissions="tenant_tools:read" redirect={true} fallbackRoute="/dashboard">
+      <div className="space-y-8">
+        {/* ─── Header ─────────────────────────────────────────────────────── */}
       <div>
         <h1 className="text-2xl font-bold text-black dark:text-white">Tools</h1>
         <p className="mt-1 text-sm text-black/50 dark:text-white/50">
@@ -95,6 +97,7 @@ export default function ToolsPage() {
           )}
         </motion.div>
       </AnimatePresence>
-    </div>
+      </div>
+    </PermissionGuard>
   );
 }

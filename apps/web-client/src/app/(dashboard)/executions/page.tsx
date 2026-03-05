@@ -9,6 +9,9 @@ import { useInfiniteUsersDashboard } from '@/hooks/useUsers';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import DashboardExecutionItem from './_components/dashboard-execution-item';
 import FilterDropdown from './_components/filter-dropdown';
+import PermissionGuard from '@/components/auth/PermissionGuard';
+import { useAuth } from '@/hooks/useAuth';
+import { ROLE_PERMISSIONS } from '@tesseract/types';
 
 export default function ExecutionsPage() {
   const router = useRouter();
@@ -44,6 +47,10 @@ export default function ExecutionsPage() {
 
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
+
+  const { data: user } = useAuth();
+  const userPermissions = user ? ROLE_PERMISSIONS[user.role] || [] : [];
+  const hasUsersRead = userPermissions.includes('users:read');
 
   const { data: executionsData, isLoading } = useDashboardExecutions({
     cursor,
@@ -144,8 +151,9 @@ export default function ExecutionsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <PermissionGuard permissions="executions:read" redirect={true} fallbackRoute="/dashboard">
+      <div className="space-y-6">
+        {/* Header */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-medium tracking-tight text-black dark:text-white">
@@ -250,19 +258,21 @@ export default function ExecutionsPage() {
           />
         </div>
 
-        {/* Users Filter */}
-        <div className="flex-1">
-          <FilterDropdown
-            label="Usuario"
-            options={users}
-            value={selectedUser}
-            onChange={handleUserChange}
-            placeholder="Todos los Usuarios"
-            onReachEnd={() => hasNextUsers && fetchNextUsers()}
-            hasMore={hasNextUsers}
-            isLoadingMore={isFetchingNextUsers}
-          />
-        </div>
+        {/* Users Filter - only for users with users:read permission */}
+        {hasUsersRead && (
+          <div className="flex-1">
+            <FilterDropdown
+              label="Usuario"
+              options={users}
+              value={selectedUser}
+              onChange={handleUserChange}
+              placeholder="Todos los Usuarios"
+              onReachEnd={() => hasNextUsers && fetchNextUsers()}
+              hasMore={hasNextUsers}
+              isLoadingMore={isFetchingNextUsers}
+            />
+          </div>
+        )}
       </div>
 
       {/* Secondary Filters Row */}
@@ -391,6 +401,7 @@ export default function ExecutionsPage() {
           Siguiente
         </button>
       </div>
-    </div>
+      </div>
+    </PermissionGuard>
   );
 }

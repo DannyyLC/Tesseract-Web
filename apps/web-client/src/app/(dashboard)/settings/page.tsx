@@ -7,6 +7,7 @@ import { Loader2, Trash2, AlertTriangle, Building2 } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -26,12 +27,6 @@ export default function SettingsPage() {
       setName(orgData.name);
     }
   }, [orgData]);
-
-  useEffect(() => {
-    if (!isLoadingAuth && authUser && authUser.role !== 'owner') {
-      router.replace('/dashboard');
-    }
-  }, [authUser, isLoadingAuth, router]);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,10 +87,6 @@ export default function SettingsPage() {
     );
   }
 
-  if (authUser?.role !== 'owner') {
-    return null;
-  }
-
   if (!orgData) {
     return (
       <div className="p-8">
@@ -105,8 +96,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-8 p-6 max-w-5xl">
-      <div>
+    <PermissionGuard permissions="organization:delete" redirect={true} fallbackRoute="/dashboard">
+      <div className="space-y-8 p-6 max-w-5xl">
+        <div>
         <h1 className="text-3xl font-bold tracking-tight">Configuración</h1>
         <p className="text-muted-foreground mt-2">
           Gestiona los detalles y preferencias de tu organización.
@@ -144,61 +136,65 @@ export default function SettingsPage() {
           </div>
 
           <div className="flex justify-end pt-2">
-            <button
-              type="submit"
-              disabled={updateOrganization.isPending || name === orgData.name}
-              className="inline-flex h-8 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white transition-colors hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-white/90"
-            >
-              {updateOrganization.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                'Guardar Cambios'
-              )}
-            </button>
+            <PermissionGuard permissions="organization:update">
+              <button
+                type="submit"
+                disabled={updateOrganization.isPending || name === orgData.name}
+                className="inline-flex h-8 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white transition-colors hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-white/90"
+              >
+                {updateOrganization.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  'Guardar Cambios'
+                )}
+              </button>
+            </PermissionGuard>
           </div>
         </form>
       </section>
 
       {/* Danger Zone Section */}
-      <section className="space-y-6 rounded-2xl border border-red-200 bg-red-50/50 p-6 dark:border-red-900/30 dark:bg-red-950/10">
-        <div className="flex items-center gap-3 border-b border-red-200 pb-4 dark:border-red-900/30">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
-            <AlertTriangle className="h-5 w-5" />
+      <PermissionGuard permissions="organization:delete">
+        <section className="space-y-6 rounded-2xl border border-red-200 bg-red-50/50 p-6 dark:border-red-900/30 dark:bg-red-950/10">
+          <div className="flex items-center gap-3 border-b border-red-200 pb-4 dark:border-red-900/30">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-red-900 dark:text-red-200">
+                Zona de Peligro
+              </h2>
+              <p className="text-sm text-red-700/80 dark:text-red-300/70">
+                Acciones irreversibles para tu organización.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-red-900 dark:text-red-200">
-              Zona de Peligro
-            </h2>
-            <p className="text-sm text-red-700/80 dark:text-red-300/70">
-              Acciones irreversibles para tu organización.
-            </p>
-          </div>
-        </div>
 
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h3 className="font-medium text-red-900 dark:text-red-200">Eliminar Organización</h3>
-            <p className="text-sm text-red-700/80 dark:text-red-300/70">
-              Esta acción eliminará permanentemente tu organización y todos sus datos.
-            </p>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h3 className="font-medium text-red-900 dark:text-red-200">Eliminar Organización</h3>
+              <p className="text-sm text-red-700/80 dark:text-red-300/70">
+                Esta acción eliminará permanentemente tu organización y todos sus datos.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setIsDeleteModalOpen(true);
+                setDeleteConfirmation('');
+                setCode2FA('');
+                setIsAgreed(false);
+              }}
+              className="focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md border border-red-200 bg-transparent px-4 py-2 text-sm font-medium text-red-600 ring-offset-background transition-colors hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/30"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </button>
           </div>
-          <button
-            onClick={() => {
-              setIsDeleteModalOpen(true);
-              setDeleteConfirmation('');
-              setCode2FA('');
-              setIsAgreed(false);
-            }}
-            className="focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md border border-red-200 bg-transparent px-4 py-2 text-sm font-medium text-red-600 ring-offset-background transition-colors hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/30"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </button>
-        </div>
-      </section>
+        </section>
+      </PermissionGuard>
 
       {/* Delete Confirmation Modal */}
       <Modal
@@ -300,6 +296,7 @@ export default function SettingsPage() {
           </div>
         </div>
       </Modal>
-    </div>
+      </div>
+    </PermissionGuard>
   );
 }

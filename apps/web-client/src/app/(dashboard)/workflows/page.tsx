@@ -12,6 +12,7 @@ import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
 import DashboardWorkflowItem from './_components/dashboard-workflow-item';
 import FilterDropdown from './_components/filter-dropdown';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 const formatNumber = (num: number): string => {
   if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -153,8 +154,9 @@ export default function WorkflowsPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <PermissionGuard permissions="workflows:read" redirect={true} fallbackRoute="/dashboard">
+      <div className="space-y-6">
+        {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-black dark:text-white">Mis Workflows</h1>
@@ -163,13 +165,15 @@ export default function WorkflowsPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center gap-2 rounded-full bg-black px-6 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
-        >
-          <Plus size={16} />
-          Nuevo Workflow
-        </button>
+        <PermissionGuard permissions="workflows:create">
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center gap-2 rounded-full bg-black px-6 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
+          >
+            <Plus size={16} />
+            Nuevo Workflow
+          </button>
+        </PermissionGuard>
       </div>
 
       {/* Stats Cards */}
@@ -392,6 +396,7 @@ export default function WorkflowsPage() {
           </Modal>
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </PermissionGuard>
   );
 }
