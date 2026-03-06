@@ -73,12 +73,14 @@ export default function BillingPage() {
           </div>
           <div className="flex gap-3">
             <PermissionGuard permissions="billing:checkout">
-              <button
-                onClick={handleOpenPortal}
-                className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-medium text-black hover:bg-black/5 dark:border-white/10 dark:bg-transparent dark:text-white dark:hover:bg-white/5"
-              >
-                {isOpeningPortal ? 'Cargando...' : 'Portal de Pagos'}
-              </button>
+              {dashboardData?.hasBillingAccount && (
+                <button
+                  onClick={handleOpenPortal}
+                  className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-medium text-black hover:bg-black/5 dark:border-white/10 dark:bg-transparent dark:text-white dark:hover:bg-white/5"
+                >
+                  {isOpeningPortal ? 'Cargando...' : 'Portal de Pagos'}
+                </button>
+              )}
             </PermissionGuard>
             <Link
               href="/billing/plans"

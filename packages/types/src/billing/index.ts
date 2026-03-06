@@ -7,6 +7,7 @@ export interface BillingDashboardData {
   nextBillingDate: string | Date | null;
   cancelAtPeriodEnd: boolean;
   allowOverages: boolean;
+  hasBillingAccount: boolean;
 
   credits: {
     available: number;
@@ -15,9 +16,19 @@ export interface BillingDashboardData {
   };
 
   usage: {
-    workflows: { used: number; limit: number };
-    apiKeys: { used: number; limit: number };
-    users: { used: number; limit: number };
+    workflows: { 
+      used: number; 
+      limit: number 
+    };
+    apiKeys: { 
+      used: 
+      number; 
+      limit: number 
+    };
+    users: { 
+      used: number; 
+      limit: number 
+    };
   };
 }
 

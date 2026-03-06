@@ -109,7 +109,7 @@ export default function PlansPage() {
 
   return (
     <PermissionGuard permissions="billing:read" redirect={true} fallbackRoute="/dashboard">
-      <div className="mx-auto max-w-7xl space-y-12 pb-20">
+      <div className="space-y-10 pb-20">
         {/* Back Navigation */}
         <div>
         <button
