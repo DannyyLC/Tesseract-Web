@@ -12,6 +12,7 @@ import {
   Put,
   Res,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { BillingService } from './billing.service';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
@@ -250,6 +251,7 @@ export class BillingController {
     return { message: 'Subscription cancelled successfully' };
   }
 
+  @Throttle({ default: { limit: 100, ttl: 60000 } })
   @Post('webhook')
   async handleWebhook(@Headers('stripe-signature') signature: string, @Req() request: Request) {
     if (!signature) {

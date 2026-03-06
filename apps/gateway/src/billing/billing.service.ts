@@ -612,13 +612,22 @@ export class BillingService {
         where: { id: organizationId },
         data: { plan: planName },
       }),
-      this.prisma.subscription.update({
+      this.prisma.subscription.upsert({
         where: { organizationId },
-        data: {
+        create: {
+          organizationId,
+          plan: planName,
+          status: 'ACTIVE',
+          currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : new Date(),
+          currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : new Date(),
+          stripeSubscriptionId: sub.id,
+          stripePriceId: priceId,
+        },
+        update: {
           plan: planName,
           status: 'ACTIVE', // Map Stripe status? active, past_due, etc.
-          currentPeriodStart: new Date(sub.current_period_start * 1000),
-          currentPeriodEnd: new Date(sub.current_period_end * 1000),
+          currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : new Date(),
+          currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : new Date(),
           stripePriceId: priceId,
           cancelAtPeriodEnd: sub.cancel_at_period_end,
           pendingPlanChange: null, // Clear flags now that update is applied
