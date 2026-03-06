@@ -249,30 +249,59 @@ export class BillingService {
 
     const amountPaidCents = invoice.amount_paid;
 
-    // Find Plan based on amount (Robust MVP approach)
-    // We look for a plan that matches the amount paid.
+    // Find Plan based on Price ID or Amount
     let creditsToAdd = 0;
     let planName = 'UNKNOWN';
 
-    const plan = Object.values(SUBSCRIPTION_PLANS).find(
-      (p: any) => p.price.monthly * 100 === amountPaidCents,
-    );
+    // 1. Prioritize looking up by Price ID from line items
+    let priceId: string | undefined;
 
-    if (plan) {
-      creditsToAdd = plan.limits.monthlyCredits;
-      planName = plan.type;
-    } else {
-      // Fallback: If amount doesn't match exact plan (e.g. proration + tax? or partial),
-      // we might needing a better lookup via Price ID from lines.
-      // implementation_plan.md says: "Upgrade ... Charge full price ... Grant FULL credits".
-      // If so, amount should match.
-      // If not, we log warning.
-      this.logger.warn(
-        `Invoice amount ${amountPaidCents} does not match any standard plan price. checking line items...`,
+    for (const line of invoice.lines?.data ?? []) {
+      const linePriceId = line.price?.id;
+      if (!linePriceId) continue;
+
+      const planByPriceId = Object.values(SUBSCRIPTION_PLANS).find(
+        (p: any) => this.configService.get(p.priceIdEnvKey) === linePriceId,
       );
 
-      // Check line items for Price ID match if available in future.
-      // For now, if no match, 0 credits.
+      if (planByPriceId) {
+        creditsToAdd = planByPriceId.limits.monthlyCredits;
+        planName = planByPriceId.type;
+        priceId = linePriceId;
+        break; // Found the subscription plan
+      }
+    }
+
+    // 2. Fallback to amount if price ID match failed or wasn't available
+    if (creditsToAdd === 0 && amountPaidCents > 0) {
+      const planByAmount = Object.values(SUBSCRIPTION_PLANS).find(
+        (p: any) => p.price.monthly * 100 === amountPaidCents,
+      );
+
+      if (planByAmount) {
+        creditsToAdd = planByAmount.limits.monthlyCredits;
+        planName = planByAmount.type;
+      }
+    }
+
+    // 3. Fallback for custom/Enterprise plans that don't match standard Price IDs and standard amounts
+    if (creditsToAdd === 0) {
+      const existingSub = await this.prisma.subscription.findUnique({
+        where: { organizationId },
+      });
+
+      if (existingSub && existingSub.plan === 'ENTERPRISE') {
+        // Use custom monthly credits if defined, otherwise -1 (unlimited)
+        creditsToAdd = existingSub.customMonthlyCredits ?? SUBSCRIPTION_PLANS.ENTERPRISE.limits.monthlyCredits;
+        planName = 'ENTERPRISE';
+        this.logger.log(`Using custom ENTERPRISE plan limits for Org ${organizationId}`);
+      }
+    }
+
+    if (creditsToAdd === 0) {
+      this.logger.warn(
+        `Invoice ${invoice.id} (Amount: ${amountPaidCents}, Price ID: ${priceId}) does not match any standard plan price. No credits added.`,
+      );
     }
 
     if (creditsToAdd > 0) {
@@ -460,6 +489,10 @@ export class BillingService {
    * Change Subscription Plan (Upgrade/Downgrade)
    */
   async changePlan(organizationId: string, newPlan: SubscriptionPlan): Promise<void> {
+    if (newPlan === 'FREE') {
+      throw new BadRequestException('Cannot change to FREE plan directly. Please cancel your subscription instead.');
+    }
+
     // 1. Get current subscription
     const sub = await this.prisma.subscription.findUnique({
       where: { organizationId },

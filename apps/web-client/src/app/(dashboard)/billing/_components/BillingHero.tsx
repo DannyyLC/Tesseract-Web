@@ -86,7 +86,7 @@ export default function BillingHero({
   const isNegative = credits.available < 0;
   const formattedBalance = Math.abs(credits.available).toLocaleString();
   const nextDateFormatted = nextBillingDate
-    ? new Date(nextBillingDate).toLocaleDateString()
+    ? new Date(nextBillingDate).toLocaleDateString('es-MX')
     : 'N/A';
 
   // Plan Display Helper

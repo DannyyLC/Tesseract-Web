@@ -134,7 +134,18 @@ export default function PlansPage() {
       {/* Main Pricing Grid */}
       <div className="space-y-8">
         <PlanGrid
-          plans={(plansData || []).filter((plan) => plan.type !== SubscriptionPlan.ENTERPRISE)}
+          plans={(plansData || []).filter((plan) => {
+            // Enterprise is always handled separately
+            if (plan.type === SubscriptionPlan.ENTERPRISE) return false;
+            
+            // If user has an active paid subscription, hide the FREE plan from the grid
+            // They should use the "Cancel Subscription" button instead
+            if (subscription.plan !== SubscriptionPlan.FREE && plan.type === SubscriptionPlan.FREE) {
+              return false;
+            }
+            
+            return true;
+          })}
           currentPlan={subscription.plan}
           onUpgrade={handlePlanSelect}
           upgradingPlan={upgradingPlan}
