@@ -123,6 +123,9 @@ export class BillingController {
   @Roles(UserRole.OWNER)
   async createPortalSession(@Req() req: Request & { user: UserPayload }) {
     const organizationId = req.user.organizationId;
+    const userEmail = req.user.email;
+    const userName = req.user.name ?? 'Admin User';
+
     if (!organizationId) {
       throw new BadRequestException('User does not belong to an organization');
     }
@@ -131,15 +134,34 @@ export class BillingController {
       where: { id: organizationId },
     });
 
-    if (!organization?.stripeCustomerId) {
-      throw new BadRequestException('Organization has no billing account');
+    if (!organization) {
+      throw new BadRequestException('Organization not found');
+    }
+
+    let customerId = organization.stripeCustomerId;
+
+    // Create Stripe Customer if not exists so FREE users can access their portal
+    if (!customerId) {
+      customerId = await this.billingService.createCustomer({
+        email: userEmail,
+        name: organization.name ?? userName,
+        metadata: {
+          organizationId: organizationId,
+        },
+      });
+
+      // Save to DB
+      await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: { stripeCustomerId: customerId },
+      });
     }
 
     const frontendUrl = this.configService.get('FRONTEND_URL') ?? 'http://localhost:3000';
     const returnUrl = `${frontendUrl}/billing`;
 
     const url = await this.billingService.createCustomerPortalSession(
-      organization.stripeCustomerId,
+      customerId,
       returnUrl,
     );
 

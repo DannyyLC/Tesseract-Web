@@ -19,7 +19,7 @@ export default function PlansPage() {
   const { data: dashboardData, isLoading: isLoadingDashboard } = useBillingDashboard();
   const { data: plansData, isLoading: isLoadingPlans } = usePlans();
   const { data: workflowStats } = useWorkflowStats();
-  const { updateSubscription, cancelSubscription } = useBillingMutations();
+  const { updateSubscription, cancelSubscription, createCheckoutSession } = useBillingMutations();
 
   const [selectedPlan, setSelectedPlan] = useState<BillingPlan | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -64,9 +64,20 @@ export default function PlansPage() {
     if (!selectedPlan) return;
     try {
       setUpgradingPlan(selectedPlan.type);
-      await updateSubscription.mutateAsync(selectedPlan.type as SubscriptionPlan);
-      // Optional: Success toast or redirect could be added here if not handled by mutation
+      
+      const isFreeOrCanceled =
+        subscription.plan === SubscriptionPlan.FREE || subscription.status === 'CANCELED';
+
+      if (isFreeOrCanceled) {
+        // Redirigir al Checkout si estaban en FREE o CANCELED
+        const { url } = await createCheckoutSession.mutateAsync(selectedPlan.type);
+        window.location.href = url;
+      } else {
+        // Actualizar la suscripción existente
+        await updateSubscription.mutateAsync(selectedPlan.type as SubscriptionPlan);
+      }
     } finally {
+      // Si se redirige, este finally aún podría ejecutarse brevemente antes de que se descargue la página
       setUpgradingPlan(null);
       setSelectedPlan(null);
     }
