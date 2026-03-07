@@ -65,8 +65,11 @@ export default function PlansPage() {
     try {
       setUpgradingPlan(selectedPlan.type);
       
+      const planState = subscription.plan;
+      const subStatus = subscription.status?.toUpperCase() || 'FREE';
+      
       const isFreeOrCanceled =
-        subscription.plan === SubscriptionPlan.FREE || subscription.status === 'CANCELED';
+        planState === SubscriptionPlan.FREE || subStatus === 'CANCELED';
 
       if (isFreeOrCanceled) {
         // Redirigir al Checkout si estaban en FREE o CANCELED

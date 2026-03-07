@@ -290,7 +290,7 @@ export class BillingService {
         where: { organizationId },
       });
 
-      if (existingSub && existingSub.plan === 'ENTERPRISE') {
+      if (existingSub?.plan === 'ENTERPRISE') {
         // Use custom monthly credits if defined, otherwise -1 (unlimited)
         creditsToAdd = existingSub.customMonthlyCredits ?? SUBSCRIPTION_PLANS.ENTERPRISE.limits.monthlyCredits;
         planName = 'ENTERPRISE';
@@ -500,6 +500,10 @@ export class BillingService {
 
     if (!sub?.stripeSubscriptionId) {
       throw new BadRequestException('No active subscription found to change');
+    }
+
+    if (sub.status === 'CANCELED') {
+      throw new BadRequestException('Cannot change a canceled subscription. Please create a new subscription instead.');
     }
 
     if (sub.plan === newPlan) {
