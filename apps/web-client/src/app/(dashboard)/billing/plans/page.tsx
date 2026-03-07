@@ -76,11 +76,22 @@ export default function PlansPage() {
         const { url } = await createCheckoutSession.mutateAsync(selectedPlan.type);
         window.location.href = url;
       } else {
-        // Actualizar la suscripción existente
-        await updateSubscription.mutateAsync(selectedPlan.type as SubscriptionPlan);
+        try {
+          // Intentar actualizar la suscripción existente
+          await updateSubscription.mutateAsync(selectedPlan.type as SubscriptionPlan);
+        } catch (updateError: any) {
+          // Si el backend detectó que la suscripción está cancelada en Stripe (409 Conflict),
+          // auto-recuperarse: crear una nueva suscripción via Checkout
+          if (updateError?.response?.status === 409) {
+            const { url } = await createCheckoutSession.mutateAsync(selectedPlan.type);
+            window.location.href = url;
+            return;
+          }
+          // Cualquier otro error, re-lanzar
+          throw updateError;
+        }
       }
     } finally {
-      // Si se redirige, este finally aún podría ejecutarse brevemente antes de que se descargue la página
       setUpgradingPlan(null);
       setSelectedPlan(null);
     }

@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ConflictException } from '@nestjs/common';
 import { StripeClient } from './stripe.client';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
@@ -524,6 +524,21 @@ export class BillingService {
     const stripeSub = await this.stripeClient.stripe.subscriptions.retrieve(
       sub.stripeSubscriptionId,
     );
+
+    // Guard: Verify subscription is not canceled in Stripe (DB may be out of sync)
+    if (stripeSub.status === 'canceled') {
+      this.logger.warn(
+        `Subscription ${sub.stripeSubscriptionId} is canceled in Stripe but DB shows ${sub.status}. Syncing DB.`,
+      );
+      await this.prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: 'CANCELED' },
+      });
+      throw new ConflictException(
+        'SUBSCRIPTION_CANCELED_IN_STRIPE',
+      );
+    }
+
     const itemId = stripeSub.items.data[0].id;
 
     // 5. Determine if Upgrade or Downgrade

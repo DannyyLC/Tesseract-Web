@@ -65,6 +65,17 @@ export class BillingController {
       throw new BadRequestException(`Invalid plan: ${planName}`);
     }
 
+    // Guard: Prevent creating a new subscription if one already exists
+    const existingSub = await this.prisma.subscription.findUnique({
+      where: { organizationId },
+    });
+
+    if (existingSub?.stripeSubscriptionId && existingSub.status !== 'CANCELED') {
+      throw new BadRequestException(
+        'You already have an active subscription. Use the plan change endpoint to switch plans.',
+      );
+    }
+
     // 1. Get Organization to check for existing Stripe Customer
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
@@ -101,7 +112,20 @@ export class BillingController {
       throw new BadRequestException(`Price ID for plan ${planName} is not configured`);
     }
 
-    // 4. Create Checkout Session
+    // 4. Cancel any existing active subscriptions in Stripe to prevent duplicates
+    const existingStripeSubs = await this.stripeClient.stripe.subscriptions.list({
+      customer: customerId,
+      status: 'active',
+    });
+
+    for (const stripeSub of existingStripeSubs.data) {
+      this.logger.warn(
+        `Canceling orphaned Stripe subscription ${stripeSub.id} before new checkout for org ${organizationId}`,
+      );
+      await this.stripeClient.stripe.subscriptions.cancel(stripeSub.id);
+    }
+
+    // 5. Create Checkout Session
     const frontendUrl = this.configService.get('FRONTEND_URL') ?? 'http://localhost:3000';
 
     const sessionUrl = await this.billingService.createCheckoutSession({
