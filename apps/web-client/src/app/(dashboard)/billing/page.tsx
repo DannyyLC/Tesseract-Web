@@ -24,12 +24,22 @@ export default function BillingPage() {
   const { createPortalSession } = useBillingMutations();
 
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
+  const [portalUrl, setPortalUrl] = useState<string | null>(null);
 
-  const handleOpenPortal = async () => {
+  const fetchPortalUrl = async () => {
+    if (portalUrl) return portalUrl;
+    const { url } = await createPortalSession.mutateAsync();
+    setPortalUrl(url);
+    return url;
+  };
+
+  const handleOpenPortal = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (portalUrl) return; // Let the <a href> handle it naturally
+    e.preventDefault();
     try {
       setIsOpeningPortal(true);
-      const { url } = await createPortalSession.mutateAsync();
-      window.location.href = url;
+      const url = await fetchPortalUrl();
+      window.open(url, '_blank');
     } finally {
       setIsOpeningPortal(false);
     }
@@ -74,12 +84,16 @@ export default function BillingPage() {
           <div className="flex gap-3">
             <PermissionGuard permissions="billing:checkout">
               {dashboardData?.hasBillingAccount && (
-                <button
+              <a
+                  href={portalUrl || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   onClick={handleOpenPortal}
+                  onMouseEnter={() => fetchPortalUrl()}
                   className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-medium text-black hover:bg-black/5 dark:border-white/10 dark:bg-transparent dark:text-white dark:hover:bg-white/5"
                 >
                   {isOpeningPortal ? 'Cargando...' : 'Portal de Pagos'}
-                </button>
+                </a>
               )}
             </PermissionGuard>
             <Link

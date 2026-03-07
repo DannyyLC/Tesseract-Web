@@ -690,6 +690,24 @@ export class BillingService {
 
     this.logger.log(`Synced subscription ${sub.id} for org ${organizationId} to plan ${planName}`);
 
+    // CLEANUP: Cancel any other active subscriptions for this customer (prevent duplicates)
+    const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
+    if (customerId) {
+      const activeSubscriptions = await this.stripeClient.stripe.subscriptions.list({
+        customer: customerId,
+        status: 'active',
+      });
+
+      for (const activeSub of activeSubscriptions.data) {
+        if (activeSub.id !== sub.id) {
+          this.logger.warn(
+            `Canceling duplicate subscription ${activeSub.id} for org ${organizationId} (keeping ${sub.id})`,
+          );
+          await this.stripeClient.stripe.subscriptions.cancel(activeSub.id);
+        }
+      }
+    }
+
     // ENFORCE PLAN LIMITS (Downgrade Logic)
     await this.enforceLimits(organizationId, planName);
   }
@@ -697,6 +715,19 @@ export class BillingService {
   private async handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     const organizationId = subscription.metadata?.organizationId;
     if (!organizationId) return;
+
+    // Guard: Only process if this is the subscription we're currently tracking
+    // Ignore deletions of orphaned/duplicate subscriptions (e.g. from cleanup)
+    const trackedSub = await this.prisma.subscription.findUnique({
+      where: { organizationId },
+    });
+
+    if (trackedSub?.stripeSubscriptionId && trackedSub.stripeSubscriptionId !== subscription.id) {
+      this.logger.log(
+        `Ignoring deletion of orphaned subscription ${subscription.id} for org ${organizationId} (tracking ${trackedSub.stripeSubscriptionId})`,
+      );
+      return;
+    }
 
     await this.prisma.$transaction([
       this.prisma.organization.update({
