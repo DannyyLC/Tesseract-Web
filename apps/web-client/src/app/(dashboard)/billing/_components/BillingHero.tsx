@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Shield, CreditCard } from 'lucide-react';
+import { Shield, CreditCard, AlertTriangle } from 'lucide-react';
 import { SubscriptionPlan } from '@tesseract/types';
 
 interface BillingHeroProps {
@@ -11,6 +11,10 @@ interface BillingHeroProps {
     usedThisMonth: number;
     limit: number;
   };
+  cancelAtPeriodEnd?: boolean;
+  allowOverages?: boolean;
+  maxOverageLimit?: number;
+  currentOverageLimit?: number;
 }
 
 export default function BillingHero({
@@ -18,6 +22,7 @@ export default function BillingHero({
   status,
   nextBillingDate,
   credits,
+  cancelAtPeriodEnd = false,
 }: BillingHeroProps) {
   const isNegative = credits.available < 0;
   const formattedBalance = Math.abs(credits.available).toLocaleString();
@@ -129,12 +134,21 @@ export default function BillingHero({
 
           {/* Billing Info */}
           <div className="space-y-1">
-            <div
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest ${statusConfig.bg} ${statusConfig.text}`}
-            >
-              <span className={`h-1.5 w-1.5 rounded-full ${statusConfig.color} animate-pulse`} />
-              {statusConfig.label}
-            </div>
+            {cancelAtPeriodEnd ? (
+              <div
+                className="inline-flex items-center gap-2 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-amber-300 dark:text-amber-400"
+              >
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+                Cancelación Pendiente
+              </div>
+            ) : (
+              <div
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest ${statusConfig.bg} ${statusConfig.text}`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${statusConfig.color} animate-pulse`} />
+                {statusConfig.label}
+              </div>
+            )}
 
             {(status === 'PAST_DUE' || status === 'past_due') && (
               <p className="max-w-[200px] text-right text-xs text-red-400 dark:text-red-300">
@@ -145,8 +159,17 @@ export default function BillingHero({
 
             {nextBillingDate && (
               <div className="flex items-center gap-2 text-sm opacity-50 lg:justify-end">
-                <Shield size={14} />
-                <span>Renueva el {nextDateFormatted}</span>
+                {cancelAtPeriodEnd ? (
+                  <>
+                    <AlertTriangle size={14} />
+                    <span>Se cancela el {nextDateFormatted}</span>
+                  </>
+                ) : (
+                  <>
+                    <Shield size={14} />
+                    <span>Renueva el {nextDateFormatted}</span>
+                  </>
+                )}
               </div>
             )}
           </div>

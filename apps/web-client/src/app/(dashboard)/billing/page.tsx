@@ -114,6 +114,7 @@ export default function BillingPage() {
           status={subscription.status || 'unknown'}
           nextBillingDate={subscription.currentPeriodEnd}
           credits={credits}
+          cancelAtPeriodEnd={subscription.cancelAtPeriodEnd}
         />
 
         {/* Overage Configuration — only for paid plans */}
