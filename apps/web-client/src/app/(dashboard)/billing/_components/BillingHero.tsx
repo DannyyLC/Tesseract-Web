@@ -72,8 +72,10 @@ export default function BillingHero({
         };
     }
   };
-
-  const statusConfig = getStatusConfig(status);
+  // If user is on FREE plan, they're always "Active" from their perspective
+  // CANCELED is an internal state of the previous subscription, not relevant to show
+  const effectiveStatus = plan === SubscriptionPlan.FREE ? 'ACTIVE' : status;
+  const statusConfig = getStatusConfig(effectiveStatus);
 
   return (
     <div className="relative overflow-hidden rounded-3xl bg-black p-8 text-white shadow-2xl transition-all dark:bg-white dark:text-black">
@@ -157,7 +159,7 @@ export default function BillingHero({
               </p>
             )}
 
-            {nextBillingDate && (
+            {nextBillingDate && plan !== SubscriptionPlan.FREE && status !== 'CANCELED' && (
               <div className="flex items-center gap-2 text-sm opacity-50 lg:justify-end">
                 {cancelAtPeriodEnd ? (
                   <>
