@@ -119,6 +119,43 @@ export class BillingService {
     }
   }
 
+  // ============================================
+  // Stripe API Compatibility Helpers
+  // The Stripe API restructured Invoice objects:
+  //   - subscription → parent.subscription_details.subscription
+  //   - subscription_details.metadata → parent.subscription_details.metadata
+  //   - line.price.id → line.pricing.price_details.price
+  // ============================================
+  private getInvoiceSubscriptionId(invoice: any): string | undefined {
+    // New API: parent.subscription_details.subscription
+    // Old API: invoice.subscription (string or object)
+    return (
+      invoice.parent?.subscription_details?.subscription ??
+      (typeof invoice.subscription === 'string'
+        ? invoice.subscription
+        : invoice.subscription?.id)
+    );
+  }
+
+  private getInvoiceOrganizationId(invoice: any): string | undefined {
+    // New API: parent.subscription_details.metadata
+    // Old API: subscription_details.metadata or invoice.metadata
+    return (
+      invoice.parent?.subscription_details?.metadata?.organizationId ??
+      invoice.subscription_details?.metadata?.organizationId ??
+      invoice.metadata?.organizationId
+    );
+  }
+
+  private getLineItemPriceId(lineItem: any): string | undefined {
+    // New API: pricing.price_details.price
+    // Old API: price.id
+    return (
+      lineItem.pricing?.price_details?.price ??
+      lineItem.price?.id
+    );
+  }
+
   /**
    * Handle Invoice Created
    * SNAPSHOT LOGIC: Check for negative balance and bill it immediately
@@ -126,10 +163,11 @@ export class BillingService {
   private async handleInvoiceCreated(invoiceObject: Stripe.Invoice) {
     const invoice = invoiceObject as any;
 
+    const subscriptionId = this.getInvoiceSubscriptionId(invoice);
+
     // Only process subscription invoices
-    if (invoice.subscription && invoice.billing_reason === 'subscription_cycle') {
-      const organizationId =
-        invoice.subscription_details?.metadata?.organizationId ?? invoice.metadata?.organizationId;
+    if (subscriptionId && invoice.billing_reason === 'subscription_cycle') {
+      const organizationId = this.getInvoiceOrganizationId(invoice);
 
       if (!organizationId) {
         this.logger.warn(`Invoice ${invoice.id} created but no organizationId found`);
@@ -186,8 +224,7 @@ export class BillingService {
    */
   private async handleInvoicePaymentFailed(invoiceObject: Stripe.Invoice) {
     const invoice = invoiceObject as any;
-    const organizationId =
-      invoice.subscription_details?.metadata?.organizationId ?? invoice.metadata?.organizationId;
+    const organizationId = this.getInvoiceOrganizationId(invoice);
 
     if (!organizationId) {
       this.logger.warn(`Invoice ${invoice.id} payment failed but no organizationId found`);
@@ -206,10 +243,7 @@ export class BillingService {
 
     // 2. Mark Subscription as benign "canceled at end" to prevent infinite renewal attempts
     // Or relies on Stripe's "Smart Retries".
-    // User asked to "cancel subscription" logic.
-
-    const subId =
-      typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+    const subId = this.getInvoiceSubscriptionId(invoice);
     if (subId) {
       // Verify it exists in our DB
       const sub = await this.prisma.subscription.findUnique({ where: { organizationId } });
@@ -229,7 +263,9 @@ export class BillingService {
   private async handleInvoicePaymentSucceeded(invoiceObject: Stripe.Invoice) {
     const invoice = invoiceObject as any; // Cast to any to handle type mismatches
 
-    if (!invoice.subscription) {
+    const subscriptionId = this.getInvoiceSubscriptionId(invoice);
+
+    if (!subscriptionId) {
       this.logger.warn(
         `Invoice ${invoice.id} has no subscription attached, skipping credit addition`,
       );
@@ -242,17 +278,39 @@ export class BillingService {
       return;
     }
 
-    const subscriptionId =
-      typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription.id;
-
     // Use organizationId from invoice metadata or subscription metadata
-    const organizationId =
-      invoice.subscription_details?.metadata?.organizationId ?? invoice.metadata?.organizationId;
+    let organizationId = this.getInvoiceOrganizationId(invoice);
+
+    // Fallback: Retrieve organizationId from the Stripe subscription metadata directly
+    if (!organizationId) {
+      this.logger.warn(
+        `Invoice ${invoice.id} missing organizationId in invoice metadata, looking up from Stripe subscription ${subscriptionId}`,
+      );
+      try {
+        const stripeSub = await this.stripeClient.stripe.subscriptions.retrieve(subscriptionId);
+        organizationId = stripeSub.metadata?.organizationId;
+      } catch (err) {
+        this.logger.error(`Failed to retrieve subscription ${subscriptionId} from Stripe`, err);
+      }
+    }
+
+    // Last resort: Look up from our DB
+    if (!organizationId) {
+      this.logger.warn(
+        `Still no organizationId for invoice ${invoice.id}, looking up from DB by stripeSubscriptionId ${subscriptionId}`,
+      );
+      const dbSub = await this.prisma.subscription.findFirst({
+        where: { stripeSubscriptionId: subscriptionId },
+      });
+      organizationId = dbSub?.organizationId;
+    }
 
     if (!organizationId) {
-      this.logger.error(`No organizationId found in invoice metadata for invoice ${invoice.id}`);
+      this.logger.error(`No organizationId found for invoice ${invoice.id} after all fallbacks`);
       return;
     }
+
+    this.logger.log(`Processing invoice ${invoice.id} for org ${organizationId} (sub: ${subscriptionId})`);
 
     const amountPaidCents = invoice.amount_paid;
 
@@ -264,7 +322,7 @@ export class BillingService {
     let priceId: string | undefined;
 
     for (const line of invoice.lines?.data ?? []) {
-      const linePriceId = line.price?.id;
+      const linePriceId = this.getLineItemPriceId(line);
       if (!linePriceId) continue;
 
       const planByPriceId = Object.values(SUBSCRIPTION_PLANS).find(
@@ -275,6 +333,7 @@ export class BillingService {
         creditsToAdd = planByPriceId.limits.monthlyCredits;
         planName = planByPriceId.type;
         priceId = linePriceId;
+        this.logger.log(`Matched invoice line to plan ${planName} via priceId ${linePriceId}`);
         break; // Found the subscription plan
       }
     }
@@ -288,6 +347,7 @@ export class BillingService {
       if (planByAmount) {
         creditsToAdd = planByAmount.limits.monthlyCredits;
         planName = planByAmount.type;
+        this.logger.log(`Matched invoice to plan ${planName} via amount ${amountPaidCents}`);
       }
     }
 
@@ -304,6 +364,8 @@ export class BillingService {
         this.logger.log(`Using custom ENTERPRISE plan limits for Org ${organizationId}`);
       }
     }
+
+
 
     if (creditsToAdd === 0) {
       this.logger.warn(
@@ -368,7 +430,7 @@ export class BillingService {
       // 2. Upsert Subscription
       const periodStart = invoice.period_start ? new Date(invoice.period_start * 1000) : new Date();
       const periodEnd = invoice.period_end ? new Date(invoice.period_end * 1000) : new Date();
-      const priceId = invoice.lines?.data?.[0]?.price?.id;
+      const upsertPriceId = this.getLineItemPriceId(invoice.lines?.data?.[0]);
 
       await this.prisma.subscription.upsert({
         where: { organizationId },
@@ -379,7 +441,7 @@ export class BillingService {
           currentPeriodStart: periodStart,
           currentPeriodEnd: periodEnd,
           stripeSubscriptionId: subscriptionId,
-          stripePriceId: priceId,
+          stripePriceId: upsertPriceId,
         },
         update: {
           plan: planName as SubscriptionPlan,
@@ -387,7 +449,7 @@ export class BillingService {
           currentPeriodStart: periodStart,
           currentPeriodEnd: periodEnd,
           stripeSubscriptionId: subscriptionId,
-          stripePriceId: priceId,
+          stripePriceId: upsertPriceId,
           pendingPlanChange: null,
         },
       });
@@ -425,7 +487,7 @@ export class BillingService {
         },
         amountPaidCents / 100,
         subscriptionId,
-        invoice.id,
+        undefined, // invoiceId: Stripe ID is already stored in metadata.stripeInvoiceId
       );
 
       // Reset InvoicedOverageCredits
@@ -684,9 +746,10 @@ export class BillingService {
         },
         update: {
           plan: planName,
-          status: 'ACTIVE', // Map Stripe status? active, past_due, etc.
+          status: 'ACTIVE',
           currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : new Date(),
           currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : new Date(),
+          stripeSubscriptionId: sub.id,
           stripePriceId: priceId,
           cancelAtPeriodEnd: sub.cancel_at_period_end,
           pendingPlanChange: null, // Clear flags now that update is applied
