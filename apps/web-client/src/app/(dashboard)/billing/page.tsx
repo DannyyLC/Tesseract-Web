@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import {
   useBillingDashboard,
@@ -10,11 +9,13 @@ import {
 } from '@/hooks/useBilling';
 import { SubscriptionPlan } from '@tesseract/types';
 import BillingHero from './_components/BillingHero';
+import OverageCard from './_components/OverageCard';
 import UsageCard from './_components/UsageCard';
 import Loading from '@/app/(dashboard)/loading';
 import { Workflow, Key, Users, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import PermissionGuard from '@/components/auth/PermissionGuard';
+import { useState } from 'react';
 
 export default function BillingPage() {
   const { isLoading: isLoadingAuth } = useAuth();
@@ -67,6 +68,7 @@ export default function BillingPage() {
   const currentPlan = plans?.find((p) => p.type === subscription.plan);
   const maxOverageLimit = currentPlan?.limits.overageLimit || 0;
   const currentOverageLimit = subscriptionDetails?.customOverageLimit ?? 0;
+  const isPaidPlan = subscription.plan !== SubscriptionPlan.FREE;
 
   return (
     <PermissionGuard permissions="billing:read" redirect={true} fallbackRoute="/dashboard">
@@ -112,10 +114,16 @@ export default function BillingPage() {
           status={subscription.status || 'unknown'}
           nextBillingDate={subscription.currentPeriodEnd}
           credits={credits}
-          allowOverages={dashboardData?.allowOverages || false}
-          maxOverageLimit={maxOverageLimit}
-          currentOverageLimit={currentOverageLimit}
         />
+
+        {/* Overage Configuration — only for paid plans */}
+        {isPaidPlan && (
+          <OverageCard
+            allowOverages={dashboardData?.allowOverages || false}
+            maxOverageLimit={maxOverageLimit}
+            currentOverageLimit={currentOverageLimit}
+          />
+        )}
 
         {/* Resource Usage Grid */}
         <div>
