@@ -63,7 +63,9 @@ export default function OverageCard({
           lastCommittedRef.current = clamped;
           toast.success('Límite de excedentes actualizado');
         } catch (error: any) {
-          toast.error('Error al actualizar límite', { description: error.message });
+          if (!error.toastHandled) {
+            toast.error('Error al actualizar límite', { description: error.message });
+          }
           setLocalLimit(lastCommittedRef.current);
         } finally {
           setIsToggling(false);
@@ -82,17 +84,19 @@ export default function OverageCard({
         `Excedentes ${!allowOverages ? 'habilitados' : 'deshabilitados'} correctamente`,
       );
     } catch (error: any) {
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        (typeof error === 'string' ? error : 'Error desconocido');
+      if (!error.toastHandled) {
+        const message =
+          error?.response?.data?.message ||
+          error?.message ||
+          (typeof error === 'string' ? error : 'Error desconocido');
 
-      if (message.includes('No active subscription found') || error?.errorCode === 'HTTP_ERROR') {
-        toast.error('No tienes una suscripción activa', {
-          description: 'Debes tener un plan activo para habilitar excedentes.',
-        });
-      } else {
-        toast.error('Error al cambiar configuración', { description: message });
+        if (message.includes('No active subscription found') || error?.errorCode === 'HTTP_ERROR') {
+          toast.error('No tienes una suscripción activa', {
+            description: 'Debes tener un plan activo para habilitar excedentes.',
+          });
+        } else {
+          toast.error('Error al cambiar configuración', { description: message });
+        }
       }
     } finally {
       setIsToggling(false);
