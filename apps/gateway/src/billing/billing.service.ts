@@ -229,10 +229,16 @@ export class BillingService {
   private async handleInvoicePaymentSucceeded(invoiceObject: Stripe.Invoice) {
     const invoice = invoiceObject as any; // Cast to any to handle type mismatches
 
-    if (!invoice.subscription || !invoice.payment_intent) {
+    if (!invoice.subscription) {
       this.logger.warn(
-        `Invoice ${invoice.id} missing subscription or payment details, skipping credit addition`,
+        `Invoice ${invoice.id} has no subscription attached, skipping credit addition`,
       );
+      return;
+    }
+
+    // Skip $0 invoices (e.g. trial starts, free invoices)
+    if (!invoice.amount_paid || invoice.amount_paid === 0) {
+      this.logger.log(`Invoice ${invoice.id} has $0 amount paid, skipping credit addition`);
       return;
     }
 
