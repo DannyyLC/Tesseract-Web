@@ -292,7 +292,11 @@ export default function PlansPage() {
           <p className="text-xs text-black/50 dark:text-white/50">
             Si cancelas ahora, tu acceso continuará hasta el{' '}
             {subscription.currentPeriodEnd
-              ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
+              ? new Date(subscription.currentPeriodEnd).toLocaleDateString('es-MX', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })
               : 'final del periodo'}
             , pero no se renovará automáticamente.
           </p>
