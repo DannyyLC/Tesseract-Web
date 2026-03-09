@@ -643,13 +643,13 @@ export class BillingService {
         await this.stripeClient.stripe.subscriptionSchedules.update(scheduleId, {
           phases: [
             {
-              start_date: 'now',
-              end_date: subscriptions.current_period_end, // Phase 1: Keep current plan until period ends
-              items: [{ price: subscriptions.items.data[0].price.id }], // Current price
+              start_date: subscriptions.current_period_start, // Must match existing phase start
+              end_date: subscriptions.current_period_end,
+              items: [{ price: subscriptions.items.data[0].price.id }],
             },
             {
-              start_date: subscriptions.current_period_end, // Phase 2: Start new plan after period ends
-              items: [{ price: priceId }], // New price
+              start_date: subscriptions.current_period_end,
+              items: [{ price: priceId }],
             },
           ],
         });
@@ -663,13 +663,13 @@ export class BillingService {
         await this.stripeClient.stripe.subscriptionSchedules.update(schedule.id, {
           phases: [
             {
-              start_date: 'now',
-              end_date: subscriptions.current_period_end, // Phase 1: Keep current plan until period ends
-              items: [{ price: subscriptions.items.data[0].price.id }], // Current price
+              start_date: subscriptions.current_period_start, // Must match existing phase start
+              end_date: subscriptions.current_period_end,
+              items: [{ price: subscriptions.items.data[0].price.id }],
             },
             {
-              start_date: subscriptions.current_period_end, // Phase 2: Start new plan after period ends
-              items: [{ price: priceId }], // New price
+              start_date: subscriptions.current_period_end,
+              items: [{ price: priceId }],
             },
           ],
         });
