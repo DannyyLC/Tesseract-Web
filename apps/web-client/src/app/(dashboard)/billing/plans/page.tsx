@@ -20,7 +20,7 @@ export default function PlansPage() {
   const { data: dashboardData, isLoading: isLoadingDashboard } = useBillingDashboard();
   const { data: plansData, isLoading: isLoadingPlans } = usePlans();
   const { data: workflowStats } = useWorkflowStats();
-  const { updateSubscription, cancelSubscription, resumeSubscription, createCheckoutSession } = useBillingMutations();
+  const { updateSubscription, cancelSubscription, resumeSubscription, createCheckoutSession, cancelPendingDowngrade } = useBillingMutations();
 
   const [selectedPlan, setSelectedPlan] = useState<BillingPlan | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -33,6 +33,8 @@ export default function PlansPage() {
   const [showPlanChangeSuccess, setShowPlanChangeSuccess] = useState(false);
   const [showResumeSuccess, setShowResumeSuccess] = useState(false);
   const [changedPlanName, setChangedPlanName] = useState('');
+  const [isCancellingDowngrade, setIsCancellingDowngrade] = useState(false);
+  const [showCancelDowngradeModal, setShowCancelDowngradeModal] = useState(false);
 
   // Derive subscription state
   const subscription = {
@@ -41,6 +43,24 @@ export default function PlansPage() {
     currentPeriodEnd: dashboardData?.nextBillingDate,
     cancelAtPeriodEnd: dashboardData?.cancelAtPeriodEnd,
     pendingPlanChange: dashboardData?.pendingPlanChange,
+  };
+
+  const handleCancelDowngrade = () => {
+    setIsCancellingDowngrade(true);
+    cancelPendingDowngrade.mutate(undefined, {
+      onSuccess: () => {
+        toast.success('Cambio de plan programado cancelado exitosamente');
+        setIsCancellingDowngrade(false);
+      },
+      onError: (error: any) => {
+        let msg = 'Error al cancelar el cambio de plan';
+        if (error?.response?.data?.message) {
+          msg = error.response.data.message;
+        }
+        toast.error(msg);
+        setIsCancellingDowngrade(false);
+      },
+    });
   };
 
   const handlePlanSelect = (planType: string) => {
@@ -168,24 +188,40 @@ export default function PlansPage() {
 
       {/* Pending Plan Change Banner */}
       {subscription.pendingPlanChange && (
-        <div className="flex items-center gap-4 rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
-            <ArrowDownRight size={20} className="text-blue-500" />
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5">
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
+              <ArrowDownRight size={20} className="text-blue-500" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-black dark:text-white">
+                Cambio programado a <span className="text-blue-500">{subscription.pendingPlanChange}</span>
+              </p>
+              <p className="text-xs text-black/50 dark:text-white/50">
+                Tu plan actual seguirá activo hasta el {subscription.currentPeriodEnd
+                  ? new Date(subscription.currentPeriodEnd).toLocaleDateString('es-MX', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })
+                  : 'final del periodo'}. Después cambiará automáticamente.
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-bold text-black dark:text-white">
-              Cambio programado a <span className="text-blue-500">{subscription.pendingPlanChange}</span>
-            </p>
-            <p className="text-xs text-black/50 dark:text-white/50">
-              Tu plan actual seguirá activo hasta el {subscription.currentPeriodEnd
-                ? new Date(subscription.currentPeriodEnd).toLocaleDateString('es-MX', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })
-                : 'final del periodo'}. Después cambiará automáticamente.
-            </p>
-          </div>
+          <button
+            onClick={() => setShowCancelDowngradeModal(true)}
+            disabled={isCancellingDowngrade}
+            className="shrink-0 rounded-lg bg-blue-500/10 px-4 py-2 text-sm font-bold text-blue-600 transition-colors hover:bg-blue-500/20 disabled:opacity-50 dark:text-blue-400"
+          >
+            {isCancellingDowngrade ? (
+              <span className="flex items-center gap-2">
+                <Loader2 size={16} className="animate-spin" />
+                Cancelando...
+              </span>
+            ) : (
+              'Cancelar Cambio'
+            )}
+          </button>
         </div>
       )}
 
@@ -405,6 +441,46 @@ export default function PlansPage() {
             >
               {isResuming && <Loader2 size={16} className="animate-spin" />}
               Reactivar Suscripción
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Cancel Downgrade Confirmation Modal */}
+      <Modal
+        isOpen={showCancelDowngradeModal}
+        onClose={() => !isCancellingDowngrade && setShowCancelDowngradeModal(false)}
+        title="Cancelar Cambio Programado"
+      >
+        <div className="space-y-6">
+          <p className="text-black/70 dark:text-white/70">
+            ¿Estás seguro de que deseas cancelar el cambio programado a{' '}
+            <span className="font-bold">{subscription.pendingPlanChange}</span>?
+          </p>
+
+          <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 text-sm text-blue-600 dark:text-blue-400">
+            Mantendrás tu plan actual (<span className="font-bold">{subscription.plan}</span>) de forma continua
+            y no habrá interrupciones en tu servicio.
+          </div>
+
+          <div className="flex w-full flex-col-reverse justify-end gap-3 sm:flex-row">
+            <button
+              onClick={() => setShowCancelDowngradeModal(false)}
+              disabled={isCancellingDowngrade}
+              className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-black dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
+            >
+              Cerrar
+            </button>
+            <button
+              onClick={async () => {
+                await handleCancelDowngrade();
+                setShowCancelDowngradeModal(false);
+              }}
+              disabled={isCancellingDowngrade}
+              className="flex items-center justify-center gap-2 rounded-xl bg-blue-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+            >
+              {isCancellingDowngrade && <Loader2 size={16} className="animate-spin" />}
+              Confirmar Cancelación
             </button>
           </div>
         </div>

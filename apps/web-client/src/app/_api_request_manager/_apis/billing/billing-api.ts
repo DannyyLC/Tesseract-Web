@@ -110,6 +110,17 @@ class BillingApi {
   }
 
   /**
+   * Cancels a pending downgrade scheduled for the end of the period.
+   * Endpoint: PATCH /billing/subscription/cancel-downgrade
+   */
+  public async cancelPendingDowngrade(): Promise<{ message: string }> {
+    const response = await this.apiRequestManager.patch<{ message: string }>(
+      `${BillingApi.BASE_URL}/subscription/cancel-downgrade`,
+    );
+    return response.data;
+  }
+
+  /**
    * Toggles the overage setting for the organization.
    * Endpoint: PATCH /billing/overages
    */

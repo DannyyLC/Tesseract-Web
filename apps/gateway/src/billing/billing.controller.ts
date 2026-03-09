@@ -274,6 +274,18 @@ export class BillingController {
     return { message: 'Subscription resumed successfully' };
   }
 
+  @Patch('subscription/cancel-downgrade')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER)
+  async cancelPendingDowngrade(@CurrentUser() user: UserPayload) {
+    const organizationId = user.organizationId;
+    if (!organizationId) {
+      throw new BadRequestException('User does not belong to an organization');
+    }
+    await this.billingService.cancelPendingDowngrade(organizationId);
+    return { message: 'Pending downgrade cancelled successfully' };
+  }
+
   @Throttle({ default: { limit: 100, ttl: 60000 } })
   @Post('webhook')
   async handleWebhook(@Headers('stripe-signature') signature: string, @Req() request: Request) {

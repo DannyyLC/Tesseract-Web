@@ -616,6 +616,15 @@ export class BillingService {
 
     if (isUpgrade) {
       // UPGRADE: Immediate change + Charge difference now
+
+      // SAFETY: If there's an active schedule (from a pending downgrade), release it first
+      // Otherwise the schedule would still execute and revert the plan after the period ends
+      const existingScheduleId = (stripeSub as any).schedule as string;
+      if (existingScheduleId) {
+        await this.stripeClient.stripe.subscriptionSchedules.release(existingScheduleId);
+        this.logger.log(`Released schedule ${existingScheduleId} before upgrading org ${organizationId}`);
+      }
+
       await this.stripeClient.stripe.subscriptions.update(sub.stripeSubscriptionId, {
         items: [
           {
@@ -623,32 +632,40 @@ export class BillingService {
             price: priceId,
           },
         ],
-        proration_behavior: 'none', // Charge full new plan immediately, no refund for old
-        billing_cycle_anchor: 'now', // Reset cycle to now (optional, usually preferred for upgrades)
+        proration_behavior: 'none',
+        billing_cycle_anchor: 'now',
       });
-      // DB update will happen via webhook 'customer.subscription.updated'
+
+      // Clean pending downgrade from DB if there was one
+      if (sub.pendingPlanChange) {
+        await this.prisma.subscription.update({
+          where: { id: sub.id },
+          data: {
+            pendingPlanChange: null,
+            planChangeRequestedAt: null,
+          },
+        });
+        this.logger.log(`Cleared pending downgrade for org ${organizationId} (upgrading instead)`);
+      }
+
+      // DB plan update will happen via webhook 'customer.subscription.updated'
     } else {
       // DOWNGRADE: Schedule change for end of period
       // We use Subscription Schedules to queue the change natively in Stripe
 
-      // 1. Check if a schedule already exists
-      const subscriptions = (await this.stripeClient.stripe.subscriptions.retrieve(
-        sub.stripeSubscriptionId,
-      )) as any;
-
-      const scheduleId = subscriptions.schedule as string;
+      const scheduleId = (stripeSub as any).schedule as string;
 
       if (scheduleId) {
-        // Update existing schedule
+        // Update existing schedule with the new target plan
         await this.stripeClient.stripe.subscriptionSchedules.update(scheduleId, {
           phases: [
             {
-              start_date: subscriptions.current_period_start, // Must match existing phase start
-              end_date: subscriptions.current_period_end,
-              items: [{ price: subscriptions.items.data[0].price.id }],
+              start_date: (stripeSub as any).current_period_start,
+              end_date: (stripeSub as any).current_period_end,
+              items: [{ price: stripeSub.items.data[0].price.id }],
             },
             {
-              start_date: subscriptions.current_period_end,
+              start_date: (stripeSub as any).current_period_end,
               items: [{ price: priceId }],
             },
           ],
@@ -663,30 +680,72 @@ export class BillingService {
         await this.stripeClient.stripe.subscriptionSchedules.update(schedule.id, {
           phases: [
             {
-              start_date: subscriptions.current_period_start, // Must match existing phase start
-              end_date: subscriptions.current_period_end,
-              items: [{ price: subscriptions.items.data[0].price.id }],
+              start_date: (stripeSub as any).current_period_start,
+              end_date: (stripeSub as any).current_period_end,
+              items: [{ price: stripeSub.items.data[0].price.id }],
             },
             {
-              start_date: subscriptions.current_period_end,
+              start_date: (stripeSub as any).current_period_end,
               items: [{ price: priceId }],
             },
           ],
         });
       }
 
-      // 2. Update DB to reflect pending change
+      // Update DB to reflect pending change
       await this.prisma.subscription.update({
         where: { id: sub.id },
         data: {
           pendingPlanChange: newPlan,
           planChangeRequestedAt: new Date(),
-          cancelAtPeriodEnd: false, // Ensure we don't cancel since we are just moving to lower plan
+          cancelAtPeriodEnd: false,
         },
       });
 
       this.logger.log(`Scheduled downgrade to ${newPlan} for org ${organizationId}`);
     }
+  }
+
+  /**
+   * Cancels a pending downgrade by releasing the Stripe subscription schedule
+   * and cleaning the pendingPlanChange from the database.
+   */
+  async cancelPendingDowngrade(organizationId: string) {
+    const sub = await this.prisma.subscription.findUnique({
+      where: { organizationId },
+    });
+
+    if (!sub?.stripeSubscriptionId) {
+      throw new BadRequestException('No active subscription found');
+    }
+
+    if (!sub.pendingPlanChange) {
+      throw new BadRequestException('No pending plan change to cancel');
+    }
+
+    // Get the Stripe subscription to find the schedule
+    const stripeSub = await this.stripeClient.stripe.subscriptions.retrieve(
+      sub.stripeSubscriptionId,
+    );
+
+    const scheduleId = (stripeSub as any).schedule as string;
+
+    if (scheduleId) {
+      // Release the schedule — keeps current subscription as-is, cancels the future phase
+      await this.stripeClient.stripe.subscriptionSchedules.release(scheduleId);
+      this.logger.log(`Released schedule ${scheduleId} for org ${organizationId}`);
+    }
+
+    // Clean DB
+    await this.prisma.subscription.update({
+      where: { id: sub.id },
+      data: {
+        pendingPlanChange: null,
+        planChangeRequestedAt: null,
+      },
+    });
+
+    this.logger.log(`Cancelled pending downgrade for org ${organizationId}`);
   }
 
   private async handleSubscriptionUpdated(subscription: Stripe.Subscription) {

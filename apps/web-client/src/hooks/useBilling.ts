@@ -89,6 +89,17 @@ export function useBillingMutations() {
     },
   });
 
+  const cancelPendingDowngrade = useMutation({
+    mutationFn: async () => {
+      const api = RootApi.getInstance().getBillingApi();
+      return await api.cancelPendingDowngrade();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['billing', 'subscription'] });
+      queryClient.invalidateQueries({ queryKey: ['billing', 'dashboard'] });
+    },
+  });
+
   const toggleOverages = useMutation({
     mutationFn: async ({
       allowOverages,
@@ -112,6 +123,7 @@ export function useBillingMutations() {
     updateSubscription,
     cancelSubscription,
     resumeSubscription,
+    cancelPendingDowngrade,
     toggleOverages,
   };
 }
