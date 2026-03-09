@@ -6,6 +6,7 @@ export class BillingDashboardDto {
   nextBillingDate: Date | null;
   cancelAtPeriodEnd: boolean;
   allowOverages: boolean;
+  overageLimit: number;
   hasBillingAccount: boolean;
 
   credits: {

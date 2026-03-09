@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Shield, CreditCard, AlertTriangle } from 'lucide-react';
-import { SubscriptionPlan } from '@tesseract/types';
+import { SubscriptionPlan, OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
 
 interface BillingHeroProps {
   plan: SubscriptionPlan;
@@ -113,7 +113,7 @@ export default function BillingHero({
           {/* Negative Balance Helper Text */}
           {isNegative && (
             <p className="max-w-md text-sm text-red-600/80 dark:text-red-500/80">
-              Has excedido tu límite. El consumo extra ($0.19/crédito) se cargará en tu próxima
+              Has excedido tu límite. El consumo extra (${OVERAGE_PRICE_PER_CREDIT}/crédito) se cargará en tu próxima
               factura.
             </p>
           )}

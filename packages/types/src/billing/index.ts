@@ -7,6 +7,7 @@ export interface BillingDashboardData {
   nextBillingDate: string | Date | null;
   cancelAtPeriodEnd: boolean;
   allowOverages: boolean;
+  overageLimit: number;
   hasBillingAccount: boolean;
 
   credits: {

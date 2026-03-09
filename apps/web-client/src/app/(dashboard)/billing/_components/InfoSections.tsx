@@ -1,5 +1,6 @@
 'use client';
 
+import { OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
 import { Headphones, Mail, Cpu, Sparkles, MessageSquare, Zap } from 'lucide-react';
 
 const TIERS = [
@@ -64,7 +65,7 @@ export default function InfoSections() {
           <h2 className="text-2xl font-bold text-black dark:text-white">¿Qué es un Crédito?</h2>
           <p className="max-w-2xl leading-relaxed text-black/50 dark:text-white/50">
             Es nuestra unidad de medida. No cobramos por ejecución, sino por la complejidad del
-            razonamiento requerido. El precio por crédito de overage es de $0.19 USD.
+            razonamiento requerido. El precio por crédito de overage es de ${OVERAGE_PRICE_PER_CREDIT} USD.
           </p>
         </div>
 

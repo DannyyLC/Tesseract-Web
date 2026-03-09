@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Minus, Plus } from 'lucide-react';
 import { useBillingMutations } from '@/hooks/useBilling';
 import { toast } from 'sonner';
+import { OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
 
 interface OverageCardProps {
   allowOverages: boolean;
@@ -11,7 +12,6 @@ interface OverageCardProps {
 }
 
 const STEP = 5;
-const COST_PER_CREDIT = 0.19;
 const DEBOUNCE_MS = 1200;
 
 export default function OverageCard({
@@ -125,7 +125,7 @@ export default function OverageCard({
     }
   };
 
-  const estimatedCost = (localLimit * COST_PER_CREDIT).toFixed(2);
+  const estimatedCost = (localLimit * OVERAGE_PRICE_PER_CREDIT).toFixed(2);
 
   return (
     <div className="rounded-2xl border border-black/5 bg-white p-6 transition-shadow hover:shadow-sm dark:border-white/5 dark:bg-[#0A0A0A]">
@@ -137,7 +137,7 @@ export default function OverageCard({
           </h3>
           <p className="text-xs text-black/50 dark:text-white/50">
             {allowOverages
-              ? 'El consumo extra se cobrará a $0.19/crédito.'
+              ? `El consumo extra se cobrará a ${OVERAGE_PRICE_PER_CREDIT}/crédito.`
               : 'Los workflows se detendrán al agotar créditos.'}
           </p>
         </div>

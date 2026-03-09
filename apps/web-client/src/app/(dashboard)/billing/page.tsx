@@ -86,7 +86,7 @@ export default function BillingPage() {
 
   const currentPlan = plans?.find((p) => p.type === subscription.plan);
   const maxOverageLimit = currentPlan?.limits.overageLimit || 0;
-  const currentOverageLimit = subscriptionDetails?.customOverageLimit ?? 0;
+  const currentOverageLimit = dashboardData?.overageLimit ?? 0;
   const isPaidPlan = subscription.plan !== SubscriptionPlan.FREE;
 
   return (

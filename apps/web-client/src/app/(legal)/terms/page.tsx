@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import LegalToc from '../_components/LegalToc';
+import { OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
 
 export const metadata: Metadata = {
   title: 'Términos y Condiciones · Fractal',
@@ -202,7 +203,7 @@ export default function TermsPage() {
                     Al agotar el saldo mensual, el sistema puede continuar operando en modo overage,
                     sujeto al límite del Plan. Los créditos consumidos en exceso se facturan al
                     final del mes a{' '}
-                    <strong className="text-[var(--text-primary)]">$0.19 USD por crédito</strong>.
+                    <strong className="text-[var(--text-primary)]">${OVERAGE_PRICE_PER_CREDIT} USD por crédito</strong>.
                     El Plan Free no permite overages.
                   </p>
                 </div>
