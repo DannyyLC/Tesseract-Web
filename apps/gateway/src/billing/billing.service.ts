@@ -760,6 +760,15 @@ export class BillingService {
 
     this.logger.log(`Synced subscription ${sub.id} for org ${organizationId} to plan ${planName}`);
 
+    // RISK PREVENTION: Disable overages if subscription is being cancelled
+    if (sub.cancel_at_period_end) {
+      await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: { allowOverages: false },
+      });
+      this.logger.log(`Disabled overages for org ${organizationId} (cancel_at_period_end detected via webhook)`);
+    }
+
     // CLEANUP: Cancel any other active subscriptions for this customer (prevent duplicates)
     const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
     if (customerId) {
