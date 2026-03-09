@@ -135,6 +135,7 @@ export default function BillingPage() {
           nextBillingDate={subscription.currentPeriodEnd}
           credits={credits}
           cancelAtPeriodEnd={subscription.cancelAtPeriodEnd}
+          pendingPlanChange={dashboardData?.pendingPlanChange}
         />
 
         {/* Overage Configuration — only for paid plans */}

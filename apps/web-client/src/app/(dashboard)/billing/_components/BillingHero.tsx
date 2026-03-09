@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Shield, CreditCard, AlertTriangle } from 'lucide-react';
+import { Shield, CreditCard, AlertTriangle, ArrowDownRight } from 'lucide-react';
 import { SubscriptionPlan, OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
 
 interface BillingHeroProps {
@@ -12,6 +12,7 @@ interface BillingHeroProps {
     limit: number;
   };
   cancelAtPeriodEnd?: boolean;
+  pendingPlanChange?: string | null;
   allowOverages?: boolean;
   maxOverageLimit?: number;
   currentOverageLimit?: number;
@@ -23,6 +24,7 @@ export default function BillingHero({
   nextBillingDate,
   credits,
   cancelAtPeriodEnd = false,
+  pendingPlanChange = null,
 }: BillingHeroProps) {
   const isNegative = credits.available < 0;
   const formattedBalance = Math.abs(credits.available).toLocaleString();
@@ -143,6 +145,13 @@ export default function BillingHero({
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
                 Cancelación Pendiente
               </div>
+            ) : pendingPlanChange ? (
+              <div
+                className="inline-flex items-center gap-2 rounded-full bg-blue-500/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-blue-300 dark:text-blue-400"
+              >
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
+                Cambio programado → {pendingPlanChange}
+              </div>
             ) : (
               <div
                 className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest ${statusConfig.bg} ${statusConfig.text}`}
@@ -165,6 +174,11 @@ export default function BillingHero({
                   <>
                     <AlertTriangle size={14} />
                     <span>Se cancela el {nextDateFormatted}</span>
+                  </>
+                ) : pendingPlanChange ? (
+                  <>
+                    <ArrowDownRight size={14} />
+                    <span>Cambia a {pendingPlanChange} el {nextDateFormatted}</span>
                   </>
                 ) : (
                   <>

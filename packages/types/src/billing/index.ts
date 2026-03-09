@@ -6,6 +6,7 @@ export interface BillingDashboardData {
   status: string; // 'ACTIVE', 'CANCELED', 'PAST_DUE', 'NO_SUBSCRIPTION'
   nextBillingDate: string | Date | null;
   cancelAtPeriodEnd: boolean;
+  pendingPlanChange: string | null;
   allowOverages: boolean;
   overageLimit: number;
   hasBillingAccount: boolean;

@@ -1081,6 +1081,7 @@ export class BillingService {
       status: subscription?.status ?? 'ACTIVE',
       nextBillingDate: subscription?.currentPeriodEnd ?? null,
       cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
+      pendingPlanChange: subscription?.pendingPlanChange ?? null,
       allowOverages: organization.allowOverages,
       overageLimit: organization.overageLimit ?? 0,
       hasBillingAccount: !!organization.stripeCustomerId,

@@ -10,7 +10,7 @@ import PlanGrid from '../_components/PlanGrid';
 import InfoSections from '../_components/InfoSections';
 import SpecializedCards from '../_components/SpecializedCards';
 import { Modal } from '@/components/ui/modal';
-import { Loader2, ArrowLeft, PartyPopper, RefreshCw } from 'lucide-react';
+import { Loader2, ArrowLeft, PartyPopper, RefreshCw, ArrowDownRight } from 'lucide-react';
 import { toast } from 'sonner';
 import Loading from '@/app/(dashboard)/loading';
 import PermissionGuard from '@/components/auth/PermissionGuard';
@@ -40,6 +40,7 @@ export default function PlansPage() {
     status: dashboardData?.status,
     currentPeriodEnd: dashboardData?.nextBillingDate,
     cancelAtPeriodEnd: dashboardData?.cancelAtPeriodEnd,
+    pendingPlanChange: dashboardData?.pendingPlanChange,
   };
 
   const handlePlanSelect = (planType: string) => {
@@ -164,6 +165,29 @@ export default function PlansPage() {
           Administra tu plan actual, actualiza tu suscripción o cancela el servicio.
         </p>
       </div>
+
+      {/* Pending Plan Change Banner */}
+      {subscription.pendingPlanChange && (
+        <div className="flex items-center gap-4 rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
+            <ArrowDownRight size={20} className="text-blue-500" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-black dark:text-white">
+              Cambio programado a <span className="text-blue-500">{subscription.pendingPlanChange}</span>
+            </p>
+            <p className="text-xs text-black/50 dark:text-white/50">
+              Tu plan actual seguirá activo hasta el {subscription.currentPeriodEnd
+                ? new Date(subscription.currentPeriodEnd).toLocaleDateString('es-MX', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })
+                : 'final del periodo'}. Después cambiará automáticamente.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Main Pricing Grid */}
       <div className="space-y-8">
