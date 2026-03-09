@@ -1,5 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+
 import { useAuth } from '@/hooks/useAuth';
 import {
   useBillingDashboard,
@@ -12,10 +15,11 @@ import BillingHero from './_components/BillingHero';
 import OverageCard from './_components/OverageCard';
 import UsageCard from './_components/UsageCard';
 import Loading from '@/app/(dashboard)/loading';
-import { Workflow, Key, Users, ArrowUpRight } from 'lucide-react';
+import { Workflow, Key, Users, ArrowUpRight, PartyPopper } from 'lucide-react';
 import Link from 'next/link';
 import PermissionGuard from '@/components/auth/PermissionGuard';
-import { useState } from 'react';
+import { Modal } from '@/components/ui/modal';
+import { toast } from 'sonner';
 
 export default function BillingPage() {
   const { isLoading: isLoadingAuth } = useAuth();
@@ -26,6 +30,21 @@ export default function BillingPage() {
 
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
   const [portalUrl, setPortalUrl] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (searchParams.get('success') === 'true') {
+      setShowSuccessModal(true);
+      // Clean URL params without reload
+      router.replace('/billing', { scroll: false });
+    } else if (searchParams.get('canceled') === 'true') {
+      toast.error('El proceso de pago fue cancelado.');
+      router.replace('/billing', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   const fetchPortalUrl = async () => {
     if (portalUrl) return portalUrl;
@@ -71,6 +90,7 @@ export default function BillingPage() {
   const isPaidPlan = subscription.plan !== SubscriptionPlan.FREE;
 
   return (
+    <>
     <PermissionGuard permissions="billing:read" redirect={true} fallbackRoute="/dashboard">
       <div className="space-y-10 pb-20">
         {/* Header */}
@@ -155,5 +175,34 @@ export default function BillingPage() {
         </div>
       </div>
     </PermissionGuard>
+
+      {/* Success Modal after Checkout */}
+      <Modal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title=""
+      >
+        <div className="flex flex-col items-center space-y-6 py-4">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10">
+            <PartyPopper size={40} className="text-emerald-500" />
+          </div>
+          <div className="space-y-2 text-center">
+            <h3 className="text-2xl font-bold text-black dark:text-white">
+              ¡Gracias por tu confianza!
+            </h3>
+            <p className="max-w-sm text-sm text-black/60 dark:text-white/60">
+              Tu suscripción ha sido activada exitosamente. Ya puedes disfrutar
+              de todos los beneficios de tu nuevo plan.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowSuccessModal(false)}
+            className="rounded-xl bg-black px-6 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+          >
+            ¡Comenzar!
+          </button>
+        </div>
+      </Modal>
+    </>
   );
 }

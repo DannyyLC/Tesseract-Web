@@ -10,7 +10,8 @@ import PlanGrid from '../_components/PlanGrid';
 import InfoSections from '../_components/InfoSections';
 import SpecializedCards from '../_components/SpecializedCards';
 import { Modal } from '@/components/ui/modal';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, PartyPopper, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 import Loading from '@/app/(dashboard)/loading';
 import PermissionGuard from '@/components/auth/PermissionGuard';
 
@@ -29,6 +30,9 @@ export default function PlansPage() {
   const [isCanceling, setIsCanceling] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [isResuming, setIsResuming] = useState(false);
+  const [showPlanChangeSuccess, setShowPlanChangeSuccess] = useState(false);
+  const [showResumeSuccess, setShowResumeSuccess] = useState(false);
+  const [changedPlanName, setChangedPlanName] = useState('');
 
   // Derive subscription state
   const subscription = {
@@ -81,6 +85,8 @@ export default function PlansPage() {
         try {
           // Intentar actualizar la suscripción existente
           await updateSubscription.mutateAsync(selectedPlan.type as SubscriptionPlan);
+          setChangedPlanName(selectedPlan.name);
+          setShowPlanChangeSuccess(true);
         } catch (updateError: any) {
           // Si el backend detectó que la suscripción está cancelada en Stripe (409 Conflict),
           // auto-recuperarse: crear una nueva suscripción via Checkout
@@ -107,6 +113,7 @@ export default function PlansPage() {
     try {
       setIsCanceling(true);
       await cancelSubscription.mutateAsync();
+      toast.success('Tu suscripción ha sido cancelada. Seguirás disfrutando de tus beneficios hasta el final del periodo.');
     } finally {
       setIsCanceling(false);
       setShowCancelModal(false);
@@ -117,6 +124,7 @@ export default function PlansPage() {
     try {
       setIsResuming(true);
       await resumeSubscription.mutateAsync();
+      setShowResumeSuccess(true);
     } finally {
       setIsResuming(false);
       setShowResumeModal(false);
@@ -375,6 +383,62 @@ export default function PlansPage() {
               Reactivar Suscripción
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Plan Change Success Modal */}
+      <Modal
+        isOpen={showPlanChangeSuccess}
+        onClose={() => setShowPlanChangeSuccess(false)}
+        title=""
+      >
+        <div className="flex flex-col items-center space-y-6 py-4">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10">
+            <PartyPopper size={40} className="text-emerald-500" />
+          </div>
+          <div className="space-y-2 text-center">
+            <h3 className="text-2xl font-bold text-black dark:text-white">
+              ¡Plan actualizado!
+            </h3>
+            <p className="max-w-sm text-sm text-black/60 dark:text-white/60">
+              Tu suscripción ha sido actualizada al plan <strong>{changedPlanName}</strong>.
+              Gracias por tu confianza.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowPlanChangeSuccess(false)}
+            className="rounded-xl bg-black px-6 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+          >
+            ¡Entendido!
+          </button>
+        </div>
+      </Modal>
+
+      {/* Resume Success Modal */}
+      <Modal
+        isOpen={showResumeSuccess}
+        onClose={() => setShowResumeSuccess(false)}
+        title=""
+      >
+        <div className="flex flex-col items-center space-y-6 py-4">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10">
+            <RefreshCw size={40} className="text-emerald-500" />
+          </div>
+          <div className="space-y-2 text-center">
+            <h3 className="text-2xl font-bold text-black dark:text-white">
+              ¡Bienvenido de vuelta!
+            </h3>
+            <p className="max-w-sm text-sm text-black/60 dark:text-white/60">
+              Tu suscripción ha sido reactivada exitosamente. Seguirás disfrutando
+              de todos tus beneficios sin interrupción.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowResumeSuccess(false)}
+            className="rounded-xl bg-black px-6 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+          >
+            ¡Continuar!
+          </button>
         </div>
       </Modal>
 
