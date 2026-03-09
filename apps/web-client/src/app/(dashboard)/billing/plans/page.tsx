@@ -19,7 +19,7 @@ export default function PlansPage() {
   const { data: dashboardData, isLoading: isLoadingDashboard } = useBillingDashboard();
   const { data: plansData, isLoading: isLoadingPlans } = usePlans();
   const { data: workflowStats } = useWorkflowStats();
-  const { updateSubscription, cancelSubscription, createCheckoutSession } = useBillingMutations();
+  const { updateSubscription, cancelSubscription, resumeSubscription, createCheckoutSession } = useBillingMutations();
 
   const [selectedPlan, setSelectedPlan] = useState<BillingPlan | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -27,6 +27,8 @@ export default function PlansPage() {
   const [pendingPlanType, setPendingPlanType] = useState<string | null>(null);
   const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [isResuming, setIsResuming] = useState(false);
 
   // Derive subscription state
   const subscription = {
@@ -111,6 +113,16 @@ export default function PlansPage() {
     }
   };
 
+  const confirmResume = async () => {
+    try {
+      setIsResuming(true);
+      await resumeSubscription.mutateAsync();
+    } finally {
+      setIsResuming(false);
+      setShowResumeModal(false);
+    }
+  };
+
   const currentPlanDetails = plansData?.find((p) => p.type === subscription.plan);
   const isUpgrade =
     selectedPlan &&
@@ -166,22 +178,35 @@ export default function PlansPage() {
         />
       </div>
 
-      {/* Cancel Subscription */}
+      {/* Cancel / Resume Subscription */}
       {subscription.plan !== SubscriptionPlan.FREE && (
         <div className="flex flex-col items-center gap-4 pt-4">
           <PermissionGuard permissions="billing:cancel_subscription">
-            <button
-              onClick={handleCancelClick}
-              disabled={subscription.cancelAtPeriodEnd}
-              className="group flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-6 py-3 text-sm font-bold text-red-500/70 shadow-sm transition-all hover:border-red-500 hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
-            >
-              {subscription.cancelAtPeriodEnd
-                ? 'Cancelación Programada'
-                : 'Cancelar suscripción actual'}
-            </button>
-            <p className="text-[10px] font-medium uppercase tracking-widest text-black/30 dark:text-white/30">
-              Al cancelar, mantendrás tus beneficios hasta el final del periodo
-            </p>
+            {subscription.cancelAtPeriodEnd ? (
+              <>
+                <button
+                  onClick={() => setShowResumeModal(true)}
+                  className="group flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-6 py-3 text-sm font-bold text-emerald-500/70 shadow-sm transition-all hover:border-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500"
+                >
+                  Reactivar Suscripción
+                </button>
+                <p className="text-[10px] font-medium uppercase tracking-widest text-black/30 dark:text-white/30">
+                  Tu suscripción está programada para cancelarse. Puedes reactivarla antes de que termine el periodo.
+                </p>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleCancelClick}
+                  className="group flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-6 py-3 text-sm font-bold text-red-500/70 shadow-sm transition-all hover:border-red-500 hover:bg-red-500/10 hover:text-red-500"
+                >
+                  Cancelar suscripción actual
+                </button>
+                <p className="text-[10px] font-medium uppercase tracking-widest text-black/30 dark:text-white/30">
+                  Al cancelar, mantendrás tus beneficios hasta el final del periodo
+                </p>
+              </>
+            )}
           </PermissionGuard>
         </div>
       )}
@@ -315,6 +340,39 @@ export default function PlansPage() {
             >
               {isCanceling && <Loader2 size={16} className="animate-spin" />}
               Cancelar Suscripción
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={showResumeModal}
+        onClose={() => setShowResumeModal(false)}
+        title="Reactivar Suscripción"
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg bg-emerald-500/10 p-4 text-sm text-emerald-600 dark:text-emerald-400">
+            <p className="mb-2 font-bold">¿Deseas reactivar tu suscripción?</p>
+            <p>
+              Tu suscripción continuará normalmente y se renovará automáticamente al finalizar
+              el periodo de facturación actual.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              onClick={() => setShowResumeModal(false)}
+              className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-black dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmResume}
+              disabled={isResuming}
+              className="flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-600 disabled:opacity-50"
+            >
+              {isResuming && <Loader2 size={16} className="animate-spin" />}
+              Reactivar Suscripción
             </button>
           </div>
         </div>

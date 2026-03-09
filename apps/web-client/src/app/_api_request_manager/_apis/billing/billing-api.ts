@@ -99,6 +99,17 @@ class BillingApi {
   }
 
   /**
+   * Resumes a cancelled subscription before the period ends.
+   * Endpoint: PATCH /billing/subscription/resume
+   */
+  public async resumeSubscription(): Promise<{ message: string }> {
+    const response = await this.apiRequestManager.patch<{ message: string }>(
+      `${BillingApi.BASE_URL}/subscription/resume`,
+    );
+    return response.data;
+  }
+
+  /**
    * Toggles the overage setting for the organization.
    * Endpoint: PATCH /billing/overages
    */

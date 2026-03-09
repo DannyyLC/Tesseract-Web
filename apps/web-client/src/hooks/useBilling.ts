@@ -78,6 +78,17 @@ export function useBillingMutations() {
     },
   });
 
+  const resumeSubscription = useMutation({
+    mutationFn: async () => {
+      const api = RootApi.getInstance().getBillingApi();
+      return await api.resumeSubscription();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['billing', 'subscription'] });
+      queryClient.invalidateQueries({ queryKey: ['billing', 'dashboard'] });
+    },
+  });
+
   const toggleOverages = useMutation({
     mutationFn: async ({
       allowOverages,
@@ -100,6 +111,7 @@ export function useBillingMutations() {
     createPortalSession,
     updateSubscription,
     cancelSubscription,
+    resumeSubscription,
     toggleOverages,
   };
 }

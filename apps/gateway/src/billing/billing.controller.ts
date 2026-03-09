@@ -262,6 +262,18 @@ export class BillingController {
     return { message: 'Subscription cancelled successfully' };
   }
 
+  @Patch('subscription/resume')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER)
+  async resumeSubscription(@CurrentUser() user: UserPayload) {
+    const organizationId = user.organizationId;
+    if (!organizationId) {
+      throw new BadRequestException('User does not belong to an organization');
+    }
+    await this.billingService.resumeSubscription(organizationId);
+    return { message: 'Subscription resumed successfully' };
+  }
+
   @Throttle({ default: { limit: 100, ttl: 60000 } })
   @Post('webhook')
   async handleWebhook(@Headers('stripe-signature') signature: string, @Req() request: Request) {
