@@ -32,21 +32,26 @@
       "group": "Architecture",
       "pages": [
         "architecture/system-design",
-        "architecture/database-schema"
+        "architecture/monorepo",
+        "architecture/database-schema",
+        "architecture/backend-design",
+        "architecture/frontend-design"
       ]
     },
     {
       "group": "Setup & Onboarding",
       "pages": [
         "setup/local-env",
-        "setup/stripe-local"
+        "setup/stripe-local",
+        "setup/deployment"
       ]
     },
     {
       "group": "Core Manuals",
       "pages": [
-        "manuals/billing",
         "manuals/workflows",
+        "manuals/executions-engine",
+        "manuals/billing",
         "manuals/rbac",
         "manuals/agents"
       ]
