@@ -1,0 +1,59 @@
+{
+  "name": "Tesseract/Fractal Documentation",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.png",
+  "colors": {
+    "primary": "#000000",
+    "light": "#ffffff",
+    "dark": "#111111"
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:support@fractal.com"
+    }
+  ],
+  "topbarCtaButton": {
+    "type": "github",
+    "url": "https://github.com/tu-usuario/Tesseract"
+  },
+  "anchors": [
+    {
+      "name": "API Reference",
+      "icon": "rectangle-terminal",
+      "url": "api-reference"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Architecture",
+      "pages": [
+        "architecture/system-design",
+        "architecture/database-schema"
+      ]
+    },
+    {
+      "group": "Setup & Onboarding",
+      "pages": [
+        "setup/local-env",
+        "setup/stripe-local"
+      ]
+    },
+    {
+      "group": "Core Manuals",
+      "pages": [
+        "manuals/billing",
+        "manuals/workflows",
+        "manuals/rbac",
+        "manuals/agents"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "x": "https://x.com/fractal",
+    "github": "https://github.com/tu-usuario/Tesseract"
+  }
+}
