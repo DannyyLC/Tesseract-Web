@@ -3,7 +3,7 @@ title: 'Esquema de Base de Datos'
 description: 'Modelado de datos, tablas centrales y relaciones de Tesseract.'
 ---
 
-El sistema utiliza una base de datos relacional (típicamente PostgreSQL) para asegurar la integridad transaccional, especialmente por la implicación crítica que tiene con la facturación y ejecución de Workflows.
+El sistema utiliza una base de datos relacional (PostgreSQL) para asegurar la integridad transaccional, especialmente por la implicación crítica que tiene con la facturación y ejecución de Workflows.
 
 ## 1. Entidades Core
 
@@ -35,7 +35,7 @@ Tabla crucial del Motor de Facturación. Registra cada vez que el motor de Workf
 
 ## 2. Relaciones Clave
 
-- **Usuario ↔ Organización:** Relación Mucho-a-Mucho a través de una tabla pivote de membresía (`OrganizationMembers`), donde se estipula el **Rol** del usuario en esa empresa.
+- **Usuario ↔ Organización:** Relación Muchos-a-Uno directa. Un usuario pertenece a una única Organización (su `organizationId`), y su **rol** (viewer, editor, admin, owner) se guarda directamente en la tabla del Usuario para ese contexto.
 - **Organización → Suscripción:** Relación 1:1. Tesseract está diseñado de tal modo que una organización no puede tener múltiples suscripciones de pago activas en paralelo.
 - **Organización → Workflows:** Relación 1:Muchos.
 

@@ -1,25 +1,25 @@
 ---
 title: 'Diseño del Sistema'
-description: 'Arquitectura a alto nivel de los módulos de Tesseract/Fractal.'
+description: 'Arquitectura a alto nivel de los módulos de Tesseract.'
 ---
 
-La plataforma Tesseract/Fractal fue diseñada contemplando alta disponibilidad, separación de responsabilidades y facilidad de desarrollo (Developer Experience). El sistema se divide fundamentalmente en dos aplicaciones y dependencias compartidas.
+La plataforma Tesseract fue diseñada contemplando alta disponibilidad, separación de responsabilidades y facilidad de desarrollo (Developer Experience). El sistema se divide fundamentalmente en dos aplicaciones y dependencias compartidas.
 
 ## 1. Componentes Principales
 
-### 🖥️ Frontend (Web-Client)
+### Frontend (Web-Client)
 
 - **Tecnología:** Next.js (React).
 - **Propósito:** Es la plataforma web (dashboard) donde los clientes de la organización inician sesión, gestionan sus Workflows, configuran su facturación y chatean con los Agentes.
 - **Styling & UI:** Mantiene una estética moderna, modo oscuro por defecto (incluyendo adaptación de colores en PWA/status bars).
 
-### ⚙️ Backend (Gateway)
+### Backend (Gateway)
 
 - **Tecnología:** NestJS (Node.js/TypeScript).
 - **Propósito:** La API REST central que expone todos los endpoints para el Frontend.
 - **Responsabilidades:** Autenticación de usuarios, protección de rutas via RBAC, manejo de la lógica de negocio, integración con Stripe (webhooks) y orquestación de llamadas a modelos de IA.
 
-### 📦 Paquetes Compartidos (`@tesseract/types` y otros)
+### Paquetes Compartidos (`@tesseract/types` y otros)
 
 Al trabajar dentro de un monorepo, hay paquetes que son importados por ambas partes:
 

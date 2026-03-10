@@ -18,7 +18,7 @@ El código fuente en `src/` está enfocado en la reusabilidad y separación de c
 
 ## 2. Obtención de Datos y Asincronía
 
-El cliente web no confía en `any` para las respuestas. Todas las llamadas `fetch` o de bibliotecas SWR/React Query tipan su promesa de respuesta con los DTOs del monorepo (Ej: `Promise<PaginatedResponse<WorkflowDto>>`).
+El cliente web no confía en `any` para las respuestas. Todas las llamadas asíncronas para obtención y mutación de datos se manejan principalmente con **TanStack Query (React Query)**. Esto proporciona caché automático, reintentos y estados de carga (`isLoading`, `isError`). Todas las respuestas `fetch` se tipan con los DTOs genéricos del monorepo (Ej: `Promise<PaginatedResponse<WorkflowDto>>`).
 
 Para el manejo de listas largas (Workflows, Logs, Chats), la capa de UI consume la estrategia de **Cursor Pagination** dictada por el backend. El hook local mantiene un puntero al `nextCursor` y lo adjunta cuando el usuario hace _scroll_ hacia el final de un contenedor.
 
@@ -26,6 +26,8 @@ Para el manejo de listas largas (Workflows, Logs, Chats), la capa de UI consume 
 
 Incluso cuando el backend protege celosamente la información, el frontend aplica "Seguridad por Experiencia de Usuario" (UX):
 Haciendo uso de los roles definidos en el perfil del usuario, componentes enteros previenen su renderizado o deshabilitan interacciones si hay carencia de permisos para evitar los molestos errores `403` visuales.
+
+Adicionalmente, para proteger flujos públicos o sensibles (como el Login o el Sign Up) contra bots y ataques automatizados, el Web-Client integra **Cloudflare Turnstile** como capa de verificación (CAPTCHA invisible) antes de enviar las peticiones críticas al Gateway.
 
 ## 4. Estilos y PWA
 

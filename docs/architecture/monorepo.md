@@ -3,13 +3,13 @@ title: 'Monorepo y Paquetes'
 description: 'Estructura del workspace, comandos y dependencias compartidas.'
 ---
 
-Tesseract/Fractal utiliza un enfoque de **Monorepo** gestionado con npm workspaces (y orquestación opcional vía Nx). Esto permite tener múltiples aplicaciones y librerías en un solo repositorio de Git, compartiendo dependencias y facilitando la refactorización a gran escala.
+Tesseract utiliza un enfoque de **Monorepo** gestionado con npm workspaces (y orquestación opcional vía Nx). Esto permite tener múltiples aplicaciones y librerías en un solo repositorio de Git, compartiendo dependencias y facilitando la refactorización a gran escala.
 
 ## 1. Estructura de Directorios
 
 La raíz del proyecto se divide en dos grandes carpetas:
 
-### 🧩 `/apps`
+### `/apps`
 
 Contiene las aplicaciones finales (los puntos de entrada ejecutables):
 
@@ -17,7 +17,7 @@ Contiene las aplicaciones finales (los puntos de entrada ejecutables):
 - `web-client`: La aplicación Frontend (Next.js).
 - `agents`: Scripts o servicios satélites para los motores de IA.
 
-### 📦 `/packages`
+### `/packages`
 
 Contiene las librerías internas compartidas que no se ejecutan por sí solas, sino que son importadas por las aplicaciones en `/apps`:
 
@@ -40,3 +40,8 @@ Comandos clave disponibles desde la raíz:
 
 - **Evita Duplicación:** Si la API devuelve un nuevo campo `status` en el payload de "Suscripción", simplemente se actualiza en `@tesseract/types` y el Frontend arrojará un error de compilación si no está manejando ese nuevo campo correctamente.
 - **Gestión Centralizada:** Un solo `node_modules` principal a nivel raíz con las dependencias globales (_hoisting_), lo que ahorra tiempo de instalación y espacio en disco.
+
+## 4. Testing (Jest)
+
+Para garantizar la fiabilidad del código TypeScript/JavaScript, el monorepo utiliza **Jest** como su framework de testing principal (configurado frecuentemente con `@nx/jest` o `ts-jest`).
+Al ejecutar comandos como `npm run test:all` desde la raíz, el orquestador corre las suites de pruebas unitarias y de integración distribuidas en los diferentes paquetes y aplicaciones (Gateway, Web-Client, Types) de forma simultánea.

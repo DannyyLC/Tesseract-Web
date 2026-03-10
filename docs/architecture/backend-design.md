@@ -27,7 +27,6 @@ Cada carpeta de módulo (ej. `users/`) sigue el clásico patrón MVC adaptado a 
 ## 3. Tareas Programadas y Eventos
 
 - **`cron-jobs.service.ts`**: Tesseract usa de fondo `@nestjs/schedule` para procesos recurrentes (Cronjobs). Esto es crucial para tareas como hacer resúmenes diarios, verificar suscripciones que Stripe no reportó, o limpiar cachés.
-- **Kafka / Eventos (Opcional)**: En la carpeta `events/` y las dependencias (`kafkajs`), el sistema está preparado para emitir eventos de dominio de forma asíncrona si hay microservicios adicionales.
 
 ## 4. Tipado Restricto
 

@@ -1,10 +1,10 @@
 {
   "name": "Tesseract/Fractal Documentation",
   "logo": {
-    "dark": "/logo/dark.svg",
-    "light": "/logo/light.svg"
+    "dark": "/logo.svg",
+    "light": "/logo.svg"
   },
-  "favicon": "/favicon.png",
+  "favicon": "/favicon.svg",
   "colors": {
     "primary": "#000000",
     "light": "#ffffff",
@@ -18,7 +18,7 @@
   ],
   "topbarCtaButton": {
     "type": "github",
-    "url": "https://github.com/tu-usuario/Tesseract"
+    "url": "https://github.com/FractalIndustries/Tesseract"
   },
   "anchors": [
     {
@@ -35,7 +35,8 @@
         "architecture/monorepo",
         "architecture/database-schema",
         "architecture/backend-design",
-        "architecture/frontend-design"
+        "architecture/frontend-design",
+        "architecture/agents-design"
       ]
     },
     {
@@ -58,7 +59,6 @@
     }
   ],
   "footerSocials": {
-    "x": "https://x.com/fractal",
-    "github": "https://github.com/tu-usuario/Tesseract"
+    "github": "https://github.com/FractalIndustries/Tesseract"
   }
 }
