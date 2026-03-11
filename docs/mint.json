@@ -44,7 +44,8 @@
       "pages": [
         "setup/local-env",
         "setup/stripe-local",
-        "setup/deployment"
+        "setup/deployment",
+        "contributing"
       ]
     },
     {
