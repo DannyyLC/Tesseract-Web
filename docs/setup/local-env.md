@@ -21,7 +21,21 @@ Instala todas las dependencias desde la raíz del proyecto. Esto bajará los paq
 npm run install:all
 ```
 
-Sincroniza la Base de Datos (Asegúrate de tener Postgres corriendo y tu `DATABASE_URL` configurada):
+### Levantar Infraestructura (Docker)
+
+Antes de sincronizar la base de datos o encender la aplicación, necesitas tener un servidor de PostgreSQL corriendo. Tesseract incluye un archivo `docker-compose.yml` en la raíz para facilitar esto.
+
+```bash
+docker compose up -d
+```
+
+> [!WARNING]
+> **No corras el Gateway con Docker en modo Desarrollo.**
+> Asegúrate de que tu `docker-compose.yml` local **solo levante la base de datos** y servicios en los que no vayas a trabajar directamente. Si levantas la API de NestJS dentro del contenedor, perderás la capacidad de hacer _Hot-Reloading_ (recarga automática al guardar el código), forzándote dolorosamente a reconstruir la imagen de Docker tras el más mínimo cambio en el código.
+
+### Sincronizar Base de Datos
+
+Una vez que el contenedor de Postgres esté arriba y tu `DATABASE_URL` esté configurada en el `.env`, sincroniza el esquema:
 
 ```bash
 npm run prisma:migrate
