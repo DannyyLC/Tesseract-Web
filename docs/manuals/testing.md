@@ -117,12 +117,6 @@ describe('BillingService', () => {
 - Comportamiento ante errores: que pasa si Prisma devuelve `null`
 - Que los mocks fueron llamados con los argumentos correctos
 
-**No es necesario testear:**
-
-- Controladores de forma aislada (el framework se encarga del routing)
-- Modulos de configuracion (`.module.ts`)
-- El schema de Prisma (no es codigo tuyo)
-
 ---
 
 ## 3. Tests de Python (Agents)
