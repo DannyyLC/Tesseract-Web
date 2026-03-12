@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
-import { EndUsersService } from './end-users.service';
+import { EndUsersService } from '../end-users.service';
 import { Response } from 'express';
 import {
   ApiResponse,
@@ -8,11 +8,11 @@ import {
   UserRole,
   DashboardEndUserDto,
 } from '@tesseract/types';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { UserPayload } from '../common/types/jwt-payload.type';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { UserPayload } from '../../common/types/jwt-payload.type';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
 
 @Controller('end-users')
 @UseGuards(JwtAuthGuard, RolesGuard)
