@@ -20,13 +20,6 @@
     "type": "github",
     "url": "https://github.com/FractalIndustries/Tesseract"
   },
-  "anchors": [
-    {
-      "name": "API Reference",
-      "icon": "rectangle-terminal",
-      "url": "api-reference"
-    }
-  ],
   "navigation": [
     {
       "group": "Architecture",
@@ -46,7 +39,8 @@
         "setup/local-env",
         "setup/stripe-local",
         "setup/deployment",
-        "contributing"
+        "contributing",
+        "security"
       ]
     },
     {
@@ -55,9 +49,15 @@
         "manuals/workflows",
         "manuals/executions-engine",
         "manuals/billing",
-        "manuals/credits-and-plans",
         "manuals/rbac",
         "manuals/testing"
+      ]
+    },
+    {
+      "group": "Reference",
+      "pages": [
+        "reference/api-endpoints",
+        "reference/credits-and-plans"
       ]
     }
   ],
