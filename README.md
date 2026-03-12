@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Tesseract</h1>
-  <p>Plataforma SaaS para construir, desplegar y monetizar agentes de inteligencia artificial conversacionales.</p>
+  <p>Plataforma SaaS para construir y desplegar agentes de inteligencia artificial conversacionales.</p>
 
   <img src="docs/logo.svg" alt="Tesseract Logo" width="120" />
 

@@ -1,5 +1,5 @@
 {
-  "name": "Tesseract/Fractal Documentation",
+  "name": "Tesseract Documentation",
   "logo": {
     "dark": "/logo.svg",
     "light": "/logo.svg"
@@ -32,6 +32,7 @@
       "group": "Architecture",
       "pages": [
         "architecture/system-design",
+        "architecture/diagrams",
         "architecture/monorepo",
         "architecture/database-schema",
         "architecture/backend-design",
@@ -54,8 +55,7 @@
         "manuals/workflows",
         "manuals/executions-engine",
         "manuals/billing",
-        "manuals/rbac",
-        "manuals/agents"
+        "manuals/rbac"
       ]
     }
   ],
