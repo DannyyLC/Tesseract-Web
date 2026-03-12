@@ -1125,6 +1125,11 @@ export class WorkflowsService {
     // 0. ENVIAR CONVERSATION ID AL INICIO (Evento custom)
     clientStream.write(`event: conversation_id\ndata: "${conversation.id}"\n\n`);
 
+    // Configurar un heartbeat para mantener la conexión viva
+    const keepAliveInterval = setInterval(() => {
+      clientStream.write(': keep-alive\n\n');
+    }, 15000); // Cada 15 segundos
+
     // let fullContent = '';
     let metadataEvent: any = null;
     let assistantMessageBuilder = '';
@@ -1144,6 +1149,10 @@ export class WorkflowsService {
 
         for (const eventBlock of lines) {
           if (!eventBlock.trim().startsWith('data: ')) {
+            // Si el agente manda un keep-alive (empieza con :), lo pasamos tal cual
+            if (eventBlock.trim().startsWith(':')) {
+              this.push(`${eventBlock}\n\n`);
+            }
             continue;
           }
 
@@ -1194,6 +1203,9 @@ export class WorkflowsService {
 
     // MANEJO DE FIN DE STREAM Y EFECTOS SECUNDARIOS
     transformer.on('finish', () => {
+      // Limpiar el heartbeat al finalizar
+      clearInterval(keepAliveInterval);
+
       void (async () => {
         this.logger.log(`Stream finalizado para ejecución ${execution.id}`);
 
