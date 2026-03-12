@@ -55,7 +55,8 @@
         "manuals/workflows",
         "manuals/executions-engine",
         "manuals/billing",
-        "manuals/rbac"
+        "manuals/rbac",
+        "manuals/testing"
       ]
     }
   ],
