@@ -27,6 +27,8 @@ import { LlmModelsService } from '../llm-models/llm-models.service';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
+import { WhatsAppInboundEvent } from '../whatsapp-config/dto/whatsapp-inbound-event.dto';
+
 
 /**
  * Service que maneja la lógica de negocio de workflows
@@ -615,6 +617,7 @@ export class WorkflowsService {
     input: Record<string, any>,
     metadata?: Record<string, any>,
     userId?: string, // Opcional: quién ejecuta desde UI
+    whatsappData?: WhatsAppInboundEvent, // Opcional: datos de WhatsApp si la ejecución es por un mensaje entrante
     apiKeyId?: string, // Opcional: qué API key ejecuta
     trigger: 'api' | 'manual' | 'webhook' | 'schedule' = 'api',
   ) {
@@ -694,15 +697,47 @@ export class WorkflowsService {
     const channel = metadata?.channel ?? 'api';
     const conversationId = metadata?.conversationId;
     const endUserId = metadata?.endUserId;
-    const userMessage = input?.message ?? JSON.stringify(input);
+    let attachments;
+    let userMessage = "";
+   
+    var conversation;
+    if (channel === 'whatsapp') {
+      if (whatsappData) {
+        conversation = await this.conversationsService.findOrCreateConversationFromWhatsAppMessage(
+          workflowId,
+          whatsappData?.whatsappInboundMessage?.to || "",
+          whatsappData?.whatsappInboundMessage?.from || ""
+        );
+      } else {
+        throw new InvalidWorkflowConfigException(
+          'WhatsApp channel requires whatsappData for conversation management',
+          {
+            workflowId,
+            channel,
+          },
+        );
+      }
 
-    const conversation = await this.conversationsService.findOrCreateConversation(
-      workflowId,
-      channel,
-      userId,
-      endUserId,
-      conversationId,
-    );
+      if (whatsappData.whatsappInboundMessage.type === 'text') {
+        userMessage = whatsappData.whatsappInboundMessage.text?.body || "";
+      } else if (whatsappData.whatsappInboundMessage.type === 'image') {
+        userMessage = whatsappData.whatsappInboundMessage.image?.caption || "Picture without caption";
+        attachments = whatsappData.whatsappInboundMessage.image?.link
+      } else if (whatsappData.whatsappInboundMessage.type === 'audio') {
+        userMessage = "audio message";
+        attachments = whatsappData.whatsappInboundMessage.audio?.link
+      }
+    } else {
+      conversation = await this.conversationsService.findOrCreateConversation(
+        workflowId,
+        channel,
+        userId,
+        endUserId,
+        conversationId,
+      );
+
+      userMessage = input?.message ?? JSON.stringify(input);
+    }
 
     // Asociar la ejecución a la conversación
     await this.executionsService.linkToConversation(execution.id, conversation.id);
@@ -722,7 +757,9 @@ export class WorkflowsService {
       await this.conversationsService.addMessage(conversation.id, 'assistant', userMessage, {
         is_hitl_bypass: true,
         original_user_id: userId,
-      });
+      },
+        attachments
+      );
 
       // 2. Actualizar ejecución como completada
       await this.executionsService.updateStatus(execution.id, 'completed', {
@@ -747,7 +784,7 @@ export class WorkflowsService {
     const messageHistory = await this.conversationsService.getMessageHistory(conversation.id);
 
     // GUARDAR MENSAJE DEL USUARIO INMEDIATAMENTE
-    await this.conversationsService.addMessage(conversation.id, 'human', userMessage);
+    await this.conversationsService.addMessage(conversation.id, 'human', userMessage, undefined, attachments);
 
     // 5. EJECUTAR WORKFLOW CON EL SERVICIO DE AGENTS
     try {

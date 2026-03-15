@@ -425,6 +425,7 @@ model Conversation {
   // Configuración de WhatsApp (opcional - solo si el canal es whatsapp)
   whatsappConfigId String?
   whatsappConfig   WhatsAppConfig? @relation(fields: [whatsappConfigId], references: [id])
+  phoneNumberSender String?
 
   // Metadata de la conversación
   title   String? // "Consulta sobre productos", "Testing agente ventas"

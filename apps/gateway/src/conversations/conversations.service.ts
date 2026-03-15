@@ -79,6 +79,64 @@ export class ConversationsService {
     return newConversation;
   }
 
+  async findOrCreateConversationFromWhatsAppMessage(
+    workflowId: string,
+    phoneNumber: string,
+    userNumber: string,
+  ) {
+    const whatsappConfig = await this.prisma.whatsAppConfig.findUnique({
+      where: { phoneNumber },
+    });
+    if (!whatsappConfig) {
+      throw new Error(`WhatsApp config no encontrada para número: ${phoneNumber}`);
+    }
+
+    // Buscar si ya existe una conversación para este número de WhatsApp y configuración
+    const existing = await this.prisma.conversation.findFirst({
+      where: {
+        channel: 'whatsapp',
+        whatsappConfigId: whatsappConfig.id,
+        phoneNumberSender: userNumber,
+        status: 'active',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (existing) {
+      this.logger.debug(
+        `Usando conversación existente para WhatsApp ${userNumber} -> ${phoneNumber} (config ${whatsappConfig.id})`,
+      ); //TODO; Remove when sending to prod
+      return existing;
+    }
+    
+    // Obtener la organización del workflow para asignarla a la conversación
+    const workflow = await this.prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { organizationId: true },
+    });
+    
+    if (!workflow) {
+      throw new Error(`Workflow no encontrado: ${workflowId}`);
+    }
+
+    // Si no existe, crear una nueva conversación para este número de WhatsApp
+    const newConversation = await this.prisma.conversation.create({
+      data: {
+        workflowId,
+        organizationId: workflow.organizationId, // Asignación obligatoria
+        channel: 'whatsapp',
+        whatsappConfigId: whatsappConfig.id,
+        phoneNumberSender: userNumber,
+        status: 'active',
+        messageCount: 0,
+        totalTokens: 0,
+        totalCost: 0,
+      },
+    });
+
+    return newConversation;
+  }
+
   /**
    * Obtiene una conversación por ID con todos sus detalles (incluyendo mensajes)
    *
@@ -233,6 +291,7 @@ export class ConversationsService {
     role: 'human' | 'assistant' | 'system',
     content: string,
     metadata?: any,
+    attachments?: any,
   ) {
     const [message] = await this.prisma.$transaction([
       this.prisma.message.create({
@@ -241,6 +300,7 @@ export class ConversationsService {
           role,
           content,
           metadata: metadata ?? undefined,
+          attachments: attachments ?? undefined,
         },
       }),
       this.prisma.conversation.update({
