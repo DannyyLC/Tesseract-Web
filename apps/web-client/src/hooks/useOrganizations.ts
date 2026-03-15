@@ -1,11 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/app/_api_request_manager/_apis/root-api';
-import {
-  UpdateOrganizationDto,
-  InviteUserDto,
-  AcceptInvitationDto,
-} from '@tesseract/types';
-
+import { UpdateOrganizationDto, InviteUserDto, AcceptInvitationDto } from '@tesseract/types';
 
 // Hook para obtener el dashboard de la organización
 export function useOrganizationDashboard() {
@@ -44,7 +39,6 @@ export function useOrganizationMutations() {
       queryClient.invalidateQueries({ queryKey: ['organization', 'dashboard'] });
     },
   });
-
 
   const inviteUser = useMutation({
     mutationFn: async (data: InviteUserDto) => {

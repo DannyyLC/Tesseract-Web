@@ -14,6 +14,7 @@ import { PrismaService } from '../database/prisma.service';
 import { NotificationEventDto } from '../events/app-notifications/notification.dto';
 import { notificationsEnum } from '../events/app-notifications/notifications.enum';
 import { EmailService } from '../notifications/email/email.service';
+import * as speakeasy from 'speakeasy';
 import { DashboardUserDataDto, UpdateProfileDto, UserFiltersDto } from './dto';
 
 interface PaginatedUsers {
@@ -162,7 +163,7 @@ export class UsersService {
     organizationId: string,
     data: UpdateProfileDto,
   ): Promise<User | null> {
-    var user = null;
+    let user = null;
     try {
       // Verificar que el usuario existe y pertenece a la org
       await this.findOne(userId, organizationId);
@@ -177,7 +178,9 @@ export class UsersService {
         },
       });
     } catch (error) {
-      this.logger.error(`Error updating user profile for userId ${userId}: ${error}`);
+      this.logger.error(
+        `Error updating user profile for userId ${userId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     return user;
@@ -634,9 +637,12 @@ export class UsersService {
         throw new ForbiddenException('Código 2FA requerido');
       }
 
-      const speakeasy = require('speakeasy');
+      if (!user.twoFactorSecret) {
+        throw new BadRequestException('El usuario no tiene un secreto 2FA configurado');
+      }
+
       const verified = speakeasy.totp.verify({
-        secret: user.twoFactorSecret!,
+        secret: user.twoFactorSecret,
         encoding: 'base32',
         token: code2FA,
       });
@@ -808,7 +814,7 @@ export class UsersService {
         select: { name: true },
       });
 
-      const organizationName = organization?.name || 'Organización desconocida';
+      const organizationName = organization?.name ?? 'Organización desconocida';
 
       // 2. Obtener fecha y hora actual
       // Formato legible: DD/MM/YYYY HH:MM:SS (o similar)
@@ -822,8 +828,8 @@ export class UsersService {
       const dateTime = `${dateString} a las ${timeString}`;
 
       const emailResult = await this.emailService.sendServiceRequestEmail(
-        process.env.SMTP_VERIFIED_EMAIL_FROM || 'verified-email@yourdomain.com',
-        process.env.SMTP_EMAIL_FROM || 'fractaliaindustries@gmail.com',
+        process.env.SMTP_VERIFIED_EMAIL_FROM ?? 'verified-email@yourdomain.com',
+        process.env.SMTP_EMAIL_FROM ?? 'fractaliaindustries@gmail.com',
         email,
         userName,
         subject,

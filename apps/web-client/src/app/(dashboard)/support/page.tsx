@@ -17,7 +17,7 @@ const SUBJECT_OPTIONS = [
   'Problemas con mi cuenta o acceso',
   'Facturación y Pagos',
   'Reporte de fallos (Bug)',
-  'Otro'
+  'Otro',
 ];
 
 function SupportContent() {
@@ -26,7 +26,7 @@ function SupportContent() {
   const { data: user } = useAuth();
 
   const { requestServiceInfo } = useSupportMutations();
-  
+
   const reason = searchParams.get('reason');
   const initialSubject = reason === 'upgrade' ? 'Asistencia para contratación de plan' : '';
 
@@ -82,7 +82,8 @@ function SupportContent() {
     setIsDropdownOpen(false);
   };
 
-  const isSubjectValid = selectedSubject && (selectedSubject !== 'Otro' || customSubject.trim().length > 0);
+  const isSubjectValid =
+    selectedSubject && (selectedSubject !== 'Otro' || customSubject.trim().length > 0);
 
   // Initialize Cal.com embed
   useEffect(() => {
@@ -99,13 +100,14 @@ function SupportContent() {
 
   if (isNuevoWorkflow) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
+      <div className="p-6">
         <div className="mb-8 space-y-2 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-black dark:text-white">
             Agenda tu Reunión
           </h1>
           <p className="text-black/60 dark:text-white/60">
-            ¡Solicitud enviada! Para comenzar a diseñar tu automatización, por favor selecciona el horario que mejor te acomode para nuestra primera reunión técnica.
+            ¡Solicitud enviada! Para comenzar a diseñar tu automatización, por favor selecciona el
+            horario que mejor te acomode para nuestra primera reunión técnica.
           </p>
         </div>
         <div className="h-[650px] overflow-hidden rounded-2xl border border-black/5 shadow-sm dark:border-white/5">
@@ -113,10 +115,10 @@ function SupportContent() {
             namespace={CAL_CONFIG.namespace}
             calLink={CAL_CONFIG.events.nuevoWorkflow}
             style={{ width: '100%', height: '100%', overflow: 'scroll' }}
-            config={{ 
+            config={{
               layout: CAL_CONFIG.defaultLayout,
               ...(user?.name ? { name: user.name } : {}),
-              ...(user?.email ? { email: user.email } : {})
+              ...(user?.email ? { email: user.email } : {}),
             }}
           />
         </div>
@@ -125,10 +127,9 @@ function SupportContent() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
-
+    <div className="p-6 max-w-5xl">
       {/* Page Header */}
-      <div className="mb-8 space-y-2 text-center">
+      <div className="mb-8 space-y-2">
         <h1 className="text-3xl font-bold tracking-tight text-black dark:text-white">
           Centro de Soporte
         </h1>
@@ -139,7 +140,6 @@ function SupportContent() {
 
       {/* Vertical layout: form top, calendar bottom */}
       <div className="flex flex-col gap-12">
-
         {/* TOP — Contact Form */}
         <div className="flex flex-col gap-4">
           {/* Section label */}
@@ -150,9 +150,8 @@ function SupportContent() {
             </span>
           </div>
 
-          <div className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm dark:border-white/5 dark:bg-[#0A0A0A] md:p-8">
+          <div className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm md:p-8 dark:border-white/5 dark:bg-[#0A0A0A]">
             <form onSubmit={handleSubmit} className="space-y-6">
-
               <div className="space-y-2">
                 <label htmlFor="subject" className="text-sm font-medium text-black dark:text-white">
                   Asunto
@@ -162,10 +161,18 @@ function SupportContent() {
                     type="button"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                     className={`flex w-full items-center justify-between rounded-xl border border-black/10 bg-transparent px-4 py-2.5 text-sm transition-all hover:bg-black/5 focus:border-black focus:ring-1 focus:ring-black dark:border-white/10 dark:hover:bg-white/5 dark:focus:border-white dark:focus:ring-white ${
-                      isDropdownOpen ? 'border-black ring-1 ring-black dark:border-white dark:ring-white' : ''
+                      isDropdownOpen
+                        ? 'border-black ring-1 ring-black dark:border-white dark:ring-white'
+                        : ''
                     }`}
                   >
-                    <span className={selectedSubject ? 'text-black dark:text-white' : 'text-black/30 dark:text-white/30'}>
+                    <span
+                      className={
+                        selectedSubject
+                          ? 'text-black dark:text-white'
+                          : 'text-black/30 dark:text-white/30'
+                      }
+                    >
                       {selectedSubject || 'Selecciona un asunto'}
                     </span>
                     <ChevronDown
@@ -202,8 +209,11 @@ function SupportContent() {
               </div>
 
               {selectedSubject === 'Otro' && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <label htmlFor="customSubject" className="text-sm font-medium text-black dark:text-white">
+                <div className="animate-in fade-in slide-in-from-top-2 space-y-2 duration-200">
+                  <label
+                    htmlFor="customSubject"
+                    className="text-sm font-medium text-black dark:text-white"
+                  >
                     Especificar Asunto
                   </label>
                   <input
@@ -220,7 +230,8 @@ function SupportContent() {
 
               <div className="space-y-2">
                 <label htmlFor="message" className="text-sm font-medium text-black dark:text-white">
-                  Mensaje <span className="text-black/30 dark:text-white/30 font-normal">(Opcional)</span>
+                  Mensaje{' '}
+                  <span className="font-normal text-black/30 dark:text-white/30">(Opcional)</span>
                 </label>
                 <textarea
                   id="message"
@@ -263,15 +274,14 @@ function SupportContent() {
               namespace={CAL_CONFIG.namespace}
               calLink={CAL_CONFIG.allEvents}
               style={{ width: '100%', height: '100%', overflow: 'scroll' }}
-              config={{ 
+              config={{
                 layout: CAL_CONFIG.defaultLayout,
                 ...(user?.name ? { name: user.name } : {}),
-                ...(user?.email ? { email: user.email } : {})
+                ...(user?.email ? { email: user.email } : {}),
               }}
             />
           </div>
         </div>
-
       </div>
     </div>
   );
@@ -279,11 +289,13 @@ function SupportContent() {
 
 export default function SupportPage() {
   return (
-    <Suspense fallback={
-      <div className="flex h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-black/20 dark:text-white/20" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-black/20 dark:text-white/20" />
+        </div>
+      }
+    >
       <SupportContent />
     </Suspense>
   );

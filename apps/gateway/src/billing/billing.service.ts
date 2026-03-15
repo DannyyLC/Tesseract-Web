@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ConflictException } from '@nestjs/common';
 import { StripeClient } from './stripe.client';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
@@ -90,7 +90,7 @@ export class BillingService {
       customer: customerId,
       return_url: returnUrl,
     });
-    return session.url as string;
+    return session.url;
   }
 
   /**
@@ -107,6 +107,7 @@ export class BillingService {
       case 'invoice.payment_succeeded':
         await this.handleInvoicePaymentSucceeded(event.data.object);
         break;
+      case 'customer.subscription.created':
       case 'customer.subscription.updated':
         await this.handleSubscriptionUpdated(event.data.object);
         break;
@@ -118,6 +119,43 @@ export class BillingService {
     }
   }
 
+  // ============================================
+  // Stripe API Compatibility Helpers
+  // The Stripe API restructured Invoice objects:
+  //   - subscription → parent.subscription_details.subscription
+  //   - subscription_details.metadata → parent.subscription_details.metadata
+  //   - line.price.id → line.pricing.price_details.price
+  // ============================================
+  private getInvoiceSubscriptionId(invoice: any): string | undefined {
+    // New API: parent.subscription_details.subscription
+    // Old API: invoice.subscription (string or object)
+    return (
+      invoice.parent?.subscription_details?.subscription ??
+      (typeof invoice.subscription === 'string'
+        ? invoice.subscription
+        : invoice.subscription?.id)
+    );
+  }
+
+  private getInvoiceOrganizationId(invoice: any): string | undefined {
+    // New API: parent.subscription_details.metadata
+    // Old API: subscription_details.metadata or invoice.metadata
+    return (
+      invoice.parent?.subscription_details?.metadata?.organizationId ??
+      invoice.subscription_details?.metadata?.organizationId ??
+      invoice.metadata?.organizationId
+    );
+  }
+
+  private getLineItemPriceId(lineItem: any): string | undefined {
+    // New API: pricing.price_details.price
+    // Old API: price.id
+    return (
+      lineItem.pricing?.price_details?.price ??
+      lineItem.price?.id
+    );
+  }
+
   /**
    * Handle Invoice Created
    * SNAPSHOT LOGIC: Check for negative balance and bill it immediately
@@ -125,10 +163,11 @@ export class BillingService {
   private async handleInvoiceCreated(invoiceObject: Stripe.Invoice) {
     const invoice = invoiceObject as any;
 
+    const subscriptionId = this.getInvoiceSubscriptionId(invoice);
+
     // Only process subscription invoices
-    if (invoice.subscription && invoice.billing_reason === 'subscription_cycle') {
-      const organizationId =
-        invoice.subscription_details?.metadata?.organizationId || invoice.metadata?.organizationId;
+    if (subscriptionId && invoice.billing_reason === 'subscription_cycle') {
+      const organizationId = this.getInvoiceOrganizationId(invoice);
 
       if (!organizationId) {
         this.logger.warn(`Invoice ${invoice.id} created but no organizationId found`);
@@ -185,8 +224,7 @@ export class BillingService {
    */
   private async handleInvoicePaymentFailed(invoiceObject: Stripe.Invoice) {
     const invoice = invoiceObject as any;
-    const organizationId =
-      invoice.subscription_details?.metadata?.organizationId || invoice.metadata?.organizationId;
+    const organizationId = this.getInvoiceOrganizationId(invoice);
 
     if (!organizationId) {
       this.logger.warn(`Invoice ${invoice.id} payment failed but no organizationId found`);
@@ -205,10 +243,7 @@ export class BillingService {
 
     // 2. Mark Subscription as benign "canceled at end" to prevent infinite renewal attempts
     // Or relies on Stripe's "Smart Retries".
-    // User asked to "cancel subscription" logic.
-
-    const subId =
-      typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+    const subId = this.getInvoiceSubscriptionId(invoice);
     if (subId) {
       // Verify it exists in our DB
       const sub = await this.prisma.subscription.findUnique({ where: { organizationId } });
@@ -228,51 +263,114 @@ export class BillingService {
   private async handleInvoicePaymentSucceeded(invoiceObject: Stripe.Invoice) {
     const invoice = invoiceObject as any; // Cast to any to handle type mismatches
 
-    if (!invoice.subscription || !invoice.payment_intent) {
+    const subscriptionId = this.getInvoiceSubscriptionId(invoice);
+
+    if (!subscriptionId) {
       this.logger.warn(
-        `Invoice ${invoice.id} missing subscription or payment details, skipping credit addition`,
+        `Invoice ${invoice.id} has no subscription attached, skipping credit addition`,
       );
       return;
     }
 
-    const subscriptionId =
-      typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription.id;
-
-    // Use organizationId from invoice metadata or subscription metadata
-    const organizationId =
-      invoice.subscription_details?.metadata?.organizationId || invoice.metadata?.organizationId;
-
-    if (!organizationId) {
-      this.logger.error(`No organizationId found in invoice metadata for invoice ${invoice.id}`);
+    // Skip $0 invoices (e.g. trial starts, free invoices)
+    if (!invoice.amount_paid || invoice.amount_paid === 0) {
+      this.logger.log(`Invoice ${invoice.id} has $0 amount paid, skipping credit addition`);
       return;
     }
+
+    // Use organizationId from invoice metadata or subscription metadata
+    let organizationId = this.getInvoiceOrganizationId(invoice);
+
+    // Fallback: Retrieve organizationId from the Stripe subscription metadata directly
+    if (!organizationId) {
+      this.logger.warn(
+        `Invoice ${invoice.id} missing organizationId in invoice metadata, looking up from Stripe subscription ${subscriptionId}`,
+      );
+      try {
+        const stripeSub = await this.stripeClient.stripe.subscriptions.retrieve(subscriptionId);
+        organizationId = stripeSub.metadata?.organizationId;
+      } catch (err) {
+        this.logger.error(`Failed to retrieve subscription ${subscriptionId} from Stripe`, err);
+      }
+    }
+
+    // Last resort: Look up from our DB
+    if (!organizationId) {
+      this.logger.warn(
+        `Still no organizationId for invoice ${invoice.id}, looking up from DB by stripeSubscriptionId ${subscriptionId}`,
+      );
+      const dbSub = await this.prisma.subscription.findFirst({
+        where: { stripeSubscriptionId: subscriptionId },
+      });
+      organizationId = dbSub?.organizationId;
+    }
+
+    if (!organizationId) {
+      this.logger.error(`No organizationId found for invoice ${invoice.id} after all fallbacks`);
+      return;
+    }
+
+    this.logger.log(`Processing invoice ${invoice.id} for org ${organizationId} (sub: ${subscriptionId})`);
 
     const amountPaidCents = invoice.amount_paid;
 
-    // Find Plan based on amount (Robust MVP approach)
-    // We look for a plan that matches the amount paid.
+    // Find Plan based on Price ID or Amount
     let creditsToAdd = 0;
     let planName = 'UNKNOWN';
 
-    const plan = Object.values(SUBSCRIPTION_PLANS).find(
-      (p: any) => p.price.monthly * 100 === amountPaidCents,
-    );
+    // 1. Prioritize looking up by Price ID from line items
+    let priceId: string | undefined;
 
-    if (plan) {
-      creditsToAdd = plan.limits.monthlyCredits;
-      planName = plan.type;
-    } else {
-      // Fallback: If amount doesn't match exact plan (e.g. proration + tax? or partial),
-      // we might needing a better lookup via Price ID from lines.
-      // implementation_plan.md says: "Upgrade ... Charge full price ... Grant FULL credits".
-      // If so, amount should match.
-      // If not, we log warning.
-      this.logger.warn(
-        `Invoice amount ${amountPaidCents} does not match any standard plan price. checking line items...`,
+    for (const line of invoice.lines?.data ?? []) {
+      const linePriceId = this.getLineItemPriceId(line);
+      if (!linePriceId) continue;
+
+      const planByPriceId = Object.values(SUBSCRIPTION_PLANS).find(
+        (p: any) => this.configService.get(p.priceIdEnvKey) === linePriceId,
       );
 
-      // Check line items for Price ID match if available in future.
-      // For now, if no match, 0 credits.
+      if (planByPriceId) {
+        creditsToAdd = planByPriceId.limits.monthlyCredits;
+        planName = planByPriceId.type;
+        priceId = linePriceId;
+        this.logger.log(`Matched invoice line to plan ${planName} via priceId ${linePriceId}`);
+        break; // Found the subscription plan
+      }
+    }
+
+    // 2. Fallback to amount if price ID match failed or wasn't available
+    if (creditsToAdd === 0 && amountPaidCents > 0) {
+      const planByAmount = Object.values(SUBSCRIPTION_PLANS).find(
+        (p: any) => p.price.monthly * 100 === amountPaidCents,
+      );
+
+      if (planByAmount) {
+        creditsToAdd = planByAmount.limits.monthlyCredits;
+        planName = planByAmount.type;
+        this.logger.log(`Matched invoice to plan ${planName} via amount ${amountPaidCents}`);
+      }
+    }
+
+    // 3. Fallback for custom/Enterprise plans that don't match standard Price IDs and standard amounts
+    if (creditsToAdd === 0) {
+      const existingSub = await this.prisma.subscription.findUnique({
+        where: { organizationId },
+      });
+
+      if (existingSub?.plan === 'ENTERPRISE') {
+        // Use custom monthly credits if defined, otherwise -1 (unlimited)
+        creditsToAdd = existingSub.customMonthlyCredits ?? SUBSCRIPTION_PLANS.ENTERPRISE.limits.monthlyCredits;
+        planName = 'ENTERPRISE';
+        this.logger.log(`Using custom ENTERPRISE plan limits for Org ${organizationId}`);
+      }
+    }
+
+
+
+    if (creditsToAdd === 0) {
+      this.logger.warn(
+        `Invoice ${invoice.id} (Amount: ${amountPaidCents}, Price ID: ${priceId}) does not match any standard plan price. No credits added.`,
+      );
     }
 
     if (creditsToAdd > 0) {
@@ -281,7 +379,7 @@ export class BillingService {
       const creditBalance = await this.prisma.creditBalance.findUnique({
         where: { organizationId },
       });
-      const invoicedOverage = creditBalance?.invoicedOverageCredits || 0;
+      const invoicedOverage = creditBalance?.invoicedOverageCredits ?? 0;
 
       // 1. Calculate strictly adds
       // Actually, we first "pay back" the invoiced amount effectively.
@@ -293,7 +391,7 @@ export class BillingService {
       // Temporary Balance after payment = -110 + 100 = -10.
       // Gap = -10.
 
-      const currentBalance = creditBalance?.balance || 0;
+      const currentBalance = creditBalance?.balance ?? 0;
       const balanceAfterPayment = currentBalance + invoicedOverage;
 
       let gapCredits = 0;
@@ -332,7 +430,7 @@ export class BillingService {
       // 2. Upsert Subscription
       const periodStart = invoice.period_start ? new Date(invoice.period_start * 1000) : new Date();
       const periodEnd = invoice.period_end ? new Date(invoice.period_end * 1000) : new Date();
-      const priceId = invoice.lines?.data?.[0]?.price?.id;
+      const upsertPriceId = this.getLineItemPriceId(invoice.lines?.data?.[0]);
 
       await this.prisma.subscription.upsert({
         where: { organizationId },
@@ -343,7 +441,7 @@ export class BillingService {
           currentPeriodStart: periodStart,
           currentPeriodEnd: periodEnd,
           stripeSubscriptionId: subscriptionId,
-          stripePriceId: priceId,
+          stripePriceId: upsertPriceId,
         },
         update: {
           plan: planName as SubscriptionPlan,
@@ -351,7 +449,7 @@ export class BillingService {
           currentPeriodStart: periodStart,
           currentPeriodEnd: periodEnd,
           stripeSubscriptionId: subscriptionId,
-          stripePriceId: priceId,
+          stripePriceId: upsertPriceId,
           pendingPlanChange: null,
         },
       });
@@ -385,11 +483,11 @@ export class BillingService {
               description: l.description,
               amountUSD: l.amount / 100,
               quantity: l.quantity,
-            })) || [],
+            })) ?? [],
         },
         amountPaidCents / 100,
         subscriptionId,
-        invoice.id,
+        undefined, // invoiceId: Stripe ID is already stored in metadata.stripeInvoiceId
       );
 
       // Reset InvoicedOverageCredits
@@ -460,6 +558,10 @@ export class BillingService {
    * Change Subscription Plan (Upgrade/Downgrade)
    */
   async changePlan(organizationId: string, newPlan: SubscriptionPlan): Promise<void> {
+    if (newPlan === 'FREE') {
+      throw new BadRequestException('Cannot change to FREE plan directly. Please cancel your subscription instead.');
+    }
+
     // 1. Get current subscription
     const sub = await this.prisma.subscription.findUnique({
       where: { organizationId },
@@ -467,6 +569,10 @@ export class BillingService {
 
     if (!sub?.stripeSubscriptionId) {
       throw new BadRequestException('No active subscription found to change');
+    }
+
+    if (sub.status === 'CANCELED') {
+      throw new BadRequestException('Cannot change a canceled subscription. Please create a new subscription instead.');
     }
 
     if (sub.plan === newPlan) {
@@ -481,20 +587,44 @@ export class BillingService {
 
     // 3. Get Real Price ID from Config (or fallback to Mock)
     const priceId =
-      this.configService.get(planConfig.priceIdEnvKey) || 'price_MISSING_CONFIG_' + newPlan;
+      this.configService.get(planConfig.priceIdEnvKey) ?? 'price_MISSING_CONFIG_' + newPlan;
 
     // 4. Retrieve Stripe Subscription to get the Item ID (required for update)
     const stripeSub = await this.stripeClient.stripe.subscriptions.retrieve(
       sub.stripeSubscriptionId,
     );
+
+    // Guard: Verify subscription is not canceled in Stripe (DB may be out of sync)
+    if (stripeSub.status === 'canceled') {
+      this.logger.warn(
+        `Subscription ${sub.stripeSubscriptionId} is canceled in Stripe but DB shows ${sub.status}. Syncing DB.`,
+      );
+      await this.prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: 'CANCELED' },
+      });
+      throw new ConflictException(
+        'SUBSCRIPTION_CANCELED_IN_STRIPE',
+      );
+    }
+
     const itemId = stripeSub.items.data[0].id;
 
     // 5. Determine if Upgrade or Downgrade
     const currentPlanConfig = SUBSCRIPTION_PLANS[sub.plan];
-    const isUpgrade = planConfig.price.monthly > (currentPlanConfig?.price.monthly || 0);
+    const isUpgrade = planConfig.price.monthly > (currentPlanConfig?.price.monthly ?? 0);
 
     if (isUpgrade) {
       // UPGRADE: Immediate change + Charge difference now
+
+      // SAFETY: If there's an active schedule (from a pending downgrade), release it first
+      // Otherwise the schedule would still execute and revert the plan after the period ends
+      const existingScheduleId = (stripeSub as any).schedule as string;
+      if (existingScheduleId) {
+        await this.stripeClient.stripe.subscriptionSchedules.release(existingScheduleId);
+        this.logger.log(`Released schedule ${existingScheduleId} before upgrading org ${organizationId}`);
+      }
+
       await this.stripeClient.stripe.subscriptions.update(sub.stripeSubscriptionId, {
         items: [
           {
@@ -502,33 +632,41 @@ export class BillingService {
             price: priceId,
           },
         ],
-        proration_behavior: 'none', // Charge full new plan immediately, no refund for old
-        billing_cycle_anchor: 'now', // Reset cycle to now (optional, usually preferred for upgrades)
+        proration_behavior: 'none',
+        billing_cycle_anchor: 'now',
       });
-      // DB update will happen via webhook 'customer.subscription.updated'
+
+      // Clean pending downgrade from DB if there was one
+      if (sub.pendingPlanChange) {
+        await this.prisma.subscription.update({
+          where: { id: sub.id },
+          data: {
+            pendingPlanChange: null,
+            planChangeRequestedAt: null,
+          },
+        });
+        this.logger.log(`Cleared pending downgrade for org ${organizationId} (upgrading instead)`);
+      }
+
+      // DB plan update will happen via webhook 'customer.subscription.updated'
     } else {
       // DOWNGRADE: Schedule change for end of period
       // We use Subscription Schedules to queue the change natively in Stripe
 
-      // 1. Check if a schedule already exists
-      const subscriptions = (await this.stripeClient.stripe.subscriptions.retrieve(
-        sub.stripeSubscriptionId,
-      )) as any;
-
-      const scheduleId = subscriptions.schedule as string;
+      const scheduleId = (stripeSub as any).schedule as string;
 
       if (scheduleId) {
-        // Update existing schedule
+        // Update existing schedule with the new target plan
         await this.stripeClient.stripe.subscriptionSchedules.update(scheduleId, {
           phases: [
             {
-              start_date: 'now',
-              end_date: subscriptions.current_period_end, // Phase 1: Keep current plan until period ends
-              items: [{ price: subscriptions.items.data[0].price.id }], // Current price
+              start_date: (stripeSub as any).current_period_start,
+              end_date: (stripeSub as any).current_period_end,
+              items: [{ price: stripeSub.items.data[0].price.id }],
             },
             {
-              start_date: subscriptions.current_period_end, // Phase 2: Start new plan after period ends
-              items: [{ price: priceId }], // New price
+              start_date: (stripeSub as any).current_period_end,
+              items: [{ price: priceId }],
             },
           ],
         });
@@ -542,30 +680,72 @@ export class BillingService {
         await this.stripeClient.stripe.subscriptionSchedules.update(schedule.id, {
           phases: [
             {
-              start_date: 'now',
-              end_date: subscriptions.current_period_end, // Phase 1: Keep current plan until period ends
-              items: [{ price: subscriptions.items.data[0].price.id }], // Current price
+              start_date: (stripeSub as any).current_period_start,
+              end_date: (stripeSub as any).current_period_end,
+              items: [{ price: stripeSub.items.data[0].price.id }],
             },
             {
-              start_date: subscriptions.current_period_end, // Phase 2: Start new plan after period ends
-              items: [{ price: priceId }], // New price
+              start_date: (stripeSub as any).current_period_end,
+              items: [{ price: priceId }],
             },
           ],
         });
       }
 
-      // 2. Update DB to reflect pending change
+      // Update DB to reflect pending change
       await this.prisma.subscription.update({
         where: { id: sub.id },
         data: {
           pendingPlanChange: newPlan,
           planChangeRequestedAt: new Date(),
-          cancelAtPeriodEnd: false, // Ensure we don't cancel since we are just moving to lower plan
+          cancelAtPeriodEnd: false,
         },
       });
 
       this.logger.log(`Scheduled downgrade to ${newPlan} for org ${organizationId}`);
     }
+  }
+
+  /**
+   * Cancels a pending downgrade by releasing the Stripe subscription schedule
+   * and cleaning the pendingPlanChange from the database.
+   */
+  async cancelPendingDowngrade(organizationId: string) {
+    const sub = await this.prisma.subscription.findUnique({
+      where: { organizationId },
+    });
+
+    if (!sub?.stripeSubscriptionId) {
+      throw new BadRequestException('No active subscription found');
+    }
+
+    if (!sub.pendingPlanChange) {
+      throw new BadRequestException('No pending plan change to cancel');
+    }
+
+    // Get the Stripe subscription to find the schedule
+    const stripeSub = await this.stripeClient.stripe.subscriptions.retrieve(
+      sub.stripeSubscriptionId,
+    );
+
+    const scheduleId = (stripeSub as any).schedule as string;
+
+    if (scheduleId) {
+      // Release the schedule — keeps current subscription as-is, cancels the future phase
+      await this.stripeClient.stripe.subscriptionSchedules.release(scheduleId);
+      this.logger.log(`Released schedule ${scheduleId} for org ${organizationId}`);
+    }
+
+    // Clean DB
+    await this.prisma.subscription.update({
+      where: { id: sub.id },
+      data: {
+        pendingPlanChange: null,
+        planChangeRequestedAt: null,
+      },
+    });
+
+    this.logger.log(`Cancelled pending downgrade for org ${organizationId}`);
   }
 
   private async handleSubscriptionUpdated(subscription: Stripe.Subscription) {
@@ -612,13 +792,23 @@ export class BillingService {
         where: { id: organizationId },
         data: { plan: planName },
       }),
-      this.prisma.subscription.update({
+      this.prisma.subscription.upsert({
         where: { organizationId },
-        data: {
+        create: {
+          organizationId,
           plan: planName,
-          status: 'ACTIVE', // Map Stripe status? active, past_due, etc.
-          currentPeriodStart: new Date(sub.current_period_start * 1000),
-          currentPeriodEnd: new Date(sub.current_period_end * 1000),
+          status: 'ACTIVE',
+          currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : new Date(),
+          currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : new Date(),
+          stripeSubscriptionId: sub.id,
+          stripePriceId: priceId,
+        },
+        update: {
+          plan: planName,
+          status: 'ACTIVE',
+          currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : new Date(),
+          currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : new Date(),
+          stripeSubscriptionId: sub.id,
           stripePriceId: priceId,
           cancelAtPeriodEnd: sub.cancel_at_period_end,
           pendingPlanChange: null, // Clear flags now that update is applied
@@ -629,6 +819,33 @@ export class BillingService {
 
     this.logger.log(`Synced subscription ${sub.id} for org ${organizationId} to plan ${planName}`);
 
+    // RISK PREVENTION: Disable overages if subscription is being cancelled
+    if (sub.cancel_at_period_end) {
+      await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: { allowOverages: false },
+      });
+      this.logger.log(`Disabled overages for org ${organizationId} (cancel_at_period_end detected via webhook)`);
+    }
+
+    // CLEANUP: Cancel any other active subscriptions for this customer (prevent duplicates)
+    const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
+    if (customerId) {
+      const activeSubscriptions = await this.stripeClient.stripe.subscriptions.list({
+        customer: customerId,
+        status: 'active',
+      });
+
+      for (const activeSub of activeSubscriptions.data) {
+        if (activeSub.id !== sub.id) {
+          this.logger.warn(
+            `Canceling duplicate subscription ${activeSub.id} for org ${organizationId} (keeping ${sub.id})`,
+          );
+          await this.stripeClient.stripe.subscriptions.cancel(activeSub.id);
+        }
+      }
+    }
+
     // ENFORCE PLAN LIMITS (Downgrade Logic)
     await this.enforceLimits(organizationId, planName);
   }
@@ -636,6 +853,19 @@ export class BillingService {
   private async handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     const organizationId = subscription.metadata?.organizationId;
     if (!organizationId) return;
+
+    // Guard: Only process if this is the subscription we're currently tracking
+    // Ignore deletions of orphaned/duplicate subscriptions (e.g. from cleanup)
+    const trackedSub = await this.prisma.subscription.findUnique({
+      where: { organizationId },
+    });
+
+    if (trackedSub?.stripeSubscriptionId && trackedSub.stripeSubscriptionId !== subscription.id) {
+      this.logger.log(
+        `Ignoring deletion of orphaned subscription ${subscription.id} for org ${organizationId} (tracking ${trackedSub.stripeSubscriptionId})`,
+      );
+      return;
+    }
 
     await this.prisma.$transaction([
       this.prisma.organization.update({
@@ -808,9 +1038,6 @@ export class BillingService {
         }
 
         // Keep ADMINs (sorted by recent login)
-        const usersToKeepIds = usersToKeep.map((id: any) => ({ id }));
-
-        // Keep ADMINs (sorted by recent login)
         if (slotsRemaining > 0) {
           const admins = activeUsers.filter((u: any) => u.role === 'admin');
           admins.sort((a: any, b: any) => {
@@ -858,7 +1085,7 @@ export class BillingService {
       await this.prisma.$transaction([
         this.prisma.organization.findUnique({
           where: { id: organizationId },
-          select: { plan: true, allowOverages: true },
+          select: { plan: true, allowOverages: true, overageLimit: true, stripeCustomerId: true },
         }),
         this.prisma.subscription.findUnique({
           where: { organizationId },
@@ -910,13 +1137,16 @@ export class BillingService {
 
     return {
       plan: organization.plan,
-      status: subscription?.status || 'ACTIVE',
-      nextBillingDate: subscription?.currentPeriodEnd || null,
-      cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd || false,
+      status: subscription?.status ?? 'ACTIVE',
+      nextBillingDate: subscription?.currentPeriodEnd ?? null,
+      cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
+      pendingPlanChange: subscription?.pendingPlanChange ?? null,
       allowOverages: organization.allowOverages,
+      overageLimit: organization.overageLimit ?? 0,
+      hasBillingAccount: !!organization.stripeCustomerId,
       credits: {
-        available: creditBalance?.balance || 0,
-        usedThisMonth: creditBalance?.currentMonthSpent || 0,
+        available: creditBalance?.balance ?? 0,
+        usedThisMonth: creditBalance?.currentMonthSpent ?? 0,
         limit: limits.monthlyCredits,
       },
       usage: {

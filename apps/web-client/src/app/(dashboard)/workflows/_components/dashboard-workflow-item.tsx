@@ -5,16 +5,17 @@ import { MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { DashboardWorkflowDto } from '@tesseract/types';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 interface DashboardWorkflowItemProps {
   workflow: DashboardWorkflowDto;
 }
 
 // Utilidades (Duplicadas por ahora, idealmente en un utils/format.ts)
-const formatTimeAgo = (dateString: string | null): string => {
-  if (!dateString) return 'Nunca';
+const formatTimeAgo = (dateInput: Date | string | null): string => {
+  if (!dateInput) return 'Nunca';
   try {
-    const date = new Date(dateString);
+    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -78,14 +79,16 @@ export default function DashboardWorkflowItem({ workflow }: DashboardWorkflowIte
             <span className="mr-2 hidden text-xs font-medium text-black/40 transition-all group-hover:inline-block dark:text-white/40">
               Ver detalles
             </span>
-            <Link
-              href={`/conversations/new?workflowId=${workflow.id}`}
-              onClick={(e) => e.stopPropagation()}
-              className="rounded-full p-2 text-black/40 transition-colors hover:bg-black/5 hover:text-black dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white"
-              title="Iniciar Chat"
-            >
-              <MessageSquare size={18} />
-            </Link>
+            <PermissionGuard permissions="workflows:execute">
+              <Link
+                href={`/conversations/new?workflowId=${workflow.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="rounded-full p-2 text-black/40 transition-colors hover:bg-black/5 hover:text-black dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white"
+                title="Iniciar Chat"
+              >
+                <MessageSquare size={18} />
+              </Link>
+            </PermissionGuard>
           </div>
         </div>
 

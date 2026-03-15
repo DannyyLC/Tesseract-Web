@@ -6,10 +6,10 @@ export class KmsService implements OnModuleInit {
   private readonly logger = new Logger(KmsService.name);
   private kmsClient: KeyManagementServiceClient;
 
-  private readonly projectId = process.env.GCP_PROJECT_ID || 'tesseract-dev';
-  private readonly locationId = process.env.GCP_KMS_LOCATION || 'global';
-  private readonly keyRingId = process.env.GCP_KMS_KEY_RING || 'tesseract-key-ring';
-  private readonly cryptoKeyId = process.env.GCP_KMS_CRYPTO_KEY || 'oauth-tokens-key';
+  private readonly projectId = process.env.GCP_PROJECT_ID ?? 'tesseract-dev';
+  private readonly locationId = process.env.GCP_KMS_LOCATION ?? 'global';
+  private readonly keyRingId = process.env.GCP_KMS_KEY_RING ?? 'tesseract-key-ring';
+  private readonly cryptoKeyId = process.env.GCP_KMS_CRYPTO_KEY ?? 'oauth-tokens-key';
 
   private keyName: string;
 
@@ -17,7 +17,7 @@ export class KmsService implements OnModuleInit {
     this.kmsClient = new KeyManagementServiceClient();
   }
 
-  async onModuleInit() {
+  onModuleInit() {
     this.keyName = this.kmsClient.cryptoKeyPath(
       this.projectId,
       this.locationId,

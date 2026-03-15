@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import { GetToolsDto } from '@tesseract/types';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 interface CatalogToolCardProps {
   tool: GetToolsDto;
@@ -20,7 +21,12 @@ interface CatalogToolCardProps {
 
 const CATEGORY_STYLE = 'bg-black/5 text-black/60 dark:bg-white/5 dark:text-white/60';
 
-export function CatalogToolCard({ tool, index, connectedCount = 0, onConnect }: CatalogToolCardProps) {
+export function CatalogToolCard({
+  tool,
+  index,
+  connectedCount = 0,
+  onConnect,
+}: CatalogToolCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -97,7 +103,10 @@ export function CatalogToolCard({ tool, index, connectedCount = 0, onConnect }: 
               </p>
               <div className="space-y-2">
                 {tool.functions.map((fn) => (
-                  <div key={fn.id} className="group/fn rounded-lg border border-black/5 bg-black/[0.01] p-2 dark:border-white/5 dark:bg-white/[0.01]">
+                  <div
+                    key={fn.id}
+                    className="group/fn rounded-lg border border-black/5 bg-black/[0.01] p-2 dark:border-white/5 dark:bg-white/[0.01]"
+                  >
                     <div className="flex items-center gap-2">
                       <div className="flex h-5 w-5 items-center justify-center rounded bg-black/5 text-black/50 dark:bg-white/10 dark:text-white/50">
                         <DynamicIcon name={fn.icon} size={12} />
@@ -119,17 +128,19 @@ export function CatalogToolCard({ tool, index, connectedCount = 0, onConnect }: 
 
       {/* Footer */}
       <div className="mt-4 border-t border-black/5 pt-4 dark:border-white/5">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (tool.isActive) onConnect?.(tool);
-          }}
-          disabled={!tool.isActive}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-black py-2 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-white dark:text-black"
-        >
-          <Plus size={14} />
-          {connectedCount > 0 ? 'Conectar otra instancia' : 'Conectar'}
-        </button>
+        <PermissionGuard permissions="tenant_tools:create">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (tool.isActive) onConnect?.(tool);
+            }}
+            disabled={!tool.isActive}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-black py-2 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-white dark:text-black"
+          >
+            <Plus size={14} />
+            {connectedCount > 0 ? 'Conectar otra instancia' : 'Conectar'}
+          </button>
+        </PermissionGuard>
       </div>
     </motion.div>
   );

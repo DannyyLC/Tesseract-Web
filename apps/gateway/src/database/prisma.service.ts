@@ -25,14 +25,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         },
       },
     });
-    const self = this;
+    const dbMutationSubject = this.dbMutationSubject;
     const sseNotifierExtension = Prisma.defineExtension({
       name: 'sseNotifier',
       query: {
         $allModels: {
           async $allOperations({ model, operation, args, query }) {
             const result = await query(args);
-            console.log(`Prisma SSE Notifier Extension Triggered ${operation} on ${model}`);
             const mutationOperations = [
               'create',
               'update',
@@ -43,8 +42,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
               'createMany',
             ];
             if (mutationOperations.includes(operation)) {
-              console.log(`Model ${model} has been ${operation}d.`);
-              self.dbMutationSubject.next({ model, operation, data: result });
+              dbMutationSubject.next({ model, operation, data: result });
             }
 
             return result;

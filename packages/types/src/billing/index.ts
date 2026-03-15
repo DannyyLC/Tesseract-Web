@@ -6,7 +6,10 @@ export interface BillingDashboardData {
   status: string; // 'ACTIVE', 'CANCELED', 'PAST_DUE', 'NO_SUBSCRIPTION'
   nextBillingDate: string | Date | null;
   cancelAtPeriodEnd: boolean;
+  pendingPlanChange: string | null;
   allowOverages: boolean;
+  overageLimit: number;
+  hasBillingAccount: boolean;
 
   credits: {
     available: number;
@@ -15,14 +18,29 @@ export interface BillingDashboardData {
   };
 
   usage: {
-    workflows: { used: number; limit: number; };
-    apiKeys: { used: number; limit: number; };
-    users: { used: number; limit: number; };
+    workflows: { 
+      used: number; 
+      limit: number 
+    };
+    apiKeys: { 
+      used: 
+      number; 
+      limit: number 
+    };
+    users: { 
+      used: number; 
+      limit: number 
+    };
   };
 }
 
-export interface UpdateSubscriptionDto { plan: SubscriptionPlan; }
-export interface ToggleOveragesDto { allowOverages: boolean; overageLimit?: number; }
+export interface UpdateSubscriptionDto {
+  plan: SubscriptionPlan;
+}
+export interface ToggleOveragesDto {
+  allowOverages: boolean;
+  overageLimit?: number;
+}
 
 export enum SubscriptionStatus {
   ACTIVE = 'ACTIVE',
@@ -40,7 +58,7 @@ export interface SubscriptionDetails {
 
   pendingPlanChange?: boolean;
   planChangeRequestedAt?: string | Date | null;
-  
+
   customMonthlyPrice?: number;
   customMonthlyCredits?: number;
   customMaxWorkflows?: number;
@@ -56,5 +74,9 @@ export interface SubscriptionDetails {
   canceledAt?: string | Date | null;
 }
 
-export interface CheckoutResponse { url: string; }
-export interface PortalResponse { url: string; }
+export interface CheckoutResponse {
+  url: string;
+}
+export interface PortalResponse {
+  url: string;
+}

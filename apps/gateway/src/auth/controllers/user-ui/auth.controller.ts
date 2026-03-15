@@ -19,7 +19,6 @@ import { Throttle } from '@nestjs/throttler';
 import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { Request, Response } from 'express';
-import * as nodemailer from 'nodemailer';
 import {
   loginSwaggerDesc,
   logoutAllSwaggerDesc,
@@ -74,7 +73,7 @@ export class AuthController {
     summary: 'Iniciar Login con Google',
     description: 'Redirige al usuario a la página de autenticación de Google.',
   })
-  async googleAuth(@Req() _req: Request) {
+  async googleAuth() {
     // El guardia inicia el flujo de OAuth2
   }
 
@@ -94,7 +93,7 @@ export class AuthController {
     // req.user contiene el usuario validado/creado por GoogleStrategy -> AuthService.validateGoogleUser
     const user = req.user;
     const isProduction = process.env.NODE_ENV === 'production';
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3001';
 
     // Verificar si el usuario tiene 2FA habilitado
     if (user.user.twoFactorEnabled) {
@@ -138,7 +137,7 @@ export class AuthController {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000, // 1 día
+      maxAge: 5 * 60 * 1000, // 5 minutos
       path: '/',
     });
 
@@ -199,14 +198,14 @@ export class AuthController {
 
       if (result.status === 'complete') {
         // Login directo (sin 2FA)
-        const rememberMe = result.rememberMe || false;
+        const rememberMe = result.rememberMe ?? false;
         const refreshMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : undefined; // 30 days if rememberMe, else Session
 
         response.cookie('accessToken', result.accessToken, {
           httpOnly: true,
           secure: isProduction,
           sameSite: 'strict',
-          maxAge: 15 * 60 * 1000,
+          maxAge: 5 * 60 * 1000, // 5 minutos
           path: '/',
         });
 
@@ -297,7 +296,7 @@ export class AuthController {
 
       response.statusCode = HttpStatus.OK;
       return response.send(responseBuilder.build());
-    } catch (error) {
+    } catch {
       responseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.InternalServerError)
@@ -383,7 +382,7 @@ export class AuthController {
 
     // Determinar si estamos en producción
     const isProduction = process.env.NODE_ENV === 'production';
-    const rememberMe = result.rememberMe || false;
+    const rememberMe = result.rememberMe ?? false;
     const refreshMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : undefined;
 
     // Establecer nuevo accessToken
@@ -391,7 +390,7 @@ export class AuthController {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'strict',
-      maxAge: 15 * 60 * 1000, // 15 minutos
+      maxAge: 5 * 60 * 1000, // 5 minutos
       path: '/',
     });
 
@@ -567,7 +566,7 @@ export class AuthController {
     }
     // Determinar si estamos en producción
     const isProduction = process.env.NODE_ENV === 'production';
-    const rememberMe = result.rememberMe || false;
+    const rememberMe = result.rememberMe ?? false;
     const refreshMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : undefined;
 
     // Establecer accessToken en cookie httpOnly
@@ -608,14 +607,12 @@ export class AuthController {
     @Body() payload: StartVerificationFlowDto,
     @Res() response: Response,
   ): Promise<
-    Response<ApiResponseBuilder<nodemailer.SentMessageInfo | keyof typeof StepOneErrors>>
+    Response<ApiResponseBuilder<object | keyof typeof StepOneErrors>>
   > {
-    const apiResponseBuilder = new ApiResponseBuilder<
-      nodemailer.SentMessageInfo | keyof typeof StepOneErrors
-    >();
+    const apiResponseBuilder = new ApiResponseBuilder<object | keyof typeof StepOneErrors>();
     try {
       await this.turnstileService.verifyToken(payload.turnstileToken);
-    } catch (error) {
+    } catch (_error) {
       apiResponseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.BadRequest)
@@ -685,8 +682,8 @@ export class AuthController {
   async signupStep3(
     @Body() body: CreateUserDto,
     @Res() res: Response,
-  ): Promise<Response<ApiResponseBuilder<any | keyof typeof StepThreeErrors>>> {
-    const apiResponse = new ApiResponseBuilder<any | keyof typeof StepThreeErrors>();
+  ): Promise<Response<ApiResponseBuilder<keyof typeof StepThreeErrors | Record<string, unknown>>>> {
+    const apiResponse = new ApiResponseBuilder<keyof typeof StepThreeErrors | Record<string, unknown>>();
     const result = await this.authService.signupStepThree(body);
     if (typeof result === 'string') {
       apiResponse
@@ -703,7 +700,7 @@ export class AuthController {
         httpOnly: true,
         secure: isProduction,
         sameSite: 'strict',
-        maxAge: 15 * 60 * 1000,
+        maxAge: 5 * 60 * 1000, // 5 minutos
         path: '/',
       });
 
@@ -784,7 +781,7 @@ export class AuthController {
     }
 
     const result = await this.authService.resetPasswordStepOne(body.email);
-    if (!Object.values(ForgotPassErrors).includes(result)) {
+    if (!Object.values(ForgotPassErrors).includes(result as ForgotPassErrors)) {
       responseBuilder
         .setSuccess(true)
         .setStatusCode(HttpStatusCode.Ok)

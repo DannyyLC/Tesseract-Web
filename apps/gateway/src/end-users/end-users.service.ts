@@ -1,7 +1,6 @@
 import { PrismaService } from '../database/prisma.service';
 import { Injectable } from '@nestjs/common';
-import { DashboardEndUserDto } from './dto/dashboard-end-user.dto';
-import { PaginatedResponse } from '@tesseract/types';
+import { DashboardEndUserDto, PaginatedResponse } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 
 @Injectable()

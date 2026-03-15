@@ -60,7 +60,7 @@ export class TenantToolService {
         paginationAction,
       );
     } catch (error: any) {
-      this.logger.error(`Error fetching dashboard data: ${error?.message || 'Unknown error'}`);
+      this.logger.error(`Error fetching dashboard data: ${error?.message ?? 'Unknown error'}`);
       return null;
     }
   }
@@ -90,7 +90,7 @@ export class TenantToolService {
       return tenantTool;
     } catch (error: any) {
       this.logger.error(
-        `Error fetching tenant tool with ID ${id}: ${error?.message || 'Unknown error'}`,
+        `Error fetching tenant tool with ID ${id}: ${error?.message ?? 'Unknown error'}`,
       );
       return null;
     }
@@ -132,7 +132,7 @@ export class TenantToolService {
       });
       return tenantTool;
     } catch (error: any) {
-      this.logger.error(`Error creating tenant tool: ${error?.message || 'Unknown error'}`);
+      this.logger.error(`Error creating tenant tool: ${error?.message ?? 'Unknown error'}`);
       throw error;
     }
   }
@@ -147,7 +147,7 @@ export class TenantToolService {
       });
     } catch (error: any) {
       this.logger.error(
-        `Error updating tenant tool with ID ${id}: ${error?.message || 'Unknown error'}`,
+        `Error updating tenant tool with ID ${id}: ${error?.message ?? 'Unknown error'}`,
       );
       return null;
     }
@@ -165,7 +165,7 @@ export class TenantToolService {
       });
     } catch (error: any) {
       this.logger.error(
-        `Error adding workflows to tenant tool with ID ${tenantToolId}: ${error?.message || 'Unknown error'}`,
+        `Error adding workflows to tenant tool with ID ${tenantToolId}: ${error?.message ?? 'Unknown error'}`,
       );
       return null;
     }
@@ -183,7 +183,7 @@ export class TenantToolService {
       });
     } catch (error: any) {
       this.logger.error(
-        `Error removing workflows from tenant tool with ID ${tenantToolId}: ${error?.message || 'Unknown error'}`,
+        `Error removing workflows from tenant tool with ID ${tenantToolId}: ${error?.message ?? 'Unknown error'}`,
       );
       return null;
     }

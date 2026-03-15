@@ -63,12 +63,12 @@ export default function ChangePasswordModal({
       });
       toast.success('Contraseña actualizada. Por favor inicia sesión nuevamente');
       handleClose();
-      
+
       // Clear auth cache immediately to prevent redirection back to dashboard
       // attempting to use stale data
       queryClient.setQueryData(['auth', 'me'], null);
       await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-      
+
       router.push('/login');
     } catch (error: any) {
       toast.error(error.message || 'Error al cambiar la contraseña');
@@ -87,7 +87,11 @@ export default function ChangePasswordModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={hasPassword ? "Cambiar Contraseña" : "Crear Contraseña"}>
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={hasPassword ? 'Cambiar Contraseña' : 'Crear Contraseña'}
+    >
       <div className="space-y-4">
         {/* Current Password - Only show if user has password */}
         {hasPassword && (

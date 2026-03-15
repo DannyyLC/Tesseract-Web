@@ -9,7 +9,7 @@ export class ApiKeyUtil {
    * @param apiKey - El API key en texto plano
    * @returns Hash del API key en formato hexadecimal
    */
-  static async hash(apiKey: string): Promise<string> {
+  static hash(apiKey: string): string {
     return nodeCrypto.createHash('sha256').update(apiKey).digest('hex');
   }
 
@@ -19,8 +19,8 @@ export class ApiKeyUtil {
    * @param hash - El hash almacenado en la DB
    * @returns true si coinciden, false si no
    */
-  static async compare(apiKey: string, hash: string): Promise<boolean> {
-    const incomingHash = await this.hash(apiKey);
+  static compare(apiKey: string, hash: string): boolean {
+    const incomingHash = this.hash(apiKey);
     return incomingHash === hash;
   }
 

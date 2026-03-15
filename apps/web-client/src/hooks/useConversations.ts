@@ -21,7 +21,7 @@ export function useConversationsDashboard(params: DashboardParams = {}) {
         params.pageSize,
         params.action,
         params.workflowId,
-        params.userId
+        params.userId,
       );
     },
   });

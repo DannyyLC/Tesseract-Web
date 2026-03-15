@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import LegalToc from '../_components/LegalToc';
+import { OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
 
 export const metadata: Metadata = {
   title: 'Términos y Condiciones · Fractal',
@@ -9,11 +10,21 @@ export const metadata: Metadata = {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+function Section({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section id={id} className="scroll-mt-24">
-      <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
-      <div className="space-y-3 text-[var(--text-secondary)] leading-relaxed">{children}</div>
+      <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
+        {title}
+      </h2>
+      <div className="space-y-3 leading-relaxed text-[var(--text-secondary)]">{children}</div>
     </section>
   );
 }
@@ -76,7 +87,6 @@ const sections = [
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
-
 export default function TermsPage() {
   return (
     <div className="mx-auto max-w-5xl px-6 py-12">
@@ -106,7 +116,9 @@ export default function TermsPage() {
             <p>
               Al utilizar los Servicios, usted acepta estos Términos en su totalidad. Si no está de
               acuerdo, no utilice la Plataforma. Nos reservamos el derecho de modificar estos
-              Términos con <strong className="text-[var(--text-primary)]">30 días de notificación previa</strong>.
+              Términos con{' '}
+              <strong className="text-[var(--text-primary)]">30 días de notificación previa</strong>
+              .
             </p>
           </Section>
 
@@ -164,9 +176,9 @@ export default function TermsPage() {
           <Section id="planes" title="4. Planes y Facturación">
             <p>
               El sistema opera bajo un modelo de{' '}
-              <strong className="text-[var(--text-primary)]">créditos mensuales</strong>. Cada
-              Plan incluye un saldo de créditos que se renueva automáticamente al inicio de cada
-              ciclo de facturación. Los créditos no utilizados se acumulan al siguiente mes.
+              <strong className="text-[var(--text-primary)]">créditos mensuales</strong>. Cada Plan
+              incluye un saldo de créditos que se renueva automáticamente al inicio de cada ciclo de
+              facturación. Los créditos no utilizados se acumulan al siguiente mes.
             </p>
             <p>La estructura de costos se compone de los siguientes elementos:</p>
             <div className="space-y-4 rounded-xl border border-[var(--border)] p-5">
@@ -188,10 +200,10 @@ export default function TermsPage() {
                 <div>
                   <p className="font-medium text-[var(--text-primary)]">Excedentes (Overage)</p>
                   <p className="text-sm">
-                    Al agotar el saldo mensual, el sistema puede continuar operando en modo
-                    overage, sujeto al límite del Plan. Los créditos consumidos en exceso se
-                    facturan al final del mes a{' '}
-                    <strong className="text-[var(--text-primary)]">$0.19 USD por crédito</strong>.
+                    Al agotar el saldo mensual, el sistema puede continuar operando en modo overage,
+                    sujeto al límite del Plan. Los créditos consumidos en exceso se facturan al
+                    final del mes a{' '}
+                    <strong className="text-[var(--text-primary)]">${OVERAGE_PRICE_PER_CREDIT} USD por crédito</strong>.
                     El Plan Free no permite overages.
                   </p>
                 </div>
@@ -229,14 +241,20 @@ export default function TermsPage() {
           <Section id="limites" title="5. Categorías de Workflows y Consumo de Créditos">
             <p>
               Cada ejecución de un workflow consume créditos según su{' '}
-              <strong className="text-[var(--text-primary)]">categoría</strong>, que determina
-              la complejidad, el límite de tokens y el costo:
+              <strong className="text-[var(--text-primary)]">categoría</strong>, que determina la
+              complejidad, el límite de tokens y el costo:
             </p>
             <InfoTable
               rows={[
                 ['Light — 1 crédito', 'Tareas simples y directas · hasta 20,000 tokens'],
-                ['Standard — 5 créditos', 'Workflows multi-paso con herramientas · hasta 50,000 tokens'],
-                ['Advanced — 25 créditos', 'Agentes complejos con reasoning avanzado · hasta 128,000 tokens'],
+                [
+                  'Standard — 5 créditos',
+                  'Workflows multi-paso con herramientas · hasta 50,000 tokens',
+                ],
+                [
+                  'Advanced — 25 créditos',
+                  'Agentes complejos con reasoning avanzado · hasta 128,000 tokens',
+                ],
               ]}
             />
             <p>
@@ -244,8 +262,8 @@ export default function TermsPage() {
               refleja los recursos computacionales requeridos. Un workflow{' '}
               <strong className="text-[var(--text-primary)]">Advanced</strong> con 5,000 créditos
               mensuales permite hasta 200 ejecuciones; uno{' '}
-              <strong className="text-[var(--text-primary)]">Light</strong> permitiría hasta
-              5,000 ejecuciones con el mismo saldo.
+              <strong className="text-[var(--text-primary)]">Light</strong> permitiría hasta 5,000
+              ejecuciones con el mismo saldo.
             </p>
           </Section>
 
@@ -275,8 +293,8 @@ export default function TermsPage() {
           <Section id="modificaciones" title="7. Modificaciones y Terminación">
             <p>
               Fractal puede modificar funcionalidades, precios o modelos de IA con{' '}
-              <strong className="text-[var(--text-primary)]">30 días de notificación previa</strong>.
-              Durante ese período, el Cliente puede cancelar sin penalidad.
+              <strong className="text-[var(--text-primary)]">30 días de notificación previa</strong>
+              . Durante ese período, el Cliente puede cancelar sin penalidad.
             </p>
             <p>Fractal puede suspender o terminar el servicio si el Cliente:</p>
             <BulletList

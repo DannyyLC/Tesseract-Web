@@ -31,5 +31,5 @@ export class DashboardSubscriptionDto {
   customMaxWorkflows?: number | null;
 
   @ApiProperty({ description: 'Custom features for the subscription, if applicable.' })
-  customFeatures?: any | null;
+  customFeatures?: unknown;
 }

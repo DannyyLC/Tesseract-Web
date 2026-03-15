@@ -59,26 +59,28 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} ${geistMono.variable} antialiased`}>
         <QueryProvider>{children}</QueryProvider>
-        <Toaster 
+        <Toaster
           position="bottom-right"
           theme="system"
           className="toaster group"
           toastOptions={{
             classNames: {
-              toast: 'group toast group-[.toaster]:bg-surface group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-xl group-[.toaster]:rounded-2xl group-[.toaster]:font-sans',
+              toast:
+                'group toast group-[.toaster]:bg-surface group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-xl group-[.toaster]:rounded-2xl group-[.toaster]:font-sans',
               description: 'group-[.toast]:text-text-secondary',
               actionButton: 'group-[.toast]:bg-accent group-[.toast]:text-text-inverse',
-              cancelButton: 'group-[.toast]:bg-surface-secondary group-[.toast]:text-text-secondary',
+              cancelButton:
+                'group-[.toast]:bg-surface-secondary group-[.toast]:text-text-secondary',
               error: 'group-[.toaster]:text-error',
               success: 'group-[.toaster]:text-success',
               warning: 'group-[.toaster]:text-warning',
               info: 'group-[.toaster]:text-info',
             },
             style: {
-               background: 'var(--surface)',
-               color: 'var(--foreground)',
-               border: '1px solid var(--border)',
-            }
+              background: 'var(--surface)',
+              color: 'var(--foreground)',
+              border: '1px solid var(--border)',
+            },
           }}
         />
       </body>

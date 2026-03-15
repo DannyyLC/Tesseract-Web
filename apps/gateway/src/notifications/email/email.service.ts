@@ -32,13 +32,13 @@ export class EmailService {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
         },
-      } as any,
+      } as nodemailer.TransportOptions,
       {
         from: {
           name: 'No-reply',
-          address: process.env.SMTP_EMAIL_FROM,
+          address: process.env.SMTP_EMAIL_FROM ?? '',
         },
-      } as any,
+      },
     );
 
     this.emailVerificationTemplate = this.loadTemplate('email_verification_view.hbs');
@@ -58,9 +58,9 @@ export class EmailService {
 
   async sendVerificationCodeByEmail(
     payload: StartVerificationFlowDto,
-  ): Promise<{ sentMessageInfo: nodemailer.SentMessageInfo | null; verificationCode: string }> {
+  ): Promise<{ sentMessageInfo: nodemailer.SentMessageInfo; verificationCode: string } | { sentMessageInfo: null; verificationCode: string }> {
     const verificationCode = await this.generateVerificationCode();
-    let sentMessageInfo: nodemailer.SentMessageInfo = null;
+    let sentMessageInfo: nodemailer.SentMessageInfo;
     try {
       sentMessageInfo = await this.transporter.sendMail({
         to: payload.email,
@@ -70,11 +70,12 @@ export class EmailService {
           name: payload.userName,
         }),
       });
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
-        `startVerificationEmailFlow >> Error enviando email a ${payload.email}: ${error}`,
+        `startVerificationEmailFlow >> Error enviando email a ${payload.email}: ${errorMessage}`,
       );
-      return { sentMessageInfo: null, verificationCode: verificationCode };
+      return { sentMessageInfo: null, verificationCode };
     }
 
     return {
@@ -87,7 +88,7 @@ export class EmailService {
     email: string,
     organizationName: string,
   ): Promise<{ sentMessageInfo: nodemailer.SentMessageInfo; verificationCode: string } | null> {
-    let sentMessageInfo: nodemailer.SentMessageInfo = null;
+    let sentMessageInfo: nodemailer.SentMessageInfo;
     const verificationCode = await this.generateVerificationCode();
 
     try {
@@ -95,14 +96,15 @@ export class EmailService {
         to: email,
         subject: `Invitación para unirte a ${organizationName}`,
         html: this.emailInvitationTemplate({
-          inviteUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/accept-invitation?code=${verificationCode}&email=${encodeURIComponent(email)}`,
+          inviteUrl: `${process.env.FRONTEND_URL ?? 'http://localhost:3001'}/accept-invitation?code=${verificationCode}&email=${encodeURIComponent(email)}`,
           organizationName,
         }),
       });
       return { sentMessageInfo, verificationCode };
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
-        `sendOrganizationInvitationToEmail >> Error enviando email a ${email}: ${error}`,
+        `sendOrganizationInvitationToEmail >> Error enviando email a ${email}: ${errorMessage}`,
       );
       return null;
     }
@@ -121,11 +123,11 @@ export class EmailService {
   }
 
   async sendPasswordResetCodeByEmail(email: string): Promise<{
-    sentMessageInfo: nodemailer.SentMessageInfo | null;
+    sentMessageInfo: unknown;
     verificationCode: string;
   } | null> {
     const verificationCode = await this.generateVerificationCode();
-    let sentMessageInfo: nodemailer.SentMessageInfo = null;
+    let sentMessageInfo: unknown;
     try {
       sentMessageInfo = await this.transporter.sendMail({
         to: email,
@@ -134,9 +136,10 @@ export class EmailService {
           verificationCode,
         }),
       });
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
-        `sendPasswordResetCodeByEmail >> Error enviando email a ${email}: ${error}`,
+        `sendPasswordResetCodeByEmail >> Error enviando email a ${email}: ${errorMessage}`,
       );
       return null;
     }
@@ -146,7 +149,7 @@ export class EmailService {
   async sendOrganizationExistsEmail(
     email: string,
     organizationName: string,
-  ): Promise<nodemailer.SentMessageInfo | null> {
+  ): Promise<unknown> {
     try {
       return await this.transporter.sendMail({
         to: email,
@@ -155,8 +158,9 @@ export class EmailService {
           organizationName,
         }),
       });
-    } catch (error) {
-      this.logger.error(`sendOrganizationExistsEmail >> Error enviando email a ${email}: ${error}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`sendOrganizationExistsEmail >> Error enviando email a ${email}: ${errorMessage}`);
       return null;
     }
   }
@@ -170,7 +174,7 @@ export class EmailService {
     userMessage: string,
     organizationName: string,
     date: string,
-  ): Promise<nodemailer.SentMessageInfo | null> {
+  ): Promise<unknown> {
     try {
       return await this.transporter.sendMail({
         from: fromEmail,
@@ -185,9 +189,10 @@ export class EmailService {
           date,
         }),
       });
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
-        `sendServiceRequestEmail >> Error enviando email a ${targetEmail}: ${error}`,
+        `sendServiceRequestEmail >> Error enviando email a ${targetEmail}: ${errorMessage}`,
       );
       return null;
     }

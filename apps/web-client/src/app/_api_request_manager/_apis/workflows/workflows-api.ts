@@ -4,7 +4,7 @@ import {
   WorkflowMetricsDto,
   WorkflowCategory,
   WorkflowsResponse,
-  ApiResponse
+  ApiResponse,
 } from '@tesseract/types';
 
 class WorkflowsApi {
@@ -24,7 +24,7 @@ class WorkflowsApi {
     action?: 'next' | 'prev',
     search?: string,
     isActive?: boolean,
-    category?: WorkflowCategory
+    category?: WorkflowCategory,
   ): Promise<WorkflowsResponse> {
     // Build query params
     const params = new URLSearchParams();
@@ -36,7 +36,7 @@ class WorkflowsApi {
     if (category) params.append('category', category);
 
     const result = await this.apiRequestManager.get<ApiResponse<any>>(
-      `${WorkflowsApi.BASE_URL}/dashboard?${params.toString()}`
+      `${WorkflowsApi.BASE_URL}/dashboard?${params.toString()}`,
     );
     return result.data.data;
   }
@@ -46,7 +46,7 @@ class WorkflowsApi {
    */
   public async getStats(): Promise<WorkflowStatsDto> {
     const result = await this.apiRequestManager.get<ApiResponse<WorkflowStatsDto>>(
-      `${WorkflowsApi.BASE_URL}/stats`
+      `${WorkflowsApi.BASE_URL}/stats`,
     );
     return result.data.data!;
   }
@@ -56,7 +56,7 @@ class WorkflowsApi {
    */
   public async getMetrics(workflowId: string, period: string = '30d'): Promise<WorkflowMetricsDto> {
     const result = await this.apiRequestManager.get<WorkflowMetricsDto>(
-      `${WorkflowsApi.BASE_URL}/${workflowId}/metrics?period=${period}`
+      `${WorkflowsApi.BASE_URL}/${workflowId}/metrics?period=${period}`,
     );
     return result.data;
   }
@@ -91,7 +91,7 @@ class WorkflowsApi {
   public async execute(id: string, input: any, metadata?: any): Promise<any> {
     const result = await this.apiRequestManager.post<any>(
       `${WorkflowsApi.BASE_URL}/${id}/execute`,
-      { input, metadata }
+      { input, metadata },
     );
     return result.data;
   }

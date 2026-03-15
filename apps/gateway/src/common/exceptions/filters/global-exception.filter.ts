@@ -74,7 +74,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
    * 3. Errores de Prisma
    * 4. Errores desconocidos
    */
-  private buildErrorResponse(exception: unknown, request: Request): ErrorResponse {
+  private buildErrorResponse(exception: unknown, _request: Request): ErrorResponse {
     const timestamp = new Date().toISOString();
     const isProduction = process.env.NODE_ENV === 'production';
 

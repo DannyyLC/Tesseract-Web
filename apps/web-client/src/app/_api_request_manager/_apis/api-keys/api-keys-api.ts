@@ -21,7 +21,7 @@ class ApiKeysApi {
   public async create(data: CreateApiKeyDto): Promise<ApiKeyResponseDto> {
     const response = await this.apiRequestManager.post<ApiKeyResponseDto>(
       `${ApiKeysApi.BASE_URL}`,
-      data
+      data,
     );
     return response.data;
   }
@@ -41,7 +41,7 @@ class ApiKeysApi {
    */
   public async findOne(apiKeyId: string): Promise<ApiKeyListDto> {
     const response = await this.apiRequestManager.get<ApiKeyListDto>(
-      `${ApiKeysApi.BASE_URL}/${apiKeyId}`
+      `${ApiKeysApi.BASE_URL}/${apiKeyId}`,
     );
     return response.data;
   }
@@ -53,7 +53,7 @@ class ApiKeysApi {
   public async update(apiKeyId: string, data: UpdateApiKeyDto): Promise<ApiKeyListDto> {
     const response = await this.apiRequestManager.patch<ApiKeyListDto>(
       `${ApiKeysApi.BASE_URL}/${apiKeyId}`,
-      data
+      data,
     );
     return response.data;
   }
@@ -64,7 +64,7 @@ class ApiKeysApi {
    */
   public async delete(apiKeyId: string): Promise<{ success: boolean; message: string }> {
     const response = await this.apiRequestManager.delete<{ success: boolean; message: string }>(
-      `${ApiKeysApi.BASE_URL}/${apiKeyId}`
+      `${ApiKeysApi.BASE_URL}/${apiKeyId}`,
     );
     return response.data;
   }

@@ -16,7 +16,7 @@ export function useDashboardWorkflows(
   action?: 'next' | 'prev',
   search?: string,
   isActive?: boolean,
-  category?: WorkflowCategory
+  category?: WorkflowCategory,
 ) {
   return useQuery({
     queryKey: ['workflows', 'dashboard', cursor, pageSize, action, search, isActive, category],
@@ -32,7 +32,7 @@ export function useInfiniteDashboardWorkflows(
   pageSize: number = 10,
   search?: string,
   isActive?: boolean,
-  category?: WorkflowCategory
+  category?: WorkflowCategory,
 ) {
   return useInfiniteQuery({
     queryKey: ['workflows', 'dashboard', 'infinite', pageSize, search, isActive, category],
@@ -45,7 +45,7 @@ export function useInfiniteDashboardWorkflows(
         'next',
         search,
         isActive,
-        category
+        category,
       );
     },
     initialPageParam: undefined as string | undefined,
@@ -145,7 +145,7 @@ export function useExecuteStream() {
     id: string,
     input: any,
     metadata?: any,
-    onEvent?: (event: string, data: any) => void
+    onEvent?: (event: string, data: any) => void,
   ) => {
     setIsStreaming(true);
     setMessages('');

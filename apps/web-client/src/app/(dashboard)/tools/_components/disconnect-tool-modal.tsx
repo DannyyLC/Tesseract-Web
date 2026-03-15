@@ -55,11 +55,15 @@ export function DisconnectCredentialsToolModal({
         <div className="space-y-3 text-sm text-black/60 dark:text-white/60">
           <p>
             Los agentes de Tesseract utilizan las herramientas conectadas como base para ejecutar
-            sus tareas. Si un agente necesita <strong className="text-black/80 dark:text-white/80">"{toolDisplayName}"</strong> y esta no está disponible:
+            sus tareas. Si un agente necesita{' '}
+            <strong className="text-black/80 dark:text-white/80">"{toolDisplayName}"</strong> y esta
+            no está disponible:
           </p>
           <ul className="ml-4 list-disc space-y-1 text-xs leading-relaxed">
             <li>Las ejecuciones de workflows asociados terminarán en error.</li>
-            <li>Si la herramienta es central para el agente, este dejará de funcionar por completo.</li>
+            <li>
+              Si la herramienta es central para el agente, este dejará de funcionar por completo.
+            </li>
             <li>Los workflows afectados no se recuperarán solos; requerirán reconexión manual.</li>
           </ul>
           <p className="text-xs font-medium text-black/50 dark:text-white/50">
@@ -84,9 +88,7 @@ export function DisconnectCredentialsToolModal({
             disabled={isLoading}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-80 disabled:opacity-50"
           >
-            {isLoading ?? (
-              <Loader2 size={14} className="animate-spin" />
-            )}
+            {isLoading ?? <Loader2 size={14} className="animate-spin" />}
             Sí, desconectar
           </button>
         </div>

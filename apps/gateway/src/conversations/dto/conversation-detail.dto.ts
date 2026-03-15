@@ -1,6 +1,7 @@
 import { ConversationMessageDto } from './conversation-message.dto';
+import { ConversationDetailDto as IConversationDetailDto } from '@tesseract/types';
 
-export class ConversationDetailDto {
+export class ConversationDetailDto implements IConversationDetailDto {
   id: string;
   title: string | null;
   channel: string;

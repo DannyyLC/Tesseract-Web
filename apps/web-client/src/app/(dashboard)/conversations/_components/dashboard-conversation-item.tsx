@@ -16,12 +16,15 @@ import { useState } from 'react';
 import { DashboardConversationDto } from '@tesseract/types';
 import { useConversationMutations } from '@/hooks/useConversations';
 import { Modal } from '@/components/ui/modal';
+import PermissionGuard from '@/components/auth/PermissionGuard';
+import { useAuth } from '@/hooks/useAuth';
+import { ROLE_PERMISSIONS } from '@tesseract/types';
 
 interface DashboardConversationItemProps {
   conversation: DashboardConversationDto;
 }
 
-const formatTimeAgo = (date: Date | string): string => {
+const formatTimeAgo = (date: Date | string | null): string => {
   if (!date) return 'Desconocido';
   try {
     const d = new Date(date);
@@ -92,6 +95,10 @@ const getStatusConfig = (status: string, isHITL: boolean) => {
 export default function DashboardConversationItem({
   conversation,
 }: DashboardConversationItemProps) {
+  const { data: user } = useAuth();
+  const userPermissions = user ? ROLE_PERMISSIONS[user.role] || [] : [];
+  const canUpdate = userPermissions.includes('conversations:update');
+
   const { updateConversation, deleteConversation } = useConversationMutations();
   const statusConfig = getStatusConfig(conversation.status, conversation.isHumanInTheLoop);
 
@@ -105,7 +112,7 @@ export default function DashboardConversationItem({
         { id: conversation.id, data: { title: renameValue } },
         {
           onSuccess: () => setIsEditing(false),
-        }
+        },
       );
     } else {
       setRenameValue(conversation.title || '');
@@ -159,11 +166,13 @@ export default function DashboardConversationItem({
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        setRenameValue(conversation.title || '');
-                        setIsEditing(true);
+                        if (canUpdate) {
+                          setRenameValue(conversation.title || '');
+                          setIsEditing(true);
+                        }
                       }}
-                      className="cursor-pointer truncate text-base font-semibold text-black transition-colors hover:opacity-70 dark:text-white"
-                      title="Click para editar nombre"
+                      className={`truncate text-base font-semibold text-black dark:text-white ${canUpdate ? 'cursor-pointer transition-colors hover:opacity-70' : ''}`}
+                      title={canUpdate ? 'Click para editar nombre' : undefined}
                     >
                       {conversation.title || 'Conversación sin título'}
                     </h3>
@@ -202,21 +211,23 @@ export default function DashboardConversationItem({
 
               {/* Actions (always visible) */}
               <div className="flex items-center gap-1">
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsDeleteOpen(true);
-                  }}
-                  className="rounded-full p-2 text-black/30 opacity-0 transition-colors hover:bg-black/5 hover:text-red-500 group-hover:opacity-100 dark:text-white/30 dark:hover:bg-white/5"
-                  title="Eliminar"
-                >
-                  {deleteConversation.isPending ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Trash2 size={16} />
-                  )}
-                </button>
+                <PermissionGuard permissions="conversations:delete">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDeleteOpen(true);
+                    }}
+                    className="rounded-full p-2 text-black/30 opacity-0 transition-colors hover:bg-black/5 hover:text-red-500 group-hover:opacity-100 dark:text-white/30 dark:hover:bg-white/5"
+                    title="Eliminar"
+                  >
+                    {deleteConversation.isPending ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={16} />
+                    )}
+                  </button>
+                </PermissionGuard>
               </div>
             </div>
 

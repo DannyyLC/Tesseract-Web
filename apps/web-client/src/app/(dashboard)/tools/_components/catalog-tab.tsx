@@ -72,7 +72,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar herramientas..."
-            className="w-full rounded-full border-none bg-black/5 py-2.5 pl-10 pr-4 text-sm text-black transition-all placeholder:text-black/30 hover:bg-black/8 focus:outline-none focus:ring-2 focus:ring-black/10 dark:bg-white/5 dark:text-white dark:placeholder:text-white/30 dark:focus:ring-white/10"
+            className="hover:bg-black/8 w-full rounded-full border-none bg-black/5 py-2.5 pl-10 pr-4 text-sm text-black transition-all placeholder:text-black/30 focus:outline-none focus:ring-2 focus:ring-black/10 dark:bg-white/5 dark:text-white dark:placeholder:text-white/30 dark:focus:ring-white/10"
           />
         </div>
       </div>
@@ -86,7 +86,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
 
       {/* Loading skeleton */}
       {catalogLoading && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="h-52 animate-pulse rounded-2xl bg-black/5 dark:bg-white/5" />
           ))}
@@ -95,7 +95,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
 
       {/* Grid */}
       {!catalogLoading && allCatalogTools.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {allCatalogTools.map((tool, i) => (
             <CatalogToolCard
               key={tool.id}

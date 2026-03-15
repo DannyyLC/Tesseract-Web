@@ -27,12 +27,11 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
   const handleSetup = async () => {
     try {
       const response = await setup2FA.mutateAsync();
-      
+
       if (response.data) {
         const qrCode = response.data.qr || response.data.qrCode;
         const secret = response.data.secret || '';
-        
-        
+
         if (qrCode) {
           setQrCode(qrCode);
           setSecret(secret);

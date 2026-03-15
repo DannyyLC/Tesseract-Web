@@ -14,11 +14,10 @@ class SupportApi {
   public async requestServiceInfoByEmail(dto: ServiceInfoRequestDto): Promise<boolean> {
     const result = await this.apiRequestManager.post<ApiResponse<boolean>>(
       `/users/request-service-info-by-email`,
-      dto
+      dto,
     );
     return result.data.success;
   }
-
 }
 
 export default SupportApi;

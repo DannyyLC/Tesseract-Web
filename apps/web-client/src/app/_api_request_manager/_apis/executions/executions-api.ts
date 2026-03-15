@@ -4,7 +4,7 @@ import {
   ExecutionsStatsDto,
   ExecutionDto,
   ApiResponse,
-  PaginatedResponse
+  PaginatedResponse,
 } from '@tesseract/types';
 
 class ExecutionsApi {
@@ -30,7 +30,7 @@ class ExecutionsApi {
       endDate?: Date;
       status?: string;
       trigger?: string;
-    } = {}
+    } = {},
   ): Promise<PaginatedResponse<DashboardExecutionDataDto>> {
     const queryParams = new URLSearchParams();
     if (params.cursor) queryParams.append('cursor', params.cursor);
@@ -48,7 +48,7 @@ class ExecutionsApi {
 
     const result =
       await this.apiRequestManager.get<ApiResponse<PaginatedResponse<DashboardExecutionDataDto>>>(
-        url
+        url,
       );
 
     if (!result.data.data) {
@@ -63,13 +63,13 @@ class ExecutionsApi {
    * Endpoint: GET /executions/stats
    */
   public async getStats(
-    period: '24h' | '7d' | '30d' | '90d' | 'all' = '30d'
+    period: '24h' | '7d' | '30d' | '90d' | 'all' = '30d',
   ): Promise<ExecutionsStatsDto | null> {
     const queryParams = new URLSearchParams();
     queryParams.append('period', period);
 
     const result = await this.apiRequestManager.get<ApiResponse<ExecutionsStatsDto>>(
-      `${ExecutionsApi.BASE_URL}/stats?${queryParams.toString()}`
+      `${ExecutionsApi.BASE_URL}/stats?${queryParams.toString()}`,
     );
     return result.data.data ?? null;
   }
@@ -80,7 +80,7 @@ class ExecutionsApi {
    */
   public async getById(id: string): Promise<ExecutionDto | null> {
     const result = await this.apiRequestManager.get<ApiResponse<ExecutionDto>>(
-      `${ExecutionsApi.BASE_URL}/${id}`
+      `${ExecutionsApi.BASE_URL}/${id}`,
     );
     return result.data.data ?? null;
   }
@@ -91,7 +91,7 @@ class ExecutionsApi {
    */
   public async cancel(id: string): Promise<ExecutionDto | null> {
     const result = await this.apiRequestManager.post<ApiResponse<ExecutionDto>>(
-      `${ExecutionsApi.BASE_URL}/${id}/cancel`
+      `${ExecutionsApi.BASE_URL}/${id}/cancel`,
     );
     return result.data.data ?? null;
   }
@@ -102,7 +102,7 @@ class ExecutionsApi {
    */
   public async remove(id: string): Promise<boolean> {
     const result = await this.apiRequestManager.delete<ApiResponse<void>>(
-      `${ExecutionsApi.BASE_URL}/${id}`
+      `${ExecutionsApi.BASE_URL}/${id}`,
     );
     return result.data.success;
   }

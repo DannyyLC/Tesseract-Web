@@ -37,8 +37,18 @@ export interface Subscription {
   updatedAt: Date;
   canceledAt?: Date;
 }
-export interface DashboardOrganizationDto extends Organization {
-  subscriptionData: Partial<Subscription>;
+export interface DashboardOrganizationDto {
+  id: string;
+  name: string;
+  plan: string;
+  allowOverages: boolean;
+  overageLimit: number | null;
+  isActive: boolean;
+  createdAt: Date;
+  customMaxUsers: number | null;
+  customMaxApiKeys: number | null;
+  customMaxWorkflows: number | null;
+  subscriptionData?: DashboardSubscriptionDto | null;
 }
 
 export interface UpdateOrganizationDto {
@@ -53,4 +63,21 @@ export interface AcceptInvitationDto {
   user: string;
   password?: string;
   verificationCode: string;
+}
+
+export interface DashboardSubscriptionDto {
+  plan: string;
+  status: string;
+  currentPeriodStart: Date;
+  currentPeriodEnd: Date;
+  cancelAtPeriodEnd: boolean;
+  customMonthlyPrice: number | null;
+  customMonthlyCredits?: number | null;
+  customMaxWorkflows?: number | null;
+  customFeatures?: any | null;
+}
+
+export interface DeleteOrganizationDto {
+  confirmationText: string;
+  code2FA?: string;
 }

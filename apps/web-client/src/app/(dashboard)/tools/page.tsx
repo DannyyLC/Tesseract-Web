@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Wrench, LayoutGrid } from 'lucide-react';
 import { MyToolsTab } from './_components/my-tools-tab';
 import { CatalogTab } from './_components/catalog-tab';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 type Tab = 'my-tools' | 'catalog';
 
@@ -18,8 +19,7 @@ export default function ToolsPage() {
   const [connectedCount, setConnectedCount] = useState(0);
 
   // Read active tab from URL — persists on refresh
-  const activeTab: Tab =
-    searchParams.get('tab') === 'catalog' ? 'catalog' : 'my-tools';
+  const activeTab: Tab = searchParams.get('tab') === 'catalog' ? 'catalog' : 'my-tools';
 
   const setActiveTab = useCallback(
     (tab: Tab) => {
@@ -45,8 +45,9 @@ export default function ToolsPage() {
   ];
 
   return (
-    <div className="space-y-8">
-      {/* ─── Header ─────────────────────────────────────────────────────── */}
+    <PermissionGuard permissions="tenant_tools:read" redirect={true} fallbackRoute="/dashboard">
+      <div className="space-y-8">
+        {/* ─── Header ─────────────────────────────────────────────────────── */}
       <div>
         <h1 className="text-2xl font-bold text-black dark:text-white">Tools</h1>
         <p className="mt-1 text-sm text-black/50 dark:text-white/50">
@@ -55,7 +56,7 @@ export default function ToolsPage() {
       </div>
 
       {/* ─── Tab switcher ───────────────────────────────────────────────── */}
-      <div className="flex gap-1 rounded-2xl bg-black/[0.04] p-1 dark:bg-white/[0.04] sm:w-fit">
+      <div className="flex gap-1 rounded-2xl bg-black/[0.04] p-1 sm:w-fit dark:bg-white/[0.04]">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -96,6 +97,7 @@ export default function ToolsPage() {
           )}
         </motion.div>
       </AnimatePresence>
-    </div>
+      </div>
+    </PermissionGuard>
   );
 }

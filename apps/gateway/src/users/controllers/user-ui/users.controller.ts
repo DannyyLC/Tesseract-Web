@@ -20,7 +20,7 @@ import {
   UpdateUserDto,
   UserDetailDto,
 } from '../../dto';
-import { ApiResponse, ApiResponseBuilder, PaginatedResponse } from '@tesseract/types';
+import { ApiResponse, ApiResponseBuilder, PaginatedResponse, UserRole } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
@@ -29,9 +29,11 @@ import { NotificationEventDto } from '../../../events/app-notifications/notifica
 import { UpdateProfileDto } from '../../dto';
 import { ServiceInfoRequestDto } from '../../../users/dto/service-info-request.dto';
 import { Throttle } from '@nestjs/throttler';
+import { RolesGuard } from '../../../auth/guards/roles.guard';
+import { Roles } from '../../../auth/decorators/roles.decorator';
 
 @Controller('users')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -150,6 +152,7 @@ export class UsersController {
   }
 
   @Patch(':id/update-status-or-role')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async update(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
@@ -179,9 +182,7 @@ export class UsersController {
     }
 
     // If nothing updated (e.g. empty body), just fetch the user to return current state
-    if (!updatedUser) {
-      updatedUser = await this.usersService.findOne(id, user.organizationId);
-    }
+    updatedUser ??= await this.usersService.findOne(id, user.organizationId);
 
     apiResponse
       .setStatusCode(HttpStatusCode.Ok)
@@ -198,6 +199,16 @@ export class UsersController {
     @Res() res: Response,
   ): Promise<Response> {
     const apiResponse = new ApiResponseBuilder<any>();
+
+    // Solo permitir que el usuario edite su propio perfil
+    if (id !== user.sub) {
+      apiResponse
+        .setMessage('You can only update your own profile')
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.Forbidden);
+      return res.status(HttpStatusCode.Forbidden).json(apiResponse.build());
+    }
+
     const updatedUser = await this.usersService.updateProfile(
       id,
       user.organizationId,
@@ -219,6 +230,7 @@ export class UsersController {
   }
 
   @Patch(':id/transfer-ownership')
+  @Roles(UserRole.OWNER)
   async transferOwnership(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
@@ -233,6 +245,7 @@ export class UsersController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async remove(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
@@ -307,7 +320,7 @@ export class UsersController {
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
-    const userMsg = message.userMsg || 'El usuario no proporcionó ningún mensaje adicional.';
+    const userMsg = message.userMsg ?? 'El usuario no proporcionó ningún mensaje adicional.';
     const emailResult = await this.usersService.requestServiceInfoByEmail(
       user.name,
       user.email,

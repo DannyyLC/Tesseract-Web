@@ -1,0 +1,67 @@
+{
+  "name": "Tesseract Documentation",
+  "logo": {
+    "dark": "/logo.svg",
+    "light": "/logo.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#000000",
+    "light": "#ffffff",
+    "dark": "#111111"
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:support@fractal.com"
+    }
+  ],
+  "topbarCtaButton": {
+    "type": "github",
+    "url": "https://github.com/FractalIndustries/Tesseract"
+  },
+  "navigation": [
+    {
+      "group": "Architecture",
+      "pages": [
+        "architecture/system-design",
+        "architecture/diagrams",
+        "architecture/monorepo",
+        "architecture/database-schema",
+        "architecture/backend-design",
+        "architecture/frontend-design",
+        "architecture/agents-design"
+      ]
+    },
+    {
+      "group": "Setup & Onboarding",
+      "pages": [
+        "setup/local-env",
+        "setup/stripe-local",
+        "setup/deployment",
+        "contributing",
+        "security"
+      ]
+    },
+    {
+      "group": "Core Manuals",
+      "pages": [
+        "manuals/workflows",
+        "manuals/executions-engine",
+        "manuals/billing",
+        "manuals/rbac",
+        "manuals/testing"
+      ]
+    },
+    {
+      "group": "Reference",
+      "pages": [
+        "reference/api-endpoints",
+        "reference/credits-and-plans"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/FractalIndustries/Tesseract"
+  }
+}

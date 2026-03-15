@@ -1,9 +1,8 @@
+import { UpdateConversationDto, ConversationDetailDto } from '../../dto';
 import {
   DashboardConversationDto,
-  UpdateConversationDto,
-  ConversationStatsDto,
-  ConversationDetailDto,
-} from '../../dto';
+  ConversationsStatsDto as ConversationStatsDto,
+} from '@tesseract/types';
 import { ConversationsService } from '../../conversations.service';
 import {
   Body,
@@ -20,17 +19,20 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { ApiResponse, ApiResponseBuilder, PaginatedResponse } from '@tesseract/types';
+import { ApiResponse, ApiResponseBuilder, PaginatedResponse, UserRole } from '@tesseract/types';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
+import { RolesGuard } from '../../../auth/guards/roles.guard';
+import { Roles } from '../../../auth/decorators/roles.decorator';
 
 @Controller('conversations')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ConversationsController {
   constructor(private readonly conversationsService: ConversationsService) {}
 
   @Get('dashboard')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
@@ -77,6 +79,7 @@ export class ConversationsController {
   }
 
   @Get('stats')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getStats(
     @CurrentUser() user: UserPayload,
     @Res() res: Response,
@@ -91,6 +94,7 @@ export class ConversationsController {
   }
 
   @Get(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getById(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
@@ -133,6 +137,7 @@ export class ConversationsController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async update(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
@@ -152,6 +157,7 @@ export class ConversationsController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async remove(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,

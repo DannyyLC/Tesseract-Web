@@ -1,13 +1,7 @@
 'use client';
 
-import {
-  Headphones,
-  Mail,
-  Cpu,
-  Sparkles,
-  MessageSquare,
-  Zap,
-} from 'lucide-react';
+import { OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
+import { Headphones, Mail, Cpu, Sparkles, MessageSquare, Zap } from 'lucide-react';
 
 const TIERS = [
   {
@@ -70,7 +64,8 @@ export default function InfoSections() {
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-black dark:text-white">¿Qué es un Crédito?</h2>
           <p className="max-w-2xl leading-relaxed text-black/50 dark:text-white/50">
-            Es nuestra unidad de medida. No cobramos por ejecución, sino por la complejidad del razonamiento requerido. El precio por crédito de overage es de $0.19 USD.
+            Es nuestra unidad de medida. No cobramos por ejecución, sino por la complejidad del
+            razonamiento requerido. El precio por crédito de overage es de ${OVERAGE_PRICE_PER_CREDIT} USD.
           </p>
         </div>
 
@@ -85,11 +80,13 @@ export default function InfoSections() {
               </div>
               <h3 className="flex items-center justify-between font-bold text-black dark:text-white">
                 {tier.name}
-                <span className="text-xs font-bold font-geist-mono uppercase tracking-tighter opacity-40">
+                <span className="font-geist-mono text-xs font-bold uppercase tracking-tighter opacity-40">
                   {tier.id}
                 </span>
               </h3>
-              <p className="mt-1 text-lg font-bold font-geist-mono text-black dark:text-white">{tier.cost}</p>
+              <p className="font-geist-mono mt-1 text-lg font-bold text-black dark:text-white">
+                {tier.cost}
+              </p>
 
               <div className="mt-4 space-y-2 border-t border-black/5 pt-4 text-sm dark:border-white/5">
                 <p className="text-black/60 dark:text-white/60">

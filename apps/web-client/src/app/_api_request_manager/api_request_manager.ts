@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { toast } from 'sonner';
 
 class ApiRequestManager {
   private static instance: ApiRequestManager;
@@ -17,7 +18,7 @@ class ApiRequestManager {
         // Add auth token or other headers here
         return config;
       },
-      (error) => Promise.reject(error)
+      (error) => Promise.reject(error),
     );
     // Flag to prevent infinite loops
     let isRefreshing = false;
@@ -26,10 +27,11 @@ class ApiRequestManager {
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
+        const status = error.response?.status;
 
         // Si recibimos 401 y no hemos intentado refrescar aún
         if (
-          error.response?.status === 401 &&
+          status === 401 &&
           !originalRequest._retry &&
           !isRefreshing &&
           !originalRequest.url.includes('/login') &&
@@ -65,6 +67,38 @@ class ApiRequestManager {
           }
         }
 
+        // ── Manejo centralizado de errores HTTP comunes ──
+        // Se usa `id` para que sonner reemplace toasts duplicados en vez de apilarlos.
+        // Se marca `toastHandled` para que los componentes sepan que ya se mostró un toast.
+        let toastHandled = false;
+
+        // 429 — Throttler / Rate Limit
+        if (status === 429) {
+          toast.error('Demasiadas solicitudes', {
+            id: 'http-429',
+            description: 'Espera un momento e intenta de nuevo.',
+          });
+          toastHandled = true;
+        }
+
+        // 403 — Forbidden / Sin permisos
+        if (status === 403) {
+          toast.error('Acceso denegado', {
+            id: 'http-403',
+            description: 'No tienes permisos para realizar esta acción.',
+          });
+          toastHandled = true;
+        }
+
+        // 500+ — Error interno del servidor
+        if (status && status >= 500) {
+          toast.error('Error del servidor', {
+            id: 'http-500',
+            description: 'Ocurrió un problema interno. Intenta de nuevo más tarde.',
+          });
+          toastHandled = true;
+        }
+
         // Extraemos el mensaje de error del backend si existe
         const serverMessage = error.response?.data?.message || error.response?.data?.error;
         const finalMessage = serverMessage || error.message || 'Ocurrió un error inesperado';
@@ -77,8 +111,9 @@ class ApiRequestManager {
           customError.errors = error.response.data.errors;
         }
 
+        customError.toastHandled = toastHandled;
         return Promise.reject(customError);
-      }
+      },
     );
   }
 
@@ -96,7 +131,7 @@ class ApiRequestManager {
   public async post<T>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<AxiosResponse<T>> {
     return this.axiosInstance.post<T>(url, data, config);
   }
@@ -104,7 +139,7 @@ class ApiRequestManager {
   public async put<T>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<AxiosResponse<T>> {
     return this.axiosInstance.put<T>(url, data, config);
   }
@@ -116,7 +151,7 @@ class ApiRequestManager {
   public async patch<T>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<AxiosResponse<T>> {
     return this.axiosInstance.patch<T>(url, data, config);
   }

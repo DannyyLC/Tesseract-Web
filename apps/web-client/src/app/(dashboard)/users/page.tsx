@@ -2,7 +2,16 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, UserPlus, Edit3, Trash2, Loader2, Power, ArrowRightLeft, AlertTriangle } from 'lucide-react';
+import {
+  Search,
+  UserPlus,
+  Edit3,
+  Trash2,
+  Loader2,
+  Power,
+  ArrowRightLeft,
+  AlertTriangle,
+} from 'lucide-react';
 import { useUsersDashboard, useUserStats, useUserMutations } from '@/hooks/useUsers';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardUserDataDto, UserRole } from '@tesseract/types';
@@ -18,6 +27,7 @@ import {
 } from '@/app/_shared/_utils/users.utils';
 import { UserDetails } from './_components/user-details';
 import { InviteUserModal } from './_components/InviteUserModal';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 type FilterRole = 'all' | 'owner' | 'admin' | 'viewer';
 
@@ -153,13 +163,15 @@ export default function UsersPage() {
             Gestión de miembros de tu organización
           </p>
         </div>
-        <button
-          onClick={() => setShowInviteModal(true)}
-          className="flex items-center gap-2 rounded-xl bg-black px-5 py-2.5 font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
-        >
-          <UserPlus size={18} />
-          Invitar Usuario
-        </button>
+        <PermissionGuard permissions="organization:invite_user">
+          <button
+            onClick={() => setShowInviteModal(true)}
+            className="flex items-center gap-2 rounded-xl bg-black px-5 py-2.5 font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+          >
+            <UserPlus size={18} />
+            Invitar Usuario
+          </button>
+        </PermissionGuard>
       </div>
 
       {/* Stats Cards */}
@@ -312,7 +324,7 @@ export default function UsersPage() {
                       <div className="relative">
                         <div
                           className={`h-12 w-12 rounded-full ${getAvatarColor(
-                            user.name
+                            user.name,
                           )} flex flex-shrink-0 items-center justify-center`}
                         >
                           <span className="font-semibold text-white">{getInitials(user.name)}</span>
@@ -364,43 +376,49 @@ export default function UsersPage() {
 
                           <div className="flex flex-wrap gap-2">
                             {/* Transfer Ownership - Only for Owner */}
-                            {currentUser?.role === 'owner' && user.role !== 'owner' && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleTransferOpen(user);
-                                }}
-                                className="flex items-center gap-2 rounded-full border border-yellow-500/20 px-4 py-2 text-sm font-medium text-yellow-600 transition-all hover:bg-yellow-500/10 dark:text-yellow-400"
-                              >
-                                <ArrowRightLeft size={16} />
-                                Transferir Propiedad
-                              </button>
+                            {user.role !== 'owner' && (
+                              <PermissionGuard permissions="users:transfer_ownership">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleTransferOpen(user);
+                                  }}
+                                  className="flex items-center gap-2 rounded-full border border-yellow-500/20 px-4 py-2 text-sm font-medium text-yellow-600 transition-all hover:bg-yellow-500/10 dark:text-yellow-400"
+                                >
+                                  <ArrowRightLeft size={16} />
+                                  Transferir Propiedad
+                                </button>
+                              </PermissionGuard>
                             )}
 
-                            {/* Edit/Delete - Hidden for Viewers, and Admins cannot edit Owners */}
-                            {currentUser?.role !== 'viewer' &&
-                              !(currentUser?.role === 'admin' && user.role === 'owner') && (
+                            {/* Edit/Delete - Admins cannot edit Owners */}
+                            {!(currentUser?.role === 'admin' && user.role === 'owner') && (
                                 <>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditOpen(user);
-                                    }}
-                                    className="flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
-                                  >
-                                    <Edit3 size={16} />
-                                    Editar
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteOpen(user);
-                                    }}
-                                    className="flex items-center gap-2 rounded-full border border-red-500/20 px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-red-500/10 dark:text-red-400"
-                                  >
-                                    <Trash2 size={16} />
-                                    Eliminar
-                                  </button>
+                                  <PermissionGuard permissions="users:update">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditOpen(user);
+                                      }}
+                                      className="flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+                                    >
+                                      <Edit3 size={16} />
+                                      Editar
+                                    </button>
+                                  </PermissionGuard>
+                                  
+                                  <PermissionGuard permissions="users:delete">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteOpen(user);
+                                      }}
+                                      className="flex items-center gap-2 rounded-full border border-red-500/20 px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-red-500/10 dark:text-red-400"
+                                    >
+                                      <Trash2 size={16} />
+                                      Eliminar
+                                    </button>
+                                  </PermissionGuard>
                                 </>
                               )}
                           </div>
@@ -471,11 +489,11 @@ export default function UsersPage() {
                           key={role}
                           type="button"
                           onClick={() => setEditFormData({ ...editFormData, role })}
-                            className={`rounded-xl border px-4 py-3 transition-all ${
-                              isSelected
-                                ? `bg-black/5 dark:bg-white/5 ring-2 ring-black dark:ring-white border-black dark:border-white`
-                                : 'border-black/5 bg-white hover:bg-black/5 dark:border-white/5 dark:bg-[#141414] dark:hover:bg-white/5'
-                            }`}
+                          className={`rounded-xl border px-4 py-3 transition-all ${
+                            isSelected
+                              ? `border-black bg-black/5 ring-2 ring-black dark:border-white dark:bg-white/5 dark:ring-white`
+                              : 'border-black/5 bg-white hover:bg-black/5 dark:border-white/5 dark:bg-[#141414] dark:hover:bg-white/5'
+                          }`}
                         >
                           <span className={`text-sm font-medium ${config.color}`}>
                             {config.label}
@@ -599,8 +617,8 @@ export default function UsersPage() {
                 </div>
                 <p className="mt-2 text-sm opacity-90">
                   Al transferir la propiedad, perderás tu estatus de Owner y te convertirás en
-                  Admin. El usuario <strong>{modalUser.name}</strong> tendrá control total sobre
-                  la organización.
+                  Admin. El usuario <strong>{modalUser.name}</strong> tendrá control total sobre la
+                  organización.
                 </p>
               </div>
 
@@ -629,9 +647,7 @@ export default function UsersPage() {
                   disabled={transferOwnership.isPending || confirmTransferName !== 'confirmar'}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-yellow-500 px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   title={
-                    confirmTransferName !== 'confirmar'
-                      ? 'Escribe "confirmar" para habilitar'
-                      : ''
+                    confirmTransferName !== 'confirmar' ? 'Escribe "confirmar" para habilitar' : ''
                   }
                 >
                   {transferOwnership.isPending ? (

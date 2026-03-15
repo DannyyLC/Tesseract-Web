@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Patch, Post, Res, UseGuards, Delete } from '@nestjs/common';
-import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
+import { ApiResponse, ApiResponseBuilder, UserRole } from '@tesseract/types';
 import { Organization } from '@tesseract/database';
 import { Response } from 'express';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
@@ -24,13 +24,16 @@ import {
   cancelInvitationSwaggerDesc,
   acceptInvitationSwaggerDesc,
 } from '../../../api_docs/controllers/organization';
+import { RolesGuard } from '../../../auth/guards/roles.guard';
+import { Roles } from '../../../auth/decorators/roles.decorator';
 @Controller('organizations')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('access-token')
 export class OrganizationsController {
   constructor(private readonly organizationsService: OrganizationsService) {}
 
   @Get('dashboard')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getDashboardData(
     @Res() res: Response,
     @CurrentUser() user: UserPayload,
@@ -54,6 +57,7 @@ export class OrganizationsController {
 
   @Patch('update')
   @ApiOperation({ summary: 'Update Organization', description: updateOrganizationSwaggerDesc })
+  @Roles(UserRole.OWNER)
   async updateOrganization(
     @CurrentUser() user: UserPayload,
     @Body() body: UpdateOrganizationDto,
@@ -75,6 +79,7 @@ export class OrganizationsController {
 
   @Delete('delete')
   @ApiOperation({ summary: 'Delete Organization', description: deleteOrganizationSwaggerDesc })
+  @Roles(UserRole.OWNER)
   async deleteOrganization(
     @CurrentUser() user: UserPayload,
     @Body() dto: DeleteOrganizationDto,
@@ -101,6 +106,7 @@ export class OrganizationsController {
 
   @Post('invite-user')
   @ApiOperation({ summary: 'Invite User to Organization', description: inviteUserSwaggerDesc })
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async inviteUser(
     @CurrentUser() user: UserPayload,
     @Body() body: EmailDto,
@@ -119,6 +125,7 @@ export class OrganizationsController {
 
   @Post('resend-invitation')
   @ApiOperation({ summary: 'Resend Invitation', description: resendInvitationSwaggerDesc })
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async resendInvitation(
     @CurrentUser() user: UserPayload,
     @Body() body: EmailDto,
@@ -140,6 +147,7 @@ export class OrganizationsController {
 
   @Post('cancel-invitation')
   @ApiOperation({ summary: 'Cancel Invitation', description: cancelInvitationSwaggerDesc })
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async cancelInvitation(
     @Body() body: EmailDto,
     @Res() res: Response,

@@ -12,7 +12,6 @@ import { SubscriptionPlan } from '@tesseract/types';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import * as nodemailer from 'nodemailer';
 import * as qrcode from 'qrcode';
 import * as speakeasy from 'speakeasy';
 import { Logger } from 'winston';
@@ -31,6 +30,7 @@ import {
   StepThreeErrors,
   VerificationCodeDto,
 } from './dto';
+import { Prisma } from '@tesseract/database';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
@@ -62,7 +62,6 @@ export class AuthService {
 
     // 1. Validar credenciales y obtener usuario con organización
     const { user, organization } = await this.validateUser(dto.email, dto.password);
-    console.log(user, organization);
     const payload: UserPayload = {
       sub: user.id,
       email: user.email,
@@ -74,7 +73,6 @@ export class AuthService {
     // 2. Si 2FA no está habilitado, login directo
     if (!user.twoFactorEnabled) {
       // Generar tokens finales
-      console.log('Generating tokens without 2FA');
       const tokens = await this.generateTokens(
         user.id,
         user.email,
@@ -83,7 +81,6 @@ export class AuthService {
         organization.id,
         dto.rememberMe,
       );
-      console.log('Tokens generated:', tokens);
       // Actualizar lastLoginAt
       await this.prisma.user.update({
         where: { id: user.id },
@@ -272,7 +269,7 @@ export class AuthService {
       if (!user.googleId) {
         user = await this.prisma.user.update({
           where: { id: user.id },
-          data: { googleId: details.googleId, avatar: user.avatar || details.avatar },
+          data: { googleId: details.googleId, avatar: user.avatar ?? details.avatar },
           include: { organization: true },
         });
       }
@@ -413,9 +410,9 @@ export class AuthService {
     role: string,
     organizationId: string,
     rememberMe?: boolean,
-    prismaClient?: any, // Optional transaction client
+    prismaClient?: Prisma.TransactionClient, // Optional transaction client
   ) {
-    const prisma = prismaClient || this.prisma;
+    const prisma = prismaClient ?? this.prisma;
     // 1. Crear payload para el JWT
     const payload: UserPayload = {
       sub: userId,
@@ -429,7 +426,7 @@ export class AuthService {
     // 2. Generar access token (corta duración)
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_SECRET') ?? 'super-secret-change-in-production',
-      expiresIn: this.configService.get('JWT_EXPIRES_IN') ?? '1d',
+      expiresIn: this.configService.get('JWT_EXPIRES_IN') ?? '5m',
     });
 
     // 3. Generar refresh token (larga duración)
@@ -729,9 +726,9 @@ export class AuthService {
         },
         organization: {
           id: userPayload.organizationId,
-          name: organization?.name || '',
-          slug: organization?.slug || '',
-          plan: organization?.plan || 'free',
+          name: organization?.name ?? '',
+          slug: organization?.slug ?? '',
+          plan: organization?.plan ?? 'free',
         },
         ...tokens,
         rememberMe: userPayload.rememberMe,
@@ -743,7 +740,7 @@ export class AuthService {
 
   async signupStepOne(
     payload: StartVerificationFlowDto,
-  ): Promise<nodemailer.SentMessageInfo | keyof typeof StepOneErrors> {
+  ): Promise<StepOneErrors | object> {
     const emailExists = await this.prisma.user.findUnique({
       where: { email: payload.email },
     });
@@ -768,9 +765,9 @@ export class AuthService {
             email: payload.email,
           },
         });
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(
-          `signupStepOne >> Error eliminando filas de verificación antiguas para email ${payload.email}: ${error}`,
+          `signupStepOne >> Error eliminando filas de verificación antiguas para email ${payload.email}: ${error?.message ?? 'Unknown error'}`,
         );
         return StepOneErrors.SERVER_INTERNAL_ERROR;
       }
@@ -801,9 +798,9 @@ export class AuthService {
         );
         return StepOneErrors.SERVER_INTERNAL_ERROR;
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(
-        `signupStepOne >> Error creando fila de verificación para email ${payload.email}: ${error}`,
+        `signupStepOne >> Error creando fila de verificación para email ${payload.email}: ${error?.message ?? 'Unknown error'}`,
       );
       return StepOneErrors.SERVER_INTERNAL_ERROR;
     }
@@ -835,14 +832,14 @@ export class AuthService {
     return true;
   }
 
-  async signupStepThree(user: CreateUserDto): Promise<any | keyof typeof StepThreeErrors> {
+  async signupStepThree(user: CreateUserDto): Promise<StepThreeErrors | { user: { id: string; email: string; name: string; role: string; [key: string]: unknown }; accessToken: string; refreshToken: string; rememberMe: boolean }> {
     const userVerificationRow = await this.prisma.userVerification.findFirst({
       where: {
         email: user.email,
         isEmailVerified: true,
       },
     });
-    let createdResult: any = null;
+    let createdResult: { user: { id: string; email: string; name: string; role: string; [key: string]: unknown }; accessToken: string; refreshToken: string; rememberMe: boolean } | null = null;
     // Hashear password
     const hashedPassword = await this.utilityService.hashPassword(user.password);
     if (userVerificationRow) {
@@ -885,7 +882,7 @@ export class AuthService {
 
           let newUser;
 
-          if (existingUser && existingUser.deletedAt) {
+          if (existingUser?.deletedAt) {
             // REACTIVACIÓN
             newUser = await tx.user.update({
               where: { id: existingUser.id },
@@ -949,9 +946,9 @@ export class AuthService {
             rememberMe: false,
           };
         });
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(
-          `AuthService -> signupStep3 method >> Error en transacción de creación: ${error}`,
+          `AuthService -> signupStep3 method >> Error en transacción de creación: ${error?.message ?? 'Unknown error'}`,
         );
         return StepThreeErrors.SERVER_INTERNAL_ERROR;
       }
@@ -970,7 +967,7 @@ export class AuthService {
       where: { id: userId },
     });
 
-    if (user && user.twoFactorSecret) {
+    if (user?.twoFactorSecret) {
       const verified = speakeasy.totp.verify({
         secret: user.twoFactorSecret,
         encoding: 'base32',
@@ -989,7 +986,7 @@ export class AuthService {
 
   async resetPasswordStepOne(
     email: string,
-  ): Promise<nodemailer.SentMessageInfo | ForgotPassErrors> {
+  ): Promise<ForgotPassErrors | object> {
     const user = await this.prisma.user.findUnique({
       where: { email },
       include: { organization: true },
@@ -1012,11 +1009,7 @@ export class AuthService {
     // Usar EmailService para generar y enviar el código
     const emailResult = await this.emailService.sendPasswordResetCodeByEmail(email);
 
-    if (
-      !emailResult ||
-      !emailResult.sentMessageInfo ||
-      emailResult.sentMessageInfo.success === false
-    ) {
+    if (!emailResult?.sentMessageInfo || (emailResult.sentMessageInfo as Record<string, unknown>).success === false) {
       return ForgotPassErrors.SEND_EMAIL_ERROR;
     }
 
@@ -1103,8 +1096,12 @@ export class AuthService {
         throw new ForbiddenException('2FA_REQUIRED');
       }
 
+      if (!user.twoFactorSecret) {
+        throw new BadRequestException('El usuario no tiene un secreto 2FA configurado');
+      }
+
       const verified = speakeasy.totp.verify({
-        secret: user.twoFactorSecret!,
+        secret: user.twoFactorSecret,
         encoding: 'base32',
         token: dto.code2FA,
       });

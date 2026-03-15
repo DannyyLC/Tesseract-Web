@@ -8,9 +8,6 @@ import { UserPayload } from '../../common/types/jwt-payload.type';
  * @Post()
  * @UseGuards(JwtAuthGuard)
  * create(@CurrentUser() user: UserPayload) {
- *   console.log(user.email);          // Email del usuario
- *   console.log(user.role);           // Rol: owner/admin/viewer
- *   console.log(user.organizationId); // ID de la organización
  * }
  *
  * Requisito: El endpoint debe estar protegido con JwtAuthGuard

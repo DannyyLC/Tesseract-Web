@@ -3,7 +3,7 @@
  */
 export function formatDateByGranularity(
   date: string,
-  granularity?: 'hour' | 'day' | 'week' | 'month'
+  granularity?: 'hour' | 'day' | 'week' | 'month',
 ): string {
   if (!granularity) return date;
 

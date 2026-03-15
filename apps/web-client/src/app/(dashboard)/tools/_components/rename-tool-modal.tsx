@@ -42,9 +42,7 @@ export function RenameToolModal({ isOpen, onClose, toolId, currentName }: Rename
     <Modal isOpen={isOpen} onClose={onClose} title="Renombrar herramienta">
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-black/50 dark:text-white/50">
-            Nombre
-          </label>
+          <label className="text-xs font-medium text-black/50 dark:text-white/50">Nombre</label>
           <input
             autoFocus
             type="text"

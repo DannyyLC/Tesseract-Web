@@ -18,6 +18,7 @@ import {
 import { useApiKeysList, useApiKeyMutations } from '@/hooks/useApiKey';
 import { useInfiniteDashboardWorkflows } from '@/hooks/useWorkflows';
 import { ApiKeyListDto } from '@tesseract/types';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
@@ -97,13 +98,13 @@ export default function ApiKeysPage() {
 
       if (node) observer.current.observe(node);
     },
-    [isLoadingWorkflows, isFetchingNextPage, hasNextPage, fetchNextPage]
+    [isLoadingWorkflows, isFetchingNextPage, hasNextPage, fetchNextPage],
   );
   const { createApiKey, updateApiKey, deleteApiKey } = useApiKeyMutations();
 
   // Filtered Keys
   const filteredKeys = apiKeys.filter((key) =>
-    key.name.toLowerCase().includes(searchQuery.toLowerCase())
+    key.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   // --- Handlers ---
@@ -196,13 +197,15 @@ export default function ApiKeysPage() {
             Gestiona las llaves de acceso para ejecutar tus workflows externamente
           </p>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center gap-2 self-start rounded-full bg-black px-6 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 sm:self-auto dark:bg-white dark:text-black"
-        >
-          <Plus size={16} />
-          Nueva Key
-        </button>
+        <PermissionGuard permissions="api_keys:create">
+          <button
+            onClick={openCreateModal}
+            className="flex items-center gap-2 self-start rounded-full bg-black px-6 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 sm:self-auto dark:bg-white dark:text-black"
+          >
+            <Plus size={16} />
+            Nueva Key
+          </button>
+        </PermissionGuard>
       </div>
 
       {/* Search */}
@@ -275,23 +278,28 @@ export default function ApiKeysPage() {
               </div>
 
               <div className="mt-2 flex items-center gap-1 self-start opacity-0 transition-opacity group-hover:opacity-100 md:mt-0 md:self-center">
-                <button
-                  onClick={() => openEditModal(key)}
-                  className="rounded-full p-2 text-black/40 transition-colors hover:bg-black/5 hover:text-black dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white"
-                  title="Editar"
-                >
-                  <Edit2 size={16} />
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedKey(key);
-                    setIsDeleteModalOpen(true);
-                  }}
-                  className="rounded-full p-2 text-black/40 transition-colors hover:bg-red-500/10 hover:text-red-500 dark:text-white/40"
-                  title="Eliminar"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <PermissionGuard permissions="api_keys:update">
+                  <button
+                    onClick={() => openEditModal(key)}
+                    className="rounded-full p-2 text-black/40 transition-colors hover:bg-black/5 hover:text-black dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white"
+                    title="Editar"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                </PermissionGuard>
+
+                <PermissionGuard permissions="api_keys:delete">
+                  <button
+                    onClick={() => {
+                      setSelectedKey(key);
+                      setIsDeleteModalOpen(true);
+                    }}
+                    className="rounded-full p-2 text-black/40 transition-colors hover:bg-red-500/10 hover:text-red-500 dark:text-white/40"
+                    title="Eliminar"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </PermissionGuard>
               </div>
             </motion.div>
           ))}

@@ -18,10 +18,14 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
       {/* Top bar */}
-      <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md">
+      <header className="bg-[var(--background)]/90 sticky top-0 z-50 border-b border-[var(--border)] backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           {/* Brand */}
-          <button onClick={() => router.back()} className="group flex items-center gap-2.5" aria-label="Volver atrás">
+          <button
+            onClick={() => router.back()}
+            className="group flex items-center gap-2.5"
+            aria-label="Volver atrás"
+          >
             <div className="relative h-8 w-8 flex-shrink-0 transition-opacity group-hover:opacity-70">
               <Image
                 src="/favicon.svg"
@@ -66,7 +70,9 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
       {/* Footer */}
       <footer className="mt-24 border-t border-[var(--border)] pb-12 pt-8 text-center text-sm text-[var(--text-tertiary)]">
         <p>© {new Date().getFullYear()} Fractal. Todos los derechos reservados.</p>
-        <p className="mt-1">Jurisdicción: Aguascalientes, México · Ley aplicable: legislación mexicana</p>
+        <p className="mt-1">
+          Jurisdicción: Aguascalientes, México · Ley aplicable: legislación mexicana
+        </p>
       </footer>
     </div>
   );

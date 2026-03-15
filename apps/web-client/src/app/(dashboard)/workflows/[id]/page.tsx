@@ -9,6 +9,7 @@ import { LogoLoader } from '@/components/ui/logo-loader';
 import WorkflowAnalyticsPanel from '../_components/workflow-analytics-panel';
 import { Modal } from '@/components/ui/modal';
 import { toast } from 'sonner';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 export default function WorkflowDetailPage() {
   const params = useParams();
@@ -97,9 +98,10 @@ export default function WorkflowDetailPage() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto">
-      <div className="w-full space-y-8 px-6 py-8">
-        {/* Header Section */}
+    <PermissionGuard permissions="workflows:read" redirect={true} fallbackRoute="/workflows">
+      <div className="flex h-full flex-col overflow-y-auto">
+        <div className="w-full space-y-8 px-6 py-8">
+          {/* Header Section */}
         <div className="flex flex-col gap-8">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-start">
             <div className="flex w-full items-start gap-4 md:w-auto">
@@ -169,31 +171,38 @@ export default function WorkflowDetailPage() {
             </div>
 
             <div className="flex w-full items-center gap-3 md:w-auto">
-              <Link
-                href={`/conversations/new?workflowId=${workflow.id}`}
-                className="flex flex-1 items-center justify-center gap-2 rounded-full bg-black px-6 py-2.5 font-medium text-white shadow-sm transition-all hover:opacity-90 active:scale-95 md:flex-none dark:bg-white dark:text-black"
-              >
-                <MessageSquare size={16} />
-                Probar Chat
-              </Link>
+              <PermissionGuard permissions="workflows:execute">
+                <Link
+                  href={`/conversations/new?workflowId=${workflow.id}`}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-full bg-black px-6 py-2.5 font-medium text-white shadow-sm transition-all hover:opacity-90 active:scale-95 md:flex-none dark:bg-white dark:text-black"
+                >
+                  <MessageSquare size={16} />
+                  Probar Chat
+                </Link>
+              </PermissionGuard>
 
-              <button
-                onClick={() => setIsEditOpen(true)}
-                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2.5 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 md:flex-none dark:border-white/10 dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
-              >
-                <Edit3 size={16} />
-                Editar
-              </button>
+              <PermissionGuard permissions="workflows:update">
+                <button
+                  onClick={() => setIsEditOpen(true)}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2.5 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 md:flex-none dark:border-white/10 dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
+                >
+                  <Edit3 size={16} />
+                  Editar
+                </button>
+              </PermissionGuard>
 
-              <button
-                onClick={() => setIsDeleteOpen(true)}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-white text-black/30 transition-all hover:border-red-500/20 hover:bg-red-500/5 hover:text-red-500 dark:bg-[#141414] dark:text-white/30"
-                title="Eliminar Workflow"
-              >
-                <Trash2 size={18} />
-              </button>
+              <PermissionGuard permissions="workflows:delete">
+                <button
+                  onClick={() => setIsDeleteOpen(true)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-white text-black/30 transition-all hover:border-red-500/20 hover:bg-red-500/5 hover:text-red-500 dark:bg-[#141414] dark:text-white/30"
+                  title="Eliminar Workflow"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </PermissionGuard>
             </div>
           </div>
+        </div>
         </div>
 
         <div className="h-px w-full bg-black/5 dark:bg-white/5" />
@@ -329,6 +338,6 @@ export default function WorkflowDetailPage() {
           </div>
         </div>
       </Modal>
-    </div>
+    </PermissionGuard>
   );
 }

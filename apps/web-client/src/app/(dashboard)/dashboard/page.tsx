@@ -15,20 +15,26 @@ import {
   Cell,
   Legend,
 } from 'recharts';
-import {
-  Activity,
-  ArrowUpRight,
-  Loader2,
-} from 'lucide-react';
+import { Activity, ArrowUpRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useWorkflowStats } from '@/hooks/useWorkflows';
 import { useExecutionsStats, useDashboardExecutions } from '@/hooks/useExecutions';
 import { useBillingDashboard } from '@/hooks/useBilling';
 import { useUserStats } from '@/hooks/useUsers';
+import PermissionGuard from '@/components/auth/PermissionGuard';
+import { ROLE_PERMISSIONS } from '@tesseract/types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function SectionTitle({ children, href, linkLabel }: { children: React.ReactNode; href?: string; linkLabel?: string }) {
+function SectionTitle({
+  children,
+  href,
+  linkLabel,
+}: {
+  children: React.ReactNode;
+  href?: string;
+  linkLabel?: string;
+}) {
   return (
     <div className="flex items-center justify-between border-b border-black/5 p-5 dark:border-white/5">
       <h2 className="text-lg font-semibold text-black dark:text-white">{children}</h2>
@@ -83,7 +89,11 @@ function getLast7DaysLabels() {
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { data: user } = useAuth();
-  const isAdminOrOwner = user?.role === 'admin' || user?.role === 'owner';
+  const userPermissions = user ? ROLE_PERMISSIONS[user.role] || [] : [];
+  
+  const hasBilling = userPermissions.includes('billing:read');
+  const hasUsers = userPermissions.includes('users:read');
+  const hasTopStats = hasBilling || hasUsers;
 
   // Data hooks
   const { data: workflowStats, isLoading: loadingWf } = useWorkflowStats();
@@ -126,7 +136,7 @@ export default function DashboardPage() {
     const total = workflowStats?.totalWorkflows ?? 0;
     // Calculate paused as total - active, ensuring non-negative
     const paused = Math.max(0, total - active);
-    
+
     const data = [
       { name: 'Activos', value: active, fill: '#22c55e' }, // emerald-500
       { name: 'Pausados', value: paused, fill: '#f59e0b' }, // amber-500
@@ -144,8 +154,7 @@ export default function DashboardPage() {
   }, [billingData]);
 
   // ── Credit low alert ─────────────────────────────────────────────────────────
-  // Alert if balance is very low (e.g. < 50 credits) rather than % used
-  const creditLow = isAdminOrOwner && creditData.available < 50;
+  // (Removed unused creditLow variable)
 
   // ── Recent executions list ───────────────────────────────────────────────────
   const executions = recentExecs?.items ?? [];
@@ -158,8 +167,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 pb-16">
-
+    <div className="space-y-6 pb-16">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -175,7 +183,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Stats ──────────────────────────────────────────────────────────── */}
-      <div className="mb-8 grid grid-cols-2 gap-8 px-2 lg:grid-cols-4">
+      <div className={`mb-8 grid grid-cols-2 gap-8 px-2 ${hasTopStats ? 'lg:grid-cols-4' : 'lg:grid-cols-2'}`}>
         {/* Workflows Activos — all roles */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -230,8 +238,8 @@ export default function DashboardPage() {
           </div>
         </motion.div>
 
-        {/* Créditos — admin + owner only */}
-        {isAdminOrOwner && (
+        {/* Créditos — billing:read only */}
+        <PermissionGuard permissions="billing:read">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -256,10 +264,10 @@ export default function DashboardPage() {
               )}
             </div>
           </motion.div>
-        )}
+        </PermissionGuard>
 
-        {/* Miembros — admin + owner only */}
-        {isAdminOrOwner && (
+        {/* Miembros — users:read only */}
+        <PermissionGuard permissions="users:read">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -284,12 +292,11 @@ export default function DashboardPage() {
               )}
             </div>
           </motion.div>
-        )}
+        </PermissionGuard>
       </div>
 
       {/* ── Charts Row ─────────────────────────────────────────────────────── */}
       <div className="grid gap-6 lg:grid-cols-1">
-
         {/* Area chart — executions 7 days */}
         <div className="rounded-2xl border border-black/5 bg-white dark:border-white/5 dark:bg-[#0A0A0A]">
           <SectionTitle href="/executions" linkLabel="Ver ejecuciones">
@@ -317,8 +324,17 @@ export default function DashboardPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.05} />
-                  <XAxis dataKey="day" tick={{ fontSize: 12, fill: 'currentColor', opacity: 0.4 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: 'currentColor', opacity: 0.4 }} axisLine={false} tickLine={false} />
+                  <XAxis
+                    dataKey="day"
+                    tick={{ fontSize: 12, fill: 'currentColor', opacity: 0.4 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12, fill: 'currentColor', opacity: 0.4 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
                   <Tooltip content={<ChartTooltip />} />
                   <Area
                     type="monotone"
@@ -337,8 +353,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Bar Chart + Activity Feed ───────────────────────────────────────── */}
-      <div className={`grid gap-6 ${isAdminOrOwner ? 'lg:grid-cols-2' : 'lg:grid-cols-1'}`}>
-
+      <div className="grid gap-6 lg:grid-cols-2">
         {/* Horizontal bar — workflows breakdown */}
         <div className="rounded-2xl border border-black/5 bg-white dark:border-white/5 dark:bg-[#0A0A0A]">
           <SectionTitle href="/workflows" linkLabel="Ver workflows">
@@ -366,14 +381,17 @@ export default function DashboardPage() {
                         ))}
                       </Pie>
                       <Tooltip content={<ChartTooltip />} />
-                      <Legend 
-                        verticalAlign="middle" 
+                      <Legend
+                        verticalAlign="middle"
                         align="right"
                         layout="vertical"
                         iconType="circle"
                         formatter={(value, entry: any) => (
                           <span className="text-sm font-medium text-black dark:text-white">
-                            {value} <span className="text-black/40 dark:text-white/40">({entry.payload.value})</span>
+                            {value}{' '}
+                            <span className="text-black/40 dark:text-white/40">
+                              ({entry.payload.value})
+                            </span>
                           </span>
                         )}
                       />
@@ -381,8 +399,7 @@ export default function DashboardPage() {
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex h-[220px] w-full flex-col items-center justify-center gap-3 text-black/20 dark:text-white/20">
-                    <div className="relative flex h-32 w-32 items-center justify-center rounded-full border-[16px] border-current opacity-20">
-                    </div>
+                    <div className="relative flex h-32 w-32 items-center justify-center rounded-full border-[16px] border-current opacity-20"></div>
                     <p className="text-sm font-medium">Sin workflows creados</p>
                   </div>
                 )}
@@ -391,8 +408,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Top Workflows admin+owner only) */}
-        {isAdminOrOwner && (
+        {/* Top Workflows (executions:read) */}
+        <PermissionGuard permissions="executions:read">
           <div className="rounded-2xl border border-black/5 bg-white dark:border-white/5 dark:bg-[#0A0A0A]">
             <SectionTitle href="/executions" linkLabel="Ver ejecuciones">
               Top Workflows (7 días)
@@ -403,14 +420,14 @@ export default function DashboardPage() {
                   <ChartSkeleton height={160} />
                 </div>
               ) : (stats7d?.topWorkflows ?? []).length > 0 ? (
-                (stats7d!.topWorkflows).slice(0, 5).map((wf, i) => {
+                stats7d!.topWorkflows.slice(0, 5).map((wf, i) => {
                   const successPct = Math.round(wf.successRate ?? 0);
                   const barColor =
                     successPct >= 90
                       ? 'bg-emerald-500'
                       : successPct >= 70
-                      ? 'bg-amber-400'
-                      : 'bg-red-400';
+                        ? 'bg-amber-400'
+                        : 'bg-red-400';
                   return (
                     <div key={wf.workflowId} className="flex items-center gap-4 px-5 py-4">
                       {/* Rank */}
@@ -457,12 +474,14 @@ export default function DashboardPage() {
                   <div className="flex h-16 w-16 items-center justify-center rounded-full">
                     <Activity size={32} />
                   </div>
-                  <p className="mt-4 text-sm font-medium text-black/40 dark:text-white/40">Sin datos del período actual</p>
+                  <p className="mt-4 text-sm font-medium text-black/40 dark:text-white/40">
+                    Sin datos del período actual
+                  </p>
                 </div>
               )}
             </div>
           </div>
-        )}
+        </PermissionGuard>
       </div>
 
       {/* ── Recent Executions Table ─────────────────────────────────────────── */}
@@ -479,17 +498,27 @@ export default function DashboardPage() {
             <div className="flex h-16 w-16 items-center justify-center rounded-full">
               <Activity size={32} />
             </div>
-            <p className="mt-4 text-sm font-medium text-black/40 dark:text-white/40">No hay ejecuciones recientes</p>
+            <p className="mt-4 text-sm font-medium text-black/40 dark:text-white/40">
+              No hay ejecuciones recientes
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-black/5 dark:border-white/5">
-                  <th className="px-5 py-3 text-left font-medium text-black/40 dark:text-white/40">Workflow</th>
-                  <th className="px-5 py-3 text-left font-medium text-black/40 dark:text-white/40">Estado</th>
-                  <th className="px-5 py-3 text-left font-medium text-black/40 dark:text-white/40">Créditos</th>
-                  <th className="px-5 py-3 text-left font-medium text-black/40 dark:text-white/40">Fecha</th>
+                  <th className="px-5 py-3 text-left font-medium text-black/40 dark:text-white/40">
+                    Workflow
+                  </th>
+                  <th className="px-5 py-3 text-left font-medium text-black/40 dark:text-white/40">
+                    Estado
+                  </th>
+                  <th className="px-5 py-3 text-left font-medium text-black/40 dark:text-white/40">
+                    Créditos
+                  </th>
+                  <th className="px-5 py-3 text-left font-medium text-black/40 dark:text-white/40">
+                    Fecha
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/5 dark:divide-white/5">
@@ -499,11 +528,17 @@ export default function DashboardPage() {
                   const dateVal = exec.startedAt ?? exec.createdAt;
                   const date = dateVal
                     ? new Date(dateVal).toLocaleString('es-MX', {
-                        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
                       })
                     : '—';
                   return (
-                    <tr key={exec.id ?? i} className="transition-colors hover:bg-black/[0.01] dark:hover:bg-white/[0.01]">
+                    <tr
+                      key={exec.id ?? i}
+                      className="transition-colors hover:bg-black/[0.01] dark:hover:bg-white/[0.01]"
+                    >
                       <td className="max-w-[200px] truncate px-5 py-3.5 font-medium text-black dark:text-white">
                         {wfName}
                       </td>
@@ -513,8 +548,8 @@ export default function DashboardPage() {
                             exec.status === 'completed' || exec.status === 'success'
                               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                               : exec.status === 'failed' || exec.status === 'error'
-                              ? 'bg-red-500/10 text-red-600 dark:text-red-400'
-                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                           }`}
                         >
                           <span className="h-1.5 w-1.5 rounded-full bg-current" />

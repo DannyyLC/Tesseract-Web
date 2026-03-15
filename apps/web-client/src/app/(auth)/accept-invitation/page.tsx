@@ -82,7 +82,9 @@ function AcceptInvitationForm() {
         </h2>
         <p className="text-sm text-black/60 dark:text-white/60">
           Completa tus datos para unirte a la organización
-          {email && <span className="block font-medium text-black dark:text-white mt-1">{email}</span>}
+          {email && (
+            <span className="mt-1 block font-medium text-black dark:text-white">{email}</span>
+          )}
         </p>
       </div>
 
@@ -161,10 +163,7 @@ function AcceptInvitationForm() {
         ) : (
           <>
             Aceptar Invitación
-            <ArrowRight
-              size={20}
-              className="transition-transform group-hover:translate-x-1"
-            />
+            <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
           </>
         )}
       </button>
@@ -216,9 +215,7 @@ export default function AcceptInvitationPage() {
           </div>
 
           <div className="max-w-lg space-y-4 text-center">
-            <h2 className="text-3xl font-semibold leading-tight text-white">
-              Únete a tu equipo
-            </h2>
+            <h2 className="text-3xl font-semibold leading-tight text-white">Únete a tu equipo</h2>
             <p className="text-lg leading-relaxed text-white/60">
               Colabora y automatiza flujos de trabajo en conjunto
             </p>
@@ -230,23 +227,23 @@ export default function AcceptInvitationPage() {
       {/* SECCIÓN DERECHA - FORMULARIO */}
       <div className="h-full flex-1 overflow-y-auto bg-white transition-colors duration-300 dark:bg-black">
         <div className="flex min-h-full flex-col items-center justify-center p-8 py-20">
-            {/* Mobile Logo */}
-            <div className="mb-12 flex items-center gap-3 lg:hidden">
-              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-black dark:bg-white">
-                <Image
-                  src="/favicon.svg"
-                  alt="Tesseract Logo"
-                  width={32}
-                  height={32}
-                  className="h-28 w-28 object-contain invert"
-                />
-              </div>
-              <span className="text-xl font-bold text-black dark:text-white">Tesseract</span>
+          {/* Mobile Logo */}
+          <div className="mb-12 flex items-center gap-3 lg:hidden">
+            <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-black dark:bg-white">
+              <Image
+                src="/favicon.svg"
+                alt="Tesseract Logo"
+                width={32}
+                height={32}
+                className="h-28 w-28 object-contain invert"
+              />
             </div>
-            
-            <Suspense fallback={<LogoLoader text="Cargando..." />}>
-              <AcceptInvitationForm />
-            </Suspense>
+            <span className="text-xl font-bold text-black dark:text-white">Tesseract</span>
+          </div>
+
+          <Suspense fallback={<LogoLoader text="Cargando..." />}>
+            <AcceptInvitationForm />
+          </Suspense>
         </div>
       </div>
     </div>

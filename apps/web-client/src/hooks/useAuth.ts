@@ -38,7 +38,12 @@ export function useLogin() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: async (credentials: { email: string; password: string; rememberMe?: boolean; turnstileToken?: string }) => {
+    mutationFn: async (credentials: {
+      email: string;
+      password: string;
+      rememberMe?: boolean;
+      turnstileToken?: string;
+    }) => {
       try {
         const api = RootApi.getInstance().getAuthApi();
         return await api.login(credentials);
@@ -47,7 +52,9 @@ export function useLogin() {
           throw new Error('Email o contraseña incorrectos');
         }
         if (error.message && error.message.includes('ThrottlerException')) {
-          throw new Error('Demasiados intentos fallidos. Por favor, espera antes de intentar nuevamente.');
+          throw new Error(
+            'Demasiados intentos fallidos. Por favor, espera antes de intentar nuevamente.',
+          );
         }
         throw error;
       }
@@ -119,13 +126,20 @@ export function useEnable2FA() {
 // Hook para Signup Paso 1
 export function useSignupStepOne() {
   return useMutation({
-    mutationFn: async (data: { email: string; organizationName: string; userName: string; turnstileToken?: string }) => {
+    mutationFn: async (data: {
+      email: string;
+      organizationName: string;
+      userName: string;
+      turnstileToken?: string;
+    }) => {
       const api = RootApi.getInstance().getAuthApi();
       try {
         return await api.signupStepOne(data);
       } catch (error: any) {
         if (error.message && error.message.includes('ThrottlerException')) {
-          throw new Error('Demasiados intentos fallidos. Por favor, espera antes de intentar nuevamente.');
+          throw new Error(
+            'Demasiados intentos fallidos. Por favor, espera antes de intentar nuevamente.',
+          );
         }
         throw error;
       }
@@ -235,7 +249,11 @@ export function useResetPasswordStepTwo() {
 // Hook para Cambiar Contraseña (estando logueado)
 export function useChangePassword() {
   return useMutation({
-    mutationFn: async (data: { currentPassword: string; newPassword: string; code2FA?: string }) => {
+    mutationFn: async (data: {
+      currentPassword: string;
+      newPassword: string;
+      code2FA?: string;
+    }) => {
       const api = RootApi.getInstance().getAuthApi();
       return await api.changePassword(data);
     },

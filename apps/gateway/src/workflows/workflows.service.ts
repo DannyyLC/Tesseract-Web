@@ -5,6 +5,9 @@ import {
   PLANS,
   SubscriptionPlan,
   WorkflowCategory,
+  DashboardWorkflowDto,
+  WorkflowStatsDto,
+  WorkflowMetricsDto,
 } from '@tesseract/types';
 import { Transform, PassThrough } from 'stream';
 import { AgentsService } from '../agents/agents.service';
@@ -24,10 +27,8 @@ import { LlmModelsService } from '../llm-models/llm-models.service';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
-import { WorkflowMetricsDto } from './dto/workflow-metrics.dto';
-import { WorkflowStatsDto } from './dto/workflow-stats.dto';
-import { DashboardWorkflowDto } from './dto';
 import { WhatsAppInboundEvent } from '../whatsapp-config/dto/whatsapp-inbound-event.dto';
+
 
 /**
  * Service que maneja la lógica de negocio de workflows
@@ -227,7 +228,7 @@ export class WorkflowsService {
     });
 
     // Credits amount comes negative for spending, convert to positive for "consumed"
-    const consumed = Math.abs(creditsMonth._sum.amount || 0);
+    const consumed = Math.abs(creditsMonth._sum.amount ?? 0);
 
     return {
       totalWorkflows,
@@ -400,7 +401,7 @@ export class WorkflowsService {
 
     // KPI Processing
     const totalExecutions = aggregations._count.id;
-    const avgDuration = aggregations._avg.duration || 0;
+    const avgDuration = aggregations._avg.duration ?? 0;
     // Calculate Success Rate from GroupBy results
     const statusCounts = failedExecutions.reduce(
       (acc, curr) => {
@@ -430,7 +431,7 @@ export class WorkflowsService {
 
       failures.forEach((f) => {
         let errorKey = 'GENERIC_ERROR';
-        const errText = f.error || '';
+        const errText = f.error ?? '';
         if (errText.toLowerCase().includes('timeout')) errorKey = 'TIMEOUT';
         else if (errText.includes('API')) errorKey = 'API_ERROR';
         else if (errText.includes('Rate limit')) errorKey = 'RATE_LIMIT';
@@ -512,9 +513,9 @@ export class WorkflowsService {
 
       result.push({
         date: dateKey,
-        count: dataMap.get(dateKey)?.count || 0,
-        success: dataMap.get(dateKey)?.success || 0,
-        failed: dataMap.get(dateKey)?.failed || 0,
+        count: dataMap.get(dateKey)?.count ?? 0,
+        success: dataMap.get(dateKey)?.success ?? 0,
+        failed: dataMap.get(dateKey)?.failed ?? 0,
       });
 
       if (shouldBreak) break;
@@ -1161,6 +1162,11 @@ export class WorkflowsService {
     // 0. ENVIAR CONVERSATION ID AL INICIO (Evento custom)
     clientStream.write(`event: conversation_id\ndata: "${conversation.id}"\n\n`);
 
+    // Configurar un heartbeat para mantener la conexión viva
+    const keepAliveInterval = setInterval(() => {
+      clientStream.write(': keep-alive\n\n');
+    }, 15000); // Cada 15 segundos
+
     // let fullContent = '';
     let metadataEvent: any = null;
     let assistantMessageBuilder = '';
@@ -1180,6 +1186,10 @@ export class WorkflowsService {
 
         for (const eventBlock of lines) {
           if (!eventBlock.trim().startsWith('data: ')) {
+            // Si el agente manda un keep-alive (empieza con :), lo pasamos tal cual
+            if (eventBlock.trim().startsWith(':')) {
+              this.push(`${eventBlock}\n\n`);
+            }
             continue;
           }
 
@@ -1230,6 +1240,9 @@ export class WorkflowsService {
 
     // MANEJO DE FIN DE STREAM Y EFECTOS SECUNDARIOS
     transformer.on('finish', () => {
+      // Limpiar el heartbeat al finalizar
+      clearInterval(keepAliveInterval);
+
       void (async () => {
         this.logger.log(`Stream finalizado para ejecución ${execution.id}`);
 
@@ -1403,9 +1416,9 @@ export class WorkflowsService {
         config: tenantTool.config ?? {},
         // Priorizar el RBAC a nivel de auth (allowedFunctions)
         enabled_functions:
-          tenantTool.allowedFunctions ||
+          tenantTool.allowedFunctions ??
           tenantTool.toolCatalog.functions.map((fn: any) => fn.functionName),
-        credentials: credentialsMap[toolId] || undefined,
+        credentials: credentialsMap[toolId] ?? undefined,
       };
     }
 
@@ -1447,7 +1460,7 @@ export class WorkflowsService {
     // 4. Limpiar agents_config - remover campo 'tools' (redundante, ya está en agent_tool_instances)
     const cleanedAgentsConfig: Record<string, any> = {};
     for (const [agentName, agentConfig] of Object.entries(agentsConfig)) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       const { tools: _tools, ...configWithoutTools } = agentConfig as any;
       cleanedAgentsConfig[agentName] = configWithoutTools;
     }

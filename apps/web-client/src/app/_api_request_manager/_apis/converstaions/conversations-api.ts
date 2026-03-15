@@ -26,7 +26,7 @@ class ConversationsApi {
     pageSize: number = 10,
     action: 'next' | 'prev' | null = null,
     workflowId?: string,
-    userId?: string
+    userId?: string,
   ): Promise<PaginatedResponse<DashboardConversationDto>> {
     const queryParams = new URLSearchParams();
     if (cursor) queryParams.append('cursor', cursor);
@@ -49,7 +49,7 @@ class ConversationsApi {
    */
   public async getStats(): Promise<ConversationsStatsDto | null> {
     const result = await this.apiRequestManager.get<ApiResponse<ConversationsStatsDto>>(
-      `${ConversationsApi.BASE_URL}/stats`
+      `${ConversationsApi.BASE_URL}/stats`,
     );
     return result.data.data ?? null;
   }
@@ -60,7 +60,7 @@ class ConversationsApi {
    */
   public async getById(id: string): Promise<ConversationDetailDto | null> {
     const result = await this.apiRequestManager.get<ApiResponse<ConversationDetailDto>>(
-      `${ConversationsApi.BASE_URL}/${id}`
+      `${ConversationsApi.BASE_URL}/${id}`,
     );
     return result.data.data ?? null;
   }
@@ -72,7 +72,7 @@ class ConversationsApi {
   public async update(id: string, dto: UpdateConversationDto): Promise<ConversationDto | null> {
     const result = await this.apiRequestManager.patch<ApiResponse<ConversationDto>>(
       `${ConversationsApi.BASE_URL}/${id}`,
-      dto
+      dto,
     );
     return result.data.data ?? null;
   }
@@ -83,7 +83,7 @@ class ConversationsApi {
    */
   public async remove(id: string): Promise<boolean> {
     const result = await this.apiRequestManager.delete<ApiResponse<any>>(
-      `${ConversationsApi.BASE_URL}/${id}`
+      `${ConversationsApi.BASE_URL}/${id}`,
     );
     return result.data.success;
   }

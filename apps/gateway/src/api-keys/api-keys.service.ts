@@ -49,7 +49,7 @@ export class ApiKeysService {
     const apiKey = ApiKeyUtil.generate('live');
 
     // Hashear el API Key con SHA-256
-    const keyHash = await ApiKeyUtil.hash(apiKey);
+    const keyHash = ApiKeyUtil.hash(apiKey);
 
     // Guardar en la base de datos
     const created = await this.prisma.apiKey.create({

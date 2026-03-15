@@ -1,10 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/app/_api_request_manager/_apis/root-api';
-import {
-  CreateTenantToolDto,
-  DashboardTenantToolDto,
-  UpdateTenantToolDto,
-} from '@tesseract/types';
+import { CreateTenantToolDto, DashboardTenantToolDto, UpdateTenantToolDto } from '@tesseract/types';
 
 // ─── Dashboard (scroll infinito) ─────────────────────────────────────────────
 interface DashboardParams {
@@ -113,13 +109,13 @@ export function useTenantToolMutations() {
     },
   });
 
-  return { 
-    createTenantTool, 
-    updateTenantTool, 
-    addWorkflows, 
-    removeWorkflows, 
+  return {
+    createTenantTool,
+    updateTenantTool,
+    addWorkflows,
+    removeWorkflows,
     disconnectTool,
-    deleteTool
+    deleteTool,
   };
 }
 
@@ -127,7 +123,7 @@ export function useTenantToolMutations() {
  * Helper para aplanar las páginas en un array plano de tenant tools.
  */
 export function flattenTenantTools(
-  data: ReturnType<typeof useInfiniteTenantToolsDashboard>['data']
+  data: ReturnType<typeof useInfiniteTenantToolsDashboard>['data'],
 ): DashboardTenantToolDto[] {
   return data?.pages.flatMap((page) => page.items) ?? [];
 }

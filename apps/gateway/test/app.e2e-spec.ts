@@ -65,9 +65,7 @@ describe('AppController (e2e)', () => {
 
   afterAll(async () => {
     // Cerrar la conexión de Prisma (mockeada)
-    if (prismaService && prismaService.$disconnect) {
-      await prismaService.$disconnect();
-    }
+    await prismaService?.$disconnect?.();
     // Cerrar la aplicación
     await app.close();
   });

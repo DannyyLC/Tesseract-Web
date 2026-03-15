@@ -1,20 +1,20 @@
-import { DashboardInvoiceDto } from '@/invoice/dto/dashboard-invoice.dto';
+import { DashboardInvoiceDto } from '../../invoice/dto/dashboard-invoice.dto';
 import { Inject, Injectable, MessageEvent } from '@nestjs/common';
 import { Observable, Subject } from 'rxjs';
 import { ApiKeyResponseDto } from '../../api-keys/dto/response-api-key.dto';
-import { DashboardConversationDto } from '../../conversations/dto';
+import {
+  DashboardConversationDto,
+  DashboardEndUserDto,
+  DashboardWorkflowDto,
+} from '@tesseract/types';
 import { DashboardCreditTransactionDto } from '../../credits/dto/dashboard-credit-transaction.dto';
 import { DashboardCreditsDto } from '../../credits/dto/dashboard-credits.dto';
 import { PrismaService } from '../../database/prisma.service';
-import { DashboardEndUserDto } from '../../end-users/dto/dashboard-end-user.dto';
 import { DashboardExecutionDto } from '../../executions/dto';
 import { DashboardOrganizationDto, DashboardSubscriptionDto } from '../../organizations/dto';
 import { OrganizationsService } from '../../organizations/organizations.service';
 import { DashboardUserDataDto } from '../../users/dto';
 import { UtilityService } from '../../utility/utility.service';
-import { DashboardWorkflowDto } from '../../workflows/dto';
-import { NotificationEventDto } from '../app-notifications/notification.dto';
-import { notificationsEnum } from '../app-notifications/notifications.enum';
 import { EventSubjectType } from '../utils/subjects-enum';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
@@ -40,13 +40,14 @@ export class EventsService {
     private readonly prismaService: PrismaService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {
-    this.prismaService.dbMutations$.subscribe(async (mutation) => {
+    this.prismaService.dbMutations$.subscribe((mutation) => {
       const { model, operation, data } = mutation;
-      await this.emitEvent(model, operation, data);
+      void this.emitEvent(model as EventSubjectType, operation, data);
     });
   }
 
-  async emitEvent(model: string, action: string, data: any) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async emitEvent(model: EventSubjectType, action: string, data: Record<string, any>) {
     if (
       action === 'upsertd' ||
       action === 'updateManyd' ||
@@ -61,7 +62,7 @@ export class EventsService {
       case EventSubjectType.API_KEY:
         this.apiKeysSubject.next({
           id: data.id,
-          data: formattedData,
+          data: formattedData as string | object,
           type: `${model}.${action}`,
           retry: 3000,
         });
@@ -69,7 +70,7 @@ export class EventsService {
       case EventSubjectType.ORGANIZATION:
         this.organizationSubject.next({
           id: data.id,
-          data: formattedData,
+          data: formattedData as string | object,
           type: `${model}.${action}`,
           retry: 3000,
         });
@@ -78,7 +79,7 @@ export class EventsService {
       case EventSubjectType.WORKFLOW:
         this.workflowSubject.next({
           id: data.id,
-          data: formattedData,
+          data: formattedData as string | object,
           type: `${model}.${action}`,
           retry: 3000,
         });
@@ -88,7 +89,7 @@ export class EventsService {
       case EventSubjectType.MESSAGE:
         this.conversationsSubject.next({
           id: data.id,
-          data: formattedData,
+          data: formattedData as string | object,
           type: `${model}.${action}`,
           retry: 3000,
         });
@@ -96,7 +97,7 @@ export class EventsService {
       case EventSubjectType.USER:
         this.userSubject.next({
           id: data.id,
-          data: formattedData,
+          data: formattedData as string | object,
           type: `${model}.${action}`,
           retry: 3000,
         });
@@ -104,7 +105,7 @@ export class EventsService {
       case EventSubjectType.CREDIT_BALANCE:
         this.creditBalanceSubject.next({
           id: data.organizationId,
-          data: formattedData,
+          data: formattedData as string | object,
           type: `${model}.${action}`,
           retry: 3000,
         });
@@ -112,7 +113,7 @@ export class EventsService {
       case EventSubjectType.CREDIT_TRANSACTION:
         this.creditTransactionsSubject.next({
           id: data.organizationId,
-          data: formattedData,
+          data: formattedData as string | object,
           type: `${model}.${action}`,
           retry: 3000,
         });
@@ -120,7 +121,7 @@ export class EventsService {
       case EventSubjectType.END_USER:
         this.endUserSubject.next({
           id: data.id,
-          data: formattedData,
+          data: formattedData as string | object,
           type: `${model}.${action}`,
           retry: 3000,
         });
@@ -128,7 +129,7 @@ export class EventsService {
       case EventSubjectType.EXECUTION:
         this.executionSubject.next({
           id: data.id,
-          data: formattedData,
+          data: formattedData as string | object,
           type: `${model}.${action}`,
           retry: 3000,
         });
@@ -137,7 +138,7 @@ export class EventsService {
       case EventSubjectType.INVOICE:
         this.invoiceSubject.next({
           id: data.id,
-          data: formattedData,
+          data: formattedData as string | object,
           type: `${model}.${action}`,
           retry: 3000,
         });
@@ -146,7 +147,7 @@ export class EventsService {
       case EventSubjectType.LLM_MODEL:
         this.llmModelSubject.next({
           id: data.id,
-          data: formattedData,
+          data: formattedData as string | object,
           type: `${model}.${action}`,
           retry: 3000,
         });
@@ -155,7 +156,7 @@ export class EventsService {
       case EventSubjectType.SUBSCRIPTION:
         this.subscriptionSubject.next({
           id: data.id,
-          data: formattedData,
+          data: formattedData as string | object,
           type: `${model}.${action}`,
           retry: 3000,
         });
@@ -166,7 +167,8 @@ export class EventsService {
     }
   }
 
-  async getFormattedData(model: string, data: any): Promise<any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getFormattedData(model: EventSubjectType, data: Record<string, any>): Promise<unknown> {
     switch (model) {
       case EventSubjectType.ORGANIZATION:
         return {
@@ -206,8 +208,9 @@ export class EventsService {
           workflowId: data.workflowId,
           userId: data.userId,
           organizationId: data.organizationId,
+          isInternal: !!data.userId,
         } as DashboardConversationDto;
-      case EventSubjectType.MESSAGE:
+      case EventSubjectType.MESSAGE: {
         const conversation = await this.prismaService.conversation.findFirst({
           where: {
             id: data.conversationId,
@@ -228,7 +231,12 @@ export class EventsService {
             organizationId: true,
           },
         });
-        return conversation as DashboardConversationDto;
+        if (!conversation) return null;
+        return {
+          ...conversation,
+          isInternal: !!conversation.userId,
+        } as unknown as DashboardConversationDto;
+      }
 
       case EventSubjectType.USER:
         return {
@@ -328,7 +336,7 @@ export class EventsService {
           paidAt: data.paidAt,
           dueAt: data.dueAt,
           organizationId: data.organizationId,
-        } as DashboardInvoiceDto & { organizationId: string };
+        } as unknown as DashboardInvoiceDto & { organizationId: string };
 
       case EventSubjectType.SUBSCRIPTION:
         return {
@@ -345,7 +353,7 @@ export class EventsService {
           organizationId: data.organizationId,
         } as DashboardSubscriptionDto & { organizationId: string };
       default:
-        break;
+        return null;
     }
   }
 

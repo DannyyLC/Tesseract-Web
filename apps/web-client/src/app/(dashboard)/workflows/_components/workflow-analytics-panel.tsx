@@ -40,12 +40,9 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
 
   const chartData = useMemo(() => metrics?.executionHistoryChart ?? [], [metrics]);
   const errors = metrics?.errorDistribution ?? {};
-  
+
   // Check if there's real data (at least one execution)
-  const hasRealData = useMemo(
-    () => chartData.some((d) => d.count > 0),
-    [chartData]
-  );
+  const hasRealData = useMemo(() => chartData.some((d) => d.count > 0), [chartData]);
 
   if (isLoading) {
     return (

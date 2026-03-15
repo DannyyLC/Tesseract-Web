@@ -62,7 +62,7 @@ export class ToolsOauthController {
     @Query('error') error: string,
     @Res() res: Response,
   ) {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3001';
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3001';
     const errorRedirect = `${frontendUrl}/tools?error=oauth_failed`;
 
     // 1. Manejar si el usuario denegó permisos

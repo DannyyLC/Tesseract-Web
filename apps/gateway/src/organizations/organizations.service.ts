@@ -13,6 +13,7 @@ import {
 } from '@tesseract/types';
 import { Organization } from '@tesseract/database';
 import { randomBytes } from 'crypto';
+import * as speakeasy from 'speakeasy';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { PrismaService } from '../database/prisma.service';
@@ -68,7 +69,7 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      this.logger.error(`Error al crear organización "${dto.name}": ${error}`);
+      this.logger.error(`Error al crear organización "${dto.name}": ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
 
@@ -138,7 +139,7 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      this.logger.error(`Error al actualizar organización "${id}": ${error}`);
+      this.logger.error(`Error al actualizar organización "${id}": ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
 
@@ -518,7 +519,7 @@ export class OrganizationsService {
       });
     } catch (error) {
       this.logger.error(
-        `Error al actualizar overages de organización "${organizationId}": ${error}`,
+        `Error al actualizar overages de organización "${organizationId}": ${error instanceof Error ? error.message : String(error)}`,
       );
       return null;
     }
@@ -567,7 +568,7 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      this.logger.error(`Error al desactivar organización "${organizationId}": ${error}`);
+      this.logger.error(`Error al desactivar organización "${organizationId}": ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
 
@@ -615,7 +616,7 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      this.logger.error(`Error al reactivar organización "${organizationId}": ${error}`);
+      this.logger.error(`Error al reactivar organización "${organizationId}": ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
 
@@ -675,7 +676,6 @@ export class OrganizationsService {
       if (!code2FA) {
         throw new ForbiddenException('Código 2FA requerido');
       }
-      const speakeasy = require('speakeasy');
       const verified = speakeasy.totp.verify({
         secret: user.twoFactorSecret!,
         encoding: 'base32',
@@ -700,7 +700,7 @@ export class OrganizationsService {
         `Organization ${organization.name} (${organizationId}) soft-deleted by user ${userId}`,
       );
     } catch (error) {
-      this.logger.error(`Error deleting organization ${organizationId}: ${error}`);
+      this.logger.error(`Error deleting organization ${organizationId}: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
     return updated;
@@ -877,7 +877,7 @@ export class OrganizationsService {
 
     if (existingVerification && existingVerification.expiresAt >= new Date()) {
       return InviteUserErrorsDto.USER_ALREADY_INVITED;
-    } else if (existingVerification && existingVerification.expiresAt >= new Date()) {
+    } else if (existingVerification && existingVerification.expiresAt < new Date()) {
       await this.prisma.userVerification.deleteMany({
         where: {
           email: email,
@@ -895,7 +895,7 @@ export class OrganizationsService {
     }
 
     try {
-      const userVerification = await this.prisma.userVerification.create({
+      await this.prisma.userVerification.create({
         data: {
           email: email,
           verificationCode: emailSentInfo.verificationCode,
@@ -912,7 +912,7 @@ export class OrganizationsService {
       );
       return true;
     } catch (error) {
-      this.logger.error(`invite >> Error creating user verification for ${email}: ${error}`);
+      this.logger.error(`invite >> Error creating user verification for ${email}: ${error instanceof Error ? error.message : String(error)}`);
       return InviteUserErrorsDto.ERROR_SENDING_EMAIL;
     }
   }
@@ -1057,7 +1057,7 @@ export class OrganizationsService {
       };
     } catch (error) {
       this.logger.error(
-        `createUserFromInvitation >> Error creating user from invitation: ${error}`,
+        `createUserFromInvitation >> Error creating user from invitation: ${error instanceof Error ? error.message : String(error)}`,
       );
       return null;
     }

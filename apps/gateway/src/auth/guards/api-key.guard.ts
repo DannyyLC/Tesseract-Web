@@ -37,7 +37,7 @@ export class ApiKeyGuard implements CanActivate {
 
     try {
       // Hashear el API Key recibida (SHA-256 es determinista)
-      const keyHash = await ApiKeyUtil.hash(apiKey);
+      const keyHash = ApiKeyUtil.hash(apiKey);
 
       // Buscar API Key directamente por su hash (O(1))
       const matchedApiKey = await this.prisma.apiKey.findUnique({
@@ -108,7 +108,7 @@ export class ApiKeyGuard implements CanActivate {
       };
 
       // Inyectar en el request
-      (request as any).apiKey = apiKeyPayload;
+      Object.assign(request, { apiKey: apiKeyPayload });
 
       this.logger.debug(`API Key autenticada: ${matchedApiKey.name} (${organization.name})`);
 

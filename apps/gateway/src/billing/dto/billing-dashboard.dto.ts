@@ -5,7 +5,10 @@ export class BillingDashboardDto {
   status: string;
   nextBillingDate: Date | null;
   cancelAtPeriodEnd: boolean;
+  pendingPlanChange: string | null;
   allowOverages: boolean;
+  overageLimit: number;
+  hasBillingAccount: boolean;
 
   credits: {
     available: number;

@@ -6,7 +6,7 @@ import {
   AcceptInvitationDto,
   ApiResponse,
   Organization,
-  User
+  User,
 } from '@tesseract/types';
 
 class OrganizationsApi {
@@ -21,9 +21,9 @@ class OrganizationsApi {
    * GET /organizations/dashboard
    */
   async getDashboardData(): Promise<DashboardOrganizationDto> {
-    const response = await this.requestManager.get<
-      ApiResponse<DashboardOrganizationDto>
-    >('/organizations/dashboard');
+    const response = await this.requestManager.get<ApiResponse<DashboardOrganizationDto>>(
+      '/organizations/dashboard',
+    );
     return response.data.data as DashboardOrganizationDto;
   }
 
@@ -34,7 +34,7 @@ class OrganizationsApi {
   async update(data: UpdateOrganizationDto): Promise<Organization> {
     const response = await this.requestManager.patch<ApiResponse<Organization>>(
       '/organizations/update',
-      data
+      data,
     );
     return response.data.data as Organization;
   }
@@ -46,7 +46,7 @@ class OrganizationsApi {
   async inviteUser(data: InviteUserDto): Promise<boolean> {
     const response = await this.requestManager.post<ApiResponse<boolean>>(
       '/organizations/invite-user',
-      data
+      data,
     );
     return response.data.data as boolean;
   }
@@ -58,7 +58,7 @@ class OrganizationsApi {
   async acceptInvitation(data: AcceptInvitationDto): Promise<User> {
     const response = await this.requestManager.post<ApiResponse<User>>(
       '/organizations/accept-invitation',
-      data
+      data,
     );
     return response.data.data as User;
   }
@@ -67,13 +67,10 @@ class OrganizationsApi {
    * Eliminar Organización
    * DELETE /organizations/delete
    */
-  async delete(data: {
-    confirmationText: string;
-    code2FA?: string;
-  }): Promise<Organization> {
+  async delete(data: { confirmationText: string; code2FA?: string }): Promise<Organization> {
     const response = await this.requestManager.delete<ApiResponse<Organization>>(
       '/organizations/delete',
-      { data }
+      { data },
     );
     return response.data.data as Organization;
   }

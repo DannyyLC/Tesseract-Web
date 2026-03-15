@@ -172,9 +172,9 @@ model Subscription {
 
   @@index([organizationId])
   @@index([status])
-  @@index([currentPeriodEnd]) // Para cron de renovaciones
-  @@index([pendingPlanChange]) // Para cron de cambios de plan programados
-  @@index([plan]) // Para analytics
+  @@index([currentPeriodEnd])
+  @@index([pendingPlanChange])
+  @@index([plan])
   @@map("subscriptions")
 }
 
@@ -207,8 +207,8 @@ model CreditBalance {
   updatedAt DateTime @updatedAt
 
   @@index([organizationId])
-  @@index([balance]) // Para queries de balance bajo
-  @@index([updatedAt]) // Para analytics de uso
+  @@index([balance])
+  @@index([updatedAt])
   @@map("credit_balances")
 }
 
@@ -246,11 +246,11 @@ model CreditTransaction {
   // Timestamp
   createdAt DateTime @default(now())
 
-  @@index([organizationId, createdAt]) // Query principal: transacciones por org y fecha
-  @@index([type, createdAt]) // Para reportes por tipo
-  @@index([executionId]) // Para buscar transacción de una ejecución
-  @@index([subscriptionId]) // Para transacciones de una suscripción
-  @@index([invoiceId]) // Para transacciones de una factura
+  @@index([organizationId, createdAt])
+  @@index([type, createdAt])
+  @@index([executionId])
+  @@index([subscriptionId])
+  @@index([invoiceId])
   @@map("credit_transactions")
 }
 
@@ -298,11 +298,11 @@ model Invoice {
   // Relaciones
   creditTransactions CreditTransaction[]
 
-  @@index([organizationId, createdAt]) // Facturas por org
-  @@index([type, status]) // Reportes por tipo y estado
-  @@index([status, dueAt]) // Facturas vencidas pendientes
-  @@index([subscriptionId]) // Facturas de una suscripción
-  @@index([stripeInvoiceId]) // Lookup por Stripe ID
+  @@index([organizationId, createdAt])
+  @@index([type, status])
+  @@index([status, dueAt])
+  @@index([subscriptionId])
+  @@index([stripeInvoiceId])
   @@map("invoices")
 }
 
@@ -456,7 +456,7 @@ model Conversation {
   messages   Message[] // Una conversación tiene muchos mensajes
   executions Execution[] // Ejecuciones asociadas a esta conversación
 
-  @@index([organizationId]) // Index CRITICO para filtrar por organización
+  @@index([organizationId])
   @@index([userId])
   @@index([endUserId])
   @@index([workflowId])
@@ -466,8 +466,8 @@ model Conversation {
   @@index([createdAt])
   @@index([lastMessageAt])
   @@index([closedAt])
-  @@index([deletedAt]) // Index para filtrar soft deletes
-  @@index([workflowId, status, lastMessageAt]) // Query: conversaciones activas por workflow
+  @@index([deletedAt])
+  @@index([workflowId, status, lastMessageAt])
   @@map("conversations")
 }
 
@@ -540,7 +540,7 @@ model Message {
   feedback        String? // 'positive', 'negative', 'neutral'
   feedbackComment String? @db.Text
 
-  @@index([conversationId, createdAt]) // Índice compuesto - query más común
+  @@index([conversationId, createdAt])
   @@index([role])
   @@index([createdAt])
   @@map("messages")
@@ -586,7 +586,7 @@ model LlmModel {
   @@unique([provider, modelName, effectiveFrom])
   @@index([provider, modelName, isActive])
   @@index([isActive, effectiveFrom])
-  @@index([tier, isActive]) // Para filtrar modelos por tier
+  @@index([tier, isActive])
   @@map("llm_models")
 }
 
@@ -960,7 +960,7 @@ model Workflow {
   @@index([deletedAt])
   @@index([lastExecutedAt])
   @@index([triggerType])
-  @@index([category]) // Para filtrar workflows por categoría
+  @@index([category])
   @@map("workflows")
 }
 
@@ -1041,7 +1041,7 @@ model Execution {
   @@index([organizationId, wasOverage])
   @@index([organizationId, userId, startedAt])
   @@index([organizationId, apiKeyId, startedAt])
-  @@index([deletedAt]) // Soft delete support
+  @@index([deletedAt])
   @@map("executions")
 }
 

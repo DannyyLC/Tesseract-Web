@@ -59,7 +59,7 @@ export class ToolsOauthService {
 
     // Extraemos todos los scopes de esas funciones, aplanamos la lista y quitamos duplicados con Set
     const scopesList = Array.from(
-      new Set(allowedFunctions.flatMap((f: any) => f.oauthScopes || [])),
+      new Set(allowedFunctions.flatMap((f: any) => f.oauthScopes ?? [])),
     );
 
     // Opcional: Asegurar que siempre pidamos el perfil básico para identificar a quién le dimos el token
@@ -128,7 +128,7 @@ export class ToolsOauthService {
       };
     } catch (error: any) {
       this.logger.error(
-        `Error exchanging Google code: ${error?.response?.data?.error_description || error.message}`,
+        `Error exchanging Google code: ${error?.response?.data?.error_description ?? error.message}`,
       );
       throw new BadRequestException('Failed to exchange authorization code with Google');
     }
@@ -157,11 +157,11 @@ export class ToolsOauthService {
         accessToken: data.access_token,
         expiresIn: data.expires_in, // Segundos
         // Notar que Google rara vez envía un nuevo refresh_token aquí, a menos que el anterior esté por caducar por políticas raras.
-        refreshToken: data.refresh_token || refreshToken,
+        refreshToken: data.refresh_token ?? refreshToken,
       };
     } catch (error: any) {
       this.logger.error(
-        `Error refreshing Google token: ${error?.response?.data?.error_description || error.message}`,
+        `Error refreshing Google token: ${error?.response?.data?.error_description ?? error.message}`,
       );
       throw new BadRequestException('Failed to refresh Google authorization token');
     }
@@ -196,7 +196,7 @@ export class ToolsOauthService {
 
     // Fallback normal usando la base URL de la API del entorno
     const baseApiUrl =
-      this.configService.get<string>('DOMAIN_BASE_URL') || 'http://localhost:3000/api';
+      this.configService.get<string>('DOMAIN_BASE_URL') ?? 'http://localhost:3000/api';
     return `${baseApiUrl}/tools/oauth/google/callback`;
   }
 }

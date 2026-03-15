@@ -1,4 +1,5 @@
 import { IsObject, IsOptional, IsNotEmpty } from 'class-validator';
+import { ExecuteWorkflowDto as IExecuteWorkflowDto } from '@tesseract/types';
 
 /**
  * DTO para ejecutar un workflow
@@ -22,7 +23,7 @@ import { IsObject, IsOptional, IsNotEmpty } from 'class-validator';
  *   }
  * }
  */
-export class ExecuteWorkflowDto {
+export class ExecuteWorkflowDto implements IExecuteWorkflowDto {
   /**
    * Datos de entrada para el workflow
    * Puede ser cualquier estructura JSON

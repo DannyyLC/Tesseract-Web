@@ -1,8 +1,12 @@
 'use client';
 
 import { Building2, ArrowRight, Handshake } from 'lucide-react';
+import PermissionGuard from '@/components/auth/PermissionGuard';
+import { useRouter } from 'next/navigation';
 
 export default function SpecializedCards() {
+  const router = useRouter();
+  
   return (
     <div className="grid gap-6 lg:grid-cols-5">
       {/* Consultancy */}
@@ -17,10 +21,12 @@ export default function SpecializedCards() {
                 Socio Estratégico
               </h3>
               <div className="flex flex-col">
-                 <span className="font-bold font-geist-mono text-black dark:text-white">$600 MXN / sesión</span>
-                 <span className="text-[10px] uppercase tracking-wide text-black/40 dark:text-white/40">
-                   * Primer diagnóstico GRATIS
-                 </span>
+                <span className="font-geist-mono font-bold text-black dark:text-white">
+                  $600 MXN / sesión
+                </span>
+                <span className="text-[10px] uppercase tracking-wide text-black/40 dark:text-white/40">
+                  * Primer diagnóstico GRATIS
+                </span>
               </div>
             </div>
           </div>
@@ -60,10 +66,15 @@ export default function SpecializedCards() {
             </div>
           </div>
 
-          <button className="mt-8 flex items-center gap-2 text-sm font-bold text-black transition-all hover:gap-3 dark:text-white">
-            Agendar Consultoría
-            <ArrowRight size={16} />
-          </button>
+          <PermissionGuard permissions="billing:update_plan">
+            <button
+              onClick={() => router.push('/support?reason=consulting')}
+              className="mt-8 flex items-center gap-2 text-sm font-bold text-black transition-all hover:gap-3 dark:text-white"
+            >
+              Agendar Consultoría
+              <ArrowRight size={16} />
+            </button>
+          </PermissionGuard>
         </div>
 
         {/* Decor */}
@@ -82,25 +93,32 @@ export default function SpecializedCards() {
 
           <div className="mt-8 flex-1 space-y-3">
             <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-white/30">
-               TU INFRAESTRUCTURA IDEAL
+              TU INFRAESTRUCTURA IDEAL
             </p>
             <p className="flex items-center gap-2 text-xs font-medium text-white/70">
               <span className="h-1.5 w-1.5 rounded-full bg-white" /> Servidores Dedicados (Opcional)
             </p>
             <p className="flex items-center gap-2 text-xs font-medium text-white/70">
-              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Límite de Workflows Personalizable
+              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Límite de Workflows
+              Personalizable
             </p>
             <p className="flex items-center gap-2 text-xs font-medium text-white/70">
-              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Personalización Completa del Entorno
+              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Personalización Completa del
+              Entorno
             </p>
-             <p className="mt-2 text-[10px] italic text-white/30">
-               * Todo configurable según tus necesidades.
+            <p className="mt-2 text-[10px] italic text-white/30">
+              * Todo configurable según tus necesidades.
             </p>
           </div>
 
-          <button className="mt-10 w-full rounded-xl bg-white py-3.5 font-bold text-black transition-all hover:scale-[1.02] active:scale-[0.98]">
-            Contactar para Negociar
-          </button>
+          <PermissionGuard permissions="billing:update_plan">
+            <button
+              onClick={() => router.push('/support?reason=enterprise')}
+              className="mt-10 w-full rounded-xl bg-white py-3.5 font-bold text-black transition-all hover:opacity-80 active:scale-[0.98]"
+            >
+              Contactar para Negociar
+            </button>
+          </PermissionGuard>
         </div>
 
         {/* Abstract shape */}

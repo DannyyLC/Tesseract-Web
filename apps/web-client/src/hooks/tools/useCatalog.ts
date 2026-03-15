@@ -38,7 +38,7 @@ export function useInfiniteToolsCatalog(params: CatalogParams = {}) {
  * Helper para aplanar todas las páginas en un array plano de tools.
  */
 export function flattenToolsCatalog(
-  data: ReturnType<typeof useInfiniteToolsCatalog>['data']
+  data: ReturnType<typeof useInfiniteToolsCatalog>['data'],
 ): GetToolsDto[] {
   return data?.pages.flatMap((page) => page.items) ?? [];
 }

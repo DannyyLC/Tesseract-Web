@@ -32,8 +32,8 @@ export default function LogoutAllModal({ isOpen, onClose }: LogoutAllModalProps)
             <div>
               <p className="text-sm font-medium">¿Estás seguro?</p>
               <p className="mt-1 text-sm opacity-90">
-                Esta acción cerrará tu sesión actual y todas las sesiones activas en otros dispositivos.
-                Tendrás que volver a iniciar sesión.
+                Esta acción cerrará tu sesión actual y todas las sesiones activas en otros
+                dispositivos. Tendrás que volver a iniciar sesión.
               </p>
             </div>
           </div>

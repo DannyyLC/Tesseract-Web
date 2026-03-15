@@ -68,6 +68,6 @@ export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body
+    document.body,
   );
 };

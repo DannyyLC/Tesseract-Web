@@ -189,7 +189,8 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
         toast.error('Este correo electrónico ya está registrado.');
       } else {
         toast.error(
-          error.message || 'Error al enviar el código de verificación. Por favor, intenta nuevamente.'
+          error.message ||
+            'Error al enviar el código de verificación. Por favor, intenta nuevamente.',
         );
       }
     }
@@ -266,12 +267,13 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
         { ...loginData, turnstileToken: turnstileToken || undefined },
         {
           onError: () => {
-          setLoginData((prev) => ({
-            ...prev,
-            password: '',
-          }));
+            setLoginData((prev) => ({
+              ...prev,
+              password: '',
+            }));
+          },
         },
-      });
+      );
     }
   };
   // Login mediante Google

@@ -15,7 +15,9 @@ export default function LegalToc({ sections }: LegalTocProps) {
   const [activeId, setActiveId] = useState<string>('');
 
   useEffect(() => {
-    const headings = sections.map(({ id }) => document.getElementById(id)).filter(Boolean) as HTMLElement[];
+    const headings = sections
+      .map(({ id }) => document.getElementById(id))
+      .filter(Boolean) as HTMLElement[];
 
     const observer = new IntersectionObserver(
       (entries) => {
