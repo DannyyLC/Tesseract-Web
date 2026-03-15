@@ -33,6 +33,7 @@ export class UtilityService {
     organizationId: string,
     userRoles: string[],
     notificationCode: string,
+    customDescArguments?: string[],
   ): Promise<void> {
     try {
       const users = await this.prismaService.user.findMany({
@@ -68,6 +69,11 @@ export class UtilityService {
         });
         const notificationDetails =
           notificationsEnum[notificationCode as keyof typeof notificationsEnum];
+        
+        for (const arg of customDescArguments || []) {
+          notificationDetails.desc = notificationDetails.desc.replace('%s', arg);
+        }
+        
         this.appNotificationsSubject.next({
           id: Date.now().toString(),
           data: {

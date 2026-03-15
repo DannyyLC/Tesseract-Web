@@ -10,6 +10,8 @@ import {
   SubscriptionPlan,
   getPlanLimits,
   SubscriptionPlan as SharedSubscriptionPlan,
+  NOTIFICATIONSENUM,
+  UserRole,
 } from '@tesseract/types';
 import { Organization } from '@tesseract/database';
 import { randomBytes } from 'crypto';
@@ -907,8 +909,9 @@ export class OrganizationsService {
       });
       await this.utilityService.sendNotificationToAppClients(
         organizationId,
-        ['admin'],
-        '0000-0010',
+        [UserRole.ADMIN],
+        NOTIFICATIONSENUM.ACCEPTED_INVITATION,
+        [email],
       );
       return true;
     } catch (error) {
