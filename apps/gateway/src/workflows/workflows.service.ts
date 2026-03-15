@@ -717,12 +717,12 @@ export class WorkflowsService {
         );
       }
 
-      if (whatsappData?.type === 'text') {
+      if (whatsappData.whatsappInboundMessage.type === 'text') {
         userMessage = whatsappData.whatsappInboundMessage.text?.body || "";
-      } else if (whatsappData?.type === 'image') {
+      } else if (whatsappData.whatsappInboundMessage.type === 'image') {
         userMessage = whatsappData.whatsappInboundMessage.image?.caption || "Picture without caption";
         attachments = whatsappData.whatsappInboundMessage.image?.link
-      } else if (whatsappData?.type === 'audio') {
+      } else if (whatsappData.whatsappInboundMessage.type === 'audio') {
         userMessage = "audio message";
         attachments = whatsappData.whatsappInboundMessage.audio?.link
       }
