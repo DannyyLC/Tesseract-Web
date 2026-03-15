@@ -1,17 +1,17 @@
-import { Body, Controller, Get, Param, Post, Query, Res, Headers, Inject, UseGuards, Patch } from '@nestjs/common';
-import { Response } from 'express';
-import { HttpStatus } from '@nestjs/common';
-import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
-import { WhatsappConfigService } from '../../../whatsapp-config/whatsapp-config.service';
-import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { Logger } from 'winston';
-import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
-import { UserPayload } from '../../../common/types/jwt-payload.type';
-import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
+import { Body, Controller, Headers, HttpStatus, Inject, Post, Res, UseGuards } from '@nestjs/common';
 import { WhatsAppConfig } from '@tesseract/database';
-import { CreateConfigDto, SetupCredentialDto, UpdateTokenDto} from '../../dto';
+import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
+import { Response } from 'express';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { firstValueFrom } from 'rxjs';
+import { Logger } from 'winston';
+import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { UserPayload } from '../../../common/types/jwt-payload.type';
+import { WhatsappConfigService } from '../../../whatsapp-config/whatsapp-config.service';
+import { WorkflowsService } from '../../../workflows/workflows.service';
+import { CreateConfigDto, WhatsAppInboundEvent } from '../../dto';
 
 @Controller('whatsapp-config')
 export class WhatsappConfigController {
@@ -19,73 +19,113 @@ export class WhatsappConfigController {
     private readonly httpService: HttpService,
     private readonly whatsappConfigService: WhatsappConfigService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+    private readonly workflowsService: WorkflowsService,
 ) {}
 
-    @Get("whatsapp-webhook/:id")
-    async verifyWebhook(@Query('hub.mode') mode: string, @Query('hub.verify_token') token: string, @Query('hub.challenge') challenge: string, @Res() res: Response, @Param('id') id: string) {
-        var verifyToken = await this.whatsappConfigService.getWhatsappConfigById(id);
-        this.logger.info(`Verifying webhook for ID: ${id}, Mode: ${mode}, Token: ${token}`);
-        if (!verifyToken) {
-            this.logger.warn(`Verification failed for ID: ${id} - No config found`);
-            return res.status(HttpStatus.FORBIDDEN).json({ error: 'Verification failed' });
-        }
-        if (mode === 'subscribe' && token === verifyToken.webhookSecret) {
-            this.logger.info(`Webhook verified successfully for ID: ${id}`);
-            return res.status(HttpStatus.OK).send(challenge);
-        }
-        this.logger.warn(`Verification failed for ID: ${id} - Invalid token or mode`);
-        return res.status(HttpStatus.FORBIDDEN).json({ error: 'Verification failed' });
-    }
-
-    @Post("whatsapp-webhook/:id")
-    async handleWebhook(@Body() body: any, @Res() res: Response, @Param('id') id: string, @Headers() headers: any) {
+    @Post("whatsapp-webhook")
+    async handleWebhook(@Body() body: any, @Res() res: Response, @Headers() headers: any) {
         try {
+            const parsedBody = body as WhatsAppInboundEvent;
             // Extract key data from webhook
-            const phoneNumberId = body.entry[0].changes[0].value.metadata.phone_number_id;
-            const phoneNumber = body.entry[0].changes[0].value.metadata.display_phone_number;
-            const userNumber = body.entry[0].changes[0].value.messages[0].from;
-            const messageId = body.entry[0].changes[0].value.messages[0].id;
-            const messageContent = body.entry[0].changes[0].value.messages[0].text?.body || '';
-
-            // Get account credentials (from your DB)
-            const account = await this.whatsappConfigService.getWhatsappConfigById(id);
+            const whatsappInboundMessageId = parsedBody.whatsappInboundMessage.id;
+            const phoneNumber = parsedBody.whatsappInboundMessage.to || 'unknown';
+            const userNumber = parsedBody.whatsappInboundMessage.from || 'unknown';
+            const messageType = parsedBody.whatsappInboundMessage.type;
+            var txtContent = "";
+            var imgContent = "";
+            var audioContent = "";
+            const account = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(phoneNumber);
+            const signatureHeader = headers['ycloud-signature'] || '';
+            const isValidSignature = await this.whatsappConfigService.verifySignature(JSON.stringify(body), signatureHeader);
+            this.logger.info(`payload: ${JSON.stringify(body)}, signatureHeader: ${signatureHeader}, isValidSignature: ${isValidSignature}`);
             if (!account) {
-                this.logger.warn(`No WhatsApp config found for ID: ${id}`);
-                return res.status(200).send('EVENT_RECEIVED');
+                this.logger.warn(`No WhatsApp config found for phone number: ${phoneNumber}`);
+                return res.status(200).send({ received: true });
+            }
+
+            if (!isValidSignature) {
+                this.logger.warn(`Invalid signature for message from ${userNumber} to ${phoneNumber}`);
+                return res.status(200).send({ received: true });
+            }
+
+            switch (messageType) {
+                case 'text':
+                    this.logger.info(`Received text message from ${userNumber} to ${phoneNumber}: ${parsedBody.whatsappInboundMessage.text?.body}`);
+                    txtContent = parsedBody.whatsappInboundMessage.text?.body || '';
+                    break;
+                case 'image':
+                    this.logger.info(`Received image message from ${userNumber} to ${phoneNumber}: ${parsedBody.whatsappInboundMessage.image?.link}`);
+                    imgContent = parsedBody.whatsappInboundMessage.image?.link || '';
+                    break;
+                case 'audio':
+                    this.logger.info(`Received audio message from ${userNumber} to ${phoneNumber}`);
+                    audioContent = 'Received audio message';
+                    break;
+                default:
+                    this.logger.info(`Received message of type ${messageType} from ${userNumber} to ${phoneNumber}`);
             }
 
             if (account.phoneNumber == null || account.phoneNumber == '') {
-                await this.whatsappConfigService.updatePhoneNumber(id, phoneNumber);
+                await this.whatsappConfigService.updatePhoneNumber(account.id, phoneNumber);
             }
-            // Send reply
-            if (account.credentialPath) {
-                await this.sendReply(account.credentialPath, phoneNumberId, userNumber, messageId);
-                //TODO; Add logic to create conversation and add messages to it.
+            // Send reply TODO, transform audio and image content to text or handle them in workflow
+            const yCloudApiKey = process.env.Y_CLOUD_API_KEY;
+            if (yCloudApiKey && account.defaultWorkflowId) {
+                await this.markMsgAsReadAndSendTypingIndicator(yCloudApiKey, whatsappInboundMessageId);
+                //await this.sendReply(yCloudApiKey, phoneNumber, userNumber, "Reply from Agent" ); TODO; remove when the testing finishes
+                const execution = await this.workflowsService.execute(
+                    account.organizationId,
+                    account.defaultWorkflowId,
+                    { message: txtContent },
+                    { channel: 'whatsapp' },
+                    undefined,
+                    parsedBody,
+                    undefined,
+                    'webhook',
+                );
+
+                const result = execution.result as any;
+                const messages = result?.messages ?? [];
+                const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+                const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
+                await this.sendReply(yCloudApiKey, phoneNumber, userNumber, assistantContent || 'Received your message, but no response generated, try again later.');
             }
-            return res.status(HttpStatus.OK).send('EVENT_RECEIVED');
+            return res.status(HttpStatus.OK).send({ received: true });
         } catch (error) {
             this.logger.error('Webhook error:', error);
-            return res.status(HttpStatus.OK).send('EVENT_RECEIVED'); 
+            return res.status(HttpStatus.OK).send({ received: true }); 
         }
     }
 
-    private async sendReply(accessToken: string, phoneNumberId: string, to: string, messageId: string) {
-        const url = `https://graph.facebook.com/v20.0/${phoneNumberId}/messages`;
+    private async markMsgAsReadAndSendTypingIndicator(accessToken: string, whatsAppInboundMessageId: string) {
+        const url = `https://api.ycloud.com/v2/whatsapp/inboundMessages/${whatsAppInboundMessageId}/typingIndicator`;
+        await firstValueFrom(
+            this.httpService.post(url, {}, {
+                headers: {
+                    'X-API-Key': `${accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+        );
+    }
 
-        // TODO; HERE add logic to call the AI Agent
+    private async sendReply(accessToken: string, from: string, to: string, message: string) {
+        const url = `https://api.ycloud.com/v2/whatsapp/messages/sendDirectly`;
+
         const payload = {
-            messaging_product: 'whatsapp',
+            from: from,
             to: to,
-            type: 'text',
+            type: "text",
             text: {
-                body: `Hola! Recibí tu mensaje: "${messageId}"`
+                body: message,
+                preview_url: false
             }
         };
 
         await firstValueFrom(
             this.httpService.post(url, payload, {
                 headers: {
-                    'Authorization': `Bearer ${accessToken}`,
+                    'X-API-Key': `${accessToken}`,
                     'Content-Type': 'application/json'
                 }
             })
@@ -100,7 +140,16 @@ export class WhatsappConfigController {
         @Res() res: Response
     ): Promise<Response<ApiResponse<WhatsAppConfig | null>>> {
         const apiResponse = new ApiResponseBuilder<WhatsAppConfig | null>();
-        const response = await this.whatsappConfigService.createRecordAndgenerateWebhookSecret(currUser.organizationId, body.workflowId);
+        const existingConfig = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(body.phoneNumber);
+        if (existingConfig) {
+            apiResponse
+            .setStatusCode(HttpStatus.BAD_REQUEST)
+            .setData(null)
+            .setMessage('A WhatsApp config with this phone number already exists');
+            return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
+        }
+
+        const response = await this.whatsappConfigService.createRecordAndgenerateWebhookSecret(currUser.organizationId, body.workflowId, body.phoneNumber);
         if (response) {
             apiResponse
             .setStatusCode(HttpStatus.CREATED)
@@ -112,54 +161,6 @@ export class WhatsappConfigController {
             .setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
             .setData(null)
             .setMessage('Failed to create WhatsApp config');
-            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
-        }
-    }
-
-    @Post("setup-credentials")
-    @UseGuards(JwtAuthGuard)
-    async setupCredentials(
-        @CurrentUser() currUser: UserPayload,
-        @Body() body: SetupCredentialDto,
-        @Res() res: Response
-    ): Promise<Response<ApiResponse<boolean>>> {
-        const apiResponse = new ApiResponseBuilder<boolean>();
-        const result = await this.whatsappConfigService.setupCredentials(body);
-        if (result) {
-            apiResponse
-            .setStatusCode(HttpStatus.OK)
-            .setData(true)
-            .setMessage('Credentials set up successfully');
-            return res.status(HttpStatus.OK).json(apiResponse.build());
-        } else {
-            apiResponse
-            .setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
-            .setData(false)
-            .setMessage('Failed to set up credentials');
-            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
-        }
-    }
-
-    @Patch("update-token/:id")
-    @UseGuards(JwtAuthGuard)
-    async updateToken(
-        @Param('id') id: string,
-        @Body() body: UpdateTokenDto,
-        @Res() res: Response
-    ): Promise<Response<ApiResponse<boolean>>> {
-        const apiResponse = new ApiResponseBuilder<boolean>();
-        const result = await this.whatsappConfigService.updateToken(id, body.token);
-        if (result) {
-            apiResponse
-            .setStatusCode(HttpStatus.OK)
-            .setData(true)
-            .setMessage('Token updated successfully');
-            return res.status(HttpStatus.OK).json(apiResponse.build());
-        } else {
-            apiResponse
-            .setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
-            .setData(false)
-            .setMessage('Failed to update token');
             return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
         }
     }

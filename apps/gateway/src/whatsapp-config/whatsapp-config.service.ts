@@ -5,6 +5,8 @@ import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { SetupCredentialDto } from './dto';
 import { WhatsAppConfig } from '@tesseract/database';
+import * as crypto from 'crypto';
+
 
 @Injectable()
 export class WhatsappConfigService {
@@ -27,51 +29,38 @@ export class WhatsappConfigService {
         }
     }
 
-    async createRecordAndgenerateWebhookSecret(
-        organizationId: string, workflowId: string
-    ): Promise<WhatsAppConfig | null> {
-
+    async getWhatsappConfigByPhoneNumber(phoneNumber: string) {
         try {
-            const webhookSecret = randomUUID();
-            const record = await this.prismaService.$transaction(async (tx) => {
-                const newRecord = await tx.whatsAppConfig.create({
-                    data: {
-                        webhookSecret: webhookSecret,
-                        provider: 'meta',
-                        organizationId: organizationId,
-                        phoneNumber: '',
-                        webhookUrl: '',
-                        workflowId: workflowId,
-                    }
-                });
-
-                const updatedRecord = await tx.whatsAppConfig.update({
-                    where: { id: newRecord.id },
-                    data: { webhookUrl: `${process.env.DOMAIN_BASE_URL}/whatsapp-config/whatsapp-webhook/${newRecord.id}` }
-                });
-
-                return updatedRecord;
+            const account = await this.prismaService.whatsAppConfig.findFirst({
+                where: {
+                    phoneNumber: phoneNumber
+                }
             });
-
-            return record;
+            return account;
         } catch (error) {
-            this.logger.error('Error creating WhatsApp config:', error);
+            this.logger.error('Error fetching WhatsApp config by phone number:', error);
             return null;
         }
     }
 
-    async setupCredentials(
-        payload: SetupCredentialDto
-    ): Promise<boolean> {
+    async createRecordAndgenerateWebhookSecret(
+        organizationId: string, workflowId: string, phoneNumber: string
+    ): Promise<WhatsAppConfig | null> {
         try {
-            const updatedRecord = await this.prismaService.whatsAppConfig.update({
-                where: { id: payload.configId },
-                data: { credentialPath: payload.credentialPath }
+            const newRecord = await this.prismaService.whatsAppConfig.create({
+                data: {
+                    provider: 'ycloud',
+                    organizationId: organizationId,
+                    phoneNumber: phoneNumber,
+                    webhookUrl: `${process.env.DOMAIN_BASE_URL}/whatsapp-config/whatsapp-webhook`,
+                    workflowId: workflowId,
+                }
             });
-            return true;
+
+            return newRecord;
         } catch (error) {
-            this.logger.error('Error setting up WhatsApp credentials:', error);
-            return false;
+            this.logger.error('Error creating WhatsApp config:', error);
+            return null;
         }
     }
 
@@ -86,16 +75,27 @@ export class WhatsappConfigService {
         }
     }
 
-    async updateToken(configId: string, token: string): Promise<boolean> {
-        try {
-            await this.prismaService.whatsAppConfig.update({
-                where: { id: configId },
-                data: { credentialPath: token }
-            });
-        } catch (error) {
-            this.logger.error('Error updating WhatsApp token:', error);
-            return false;
-        }
-        return true;
+    async verifySignature(payload: string, signatureHeader: string): Promise<boolean> {
+        const secret = process.env.Y_CLOUD_WEBHOOK_SECRET || '';
+        console.log('Verifying signature. Payload:', payload, 'Signature header:', signatureHeader, 'webhook secret:', secret);
+        // Parse the header
+        const parts = signatureHeader.split(',');
+        const timestamp = parts[0].split('=')[1];
+        const signature = parts[1].split('=')[1];
+
+        // Construct signed payload
+        const signedPayload = `${timestamp}.${payload}`;
+
+        // Compute expected signature
+        const expectedSignature = crypto
+            .createHmac('sha256', secret)
+            .update(signedPayload)
+            .digest('hex');
+
+        console.log('Expected signature:', expectedSignature);
+
+        // Compare signatures (use constant-time comparison in production)
+        return signature === expectedSignature;
     }
+
 }
