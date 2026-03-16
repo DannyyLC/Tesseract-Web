@@ -26,13 +26,14 @@ import {
 } from '../../../api_docs/controllers/organization';
 import { RolesGuard } from '../../../auth/guards/roles.guard';
 import { Roles } from '../../../auth/decorators/roles.decorator';
+
 @Controller('organizations')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth('access-token')
 export class OrganizationsController {
   constructor(private readonly organizationsService: OrganizationsService) {}
 
   @Get('dashboard')
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getDashboardData(
     @Res() res: Response,
@@ -56,7 +57,9 @@ export class OrganizationsController {
   }
 
   @Patch('update')
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Update Organization', description: updateOrganizationSwaggerDesc })
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER)
   async updateOrganization(
     @CurrentUser() user: UserPayload,
@@ -78,7 +81,9 @@ export class OrganizationsController {
   }
 
   @Delete('delete')
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Delete Organization', description: deleteOrganizationSwaggerDesc })
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER)
   async deleteOrganization(
     @CurrentUser() user: UserPayload,
@@ -105,7 +110,9 @@ export class OrganizationsController {
   }
 
   @Post('invite-user')
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Invite User to Organization', description: inviteUserSwaggerDesc })
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   async inviteUser(
     @CurrentUser() user: UserPayload,
@@ -124,7 +131,9 @@ export class OrganizationsController {
   }
 
   @Post('resend-invitation')
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Resend Invitation', description: resendInvitationSwaggerDesc })
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   async resendInvitation(
     @CurrentUser() user: UserPayload,
@@ -146,14 +155,17 @@ export class OrganizationsController {
   }
 
   @Post('cancel-invitation')
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Cancel Invitation', description: cancelInvitationSwaggerDesc })
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   async cancelInvitation(
+    @CurrentUser() user: UserPayload,
     @Body() body: EmailDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
-    const result = await this.organizationsService.cancelInvitation(body.email);
+    const result = await this.organizationsService.cancelInvitation(body.email, user.organizationId);
     if (result) {
       apiResponse
         .setStatusCode(200)

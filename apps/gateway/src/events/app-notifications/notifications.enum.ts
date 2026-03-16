@@ -19,17 +19,17 @@ export const notificationsEnum = {
   ),
   '0000-0100': buildNotification(
     'Cancelación De Subscripción.',
-    'La subscripcion %s ha sido cancelada. Muchas gracias por la preferencia, sigue disfrutando nuestros servicios en el plan free',
+    'La subscripcion %s ha sido cancelada. Muchas gracias por la preferencia, sigue disfrutando nuestros servicios en el plan free.',
     [UserRole.OWNER, UserRole.ADMIN],
   ),
   '0000-0101': buildNotification(
     'Cambio De Subscripción.',
-    'La subscripcion %s ha sido reanudada. Muchas gracias por la preferencia, sigue disfrutando nuestros servicios en el plan %s',
+    'La subscripcion %s ha sido cambiada (aún asi los beneficios de esta no seran cancelados hasta el inicio de la siguiente subscripción). Muchas gracias por la preferencia, sigue disfrutando nuestros servicios en el plan %s a partir de %s al %s.',
     [UserRole.OWNER, UserRole.ADMIN],
   ),
   '0000-0110': buildNotification(
     'Aviso De Consumo.',
-    'El pago de la subscripción %s ha sido exitoso, el pago se realizó el %s por un monto de %s. Muchas gracias por la preferencia, sigue disfrutando nuestros servicios en el plan %s',
+    'Lamentamos informarte que los creditos disponibles para tu actual subscripcion %s estan por sobrepasar el limite. Para nosostros es de vital importancia ofrecerte un servicio continuo sin interrupciones, por lo cual tu servicio continuara funcionando sin problema alguno bajo el concepto pay as you go, es decir que se cargara el costo extra solamente de los creditos que exedan el limite del plan en tu proximo pago. El costo que se cargara por cada credito extra es de $0.01 USD, por lo cual si excedes el limite en 100 creditos, se te cobrara $%s extra en tu proximo pago.',
     [UserRole.OWNER, UserRole.ADMIN],
   ),
   '0000-0111': buildNotification(
