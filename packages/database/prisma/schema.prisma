@@ -63,6 +63,19 @@ enum SubscriptionStatus {
   INCOMPLETE // Pago inicial incompleto
 }
 
+enum MessageAttachmentType {
+  IMAGE
+  AUDIO
+}
+
+enum MessageAttachmentStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+  UNSUPPORTED
+}
+
 // ============================================
 // ORGANIZATION (Tenant principal)
 // ============================================
@@ -122,6 +135,7 @@ model Organization {
   creditTransactions CreditTransaction[]
   invoices           Invoice[]
   conversations      Conversation[]
+  messageAttachments MessageAttachment[]
   userNotifications  UserNotification[]
 
   @@index([slug])
@@ -468,6 +482,7 @@ model Conversation {
   @@index([closedAt])
   @@index([deletedAt])
   @@index([workflowId, status, lastMessageAt])
+  @@index([channel, whatsappConfigId, phoneNumberSender, status, createdAt])
   @@map("conversations")
 }
 
@@ -482,24 +497,8 @@ model Message {
 
   role String // 'user', 'assistant', 'system', 'tool'
 
-  content     String @db.Text // Texto del mensaje (siempre presente) - puede ser largo
-  attachments Json?  @db.JsonB // Array de archivos multimedia (opcional)
-
-  // Estructura de attachments:
-  // [
-  //   {
-  //     "type": "image",           // image, audio, video, document
-  //     "url": "https://...",      // URL del archivo (S3, GCS, etc.)
-  //     "mimeType": "image/jpeg",  // Tipo MIME
-  //     "filename": "foto.jpg",    // Nombre original
-  //     "size": 1024000,           // Tamaño en bytes
-  //     "metadata": {              // Metadata específica del tipo
-  //       "width": 1920,
-  //       "height": 1080,
-  //       "duration": 30           // Para audio/video
-  //     }
-  //   }
-  // ]
+  content String @db.Text // Texto del mensaje (siempre presente) - puede ser largo
+  attachments MessageAttachment[]
 
   metadata Json? @db.JsonB
 
@@ -544,6 +543,40 @@ model Message {
   @@index([role])
   @@index([createdAt])
   @@map("messages")
+}
+
+model MessageAttachment {
+  id String @id @default(uuid())
+
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  type           MessageAttachmentType
+  mimeType       String
+  sourceUrl      String
+  sizeBytes      Int?
+  sha256         String?
+  contentHash    String?
+  processingStatus MessageAttachmentStatus @default(PENDING)
+  processedText  String? @db.Text
+  processedAt    DateTime?
+  processingError String? @db.Text
+  processor      String?
+  processorVersion String?
+
+  metadata Json? @db.JsonB
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([messageId, createdAt])
+  @@index([organizationId, contentHash])
+  @@index([processingStatus])
+  @@index([createdAt])
+  @@map("message_attachments")
 }
 
 // ============================================
