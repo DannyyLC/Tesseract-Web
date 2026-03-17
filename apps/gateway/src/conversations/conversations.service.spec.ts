@@ -177,16 +177,51 @@ describe('ConversationsService', () => {
 
   describe('getMessageHistory', () => {
     it('should return messages', async () => {
-      const mockMessages = [{ role: 'human', content: 'hello' }];
+      const mockMessages = [{ role: 'human', content: 'hello', attachments: [] }];
       mockPrismaService.message.findMany.mockResolvedValue(mockMessages);
 
       const result = await service.getMessageHistory('c-1');
-      expect(result).toEqual(mockMessages);
+      expect(result).toEqual([{ role: 'human', content: 'hello' }]);
       expect(mockPrismaService.message.findMany).toHaveBeenCalledWith({
         where: { conversationId: 'c-1' },
         orderBy: { createdAt: 'asc' },
-        select: { role: true, content: true },
+        select: {
+          role: true,
+          content: true,
+          attachments: {
+            select: {
+              type: true,
+              processingStatus: true,
+              processedText: true,
+            },
+          },
+        },
       });
+    });
+
+    it('should append processed media text to message content', async () => {
+      mockPrismaService.message.findMany.mockResolvedValue([
+        {
+          role: 'human',
+          content: 'audio message',
+          attachments: [
+            {
+              type: 'AUDIO',
+              processingStatus: 'PROCESSED',
+              processedText: 'Quiero agendar una demo',
+            },
+          ],
+        },
+      ]);
+
+      const result = await service.getMessageHistory('c-1');
+
+      expect(result).toEqual([
+        {
+          role: 'human',
+          content: 'audio message\n\n[audio] Quiero agendar una demo',
+        },
+      ]);
     });
   });
 

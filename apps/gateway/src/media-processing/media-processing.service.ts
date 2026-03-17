@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { BasicMediaProcessorAdapter } from './adapters/basic-media-processor.adapter';
+import { MEDIA_PROCESSOR_ADAPTER, MediaProcessorAdapter } from './adapters/media-processor.adapter';
 
 export type IncomingAttachment = {
   type: 'IMAGE' | 'AUDIO';
@@ -22,7 +22,10 @@ export type ProcessedAttachment = IncomingAttachment & {
 
 @Injectable()
 export class MediaProcessingService {
-  constructor(private readonly adapter: BasicMediaProcessorAdapter) {}
+  constructor(
+    @Inject(MEDIA_PROCESSOR_ADAPTER)
+    private readonly adapter: MediaProcessorAdapter,
+  ) {}
 
   async processIncomingAttachments(attachments?: IncomingAttachment[]): Promise<{
     attachments?: ProcessedAttachment[];

@@ -287,13 +287,46 @@ export class ConversationsService {
    * @returns Array de mensajes ordenados cronológicamente
    */
   async getMessageHistory(conversationId: string) {
-    return this.prisma.message.findMany({
+    const messages = await this.prisma.message.findMany({
       where: { conversationId },
       orderBy: { createdAt: 'asc' },
       select: {
         role: true,
         content: true,
+        attachments: {
+          select: {
+            type: true,
+            processingStatus: true,
+            processedText: true,
+          },
+        },
       },
+    });
+
+    return messages.map((message) => {
+      const processedMediaLines = message.attachments
+        .filter(
+          (attachment) =>
+            attachment.processingStatus === 'PROCESSED' && Boolean(attachment.processedText?.trim()),
+        )
+        .map((attachment) => `[${attachment.type.toLowerCase()}] ${attachment.processedText!.trim()}`);
+
+      if (processedMediaLines.length === 0) {
+        return {
+          role: message.role,
+          content: message.content,
+        };
+      }
+
+      const mediaContext = processedMediaLines.join('\n');
+      const enrichedContent = message.content?.trim()
+        ? `${message.content}\n\n${mediaContext}`
+        : mediaContext;
+
+      return {
+        role: message.role,
+        content: enrichedContent,
+      };
     });
   }
 

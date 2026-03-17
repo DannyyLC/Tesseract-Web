@@ -1,5 +1,7 @@
 export type MediaType = 'IMAGE' | 'AUDIO';
 
+export const MEDIA_PROCESSOR_ADAPTER = 'MEDIA_PROCESSOR_ADAPTER';
+
 export type MediaProcessResult = {
   status: 'PROCESSED' | 'FAILED';
   processedText?: string;
