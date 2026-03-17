@@ -754,6 +754,11 @@ export class WorkflowsService {
             },
           ];
         }
+      } else if (whatsappData.whatsappInboundMessage.type === 'video') {
+        throw new InvalidWorkflowConfigException('WhatsApp video messages are not supported yet', {
+          workflowId,
+          channel,
+        });
       }
     } else {
       conversation = await this.conversationsService.findOrCreateConversation(

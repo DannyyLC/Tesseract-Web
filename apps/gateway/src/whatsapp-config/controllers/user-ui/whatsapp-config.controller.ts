@@ -34,6 +34,7 @@ export class WhatsappConfigController {
             var txtContent = "";
             var imgContent = "";
             var audioContent = "";
+            let isUnsupportedVideo = false;
             const account = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(phoneNumber);
             const signatureHeader = headers['ycloud-signature'] || '';
             const isValidSignature = await this.whatsappConfigService.verifySignature(JSON.stringify(body), signatureHeader);
@@ -61,6 +62,10 @@ export class WhatsappConfigController {
                     this.logger.info(`Received audio message from ${userNumber} to ${phoneNumber}`);
                     audioContent = 'Received audio message';
                     break;
+                case 'video':
+                    this.logger.info(`Received unsupported video message from ${userNumber} to ${phoneNumber}`);
+                    isUnsupportedVideo = true;
+                    break;
                 default:
                     this.logger.info(`Received message of type ${messageType} from ${userNumber} to ${phoneNumber}`);
             }
@@ -71,6 +76,16 @@ export class WhatsappConfigController {
             // Send reply TODO, transform audio and image content to text or handle them in workflow
             const yCloudApiKey = process.env.Y_CLOUD_API_KEY;
             if (yCloudApiKey && account.defaultWorkflowId) {
+                if (isUnsupportedVideo) {
+                    await this.sendReply(
+                        yCloudApiKey,
+                        phoneNumber,
+                        userNumber,
+                        'Los videos no son compatibles. Por favor envia texto, imagen o audio.',
+                    );
+                    return res.status(HttpStatus.OK).send({ received: true });
+                }
+
                 await this.markMsgAsReadAndSendTypingIndicator(yCloudApiKey, whatsappInboundMessageId);
                 //await this.sendReply(yCloudApiKey, phoneNumber, userNumber, "Reply from Agent" ); TODO; remove when the testing finishes
                 const execution = await this.workflowsService.execute(

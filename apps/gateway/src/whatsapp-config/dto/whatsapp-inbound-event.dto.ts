@@ -20,6 +20,7 @@ export interface WhatsAppInboundMessage {
   image?: WhatsAppImage;
   text?: WhatsAppText;
   audio?: WhatsAppAudio;
+  video?: WhatsAppVideo;
 }
 
 export interface CustomerProfile {
@@ -39,6 +40,13 @@ export interface WhatsAppText {
 }
 
 export interface WhatsAppAudio {
+  link?: string;
+  id?: string;
+  sha256?: string;
+  mime_type?: string;
+}
+
+export interface WhatsAppVideo {
   link?: string;
   id?: string;
   sha256?: string;
