@@ -8,6 +8,22 @@ import {
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { Conversation } from '@tesseract/database';
 
+type MessageAttachmentInput = {
+  type: 'IMAGE' | 'AUDIO';
+  mimeType: string;
+  sourceUrl: string;
+  sizeBytes?: number;
+  sha256?: string;
+  contentHash?: string;
+  processingStatus?: 'PENDING' | 'PROCESSING' | 'PROCESSED' | 'FAILED' | 'UNSUPPORTED';
+  processedText?: string;
+  processedAt?: Date;
+  processingError?: string;
+  processor?: string;
+  processorVersion?: string;
+  metadata?: any;
+};
+
 /**
  * ConversationsService
  *
@@ -153,6 +169,9 @@ export class ConversationsService {
       include: {
         messages: {
           orderBy: { createdAt: 'asc' },
+          include: {
+            attachments: true,
+          },
         },
       },
     });
@@ -291,27 +310,50 @@ export class ConversationsService {
     role: 'human' | 'assistant' | 'system',
     content: string,
     metadata?: any,
-    attachments?: any,
+    attachments?: MessageAttachmentInput[],
   ) {
-    const [message] = await this.prisma.$transaction([
-      this.prisma.message.create({
+    const message = await this.prisma.$transaction(async (tx) => {
+      const conversation = await tx.conversation.findUnique({
+        where: { id: conversationId },
+        select: { organizationId: true },
+      });
+
+      if (!conversation) {
+        throw new NotFoundException(`Conversation with ID ${conversationId} not found`);
+      }
+
+      const createdMessage = await tx.message.create({
         data: {
           conversationId,
           role,
           content,
           metadata: metadata ?? undefined,
-          attachments: attachments ?? undefined,
+          attachments:
+            attachments && attachments.length > 0
+              ? {
+                  create: attachments.map((attachment) => ({
+                    organizationId: conversation.organizationId,
+                    ...attachment,
+                  })),
+                }
+              : undefined,
         },
-      }),
-      this.prisma.conversation.update({
+        include: {
+          attachments: true,
+        },
+      });
+
+      await tx.conversation.update({
         where: { id: conversationId },
         data: {
           lastMessageAt: new Date(),
           lastMessageRole: role === 'human' ? 'user' : role, // Normalize 'human' to 'user' if needed by schema enum, or keep string
           // messageCount increment removed to avoid double counting with batchUpdate
         },
-      }),
-    ]);
+      });
+
+      return createdMessage;
+    });
 
     this.logger.debug(`Mensaje ${role} agregado a conversación ${conversationId}`);
 

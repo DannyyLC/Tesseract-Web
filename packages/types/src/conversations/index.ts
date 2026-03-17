@@ -3,12 +3,40 @@ export interface MessageMetadata {
   original_user_id?: string;
 }
 
+export type MessageAttachmentType = 'IMAGE' | 'AUDIO';
+export type MessageAttachmentStatus =
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'PROCESSED'
+  | 'FAILED'
+  | 'UNSUPPORTED';
+
+export interface MessageAttachment {
+  id: string;
+  type: MessageAttachmentType;
+  mimeType: string;
+  sourceUrl: string;
+  sizeBytes?: number | null;
+  sha256?: string | null;
+  contentHash?: string | null;
+  processingStatus: MessageAttachmentStatus;
+  processedText?: string | null;
+  processedAt?: Date | null;
+  processingError?: string | null;
+  processor?: string | null;
+  processorVersion?: string | null;
+  metadata?: Record<string, any> | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Message {
   id: string;
   role: string;
   content: string;
   createdAt: Date;
   metadata?: MessageMetadata;
+  attachments?: MessageAttachment[];
 }
 
 export interface ConversationDto {

@@ -1,8 +1,10 @@
+import { MessageAttachment } from '@tesseract/types';
+
 export interface DashboardMessageDto {
   id: string;
   role: string;
   content: string;
-  attachments: object | null;
+  attachments: MessageAttachment[];
   model: string | null;
   createdAt: Date;
 }

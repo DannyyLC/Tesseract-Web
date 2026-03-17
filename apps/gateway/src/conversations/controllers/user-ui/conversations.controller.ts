@@ -125,6 +125,7 @@ export class ConversationsController {
         role: msg.role,
         content: msg.content,
         createdAt: msg.createdAt,
+        attachments: msg.attachments,
       })),
     };
 

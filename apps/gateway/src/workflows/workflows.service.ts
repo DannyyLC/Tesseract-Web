@@ -697,7 +697,15 @@ export class WorkflowsService {
     const channel = metadata?.channel ?? 'api';
     const conversationId = metadata?.conversationId;
     const endUserId = metadata?.endUserId;
-    let attachments;
+    let attachments:
+      | Array<{
+          type: 'IMAGE' | 'AUDIO';
+          mimeType: string;
+          sourceUrl: string;
+          sha256?: string;
+          metadata?: Record<string, any>;
+        }>
+      | undefined;
     let userMessage = "";
    
     var conversation;
@@ -722,10 +730,30 @@ export class WorkflowsService {
         userMessage = whatsappData.whatsappInboundMessage.text?.body || "";
       } else if (whatsappData.whatsappInboundMessage.type === 'image') {
         userMessage = whatsappData.whatsappInboundMessage.image?.caption || "Picture without caption";
-        attachments = whatsappData.whatsappInboundMessage.image?.link
+        const imageLink = whatsappData.whatsappInboundMessage.image?.link;
+        if (imageLink) {
+          attachments = [
+            {
+              type: 'IMAGE',
+              mimeType: whatsappData.whatsappInboundMessage.image?.mime_type || 'image/jpeg',
+              sourceUrl: imageLink,
+              sha256: whatsappData.whatsappInboundMessage.image?.sha256,
+            },
+          ];
+        }
       } else if (whatsappData.whatsappInboundMessage.type === 'audio') {
         userMessage = "audio message";
-        attachments = whatsappData.whatsappInboundMessage.audio?.link
+        const audioLink = whatsappData.whatsappInboundMessage.audio?.link;
+        if (audioLink) {
+          attachments = [
+            {
+              type: 'AUDIO',
+              mimeType: whatsappData.whatsappInboundMessage.audio?.mime_type || 'audio/ogg',
+              sourceUrl: audioLink,
+              sha256: whatsappData.whatsappInboundMessage.audio?.sha256,
+            },
+          ];
+        }
       }
     } else {
       conversation = await this.conversationsService.findOrCreateConversation(
