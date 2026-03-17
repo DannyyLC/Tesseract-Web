@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { MEDIA_PROCESSOR_ADAPTER, MediaProcessorAdapter } from './adapters/media-processor.adapter';
+import { PrismaService } from '../database/prisma.service';
 
 export type IncomingAttachment = {
   type: 'IMAGE' | 'AUDIO';
@@ -25,9 +26,13 @@ export class MediaProcessingService {
   constructor(
     @Inject(MEDIA_PROCESSOR_ADAPTER)
     private readonly adapter: MediaProcessorAdapter,
+    private readonly prisma: PrismaService,
   ) {}
 
-  async processIncomingAttachments(attachments?: IncomingAttachment[]): Promise<{
+  async processIncomingAttachments(
+    organizationId: string,
+    attachments?: IncomingAttachment[],
+  ): Promise<{
     attachments?: ProcessedAttachment[];
     derivedText?: string;
   }> {
@@ -40,6 +45,42 @@ export class MediaProcessingService {
         const contentHash = createHash('sha256')
           .update(`${attachment.type}:${attachment.sourceUrl}:${attachment.sha256 ?? ''}`)
           .digest('hex');
+
+        const cached = await this.prisma.messageAttachment.findFirst({
+          where: {
+            organizationId,
+            contentHash,
+            processingStatus: 'PROCESSED',
+            processedText: {
+              not: null,
+            },
+          },
+          select: {
+            id: true,
+            processedText: true,
+            processedAt: true,
+            processor: true,
+            processorVersion: true,
+          },
+          orderBy: [{ processedAt: 'desc' }, { createdAt: 'desc' }],
+        });
+
+        if (cached?.processedText?.trim()) {
+          return {
+            ...attachment,
+            contentHash,
+            processingStatus: 'PROCESSED' as const,
+            processedText: cached.processedText,
+            processedAt: cached.processedAt ?? new Date(),
+            processor: cached.processor ?? 'cache-hit',
+            processorVersion: cached.processorVersion ?? '1.0.0',
+            metadata: {
+              ...(attachment.metadata ?? {}),
+              cacheHit: true,
+              reusedFromAttachmentId: cached.id,
+            },
+          };
+        }
 
         const result = await this.adapter.process(attachment);
 

@@ -774,7 +774,10 @@ export class WorkflowsService {
       userMessage = input?.message ?? JSON.stringify(input);
     }
 
-    const processedMedia = await this.mediaProcessingService.processIncomingAttachments(attachments);
+    const processedMedia = await this.mediaProcessingService.processIncomingAttachments(
+      organizationId,
+      attachments,
+    );
     attachments = processedMedia.attachments;
 
     if (
