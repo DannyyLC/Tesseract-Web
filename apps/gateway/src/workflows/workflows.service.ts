@@ -28,6 +28,7 @@ import { OrganizationsService } from '../organizations/organizations.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { WhatsAppInboundEvent } from '../whatsapp-config/dto/whatsapp-inbound-event.dto';
+import { MediaProcessingService } from '../media-processing/media-processing.service';
 
 
 /**
@@ -47,6 +48,7 @@ export class WorkflowsService {
     private readonly llmModelsService: LlmModelsService,
     private readonly conversationsService: ConversationsService,
     private readonly toolsService: ToolsService,
+    private readonly mediaProcessingService: MediaProcessingService,
   ) {}
 
   //==========================================================
@@ -770,6 +772,16 @@ export class WorkflowsService {
       );
 
       userMessage = input?.message ?? JSON.stringify(input);
+    }
+
+    const processedMedia = await this.mediaProcessingService.processIncomingAttachments(attachments);
+    attachments = processedMedia.attachments;
+
+    if (
+      processedMedia.derivedText &&
+      (userMessage === 'audio message' || userMessage === 'Picture without caption' || !userMessage.trim())
+    ) {
+      userMessage = processedMedia.derivedText;
     }
 
     // Asociar la ejecución a la conversación

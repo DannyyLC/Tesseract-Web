@@ -10,6 +10,7 @@ import { LlmModelsModule } from '../llm-models/llm-models.module';
 import { ExternalWorkflowsController } from './controllers/external/workflows.controller';
 import { UtilityModule } from '../utility/utility.module';
 import { ToolsModule } from '../tools/core/tools.module';
+import { MediaProcessingModule } from '../media-processing/media-processing.module';
 
 /**
  * WorkflowsModule
@@ -25,6 +26,7 @@ import { ToolsModule } from '../tools/core/tools.module';
     CreditsModule,
     LlmModelsModule,
     ToolsModule,
+    MediaProcessingModule,
   ],
   controllers: [WorkflowsController, ExternalWorkflowsController],
   providers: [WorkflowsService],
