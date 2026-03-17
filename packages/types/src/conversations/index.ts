@@ -25,7 +25,7 @@ export interface MessageAttachment {
   processingError?: string | null;
   processor?: string | null;
   processorVersion?: string | null;
-  metadata?: Record<string, any> | null;
+  metadata?: unknown;
   createdAt: Date;
   updatedAt: Date;
 }
