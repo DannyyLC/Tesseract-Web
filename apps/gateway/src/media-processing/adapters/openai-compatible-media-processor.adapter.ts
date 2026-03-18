@@ -15,11 +15,11 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
       .get<string>('MEDIA_PROCESSING_API_BASE_URL', 'https://api.openai.com/v1')
       .replace(/\/$/, '');
     this.apiKey = this.configService.get<string>('MEDIA_PROCESSING_API_KEY', '');
-    const sttPrimary = this.configService.get<string>('MEDIA_PROCESSING_STT_MODEL', 'gpt-4o-transcribe');
+    const sttPrimary = this.configService.get<string>('MEDIA_PROCESSING_STT_MODEL', 'whisper-1');
     const sttFallback = this.configService.get<string>('MEDIA_PROCESSING_STT_FALLBACK_MODEL', '');
     this.sttModels = this.buildModelChain(sttPrimary, sttFallback);
 
-    const ocrPrimary = this.configService.get<string>('MEDIA_PROCESSING_OCR_MODEL', 'gpt-4.1');
+    const ocrPrimary = this.configService.get<string>('MEDIA_PROCESSING_OCR_MODEL', 'gpt-4o');
     const ocrFallback = this.configService.get<string>('MEDIA_PROCESSING_OCR_FALLBACK_MODEL', '');
     this.ocrModels = this.buildModelChain(ocrPrimary, ocrFallback);
 
