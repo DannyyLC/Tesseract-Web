@@ -6,13 +6,26 @@
  */
 
 // ============================================
-// IMPORTS
-// ============================================
-import { WorkflowCategory, ModelTier } from '@prisma/client';
-
-// ============================================
 // ENUMS
 // ============================================
+/**
+ * Categorías de workflow compartidas entre frontend y backend
+ */
+export enum WorkflowCategory {
+  LIGHT = 'LIGHT',
+  STANDARD = 'STANDARD',
+  ADVANCED = 'ADVANCED',
+}
+
+/**
+ * Tiers de modelos LLM compartidos entre frontend y backend
+ */
+export enum ModelTier {
+  BASIC = 'BASIC',
+  STANDARD = 'STANDARD',
+  PREMIUM = 'PREMIUM',
+}
+
 /**
  * Planes de suscripción disponibles
  */
@@ -24,9 +37,6 @@ export enum SubscriptionPlan {
   PRO = 'PRO',
   ENTERPRISE = 'ENTERPRISE',
 }
-
-// Re-exportar enums de Prisma para facilitar el uso
-export { WorkflowCategory, ModelTier };
 
 // ============================================
 // INTERFACES
