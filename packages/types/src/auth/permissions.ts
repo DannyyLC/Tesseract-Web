@@ -45,7 +45,7 @@ export type AppPermission =
   | 'billing:update_overages';
 
 export const ROLE_PERMISSIONS: Record<string, AppPermission[]> = {
-  owner: [
+  OWNER: [
     'api_keys:read',
     'api_keys:create',
     'api_keys:update',
@@ -103,7 +103,7 @@ export const ROLE_PERMISSIONS: Record<string, AppPermission[]> = {
     'billing:cancel_subscription',
     'billing:update_overages',
   ],
-  admin: [
+  ADMIN: [
     'api_keys:read',
     'api_keys:create',
     'api_keys:update',
@@ -156,7 +156,7 @@ export const ROLE_PERMISSIONS: Record<string, AppPermission[]> = {
     'billing:read',
     'billing:update_overages',
   ],
-  viewer: [
+  VIEWER: [
     'api_keys:read',
 
     'tools_catalog:read',
