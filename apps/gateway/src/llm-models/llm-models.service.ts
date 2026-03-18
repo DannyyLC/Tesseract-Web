@@ -224,8 +224,8 @@ export class LlmModelsService {
     // Calcular costos
     const calculation = this.performCostCalculation(
       usage,
-      llmModel.inputPricePer1m,
-      llmModel.outputPricePer1m,
+      llmModel.inputPricePer1m.toNumber(),
+      llmModel.outputPricePer1m.toNumber(),
       llmModel.modelName,
       llmModel.provider,
     );
@@ -283,8 +283,8 @@ export class LlmModelsService {
         calculations.push(
           this.performCostCalculation(
             usage,
-            llmModel.inputPricePer1m,
-            llmModel.outputPricePer1m,
+            llmModel.inputPricePer1m.toNumber(),
+            llmModel.outputPricePer1m.toNumber(),
             llmModel.modelName,
             llmModel.provider,
           ),

@@ -835,7 +835,10 @@ export class OrganizationsService {
     if (!subscription) {
       return null;
     }
-    return subscription;
+    return {
+      ...subscription,
+      customMonthlyPrice: subscription.customMonthlyPrice?.toNumber() ?? null,
+    };
   }
 
   /**

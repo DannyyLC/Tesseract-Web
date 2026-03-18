@@ -88,11 +88,11 @@ model Organization {
   // Defaults para nuevos workflows (opcionales)
   defaultMaxMessages     Int? // null = sin límite de mensajes por conversación
   defaultInactivityHours Int? // null = sin límite temporal de inactividad
-  defaultMaxCostPerConv  Float? // null = sin límite de costo por conversación
+  defaultMaxCostPerConv  Decimal? // null = sin límite de costo por conversación
 
   // Credit System - Overage Control
   allowOverages Boolean @default(false) // Permite balance negativo
-  overageLimit  Float? // Límite de créditos negativos (null = usar default del plan)
+  overageLimit  Int? // Límite de créditos negativos (null = usar default del plan)
 
   // Overrides de límites del plan (para super admins)
   // null = usar valores por defecto del plan
@@ -172,10 +172,10 @@ model Subscription {
   stripePriceId        String?
 
   // Campos personalizables para ENTERPRISE
-  customMonthlyPrice   Float? // null = usar precio estándar del plan
-  customMonthlyCredits Float? // null = usar defaults (150/500/1500/5000)
+  customMonthlyPrice   Decimal? // null = usar precio estándar del plan
+  customMonthlyCredits Int? // null = usar defaults (150/500/1500/5000)
   customMaxWorkflows   Int? // null = usar defaults (3/7/12/25)
-  customOverageLimit   Float? // null = calcular automático (1 mes de créditos)
+  customOverageLimit   Int? // null = calcular automático (1 mes de créditos)
   customFeatures       Json? // Features especiales: { sla: "99.9%", support: "24/7", ... }
 
   // Timestamps
@@ -201,20 +201,20 @@ model CreditBalance {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   // Balance actual (puede ser negativo si hay overage)
-  balance Float @default(0)
+  balance Int @default(0)
 
   // Contadores históricos acumulativos
-  lifetimeEarned Float @default(0) // Total créditos comprados históricamente
-  lifetimeSpent  Float @default(0) // Total créditos consumidos
+  lifetimeEarned Int @default(0) // Total créditos comprados históricamente
+  lifetimeSpent  Int @default(0) // Total créditos consumidos
 
   // Contadores del mes actual
   // NOTA: Se calculan sumando CreditTransaction del periodo actual (subscription.currentPeriodStart/End)
   // Se actualizan con cada transacción, no se "reinician" sino que se recalculan desde transacciones
-  currentMonthSpent   Float @default(0) // Créditos gastados este mes
-  currentMonthCostUSD Float @default(0) // Costo real en USD este mes (para análisis interno)
+  currentMonthSpent   Int     @default(0) // Créditos gastados este mes
+  currentMonthCostUSD Decimal @default(0) // Costo real en USD este mes (para análisis interno)
 
   // Overage Billing Snapshot (Temporal)
-  invoicedOverageCredits Float @default(0) // Créditos de overage ya facturados (snapshot invoice.created) pero aun no pagados
+  invoicedOverageCredits Int @default(0) // Créditos de overage ya facturados (snapshot invoice.created) pero aun no pagados
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -237,9 +237,9 @@ model CreditTransaction {
   type TransactionType
 
   // Monto y balances (para auditoría completa)
-  amount        Float // Positivo = ingreso, Negativo = gasto
-  balanceBefore Float // Balance antes de la transacción
-  balanceAfter  Float // Balance después de la transacción
+  amount        Int // Positivo = ingreso, Negativo = gasto
+  balanceBefore Int // Balance antes de la transacción
+  balanceAfter  Int // Balance después de la transacción
 
   // Referencias opcionales según el tipo de transacción
   subscriptionId String? // Para SUBSCRIPTION_RENEWAL, PLAN_UPGRADE, PLAN_DOWNGRADE
@@ -251,7 +251,7 @@ model CreditTransaction {
 
   // Metadata de la ejecución (para reportes y análisis)
   workflowCategory WorkflowCategory? // LIGHT/STANDARD/ADVANCED (si es deducción por ejecución)
-  costUSD          Float? // Costo real en USD de esta transacción (para análisis interno)
+  costUSD          Decimal? // Costo real en USD de esta transacción (para análisis interno)
 
   // Información adicional
   description String? // Descripción legible: "Renovación plan GROWTH", "Ejecución workflow Ventas"
@@ -290,11 +290,11 @@ model Invoice {
   periodEnd   DateTime? // Fin del periodo
 
   // Montos
-  subtotal       Float // Precio base (suscripción o paquete)
-  overageCredits Float @default(0) // Créditos en negativo del mes anterior
-  overageAmount  Float @default(0) // overageCredits * $0.01
-  tax            Float @default(0) // Impuestos si aplican
-  total          Float // subtotal + overageAmount + tax
+  subtotal       Decimal // Precio base (suscripción o paquete)
+  overageCredits Int     @default(0) // Créditos en negativo del mes anterior
+  overageAmount  Decimal @default(0) // overageCredits * $0.01
+  tax            Decimal @default(0) // Impuestos si aplican
+  total          Decimal // subtotal + overageAmount + tax
 
   // Stripe
   stripeInvoiceId       String? @unique
@@ -447,7 +447,7 @@ model Conversation {
 
   messageCount     Int       @default(0) // Contador de mensajes
   totalTokens      Int       @default(0) // Suma de tokens usados
-  totalCost        Float     @default(0) // Costo acumulado en USD
+  totalCost        Decimal   @default(0) // Costo acumulado en USD
   isHumanInTheLoop Boolean   @default(false) // Si true, la IA no responde, espera humano
   lastMessageAt    DateTime? // Último mensaje (para calcular inactividad)
   lastMessageRole  String? // 'user' | 'assistant' - Para auto-cierre eficiente
@@ -595,8 +595,8 @@ model LlmModel {
   category String? // "respuesta-rapida", "razonamiento-avanzado", "ultima-generacion"
 
   // Precios por 1 millón de tokens
-  inputPricePer1m  Float // Precio por 1,000,000 tokens de entrada
-  outputPricePer1m Float // Precio por 1,000,000 tokens de salida
+  inputPricePer1m  Decimal // Precio por 1,000,000 tokens de entrada
+  outputPricePer1m Decimal // Precio por 1,000,000 tokens de salida
 
   // Ventana de contexto
   contextWindow        Int // Tokens máximos del modelo (ej: 128000 para GPT-4o)
@@ -947,7 +947,7 @@ model Workflow {
 
   maxMessages            Int? // null = sin límite de mensajes
   inactivityHours        Int? // null = sin límite temporal
-  maxCostPerConversation Float? // null = sin límite de costo
+  maxCostPerConversation Decimal? // null = sin límite de costo
 
   // Versionado
   version Int @default(1)
@@ -969,7 +969,7 @@ model Workflow {
   totalExecutions        Int       @default(0)
   successfulExecutions   Int       @default(0)
   failedExecutions       Int       @default(0)
-  totalCreditsConsumed   Float     @default(0) // Total créditos gastados por este workflow
+  totalCreditsConsumed   Int       @default(0) // Total créditos gastados por este workflow
   avgCreditsPerExecution Float? // Promedio de créditos por ejecución
   lastExecutedAt         DateTime?
   avgExecutionTime       Float?
@@ -1027,11 +1027,11 @@ model Execution {
   stepResults Json?
 
   // Credit System - Costos y Créditos
-  cost          Float   @default(0) // Costo real en USD (de las APIs de modelos)
+  cost          Decimal @default(0) // Costo real en USD (de las APIs de modelos)
   credits       Int     @default(0) // Créditos cobrados (1/5/25 según workflow.category)
   tokensUsed    Int? // Total tokens consumidos en esta ejecución
-  balanceBefore Float? // Snapshot del balance antes de la ejecución
-  balanceAfter  Float? // Snapshot del balance después de la ejecución
+  balanceBefore Int? // Snapshot del balance antes de la ejecución
+  balanceAfter  Int? // Snapshot del balance después de la ejecución
   wasOverage    Boolean @default(false) // True si se ejecutó con balance negativo
 
   // Reintentos

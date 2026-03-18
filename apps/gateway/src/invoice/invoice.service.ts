@@ -49,7 +49,13 @@ export class InvoiceService {
       return null;
     }
     const paginatedData = await CursorPaginatedResponseUtils.getInstance().build(
-      invoices,
+      invoices.map((invoice) => ({
+        ...invoice,
+        subtotal: invoice.subtotal.toNumber(),
+        overageAmount: invoice.overageAmount.toNumber(),
+        tax: invoice.tax.toNumber(),
+        total: invoice.total.toNumber(),
+      })),
       pageSize,
       action,
     );

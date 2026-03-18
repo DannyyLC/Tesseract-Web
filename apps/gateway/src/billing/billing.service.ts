@@ -1123,7 +1123,7 @@ export class BillingService {
     // Map subscription fields to EnterprisePlanConfig if needed
     const enterpriseConfig = subscription
       ? {
-          customMonthlyPrice: subscription.customMonthlyPrice ?? undefined,
+          customMonthlyPrice: subscription.customMonthlyPrice?.toNumber() ?? undefined,
           customMonthlyCredits: subscription.customMonthlyCredits ?? undefined,
           customMaxWorkflows: subscription.customMaxWorkflows ?? undefined,
           customOverageLimit: subscription.customOverageLimit ?? undefined,
