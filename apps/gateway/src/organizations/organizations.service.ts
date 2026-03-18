@@ -10,6 +10,8 @@ import {
   SubscriptionPlan,
   getPlanLimits,
   SubscriptionPlan as SharedSubscriptionPlan,
+  NOTIFICATIONSENUM,
+  UserRole,
 } from '@tesseract/types';
 import { Organization } from '@tesseract/database';
 import { randomBytes } from 'crypto';
@@ -910,8 +912,9 @@ export class OrganizationsService {
       });
       await this.utilityService.sendNotificationToAppClients(
         organizationId,
-        ['admin'],
-        '0000-0010',
+        [UserRole.OWNER, UserRole.ADMIN],
+        NOTIFICATIONSENUM.ACCEPTED_INVITATION,
+        [email],
       );
       return true;
     } catch (error) {
@@ -1016,6 +1019,12 @@ export class OrganizationsService {
             organizationId: userVerification.organizationName,
           },
         });
+        this.utilityService.sendNotificationToAppClients(
+          userVerification.organizationName,
+          [UserRole.OWNER, UserRole.ADMIN],
+          NOTIFICATIONSENUM.ACCEPTED_INVITATION,
+          [userVerification.email],
+        );
         return {
           email: existingUser.email,
           name: existingUser.name,
@@ -1047,6 +1056,12 @@ export class OrganizationsService {
           isFromInvitation: true,
         },
       });
+       this.utilityService.sendNotificationToAppClients(
+          userVerification.organizationName,
+          [UserRole.OWNER, UserRole.ADMIN],
+          NOTIFICATIONSENUM.ACCEPTED_INVITATION,
+          [userVerification.email],
+        );
       return {
         email: newUser.email,
         name: newUser.name,
@@ -1106,13 +1121,20 @@ export class OrganizationsService {
       return false;
     }
 
+    this.utilityService.sendNotificationToAppClients(
+      organizationId,
+      [UserRole.OWNER, UserRole.ADMIN],
+      NOTIFICATIONSENUM.RESEND_INVITATION,
+      [userEmail],
+    );
+
     return true;
   }
 
   /**
    * Cancelar invitación pendiente (elimina el usuario que nunca aceptó)
    */
-  async cancelInvitation(userEmail: string): Promise<boolean> {
+  async cancelInvitation(userEmail: string, organizationId: string): Promise<boolean> {
     const deletedRecords = await this.prisma.userVerification.deleteMany({
       where: {
         email: userEmail,
@@ -1123,6 +1145,13 @@ export class OrganizationsService {
       this.logger.error(`cancelInvitation >> No pending invitation found for ${userEmail}`);
       return false;
     }
+
+    this.utilityService.sendNotificationToAppClients(
+      organizationId,
+      [UserRole.OWNER, UserRole.ADMIN],
+      NOTIFICATIONSENUM.CANCEL_INVITATION,
+      [userEmail],
+    );
 
     return true;
   }

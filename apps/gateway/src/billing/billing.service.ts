@@ -4,12 +4,13 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { CreditsService } from '../credits/credits.service';
 import { TransactionType, SubscriptionPlan } from '@prisma/client';
-import { PLANS, getPlanLimits, SubscriptionPlan as SharedSubscriptionPlan } from '@tesseract/types';
+import { PLANS, getPlanLimits, SubscriptionPlan as SharedSubscriptionPlan, UserRole, NOTIFICATIONSENUM } from '@tesseract/types';
 import { ConfigService } from '@nestjs/config';
 import { SUBSCRIPTION_PLANS } from './billing.constants';
 import { PrismaService } from '../database/prisma.service';
 import { BillingDashboardDto } from './dto/billing-dashboard.dto';
 import Stripe from 'stripe';
+import { UtilityService } from '../utility/utility.service';
 
 @Injectable()
 export class BillingService {
@@ -20,6 +21,7 @@ export class BillingService {
     private readonly creditsService: CreditsService,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly utilityService: UtilityService,
   ) {}
 
   /**
@@ -499,6 +501,12 @@ export class BillingService {
       this.logger.log(
         `Processed renewal for org ${organizationId}. Plan: ${creditsToAdd}. Overage Paid: ${invoicedOverage}. Gap Billed: ${gapCredits}.`,
       );
+      this.utilityService.sendNotificationToAppClients(
+        organizationId,
+        [UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER],
+        NOTIFICATIONSENUM.SUBSCRIPTION,
+        [planName.toUpperCase()],
+      );
     } else {
       this.logger.warn(`No credits added for invoice ${invoice.id} (Amount: ${amountPaidCents})`);
     }
@@ -525,6 +533,12 @@ export class BillingService {
       data: { cancelAtPeriodEnd: true },
     });
 
+    this.utilityService.sendNotificationToAppClients(
+      organizationId,
+      [UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER],
+      NOTIFICATIONSENUM.CANCEL_SUBSCRIPTION,
+      [sub.plan.toString()],
+    );
     // Disable Overages Immediately to prevent risk
     await this.prisma.organization.update({
       where: { id: organizationId },
@@ -701,6 +715,13 @@ export class BillingService {
           cancelAtPeriodEnd: false,
         },
       });
+
+      this.utilityService.sendNotificationToAppClients(
+        organizationId,
+        [UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER],
+        NOTIFICATIONSENUM.CHANGE_SUBSCRIPTION,
+        [sub.plan.toString(), newPlan.toUpperCase(), (stripeSub as any).current_period_start.toString(), (stripeSub as any).current_period_end.toString()],
+      );
 
       this.logger.log(`Scheduled downgrade to ${newPlan} for org ${organizationId}`);
     }
