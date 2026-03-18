@@ -8,7 +8,7 @@ import {
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { Conversation } from '@tesseract/database';
 
-type MessageAttachmentInput = {
+interface MessageAttachmentInput {
   type: 'IMAGE' | 'AUDIO';
   mimeType: string;
   sourceUrl: string;
@@ -22,7 +22,7 @@ type MessageAttachmentInput = {
   processor?: string;
   processorVersion?: string;
   metadata?: any;
-};
+}
 
 /**
  * ConversationsService

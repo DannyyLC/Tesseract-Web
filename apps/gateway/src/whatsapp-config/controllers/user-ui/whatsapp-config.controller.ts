@@ -31,9 +31,9 @@ export class WhatsappConfigController {
             const phoneNumber = parsedBody.whatsappInboundMessage.to || 'unknown';
             const userNumber = parsedBody.whatsappInboundMessage.from || 'unknown';
             const messageType = parsedBody.whatsappInboundMessage.type;
-            var txtContent = "";
-            var imgContent = "";
-            var audioContent = "";
+            let txtContent = "";
+            let imgContent = "";
+            let audioContent = "";
             let isUnsupportedVideo = false;
             const account = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(phoneNumber);
             const signatureHeader = headers['ycloud-signature'] || '';

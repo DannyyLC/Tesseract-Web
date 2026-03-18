@@ -125,7 +125,7 @@ describe('ApiKeysService', () => {
 
     it('should throw BadRequestException if max api keys limit is reached', async () => {
       // Simulate reaching limit for FREE plan (limit is usually 1, but we get it from PLANS)
-      const maxApiKeys = PLANS['FREE'].limits.maxApiKeys;
+      const maxApiKeys = PLANS.FREE.limits.maxApiKeys;
       
       const mockOrganization = {
         id: organizationId,

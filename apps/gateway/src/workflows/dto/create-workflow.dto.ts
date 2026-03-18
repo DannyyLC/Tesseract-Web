@@ -109,4 +109,7 @@ export interface WorkflowConfig {
       tools?: (string | { id: string; functions?: string[] })[];
     }
   >;
+  mediaProcessing?: {
+    ocrPrompt?: string;
+  };
 }

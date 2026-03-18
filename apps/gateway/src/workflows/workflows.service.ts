@@ -700,17 +700,17 @@ export class WorkflowsService {
     const conversationId = metadata?.conversationId;
     const endUserId = metadata?.endUserId;
     let attachments:
-      | Array<{
+      | {
           type: 'IMAGE' | 'AUDIO';
           mimeType: string;
           sourceUrl: string;
           sha256?: string;
           metadata?: Record<string, any>;
-        }>
+        }[]
       | undefined;
     let userMessage = "";
    
-    var conversation;
+    let conversation;
     if (channel === 'whatsapp') {
       if (whatsappData) {
         conversation = await this.conversationsService.findOrCreateConversationFromWhatsAppMessage(
@@ -757,7 +757,7 @@ export class WorkflowsService {
           ];
         }
       } else if (whatsappData.whatsappInboundMessage.type === 'video') {
-        throw new InvalidWorkflowConfigException('WhatsApp video messages are not supported yet', {
+        throw new InvalidWorkflowConfigException('Los mensajes de video por WhatsApp aún no están soportados', {
           workflowId,
           channel,
         });
@@ -774,9 +774,12 @@ export class WorkflowsService {
       userMessage = input?.message ?? JSON.stringify(input);
     }
 
+    const ocrPrompt = (workflow.config as any)?.mediaProcessing?.ocrPrompt;
+
     const processedMedia = await this.mediaProcessingService.processIncomingAttachments(
       organizationId,
       attachments,
+      ocrPrompt
     );
     attachments = processedMedia.attachments;
 

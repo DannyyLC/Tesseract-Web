@@ -32,6 +32,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
     mimeType: string;
     sha256?: string;
     metadata?: Record<string, any>;
+    customOcrPrompt?: string;
   }): Promise<MediaProcessResult> {
     if (!this.apiKey) {
       return {
@@ -62,7 +63,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
         };
       }
 
-      const { text: processedText, modelUsed } = await this.extractImageText(media.sourceUrl);
+      const { text: processedText, modelUsed } = await this.extractImageText(media.sourceUrl, media.customOcrPrompt);
       return {
         status: 'PROCESSED',
         processedText,
@@ -126,8 +127,10 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
     throw new Error(lastError?.message || 'STT request failed for all configured models');
   }
 
-  private async extractImageText(sourceUrl: string): Promise<{ text: string; modelUsed: string }> {
+  private async extractImageText(sourceUrl: string, customPrompt?: string): Promise<{ text: string; modelUsed: string }> {
     let lastError: Error | null = null;
+    
+    const userPrompt = customPrompt?.trim() || 'Extrae texto y resume contenido visual clave en maximo 6 lineas.';
 
     for (const model of this.ocrModels) {
       try {
@@ -151,12 +154,12 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
                 content: [
                   {
                     type: 'text',
-                    text: 'Extrae texto y resume contenido visual clave en maximo 6 lineas.',
+                    text: userPrompt,
                   },
                   {
                     type: 'image_url',
                     image_url: {
-                      url: sourceUrl,
+                       url: sourceUrl,
                     },
                   },
                 ],
@@ -170,7 +173,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
         }
 
         const payload = (await response.json()) as {
-          choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>;
+          choices?: { message?: { content?: string | { type?: string; text?: string }[] } }[];
         };
 
         const content = payload.choices?.[0]?.message?.content;

@@ -3,13 +3,13 @@ import { createHash } from 'crypto';
 import { MEDIA_PROCESSOR_ADAPTER, MediaProcessorAdapter } from './adapters/media-processor.adapter';
 import { PrismaService } from '../database/prisma.service';
 
-export type IncomingAttachment = {
+export interface IncomingAttachment {
   type: 'IMAGE' | 'AUDIO';
   mimeType: string;
   sourceUrl: string;
   sha256?: string;
   metadata?: Record<string, any>;
-};
+}
 
 export type ProcessedAttachment = IncomingAttachment & {
   contentHash: string;
@@ -32,6 +32,7 @@ export class MediaProcessingService {
   async processIncomingAttachments(
     organizationId: string,
     attachments?: IncomingAttachment[],
+    customOcrPrompt?: string,
   ): Promise<{
     attachments?: ProcessedAttachment[];
     derivedText?: string;
@@ -42,8 +43,12 @@ export class MediaProcessingService {
 
     const processed = await Promise.all(
       attachments.map(async (attachment) => {
+        const hashInput = attachment.sha256 
+          ? `${attachment.type}:${attachment.sha256}`
+          : `${attachment.type}:${attachment.sourceUrl}`;
+          
         const contentHash = createHash('sha256')
-          .update(`${attachment.type}:${attachment.sourceUrl}:${attachment.sha256 ?? ''}`)
+          .update(hashInput)
           .digest('hex');
 
         const cached = await this.prisma.messageAttachment.findFirst({
@@ -82,7 +87,10 @@ export class MediaProcessingService {
           };
         }
 
-        const result = await this.adapter.process(attachment);
+        const result = await this.adapter.process({
+          ...attachment,
+          customOcrPrompt,
+        });
 
         if (result.status === 'FAILED') {
           return {

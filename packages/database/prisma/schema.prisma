@@ -437,8 +437,8 @@ model Conversation {
   workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
   // Configuración de WhatsApp (opcional - solo si el canal es whatsapp)
-  whatsappConfigId String?
-  whatsappConfig   WhatsAppConfig? @relation(fields: [whatsappConfigId], references: [id])
+  whatsappConfigId  String?
+  whatsappConfig    WhatsAppConfig? @relation(fields: [whatsappConfigId], references: [id])
   phoneNumberSender String?
 
   // Metadata de la conversación
@@ -497,7 +497,7 @@ model Message {
 
   role String // 'user', 'assistant', 'system', 'tool'
 
-  content String @db.Text // Texto del mensaje (siempre presente) - puede ser largo
+  content     String              @db.Text // Texto del mensaje (siempre presente) - puede ser largo
   attachments MessageAttachment[]
 
   metadata Json? @db.JsonB
@@ -554,17 +554,17 @@ model MessageAttachment {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  type           MessageAttachmentType
-  mimeType       String
-  sourceUrl      String
-  sizeBytes      Int?
-  sha256         String?
-  contentHash    String?
+  type             MessageAttachmentType
+  mimeType         String
+  sourceUrl        String
+  sizeBytes        Int?
+  sha256           String?
+  contentHash      String?
   processingStatus MessageAttachmentStatus @default(PENDING)
-  processedText  String? @db.Text
-  processedAt    DateTime?
-  processingError String? @db.Text
-  processor      String?
+  processedText    String?                 @db.Text
+  processedAt      DateTime?
+  processingError  String?                 @db.Text
+  processor        String?
   processorVersion String?
 
   metadata Json? @db.JsonB
@@ -873,6 +873,9 @@ model Workflow {
   //       // ROUTER: { "routes": [...], "default_route": "agent_name" }
   //       // SEQUENTIAL: { "steps": [{"agent": "a", "output_to": "data"}, ...] }
   //     }
+  //   },
+  //   "mediaProcessing": {
+  //     "ocrPrompt": "Extrae el total y la fecha de esta factura." // Opcional: Prompt para extracción de imágenes
   //   },
   //   "agents": {
   //     // Para grafos simples (react): un agente "default"
