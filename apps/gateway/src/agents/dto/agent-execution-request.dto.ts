@@ -27,12 +27,12 @@ export enum UserType {
 export class MessageHistoryDto {
   @ApiProperty({
     description: 'Rol del mensaje',
-    enum: ['human', 'assistant', 'system'],
-    example: 'human',
+    enum: ['user', 'assistant', 'system'],
+    example: 'user',
   })
   @IsString()
-  @IsEnum(['human', 'assistant', 'system'])
-  role: 'human' | 'assistant' | 'system';
+  @IsEnum(['user', 'assistant', 'system'])
+  role: 'user' | 'assistant' | 'system';
 
   @ApiProperty({
     description: 'Contenido del mensaje',

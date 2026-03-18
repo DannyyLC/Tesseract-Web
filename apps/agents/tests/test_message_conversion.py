@@ -22,7 +22,7 @@ class TestMessageConversion:
     
     def test_convert_dict_to_langchain_human(self):
         """Prueba conversión de mensaje human."""
-        messages = [{"role": "human", "content": "Hola"}]
+        messages = [{"role": "user", "content": "Hola"}]
         result = convert_message_history_to_langchain(messages)
         
         assert len(result) == 1
@@ -49,9 +49,9 @@ class TestMessageConversion:
     def test_convert_dict_to_langchain_mixed(self):
         """Prueba conversión de múltiples mensajes."""
         messages = [
-            {"role": "human", "content": "Hola"},
+            {"role": "user", "content": "Hola"},
             {"role": "assistant", "content": "¿Cómo estás?"},
-            {"role": "human", "content": "Bien"}
+            {"role": "user", "content": "Bien"}
         ]
         result = convert_message_history_to_langchain(messages)
         
@@ -71,7 +71,7 @@ class TestMessageConversion:
         
         # System message debe ser filtrado
         assert len(result) == 2
-        assert result[0]["role"] == "human"
+        assert result[0]["role"] == "user"
         assert result[1]["role"] == "assistant"
     
     def test_convert_langchain_to_dict_filters_tool(self):
@@ -86,7 +86,7 @@ class TestMessageConversion:
         
         # Tool message y AI vacío deben ser filtrados
         assert len(result) == 2
-        assert result[0]["role"] == "human"
+        assert result[0]["role"] == "user"
         assert result[1]["role"] == "assistant"
         assert result[1]["content"] == "El resultado es 4"
     
@@ -102,6 +102,6 @@ class TestMessageConversion:
         
         # Solo deben quedar el human y el último AI
         assert len(result) == 2
-        assert result[0]["role"] == "human"
+        assert result[0]["role"] == "user"
         assert result[1]["role"] == "assistant"
         assert result[1]["content"] == "¡Hola!"

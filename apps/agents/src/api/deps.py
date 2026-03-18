@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # ==========================================
 class MessageRequest(BaseModel):
     """Modelo para un mensaje en el historial."""
-    role: Literal["human", "assistant", "system"]
+    role: Literal["user", "assistant", "system"]
     content: str
     
     model_config = ConfigDict(extra="allow")  # Permite campos adicionales
@@ -145,7 +145,7 @@ class AgentExecutionRequest(BaseModel):
                     }
                 },
                 "message_history": [
-                    {"role": "human", "content": "Hola"},
+                    {"role": "user", "content": "Hola"},
                     {"role": "assistant", "content": "¡Hola! ¿Cómo puedo ayudarte?"}
                 ],
                 "user_metadata": {

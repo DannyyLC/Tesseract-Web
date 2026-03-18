@@ -177,11 +177,11 @@ describe('ConversationsService', () => {
 
   describe('getMessageHistory', () => {
     it('should return messages', async () => {
-      const mockMessages = [{ role: 'human', content: 'hello', attachments: [] }];
+      const mockMessages = [{ role: 'user', content: 'hello', attachments: [] }];
       mockPrismaService.message.findMany.mockResolvedValue(mockMessages);
 
       const result = await service.getMessageHistory('c-1');
-      expect(result).toEqual([{ role: 'human', content: 'hello' }]);
+      expect(result).toEqual([{ role: 'user', content: 'hello' }]);
       expect(mockPrismaService.message.findMany).toHaveBeenCalledWith({
         where: { conversationId: 'c-1' },
         orderBy: { createdAt: 'asc' },
@@ -202,7 +202,7 @@ describe('ConversationsService', () => {
     it('should append processed media text to message content', async () => {
       mockPrismaService.message.findMany.mockResolvedValue([
         {
-          role: 'human',
+          role: 'user',
           content: 'audio message',
           attachments: [
             {
@@ -218,7 +218,7 @@ describe('ConversationsService', () => {
 
       expect(result).toEqual([
         {
-          role: 'human',
+          role: 'user',
           content: 'audio message\n\n[audio] Quiero agendar una demo',
         },
       ]);
@@ -230,7 +230,7 @@ describe('ConversationsService', () => {
       const mockMessage = { id: 'm-1' };
       mockPrismaService.$transaction.mockResolvedValue([mockMessage, {}]);
 
-      const result = await service.addMessage('c-1', 'human', 'hola');
+      const result = await service.addMessage('conv-1', 'USER', 'Hello');
       expect(result).toEqual(mockMessage);
       expect(mockPrismaService.$transaction).toHaveBeenCalled();
     });

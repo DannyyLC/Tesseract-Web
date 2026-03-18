@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { TriggerType, ExecutionStatus, ChatRole } from '@prisma/client';
 import {
   getWorkflowCreditCost,
   PaginatedResponse,
@@ -88,7 +89,7 @@ export class WorkflowsService {
         timezone: dto.timezone ?? 'UTC',
         timeout: dto.timeout ?? 300,
         maxRetries: dto.maxRetries ?? 3,
-        triggerType: dto.triggerType ? [dto.triggerType] : undefined,
+        triggerType: dto.triggerType ? [dto.triggerType.toUpperCase() as any] : undefined,
         organizationId,
         // Asociar tags si se proporcionaron
         ...(dto.tagIds && {
@@ -424,7 +425,7 @@ export class WorkflowsService {
         where: {
           workflowId,
           startedAt: { gte: startDate },
-          status: 'failed',
+          status: ExecutionStatus.FAILED,
           error: { not: null },
         },
         select: { error: true },
@@ -568,7 +569,7 @@ export class WorkflowsService {
         timezone: dto.timezone,
         timeout: dto.timeout,
         maxRetries: dto.maxRetries,
-        triggerType: dto.triggerType ? [dto.triggerType] : undefined,
+        triggerType: dto.triggerType ? [dto.triggerType.toUpperCase() as any] : undefined,
         version: existing.version + 1, // Incrementar versión
         // Actualizar tags si se proporcionaron
         ...(dto.tagIds && {
@@ -621,7 +622,7 @@ export class WorkflowsService {
     userId?: string, // Opcional: quién ejecuta desde UI
     whatsappData?: WhatsAppInboundEvent, // Opcional: datos de WhatsApp si la ejecución es por un mensaje entrante
     apiKeyId?: string, // Opcional: qué API key ejecuta
-    trigger: 'api' | 'manual' | 'webhook' | 'schedule' = 'api',
+    trigger: TriggerType = TriggerType.API,
   ) {
     // 1. VALIDACIONES PREVIAS - Cargar workflow con TODO lo necesario en 1 query
     const workflow = await this.prisma.workflow.findFirst({
@@ -805,7 +806,7 @@ export class WorkflowsService {
       this.logger.log(`HITL Execution: User ${userId} acting as assistant.`);
 
       // 1. Guardar el mensaje del usuario como 'assistant' (la persona responde por la IA)
-      await this.conversationsService.addMessage(conversation.id, 'assistant', userMessage, {
+      await this.conversationsService.addMessage(conversation.id, ChatRole.ASSISTANT, userMessage, {
         is_hitl_bypass: true,
         original_user_id: userId,
       },
@@ -813,9 +814,9 @@ export class WorkflowsService {
       );
 
       // 2. Actualizar ejecución como completada
-      await this.executionsService.updateStatus(execution.id, 'completed', {
+      await this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
         result: {
-          messages: [{ role: 'assistant', content: userMessage }],
+          messages: [{ role: ChatRole.ASSISTANT, content: userMessage }],
           conversationId: conversation.id,
         },
         cost: 0,
@@ -835,7 +836,7 @@ export class WorkflowsService {
     const messageHistory = await this.conversationsService.getMessageHistory(conversation.id);
 
     // GUARDAR MENSAJE DEL USUARIO INMEDIATAMENTE
-    await this.conversationsService.addMessage(conversation.id, 'human', userMessage, undefined, attachments);
+    await this.conversationsService.addMessage(conversation.id, ChatRole.USER, userMessage, undefined, attachments);
 
     // 5. EJECUTAR WORKFLOW CON EL SERVICIO DE AGENTS
     try {
@@ -858,10 +859,10 @@ export class WorkflowsService {
       const lastMessage = messages[messages.length - 1]; // Último mensaje = respuesta del asistente
       let assistantMessageSaved = false;
 
-      if (lastMessage?.role === 'assistant') {
+      if ((lastMessage?.role as string).toUpperCase() === ChatRole.ASSISTANT) {
         await this.conversationsService.addMessage(
           conversation.id,
-          lastMessage.role,
+          lastMessage.role.toUpperCase() as any,
           lastMessage.content,
         );
         assistantMessageSaved = true;
@@ -940,7 +941,7 @@ export class WorkflowsService {
       // Execution y Conversation son tablas DIFERENTES → Seguro paralelizar
       await Promise.all([
         // Update execution: TODOS los campos en 1 query (evita race condition)
-        this.executionsService.updateStatus(execution.id, 'completed', {
+        this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
           result: {
             ...agentResponse,
             conversationId: conversation.id,
@@ -995,7 +996,7 @@ export class WorkflowsService {
         (error as Error).stack,
       );
 
-      await this.executionsService.updateStatus(execution.id, 'failed', {
+      await this.executionsService.updateStatus(execution.id, ExecutionStatus.FAILED, {
         error: (error as Error).message,
         errorStack: (error as Error).stack,
       });
@@ -1019,7 +1020,7 @@ export class WorkflowsService {
     metadata?: Record<string, any>,
     userId?: string, // Opcional: quién ejecuta desde UI
     apiKeyId?: string, // Opcional: qué API key ejecuta
-    trigger: 'api' | 'manual' | 'webhook' | 'schedule' = 'api',
+    trigger: 'API' | 'MANUAL' | 'WEBHOOK' | 'SCHEDULE' | 'WHATSAPP' = 'API',
   ): Promise<NodeJS.ReadableStream> {
     // 1. VALIDACIONES PREVIAS (Misma lógica que execute)
     const workflow = await this.prisma.workflow.findFirst({
@@ -1120,15 +1121,15 @@ export class WorkflowsService {
       this.logger.log(`HITL Stream Execution: User ${userId} acting as assistant.`);
 
       // 1. Guardar el mensaje del usuario como 'assistant'
-      await this.conversationsService.addMessage(conversation.id, 'assistant', userMessage, {
+      await this.conversationsService.addMessage(conversation.id, 'ASSISTANT', userMessage, {
         is_hitl_bypass: true,
         original_user_id: userId,
       });
 
       // 2. Actualizar ejecución
-      await this.executionsService.updateStatus(execution.id, 'completed', {
+      await this.executionsService.updateStatus(execution.id, 'COMPLETED', {
         result: {
-          messages: [{ role: 'assistant', content: userMessage }],
+          messages: [{ role: 'ASSISTANT', content: userMessage }],
           conversationId: conversation.id,
         },
         cost: 0,
@@ -1157,7 +1158,7 @@ export class WorkflowsService {
 
     const messageHistory = await this.conversationsService.getMessageHistory(conversation.id);
 
-    await this.conversationsService.addMessage(conversation.id, 'human', userMessage);
+    await this.conversationsService.addMessage(conversation.id, ChatRole.USER, userMessage);
 
     // 5. EJECUTAR STREAM
     try {
@@ -1188,7 +1189,7 @@ export class WorkflowsService {
         (error as Error).stack,
       );
 
-      await this.executionsService.updateStatus(execution.id, 'failed', {
+      await this.executionsService.updateStatus(execution.id, ExecutionStatus.FAILED, {
         error: (error as Error).message,
         errorStack: (error as Error).stack,
       });
@@ -1356,15 +1357,15 @@ export class WorkflowsService {
           if (assistantMessageBuilder) {
             await this.conversationsService.addMessage(
               conversation.id,
-              'assistant',
+              ChatRole.ASSISTANT,
               assistantMessageBuilder,
             );
           }
 
           // 5. Actualizar Ejecución
-          await this.executionsService.updateStatus(execution.id, 'completed', {
+          await this.executionsService.updateStatus(execution.id, 'COMPLETED', {
             result: {
-              messages: [{ role: 'assistant', content: assistantMessageBuilder }],
+              messages: [{ role: 'ASSISTANT', content: assistantMessageBuilder }],
               conversationId: conversation.id,
             },
             cost: costUSD,
@@ -1408,7 +1409,7 @@ export class WorkflowsService {
             (error as Error).stack,
           );
           // Intentar marcar como fallido si algo crítico falló después del stream
-          await this.executionsService.updateStatus(execution.id, 'failed', {
+          await this.executionsService.updateStatus(execution.id, 'FAILED', {
             error: `Post-stream processing error: ${(error as Error).message}`,
           });
         }

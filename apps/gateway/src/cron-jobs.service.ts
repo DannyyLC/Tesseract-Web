@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from './database/prisma.service';
+import { ConversationStatus, ChatRole } from '@prisma/client';
 
 @Injectable()
 export class CronJobsService {
@@ -27,12 +28,12 @@ export class CronJobsService {
 
     const result = await this.prisma.conversation.updateMany({
       where: {
-        status: 'active',
+        status: ConversationStatus.ACTIVE,
         lastMessageAt: { lt: inactivityThreshold },
-        lastMessageRole: { not: 'user' }, // Close if AI/System had the last word (user abandoned)
+        lastMessageRole: { not: ChatRole.USER }, // Close if AI/System had the last word (user abandoned)
       },
       data: {
-        status: 'closed',
+        status: ConversationStatus.CLOSED,
         closedAt: new Date(),
       },
     });

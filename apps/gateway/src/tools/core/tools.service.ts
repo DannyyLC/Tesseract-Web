@@ -3,6 +3,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { KmsService } from './kms.service';
 import { UpsertCredentialsDto } from './dto/upsert-credentials.dto';
 import { ToolsOauthService } from './tools-oauth.service';
+import { ToolConnectionStatus } from '@prisma/client';
 
 @Injectable()
 export class ToolsService {
@@ -161,7 +162,7 @@ export class ToolsService {
       await tx.tenantTool.update({
         where: { id: tenantToolId },
         data: {
-          status: 'connected',
+          status: ToolConnectionStatus.CONNECTED,
           isConnected: true,
           config: updatedConfig,
           ...(tool.createdByUserId ? {} : { createdByUserId: userId }),

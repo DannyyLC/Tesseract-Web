@@ -1,6 +1,7 @@
 import { HttpService } from '@nestjs/axios';
 import { Body, Controller, Headers, HttpStatus, Inject, Post, Res, UseGuards } from '@nestjs/common';
 import { WhatsAppConfig } from '@tesseract/database';
+import { TriggerType } from '@prisma/client';
 import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
 import { Response } from 'express';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
@@ -96,7 +97,7 @@ export class WhatsappConfigController {
                     undefined,
                     parsedBody,
                     undefined,
-                    'webhook',
+                    TriggerType.WEBHOOK,
                 );
 
                 const result = execution.result as any;

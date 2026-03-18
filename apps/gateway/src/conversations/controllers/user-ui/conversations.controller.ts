@@ -53,7 +53,7 @@ export class ConversationsController {
       userId,
     });
 
-    const items: DashboardConversationDto[] = paginatedResponse.items.map((c) => ({
+    const items: DashboardConversationDto[] = paginatedResponse.items.map((c: any) => ({
       id: c.id,
       title: c.title,
       channel: c.channel,

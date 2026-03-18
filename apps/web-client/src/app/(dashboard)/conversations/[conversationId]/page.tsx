@@ -27,7 +27,7 @@ import { ROLE_PERMISSIONS } from '@tesseract/types';
 
 interface Message {
   id: string;
-  role: 'human' | 'assistant';
+  role: 'user' | 'assistant';
   content: string;
   timestamp: string;
 }
@@ -265,7 +265,7 @@ export default function WorkflowChatPage() {
 
     const userMsg: Message = {
       id: Date.now().toString(),
-      role: isExternalUser ? 'assistant' : 'human',
+      role: isExternalUser ? 'assistant' : 'user',
       content: input.trim(),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
@@ -554,7 +554,7 @@ export default function WorkflowChatPage() {
         {/* Messages List */}
         <div className="mx-auto max-w-6xl space-y-6">
           {messages.map((msg, index) => {
-            const isRightSide = isExternalUser ? msg.role === 'assistant' : msg.role === 'human';
+            const isRightSide = isExternalUser ? msg.role === 'assistant' : msg.role === 'user';
 
             return (
               <motion.div
@@ -569,12 +569,12 @@ export default function WorkflowChatPage() {
                   {/* Avatar */}
                   <div
                     className={`mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
-                      msg.role === 'human'
+                      msg.role === 'user'
                         ? 'bg-black text-white dark:bg-white dark:text-black'
                         : 'bg-transparent'
                     }`}
                   >
-                    {msg.role === 'human' ? (
+                    {msg.role === 'user' ? (
                       <User size={16} strokeWidth={2.5} />
                     ) : (
                       <div
@@ -598,12 +598,12 @@ export default function WorkflowChatPage() {
                   <div className={`flex flex-col ${isRightSide ? 'items-end' : 'items-start'}`}>
                     <div
                       className={`px-5 py-3.5 text-base leading-7 ${
-                        msg.role === 'human'
+                        msg.role === 'user'
                           ? 'rounded-[2rem] bg-[#F4F4F4] text-black dark:bg-[#262626] dark:text-white'
                           : 'bg-transparent px-0 py-0 text-black dark:text-white'
                       }`}
                     >
-                      {msg.role === 'human' ? (
+                      {msg.role === 'user' ? (
                         <span className="whitespace-pre-wrap">{msg.content}</span>
                       ) : (
                         <div className="prose prose-base max-w-none break-words text-black dark:prose-invert dark:text-white [&>code]:rounded-md [&>code]:bg-black/5 [&>code]:px-1.5 [&>code]:py-0.5 dark:[&>code]:bg-white/10 [&>p:last-child]:mb-0 [&>p]:mb-4 [&>pre]:rounded-xl [&>pre]:bg-black/5 [&>pre]:p-4 dark:[&>pre]:bg-white/5">

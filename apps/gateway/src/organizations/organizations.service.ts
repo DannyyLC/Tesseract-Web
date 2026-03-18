@@ -665,7 +665,7 @@ export class OrganizationsService {
     // Safety check: Don't double delete
     if (organization.deletedAt) return organization;
 
-    if (user.role !== 'owner') {
+    if (user.role !== 'OWNER') {
       throw new ForbiddenException('No tienes los permisos requeridos');
     }
 

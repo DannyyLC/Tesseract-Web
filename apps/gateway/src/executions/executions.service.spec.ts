@@ -57,13 +57,13 @@ describe('ExecutionsService', () => {
       const mockResult = { id: 'exec-1', status: 'pending' };
       mockPrismaService.execution.create.mockResolvedValue(mockResult);
 
-      const result = await service.create('wf-1', 'api', { organizationId: 'org-1' });
+      const result = await service.create('workflow-id', 'API', { organizationId: 'org-1' });
 
       expect(mockPrismaService.execution.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           workflowId: 'wf-1',
           status: 'pending',
-          trigger: 'api',
+          trigger: 'API',
           organizationId: 'org-1',
         }),
         include: {
@@ -110,13 +110,13 @@ describe('ExecutionsService', () => {
         credits: 50,
       };
 
-      const result = await service.updateStatus('exec-1', 'completed', data);
+      const result = await service.updateStatus('exec-1', 'COMPLETED', data);
 
       // Verify the duration diff was sent to update correctly
       expect(prisma.execution.update).toHaveBeenCalledWith({
         where: { id: 'exec-1' },
         data: expect.objectContaining({
-          status: 'completed',
+          status: 'COMPLETED',
           result: data.result,
           cost: data.cost,
           tokensUsed: data.tokensUsed,
@@ -138,7 +138,7 @@ describe('ExecutionsService', () => {
       prisma.execution.findUnique = jest.fn().mockResolvedValue(null);
 
       await expect(
-        service.updateStatus('invalid-id', 'completed')
+        service.updateStatus('invalid-id', 'COMPLETED')
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -197,12 +197,12 @@ describe('ExecutionsService', () => {
       const mockResult = [{ id: '1' }, { id: '2' }];
       prisma.execution.findMany = jest.fn().mockResolvedValue(mockResult);
 
-      const result = await service.findByWorkflow('wf-1', 'org-1', 10, 'completed');
+      const result = await service.findByWorkflow('wf-1', 'org-1', 10, 'COMPLETED');
       
       expect(result).toEqual(mockResult);
       expect(prisma.execution.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { workflowId: 'wf-1', status: 'completed' },
+          where: { workflowId: 'wf-1', status: 'COMPLETED' },
           take: 10,
         })
       );
@@ -221,7 +221,7 @@ describe('ExecutionsService', () => {
       const mockResults = Array(11).fill({ id: 'exec' }).map((x, i) => ({ id: `exec-${i}` }));
       prisma.execution.findMany = jest.fn().mockResolvedValue(mockResults);
 
-      const result = await service.findAll('org-1', { limit: 10, status: 'completed' });
+      const result = await service.findAll('org-1', { limit: 10, status: 'COMPLETED' });
 
       expect(result.data).toHaveLength(10); // Takes only `limit`
       expect(result.pagination).toEqual({
@@ -295,7 +295,7 @@ describe('ExecutionsService', () => {
 
       await service.cancel('exec-1', 'org-1');
 
-      expect(service.updateStatus).toHaveBeenCalledWith('exec-1', 'cancelled', expect.any(Object));
+      expect(service.updateStatus).toHaveBeenCalledWith('exec-1', 'CANCELLED', expect.any(Object));
     });
 
     it('remove should soft-delete', async () => {

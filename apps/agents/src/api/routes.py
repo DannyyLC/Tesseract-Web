@@ -97,7 +97,7 @@ def convert_langchain_messages_to_dict(messages: list) -> list[dict]:
         
         # Mapear tipos de mensaje a roles
         if msg_type == "HumanMessage":
-            role = "human"
+            role = "user"
             content = msg.content if hasattr(msg, 'content') else str(msg)
         elif msg_type == "AIMessage":
             role = "assistant"

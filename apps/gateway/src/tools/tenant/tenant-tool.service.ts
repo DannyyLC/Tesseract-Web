@@ -7,7 +7,7 @@ import { DashboardTenantToolDto } from '@tesseract/types';
 import { UpdateTenantToolDto } from './dto/update-tenant-tool.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
-import { Prisma } from '@prisma/client';
+import { Prisma, ToolConnectionStatus } from '@prisma/client';
 
 @Injectable()
 export class TenantToolService {
@@ -27,7 +27,6 @@ export class TenantToolService {
         where: {
           organizationId,
           deletedAt: null,
-          status: { not: 'deleted' },
         },
         cursor: cursor ? { id: cursor } : undefined,
         skip: cursor ? 1 : 0,
@@ -55,7 +54,7 @@ export class TenantToolService {
         orderBy: { createdAt: 'desc' },
       });
       return await CursorPaginatedResponseUtils.getInstance().build(
-        tenantTools,
+        tenantTools as unknown as DashboardTenantToolDto[],
         pageSize,
         paginationAction,
       );
@@ -124,7 +123,7 @@ export class TenantToolService {
           config: data.config,
           createdByUserId: userId,
           isConnected: noAuthRequired,
-          status: noAuthRequired ? 'connected' : 'pending',
+          status: noAuthRequired ? ToolConnectionStatus.CONNECTED : ToolConnectionStatus.DISCONNECTED,
           workflows: {
             connect: data.workflowId ? [{ id: data.workflowId }] : [],
           },
@@ -215,7 +214,7 @@ export class TenantToolService {
       await tx.tenantTool.update({
         where: { id: tenantToolId },
         data: {
-          status: 'deleted',
+          status: ToolConnectionStatus.DISCONNECTED,
           isConnected: false,
           deletedAt: new Date(),
         },
@@ -250,7 +249,7 @@ export class TenantToolService {
       await tx.tenantTool.update({
         where: { id: tenantToolId },
         data: {
-          status: 'pending',
+          status: ToolConnectionStatus.DISCONNECTED,
           isConnected: false,
           config: Prisma.DbNull,
         },

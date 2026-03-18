@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, User } from '@prisma/client';
+import { ConversationStatus, Prisma, User, UserRole } from '@prisma/client';
 import { PaginatedResponse } from '@tesseract/types';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
@@ -43,6 +43,13 @@ interface UserActivity {
   activeConversations: number;
   lastLoginAt: Date | null;
 }
+
+const ROLE_HIERARCHY: Record<string, number> = {
+  SUPER_ADMIN: 5,
+  [UserRole.OWNER]: 4,
+  [UserRole.ADMIN]: 3,
+  [UserRole.VIEWER]: 1,
+};
 
 @Injectable()
 export class UsersService {
@@ -96,7 +103,7 @@ export class UsersService {
     const where: Prisma.UserWhereInput = {
       organizationId,
       deletedAt: null,
-      ...(role && { role }),
+      ...(role && { role: role.toUpperCase() as any }),
       ...(isActive !== undefined && { isActive }),
       ...(search && {
         OR: [
@@ -205,7 +212,7 @@ export class UsersService {
     this.validateRoleHierarchy(actor.role, targetUser.role, newRole);
 
     // NO se puede asignar rol 'super_admin' ni 'owner'
-    if (newRole === 'super_admin' || newRole === 'owner') {
+    if (newRole.toLowerCase() === 'super_admin' || newRole.toUpperCase() === UserRole.OWNER) {
       throw new ForbiddenException(
         `Cannot assign ${newRole} role. This role can only be assigned through system configuration.`,
       );
@@ -214,7 +221,7 @@ export class UsersService {
     // Actualizar rol
     const user = await this.prisma.user.update({
       where: { id: userId },
-      data: { role: newRole },
+      data: { role: newRole.toUpperCase() as any },
     });
 
     return user;
@@ -271,7 +278,7 @@ export class UsersService {
     const newOwner = await this.findOne(newOwnerId, organizationId);
 
     // Validar que el usuario actual es owner
-    if (currentOwner.role !== 'owner') {
+    if (currentOwner.role !== UserRole.OWNER) {
       throw new ForbiddenException('Current user is not the owner');
     }
 
@@ -285,12 +292,12 @@ export class UsersService {
       // Cambiar owner actual a admin
       this.prisma.user.update({
         where: { id: currentOwnerId },
-        data: { role: 'admin' },
+        data: { role: UserRole.ADMIN },
       }),
       // Cambiar nuevo usuario a owner
       this.prisma.user.update({
         where: { id: newOwnerId },
-        data: { role: 'owner' },
+        data: { role: UserRole.OWNER },
       }),
     ]);
   }
@@ -387,11 +394,17 @@ export class UsersService {
       }),
     ]);
 
+    const roleMap: Record<UserRole, 'viewer' | 'admin' | 'owner'> = {
+      [UserRole.OWNER]: 'owner',
+      [UserRole.ADMIN]: 'admin',
+      [UserRole.VIEWER]: 'viewer',
+    };
+
     // Transformar byRole a objeto
     const roleStats = byRole.reduce(
       (acc, item) => {
-        const role = item.role as 'viewer' | 'admin' | 'owner';
-        acc[role] = item._count;
+        const role = roleMap[item.role as UserRole];
+        if (role) acc[role] = item._count;
         return acc;
       },
       { viewer: 0, admin: 0, owner: 0 } as {
@@ -445,7 +458,7 @@ export class UsersService {
       this.prisma.conversation.count({
         where: {
           userId,
-          status: 'active',
+          status: ConversationStatus.ACTIVE,
         },
       }),
     ]);
@@ -466,24 +479,18 @@ export class UsersService {
     targetCurrentRole: string,
     targetNewRole: string,
   ): void {
-    const hierarchy: Record<string, number> = {
-      super_admin: 5,
-      owner: 4,
-      admin: 3,
-      viewer: 1,
-    };
 
-    const actorLevel = hierarchy[actorRole] || 0;
-    const targetCurrentLevel = hierarchy[targetCurrentRole] || 0;
-    const targetNewLevel = hierarchy[targetNewRole] || 0;
+    const actorLevel = ROLE_HIERARCHY[actorRole.toUpperCase()] || 0;
+    const targetCurrentLevel = ROLE_HIERARCHY[targetCurrentRole.toUpperCase()] || 0;
+    const targetNewLevel = ROLE_HIERARCHY[targetNewRole.toUpperCase()] || 0;
 
     // Solo owner puede modificar a owner
-    if (targetCurrentRole === 'owner' && actorRole !== 'owner') {
+    if (targetCurrentRole.toUpperCase() === UserRole.OWNER && actorRole.toUpperCase() !== UserRole.OWNER) {
       throw new ForbiddenException('Only owner can modify owner role');
     }
 
     // Admin no puede asignar roles superiores a su nivel
-    if (actorRole === 'admin' && targetNewLevel >= hierarchy.admin) {
+    if (actorRole.toUpperCase() === UserRole.ADMIN && targetNewLevel >= ROLE_HIERARCHY[UserRole.ADMIN]) {
       throw new ForbiddenException('Admin cannot assign admin or owner roles');
     }
 
@@ -508,7 +515,7 @@ export class UsersService {
       organizationId,
       deletedAt: null,
       ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
-      ...(filters?.role && { role: filters.role }),
+      ...(filters?.role && { role: filters.role.toUpperCase() as any }),
       ...(filters?.search && {
         OR: [
           { name: { contains: filters.search, mode: 'insensitive' } },
@@ -574,24 +581,17 @@ export class UsersService {
    */
   private validateActionPermission(actorRole: string, targetRole: string): void {
     // 1. Solo admin y owner pueden ejecutar acciones
-    if (actorRole !== 'owner' && actorRole !== 'admin') {
+    if (actorRole.toUpperCase() !== UserRole.OWNER && actorRole.toUpperCase() !== UserRole.ADMIN) {
       throw new ForbiddenException('Only owner or admin can perform this action');
     }
 
     // 2. Nadie puede modificar al owner
-    if (targetRole === 'owner') {
+    if (targetRole.toUpperCase() === UserRole.OWNER) {
       throw new ForbiddenException('Cannot modify owner. Transfer ownership first.');
     }
 
-    const hierarchy: Record<string, number> = {
-      super_admin: 5,
-      owner: 4,
-      admin: 3,
-      viewer: 1,
-    };
-
-    const actorLevel = hierarchy[actorRole] || 0;
-    const targetLevel = hierarchy[targetRole] || 0;
+    const actorLevel = ROLE_HIERARCHY[actorRole.toUpperCase()] || 0;
+    const targetLevel = ROLE_HIERARCHY[targetRole.toUpperCase()] || 0;
 
     // 3. Jerarguía: actor debe ser >= target
     if (actorLevel < targetLevel) {
@@ -620,7 +620,7 @@ export class UsersService {
     }
 
     // 2. Validar que NO es Owner
-    if (user.role === 'owner') {
+    if (user.role === UserRole.OWNER) {
       throw new BadRequestException(
         'El propietario no puede abandonar la organización. Transfiere la propiedad primero.',
       );

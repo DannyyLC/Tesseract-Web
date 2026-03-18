@@ -40,7 +40,7 @@ export class UtilityService {
         where: {
           organizationId,
           role: {
-            in: userRoles,
+            in: userRoles.map((r) => r.toUpperCase() as any),
           },
         },
         select: {

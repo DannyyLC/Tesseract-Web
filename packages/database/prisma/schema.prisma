@@ -76,6 +76,74 @@ enum MessageAttachmentStatus {
   UNSUPPORTED
 }
 
+enum UserRole {
+  VIEWER
+  ADMIN
+  OWNER
+}
+
+enum ConversationStatus {
+  ACTIVE
+  INACTIVE
+  CLOSED
+}
+
+enum ConversationChannel {
+  DASHBOARD
+  WHATSAPP
+  WEB
+  API
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum MessageFeedback {
+  POSITIVE
+  NEGATIVE
+  NEUTRAL
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMEOUT
+}
+
+enum TriggerType {
+  MANUAL
+  API
+  SCHEDULE
+  WEBHOOK
+  WHATSAPP
+}
+
+enum ToolConnectionStatus {
+  DISCONNECTED
+  CONNECTED
+  ERROR
+  EXPIRED_AUTH
+}
+
+enum DangerLevel {
+  SAFE
+  WARNING
+  DANGER
+}
+
+enum WhatsAppConnectionStatus {
+  DISCONNECTED
+  CONNECTED
+  ERROR
+}
+
 // ============================================
 // ORGANIZATION (Tenant principal)
 // ============================================
@@ -344,8 +412,8 @@ model User {
   twoFactorSecret  String?
 
   // Rol y estado
-  role     String  @default("viewer") // viewer, editor, admin, owner
-  isActive Boolean @default(true)
+  role     UserRole @default(VIEWER)
+  isActive Boolean  @default(true)
 
   // Timestamps
   createdAt   DateTime  @default(now())
@@ -442,15 +510,15 @@ model Conversation {
 
   // Metadata de la conversación
   title   String? // "Consulta sobre productos", "Testing agente ventas"
-  channel String // 'dashboard', 'whatsapp', 'web', 'api'
-  status  String  @default("active") // 'active', 'inactive', 'closed'
+  channel ConversationChannel
+  status  ConversationStatus  @default(ACTIVE)
 
   messageCount     Int       @default(0) // Contador de mensajes
   totalTokens      Int       @default(0) // Suma de tokens usados
   totalCost        Decimal   @default(0) // Costo acumulado en USD
   isHumanInTheLoop Boolean   @default(false) // Si true, la IA no responde, espera humano
   lastMessageAt    DateTime? // Último mensaje (para calcular inactividad)
-  lastMessageRole  String? // 'user' | 'assistant' - Para auto-cierre eficiente
+  lastMessageRole  ChatRole? // Para auto-cierre eficiente
 
   // Información adicional
   metadata Json?   @db.JsonB // Tags, categorías, sentimiento, etc.
@@ -494,7 +562,7 @@ model Message {
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
-  role String // 'user', 'assistant', 'system', 'tool'
+  role ChatRole
 
   content     String              @db.Text // Texto del mensaje (siempre presente) - puede ser largo
   attachments MessageAttachment[]
@@ -535,8 +603,8 @@ model Message {
   createdAt DateTime @default(now())
 
   // Feedback del usuario
-  feedback        String? // 'positive', 'negative', 'neutral'
-  feedbackComment String? @db.Text
+  feedback        MessageFeedback?
+  feedbackComment String?          @db.Text
 
   @@index([conversationId, createdAt])
   @@index([role])
@@ -683,7 +751,7 @@ model ToolFunction {
 
   // Metadata para UI
   icon        String? // Ícono específico de la función
-  dangerLevel String? @default("safe") // "safe", "warning", "danger"
+  dangerLevel DangerLevel? @default(SAFE)
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -718,8 +786,8 @@ model TenantTool {
   allowedFunctions Json? @db.JsonB
 
   // Estado de conexión
-  isConnected     Boolean   @default(false)
-  status          String    @default("connected") // connected, error, expired_auth
+  isConnected     Boolean              @default(false)
+  status          ToolConnectionStatus @default(DISCONNECTED)
   connectionError String? // Último error si falló
   connectedAt     DateTime?
   lastUsedAt      DateTime?
@@ -958,8 +1026,8 @@ model Workflow {
 
   // Programación
   schedule    String? // Cron expression
-  timezone    String?  @default("UTC")
-  triggerType String[] @default([]) // "api", "schedule", "webhook", "whatsapp"
+  timezone    String?       @default("UTC")
+  triggerType TriggerType[] @default([])
 
   // Configuración de ejecución
   timeout    Int @default(300)
@@ -1006,7 +1074,7 @@ model Execution {
   id String @id @default(uuid())
 
   // Estado
-  status String @default("pending") // pending, running, completed, failed, cancelled, timeout
+  status ExecutionStatus @default(PENDING)
 
   // Tiempos
   startedAt  DateTime  @default(now())
@@ -1019,7 +1087,7 @@ model Execution {
   errorStack String?
 
   // Trigger
-  trigger     String @default("manual") // manual, api, schedule, webhook, whatsapp
+  trigger     TriggerType @default(MANUAL)
   triggerData Json?
 
   // Debug
@@ -1116,7 +1184,7 @@ model WhatsAppConfig {
   webhookUrl    String?
 
   // Estado de conexión
-  connectionStatus String    @default("disconnected")
+  connectionStatus WhatsAppConnectionStatus @default(DISCONNECTED)
   lastConnectedAt  DateTime?
   connectionError  String?
 

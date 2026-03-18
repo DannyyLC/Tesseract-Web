@@ -1,3 +1,4 @@
+import { TriggerType } from '@prisma/client';
 import { ApiKeyGuard } from '../../../auth/guards/api-key.guard';
 import {
   Controller,
@@ -45,7 +46,7 @@ export class ExternalWorkflowsController {
       undefined, // userId (no hay user real)
       undefined, // whatsappData
       apiKey.apiKeyId, // apiKeyId
-      'api', // trigger: External API executions are api
+      TriggerType.API, // trigger: External API executions are api
     );
 
     // Transformar respuesta para ocultar metadata interna (DTO simplificado)
@@ -89,7 +90,7 @@ export class ExternalWorkflowsController {
       executeDto.metadata,
       undefined, // userId
       apiKey.apiKeyId, // apiKeyId
-      'api', // trigger: External API executions are api
+      TriggerType.API, // trigger: External API executions are api
     );
 
     return new StreamableFile(stream as any);

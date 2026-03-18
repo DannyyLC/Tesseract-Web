@@ -1,3 +1,4 @@
+import { TriggerType } from '@prisma/client';
 import {
   Controller,
   Get,
@@ -159,7 +160,7 @@ export class WorkflowsController {
       { ...executeDto.metadata, channel: 'dashboard' },
       user.sub,
       undefined, // apiKeyId
-      'manual', // trigger: UI executions are manual
+      TriggerType.MANUAL, // trigger: UI executions are manual
     );
 
     // Transformar respuesta para ocultar metadata interna (DTO simplificado)
@@ -199,7 +200,7 @@ export class WorkflowsController {
       { ...executeDto.metadata, channel: 'dashboard' },
       user.sub,
       undefined, // apiKeyId
-      'manual', // trigger: UI executions are manual
+      TriggerType.MANUAL, // trigger: UI executions are manual
     );
 
     return new StreamableFile(stream as any);

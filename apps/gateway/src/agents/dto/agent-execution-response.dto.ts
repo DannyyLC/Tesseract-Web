@@ -18,12 +18,12 @@ import { Type } from 'class-transformer';
 export class AgentMessageDto {
   @ApiProperty({
     description: 'Rol del mensaje',
-    enum: ['human', 'assistant'],
+    enum: ['user', 'assistant'],
     example: 'assistant',
   })
   @IsString()
   @IsNotEmpty()
-  role: 'human' | 'assistant';
+  role: 'user' | 'assistant';
 
   @ApiProperty({
     description: 'Contenido del mensaje',

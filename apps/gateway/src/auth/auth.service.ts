@@ -31,6 +31,7 @@ import {
   VerificationCodeDto,
 } from './dto';
 import { Prisma } from '@tesseract/database';
+import { UserRole } from '@prisma/client';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
@@ -218,7 +219,7 @@ export class AuthService {
         const orgName = `${details.firstName}'s Organization`;
         const userId = user.id; // Capture ID to avoid TS null error inside transaction
 
-        const reactivatedUser = await this.prisma.$transaction(async (tx) => {
+        const { user: reactivatedUser, organization: reactivatedOrg } = await this.prisma.$transaction(async (tx) => {
           // Crear nueva Org
           const slug = await OrganizationsService.generateUniqueSlug(orgName, tx);
           const newOrganization = await tx.organization.create({
@@ -244,7 +245,7 @@ export class AuthService {
           });
 
           // Actualizar Usuario (Reciclar ID)
-          return await tx.user.update({
+          const updatedUser = await tx.user.update({
             where: { id: userId },
             data: {
               deletedAt: null, // Reactivar
@@ -252,7 +253,7 @@ export class AuthService {
               name: `${details.firstName} ${details.lastName}`,
               googleId: details.googleId,
               avatar: details.avatar,
-              role: 'owner', // Vuelve a ser Owner de su nueva org
+              role: UserRole.OWNER, // Vuelve a ser Owner de su nueva org
               organizationId: newOrganization.id, // Movemos al usuario a la nueva org
               isActive: true,
               emailVerified: true,
@@ -260,9 +261,11 @@ export class AuthService {
             },
             include: { organization: true },
           });
+
+          return { user: updatedUser, organization: newOrganization };
         });
 
-        return { user: reactivatedUser, organization: reactivatedUser.organization };
+        return { user: reactivatedUser, organization: reactivatedOrg };
       }
 
       // 2b. Si NO está eliminado, flujo normal de vinculación
@@ -315,7 +318,7 @@ export class AuthService {
           name: `${details.firstName} ${details.lastName}`,
           googleId: details.googleId,
           avatar: details.avatar,
-          role: 'owner',
+          role: UserRole.OWNER,
           organizationId: newOrganization.id,
           isActive: true,
           emailVerified: true, // Google emails are verified
@@ -890,7 +893,7 @@ export class AuthService {
                 deletedAt: null, // Reactivar
                 name: userVerificationRow.userName,
                 password: hashedPassword,
-                role: 'owner',
+                role: UserRole.OWNER,
                 organizationId: newOrganization.id,
                 isActive: true,
                 emailVerified: true,
@@ -909,7 +912,7 @@ export class AuthService {
                 email: userVerificationRow.email,
                 name: userVerificationRow.userName,
                 password: hashedPassword,
-                role: 'owner',
+                role: UserRole.OWNER,
                 organizationId: newOrganization.id,
                 isActive: true,
                 emailVerified: true,

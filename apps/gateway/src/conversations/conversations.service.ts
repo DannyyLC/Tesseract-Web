@@ -3,9 +3,10 @@ import { PrismaService } from '../database/prisma.service';
 import {
   DashboardConversationDto,
   ConversationsStatsDto as ConversationStatsDto,
-  PaginatedResponse,
 } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
+import { PaginatedResponse } from '@tesseract/types';
+import { ConversationChannel, ConversationStatus, ChatRole } from '@prisma/client';
 import { Conversation } from '@tesseract/database';
 
 interface MessageAttachmentInput {
@@ -81,10 +82,10 @@ export class ConversationsService {
       data: {
         workflowId,
         organizationId: workflow.organizationId, // Asignación obligatoria
-        channel,
+        channel: channel as ConversationChannel,
         userId,
         endUserId,
-        status: 'active',
+        status: ConversationStatus.ACTIVE,
         messageCount: 0,
         totalTokens: 0,
         totalCost: 0,
@@ -110,10 +111,10 @@ export class ConversationsService {
     // Buscar si ya existe una conversación para este número de WhatsApp y configuración
     const existing = await this.prisma.conversation.findFirst({
       where: {
-        channel: 'whatsapp',
+        channel: ConversationChannel.WHATSAPP,
         whatsappConfigId: whatsappConfig.id,
         phoneNumberSender: userNumber,
-        status: 'active',
+        status: ConversationStatus.ACTIVE,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -140,10 +141,10 @@ export class ConversationsService {
       data: {
         workflowId,
         organizationId: workflow.organizationId, // Asignación obligatoria
-        channel: 'whatsapp',
+        channel: ConversationChannel.WHATSAPP,
         whatsappConfigId: whatsappConfig.id,
         phoneNumberSender: userNumber,
-        status: 'active',
+        status: ConversationStatus.ACTIVE,
         messageCount: 0,
         totalTokens: 0,
         totalCost: 0,
@@ -248,7 +249,7 @@ export class ConversationsService {
       cursor: cursor ? { id: cursor } : undefined,
       where: {
         isHumanInTheLoop,
-        status,
+        ...(status && { status: status.toUpperCase() as any }),
         organizationId,
         workflowId,
         userId,
@@ -273,7 +274,7 @@ export class ConversationsService {
 
     return {
       ...paginatedResult,
-      items: paginatedResult.items.map((c) => ({
+      items: paginatedResult.items.map((c: any) => ({
         ...c,
         isInternal: !!c.userId,
       })) as DashboardConversationDto[],
@@ -340,7 +341,7 @@ export class ConversationsService {
    */
   async addMessage(
     conversationId: string,
-    role: 'human' | 'assistant' | 'system',
+    role: ChatRole,
     content: string,
     metadata?: any,
     attachments?: MessageAttachmentInput[],
@@ -358,7 +359,7 @@ export class ConversationsService {
       const createdMessage = await tx.message.create({
         data: {
           conversationId,
-          role,
+          role: role === ChatRole.USER ? ChatRole.USER : role,
           content,
           metadata: metadata ?? undefined,
           attachments:
@@ -380,7 +381,7 @@ export class ConversationsService {
         where: { id: conversationId },
         data: {
           lastMessageAt: new Date(),
-          lastMessageRole: role === 'human' ? 'user' : role, // Normalize 'human' to 'user' if needed by schema enum, or keep string
+          lastMessageRole: role === ChatRole.USER ? ChatRole.USER : role, // Normalize 'human' to 'user' if needed by schema enum, or keep string
           // messageCount increment removed to avoid double counting with batchUpdate
         },
       });
@@ -408,7 +409,7 @@ export class ConversationsService {
     return this.prisma.conversation.count({
       where: {
         isHumanInTheLoop,
-        status,
+        ...(status && { status: status.toUpperCase() as any }),
         organizationId,
         workflowId,
         userId,
@@ -453,7 +454,7 @@ export class ConversationsService {
         where: { organizationId, deletedAt: null },
       }),
       this.prisma.conversation.count({
-        where: { organizationId, status: 'active', deletedAt: null },
+        where: { organizationId, status: ConversationStatus.ACTIVE, deletedAt: null },
       }),
       this.prisma.message.count({
         where: {

@@ -4,6 +4,7 @@ import { DashboardExecutionDto } from './dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { PaginatedResponse } from '@tesseract/types';
+import { ExecutionStatus, TriggerType } from '@prisma/client';
 
 /**
  * Service que maneja el historial de ejecuciones
@@ -34,13 +35,13 @@ export class ExecutionsService {
    */
   async create(
     workflowId: string,
-    trigger: 'api' | 'webhook' | 'schedule' | 'manual',
+    trigger: TriggerType,
     triggerData?: any,
   ) {
     const execution = await this.prisma.execution.create({
       data: {
         workflowId,
-        status: 'pending',
+        status: 'PENDING',
         trigger,
         triggerData: triggerData ?? {},
         startedAt: new Date(),
@@ -79,7 +80,7 @@ export class ExecutionsService {
    */
   async updateStatus(
     executionId: string,
-    status: 'running' | 'completed' | 'failed' | 'cancelled' | 'timeout',
+    status: ExecutionStatus,
     data?: {
       result?: any;
       error?: string;
@@ -109,10 +110,24 @@ export class ExecutionsService {
       where: { id: executionId },
       data: {
         status,
-        finishedAt: ['completed', 'failed', 'cancelled', 'timeout'].includes(status)
+        finishedAt: (
+          [
+            ExecutionStatus.COMPLETED,
+            ExecutionStatus.FAILED,
+            ExecutionStatus.CANCELLED,
+            ExecutionStatus.TIMEOUT,
+          ] as string[]
+        ).includes(status as string) // Removed ExecutionStatus cast
           ? now
           : undefined,
-        duration: ['completed', 'failed', 'cancelled', 'timeout'].includes(status)
+        duration: (
+          [
+            ExecutionStatus.COMPLETED,
+            ExecutionStatus.FAILED,
+            ExecutionStatus.CANCELLED,
+            ExecutionStatus.TIMEOUT,
+          ] as string[]
+        ).includes(status as string) // Removed ExecutionStatus cast
           ? duration
           : undefined,
         result: data?.result,
@@ -150,7 +165,7 @@ export class ExecutionsService {
     });
 
     // Si la ejecución terminó (completed o failed), actualizar estadísticas del workflow
-    if (status === 'completed' || status === 'failed') {
+    if (status === ExecutionStatus.COMPLETED || status === ExecutionStatus.FAILED) {
       await this.updateWorkflowStats(execution.workflowId, status, duration);
     }
 
@@ -176,7 +191,7 @@ export class ExecutionsService {
    */
   private async updateWorkflowStats(
     workflowId: string,
-    status: 'completed' | 'failed',
+    status: ExecutionStatus,
     duration: number,
   ) {
     const workflow = await this.prisma.workflow.findUnique({
@@ -201,8 +216,8 @@ export class ExecutionsService {
       where: { id: workflowId },
       data: {
         totalExecutions: { increment: 1 },
-        successfulExecutions: status === 'completed' ? { increment: 1 } : undefined,
-        failedExecutions: status === 'failed' ? { increment: 1 } : undefined,
+        successfulExecutions: status === ExecutionStatus.COMPLETED ? { increment: 1 } : undefined,
+        failedExecutions: status === ExecutionStatus.FAILED ? { increment: 1 } : undefined,
         avgExecutionTime: newAvg,
         lastExecutedAt: new Date(),
       },
@@ -395,7 +410,7 @@ export class ExecutionsService {
    * @param limit - Número máximo de resultados (default: 50)
    * @param status - Filtrar por estado (opcional)
    */
-  async findByWorkflow(workflowId: string, organizationId: string, limit = 50, status?: string) {
+  async findByWorkflow(workflowId: string, organizationId: string, limit = 50, status?: ExecutionStatus) {
     // Verificar que el workflow pertenece a la organización
     const workflow = await this.prisma.workflow.findFirst({
       where: {
@@ -467,9 +482,9 @@ export class ExecutionsService {
     options: {
       limit?: number;
       cursor?: string;
-      status?: string;
+      status?: ExecutionStatus;
       workflowId?: string;
-      trigger?: string;
+      trigger?: TriggerType;
       startDate?: Date;
       endDate?: Date;
       wasOverage?: boolean;
@@ -607,9 +622,9 @@ export class ExecutionsService {
     options: {
       limit?: number;
       cursor?: string;
-      status?: string;
+      status?: ExecutionStatus;
       workflowId?: string;
-      trigger?: string;
+      trigger?: TriggerType;
       startDate?: Date;
       endDate?: Date;
       wasOverage?: boolean;
@@ -814,7 +829,7 @@ export class ExecutionsService {
     const total = executions.length;
     const successful = executions.filter((e: any) => e.status === 'completed').length;
     const failed = executions.filter((e: any) => e.status === 'failed').length;
-    const cancelled = executions.filter((e: any) => e.status === 'cancelled').length;
+    const cancelled = executions.filter((e: any) => e.status === 'CANCELLED').length;
     const timeout = executions.filter((e: any) => e.status === 'timeout').length;
 
     const successRate = total > 0 ? (successful / total) * 100 : 0;
@@ -987,7 +1002,7 @@ export class ExecutionsService {
       throw new Error(`No se puede cancelar una ejecución con estado: ${execution.status}`);
     }
 
-    return this.updateStatus(executionId, 'cancelled', {
+    return this.updateStatus(executionId, 'CANCELLED', {
       error: 'Execution cancelled by user',
     });
   }
