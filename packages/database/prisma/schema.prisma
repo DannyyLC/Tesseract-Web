@@ -138,7 +138,6 @@ model Organization {
   messageAttachments MessageAttachment[]
   userNotifications  UserNotification[]
 
-  @@index([slug])
   @@index([deletedAt])
   @@index([isActive])
   @@index([deactivatedAt])
@@ -180,11 +179,12 @@ model Subscription {
   customFeatures       Json? // Features especiales: { sla: "99.9%", support: "24/7", ... }
 
   // Timestamps
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  canceledAt DateTime? // Fecha de cancelación
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  canceledAt         DateTime? // Fecha de cancelación
+  creditTransactions CreditTransaction[]
+  invoices           Invoice[]
 
-  @@index([organizationId])
   @@index([status])
   @@index([currentPeriodEnd])
   @@index([pendingPlanChange])
@@ -220,7 +220,6 @@ model CreditBalance {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([organizationId])
   @@index([balance])
   @@index([updatedAt])
   @@map("credit_balances")
@@ -244,10 +243,11 @@ model CreditTransaction {
 
   // Referencias opcionales según el tipo de transacción
   subscriptionId String? // Para SUBSCRIPTION_RENEWAL, PLAN_UPGRADE, PLAN_DOWNGRADE
-  executionId    String?    @unique // Para EXECUTION_DEDUCTION
-  execution      Execution? @relation("ExecutionTransaction", fields: [executionId], references: [id])
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  executionId    String?       @unique // Para EXECUTION_DEDUCTION
+  execution      Execution?    @relation("ExecutionTransaction", fields: [executionId], references: [id])
   invoiceId      String? // Para compras (ONE_TIME_PURCHASE, OVERAGE_CHARGE)
-  invoice        Invoice?   @relation(fields: [invoiceId], references: [id])
+  invoice        Invoice?      @relation(fields: [invoiceId], references: [id])
 
   // Metadata de la ejecución (para reportes y análisis)
   workflowCategory WorkflowCategory? // LIGHT/STANDARD/ADVANCED (si es deducción por ejecución)
@@ -283,6 +283,7 @@ model Invoice {
 
   // Referencias opcionales
   subscriptionId String? // Si es factura de suscripción mensual
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
 
   // Periodo facturado (para facturas mensuales)
   periodStart DateTime? // Inicio del periodo
@@ -316,7 +317,6 @@ model Invoice {
   @@index([type, status])
   @@index([status, dueAt])
   @@index([subscriptionId])
-  @@index([stripeInvoiceId])
   @@map("invoices")
 }
 
@@ -369,7 +369,6 @@ model User {
   notifications    UserNotification[]
   tenantTools      TenantTool[]
 
-  @@index([email])
   @@index([organizationId])
   @@index([role])
   @@index([deletedAt])
@@ -1028,8 +1027,8 @@ model Execution {
   stepResults Json?
 
   // Credit System - Costos y Créditos
-  cost          Float?  @default(0) // Costo real en USD (de las APIs de modelos)
-  credits       Int?    @default(0) // Créditos cobrados (1/5/25 según workflow.category)
+  cost          Float   @default(0) // Costo real en USD (de las APIs de modelos)
+  credits       Int     @default(0) // Créditos cobrados (1/5/25 según workflow.category)
   tokensUsed    Int? // Total tokens consumidos en esta ejecución
   balanceBefore Float? // Snapshot del balance antes de la ejecución
   balanceAfter  Float? // Snapshot del balance después de la ejecución

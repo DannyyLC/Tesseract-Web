@@ -53,7 +53,7 @@ export class WhatsappConfigService {
                     organizationId: organizationId,
                     phoneNumber: phoneNumber,
                     webhookUrl: `${process.env.DOMAIN_BASE_URL}/whatsapp-config/whatsapp-webhook`,
-                    workflowId: workflowId,
+                    defaultWorkflowId: workflowId,
                 }
             });
 

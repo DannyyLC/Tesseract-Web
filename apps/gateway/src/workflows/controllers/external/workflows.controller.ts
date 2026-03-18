@@ -43,6 +43,7 @@ export class ExternalWorkflowsController {
       executeDto.input,
       executeDto.metadata,
       undefined, // userId (no hay user real)
+      undefined, // whatsappData
       apiKey.apiKeyId, // apiKeyId
       'api', // trigger: External API executions are api
     );
