@@ -3,7 +3,7 @@ import { StripeClient } from './stripe.client';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { CreditsService } from '../credits/credits.service';
-import { TransactionType, SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
+import { TransactionType, SubscriptionPlan, SubscriptionStatus } from '@tesseract/database';
 import { PLANS, getPlanLimits, SubscriptionPlan as SharedSubscriptionPlan, UserRole, NOTIFICATIONSENUM } from '@tesseract/types';
 import { ConfigService } from '@nestjs/config';
 import { SUBSCRIPTION_PLANS } from './billing.constants';

@@ -30,8 +30,7 @@ import {
   StepThreeErrors,
   VerificationCodeDto,
 } from './dto';
-import { Prisma } from '@tesseract/database';
-import { UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '@tesseract/database';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT

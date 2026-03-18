@@ -6,8 +6,7 @@ import {
 } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { PaginatedResponse } from '@tesseract/types';
-import { ConversationChannel, ConversationStatus, ChatRole } from '@prisma/client';
-import { Conversation } from '@tesseract/database';
+import { ConversationChannel, ConversationStatus, ChatRole, Conversation } from '@tesseract/database';
 
 interface MessageAttachmentInput {
   type: 'IMAGE' | 'AUDIO';

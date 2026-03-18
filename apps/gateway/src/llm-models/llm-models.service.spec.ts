@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { LlmModelsService } from './llm-models.service';
 import { PrismaService } from '../database/prisma.service';
-import { ModelTier } from '@prisma/client';
+import { ModelTier } from '@tesseract/database';
 
 const mockPrismaService = {
   llmModel: {

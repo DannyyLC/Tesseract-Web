@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { TriggerType, ExecutionStatus, ChatRole, MessageAttachmentType, SubscriptionStatus } from '@prisma/client';
+import { TriggerType, ExecutionStatus, ChatRole, MessageAttachmentType, SubscriptionStatus } from '@tesseract/database';
 import {
   getWorkflowCreditCost,
   PaginatedResponse,

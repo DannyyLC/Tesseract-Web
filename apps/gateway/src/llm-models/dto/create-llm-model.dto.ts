@@ -9,7 +9,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ModelTier } from '@prisma/client';
+import { ModelTier } from '@tesseract/database';
 
 export class CreateLlmModelDto {
   @ApiProperty({

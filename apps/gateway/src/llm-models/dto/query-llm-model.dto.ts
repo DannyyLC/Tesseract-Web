@@ -1,6 +1,6 @@
 import { IsOptional, IsString, IsEnum, IsBoolean } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { ModelTier } from '@prisma/client';
+import { ModelTier } from '@tesseract/database';
 import { Type } from 'class-transformer';
 
 export class QueryLlmModelsDto {

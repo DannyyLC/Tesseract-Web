@@ -1,11 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { StripeClient } from './stripe.client';
 import { CreditsService } from '../credits/credits.service';
 import { PrismaService } from '../database/prisma.service';
 import { ConfigService } from '@nestjs/config';
-import { TransactionType, SubscriptionPlan } from '@prisma/client';
 
 const mockStripeClient = {
   stripe: {

@@ -12,8 +12,7 @@ import {
   SubscriptionPlan as SharedSubscriptionPlan,
   NOTIFICATIONSENUM,
 } from '@tesseract/types';
-import { UserRole } from '@prisma/client';
-import { Organization, SubscriptionStatus } from '@tesseract/database';
+import { Organization, SubscriptionStatus, UserRole } from '@tesseract/database';
 import { randomBytes } from 'crypto';
 import * as speakeasy from 'speakeasy';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';

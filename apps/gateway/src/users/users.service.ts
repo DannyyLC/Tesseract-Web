@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ConversationStatus, Prisma, User, UserRole } from '@prisma/client';
+import { ConversationStatus, Prisma, User, UserRole } from '@tesseract/database';
 import { PaginatedResponse } from '@tesseract/types';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';

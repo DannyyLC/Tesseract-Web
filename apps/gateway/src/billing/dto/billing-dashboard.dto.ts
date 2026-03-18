@@ -1,4 +1,4 @@
-import { SubscriptionPlan } from '@prisma/client';
+import { SubscriptionPlan } from '@tesseract/database'
 
 export class BillingDashboardDto {
   plan: SubscriptionPlan;

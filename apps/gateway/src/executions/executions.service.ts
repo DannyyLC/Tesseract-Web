@@ -4,7 +4,7 @@ import { DashboardExecutionDto } from './dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { PaginatedResponse } from '@tesseract/types';
-import { ExecutionStatus, TriggerType } from '@prisma/client';
+import { ExecutionStatus, TriggerType } from '@tesseract/database';
 
 /**
  * Service que maneja el historial de ejecuciones

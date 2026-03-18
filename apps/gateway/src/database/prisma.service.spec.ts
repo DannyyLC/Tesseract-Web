@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from './prisma.service';
-import { PrismaClient } from '@prisma/client';
 
 // We just test the functionality we can easily mock
 describe('PrismaService', () => {

@@ -1,13 +1,12 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { PaginatedResponse } from '@tesseract/types';
+import { PaginatedResponse, DashboardTenantToolDto } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../../common/responses/cursor-paginated-response';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateTenantToolDto } from '../tenant/dto/create-tenant-tool.dto';
-import { DashboardTenantToolDto } from '@tesseract/types';
 import { UpdateTenantToolDto } from './dto/update-tenant-tool.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
-import { Prisma, ToolConnectionStatus } from '@prisma/client';
+import { Prisma, ToolConnectionStatus } from '@tesseract/database';
 
 @Injectable()
 export class TenantToolService {

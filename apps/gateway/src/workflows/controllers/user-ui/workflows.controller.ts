@@ -1,4 +1,4 @@
-import { TriggerType } from '@prisma/client';
+import { TriggerType } from '@tesseract/database';
 import {
   Controller,
   Get,

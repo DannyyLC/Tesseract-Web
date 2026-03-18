@@ -1,4 +1,4 @@
-import { TriggerType } from '@prisma/client';
+import { TriggerType } from '@tesseract/database';
 import { ApiKeyGuard } from '../../../auth/guards/api-key.guard';
 import {
   Controller,
