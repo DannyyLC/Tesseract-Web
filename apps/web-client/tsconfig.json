@@ -20,8 +20,7 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@tesseract/types": ["../../packages/types/src"],
-      "@tesseract/database": ["../../packages/database/src"]
+      "@tesseract/types": ["../../packages/types/src"]
     }
   },
   "include": [

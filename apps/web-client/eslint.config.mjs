@@ -22,6 +22,21 @@ const eslintConfig = [
   },
   {
     rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@prisma/client",
+              message: "Do not import Prisma in frontend code.",
+            },
+            {
+              name: "@tesseract/database",
+              message: "Do not import database runtime package in frontend code.",
+            },
+          ],
+        },
+      ],
       "@typescript-eslint/no-non-null-assertion": "warn",
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": [
