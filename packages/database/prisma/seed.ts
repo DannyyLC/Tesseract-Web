@@ -344,7 +344,7 @@ async function main() {
       password: await bcrypt.hash(user1Password, 10),
       name: 'Admin Acme',
       emailVerified: true,
-      role: 'admin',
+      role: 'ADMIN',
       isActive: true,
       organizationId: org1.id,
     },
@@ -359,7 +359,7 @@ async function main() {
       password: await bcrypt.hash(user2Password, 10),
       name: 'Admin TechStart',
       emailVerified: true,
-      role: 'admin',
+      role: 'ADMIN',
       isActive: true,
       organizationId: org2.id,
     },
@@ -374,7 +374,7 @@ async function main() {
       password: await bcrypt.hash(user3Password, 10),
       name: 'Admin Enterprise',
       emailVerified: true,
-      role: 'admin',
+      role: 'ADMIN',
       isActive: true,
       organizationId: org3.id,
     },
@@ -408,7 +408,7 @@ async function main() {
             category: 'calculation',
             isActive: true,
             isInBeta: false,
-            dangerLevel: 'safe',
+            dangerLevel: 'SAFE',
           },
           {
             functionName: 'percentage',
@@ -417,7 +417,7 @@ async function main() {
             category: 'calculation',
             isActive: true,
             isInBeta: false,
-            dangerLevel: 'safe',
+            dangerLevel: 'SAFE',
           },
           {
             functionName: 'currency_convert',
@@ -426,7 +426,7 @@ async function main() {
             category: 'conversion',
             isActive: true,
             isInBeta: false,
-            dangerLevel: 'safe',
+            dangerLevel: 'SAFE',
           },
         ],
       },
@@ -516,7 +516,7 @@ async function main() {
       version: 1,
       isActive: true,
       isPaused: false,
-      triggerType: ['api', 'manual'],
+      triggerType: ['API', 'MANUAL'],
       timeout: 60,
       maxRetries: 2,
       organizationId: org1.id,
@@ -561,7 +561,7 @@ async function main() {
       version: 1,
       isActive: true,
       isPaused: false,
-      triggerType: ['api', 'manual'],
+      triggerType: ['API', 'MANUAL'],
       timeout: 180,
       maxRetries: 3,
       organizationId: org1.id,
@@ -612,7 +612,7 @@ async function main() {
       version: 1,
       isActive: true,
       isPaused: false,
-      triggerType: ['api', 'manual'],
+      triggerType: ['API', 'MANUAL'],
       timeout: 600,
       maxRetries: 3,
       organizationId: org2.id,
@@ -655,7 +655,7 @@ async function main() {
       version: 1,
       isActive: true,
       isPaused: false,
-      triggerType: ['api'],
+      triggerType: ['API'],
       timeout: 60,
       maxRetries: 1,
       organizationId: org2.id,
@@ -725,8 +725,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -738,8 +738,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -751,8 +751,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -764,8 +764,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -777,8 +777,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -790,8 +790,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -803,8 +803,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -816,8 +816,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -829,8 +829,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -842,8 +842,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -855,8 +855,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -868,8 +868,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -881,8 +881,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -894,8 +894,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -907,8 +907,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -920,8 +920,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -933,8 +933,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -946,8 +946,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -959,8 +959,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -972,8 +972,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -985,8 +985,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -998,8 +998,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -1011,8 +1011,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -1024,8 +1024,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -1037,8 +1037,8 @@ async function main() {
       organizationId: org1.id, // Acme Corp
       userId: user1.id, // Admin Acme
       title: 'Consulta compleja sobre inversión',
-      channel: 'dashboard',
-      status: 'active',
+      channel: 'DASHBOARD',
+      status: 'ACTIVE',
       isHumanInTheLoop: true, // <--- Probando el nuevo flag
       messageCount: 5,
       totalTokens: 2500,
@@ -1056,8 +1056,8 @@ async function main() {
       organizationId: org2.id, // TechStart
       userId: user2.id, // Admin TechStart
       title: 'Análisis de mercado Q3',
-      channel: 'api',
-      status: 'closed',
+      channel: 'API',
+      status: 'CLOSED',
       isHumanInTheLoop: false,
       messageCount: 12,
       totalTokens: 15000,
@@ -1079,8 +1079,8 @@ async function main() {
       workflowId: workflow1.id,
       organizationId: org1.id,
       userId: user1.id,
-      status: 'completed',
-      trigger: 'manual',
+      status: 'COMPLETED',
+      trigger: 'MANUAL',
       startedAt: new Date(Date.now() - 3600000), // Hace 1 hora
       finishedAt: new Date(Date.now() - 3500000),
       duration: 60,
@@ -1136,8 +1136,8 @@ async function main() {
       workflowId: workflow2.id,
       organizationId: org1.id,
       userId: user1.id,
-      status: 'completed',
-      trigger: 'api',
+      status: 'COMPLETED',
+      trigger: 'API',
       startedAt: new Date(Date.now() - 1800000), // Hace 30 min
       finishedAt: new Date(Date.now() - 1680000),
       duration: 120,
@@ -1191,8 +1191,8 @@ async function main() {
       workflowId: workflow3.id,
       organizationId: org2.id,
       userId: user2.id,
-      status: 'completed',
-      trigger: 'manual',
+      status: 'COMPLETED',
+      trigger: 'MANUAL',
       startedAt: new Date(Date.now() - 7200000), // Hace 2 horas
       finishedAt: new Date(Date.now() - 6600000),
       duration: 600,
