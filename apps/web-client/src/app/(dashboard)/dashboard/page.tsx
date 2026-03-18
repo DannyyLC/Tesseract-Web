@@ -160,9 +160,12 @@ export default function DashboardPage() {
   const executions = recentExecs?.items ?? [];
 
   function statusLabel(s: string) {
-    if (s === 'completed' || s === 'success') return 'Completada';
-    if (s === 'failed' || s === 'error') return 'Fallida';
-    if (s === 'running') return 'En proceso';
+    if (s === 'COMPLETED') return 'Completada';
+    if (s === 'FAILED') return 'Fallida';
+    if (s === 'RUNNING') return 'En proceso';
+    if (s === 'PENDING') return 'Pendiente';
+    if (s === 'CANCELLED') return 'Cancelada';
+    if (s === 'TIMEOUT') return 'Timeout';
     return s;
   }
 
@@ -545,9 +548,9 @@ export default function DashboardPage() {
                       <td className="px-5 py-3.5">
                         <span
                           className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
-                            exec.status === 'completed' || exec.status === 'success'
+                            exec.status === 'COMPLETED'
                               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                              : exec.status === 'failed' || exec.status === 'error'
+                              : exec.status === 'FAILED'
                                 ? 'bg-red-500/10 text-red-600 dark:text-red-400'
                                 : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                           }`}

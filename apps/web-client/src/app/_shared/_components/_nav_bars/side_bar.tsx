@@ -59,7 +59,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
 
   const { data: user } = useAuth();
-  const role = user?.role || 'viewer';
+  const role = user?.role || 'VIEWER';
   const userPermissions = ROLE_PERMISSIONS[role] || [];
 
   const isActiveRoute = (href: string) => {

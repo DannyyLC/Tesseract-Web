@@ -66,16 +66,16 @@ const getStatusConfig = (status: string, isHITL: boolean) => {
       bg: 'bg-orange-500/10',
     };
 
-  switch (status.toLowerCase()) {
-    case 'closed':
+  switch (status.toUpperCase()) {
+    case 'CLOSED':
       return {
         label: 'Cerrado',
         color: 'bg-zinc-400',
         textColor: 'text-zinc-400',
         bg: 'bg-zinc-400/10',
       };
-    case 'active':
-    case 'open':
+    case 'ACTIVE':
+    case 'OPEN':
       return {
         label: 'Activo',
         color: 'bg-emerald-500',
@@ -195,11 +195,11 @@ export default function DashboardConversationItem({
                 <div className="mb-3 flex items-center gap-3 pl-8 text-sm text-black/50 dark:text-white/50">
                   <div className="flex items-center gap-1.5">
                     <div
-                      className={`rounded-full p-1 ${conversation.channel === 'whatsapp' ? 'bg-green-500/10 text-green-600' : 'bg-blue-500/10 text-blue-600'}`}
+                      className={`rounded-full p-1 ${conversation.channel === 'WHATSAPP' ? 'bg-green-500/10 text-green-600' : 'bg-blue-500/10 text-blue-600'}`}
                     >
                       {getChannelIcon(conversation.channel)}
                     </div>
-                    <span className="text-xs font-medium capitalize">{conversation.channel}</span>
+                    <span className="text-xs font-medium capitalize">{conversation.channel?.toLowerCase()}</span>
                   </div>
                   <span className="text-black/20 dark:text-white/20">•</span>
                   <div className="flex items-center gap-1.5">

@@ -96,20 +96,20 @@ export default function ExecutionsPage() {
 
   // Static Filters
   const statusOptions = [
-    { label: 'Pendiente', value: 'pending' },
-    { label: 'Ejecutando', value: 'running' },
-    { label: 'Completada', value: 'completed' },
-    { label: 'Fallida', value: 'failed' },
-    { label: 'Cancelada', value: 'cancelled' },
-    { label: 'Timeout', value: 'timeout' },
+    { label: 'Pendiente', value: 'PENDING' },
+    { label: 'Ejecutando', value: 'RUNNING' },
+    { label: 'Completada', value: 'COMPLETED' },
+    { label: 'Fallida', value: 'FAILED' },
+    { label: 'Cancelada', value: 'CANCELLED' },
+    { label: 'Timeout', value: 'TIMEOUT' },
   ];
 
   const triggerOptions = [
-    { label: 'Panel Web', value: 'manual' },
-    { label: 'API', value: 'api' },
-    // { label: 'Programado', value: 'schedule' },
-    // { label: 'Webhook', value: 'webhook' },
-    // { label: 'WhatsApp', value: 'whatsapp' },
+    { label: 'Panel Web', value: 'MANUAL' },
+    { label: 'API', value: 'API' },
+    // { label: 'Programado', value: 'SCHEDULE' },
+    // { label: 'Webhook', value: 'WEBHOOK' },
+    // { label: 'WhatsApp', value: 'WHATSAPP' },
   ];
 
   const executions = executionsData?.items ?? [];

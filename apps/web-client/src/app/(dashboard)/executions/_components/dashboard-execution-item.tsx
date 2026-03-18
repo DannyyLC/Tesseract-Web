@@ -40,43 +40,42 @@ const formatTimeAgo = (dateString: string | Date | undefined): string => {
 
 const getStatusConfig = (status: string) => {
   switch (status) {
-    case 'completed':
-    case 'success':
+    case 'COMPLETED':
       return {
         label: 'Completada',
         color: 'text-emerald-500',
         statusColor: 'bg-emerald-500',
         bgColor: 'bg-emerald-500/10',
       };
-    case 'failed':
+    case 'FAILED':
       return {
         label: 'Fallida',
         color: 'text-red-500',
         statusColor: 'bg-red-500',
         bgColor: 'bg-red-500/10',
       };
-    case 'running':
+    case 'RUNNING':
       return {
         label: 'Ejecutando',
         color: 'text-blue-500',
         statusColor: 'bg-blue-500',
         bgColor: 'bg-blue-500/10',
       };
-    case 'cancelled':
+    case 'CANCELLED':
       return {
         label: 'Cancelada',
         color: 'text-gray-500',
         statusColor: 'bg-gray-500',
         bgColor: 'bg-gray-500/10',
       };
-    case 'pending':
+    case 'PENDING':
       return {
         label: 'Pendiente',
         color: 'text-slate-500',
         statusColor: 'bg-slate-500',
         bgColor: 'bg-slate-500/10',
       };
-    case 'timeout':
+    case 'TIMEOUT':
       return {
         label: 'Timeout',
         color: 'text-orange-500',
@@ -95,12 +94,12 @@ const getStatusConfig = (status: string) => {
 
 const getTriggerLabel = (trigger: string): string => {
   const labels: Record<string, string> = {
-    whatsapp: 'WhatsApp',
-    webhook: 'Webhook',
-    schedule: 'Programado',
-    email: 'Email',
-    api: 'API',
-    manual: 'Panel Web',
+    WHATSAPP: 'WhatsApp',
+    WEBHOOK: 'Webhook',
+    SCHEDULE: 'Programado',
+    EMAIL: 'Email',
+    API: 'API',
+    MANUAL: 'Panel Web',
   };
   return labels[trigger] || trigger;
 };
@@ -150,7 +149,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
           {/* Status Indicator - Minimalist Dot */}
           <div className="flex w-8 items-center justify-center">
             <div
-              className={`h-2.5 w-2.5 rounded-full ${statusConfig.statusColor || statusConfig.color.replace('text-', 'bg-')} ${execution.status === 'running' ? 'animate-pulse' : ''}`}
+              className={`h-2.5 w-2.5 rounded-full ${statusConfig.statusColor || statusConfig.color.replace('text-', 'bg-')} ${execution.status === 'RUNNING' ? 'animate-pulse' : ''}`}
             />
           </div>
 
@@ -220,7 +219,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
           </div>
         </div>
         {/* Error Preview inline */}
-        {execution.status === 'failed' && !isExpanded && (
+        {execution.status === 'FAILED' && !isExpanded && (
           <div className="ml-12 mt-2 pl-1">
             <p className="w-fit max-w-full truncate rounded bg-red-500/5 px-2 py-1 font-mono text-xs text-red-500/80">
               Error en la ejecución.

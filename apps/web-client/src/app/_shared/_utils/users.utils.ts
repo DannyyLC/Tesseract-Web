@@ -2,19 +2,19 @@ import { ShieldAlert, Eye, Crown } from 'lucide-react';
 
 export const getRoleConfig = (role: string) => {
   switch (role) {
-    case 'owner':
+    case 'OWNER':
       return {
         label: 'Owner',
         color: 'text-amber-600 dark:text-amber-400',
         icon: Crown,
       };
-    case 'admin':
+    case 'ADMIN':
       return {
         label: 'Admin',
         color: 'text-rose-600 dark:text-rose-400',
         icon: ShieldAlert,
       };
-    case 'viewer':
+    case 'VIEWER':
       return {
         label: 'Viewer',
         color: 'text-blue-600 dark:text-blue-400',

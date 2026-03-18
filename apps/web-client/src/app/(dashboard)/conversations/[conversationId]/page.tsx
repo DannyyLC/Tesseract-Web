@@ -464,17 +464,17 @@ export default function WorkflowChatPage() {
                   onClick={() =>
                     updateConversation.mutate({
                       id: conversationId,
-                      data: { status: conversationData.status === 'closed' ? 'active' : 'closed' },
+                      data: { status: conversationData.status === 'CLOSED' ? 'ACTIVE' : 'CLOSED' },
                     })
                   }
                   disabled={updateConversation.isPending}
                   className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm transition-all ${
-                    conversationData.status === 'closed'
+                    conversationData.status === 'CLOSED'
                       ? 'border-zinc-200 bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800'
                       : 'border-emerald-100 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/10 dark:text-emerald-400 dark:hover:bg-emerald-900/20'
                   }`}
                 >
-                  {conversationData.status === 'closed' ? (
+                  {conversationData.status === 'CLOSED' ? (
                     <>
                       <RefreshCw size={14} />
                       <span>Reabrir</span>

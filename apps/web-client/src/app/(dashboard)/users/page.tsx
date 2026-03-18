@@ -29,7 +29,7 @@ import { UserDetails } from './_components/user-details';
 import { InviteUserModal } from './_components/InviteUserModal';
 import PermissionGuard from '@/components/auth/PermissionGuard';
 
-type FilterRole = 'all' | 'owner' | 'admin' | 'viewer';
+type FilterRole = 'all' | 'OWNER' | 'ADMIN' | 'VIEWER';
 
 export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,9 +70,9 @@ export default function UsersPage() {
 
   const roleFilters: { value: FilterRole; label: string }[] = [
     { value: 'all', label: 'Todos' },
-    { value: 'owner', label: 'Owner' },
-    { value: 'admin', label: 'Admin' },
-    { value: 'viewer', label: 'Viewer' },
+    { value: 'OWNER', label: 'Owner' },
+    { value: 'ADMIN', label: 'Admin' },
+    { value: 'VIEWER', label: 'Viewer' },
   ];
 
   // Actions
@@ -376,7 +376,7 @@ export default function UsersPage() {
 
                           <div className="flex flex-wrap gap-2">
                             {/* Transfer Ownership - Only for Owner */}
-                            {user.role !== 'owner' && (
+                            {user.role !== 'OWNER' && (
                               <PermissionGuard permissions="users:transfer_ownership">
                                 <button
                                   onClick={(e) => {
@@ -392,7 +392,7 @@ export default function UsersPage() {
                             )}
 
                             {/* Edit/Delete - Admins cannot edit Owners */}
-                            {!(currentUser?.role === 'admin' && user.role === 'owner') && (
+                            {!(currentUser?.role === 'ADMIN' && user.role === 'OWNER') && (
                                 <>
                                   <PermissionGuard permissions="users:update">
                                     <button
@@ -475,10 +475,10 @@ export default function UsersPage() {
                   Rol
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {['owner', 'admin', 'viewer']
+                  {['OWNER', 'ADMIN', 'VIEWER']
                     .filter((role) => {
-                      // Filter logic: Admins cannot select 'owner'
-                      if (currentUser?.role === 'admin' && role === 'owner') return false;
+                      // Filter logic: Admins cannot select 'OWNER'
+                      if (currentUser?.role === 'ADMIN' && role === 'OWNER') return false;
                       return true;
                     })
                     .map((role) => {

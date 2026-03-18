@@ -17,25 +17,25 @@ interface ConnectedToolCardProps {
 }
 
 const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }> = {
-  active: {
+  CONNECTED: {
     dot: 'bg-emerald-500',
     label: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
     text: 'Conectado',
   },
-  connected: {
-    dot: 'bg-emerald-500',
-    label: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
-    text: 'Conectado',
-  },
-  error: {
+  ERROR: {
     dot: 'bg-red-500',
     label: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400',
     text: 'Error',
   },
-  pending: {
+  DISCONNECTED: {
     dot: 'bg-amber-500',
     label: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
-    text: 'Pendiente',
+    text: 'Desconectado',
+  },
+  EXPIRED_AUTH: {
+    dot: 'bg-orange-500',
+    label: 'bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-400',
+    text: 'Auth expirado',
   },
 };
 
@@ -48,7 +48,7 @@ export function ConnectedToolCard({
   onDelete,
 }: ConnectedToolCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const status = STATUS_STYLES[tool.status] ?? STATUS_STYLES.pending;
+  const status = STATUS_STYLES[tool.status] ?? STATUS_STYLES.DISCONNECTED;
   const connectedDate = new Date(tool.createdAt).toLocaleDateString('es-MX', {
     month: 'short',
     day: 'numeric',
@@ -102,7 +102,7 @@ export function ConnectedToolCard({
           <>
             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
             <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-black/5 bg-white shadow-xl dark:border-white/5 dark:bg-[#111]">
-              {(tool.status === 'pending' || tool.status === 'error') && hasCredentials && (
+              {(tool.status === 'DISCONNECTED' || tool.status === 'ERROR' || tool.status === 'EXPIRED_AUTH') && hasCredentials && (
                 <PermissionGuard permissions="tenant_tools:update">
                   <button
                     onClick={() => {
