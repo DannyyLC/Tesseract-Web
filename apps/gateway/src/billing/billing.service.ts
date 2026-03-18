@@ -3,7 +3,7 @@ import { StripeClient } from './stripe.client';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { CreditsService } from '../credits/credits.service';
-import { TransactionType, SubscriptionPlan } from '@prisma/client';
+import { TransactionType, SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
 import { PLANS, getPlanLimits, SubscriptionPlan as SharedSubscriptionPlan, UserRole, NOTIFICATIONSENUM } from '@tesseract/types';
 import { ConfigService } from '@nestjs/config';
 import { SUBSCRIPTION_PLANS } from './billing.constants';
@@ -253,7 +253,7 @@ export class BillingService {
         await this.prisma.subscription.update({
           where: { id: sub.id },
           data: {
-            status: 'PAST_DUE', // Internal status to show in UI
+            status: SubscriptionStatus.PAST_DUE, // Internal status to show in UI
             // We don't necessarily set cancelAtPeriodEnd=true here because we want them to PAY.
             // But we blocked overages.
           },
@@ -439,7 +439,7 @@ export class BillingService {
         create: {
           organizationId,
           plan: planName as SubscriptionPlan,
-          status: 'ACTIVE',
+          status: SubscriptionStatus.ACTIVE,
           currentPeriodStart: periodStart,
           currentPeriodEnd: periodEnd,
           stripeSubscriptionId: subscriptionId,
@@ -447,7 +447,7 @@ export class BillingService {
         },
         update: {
           plan: planName as SubscriptionPlan,
-          status: 'ACTIVE',
+          status: SubscriptionStatus.ACTIVE,
           currentPeriodStart: periodStart,
           currentPeriodEnd: periodEnd,
           stripeSubscriptionId: subscriptionId,
@@ -585,7 +585,7 @@ export class BillingService {
       throw new BadRequestException('No active subscription found to change');
     }
 
-    if (sub.status === 'CANCELED') {
+    if (sub.status === SubscriptionStatus.CANCELED) {
       throw new BadRequestException('Cannot change a canceled subscription. Please create a new subscription instead.');
     }
 
@@ -615,7 +615,7 @@ export class BillingService {
       );
       await this.prisma.subscription.update({
         where: { id: sub.id },
-        data: { status: 'CANCELED' },
+        data: { status: SubscriptionStatus.CANCELED },
       });
       throw new ConflictException(
         'SUBSCRIPTION_CANCELED_IN_STRIPE',
@@ -818,7 +818,7 @@ export class BillingService {
         create: {
           organizationId,
           plan: planName,
-          status: 'ACTIVE',
+          status: SubscriptionStatus.ACTIVE,
           currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : new Date(),
           currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : new Date(),
           stripeSubscriptionId: sub.id,
@@ -826,7 +826,7 @@ export class BillingService {
         },
         update: {
           plan: planName,
-          status: 'ACTIVE',
+          status: SubscriptionStatus.ACTIVE,
           currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : new Date(),
           currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : new Date(),
           stripeSubscriptionId: sub.id,
@@ -896,7 +896,7 @@ export class BillingService {
       this.prisma.subscription.update({
         where: { organizationId },
         data: {
-          status: 'CANCELED',
+          status: SubscriptionStatus.CANCELED,
           cancelAtPeriodEnd: false,
         },
       }),

@@ -11,9 +11,9 @@ import {
   getPlanLimits,
   SubscriptionPlan as SharedSubscriptionPlan,
   NOTIFICATIONSENUM,
-  UserRole,
 } from '@tesseract/types';
-import { Organization } from '@tesseract/database';
+import { UserRole } from '@prisma/client';
+import { Organization, SubscriptionStatus } from '@tesseract/database';
 import { randomBytes } from 'crypto';
 import * as speakeasy from 'speakeasy';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
@@ -475,8 +475,8 @@ export class OrganizationsService {
       }
 
       if (
-        organization.subscription.status === 'CANCELED' ||
-        organization.subscription.status === 'PAST_DUE'
+        organization.subscription.status === SubscriptionStatus.CANCELED ||
+        organization.subscription.status === SubscriptionStatus.PAST_DUE
       ) {
         throw new BadRequestException(
           'No se pueden habilitar overages con una suscripción CANCELADA o VENCIDA',
@@ -665,7 +665,7 @@ export class OrganizationsService {
     // Safety check: Don't double delete
     if (organization.deletedAt) return organization;
 
-    if (user.role !== 'OWNER') {
+    if (user.role !== UserRole.OWNER) {
       throw new ForbiddenException('No tienes los permisos requeridos');
     }
 

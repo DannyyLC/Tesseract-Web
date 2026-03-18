@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { TriggerType, ExecutionStatus, ChatRole } from '@prisma/client';
+import { TriggerType, ExecutionStatus, ChatRole, MessageAttachmentType, SubscriptionStatus } from '@prisma/client';
 import {
   getWorkflowCreditCost,
   PaginatedResponse,
@@ -183,7 +183,7 @@ export class WorkflowsService {
     const subscription = await this.prisma.subscription.findFirst({
       where: {
         organizationId,
-        status: 'ACTIVE', // Only use active subscriptions
+        status: SubscriptionStatus.ACTIVE, // Only use active subscriptions
       },
       select: { currentPeriodStart: true },
     });
@@ -702,7 +702,7 @@ export class WorkflowsService {
     const endUserId = metadata?.endUserId;
     let attachments:
       | {
-          type: 'IMAGE' | 'AUDIO';
+          type: MessageAttachmentType;
           mimeType: string;
           sourceUrl: string;
           sha256?: string;
@@ -737,7 +737,7 @@ export class WorkflowsService {
         if (imageLink) {
           attachments = [
             {
-              type: 'IMAGE',
+              type: MessageAttachmentType.IMAGE,
               mimeType: whatsappData.whatsappInboundMessage.image?.mime_type || 'image/jpeg',
               sourceUrl: imageLink,
               sha256: whatsappData.whatsappInboundMessage.image?.sha256,
@@ -750,7 +750,7 @@ export class WorkflowsService {
         if (audioLink) {
           attachments = [
             {
-              type: 'AUDIO',
+              type: MessageAttachmentType.AUDIO,
               mimeType: whatsappData.whatsappInboundMessage.audio?.mime_type || 'audio/ogg',
               sourceUrl: audioLink,
               sha256: whatsappData.whatsappInboundMessage.audio?.sha256,
@@ -1020,7 +1020,7 @@ export class WorkflowsService {
     metadata?: Record<string, any>,
     userId?: string, // Opcional: quién ejecuta desde UI
     apiKeyId?: string, // Opcional: qué API key ejecuta
-    trigger: 'API' | 'MANUAL' | 'WEBHOOK' | 'SCHEDULE' | 'WHATSAPP' = 'API',
+    trigger: TriggerType = TriggerType.API,
   ): Promise<NodeJS.ReadableStream> {
     // 1. VALIDACIONES PREVIAS (Misma lógica que execute)
     const workflow = await this.prisma.workflow.findFirst({
@@ -1121,15 +1121,15 @@ export class WorkflowsService {
       this.logger.log(`HITL Stream Execution: User ${userId} acting as assistant.`);
 
       // 1. Guardar el mensaje del usuario como 'assistant'
-      await this.conversationsService.addMessage(conversation.id, 'ASSISTANT', userMessage, {
+      await this.conversationsService.addMessage(conversation.id, ChatRole.ASSISTANT, userMessage, {
         is_hitl_bypass: true,
         original_user_id: userId,
       });
 
       // 2. Actualizar ejecución
-      await this.executionsService.updateStatus(execution.id, 'COMPLETED', {
+      await this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
         result: {
-          messages: [{ role: 'ASSISTANT', content: userMessage }],
+          messages: [{ role: ChatRole.ASSISTANT, content: userMessage }],
           conversationId: conversation.id,
         },
         cost: 0,
@@ -1363,9 +1363,9 @@ export class WorkflowsService {
           }
 
           // 5. Actualizar Ejecución
-          await this.executionsService.updateStatus(execution.id, 'COMPLETED', {
+          await this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
             result: {
-              messages: [{ role: 'ASSISTANT', content: assistantMessageBuilder }],
+              messages: [{ role: ChatRole.ASSISTANT, content: assistantMessageBuilder }],
               conversationId: conversation.id,
             },
             cost: costUSD,
@@ -1409,7 +1409,7 @@ export class WorkflowsService {
             (error as Error).stack,
           );
           // Intentar marcar como fallido si algo crítico falló después del stream
-          await this.executionsService.updateStatus(execution.id, 'FAILED', {
+          await this.executionsService.updateStatus(execution.id, ExecutionStatus.FAILED, {
             error: `Post-stream processing error: ${(error as Error).message}`,
           });
         }

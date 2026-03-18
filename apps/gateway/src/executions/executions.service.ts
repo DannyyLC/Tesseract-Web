@@ -41,7 +41,7 @@ export class ExecutionsService {
     const execution = await this.prisma.execution.create({
       data: {
         workflowId,
-        status: 'PENDING',
+        status: ExecutionStatus.PENDING,
         trigger,
         triggerData: triggerData ?? {},
         startedAt: new Date(),
@@ -827,10 +827,10 @@ export class ExecutionsService {
 
     // Calcular estadísticas
     const total = executions.length;
-    const successful = executions.filter((e: any) => e.status === 'completed').length;
-    const failed = executions.filter((e: any) => e.status === 'failed').length;
-    const cancelled = executions.filter((e: any) => e.status === 'CANCELLED').length;
-    const timeout = executions.filter((e: any) => e.status === 'timeout').length;
+    const successful = executions.filter((e: any) => e.status === ExecutionStatus.COMPLETED).length;
+    const failed = executions.filter((e: any) => e.status === ExecutionStatus.FAILED).length;
+    const cancelled = executions.filter((e: any) => e.status === ExecutionStatus.CANCELLED).length;
+    const timeout = executions.filter((e: any) => e.status === ExecutionStatus.TIMEOUT).length;
 
     const successRate = total > 0 ? (successful / total) * 100 : 0;
 
@@ -849,8 +849,8 @@ export class ExecutionsService {
       failed,
       cancelled,
       timeout,
-      pending: executions.filter((e: any) => e.status === 'pending').length,
-      running: executions.filter((e: any) => e.status === 'running').length,
+      pending: executions.filter((e: any) => e.status === ExecutionStatus.PENDING).length,
+      running: executions.filter((e: any) => e.status === ExecutionStatus.RUNNING).length,
     };
 
     // Agrupar por trigger
@@ -897,7 +897,7 @@ export class ExecutionsService {
         successful: 0,
       };
       existing.total += 1;
-      if (e.status === 'completed') {
+      if (e.status === ExecutionStatus.COMPLETED) {
         existing.successful += 1;
       }
       workflowStats.set(e.workflowId, existing);
@@ -1144,8 +1144,8 @@ export class ExecutionsService {
           avgDuration: 0,
         };
         existing.total += 1;
-        if (e.status === 'completed') existing.successful += 1;
-        if (e.status === 'failed') existing.failed += 1;
+        if (e.status === ExecutionStatus.COMPLETED) existing.successful += 1;
+        if (e.status === ExecutionStatus.FAILED) existing.failed += 1;
         if (e.duration) {
           existing.avgDuration =
             (existing.avgDuration * (existing.total - 1) + e.duration) / existing.total;
@@ -1163,8 +1163,8 @@ export class ExecutionsService {
           avgDuration: 0,
         };
         existing.total += 1;
-        if (e.status === 'completed') existing.successful += 1;
-        if (e.status === 'failed') existing.failed += 1;
+        if (e.status === ExecutionStatus.COMPLETED) existing.successful += 1;
+        if (e.status === ExecutionStatus.FAILED) existing.failed += 1;
         if (e.duration) {
           existing.avgDuration =
             (existing.avgDuration * (existing.total - 1) + e.duration) / existing.total;

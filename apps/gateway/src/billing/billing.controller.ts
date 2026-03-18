@@ -20,7 +20,7 @@ import { Stripe } from 'stripe';
 import { PrismaService } from '../database/prisma.service';
 import { Logger } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { SubscriptionPlan } from '@prisma/client';
+import { SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
 import { SUBSCRIPTION_PLANS } from './billing.constants';
 import { StripeClient } from './stripe.client';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
@@ -70,7 +70,7 @@ export class BillingController {
       where: { organizationId },
     });
 
-    if (existingSub?.stripeSubscriptionId && existingSub.status !== 'CANCELED') {
+    if (existingSub?.stripeSubscriptionId && existingSub.status !== SubscriptionStatus.CANCELED) {
       throw new BadRequestException(
         'You already have an active subscription. Use the plan change endpoint to switch plans.',
       );
@@ -210,7 +210,7 @@ export class BillingController {
 
     return (
       subscription ?? {
-        status: 'ACTIVE',
+        status: SubscriptionStatus.ACTIVE,
         plan: 'FREE',
         currentPeriodStart: null,
         currentPeriodEnd: null,
