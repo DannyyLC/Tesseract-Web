@@ -1,4 +1,3 @@
-import { notificationsEnum } from '../events/app-notifications/notifications.enum';
 import { PrismaService } from '../database/prisma.service';
 import { Inject, Injectable, MessageEvent } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
@@ -36,51 +35,63 @@ export class UtilityService {
     customDescArguments?: string[],
   ): Promise<void> {
     try {
-      const notificationDetails =
-        notificationsEnum[notificationCode as keyof typeof notificationsEnum];
-      if (!notificationDetails) {
+      const notification = await this.prismaService.notification.findFirst({
+        where: {
+          code: notificationCode,
+          isActive: true,
+        },
+        orderBy: {
+          version: 'desc',
+        },
+        select: {
+          id: true,
+          titleTemplate: true,
+          messageTemplate: true,
+          targetRoles: true,
+        },
+      });
+
+      if (!notification) {
         throw new Error(
-          `Notification code ${notificationCode} is not defined in notificationsEnum`,
+          `Notification code ${notificationCode} does not exist as an active template in notifications table`,
         );
       }
 
       const args = customDescArguments ?? [];
-      const placeholdersCount = this.countTemplatePlaceholders(notificationDetails.desc);
+      const placeholdersCount = this.countTemplatePlaceholders(notification.messageTemplate);
       if (args.length !== placeholdersCount) {
         throw new Error(
           `Notification code ${notificationCode} expects ${placeholdersCount} arguments, but received ${args.length}`,
         );
       }
 
-      const messageSnapshot = this.applyTemplateArguments(notificationDetails.desc, args);
-      const titleSnapshot = notificationDetails.title;
+      const messageSnapshot = this.applyTemplateArguments(notification.messageTemplate, args);
+      const titleSnapshot = notification.titleTemplate;
+      const templateRoles = this.normalizeRoleList(notification.targetRoles);
+      const requestedRoles = this.normalizeRoleList(userRoles);
+      const rolesToNotify =
+        requestedRoles.length > 0
+          ? requestedRoles.filter((role) => templateRoles.includes(role))
+          : templateRoles;
+
+      if (rolesToNotify.length === 0) {
+        this.logger.warn(
+          `UtilityService - sendNotificationToAppClients >> Notification code ${notificationCode} has no matching roles to notify`,
+        );
+        return;
+      }
 
       const users = await this.prismaService.user.findMany({
         where: {
           organizationId,
           role: {
-            in: userRoles.map((r) => r.toUpperCase() as any),
+            in: rolesToNotify as any,
           },
         },
         select: {
           id: true,
         },
       });
-
-      const notification = await this.prismaService.notification.findUnique({
-        where: {
-          code: notificationCode,
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (!notification) {
-        throw new Error(
-          `Notification code ${notificationCode} does not exist in notifications table`,
-        );
-      }
 
       if (users.length === 0) {
         return;
@@ -116,6 +127,16 @@ export class UtilityService {
       renderedTemplate = renderedTemplate.replace('%s', arg);
     }
     return renderedTemplate;
+  }
+
+  private normalizeRoleList(roles: unknown): string[] {
+    if (!Array.isArray(roles)) {
+      return [];
+    }
+
+    return roles
+      .filter((role): role is string => typeof role === 'string')
+      .map((role) => role.toUpperCase());
   }
 
   getAppNotificationsSubject(): Subject<MessageEvent> {

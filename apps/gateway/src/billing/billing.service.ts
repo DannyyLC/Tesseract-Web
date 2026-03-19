@@ -503,9 +503,13 @@ export class BillingService {
       );
       this.utilityService.sendNotificationToAppClients(
         organizationId,
-        [UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER],
+        [UserRole.OWNER, UserRole.ADMIN],
         NOTIFICATIONSENUM.SUBSCRIPTION,
-        [planName.toUpperCase()],
+        [
+          planName.toUpperCase(),
+          periodStart.toLocaleDateString('es-ES'),
+          periodEnd.toLocaleDateString('es-ES'),
+        ],
       );
     } else {
       this.logger.warn(`No credits added for invoice ${invoice.id} (Amount: ${amountPaidCents})`);
@@ -535,7 +539,7 @@ export class BillingService {
 
     this.utilityService.sendNotificationToAppClients(
       organizationId,
-      [UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER],
+      [UserRole.OWNER, UserRole.ADMIN],
       NOTIFICATIONSENUM.CANCEL_SUBSCRIPTION,
       [sub.plan.toString()],
     );
@@ -718,9 +722,14 @@ export class BillingService {
 
       this.utilityService.sendNotificationToAppClients(
         organizationId,
-        [UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER],
+        [UserRole.OWNER, UserRole.ADMIN],
         NOTIFICATIONSENUM.CHANGE_SUBSCRIPTION,
-        [sub.plan.toString(), newPlan.toUpperCase(), (stripeSub as any).current_period_start.toString(), (stripeSub as any).current_period_end.toString()],
+        [
+          sub.plan.toString(),
+          newPlan.toUpperCase(),
+          new Date((stripeSub as any).current_period_start * 1000).toLocaleDateString('es-ES'),
+          new Date((stripeSub as any).current_period_end * 1000).toLocaleDateString('es-ES'),
+        ],
       );
 
       this.logger.log(`Scheduled downgrade to ${newPlan} for org ${organizationId}`);

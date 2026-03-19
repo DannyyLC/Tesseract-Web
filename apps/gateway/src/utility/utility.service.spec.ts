@@ -76,20 +76,29 @@ describe('UtilityService', () => {
   });
 
   describe('sendNotificationToAppClients', () => {
-    it('should create notifications for users and emit subject event', async () => {
+    it('should create notifications for users with rendered snapshots', async () => {
       mockPrismaService.user.findMany.mockResolvedValue([{ id: 'u-1' }]);
-      mockPrismaService.notification.findFirst.mockResolvedValue({ id: 'n-1' });
+      mockPrismaService.notification.findFirst.mockResolvedValue({
+        id: 'n-1',
+        titleTemplate: 'Subscripción',
+        messageTemplate: 'Plan %s activado',
+        targetRoles: ['OWNER', 'ADMIN'],
+      });
 
-      // Valid notification code from notificationsEnum, e.g., 'TEST_WARNING' 
-      // (assuming some generic property or catching mock behavior)
-      const mockNext = jest.spyOn(service.getAppNotificationsSubject(), 'next');
-
-      await service.sendNotificationToAppClients('org-1', ['admin'], '0000-0001');
+      await service.sendNotificationToAppClients('org-1', ['admin'], '0000-0001', ['PRO']);
 
       expect(mockPrismaService.userNotification.createMany).toHaveBeenCalledWith({
-        data: [{ userId: 'u-1', notificationId: 'n-1', organizationId: 'org-1', isRead: false }],
+        data: [
+          {
+            userId: 'u-1',
+            notificationId: 'n-1',
+            organizationId: 'org-1',
+            isRead: false,
+            titleSnapshot: 'Subscripción',
+            messageSnapshot: 'Plan PRO activado',
+          },
+        ],
       });
-      expect(mockNext).toHaveBeenCalled();
     });
 
     it('should handle errors gracefully and log them', async () => {
@@ -103,13 +112,35 @@ describe('UtilityService', () => {
       );
     });
 
-    it('should not create notification if no users or notification found', async () => {
+    it('should not create notification if no users are found', async () => {
       mockPrismaService.user.findMany.mockResolvedValue([]);
-      mockPrismaService.notification.findFirst.mockResolvedValue(null);
+      mockPrismaService.notification.findFirst.mockResolvedValue({
+        id: 'n-1',
+        titleTemplate: 'Subscripción',
+        messageTemplate: 'Plan %s activado',
+        targetRoles: ['OWNER', 'ADMIN'],
+      });
 
-      await service.sendNotificationToAppClients('org-1', ['admin'], 'none');
+      await service.sendNotificationToAppClients('org-1', ['admin'], '0000-0001', ['PRO']);
 
       expect(mockPrismaService.userNotification.createMany).not.toHaveBeenCalled();
+    });
+
+    it('should not create notification when template arguments are invalid', async () => {
+      mockPrismaService.notification.findFirst.mockResolvedValue({
+        id: 'n-1',
+        titleTemplate: 'Subscripción',
+        messageTemplate: 'Plan %s activado desde %s',
+        targetRoles: ['OWNER', 'ADMIN'],
+      });
+
+      await service.sendNotificationToAppClients('org-1', ['admin'], '0000-0001', ['PRO']);
+
+      expect(mockPrismaService.userNotification.createMany).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(
+        'UtilityService - sendNotificationToAppClients >> Error sending notification to app clients:',
+        expect.any(Error),
+      );
     });
   });
 

@@ -916,7 +916,7 @@ export class OrganizationsService {
       await this.utilityService.sendNotificationToAppClients(
         organizationId,
         [UserRole.OWNER, UserRole.ADMIN],
-        NOTIFICATIONSENUM.ACCEPTED_INVITATION,
+        NOTIFICATIONSENUM.EMAIL_INVITATION,
         [email],
       );
       return true;
