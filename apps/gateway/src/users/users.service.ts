@@ -12,7 +12,6 @@ import { Logger } from 'winston';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationEventDto } from '../events/app-notifications/notification.dto';
-import { notificationsEnum } from '../events/app-notifications/notifications.enum';
 import { EmailService } from '../notifications/email/email.service';
 import * as speakeasy from 'speakeasy';
 import { DashboardUserDataDto, UpdateProfileDto, UserFiltersDto } from './dto';
@@ -699,34 +698,13 @@ export class UsersService {
 
     const items = paginatedResponse.items.map((userNotification) => {
       const code = userNotification.notification.code;
-      const params = (userNotification.parameters as string[]) || [];
-
-      let title = '';
-      let desc = '';
-
-      if (notificationsEnum[code as keyof typeof notificationsEnum]) {
-        title = notificationsEnum[code as keyof typeof notificationsEnum].title;
-        let baseDesc = notificationsEnum[code as keyof typeof notificationsEnum].desc;
-
-        // Replace %s with parameters
-        if (params.length > 0) {
-          params.forEach((param) => {
-            baseDesc = baseDesc.replace('%s', param);
-          });
-        }
-        desc = baseDesc;
-      } else {
-        // Fallback if code not found in enum
-        title = 'Notificación';
-        desc = 'Tienes una nueva notificación.';
-      }
 
       return {
         id: userNotification.id, // Now using the unique UUID of the UserNotification
         notificationCode: code,
         isRead: userNotification.isRead,
-        title,
-        desc,
+        title: userNotification.titleSnapshot,
+        desc: userNotification.messageSnapshot,
         createdAt: userNotification.createdAt,
       };
     });

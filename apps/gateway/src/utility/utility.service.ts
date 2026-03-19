@@ -36,6 +36,25 @@ export class UtilityService {
     customDescArguments?: string[],
   ): Promise<void> {
     try {
+      const notificationDetails =
+        notificationsEnum[notificationCode as keyof typeof notificationsEnum];
+      if (!notificationDetails) {
+        throw new Error(
+          `Notification code ${notificationCode} is not defined in notificationsEnum`,
+        );
+      }
+
+      const args = customDescArguments ?? [];
+      const placeholdersCount = this.countTemplatePlaceholders(notificationDetails.desc);
+      if (args.length !== placeholdersCount) {
+        throw new Error(
+          `Notification code ${notificationCode} expects ${placeholdersCount} arguments, but received ${args.length}`,
+        );
+      }
+
+      const messageSnapshot = this.applyTemplateArguments(notificationDetails.desc, args);
+      const titleSnapshot = notificationDetails.title;
+
       const users = await this.prismaService.user.findMany({
         where: {
           organizationId,
@@ -48,7 +67,7 @@ export class UtilityService {
         },
       });
 
-      const notification = await this.prismaService.notification.findFirst({
+      const notification = await this.prismaService.notification.findUnique({
         where: {
           code: notificationCode,
         },
@@ -57,45 +76,46 @@ export class UtilityService {
         },
       });
 
-      if (notification && users.length > 0) {
-        const notificationEntries = users.map((user) => ({
-          userId: user.id,
-          notificationId: notification.id,
-          organizationId: organizationId,
-          isRead: false,
-        }));
-        await this.prismaService.userNotification.createMany({
-          data: notificationEntries,
-        });
-        const notificationDetails =
-          notificationsEnum[notificationCode as keyof typeof notificationsEnum];
-        
-        for (const arg of customDescArguments || []) {
-          notificationDetails.desc = notificationDetails.desc.replace('%s', arg);
-        }
-        
-        this.appNotificationsSubject.next({
-          id: Date.now().toString(),
-          data: {
-            organizationId,
-            roles: userRoles,
-            notification: {
-              id: notification.id,
-              notificationCode,
-              title: notificationDetails.title,
-              desc: notificationDetails.desc,
-            },
-          },
-          type: 'UserNotification.created',
-          retry: 3000,
-        });
+      if (!notification) {
+        throw new Error(
+          `Notification code ${notificationCode} does not exist in notifications table`,
+        );
       }
+
+      if (users.length === 0) {
+        return;
+      }
+
+      const notificationEntries = users.map((user) => ({
+        userId: user.id,
+        notificationId: notification.id,
+        organizationId: organizationId,
+        isRead: false,
+        titleSnapshot,
+        messageSnapshot,
+      }));
+
+      await this.prismaService.userNotification.createMany({
+        data: notificationEntries,
+      });
     } catch (error) {
       this.logger.error(
         'UtilityService - sendNotificationToAppClients >> Error sending notification to app clients:',
         error,
       );
     }
+  }
+
+  private countTemplatePlaceholders(template: string): number {
+    return (template.match(/%s/g) ?? []).length;
+  }
+
+  private applyTemplateArguments(template: string, args: string[]): string {
+    let renderedTemplate = template;
+    for (const arg of args) {
+      renderedTemplate = renderedTemplate.replace('%s', arg);
+    }
+    return renderedTemplate;
   }
 
   getAppNotificationsSubject(): Subject<MessageEvent> {
