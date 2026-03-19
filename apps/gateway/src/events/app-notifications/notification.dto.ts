@@ -1,6 +1,6 @@
 export interface AppNotificationDto {
   organizationId: string;
-  userRoles: string[];
+  roles: string[];
   notification: NotificationEventDto;
 }
 

@@ -33,7 +33,7 @@ import {
 } from '../../../api_docs/controllers/auth';
 
 import { CreateUserDto } from '../../../users/dto';
-import { UserPayload } from '../../../common/types/jwt-payload.type';
+import { UserPayload } from '../../../common/types/user-payload.type';
 import { AuthService } from '../../auth.service';
 import { TurnstileService } from '../../turnstile.service';
 import { CurrentUser } from '../../decorators/current-user.decorator';

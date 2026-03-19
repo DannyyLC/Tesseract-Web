@@ -409,7 +409,7 @@ export class AuthService {
     userId: string,
     email: string,
     name: string,
-    role: string,
+    role: UserRole,
     organizationId: string,
     rememberMe?: boolean,
     prismaClient?: Prisma.TransactionClient, // Optional transaction client
