@@ -25,15 +25,23 @@ class ConversationsApi {
     cursor: string | null = null,
     pageSize: number = 10,
     action: 'next' | 'prev' | null = null,
+    status?: string,
+    isIntervened?: boolean,
     workflowId?: string,
     userId?: string,
+    prioritizeHitl: boolean = true,
   ): Promise<PaginatedResponse<DashboardConversationDto>> {
     const queryParams = new URLSearchParams();
     if (cursor) queryParams.append('cursor', cursor);
     queryParams.append('pageSize', pageSize.toString());
     if (action) queryParams.append('action', action);
+    if (status) queryParams.append('status', status);
+    if (typeof isIntervened === 'boolean') {
+      queryParams.append('isIntervened', isIntervened ? 'true' : 'false');
+    }
     if (workflowId) queryParams.append('workflowId', workflowId);
     if (userId) queryParams.append('userId', userId);
+    queryParams.append('prioritizeHitl', prioritizeHitl ? 'true' : 'false');
 
     const result = await this.apiRequestManager.get<
       ApiResponse<PaginatedResponse<DashboardConversationDto>>

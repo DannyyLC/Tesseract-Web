@@ -27,6 +27,8 @@ export default function ConversationsPage() {
   // Read state from URL
   const cursor = searchParams.get('cursor') || undefined;
   const pageAction = searchParams.get('action') as 'next' | 'prev' | undefined;
+  const selectedStatus = searchParams.get('status') || undefined;
+  const selectedIntervened = searchParams.get('isIntervened') || undefined;
   const selectedWorkflow = searchParams.get('workflowId') || undefined;
   const selectedUser = searchParams.get('userId') || undefined;
 
@@ -85,9 +87,27 @@ export default function ConversationsPage() {
     cursor,
     pageSize,
     action: pageAction,
+    status: selectedStatus,
+    isIntervened:
+      selectedIntervened === 'true'
+        ? true
+        : selectedIntervened === 'false'
+          ? false
+          : undefined,
     workflowId: selectedWorkflow,
     userId: selectedUser,
+    prioritizeHitl: true,
   });
+
+  const statusOptions = [
+    { label: 'Activas', value: 'ACTIVE' },
+    { label: 'Cerradas', value: 'CLOSED' },
+  ];
+
+  const interventionOptions = [
+    { label: 'Intervenidas', value: 'true' },
+    { label: 'No intervenidas', value: 'false' },
+  ];
 
   // Cargar listas para filtros
   // Workflows
@@ -143,6 +163,14 @@ export default function ConversationsPage() {
 
   const handleUserChange = (userId: string) => {
     updateUrl({ userId: userId || null, cursor: null, action: null });
+  };
+
+  const handleStatusChange = (status: string) => {
+    updateUrl({ status: status || null, cursor: null, action: null });
+  };
+
+  const handleIntervenedChange = (value: string) => {
+    updateUrl({ isIntervened: value || null, cursor: null, action: null });
   };
 
   return (
@@ -235,9 +263,24 @@ export default function ConversationsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row">
-        {/* Workflows Filter */}
-        <div className="flex-1">
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
+          <FilterDropdown
+            label="Estado"
+            options={statusOptions}
+            value={selectedStatus}
+            onChange={handleStatusChange}
+            placeholder="Todos los estados"
+          />
+
+          <FilterDropdown
+            label="Intervencion"
+            options={interventionOptions}
+            value={selectedIntervened}
+            onChange={handleIntervenedChange}
+            placeholder="Todas"
+          />
+
           <FilterDropdown
             label="Workflow"
             options={workflows}
@@ -248,10 +291,7 @@ export default function ConversationsPage() {
             hasMore={hasNextWorkflows}
             isLoadingMore={isFetchingNextWorkflows}
           />
-        </div>
 
-        {/* Users Filter */}
-        <div className="flex-1">
           <FilterDropdown
             label="Usuario"
             options={users}

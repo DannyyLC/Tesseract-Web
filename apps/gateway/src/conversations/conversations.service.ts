@@ -225,6 +225,7 @@ export class ConversationsService {
     paginationAction: 'next' | 'prev' | null;
     isHumanInTheLoop?: boolean;
     status?: string;
+    prioritizeHitl?: boolean;
     organizationId: string;
     workflowId?: string;
     userId?: string;
@@ -235,10 +236,21 @@ export class ConversationsService {
       paginationAction,
       isHumanInTheLoop,
       status,
+      prioritizeHitl = true,
       organizationId,
       workflowId,
       userId,
     } = params;
+
+    const orderBy = prioritizeHitl
+      ? [
+          { isHumanInTheLoop: 'desc' as const },
+          { status: 'asc' as const },
+          { lastMessageAt: 'desc' as const },
+          { createdAt: 'desc' as const },
+        ]
+      : [{ createdAt: 'desc' as const }];
+
     const conversations = await this.prisma.conversation.findMany({
       take:
         paginationAction === 'next' || paginationAction === null
@@ -254,7 +266,7 @@ export class ConversationsService {
         userId,
         deletedAt: null,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       include: {
         messages: {
           take: 10,

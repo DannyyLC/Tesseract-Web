@@ -6,8 +6,11 @@ interface DashboardParams {
   cursor?: string | null;
   pageSize?: number;
   action?: 'next' | 'prev' | null;
+  status?: string;
+  isIntervened?: boolean;
   workflowId?: string;
   userId?: string;
+  prioritizeHitl?: boolean;
 }
 
 // Hook para obtener el dashboard de conversaciones
@@ -20,8 +23,11 @@ export function useConversationsDashboard(params: DashboardParams = {}) {
         params.cursor,
         params.pageSize,
         params.action,
+        params.status,
+        params.isIntervened,
         params.workflowId,
         params.userId,
+        params.prioritizeHitl,
       );
     },
   });

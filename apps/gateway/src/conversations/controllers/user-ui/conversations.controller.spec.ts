@@ -68,6 +68,9 @@ describe('ConversationsController', () => {
         null,
         undefined,
         undefined,
+        undefined,
+        undefined,
+        'true',
         res,
       );
 
@@ -76,8 +79,11 @@ describe('ConversationsController', () => {
         cursor: null,
         take: 10,
         paginationAction: null,
+        status: undefined,
+        isHumanInTheLoop: undefined,
         workflowId: undefined,
         userId: undefined,
+        prioritizeHitl: true,
       });
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalled();

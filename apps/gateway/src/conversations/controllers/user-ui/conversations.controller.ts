@@ -38,8 +38,11 @@ export class ConversationsController {
     @Query('cursor') cursor: string | null = null,
     @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
+    @Query('status') status: string | undefined,
+    @Query('isIntervened') isIntervened: string | undefined,
     @Query('workflowId') workflowId: string | undefined,
     @Query('userId') userId: string | undefined,
+    @Query('prioritizeHitl', new DefaultValuePipe('true')) prioritizeHitl: string,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<PaginatedResponse<DashboardConversationDto>>>> {
     const apiResponse = new ApiResponseBuilder<PaginatedResponse<DashboardConversationDto>>();
@@ -49,8 +52,12 @@ export class ConversationsController {
       cursor: cursor,
       take: pageSize,
       paginationAction: action,
+      status,
+      isHumanInTheLoop:
+        isIntervened === 'true' ? true : isIntervened === 'false' ? false : undefined,
       workflowId,
       userId,
+      prioritizeHitl: prioritizeHitl !== 'false',
     });
 
     const items: DashboardConversationDto[] = paginatedResponse.items.map((c: any) => ({
