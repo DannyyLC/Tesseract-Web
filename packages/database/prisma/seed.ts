@@ -1289,9 +1289,9 @@ async function main() {
       {
         code: '0000-0110',
         version: 1,
-        titleTemplate: 'Aviso De Consumo.',
+        titleTemplate: 'Aviso De Créditos Bajos.',
         messageTemplate:
-          'Lamentamos informarte que los creditos disponibles para tu actual subscripcion %s estan por sobrepasar el limite. Para nosostros es de vital importancia ofrecerte un servicio continuo sin interrupciones, por lo cual tu servicio continuara funcionando sin problema alguno bajo el concepto pay as you go, es decir que se cargara el costo extra solamente de los creditos que exedan el limite del plan en tu proximo pago. El costo que se cargara por cada credito extra es de $0.01 USD, por lo cual si excedes el limite en 100 creditos, se te cobrara $%s extra en tu proximo pago.',
+          'Tu organización tiene pocos créditos disponibles. Te quedan %s créditos.',
         targetRoles: ['OWNER', 'ADMIN'],
         isActive: true,
       },
@@ -1301,6 +1301,24 @@ async function main() {
         titleTemplate: 'Reenvio De Invitación.',
         messageTemplate:
           'La invitación para %s ha sido exitosamente reenviada, una vez que sea aceptada recibiras una notificación.',
+        targetRoles: ['OWNER', 'ADMIN'],
+        isActive: true,
+      },
+      {
+        code: '0000-0112',
+        version: 1,
+        titleTemplate: 'Sin Créditos Disponibles.',
+        messageTemplate:
+          'Tu organización se ha quedado sin créditos disponibles. Adquiere créditos o actualiza tu plan para continuar ejecutando workflows.',
+        targetRoles: ['OWNER', 'ADMIN'],
+        isActive: true,
+      },
+      {
+        code: '0000-0113',
+        version: 1,
+        titleTemplate: 'Límite De Overage Alcanzado.',
+        messageTemplate:
+          'No se puede ejecutar el workflow porque se alcanzó el límite de overage (%s/%s).',
         targetRoles: ['OWNER', 'ADMIN'],
         isActive: true,
       },

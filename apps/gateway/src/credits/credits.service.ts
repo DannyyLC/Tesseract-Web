@@ -1,17 +1,24 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { WorkflowCategory, TransactionType } from '@tesseract/database';
-import { PaginatedResponse, getWorkflowCreditCost } from '@tesseract/types';
+import { WorkflowCategory, TransactionType, UserRole } from '@tesseract/database';
+import {
+  PaginatedResponse,
+  getWorkflowCreditCost,
+  getPlanLimits,
+  NOTIFICATIONSENUM,
+} from '@tesseract/types';
 import { CreditBalance } from '@tesseract/database';
 import { DashboardCreditsDto } from './dto/dashboard-credits.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { DashboardCreditTransactionDto } from './dto/dashboard-credit-transaction.dto';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
+import { UtilityService } from '../utility/utility.service';
 @Injectable()
 export class CreditsService {
   constructor(
     private prisma: PrismaService,
+    private readonly utilityService: UtilityService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
@@ -112,7 +119,7 @@ export class CreditsService {
       return { allowed: false, reason: 'Organization or balance not found' };
     }
 
-    const requiredCredits = getWorkflowCreditCost(workflowCategory);
+    const requiredCredits = getWorkflowCreditCost(workflowCategory as any);
 
     // Caso 1: Tiene créditos suficientes
     if (balance.balance >= requiredCredits) {
@@ -142,6 +149,13 @@ export class CreditsService {
       return { allowed: true };
     }
 
+    await this.utilityService.sendNotificationToAppClients(
+      organizationId,
+      [UserRole.OWNER, UserRole.ADMIN],
+      NOTIFICATIONSENUM.OVERAGE_LIMIT_REACHED,
+      [Math.abs(balanceAfter).toString(), overageLimit.toString()],
+    );
+
     return {
       allowed: false,
       reason: `Would exceed overage limit (${Math.abs(balanceAfter)}/${overageLimit})`,
@@ -169,7 +183,7 @@ export class CreditsService {
       throw new Error('Credit balance not found');
     }
 
-    const credits = getWorkflowCreditCost(workflowCategory);
+    const credits = getWorkflowCreditCost(workflowCategory as any);
     const balanceBefore = balance.balance;
     const balanceAfter = balanceBefore - credits;
 
@@ -234,6 +248,33 @@ export class CreditsService {
         where: { id: workflowId },
         data: { avgCreditsPerExecution: avgCredits },
       });
+    }
+
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { plan: true },
+    });
+
+    if (organization) {
+      const lowCreditsThreshold = Math.max(
+        5,
+        Math.ceil(getPlanLimits(organization.plan as any).monthlyCredits * 0.1),
+      );
+
+      if (balanceAfter === 0) {
+        await this.utilityService.sendNotificationToAppClients(
+          organizationId,
+          [UserRole.OWNER, UserRole.ADMIN],
+          NOTIFICATIONSENUM.ZERO_CREDITS,
+        );
+      } else if (balanceAfter > 0 && balanceAfter <= lowCreditsThreshold) {
+        await this.utilityService.sendNotificationToAppClients(
+          organizationId,
+          [UserRole.OWNER, UserRole.ADMIN],
+          NOTIFICATIONSENUM.CONSUMPTION_ALERT,
+          [balanceAfter.toString()],
+        );
+      }
     }
   }
 

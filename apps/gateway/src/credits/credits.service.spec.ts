@@ -3,6 +3,7 @@ import { CreditsService } from './credits.service';
 import { PrismaService } from '../database/prisma.service';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { UtilityService } from '../utility/utility.service';
 
 // ─── Mock de getWorkflowCreditCost ─────────────────────────────────
 jest.mock('@tesseract/types', () => ({
@@ -51,6 +52,10 @@ const mockLogger = {
   warn: jest.fn(),
 };
 
+const mockUtilityService = {
+  sendNotificationToAppClients: jest.fn(),
+};
+
 describe('CreditsService', () => {
   let service: CreditsService;
 
@@ -59,6 +64,7 @@ describe('CreditsService', () => {
       providers: [
         CreditsService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: UtilityService, useValue: mockUtilityService },
         { provide: WINSTON_MODULE_PROVIDER, useValue: mockLogger },
       ],
     }).compile();
