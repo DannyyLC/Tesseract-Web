@@ -1,11 +1,18 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { TriggerType, ExecutionStatus, ChatRole, MessageAttachmentType, SubscriptionStatus } from '@tesseract/database';
+import { 
+  TriggerType, 
+  ExecutionStatus, 
+  ChatRole, 
+  MessageAttachmentType, 
+  SubscriptionStatus,
+  WorkflowCategory as DbWorkflowCategory,
+} from '@tesseract/database';
 import {
   getWorkflowCreditCost,
   PaginatedResponse,
   PLANS,
   SubscriptionPlan,
-  WorkflowCategory,
+  WorkflowCategory as SharedWorkflowCategory,
   DashboardWorkflowDto,
   WorkflowStatsDto,
   WorkflowMetricsDto,
@@ -118,7 +125,7 @@ export class WorkflowsService {
     filters?: {
       search?: string;
       isActive?: boolean;
-      category?: WorkflowCategory;
+      category?: SharedWorkflowCategory;
     },
   ): Promise<PaginatedResponse<DashboardWorkflowDto>> {
     const where: any = {
@@ -159,7 +166,7 @@ export class WorkflowsService {
       name: wf.name,
       description: wf.description,
       isActive: wf.isActive,
-      category: wf.category,
+      category: this.mapDbWorkflowCategoryToShared(wf.category),
       lastExecutedAt: wf.lastExecutedAt,
     }));
 
@@ -386,8 +393,8 @@ export class WorkflowsService {
         `
         SELECT 
           ${groupByClause} as date,
-          COUNT(CASE WHEN status = 'completed' THEN 1 END)::int as success,
-          COUNT(CASE WHEN status = 'failed' THEN 1 END)::int as failed,
+          COUNT(CASE WHEN status = 'COMPLETED' THEN 1 END)::int as success,
+          COUNT(CASE WHEN status = 'FAILED' THEN 1 END)::int as failed,
           COUNT(*)::int as count
         FROM executions 
         WHERE "workflowId" = $1 
@@ -414,8 +421,8 @@ export class WorkflowsService {
       {} as Record<string, number>,
     );
 
-    const successfulCount = statusCounts.completed || 0;
-    const failedCount = statusCounts.failed || 0;
+    const successfulCount = statusCounts['COMPLETED'] || 0;
+    const failedCount = statusCounts['FAILED'] || 0;
     const successRate = totalExecutions > 0 ? (successfulCount / totalExecutions) * 100 : 0;
 
     // Error Distribution Processing
@@ -697,7 +704,7 @@ export class WorkflowsService {
     this.logger.log(`Iniciando ejecución ${execution.id} para workflow ${workflowId}`);
 
     // 4. GESTIONAR CONVERSACIÓN
-    const channel = metadata?.channel ?? 'api';
+    const channel = metadata?.channel ?? 'API';
     const conversationId = metadata?.conversationId;
     const endUserId = metadata?.endUserId;
     let attachments:
@@ -712,7 +719,7 @@ export class WorkflowsService {
     let userMessage = "";
    
     let conversation;
-    if (channel === 'whatsapp') {
+    if (channel === 'WHATSAPP') {
       if (whatsappData) {
         conversation = await this.conversationsService.findOrCreateConversationFromWhatsAppMessage(
           workflowId,
@@ -963,7 +970,9 @@ export class WorkflowsService {
 
       // 9. DESCONTAR CRÉDITOS SOLO EN EJECUCIONES EXITOSAS
       // Se descuentan después de confirmar que todo fue exitoso
-      const creditsToDeduct = getWorkflowCreditCost(workflow.category);
+      const creditsToDeduct = getWorkflowCreditCost(
+        this.mapDbWorkflowCategoryToShared(workflow.category),
+      );
 
       await this.creditsService.deductCredits(
         organizationId,
@@ -1094,7 +1103,7 @@ export class WorkflowsService {
     this.logger.log(`Iniciando ejecución (stream) ${execution.id} para workflow ${workflowId}`);
 
     // 4. GESTIONAR CONVERSACIÓN
-    const channel = metadata?.channel ?? 'api';
+    const channel = metadata?.channel ?? 'API';
     const conversationId = metadata?.conversationId;
     const endUserId = metadata?.endUserId;
     const userMessage = input?.message ?? JSON.stringify(input);
@@ -1643,6 +1652,23 @@ export class WorkflowsService {
         `Invalid models: ${invalidModels.join(', ')}. ` +
           `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
       );
+    }
+  }
+
+  /**
+   * Convierte el enum de Prisma al enum compartido de @tesseract/types.
+   * Aunque tienen los mismos valores, TypeScript los trata como tipos distintos.
+   */
+  private mapDbWorkflowCategoryToShared(category: DbWorkflowCategory): SharedWorkflowCategory {
+    switch (category) {
+      case DbWorkflowCategory.LIGHT:
+        return SharedWorkflowCategory.LIGHT;
+      case DbWorkflowCategory.STANDARD:
+        return SharedWorkflowCategory.STANDARD;
+      case DbWorkflowCategory.ADVANCED:
+        return SharedWorkflowCategory.ADVANCED;
+      default:
+        throw new InvalidWorkflowConfigException(`Categoría de workflow inválida: ${category}`);
     }
   }
 }

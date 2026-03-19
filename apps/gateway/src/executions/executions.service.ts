@@ -998,7 +998,7 @@ export class ExecutionsService {
       throw new NotFoundException('Ejecución no encontrada');
     }
 
-    if (!['pending', 'running'].includes(execution.status)) {
+    if (!['PENDING', 'RUNNING'].includes(execution.status)) {
       throw new Error(`No se puede cancelar una ejecución con estado: ${execution.status}`);
     }
 

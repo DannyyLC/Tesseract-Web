@@ -26,7 +26,7 @@ export class ExecutionQueryDto {
   cursor?: string;
 
   @IsOptional()
-  @IsIn(['pending', 'running', 'completed', 'failed', 'cancelled', 'timeout'])
+  @IsIn(['PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT'])
   status?: string;
 
   @IsOptional()
@@ -34,7 +34,7 @@ export class ExecutionQueryDto {
   workflowId?: string;
 
   @IsOptional()
-  @IsIn(['api', 'webhook', 'schedule', 'manual', 'whatsapp'])
+  @IsIn(['API', 'WEBHOOK', 'SCHEDULE', 'MANUAL', 'WHATSAPP'])
   trigger?: string;
 
   @IsOptional()

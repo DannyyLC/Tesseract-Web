@@ -76,6 +76,22 @@ export default function UsersPage() {
   ];
 
   // Actions
+
+  /**
+   * Determines if the current user can edit (role/status) a target user.
+   * - Nobody can edit/delete themselves
+   * - OWNER can edit ADMIN and VIEWER (not OWNER — use transfer-ownership)
+   * - ADMIN can edit ADMIN and VIEWER (not OWNER)
+   * - VIEWER cannot edit anyone
+   */
+  const canEditUser = (targetUser: DashboardUserDataDto): boolean => {
+    if (!currentUser) return false;
+    if (targetUser.id === currentUser.id) return false; // cannot edit yourself
+    if (currentUser.role === UserRole.VIEWER) return false;
+    if (targetUser.role === UserRole.OWNER) return false; // nobody edits the owner directly
+    return true;
+  };
+
   const handleEditOpen = (user: DashboardUserDataDto) => {
     setModalUser(user);
     setEditFormData({ role: user.role, isActive: user.isActive });
@@ -134,6 +150,7 @@ export default function UsersPage() {
 
   const handleToggleStatus = async (e: React.MouseEvent, user: DashboardUserDataDto) => {
     e.stopPropagation();
+    if (!canEditUser(user)) return; // guard against stale renders
     try {
       await updateUser.mutateAsync({
         id: user.id,
@@ -375,8 +392,8 @@ export default function UsersPage() {
                           <UserDetails userId={user.id} />
 
                           <div className="flex flex-wrap gap-2">
-                            {/* Transfer Ownership - Only for Owner */}
-                            {user.role !== 'OWNER' && (
+                            {/* Transfer Ownership - only for non-owner targets that are not yourself */}
+                            {user.role !== UserRole.OWNER && user.id !== currentUser?.id && (
                               <PermissionGuard permissions="users:transfer_ownership">
                                 <button
                                   onClick={(e) => {
@@ -391,8 +408,8 @@ export default function UsersPage() {
                               </PermissionGuard>
                             )}
 
-                            {/* Edit/Delete - Admins cannot edit Owners */}
-                            {!(currentUser?.role === 'ADMIN' && user.role === 'OWNER') && (
+                             {/* Edit/Delete — respects full hierarchy + no self-edit */}
+                             {canEditUser(user) && (
                                 <>
                                   <PermissionGuard permissions="users:update">
                                     <button
@@ -475,12 +492,8 @@ export default function UsersPage() {
                   Rol
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {['OWNER', 'ADMIN', 'VIEWER']
-                    .filter((role) => {
-                      // Filter logic: Admins cannot select 'OWNER'
-                      if (currentUser?.role === 'ADMIN' && role === 'OWNER') return false;
-                      return true;
-                    })
+                   {/* OWNER cannot be assigned here — use Transfer Ownership flow */}
+                   {[UserRole.ADMIN, UserRole.VIEWER]
                     .map((role) => {
                       const config = getRoleConfig(role);
                       const isSelected = editFormData.role === role;
@@ -502,6 +515,9 @@ export default function UsersPage() {
                       );
                     })}
                 </div>
+                <p className="mt-1 text-xs text-black/40 dark:text-white/40">
+                  Para transferir la propiedad (OWNER) usa el botón dedicado en el perfil del usuario.
+                </p>
               </div>
 
               <div className="py-2">

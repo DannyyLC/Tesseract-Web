@@ -80,7 +80,7 @@ export class CreateWorkflowDto {
   // Tipo de trigger (opcional)
   @IsString()
   @IsOptional()
-  @IsIn(['api', 'schedule', 'webhook', 'whatsapp'])
+  @IsIn(['API', 'SCHEDULE', 'WEBHOOK', 'WHATSAPP', 'MANUAL'])
   triggerType?: string;
 
   // IDs de tags a asociar (opcional)

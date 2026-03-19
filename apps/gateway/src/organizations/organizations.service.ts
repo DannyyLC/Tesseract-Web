@@ -864,6 +864,10 @@ export class OrganizationsService {
     });
 
     if (existingUser && !existingUser.deletedAt) {
+      if (existingUser.organizationId === organizationId) {
+        return InviteUserErrorsDto.USER_ALREADY_REGISTERED;
+      }
+
       await this.emailService.sendOrganizationExistsEmail(email, isOrganizationValid.name);
       return true;
     }

@@ -208,7 +208,7 @@ export default function WorkflowDetailPage() {
         <div className="h-px w-full bg-black/5 dark:bg-white/5" />
 
         {/* Main Content - Analytics */}
-        <div className="space-y-6">
+        <div className="space-y-8 px-8 py-8">
           <div className="flex items-center gap-2 text-black dark:text-white">
             <BarChart2 size={24} />
             <h2 className="text-xl font-bold">Análisis de Rendimiento</h2>

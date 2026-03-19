@@ -70,7 +70,7 @@ class UsersApi {
    */
   public async update(id: string, data: UpdateUserDto): Promise<DashboardUserDataDto> {
     const result = await this.apiRequestManager.patch<ApiResponse<DashboardUserDataDto>>(
-      `${UsersApi.BASE_URL}/${id}`,
+      `${UsersApi.BASE_URL}/${id}/update-status-or-role`,
       data,
     );
     return result.data.data!;

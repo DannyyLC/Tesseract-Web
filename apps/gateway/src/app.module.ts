@@ -44,7 +44,7 @@ import { WhatsappConfigModule } from './whatsapp-config/whatsapp-config.module';
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 10,
+        limit: 20,
       },
     ]),
     ConfigModule.forRoot({
