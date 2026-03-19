@@ -14,6 +14,10 @@ import { Logger } from 'winston';
 import { DashboardCreditTransactionDto } from './dto/dashboard-credit-transaction.dto';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { UtilityService } from '../utility/utility.service';
+
+const LOW_CREDITS_THRESHOLD_PERCENTAGE = 0.2;
+const OVERAGE_LIMIT_NOTIFICATION_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
 @Injectable()
 export class CreditsService {
   constructor(
@@ -149,12 +153,18 @@ export class CreditsService {
       return { allowed: true };
     }
 
-    await this.utilityService.sendNotificationToAppClients(
+    const shouldNotifyOverageLimit = await this.shouldSendOverageLimitReachedNotification(
       organizationId,
-      [UserRole.OWNER, UserRole.ADMIN],
-      NOTIFICATIONSENUM.OVERAGE_LIMIT_REACHED,
-      [Math.abs(balanceAfter).toString(), overageLimit.toString()],
     );
+
+    if (shouldNotifyOverageLimit) {
+      await this.utilityService.sendNotificationToAppClients(
+        organizationId,
+        [UserRole.OWNER, UserRole.ADMIN],
+        NOTIFICATIONSENUM.OVERAGE_LIMIT_REACHED,
+        [Math.abs(balanceAfter).toString(), overageLimit.toString()],
+      );
+    }
 
     return {
       allowed: false,
@@ -256,18 +266,29 @@ export class CreditsService {
     });
 
     if (organization) {
+      const planMonthlyCredits = getPlanLimits(organization.plan as any).monthlyCredits;
       const lowCreditsThreshold = Math.max(
-        5,
-        Math.ceil(getPlanLimits(organization.plan as any).monthlyCredits * 0.1),
+        1,
+        Math.ceil(planMonthlyCredits * LOW_CREDITS_THRESHOLD_PERCENTAGE),
       );
 
-      if (balanceAfter === 0) {
+      // ZERO_CREDITS solo al cruce por el 0 dentro del rango de la ejecucion.
+      // Ejemplos: 5 -> 0, 2 -> -3 (ambos notifican); 0 -> -5 (no repite).
+      const crossedZero = balanceBefore > 0 && balanceAfter <= 0;
+
+      // CONSUMPTION_ALERT solo al cruce del umbral (20% del plan) y con saldo aun positivo.
+      const crossedLowCreditsThreshold =
+        balanceBefore > lowCreditsThreshold &&
+        balanceAfter <= lowCreditsThreshold &&
+        balanceAfter > 0;
+
+      if (crossedZero) {
         await this.utilityService.sendNotificationToAppClients(
           organizationId,
           [UserRole.OWNER, UserRole.ADMIN],
           NOTIFICATIONSENUM.ZERO_CREDITS,
         );
-      } else if (balanceAfter > 0 && balanceAfter <= lowCreditsThreshold) {
+      } else if (crossedLowCreditsThreshold) {
         await this.utilityService.sendNotificationToAppClients(
           organizationId,
           [UserRole.OWNER, UserRole.ADMIN],
@@ -276,6 +297,32 @@ export class CreditsService {
         );
       }
     }
+  }
+
+  private async shouldSendOverageLimitReachedNotification(
+    organizationId: string,
+  ): Promise<boolean> {
+    const latestNotification = await this.prisma.userNotification.findFirst({
+      where: {
+        organizationId,
+        notification: {
+          code: NOTIFICATIONSENUM.OVERAGE_LIMIT_REACHED,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        createdAt: true,
+      },
+    });
+
+    if (!latestNotification) {
+      return true;
+    }
+
+    const elapsedTimeMs = Date.now() - latestNotification.createdAt.getTime();
+    return elapsedTimeMs >= OVERAGE_LIMIT_NOTIFICATION_COOLDOWN_MS;
   }
 
   async getDashboardData(

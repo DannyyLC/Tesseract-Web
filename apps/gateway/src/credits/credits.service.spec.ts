@@ -35,6 +35,9 @@ const mockPrismaService = {
   organization: {
     findUnique: jest.fn(),
   },
+  userNotification: {
+    findFirst: jest.fn(),
+  },
   execution: {
     update: jest.fn(),
   },
@@ -323,11 +326,37 @@ describe('CreditsService', () => {
         overageLimit: 3,
         plan: 'PRO',
       });
+      mockPrismaService.userNotification.findFirst.mockResolvedValue(null);
 
       const result = await service.canExecuteWorkflow(orgId, 'ADVANCED');
 
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain('Would exceed overage limit');
+      expect(mockUtilityService.sendNotificationToAppClients).toHaveBeenCalledWith(
+        orgId,
+        ['OWNER', 'ADMIN'],
+        '0000-0113',
+        ['20', '3'],
+      );
+    });
+
+    it('should not send overage limit notification during cooldown window', async () => {
+      mockPrismaService.creditBalance.findUnique.mockResolvedValue({
+        balance: 5,
+      });
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        allowOverages: true,
+        overageLimit: 3,
+        plan: 'PRO',
+      });
+      mockPrismaService.userNotification.findFirst.mockResolvedValue({
+        createdAt: new Date(Date.now() - 30 * 60 * 1000),
+      });
+
+      const result = await service.canExecuteWorkflow(orgId, 'ADVANCED');
+
+      expect(result.allowed).toBe(false);
+      expect(mockUtilityService.sendNotificationToAppClients).not.toHaveBeenCalled();
     });
 
     // Caso 7: Balance exactamente igual a requerido
@@ -472,6 +501,74 @@ describe('CreditsService', () => {
         where: { id: workflowId },
         data: { avgCreditsPerExecution: 10 }, // 20 / 2 = 10
       });
+    });
+
+    it('should send ZERO_CREDITS when execution range crosses zero (before > 0 and after <= 0)', async () => {
+      mockPrismaService.creditBalance.findUnique.mockResolvedValue({
+        balance: 2,
+      });
+      mockPrismaService.$transaction.mockResolvedValue(undefined);
+      mockPrismaService.workflow.findUnique.mockResolvedValue({
+        totalCreditsConsumed: 10,
+        totalExecutions: 1,
+      });
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        plan: 'STARTER',
+      });
+      mockGetWorkflowCreditCost.mockReturnValue(5);
+
+      await service.deductCredits(orgId, executionId, workflowId, 'LIGHT', 'My Workflow');
+
+      expect(mockUtilityService.sendNotificationToAppClients).toHaveBeenCalledWith(
+        orgId,
+        ['OWNER', 'ADMIN'],
+        '0000-0112',
+      );
+    });
+
+    it('should send CONSUMPTION_ALERT only when crossing 20 percent threshold', async () => {
+      // STARTER monthlyCredits = 150, threshold 20% = 30
+      mockPrismaService.creditBalance.findUnique.mockResolvedValue({
+        balance: 31,
+      });
+      mockPrismaService.$transaction.mockResolvedValue(undefined);
+      mockPrismaService.workflow.findUnique.mockResolvedValue({
+        totalCreditsConsumed: 10,
+        totalExecutions: 1,
+      });
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        plan: 'STARTER',
+      });
+      mockGetWorkflowCreditCost.mockReturnValue(1);
+
+      await service.deductCredits(orgId, executionId, workflowId, 'LIGHT', 'My Workflow');
+
+      expect(mockUtilityService.sendNotificationToAppClients).toHaveBeenCalledWith(
+        orgId,
+        ['OWNER', 'ADMIN'],
+        '0000-0110',
+        ['30'],
+      );
+    });
+
+    it('should not send CONSUMPTION_ALERT when already below threshold before execution', async () => {
+      // Ya estaba por debajo de 30, no debe repetir alerta
+      mockPrismaService.creditBalance.findUnique.mockResolvedValue({
+        balance: 25,
+      });
+      mockPrismaService.$transaction.mockResolvedValue(undefined);
+      mockPrismaService.workflow.findUnique.mockResolvedValue({
+        totalCreditsConsumed: 10,
+        totalExecutions: 1,
+      });
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        plan: 'STARTER',
+      });
+      mockGetWorkflowCreditCost.mockReturnValue(1);
+
+      await service.deductCredits(orgId, executionId, workflowId, 'LIGHT', 'My Workflow');
+
+      expect(mockUtilityService.sendNotificationToAppClients).not.toHaveBeenCalled();
     });
   });
 
