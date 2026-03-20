@@ -597,8 +597,8 @@ export class ConversationsService {
   }
 
   /**
-   * Crea una compactación y la establece como activa en una sola transacción.
-   * Incluye validación de ownership para evitar cross-link de conversaciones.
+    * Crea una compactación y actualiza currentCompactionId en Conversation
+    * dentro de una transacción atómica.
    */
   async createAndActivateCompaction(input: CreateCompactionInput) {
     return this.prisma.$transaction(async (tx) => {
@@ -662,16 +662,4 @@ export class ConversationsService {
       : null;
   }
 
-  /**
-   * @deprecated Usar conteo basado en el historial en memoria para ventana de contexto.
-   * Este total es acumulado histórico de la conversación.
-   */
-  async getConversationTotalTokens(conversationId: string): Promise<number> {
-    const conversation = await this.prisma.conversation.findUnique({
-      where: { id: conversationId },
-      select: { totalTokens: true },
-    });
-
-    return conversation?.totalTokens ?? 0;
-  }
 }

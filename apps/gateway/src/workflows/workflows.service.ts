@@ -865,18 +865,31 @@ export class WorkflowsService {
 
     // 5. EJECUTAR WORKFLOW CON EL SERVICIO DE AGENTS
     try {
+      const historyForCompaction = [...messageHistory, { role: 'user', content: userMessage }];
+
       const compactionContext = await this.compactConversationIfThresholdReached(
         conversation.id,
         workflow.maxTokensPerExecution,
-        messageHistory,
+        historyForCompaction,
       );
 
       const finalMessageHistory = compactionContext.compactionApplied
         ? await this.conversationsService.getMessageHistory(conversation.id)
         : messageHistory;
-      const historyForPayload = compactionContext.activeSummary
-        ? finalMessageHistory.slice(-this.recentMessagesToKeepWithSummary)
+      let historyForPayload = compactionContext.activeSummary
+        ? this.calculateAdaptiveRecentMessages(finalMessageHistory, workflow.maxTokensPerExecution)
         : finalMessageHistory;
+
+      const finalTokens = this.estimateMessageHistoryTokens(historyForPayload);
+      const hardCap = workflow.maxTokensPerExecution;
+      if (finalTokens > hardCap) {
+        this.logger.warn(
+          `CRITICAL: conversation ${conversation.id} exceeded hard cap ` +
+            `(${finalTokens}/${hardCap} tokens) after all reduction strategies. ` +
+            `Forcing minimum history window.`,
+        );
+        historyForPayload = historyForPayload.slice(-2);
+      }
 
       // Construir el payload completo con credenciales y configuración
       const payload = await this.buildAgentPayload(
@@ -886,6 +899,10 @@ export class WorkflowsService {
         userId ?? endUserId,
         channel,
         historyForPayload,
+        // Si activeSummary no estuviera disponible en este punto, buildAgentPayload
+        // usa fallback defensivo a DB. Es aceptable por el bajo volumen esperado
+        // de streams con compactación activa y porque el post-stream no propaga
+        // contexto de compactación fuera de este flujo.
         compactionContext.activeSummary,
       );
 
@@ -1203,19 +1220,32 @@ export class WorkflowsService {
 
     // 5. EJECUTAR STREAM
     try {
+      const historyForCompaction = [...messageHistory, { role: 'user', content: userMessage }];
+
       const compactionContext = await this.compactConversationIfThresholdReached(
         conversation.id,
         workflow.maxTokensPerExecution,
-        messageHistory,
+        historyForCompaction,
       );
 
       const finalMessageHistory = compactionContext.compactionApplied
         ? await this.conversationsService.getMessageHistory(conversation.id)
         : messageHistory;
       // Este historial sí incluye el mensaje de usuario porque addMessage ocurre antes de la recarga.
-      const historyForPayload = compactionContext.activeSummary
-        ? finalMessageHistory.slice(-this.recentMessagesToKeepWithSummary)
+      let historyForPayload = compactionContext.activeSummary
+        ? this.calculateAdaptiveRecentMessages(finalMessageHistory, workflow.maxTokensPerExecution)
         : finalMessageHistory;
+
+      const finalTokens = this.estimateMessageHistoryTokens(historyForPayload);
+      const hardCap = workflow.maxTokensPerExecution;
+      if (finalTokens > hardCap) {
+        this.logger.warn(
+          `CRITICAL: conversation ${conversation.id} exceeded hard cap ` +
+            `(${finalTokens}/${hardCap} tokens) after all reduction strategies. ` +
+            `Forcing minimum history window.`,
+        );
+        historyForPayload = historyForPayload.slice(-2);
+      }
 
       const payload = await this.buildAgentPayload(
         workflow,
@@ -1429,42 +1459,65 @@ export class WorkflowsService {
           });
 
           // 6. Actualizar Conversación (stats)
-          // 6. Actualizar Conversación (stats)
-          await this.conversationsService.update(organizationId, conversation.id, {
-            messageCount: { increment: assistantMessageBuilder ? 2 : 1 },
-            lastMessageAt: new Date(),
-            ...(totalTokens > 0 ? { totalTokens: { increment: totalTokens } } : {}),
-            ...(costUSD > 0 ? { totalCost: { increment: costUSD } } : {}),
-          });
+          try {
+            await this.conversationsService.update(organizationId, conversation.id, {
+              messageCount: { increment: assistantMessageBuilder ? 2 : 1 },
+              lastMessageAt: new Date(),
+              ...(totalTokens > 0 ? { totalTokens: { increment: totalTokens } } : {}),
+              ...(costUSD > 0 ? { totalCost: { increment: costUSD } } : {}),
+            });
+          } catch (nonCriticalConversationError) {
+            this.logger.error(
+              `Non-critical post-stream conversation update failed for ${execution.id}: ${(nonCriticalConversationError as Error).message}`,
+              (nonCriticalConversationError as Error).stack,
+            );
+          }
 
           // 7. Descontar Créditos
-          // const creditsToDeduct = getWorkflowCreditCost(workflow.category);
-          await this.creditsService.deductCredits(
-            organizationId,
-            execution.id,
-            workflow.id,
-            workflow.category,
-            workflow.name,
-            costUSD,
-            {
-              input_tokens: metadataEvent?.input_tokens ?? 0,
-              output_tokens: metadataEvent?.output_tokens ?? 0,
-              total_tokens: totalTokens,
-              usage_by_model: usageByModel,
-              cost_breakdown: costBreakdown,
-              execution_time_ms: metadataEvent?.execution_time_ms ?? 0,
-            },
-          );
+          try {
+            await this.creditsService.deductCredits(
+              organizationId,
+              execution.id,
+              workflow.id,
+              workflow.category,
+              workflow.name,
+              costUSD,
+              {
+                input_tokens: metadataEvent?.input_tokens ?? 0,
+                output_tokens: metadataEvent?.output_tokens ?? 0,
+                total_tokens: totalTokens,
+                usage_by_model: usageByModel,
+                cost_breakdown: costBreakdown,
+                execution_time_ms: metadataEvent?.execution_time_ms ?? 0,
+              },
+            );
+          } catch (nonCriticalCreditsError) {
+            this.logger.error(
+              `Non-critical post-stream credits deduction failed for ${execution.id}: ${(nonCriticalCreditsError as Error).message}`,
+              (nonCriticalCreditsError as Error).stack,
+            );
+          }
 
           this.logger.log(
             `Post-stream processing completed for ${execution.id}. Cost: $${costUSD}`,
           );
-        } catch (error) {
+        } catch (criticalError) {
+          try {
+            await this.executionsService.updateStatus(execution.id, ExecutionStatus.FAILED, {
+              error: (criticalError as Error).message,
+              errorStack: (criticalError as Error).stack,
+            });
+          } catch (statusError) {
+            this.logger.error(
+              `Failed to mark post-stream critical failure for ${execution.id}: ${(statusError as Error).message}`,
+              (statusError as Error).stack,
+            );
+          }
+
           this.logger.error(
-            `Error en procesamiento post-stream ${execution.id}: ${(error as Error).message}`,
-            (error as Error).stack,
+            `Critical post-stream processing error ${execution.id}: ${(criticalError as Error).message}`,
+            (criticalError as Error).stack,
           );
-          // No degradar a FAILED por fallos post-stream para mantener consistencia con tareas no críticas.
         }
       })();
     });
@@ -1683,7 +1736,7 @@ export class WorkflowsService {
       const archivedTail = archivedMessages.slice(-this.maxArchivedMessagesForSummary);
       const composedSummary = await this.summarizeArchivedConversation(
         existingSummary,
-        archivedTail.map((msg) => ({ role: msg.role, content: msg.content })),
+        archivedTail.map((msg) => ({ role: msg.role, content: String(msg.content ?? '') })),
       );
 
       const estimatedAfter = Math.max(1, Math.floor(composedSummary.length / 4));
@@ -1712,10 +1765,24 @@ export class WorkflowsService {
       this.logger.error(
         `Failed to compact conversation ${conversationId}: ${(error as Error).message}`,
       );
-      await this.recordFailedCompaction(conversationId, historyTokens, (error as Error).message);
+      try {
+        await this.recordFailedCompaction(conversationId, historyTokens, (error as Error).message);
+      } catch (recordError) {
+        this.logger.error(
+          `Failed to record compaction failure for conversation ${conversationId}: ${(recordError as Error).message}`,
+          (recordError as Error).stack,
+        );
+      }
       return { compactionApplied: false, activeSummary: null };
     } finally {
-      await this.conversationsService.releaseCompactionLock(conversationId);
+      try {
+        await this.conversationsService.releaseCompactionLock(conversationId);
+      } catch (lockError) {
+        this.logger.error(
+          `Failed to release compaction lock for conversation ${conversationId}: ${(lockError as Error).message}`,
+          (lockError as Error).stack,
+        );
+      }
     }
   }
 
@@ -1726,6 +1793,21 @@ export class WorkflowsService {
       const content = String(msg.content ?? '');
       return acc + Math.max(1, Math.ceil(content.length / 4));
     }, 0);
+  }
+
+  private calculateAdaptiveRecentMessages(
+    historyForPayload: Array<{ role: string; content?: string | null }>,
+    absoluteLimit: number,
+  ): Array<{ role: string; content?: string | null }> {
+    const ratio = this.estimateMessageHistoryTokens(historyForPayload) / absoluteLimit;
+
+    let keep: number;
+    if (ratio < 1.1) keep = this.recentMessagesToKeepWithSummary;
+    else if (ratio < 1.5) keep = Math.floor(this.recentMessagesToKeepWithSummary / 2);
+    else keep = 2;
+
+    keep = Math.max(2, keep);
+    return historyForPayload.slice(-keep);
   }
 
   private async summarizeArchivedConversation(
