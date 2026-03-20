@@ -332,6 +332,15 @@ const notifications: NotificationSeed[] = [
     isActive: true,
   },
   {
+    code: '0000-0114',
+    version: 1,
+    titleTemplate: 'Intervencion Humana Requerida.',
+    messageTemplate:
+      'La conversacion %s del workflow %s requiere atencion humana. Motivo: %s.',
+    targetRoles: ['OWNER', 'ADMIN'],
+    isActive: true,
+  },
+  {
     code: '0000-1000',
     version: 1,
     titleTemplate: 'Aceptacion De Invitacion.',
