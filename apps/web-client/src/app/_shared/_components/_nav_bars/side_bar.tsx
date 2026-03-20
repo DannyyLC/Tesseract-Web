@@ -100,6 +100,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               src="/favicon.svg"
               alt="Tesseract"
               fill
+              loading="eager"
               className="object-contain brightness-0 dark:invert"
             />
           </div>

@@ -183,13 +183,13 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
             </div>
           </div>
 
-          <div className="relative min-h-[300px] w-full flex-1">
+          <div className="relative min-h-[300px] w-full min-w-0 flex-1">
             {!hasRealData ? (
               <div className="absolute inset-0 flex items-center justify-center text-sm text-black/30 dark:text-white/30">
                 No hay ejecuciones en este período
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={300} minWidth={0}>
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorSuccess" x1="0" y1="0" x2="0" y2="1">

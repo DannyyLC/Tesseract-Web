@@ -318,7 +318,7 @@ export default function DashboardPage() {
                 </p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={220} minWidth={0}>
                 <AreaChart data={areaData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="execGrad" x1="0" y1="0" x2="0" y2="1">
@@ -366,9 +366,9 @@ export default function DashboardPage() {
             {loadingWf ? (
               <ChartSkeleton height={220} />
             ) : (
-              <div className="flex items-center justify-center">
+              <div className="flex w-full min-w-0 items-center justify-center">
                 {pieData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={220}>
+                  <ResponsiveContainer width="100%" height={220} minWidth={0}>
                     <PieChart>
                       <Pie
                         data={pieData}

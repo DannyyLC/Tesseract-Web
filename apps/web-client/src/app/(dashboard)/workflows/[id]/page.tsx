@@ -120,7 +120,7 @@ export default function WorkflowDetailPage() {
                     {workflow.name}
                     {/* Minimal Status Dot */}
                     <div
-                      className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${
+                      className={`flex items-center gap-1 rounded-full border px-2 py-0.5 ${
                         workflow.isActive
                           ? 'border-emerald-500/20 bg-emerald-500/5'
                           : 'border-zinc-500/20 bg-zinc-500/5'
@@ -130,7 +130,7 @@ export default function WorkflowDetailPage() {
                         className={`h-1.5 w-1.5 rounded-full ${workflow.isActive ? 'bg-emerald-500' : 'bg-zinc-500'}`}
                       />
                       <span
-                        className={`text-[11px] font-medium uppercase tracking-wide ${workflow.isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-600 dark:text-zinc-400'}`}
+                        className={`text-[10px] font-medium uppercase tracking-wide ${workflow.isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-600 dark:text-zinc-400'}`}
                       >
                         {workflow.isActive ? 'Activo' : 'Inactivo'}
                       </span>
