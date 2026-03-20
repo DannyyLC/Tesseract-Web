@@ -1580,15 +1580,26 @@ export class WorkflowsService {
     // Fallback defensivo: cubre llamadas directas a buildAgentPayload sin contexto de compactación.
     const resolvedActiveSummary =
       activeSummary ?? (await this.conversationsService.getActiveCompactionSummary(conversation.id));
+    const safeRecentHistory =
+      messageHistory.length > 0 &&
+      ['assistant', 'ai'].includes(String(messageHistory[0]?.role ?? '').toLowerCase())
+        ? messageHistory.slice(1)
+        : messageHistory;
+
     const composedHistory = resolvedActiveSummary
       ? [
           {
-            role: 'system',
+            role: 'user',
             content:
-              'Conversation memory (compressed summary). Use this as long-term context and prioritize newer raw messages when there is conflict.\n\n' +
+              '[INTERNAL MEMORY CONTEXT - NOT A NEW USER REQUEST]\n' +
+              'Use this only as background context:\n\n' +
               resolvedActiveSummary,
           },
-          ...messageHistory,
+          {
+            role: 'assistant',
+            content: 'Memory context loaded.',
+          },
+          ...safeRecentHistory,
         ]
       : messageHistory;
 
