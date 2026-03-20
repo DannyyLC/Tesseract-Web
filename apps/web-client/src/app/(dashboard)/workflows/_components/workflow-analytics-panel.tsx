@@ -40,6 +40,10 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
 
   const chartData = useMemo(() => metrics?.executionHistoryChart ?? [], [metrics]);
   const errors = metrics?.errorDistribution ?? {};
+  const failedFromChart = useMemo(
+    () => chartData.reduce((sum, point) => sum + point.failed, 0),
+    [chartData],
+  );
 
   // Check if there's real data (at least one execution)
   const hasRealData = useMemo(() => chartData.some((d) => d.count > 0), [chartData]);
@@ -60,7 +64,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
     total: metrics?.totalExecutions ?? 0,
     successRate: metrics?.successRate ?? 0,
     avgDuration: metrics?.avgDuration ?? 0,
-    failed: metrics ? Math.round(metrics.totalExecutions * (1 - metrics.successRate / 100)) : 0,
+    failed: failedFromChart,
   };
 
   return (
