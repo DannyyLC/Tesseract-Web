@@ -88,6 +88,12 @@ enum ConversationStatus {
   CLOSED
 }
 
+enum CompactionStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
 enum ConversationChannel {
   DASHBOARD
   WHATSAPP
@@ -517,12 +523,14 @@ model Conversation {
   totalTokens      Int       @default(0) // Suma de tokens usados
   totalCost        Decimal   @default(0) // Costo acumulado en USD
   isHumanInTheLoop Boolean   @default(false) // Si true, la IA no responde, espera humano
+  isCompacting     Boolean   @default(false) // Lock de compactación por conversación
+  compactingLockedAt DateTime? // Timestamp para TTL y recuperación de lock stale
   lastMessageAt    DateTime? // Último mensaje (para calcular inactividad)
   lastMessageRole  ChatRole? // Para auto-cierre eficiente
+  currentCompactionId String? @unique // FK a la compactación activa (nullable para conversaciones nuevas)
 
   // Información adicional
   metadata Json?   @db.JsonB // Tags, categorías, sentimiento, etc.
-  summary  String? @db.Text // Resumen generado por IA
 
   // Timestamps
   createdAt DateTime  @default(now())
@@ -533,9 +541,11 @@ model Conversation {
   // Relaciones
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  currentCompaction ConversationCompaction? @relation("ActiveCompaction", fields: [currentCompactionId], references: [id])
 
   messages   Message[] // Una conversación tiene muchos mensajes
   executions Execution[] // Ejecuciones asociadas a esta conversación
+  compactions ConversationCompaction[] @relation("CompactionHistory")
 
   @@index([organizationId])
   @@index([userId])
@@ -551,6 +561,33 @@ model Conversation {
   @@index([workflowId, status, lastMessageAt])
   @@index([channel, whatsappConfigId, phoneNumberSender, status, createdAt])
   @@map("conversations")
+}
+
+model ConversationCompaction {
+  id                  String           @id @default(uuid())
+  conversationId      String
+  version             Int
+  summary             String?          @db.Text // Nullable para estados PENDING/FAILED
+  sourceMessageFromId String?
+  sourceMessageToId   String?
+  tokensBefore        Int
+  tokensAfter         Int
+  compressionRatio    Float
+  modelUsed           String
+  status              CompactionStatus
+  error               String?
+  deletedAt           DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  conversation Conversation @relation("CompactionHistory", fields: [conversationId], references: [id], onDelete: Cascade)
+  activeFor     Conversation? @relation("ActiveCompaction")
+
+  @@unique([conversationId, version])
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@index([deletedAt])
+  @@map("conversation_compactions")
 }
 
 // ============================================

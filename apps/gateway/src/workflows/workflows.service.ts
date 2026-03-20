@@ -1,10 +1,12 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { 
   TriggerType, 
   ExecutionStatus, 
   ChatRole, 
   MessageAttachmentType, 
   SubscriptionStatus,
+  CompactionStatus,
   WorkflowCategory as DbWorkflowCategory,
 } from '@tesseract/database';
 import {
@@ -46,6 +48,14 @@ import { MediaProcessingService } from '../media-processing/media-processing.ser
 @Injectable()
 export class WorkflowsService {
   private readonly logger = new Logger(WorkflowsService.name);
+  private readonly compactionThresholdRatio = 0.8;
+  private readonly recentMessagesToKeepWithSummary = 7;
+  private readonly maxArchivedMessagesForSummary = 40;
+  private readonly maxCompactionSummaryChars = 8000;
+  private readonly compactionApiBaseUrl: string;
+  private readonly compactionApiKey: string;
+  private readonly compactionModel: string;
+  private readonly compactionTimeoutMs: number;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -57,7 +67,15 @@ export class WorkflowsService {
     private readonly conversationsService: ConversationsService,
     private readonly toolsService: ToolsService,
     private readonly mediaProcessingService: MediaProcessingService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.compactionApiBaseUrl = this.configService
+      .get<string>('COMPACTION_API_BASE_URL', 'https://api.openai.com/v1')
+      .replace(/\/$/, '');
+    this.compactionApiKey = this.configService.get<string>('COMPACTION_API_KEY', '');
+    this.compactionModel = this.configService.get<string>('COMPACTION_MODEL', 'gpt-4o-mini');
+    this.compactionTimeoutMs = this.configService.get<number>('COMPACTION_TIMEOUT_MS', 20000);
+  }
 
   //==========================================================
   // CRUD DE WORKFLOWS
@@ -847,6 +865,19 @@ export class WorkflowsService {
 
     // 5. EJECUTAR WORKFLOW CON EL SERVICIO DE AGENTS
     try {
+      const compactionContext = await this.compactConversationIfThresholdReached(
+        conversation.id,
+        workflow.maxTokensPerExecution,
+        messageHistory,
+      );
+
+      const finalMessageHistory = compactionContext.compactionApplied
+        ? await this.conversationsService.getMessageHistory(conversation.id)
+        : messageHistory;
+      const historyForPayload = compactionContext.activeSummary
+        ? finalMessageHistory.slice(-this.recentMessagesToKeepWithSummary)
+        : finalMessageHistory;
+
       // Construir el payload completo con credenciales y configuración
       const payload = await this.buildAgentPayload(
         workflow,
@@ -854,7 +885,8 @@ export class WorkflowsService {
         userMessage,
         userId ?? endUserId,
         channel,
-        messageHistory,
+        historyForPayload,
+        compactionContext.activeSummary,
       );
 
       // Llamar al servicio de agents (Python)
@@ -1171,13 +1203,28 @@ export class WorkflowsService {
 
     // 5. EJECUTAR STREAM
     try {
+      const compactionContext = await this.compactConversationIfThresholdReached(
+        conversation.id,
+        workflow.maxTokensPerExecution,
+        messageHistory,
+      );
+
+      const finalMessageHistory = compactionContext.compactionApplied
+        ? await this.conversationsService.getMessageHistory(conversation.id)
+        : messageHistory;
+      // Este historial sí incluye el mensaje de usuario porque addMessage ocurre antes de la recarga.
+      const historyForPayload = compactionContext.activeSummary
+        ? finalMessageHistory.slice(-this.recentMessagesToKeepWithSummary)
+        : finalMessageHistory;
+
       const payload = await this.buildAgentPayload(
         workflow,
         conversation,
         userMessage,
         userId ?? endUserId,
         channel,
-        messageHistory,
+        historyForPayload,
+        compactionContext.activeSummary,
       );
 
       this.logger.debug(`Llamando al AgentsService (Stream)`);
@@ -1417,10 +1464,7 @@ export class WorkflowsService {
             `Error en procesamiento post-stream ${execution.id}: ${(error as Error).message}`,
             (error as Error).stack,
           );
-          // Intentar marcar como fallido si algo crítico falló después del stream
-          await this.executionsService.updateStatus(execution.id, ExecutionStatus.FAILED, {
-            error: `Post-stream processing error: ${(error as Error).message}`,
-          });
+          // No degradar a FAILED por fallos post-stream para mantener consistencia con tareas no críticas.
         }
       })();
     });
@@ -1449,6 +1493,7 @@ export class WorkflowsService {
     userId?: string,
     channel = 'api',
     messageHistory: any[] = [],
+    activeSummary?: string | null,
   ) {
     // 1. Extraer nueva estructura unificada de config
     const config = workflow.config;
@@ -1530,7 +1575,24 @@ export class WorkflowsService {
     const userType = conversation.userId ? UserType.INTERNAL : UserType.EXTERNAL;
     const finalUserId = conversation.userId ?? conversation.endUserId ?? 'anonymous';
 
-    // 6. Construir el payload final
+    // 6.1 Si existe compactación activa, inyectar resumen como contexto controlado.
+    // El recorte de ventana se realiza fuera de este método para evitar doble transformación.
+    // Fallback defensivo: cubre llamadas directas a buildAgentPayload sin contexto de compactación.
+    const resolvedActiveSummary =
+      activeSummary ?? (await this.conversationsService.getActiveCompactionSummary(conversation.id));
+    const composedHistory = resolvedActiveSummary
+      ? [
+          {
+            role: 'system',
+            content:
+              'Conversation memory (compressed summary). Use this as long-term context and prioritize newer raw messages when there is conflict.\n\n' +
+              resolvedActiveSummary,
+          },
+          ...messageHistory,
+        ]
+      : messageHistory;
+
+    // 7. Construir el payload final
     const payload = {
       // Identificación (OBLIGATORIOS)
       tenant_id: workflow.organizationId,
@@ -1547,7 +1609,7 @@ export class WorkflowsService {
       agent_tool_instances: agentToolInstances,
 
       // Historial y metadata
-      message_history: messageHistory,
+      message_history: composedHistory,
       timezone: workflow.timezone ?? 'UTC',
     };
 
@@ -1576,6 +1638,198 @@ export class WorkflowsService {
     );
 
     return payload;
+  }
+
+  private async compactConversationIfThresholdReached(
+    conversationId: string,
+    maxTokensPerExecution: number,
+    messageHistory: Array<{ role: string; content?: string | null }>,
+  ): Promise<{ compactionApplied: boolean; activeSummary: string | null }> {
+    const historyTokens = this.estimateMessageHistoryTokens(messageHistory);
+    const threshold = Math.floor(maxTokensPerExecution * this.compactionThresholdRatio);
+
+    if (historyTokens < threshold) {
+      return { compactionApplied: false, activeSummary: null };
+    }
+
+    const acquired = await this.conversationsService.tryAcquireCompactionLock(conversationId);
+    if (!acquired) {
+      this.logger.debug(`Compaction lock busy for conversation ${conversationId}. Skipping.`);
+      return { compactionApplied: false, activeSummary: null };
+    }
+
+    try {
+      const fullHistory = await this.conversationsService.getMessageHistoryWithIds(conversationId);
+      const existingSummary = await this.conversationsService.getActiveCompactionSummary(conversationId);
+
+      const boundary = Math.max(0, fullHistory.length - this.recentMessagesToKeepWithSummary);
+      const archivedMessages = fullHistory.slice(0, boundary);
+
+      if (archivedMessages.length === 0 && !existingSummary) {
+        return { compactionApplied: false, activeSummary: null };
+      }
+
+      const archivedTail = archivedMessages.slice(-this.maxArchivedMessagesForSummary);
+      const composedSummary = await this.summarizeArchivedConversation(
+        existingSummary,
+        archivedTail.map((msg) => ({ role: msg.role, content: msg.content })),
+      );
+
+      const estimatedAfter = Math.max(1, Math.floor(composedSummary.length / 4));
+      const compressionRatio =
+        historyTokens > 0
+          ? Number((estimatedAfter / historyTokens).toFixed(6))
+          : 1;
+
+      await this.conversationsService.createAndActivateCompaction({
+        conversationId,
+        summary: composedSummary,
+        sourceMessageFromId: archivedMessages[0]?.id,
+        sourceMessageToId: archivedMessages[archivedMessages.length - 1]?.id,
+        tokensBefore: historyTokens,
+        tokensAfter: estimatedAfter,
+        compressionRatio,
+        modelUsed: this.compactionModel,
+        status: CompactionStatus.SUCCEEDED,
+      });
+
+      this.logger.log(
+        `Conversation ${conversationId} compacted at ${historyTokens}/${maxTokensPerExecution} history tokens`,
+      );
+      return { compactionApplied: true, activeSummary: composedSummary };
+    } catch (error) {
+      this.logger.error(
+        `Failed to compact conversation ${conversationId}: ${(error as Error).message}`,
+      );
+      await this.recordFailedCompaction(conversationId, historyTokens, (error as Error).message);
+      return { compactionApplied: false, activeSummary: null };
+    } finally {
+      await this.conversationsService.releaseCompactionLock(conversationId);
+    }
+  }
+
+  private estimateMessageHistoryTokens(
+    messageHistory: Array<{ content?: string | null }>,
+  ): number {
+    return messageHistory.reduce((acc, msg) => {
+      const content = String(msg.content ?? '');
+      return acc + Math.max(1, Math.ceil(content.length / 4));
+    }, 0);
+  }
+
+  private async summarizeArchivedConversation(
+    existingSummary: string | null,
+    archivedMessages: Array<{ role: string; content: string }>,
+  ): Promise<string> {
+    if (!this.compactionApiKey) {
+      throw new Error('COMPACTION_API_KEY is not configured');
+    }
+
+    const archivedText = archivedMessages
+      .map((msg) => {
+        const role = String(msg.role).toUpperCase();
+        const content = String(msg.content ?? '').replace(/\s+/g, ' ').trim().slice(0, 600);
+        return `${role}: ${content}`;
+      })
+      .join('\n');
+
+    const response = await this.fetchWithCompactionTimeout(`${this.compactionApiBaseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.compactionApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: this.compactionModel,
+        temperature: 0,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a conversation compression engine. Return only a concise Spanish summary preserving facts, decisions, pending tasks, entities, constraints, tone and language. Do not invent.',
+          },
+          {
+            role: 'user',
+            content: [
+              existingSummary ? `Resumen previo:\n${existingSummary}` : '',
+              `Mensajes a compactar:\n${archivedText}`,
+              'Devuelve un unico resumen consolidado, legible y breve.',
+            ]
+              .filter(Boolean)
+              .join('\n\n'),
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Compaction model request failed with status ${response.status}`);
+    }
+
+    const payload = (await response.json()) as {
+      choices?: { message?: { content?: string | Array<{ type?: string; text?: string }> } }[];
+    };
+
+    const content = payload.choices?.[0]?.message?.content;
+    let summary = '';
+
+    if (typeof content === 'string') {
+      summary = content.trim();
+    } else if (Array.isArray(content)) {
+      summary = content
+        .filter((part) => part?.type === 'text' && part?.text)
+        .map((part) => part.text!.trim())
+        .filter(Boolean)
+        .join('\n');
+    }
+
+    if (!summary) {
+      throw new Error('Compaction model returned empty summary');
+    }
+
+    return summary.slice(0, this.maxCompactionSummaryChars);
+  }
+
+  private async recordFailedCompaction(
+    conversationId: string,
+    tokensBefore: number,
+    errorMessage: string,
+  ): Promise<void> {
+    const latest = await this.prisma.conversationCompaction.findFirst({
+      where: { conversationId },
+      orderBy: { version: 'desc' },
+      select: { version: true },
+    });
+
+    const nextVersion = (latest?.version ?? 0) + 1;
+
+    await this.prisma.conversationCompaction.create({
+      data: {
+        conversationId,
+        version: nextVersion,
+        summary: null,
+        tokensBefore,
+        tokensAfter: tokensBefore,
+        compressionRatio: 1,
+        modelUsed: this.compactionModel,
+        status: CompactionStatus.FAILED,
+        error: errorMessage.slice(0, 2000),
+      },
+    });
+  }
+
+  private async fetchWithCompactionTimeout(url: string, init: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.compactionTimeoutMs);
+
+    try {
+      return await fetch(url, {
+        ...init,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   /**

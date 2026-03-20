@@ -19,17 +19,56 @@ CREATE TYPE "InvoiceStatus" AS ENUM ('DRAFT', 'PENDING', 'PAID', 'FAILED', 'REFU
 -- CreateEnum
 CREATE TYPE "SubscriptionStatus" AS ENUM ('ACTIVE', 'CANCELED', 'PAST_DUE', 'INCOMPLETE');
 
+-- CreateEnum
+CREATE TYPE "MessageAttachmentType" AS ENUM ('IMAGE', 'AUDIO');
+
+-- CreateEnum
+CREATE TYPE "MessageAttachmentStatus" AS ENUM ('PENDING', 'PROCESSING', 'PROCESSED', 'FAILED', 'UNSUPPORTED');
+
+-- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('VIEWER', 'ADMIN', 'OWNER');
+
+-- CreateEnum
+CREATE TYPE "ConversationStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'CLOSED');
+
+-- CreateEnum
+CREATE TYPE "CompactionStatus" AS ENUM ('PENDING', 'SUCCEEDED', 'FAILED');
+
+-- CreateEnum
+CREATE TYPE "ConversationChannel" AS ENUM ('DASHBOARD', 'WHATSAPP', 'WEB', 'API');
+
+-- CreateEnum
+CREATE TYPE "ChatRole" AS ENUM ('USER', 'ASSISTANT', 'SYSTEM', 'TOOL');
+
+-- CreateEnum
+CREATE TYPE "MessageFeedback" AS ENUM ('POSITIVE', 'NEGATIVE', 'NEUTRAL');
+
+-- CreateEnum
+CREATE TYPE "ExecutionStatus" AS ENUM ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT');
+
+-- CreateEnum
+CREATE TYPE "TriggerType" AS ENUM ('MANUAL', 'API', 'SCHEDULE', 'WEBHOOK', 'WHATSAPP');
+
+-- CreateEnum
+CREATE TYPE "ToolConnectionStatus" AS ENUM ('DISCONNECTED', 'CONNECTED', 'ERROR', 'EXPIRED_AUTH');
+
+-- CreateEnum
+CREATE TYPE "DangerLevel" AS ENUM ('SAFE', 'WARNING', 'DANGER');
+
+-- CreateEnum
+CREATE TYPE "WhatsAppConnectionStatus" AS ENUM ('DISCONNECTED', 'CONNECTED', 'ERROR');
+
 -- CreateTable
 CREATE TABLE "organizations" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
-    "plan" "SubscriptionPlan" NOT NULL DEFAULT 'STARTER',
+    "plan" "SubscriptionPlan" NOT NULL DEFAULT 'FREE',
     "defaultMaxMessages" INTEGER,
     "defaultInactivityHours" INTEGER,
-    "defaultMaxCostPerConv" DOUBLE PRECISION,
+    "defaultMaxCostPerConv" DECIMAL(65,30),
     "allowOverages" BOOLEAN NOT NULL DEFAULT false,
-    "overageLimit" DOUBLE PRECISION,
+    "overageLimit" INTEGER,
     "customMaxUsers" INTEGER,
     "customMaxApiKeys" INTEGER,
     "customMaxWorkflows" INTEGER,
@@ -62,10 +101,10 @@ CREATE TABLE "subscriptions" (
     "planChangeRequestedBy" TEXT,
     "stripeSubscriptionId" TEXT,
     "stripePriceId" TEXT,
-    "customMonthlyPrice" DOUBLE PRECISION,
-    "customMonthlyCredits" DOUBLE PRECISION,
+    "customMonthlyPrice" DECIMAL(65,30),
+    "customMonthlyCredits" INTEGER,
     "customMaxWorkflows" INTEGER,
-    "customOverageLimit" DOUBLE PRECISION,
+    "customOverageLimit" INTEGER,
     "customFeatures" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -78,11 +117,12 @@ CREATE TABLE "subscriptions" (
 CREATE TABLE "credit_balances" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
-    "balance" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "lifetimeEarned" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "lifetimeSpent" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "currentMonthSpent" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "currentMonthCostUSD" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "balance" INTEGER NOT NULL DEFAULT 0,
+    "lifetimeEarned" INTEGER NOT NULL DEFAULT 0,
+    "lifetimeSpent" INTEGER NOT NULL DEFAULT 0,
+    "currentMonthSpent" INTEGER NOT NULL DEFAULT 0,
+    "currentMonthCostUSD" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "invoicedOverageCredits" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -94,14 +134,14 @@ CREATE TABLE "credit_transactions" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "type" "TransactionType" NOT NULL,
-    "amount" DOUBLE PRECISION NOT NULL,
-    "balanceBefore" DOUBLE PRECISION NOT NULL,
-    "balanceAfter" DOUBLE PRECISION NOT NULL,
+    "amount" INTEGER NOT NULL,
+    "balanceBefore" INTEGER NOT NULL,
+    "balanceAfter" INTEGER NOT NULL,
     "subscriptionId" TEXT,
     "executionId" TEXT,
     "invoiceId" TEXT,
     "workflowCategory" "WorkflowCategory",
-    "costUSD" DOUBLE PRECISION,
+    "costUSD" DECIMAL(65,30),
     "description" TEXT,
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -119,11 +159,11 @@ CREATE TABLE "invoices" (
     "subscriptionId" TEXT,
     "periodStart" TIMESTAMP(3),
     "periodEnd" TIMESTAMP(3),
-    "subtotal" DOUBLE PRECISION NOT NULL,
-    "overageCredits" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "overageAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "tax" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "total" DOUBLE PRECISION NOT NULL,
+    "subtotal" DECIMAL(65,30) NOT NULL,
+    "overageCredits" INTEGER NOT NULL DEFAULT 0,
+    "overageAmount" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "tax" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "total" DECIMAL(65,30) NOT NULL,
     "stripeInvoiceId" TEXT,
     "stripePaymentIntentId" TEXT,
     "stripeHostedUrl" TEXT,
@@ -141,14 +181,16 @@ CREATE TABLE "users" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "password" TEXT NOT NULL,
+    "password" TEXT,
+    "googleId" TEXT,
     "emailVerified" BOOLEAN NOT NULL DEFAULT false,
     "emailVerificationToken" TEXT,
+    "emailVerificationTokenExpires" TIMESTAMP(3),
     "passwordResetToken" TEXT,
     "passwordResetExpires" TIMESTAMP(3),
     "twoFactorEnabled" BOOLEAN NOT NULL DEFAULT false,
     "twoFactorSecret" TEXT,
-    "role" TEXT NOT NULL DEFAULT 'viewer',
+    "role" "UserRole" NOT NULL DEFAULT 'VIEWER',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -186,29 +228,56 @@ CREATE TABLE "conversations" (
     "endUserId" TEXT,
     "workflowId" TEXT NOT NULL,
     "whatsappConfigId" TEXT,
+    "phoneNumberSender" TEXT,
     "title" TEXT,
-    "channel" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'active',
+    "channel" "ConversationChannel" NOT NULL,
+    "status" "ConversationStatus" NOT NULL DEFAULT 'ACTIVE',
     "messageCount" INTEGER NOT NULL DEFAULT 0,
     "totalTokens" INTEGER NOT NULL DEFAULT 0,
-    "totalCost" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "totalCost" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "isHumanInTheLoop" BOOLEAN NOT NULL DEFAULT false,
+    "isCompacting" BOOLEAN NOT NULL DEFAULT false,
+    "compactingLockedAt" TIMESTAMP(3),
     "lastMessageAt" TIMESTAMP(3),
+    "lastMessageRole" "ChatRole",
+    "currentCompactionId" TEXT,
     "metadata" JSONB,
-    "summary" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "closedAt" TIMESTAMP(3),
+    "deletedAt" TIMESTAMP(3),
+    "organizationId" TEXT NOT NULL,
 
     CONSTRAINT "conversations_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "conversation_compactions" (
+    "id" TEXT NOT NULL,
+    "conversationId" TEXT NOT NULL,
+    "version" INTEGER NOT NULL,
+    "summary" TEXT,
+    "sourceMessageFromId" TEXT,
+    "sourceMessageToId" TEXT,
+    "tokensBefore" INTEGER NOT NULL,
+    "tokensAfter" INTEGER NOT NULL,
+    "compressionRatio" DOUBLE PRECISION NOT NULL,
+    "modelUsed" TEXT NOT NULL,
+    "status" "CompactionStatus" NOT NULL,
+    "error" TEXT,
+    "deletedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "conversation_compactions_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "messages" (
     "id" TEXT NOT NULL,
     "conversationId" TEXT NOT NULL,
-    "role" TEXT NOT NULL,
+    "role" "ChatRole" NOT NULL,
     "content" TEXT NOT NULL,
-    "attachments" JSONB,
     "metadata" JSONB,
     "model" TEXT,
     "tokens" INTEGER,
@@ -217,10 +286,34 @@ CREATE TABLE "messages" (
     "toolCalls" JSONB,
     "toolResults" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "feedback" TEXT,
+    "feedback" "MessageFeedback",
     "feedbackComment" TEXT,
 
     CONSTRAINT "messages_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "message_attachments" (
+    "id" TEXT NOT NULL,
+    "messageId" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "type" "MessageAttachmentType" NOT NULL,
+    "mimeType" TEXT NOT NULL,
+    "sourceUrl" TEXT NOT NULL,
+    "sizeBytes" INTEGER,
+    "sha256" TEXT,
+    "contentHash" TEXT,
+    "processingStatus" "MessageAttachmentStatus" NOT NULL DEFAULT 'PENDING',
+    "processedText" TEXT,
+    "processedAt" TIMESTAMP(3),
+    "processingError" TEXT,
+    "processor" TEXT,
+    "processorVersion" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "message_attachments_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -230,8 +323,8 @@ CREATE TABLE "llm_models" (
     "modelName" TEXT NOT NULL,
     "tier" "ModelTier" NOT NULL,
     "category" TEXT,
-    "inputPricePer1m" DOUBLE PRECISION NOT NULL,
-    "outputPricePer1m" DOUBLE PRECISION NOT NULL,
+    "inputPricePer1m" DECIMAL(65,30) NOT NULL,
+    "outputPricePer1m" DECIMAL(65,30) NOT NULL,
     "contextWindow" INTEGER NOT NULL,
     "recommendedMaxTokens" INTEGER NOT NULL,
     "effectiveFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -256,6 +349,7 @@ CREATE TABLE "tool_catalog" (
     "isInBeta" BOOLEAN NOT NULL DEFAULT false,
     "icon" TEXT,
     "category" TEXT,
+    "authConfig" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -270,10 +364,11 @@ CREATE TABLE "tool_functions" (
     "displayName" TEXT NOT NULL,
     "description" TEXT,
     "category" TEXT DEFAULT 'general',
+    "oauthScopes" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "isActive" BOOLEAN NOT NULL DEFAULT false,
     "isInBeta" BOOLEAN NOT NULL DEFAULT false,
     "icon" TEXT,
-    "dangerLevel" TEXT DEFAULT 'safe',
+    "dangerLevel" "DangerLevel" DEFAULT 'SAFE',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -285,19 +380,35 @@ CREATE TABLE "tenant_tools" (
     "id" TEXT NOT NULL,
     "toolCatalogId" TEXT NOT NULL,
     "displayName" TEXT NOT NULL,
-    "credentialPath" TEXT,
     "config" JSONB,
+    "allowedFunctions" JSONB,
     "isConnected" BOOLEAN NOT NULL DEFAULT false,
+    "status" "ToolConnectionStatus" NOT NULL DEFAULT 'DISCONNECTED',
     "connectionError" TEXT,
     "connectedAt" TIMESTAMP(3),
     "lastUsedAt" TIMESTAMP(3),
-    "oauthProvider" TEXT,
-    "tokenExpiresAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
     "organizationId" TEXT NOT NULL,
+    "createdByUserId" TEXT,
 
     CONSTRAINT "tenant_tools_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "tenant_tool_credentials" (
+    "id" TEXT NOT NULL,
+    "tenantToolId" TEXT NOT NULL,
+    "oauthProvider" TEXT NOT NULL,
+    "encryptedAccessToken" TEXT NOT NULL,
+    "encryptedRefreshToken" TEXT,
+    "tokenExpiresAt" TIMESTAMP(3) NOT NULL,
+    "scopes" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "tenant_tool_credentials_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -306,15 +417,14 @@ CREATE TABLE "api_keys" (
     "name" TEXT NOT NULL,
     "description" TEXT,
     "keyHash" TEXT NOT NULL,
-    "keyPrefix" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "lastUsedAt" TIMESTAMP(3),
     "expiresAt" TIMESTAMP(3),
-    "scopes" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
     "organizationId" TEXT NOT NULL,
+    "workflowId" TEXT NOT NULL,
 
     CONSTRAINT "api_keys_pkey" PRIMARY KEY ("id")
 );
@@ -348,19 +458,19 @@ CREATE TABLE "workflows" (
     "maxTokensPerExecution" INTEGER NOT NULL,
     "maxMessages" INTEGER,
     "inactivityHours" INTEGER,
-    "maxCostPerConversation" DOUBLE PRECISION,
+    "maxCostPerConversation" DECIMAL(65,30),
     "version" INTEGER NOT NULL DEFAULT 1,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "isPaused" BOOLEAN NOT NULL DEFAULT false,
     "schedule" TEXT,
     "timezone" TEXT DEFAULT 'UTC',
-    "triggerType" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "triggerType" "TriggerType"[] DEFAULT ARRAY[]::"TriggerType"[],
     "timeout" INTEGER NOT NULL DEFAULT 300,
     "maxRetries" INTEGER NOT NULL DEFAULT 3,
     "totalExecutions" INTEGER NOT NULL DEFAULT 0,
     "successfulExecutions" INTEGER NOT NULL DEFAULT 0,
     "failedExecutions" INTEGER NOT NULL DEFAULT 0,
-    "totalCreditsConsumed" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "totalCreditsConsumed" INTEGER NOT NULL DEFAULT 0,
     "avgCreditsPerExecution" DOUBLE PRECISION,
     "lastExecutedAt" TIMESTAMP(3),
     "avgExecutionTime" DOUBLE PRECISION,
@@ -375,26 +485,27 @@ CREATE TABLE "workflows" (
 -- CreateTable
 CREATE TABLE "executions" (
     "id" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'pending',
+    "status" "ExecutionStatus" NOT NULL DEFAULT 'PENDING',
     "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "finishedAt" TIMESTAMP(3),
     "duration" INTEGER,
     "result" JSONB,
     "error" TEXT,
     "errorStack" TEXT,
-    "trigger" TEXT NOT NULL DEFAULT 'manual',
+    "trigger" "TriggerType" NOT NULL DEFAULT 'MANUAL',
     "triggerData" JSONB,
     "logs" TEXT,
     "stepResults" JSONB,
-    "cost" DOUBLE PRECISION DEFAULT 0,
-    "credits" INTEGER DEFAULT 0,
+    "cost" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "credits" INTEGER NOT NULL DEFAULT 0,
     "tokensUsed" INTEGER,
-    "balanceBefore" DOUBLE PRECISION,
-    "balanceAfter" DOUBLE PRECISION,
+    "balanceBefore" INTEGER,
+    "balanceAfter" INTEGER,
     "wasOverage" BOOLEAN NOT NULL DEFAULT false,
     "retryCount" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
     "workflowId" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "conversationId" TEXT,
@@ -424,7 +535,7 @@ CREATE TABLE "whatsapp_configs" (
     "credentialPath" TEXT,
     "webhookSecret" TEXT NOT NULL,
     "webhookUrl" TEXT,
-    "connectionStatus" TEXT NOT NULL DEFAULT 'disconnected',
+    "connectionStatus" "WhatsAppConnectionStatus" NOT NULL DEFAULT 'DISCONNECTED',
     "lastConnectedAt" TIMESTAMP(3),
     "connectionError" TEXT,
     "qrCode" TEXT,
@@ -466,6 +577,50 @@ CREATE TABLE "audit_logs" (
 );
 
 -- CreateTable
+CREATE TABLE "user_verifications" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "userName" TEXT NOT NULL,
+    "organizationName" TEXT NOT NULL,
+    "verificationCode" TEXT NOT NULL,
+    "isEmailVerified" BOOLEAN NOT NULL DEFAULT false,
+    "isFromInvitation" BOOLEAN NOT NULL DEFAULT false,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "user_verifications_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "notifications" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "version" INTEGER NOT NULL DEFAULT 1,
+    "titleTemplate" TEXT NOT NULL,
+    "messageTemplate" TEXT NOT NULL,
+    "targetRoles" JSONB NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "user_notifications" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "notificationId" TEXT NOT NULL,
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "titleSnapshot" TEXT NOT NULL,
+    "messageSnapshot" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deletedAt" TIMESTAMP(3),
+
+    CONSTRAINT "user_notifications_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "_WorkflowToTenantTool" (
     "A" TEXT NOT NULL,
     "B" TEXT NOT NULL
@@ -482,9 +637,6 @@ CREATE UNIQUE INDEX "organizations_slug_key" ON "organizations"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "organizations_stripeCustomerId_key" ON "organizations"("stripeCustomerId");
-
--- CreateIndex
-CREATE INDEX "organizations_slug_idx" ON "organizations"("slug");
 
 -- CreateIndex
 CREATE INDEX "organizations_deletedAt_idx" ON "organizations"("deletedAt");
@@ -505,9 +657,6 @@ CREATE UNIQUE INDEX "subscriptions_organizationId_key" ON "subscriptions"("organ
 CREATE UNIQUE INDEX "subscriptions_stripeSubscriptionId_key" ON "subscriptions"("stripeSubscriptionId");
 
 -- CreateIndex
-CREATE INDEX "subscriptions_organizationId_idx" ON "subscriptions"("organizationId");
-
--- CreateIndex
 CREATE INDEX "subscriptions_status_idx" ON "subscriptions"("status");
 
 -- CreateIndex
@@ -521,9 +670,6 @@ CREATE INDEX "subscriptions_plan_idx" ON "subscriptions"("plan");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "credit_balances_organizationId_key" ON "credit_balances"("organizationId");
-
--- CreateIndex
-CREATE INDEX "credit_balances_organizationId_idx" ON "credit_balances"("organizationId");
 
 -- CreateIndex
 CREATE INDEX "credit_balances_balance_idx" ON "credit_balances"("balance");
@@ -568,19 +714,16 @@ CREATE INDEX "invoices_status_dueAt_idx" ON "invoices"("status", "dueAt");
 CREATE INDEX "invoices_subscriptionId_idx" ON "invoices"("subscriptionId");
 
 -- CreateIndex
-CREATE INDEX "invoices_stripeInvoiceId_idx" ON "invoices"("stripeInvoiceId");
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+CREATE UNIQUE INDEX "users_googleId_key" ON "users"("googleId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_emailVerificationToken_key" ON "users"("emailVerificationToken");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_passwordResetToken_key" ON "users"("passwordResetToken");
-
--- CreateIndex
-CREATE INDEX "users_email_idx" ON "users"("email");
 
 -- CreateIndex
 CREATE INDEX "users_organizationId_idx" ON "users"("organizationId");
@@ -619,6 +762,12 @@ CREATE UNIQUE INDEX "end_users_organizationId_email_key" ON "end_users"("organiz
 CREATE UNIQUE INDEX "end_users_organizationId_externalId_key" ON "end_users"("organizationId", "externalId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "conversations_currentCompactionId_key" ON "conversations"("currentCompactionId");
+
+-- CreateIndex
+CREATE INDEX "conversations_organizationId_idx" ON "conversations"("organizationId");
+
+-- CreateIndex
 CREATE INDEX "conversations_userId_idx" ON "conversations"("userId");
 
 -- CreateIndex
@@ -646,7 +795,25 @@ CREATE INDEX "conversations_lastMessageAt_idx" ON "conversations"("lastMessageAt
 CREATE INDEX "conversations_closedAt_idx" ON "conversations"("closedAt");
 
 -- CreateIndex
+CREATE INDEX "conversations_deletedAt_idx" ON "conversations"("deletedAt");
+
+-- CreateIndex
 CREATE INDEX "conversations_workflowId_status_lastMessageAt_idx" ON "conversations"("workflowId", "status", "lastMessageAt");
+
+-- CreateIndex
+CREATE INDEX "conversations_channel_whatsappConfigId_phoneNumberSender_st_idx" ON "conversations"("channel", "whatsappConfigId", "phoneNumberSender", "status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "conversation_compactions_conversationId_createdAt_idx" ON "conversation_compactions"("conversationId", "createdAt" DESC);
+
+-- CreateIndex
+CREATE INDEX "conversation_compactions_status_createdAt_idx" ON "conversation_compactions"("status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "conversation_compactions_deletedAt_idx" ON "conversation_compactions"("deletedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "conversation_compactions_conversationId_version_key" ON "conversation_compactions"("conversationId", "version");
 
 -- CreateIndex
 CREATE INDEX "messages_conversationId_createdAt_idx" ON "messages"("conversationId", "createdAt");
@@ -656,6 +823,18 @@ CREATE INDEX "messages_role_idx" ON "messages"("role");
 
 -- CreateIndex
 CREATE INDEX "messages_createdAt_idx" ON "messages"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "message_attachments_messageId_createdAt_idx" ON "message_attachments"("messageId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "message_attachments_organizationId_contentHash_idx" ON "message_attachments"("organizationId", "contentHash");
+
+-- CreateIndex
+CREATE INDEX "message_attachments_processingStatus_idx" ON "message_attachments"("processingStatus");
+
+-- CreateIndex
+CREATE INDEX "message_attachments_createdAt_idx" ON "message_attachments"("createdAt");
 
 -- CreateIndex
 CREATE INDEX "llm_models_provider_modelName_isActive_idx" ON "llm_models"("provider", "modelName", "isActive");
@@ -700,7 +879,13 @@ CREATE INDEX "tenant_tools_toolCatalogId_idx" ON "tenant_tools"("toolCatalogId")
 CREATE INDEX "tenant_tools_isConnected_idx" ON "tenant_tools"("isConnected");
 
 -- CreateIndex
+CREATE INDEX "tenant_tools_deletedAt_idx" ON "tenant_tools"("deletedAt");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "tenant_tools_organizationId_displayName_key" ON "tenant_tools"("organizationId", "displayName");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "tenant_tool_credentials_tenantToolId_key" ON "tenant_tool_credentials"("tenantToolId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "api_keys_keyHash_key" ON "api_keys"("keyHash");
@@ -709,7 +894,7 @@ CREATE UNIQUE INDEX "api_keys_keyHash_key" ON "api_keys"("keyHash");
 CREATE INDEX "api_keys_organizationId_idx" ON "api_keys"("organizationId");
 
 -- CreateIndex
-CREATE INDEX "api_keys_keyPrefix_idx" ON "api_keys"("keyPrefix");
+CREATE INDEX "api_keys_workflowId_idx" ON "api_keys"("workflowId");
 
 -- CreateIndex
 CREATE INDEX "api_keys_deletedAt_idx" ON "api_keys"("deletedAt");
@@ -787,6 +972,9 @@ CREATE INDEX "executions_organizationId_userId_startedAt_idx" ON "executions"("o
 CREATE INDEX "executions_organizationId_apiKeyId_startedAt_idx" ON "executions"("organizationId", "apiKeyId", "startedAt");
 
 -- CreateIndex
+CREATE INDEX "executions_deletedAt_idx" ON "executions"("deletedAt");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "tags_name_key" ON "tags"("name");
 
 -- CreateIndex
@@ -823,6 +1011,27 @@ CREATE INDEX "audit_logs_organizationId_idx" ON "audit_logs"("organizationId");
 CREATE INDEX "audit_logs_success_idx" ON "audit_logs"("success");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "user_verifications_email_key" ON "user_verifications"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "user_verifications_verificationCode_key" ON "user_verifications"("verificationCode");
+
+-- CreateIndex
+CREATE INDEX "user_verifications_email_idx" ON "user_verifications"("email");
+
+-- CreateIndex
+CREATE INDEX "user_verifications_expiresAt_idx" ON "user_verifications"("expiresAt");
+
+-- CreateIndex
+CREATE INDEX "notifications_code_isActive_idx" ON "notifications"("code", "isActive");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "notifications_code_version_key" ON "notifications"("code", "version");
+
+-- CreateIndex
+CREATE INDEX "user_notifications_userId_organizationId_idx" ON "user_notifications"("userId", "organizationId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "_WorkflowToTenantTool_AB_unique" ON "_WorkflowToTenantTool"("A", "B");
 
 -- CreateIndex
@@ -844,6 +1053,9 @@ ALTER TABLE "credit_balances" ADD CONSTRAINT "credit_balances_organizationId_fke
 ALTER TABLE "credit_transactions" ADD CONSTRAINT "credit_transactions_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "credit_transactions" ADD CONSTRAINT "credit_transactions_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "subscriptions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "credit_transactions" ADD CONSTRAINT "credit_transactions_executionId_fkey" FOREIGN KEY ("executionId") REFERENCES "executions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -851,6 +1063,9 @@ ALTER TABLE "credit_transactions" ADD CONSTRAINT "credit_transactions_invoiceId_
 
 -- AddForeignKey
 ALTER TABLE "invoices" ADD CONSTRAINT "invoices_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "invoices" ADD CONSTRAINT "invoices_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "subscriptions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "users" ADD CONSTRAINT "users_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -871,7 +1086,22 @@ ALTER TABLE "conversations" ADD CONSTRAINT "conversations_workflowId_fkey" FOREI
 ALTER TABLE "conversations" ADD CONSTRAINT "conversations_whatsappConfigId_fkey" FOREIGN KEY ("whatsappConfigId") REFERENCES "whatsapp_configs"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "conversations" ADD CONSTRAINT "conversations_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "conversations" ADD CONSTRAINT "conversations_currentCompactionId_fkey" FOREIGN KEY ("currentCompactionId") REFERENCES "conversation_compactions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "conversation_compactions" ADD CONSTRAINT "conversation_compactions_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "conversations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "messages" ADD CONSTRAINT "messages_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "conversations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "message_attachments" ADD CONSTRAINT "message_attachments_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "messages"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "message_attachments" ADD CONSTRAINT "message_attachments_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "tool_functions" ADD CONSTRAINT "tool_functions_toolCatalogId_fkey" FOREIGN KEY ("toolCatalogId") REFERENCES "tool_catalog"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -883,7 +1113,16 @@ ALTER TABLE "tenant_tools" ADD CONSTRAINT "tenant_tools_toolCatalogId_fkey" FORE
 ALTER TABLE "tenant_tools" ADD CONSTRAINT "tenant_tools_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "tenant_tools" ADD CONSTRAINT "tenant_tools_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "tenant_tool_credentials" ADD CONSTRAINT "tenant_tool_credentials_tenantToolId_fkey" FOREIGN KEY ("tenantToolId") REFERENCES "tenant_tools"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_workflowId_fkey" FOREIGN KEY ("workflowId") REFERENCES "workflows"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -917,6 +1156,15 @@ ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_userId_fkey" FOREIGN KEY ("u
 
 -- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user_notifications" ADD CONSTRAINT "user_notifications_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user_notifications" ADD CONSTRAINT "user_notifications_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user_notifications" ADD CONSTRAINT "user_notifications_notificationId_fkey" FOREIGN KEY ("notificationId") REFERENCES "notifications"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_WorkflowToTenantTool" ADD CONSTRAINT "_WorkflowToTenantTool_A_fkey" FOREIGN KEY ("A") REFERENCES "tenant_tools"("id") ON DELETE CASCADE ON UPDATE CASCADE;

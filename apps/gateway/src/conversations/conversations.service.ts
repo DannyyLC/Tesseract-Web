@@ -6,7 +6,26 @@ import {
 } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { PaginatedResponse } from '@tesseract/types';
-import { ConversationChannel, ConversationStatus, ChatRole, Conversation } from '@tesseract/database';
+import {
+  ConversationChannel,
+  ConversationStatus,
+  ChatRole,
+  Conversation,
+  CompactionStatus,
+} from '@tesseract/database';
+
+interface CreateCompactionInput {
+  conversationId: string;
+  summary?: string | null;
+  sourceMessageFromId?: string;
+  sourceMessageToId?: string;
+  tokensBefore: number;
+  tokensAfter: number;
+  compressionRatio: number;
+  modelUsed: string;
+  status: CompactionStatus;
+  error?: string;
+}
 
 interface MessageAttachmentInput {
   type: 'IMAGE' | 'AUDIO';
@@ -34,6 +53,7 @@ interface MessageAttachmentInput {
 @Injectable()
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
+  private readonly defaultCompactionLockTtlMs = 30_000;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -343,6 +363,56 @@ export class ConversationsService {
   }
 
   /**
+   * Obtiene historial de mensajes con IDs para trazabilidad de compactación.
+   */
+  async getMessageHistoryWithIds(conversationId: string) {
+    const messages = await this.prisma.message.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        role: true,
+        content: true,
+        attachments: {
+          select: {
+            type: true,
+            processingStatus: true,
+            processedText: true,
+          },
+        },
+      },
+    });
+
+    return messages.map((message) => {
+      const processedMediaLines = message.attachments
+        .filter(
+          (attachment) =>
+            attachment.processingStatus === 'PROCESSED' && Boolean(attachment.processedText?.trim()),
+        )
+        .map((attachment) => `[${attachment.type.toLowerCase()}] ${attachment.processedText!.trim()}`);
+
+      if (processedMediaLines.length === 0) {
+        return {
+          id: message.id,
+          role: message.role,
+          content: message.content,
+        };
+      }
+
+      const mediaContext = processedMediaLines.join('\n');
+      const enrichedContent = message.content?.trim()
+        ? `${message.content}\n\n${mediaContext}`
+        : mediaContext;
+
+      return {
+        id: message.id,
+        role: message.role,
+        content: enrichedContent,
+      };
+    });
+  }
+
+  /**
    * Agrega un nuevo mensaje a la conversación
    *
    * @param conversationId - ID de la conversación
@@ -484,5 +554,124 @@ export class ConversationsService {
       activeConversations,
       totalMessagesMonth,
     };
+  }
+
+  /**
+   * Intenta adquirir lock de compactación para una conversación.
+   * Si el lock vigente está stale (por TTL), se recupera automáticamente.
+   */
+  async tryAcquireCompactionLock(
+    conversationId: string,
+    lockTtlMs: number = this.defaultCompactionLockTtlMs,
+  ): Promise<boolean> {
+    const staleBefore = new Date(Date.now() - lockTtlMs);
+    const now = new Date();
+
+    const result = await this.prisma.conversation.updateMany({
+      where: {
+        id: conversationId,
+        OR: [
+          { isCompacting: false },
+          { compactingLockedAt: null },
+          { compactingLockedAt: { lt: staleBefore } },
+        ],
+      },
+      data: {
+        isCompacting: true,
+        compactingLockedAt: now,
+      },
+    });
+
+    return result.count === 1;
+  }
+
+  /** Libera lock de compactación. */
+  async releaseCompactionLock(conversationId: string): Promise<void> {
+    await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        isCompacting: false,
+        compactingLockedAt: null,
+      },
+    });
+  }
+
+  /**
+   * Crea una compactación y la establece como activa en una sola transacción.
+   * Incluye validación de ownership para evitar cross-link de conversaciones.
+   */
+  async createAndActivateCompaction(input: CreateCompactionInput) {
+    return this.prisma.$transaction(async (tx) => {
+      const latest = await tx.conversationCompaction.findFirst({
+        where: { conversationId: input.conversationId },
+        orderBy: { version: 'desc' },
+        select: { version: true },
+      });
+
+      const nextVersion = (latest?.version ?? 0) + 1;
+
+      const compaction = await tx.conversationCompaction.create({
+        data: {
+          conversationId: input.conversationId,
+          version: nextVersion,
+          summary: input.summary,
+          sourceMessageFromId: input.sourceMessageFromId,
+          sourceMessageToId: input.sourceMessageToId,
+          tokensBefore: input.tokensBefore,
+          tokensAfter: input.tokensAfter,
+          compressionRatio: input.compressionRatio,
+          modelUsed: input.modelUsed,
+          status: input.status,
+          error: input.error,
+        },
+      });
+
+      await tx.conversation.update({
+        where: { id: input.conversationId },
+        data: {
+          currentCompactionId: compaction.id,
+        },
+      });
+
+      return compaction;
+    });
+  }
+
+  /**
+   * Devuelve el resumen activo (si existe) para componer contexto de ejecución.
+   */
+  async getActiveCompactionSummary(conversationId: string): Promise<string | null> {
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: {
+        currentCompaction: {
+          select: {
+            summary: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!conversation?.currentCompaction) {
+      return null;
+    }
+
+    return conversation.currentCompaction.status === CompactionStatus.SUCCEEDED
+      ? conversation.currentCompaction.summary
+      : null;
+  }
+
+  /**
+   * @deprecated Usar conteo basado en el historial en memoria para ventana de contexto.
+   * Este total es acumulado histórico de la conversación.
+   */
+  async getConversationTotalTokens(conversationId: string): Promise<number> {
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { totalTokens: true },
+    });
+
+    return conversation?.totalTokens ?? 0;
   }
 }
