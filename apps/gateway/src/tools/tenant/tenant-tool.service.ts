@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PaginatedResponse, DashboardTenantToolDto } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../../common/responses/cursor-paginated-response';
 import { PrismaService } from '../../database/prisma.service';
@@ -96,6 +96,8 @@ export class TenantToolService {
 
   async createTenantTool(data: CreateTenantToolDto, organizationId: string, userId: string) {
     try {
+      const requestedDisplayName = data.displayName.trim();
+
       // Fetch tool catalog to check provider
       const catalog = await this.prismaService.toolCatalog.findUnique({
         where: { id: data.toolCatalogId },
@@ -104,6 +106,20 @@ export class TenantToolService {
 
       if (!catalog) {
         throw new NotFoundException('Tool catalog entry not found');
+      }
+
+      // Only ACTIVE tools (deletedAt = null) block name reuse.
+      const activeToolWithSameName = await this.prismaService.tenantTool.findFirst({
+        where: {
+          organizationId,
+          displayName: requestedDisplayName,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+
+      if (activeToolWithSameName) {
+        throw new ConflictException('Ya existe una herramienta activa con ese nombre.');
       }
 
       // Determine if it should be connected immediately
@@ -115,7 +131,7 @@ export class TenantToolService {
 
       const tenantTool = await this.prismaService.tenantTool.create({
         data: {
-          displayName: data.displayName,
+          displayName: requestedDisplayName,
           organizationId,
           toolCatalogId: data.toolCatalogId,
           allowedFunctions: data.allowedFunctions,
@@ -130,6 +146,10 @@ export class TenantToolService {
       });
       return tenantTool;
     } catch (error: any) {
+      if (error?.code === 'P2002') {
+        throw new ConflictException('Ya existe una herramienta activa con ese nombre.');
+      }
+
       this.logger.error(`Error creating tenant tool: ${error?.message ?? 'Unknown error'}`);
       throw error;
     }

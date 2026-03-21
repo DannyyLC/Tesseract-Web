@@ -846,7 +846,9 @@ model TenantTool {
   workflows  Workflow[]            @relation("WorkflowToTenantTool")
   credential TenantToolCredential?
 
-  @@unique([organizationId, displayName])
+  // NOTE: Unique among ACTIVE tools (deletedAt IS NULL) is enforced via partial unique index in SQL migration.
+  // Prisma schema cannot express partial unique indexes directly.
+  @@index([organizationId, displayName])
   @@index([organizationId])
   @@index([toolCatalogId])
   @@index([isConnected])

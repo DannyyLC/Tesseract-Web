@@ -92,14 +92,34 @@ export function ConnectToolModal({
       if (provider === 'none') {
         toast.success('Herramienta conectada correctamente.');
         setIsSuccess(true);
-        setTimeout(onClose, 1500);
+        setTimeout(onClose, 2500);
       } else {
         toast.info(`Redirigiendo a ${provider}...`);
         const oauthApi = RootApi.getInstance().getToolsOauthApi();
         oauthApi.redirectToGoogleAuth(tenantToolId);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Connection error:', error);
+
+      const statusCode = error?.response?.status;
+      const backendMessage =
+        (typeof error?.message === 'string' && error.message.trim()) ||
+        (typeof error?.response?.data?.message === 'string' && error.response.data.message.trim()) ||
+        '';
+
+      if (statusCode === 409) {
+        toast.error(
+          backendMessage ||
+            'Ya existe una herramienta activa con ese nombre. Intenta con otro nombre.',
+        );
+        return;
+      }
+
+      if (backendMessage && !error?.toastHandled) {
+        toast.error(backendMessage);
+        return;
+      }
+
       toast.error('Ocurrió un error al intentar conectar la herramienta.');
     }
   };
