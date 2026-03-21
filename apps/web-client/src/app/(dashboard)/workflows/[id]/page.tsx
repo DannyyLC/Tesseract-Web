@@ -10,6 +10,9 @@ import WorkflowAnalyticsPanel from '../_components/workflow-analytics-panel';
 import { Modal } from '@/components/ui/modal';
 import { toast } from 'sonner';
 import PermissionGuard from '@/components/auth/PermissionGuard';
+import { WhatsappIcon } from '@/app/_shared/_components/icons/whatsapp-icon';
+
+const WHATSAPP_PHONE_REGEX = /^\+\d{8,15}$/;
 
 export default function WorkflowDetailPage() {
   const params = useParams();
@@ -18,12 +21,14 @@ export default function WorkflowDetailPage() {
 
   // Queries
   const { data: workflow, isLoading } = useWorkflow(id);
-  const { updateWorkflow, deleteWorkflow } = useWorkflowMutations();
+  const { updateWorkflow, deleteWorkflow, addWhatsappConfiguration } = useWorkflowMutations();
 
   // UI State
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [isWhatsappModalOpen, setIsWhatsappModalOpen] = useState(false);
+  const [whatsappNumber, setWhatsappNumber] = useState('');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -42,6 +47,8 @@ export default function WorkflowDetailPage() {
       });
     }
   }, [workflow]);
+
+  const isWhatsappNumberValid = WHATSAPP_PHONE_REGEX.test(whatsappNumber);
 
   // Handlers
   const handleUpdate = async () => {
@@ -96,6 +103,26 @@ export default function WorkflowDetailPage() {
       </div>
     );
   }
+
+  const handleWhatsappIntegration = async () => {
+    if (!isWhatsappNumberValid) {
+      toast.error('Ingresa un número válido en formato internacional. Ej: +524961337305');
+      return;
+    }
+
+    try {
+      await addWhatsappConfiguration.mutateAsync({
+        workflowId: id,
+        phoneNumber: whatsappNumber,
+      });
+      toast.success('Workflow asociado a WhatsApp correctamente');
+      setIsWhatsappModalOpen(false);
+      setWhatsappNumber('');
+    } catch (error) {
+      toast.error('Error al asociar el workflow a WhatsApp (verifica que el número no esté ya registrado)');
+      console.error(error);
+    }
+  };
 
   return (
     <PermissionGuard permissions="workflows:read" redirect={true} fallbackRoute="/workflows">
@@ -216,6 +243,22 @@ export default function WorkflowDetailPage() {
 
           <WorkflowAnalyticsPanel workflow={workflow} />
         </div>
+
+
+      <div className="space-y-8 px-8 py-8 flex justify-end">
+
+          <button
+            onClick={() => setIsWhatsappModalOpen(true)}
+            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-black px-6 py-2.5 font-medium text-white shadow-sm transition-all hover:opacity-90 active:scale-95 md:flex-none dark:bg-white dark:text-black">
+            <div className='flex items-center gap-4'>
+              <WhatsappIcon className="w-8 h-8" />
+              <span>
+                Asociar Workflow a WhatsApp
+              </span>
+            </div>
+          </button>
+        </div>
+
       </div>
 
       {/* Edit Modal */}
@@ -333,6 +376,63 @@ export default function WorkflowDetailPage() {
                 <Loader2 size={16} className="animate-spin" />
               ) : (
                 'Sí, Eliminar'
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+
+      <Modal isOpen={isWhatsappModalOpen} onClose={() => setIsWhatsappModalOpen(false)} title="Asociar Workflow a WhatsApp">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <div className='flex items-center gap-2 justify-start'>
+              <WhatsappIcon className="w-8 h-8 mr-2" />
+              <label className="text-sm font-medium text-black dark:text-white">Numero de Whatsapp a Asociar</label>
+            </div>
+             <span className="text-sm font-medium text-black/70 dark:text-white/70">Una vez registrado, uno de nuestros empleados le dara seguimiento a esta operación y te ayudara a terminar de configurar la integración a través de la plataforma <b>Ycloud</b> para escuchar los eventos que lleguen a tu número asociado. La notificación a nuestros empleados será enviada y tan pronto como sea posible se te contactara, aun asi si deseas inmediata atención puedes contactarnos a través de Whatsapp al número +52449-129-24-35</span>
+
+              <input
+              type="text"
+              value={whatsappNumber}
+              onChange={(e) => {
+                const sanitizedValue = e.target.value
+                  .replace(/(?!^)\+/g, '')
+                  .replace(/[^+\d]/g, '');
+
+                setWhatsappNumber(sanitizedValue);
+              }}
+              inputMode="tel"
+              autoComplete="tel"
+              pattern="^\+\d{8,15}$"
+              maxLength={16}
+              className="w-full rounded-xl border border-transparent bg-black/5 px-3 py-2 text-black outline-none transition-all focus:border-blue-500 focus:bg-white dark:bg-white/5 dark:text-white dark:focus:bg-black"
+              placeholder="Ej. +52234567890"
+            />
+              {whatsappNumber.length > 11 && !isWhatsappNumberValid && (
+                <p className="text-sm text-red-500 dark:text-red-400">
+                  Usa solo números con prefijo internacional, por ejemplo: +524961337305
+                </p>
+              )}
+          </div>
+          
+        
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={() => setIsWhatsappModalOpen(false)}
+              className="flex-1 rounded-xl bg-black/5 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleWhatsappIntegration}
+              disabled={addWhatsappConfiguration.isPending || !isWhatsappNumberValid}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+            >
+              {addWhatsappConfiguration.isPending ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                'Enviar Solicitud'
               )}
             </button>
           </div>

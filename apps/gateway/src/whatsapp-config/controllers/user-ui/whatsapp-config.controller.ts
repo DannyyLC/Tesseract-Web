@@ -154,13 +154,13 @@ export class WhatsappConfigController {
         @CurrentUser() currUser: UserPayload,
         @Body() body: CreateConfigDto,
         @Res() res: Response
-    ): Promise<Response<ApiResponse<WhatsAppConfig | null>>> {
-        const apiResponse = new ApiResponseBuilder<WhatsAppConfig | null>();
+    ): Promise<Response<ApiResponse<boolean>>> {
+        const apiResponse = new ApiResponseBuilder<boolean>();
         const existingConfig = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(body.phoneNumber);
         if (existingConfig) {
             apiResponse
             .setStatusCode(HttpStatus.BAD_REQUEST)
-            .setData(null)
+            .setData(false)
             .setMessage('A WhatsApp config with this phone number already exists');
             return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
         }
@@ -169,13 +169,13 @@ export class WhatsappConfigController {
         if (response) {
             apiResponse
             .setStatusCode(HttpStatus.CREATED)
-            .setData(response)
+            .setData(true)
             .setMessage('WhatsApp config created successfully');
             return res.status(HttpStatus.CREATED).json(apiResponse.build());
         } else {
             apiResponse
             .setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
-            .setData(null)
+            .setData(false)
             .setMessage('Failed to create WhatsApp config');
             return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
         }
