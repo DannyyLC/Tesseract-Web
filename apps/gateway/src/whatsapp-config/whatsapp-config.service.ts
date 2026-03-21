@@ -54,7 +54,7 @@ export class WhatsappConfigService {
                     phoneNumber: phoneNumber,
                     webhookUrl: `${process.env.DOMAIN_BASE_URL}/whatsapp-config/whatsapp-webhook`,
                     defaultWorkflowId: workflowId,
-                    connectionStatus: 'connected',
+                    connectionStatus: 'CONNECTED',
                 }
             });
 
