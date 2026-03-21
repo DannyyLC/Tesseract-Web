@@ -11,6 +11,7 @@ import SupportApi from './support/support-api';
 import ToolCatalogApi from './tools/tool-catalog-api';
 import TenantToolsApi from './tools/tenant-tools-api';
 import ToolsOauthApi from './tools/tools-oauth-api';
+import WhatsappConfigApi from './whatsapp-config/whatsapp-config';
 
 class RootApi {
   private static instance: RootApi;
@@ -27,6 +28,7 @@ class RootApi {
   private toolCatalogApi: ToolCatalogApi;
   private tenantToolsApi: TenantToolsApi;
   private toolsOauthApi: ToolsOauthApi;
+  private whatsappConfigApi: WhatsappConfigApi;
 
   private constructor() {
     this.authApi = new AuthApi();
@@ -42,6 +44,7 @@ class RootApi {
     this.toolCatalogApi = new ToolCatalogApi();
     this.tenantToolsApi = new TenantToolsApi();
     this.toolsOauthApi = new ToolsOauthApi();
+    this.whatsappConfigApi = new WhatsappConfigApi();
   }
 
   public static getInstance(): RootApi {
@@ -101,6 +104,10 @@ class RootApi {
 
   public getToolsOauthApi(): ToolsOauthApi {
     return this.toolsOauthApi;
+  }
+
+  public getWhatsappConfigApi(): WhatsappConfigApi {
+    return this.whatsappConfigApi;
   }
 }
 
