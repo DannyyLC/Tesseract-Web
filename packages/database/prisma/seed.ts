@@ -19,6 +19,7 @@ type ToolFunctionSeed = {
   functionName: string;
   displayName: string;
   description: string;
+  icon: string;
   category: string;
   dangerLevel: 'SAFE' | 'WARNING' | 'DANGER';
 };
@@ -165,7 +166,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
       'Herramienta de calculo matematico. Soporta operaciones basicas, porcentajes y conversiones de moneda.',
     provider: 'custom',
     category: 'utility',
-    icon: 'https://api.iconify.design/mdi:calculator.svg',
+    icon: 'mdi:calculator',
     isActive: true,
     isInBeta: false,
     functions: [
@@ -174,6 +175,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         displayName: 'Calcular expresion',
         description:
           'Evalua expresiones matematicas de forma segura. Soporta +, -, *, /, parentesis, decimales, modulo y potencias.',
+        icon: 'mdi:calculator-variant-outline',
         category: 'calculation',
         dangerLevel: 'SAFE',
       },
@@ -181,6 +183,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         functionName: 'percentage',
         displayName: 'Calcular porcentaje',
         description: 'Calcula el porcentaje de un valor.',
+        icon: 'mdi:percent-outline',
         category: 'calculation',
         dangerLevel: 'SAFE',
       },
@@ -188,6 +191,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         functionName: 'currency_convert',
         displayName: 'Convertir moneda',
         description: 'Convierte entre monedas (version mock para testing).',
+        icon: 'mdi:cash-multiple',
         category: 'conversion',
         dangerLevel: 'SAFE',
       },
@@ -200,7 +204,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
       'Escala la conversacion para atencion humana cuando el agente detecta que se requiere un miembro de la organizacion.',
     provider: 'custom',
     category: 'escalation',
-    icon: 'https://api.iconify.design/mdi:account-arrow-up.svg',
+    icon: 'mdi:account-arrow-up',
     isActive: true,
     isInBeta: false,
     functions: [
@@ -209,6 +213,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         displayName: 'Solicitar intervencion humana',
         description:
           'Marca la conversacion para Human in the Loop y notifica a miembros de la organizacion.',
+        icon: 'mdi:account-arrow-up-outline',
         category: 'escalation',
         dangerLevel: 'SAFE',
       },
@@ -220,7 +225,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
     description: 'Gestion de agenda y eventos en Google Calendar.',
     provider: 'google',
     category: 'productivity',
-    icon: 'https://api.iconify.design/mdi:google-calendar.svg',
+    icon: 'logos:google-calendar',
     isActive: true,
     isInBeta: false,
     functions: [
@@ -228,6 +233,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         functionName: 'check_calendar_availability',
         displayName: 'Verificar disponibilidad',
         description: 'Verifica si un horario esta disponible en el calendario.',
+        icon: 'mdi:calendar-check-outline',
         category: 'read',
         dangerLevel: 'SAFE',
       },
@@ -235,6 +241,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         functionName: 'create_calendar_event',
         displayName: 'Crear evento',
         description: 'Crea un nuevo evento en Google Calendar.',
+        icon: 'mdi:calendar-plus',
         category: 'write',
         dangerLevel: 'SAFE',
       },
@@ -242,6 +249,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         functionName: 'list_calendar_events',
         displayName: 'Listar eventos',
         description: 'Lista eventos en un rango de fechas.',
+        icon: 'mdi:calendar-month-outline',
         category: 'read',
         dangerLevel: 'SAFE',
       },
@@ -249,6 +257,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         functionName: 'update_calendar_event',
         displayName: 'Actualizar evento',
         description: 'Actualiza un evento existente en Google Calendar.',
+        icon: 'mdi:calendar-edit',
         category: 'write',
         dangerLevel: 'WARNING',
       },
@@ -256,6 +265,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         functionName: 'delete_calendar_event',
         displayName: 'Eliminar evento',
         description: 'Elimina un evento de Google Calendar.',
+        icon: 'mdi:calendar-remove',
         category: 'delete',
         dangerLevel: 'DANGER',
       },
@@ -263,6 +273,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         functionName: 'get_calendar_event_details',
         displayName: 'Obtener detalle de evento',
         description: 'Obtiene los detalles completos de un evento.',
+        icon: 'mdi:calendar-text-outline',
         category: 'read',
         dangerLevel: 'SAFE',
       },
@@ -450,6 +461,7 @@ async function seedToolCatalog() {
           functionName: fn.functionName,
           displayName: fn.displayName,
           description: fn.description,
+          icon: fn.icon,
           category: fn.category,
           dangerLevel: fn.dangerLevel,
           isActive: true,
@@ -458,6 +470,7 @@ async function seedToolCatalog() {
         update: {
           displayName: fn.displayName,
           description: fn.description,
+          icon: fn.icon,
           category: fn.category,
           dangerLevel: fn.dangerLevel,
           isActive: true,
