@@ -3,6 +3,7 @@ import { ConversationsService } from './conversations.service';
 import { PrismaService } from '../database/prisma.service';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { UtilityService } from '../utility/utility.service';
 
 // Mock CursorPaginatedResponseUtils
 const mockBuild = jest.fn();
@@ -34,6 +35,10 @@ const mockPrismaService = {
   $transaction: jest.fn(),
 };
 
+const mockUtilityService = {
+  sendNotificationToAppClients: jest.fn(),
+};
+
 describe('ConversationsService', () => {
   let service: ConversationsService;
 
@@ -42,6 +47,7 @@ describe('ConversationsService', () => {
       providers: [
         ConversationsService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: UtilityService, useValue: mockUtilityService },
       ],
     }).compile();
 

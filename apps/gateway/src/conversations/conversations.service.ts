@@ -3,6 +3,8 @@ import { PrismaService } from '../database/prisma.service';
 import {
   DashboardConversationDto,
   ConversationsStatsDto as ConversationStatsDto,
+  NOTIFICATIONSENUM,
+  UserRole,
 } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { PaginatedResponse } from '@tesseract/types';
@@ -13,6 +15,7 @@ import {
   Conversation,
   CompactionStatus,
 } from '@tesseract/database';
+import { UtilityService } from '../utility/utility.service';
 
 interface CreateCompactionInput {
   conversationId: string;
@@ -55,7 +58,58 @@ export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
   private readonly defaultCompactionLockTtlMs = 30_000;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly utilityService: UtilityService,
+  ) {}
+
+  async requestHumanIntervention(
+    organizationId: string,
+    conversationId: string,
+    reason?: string,
+  ): Promise<void> {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        organizationId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        workflowId: true,
+        userId: true,
+        endUserId: true,
+        isHumanInTheLoop: true,
+      },
+    });
+
+    if (!conversation) {
+      throw new NotFoundException(`Conversation with ID ${conversationId} not found`);
+    }
+
+    if (conversation.userId || !conversation.endUserId) {
+      throw new ForbiddenException(
+        'Human intervention can only be requested for EndUser conversations',
+      );
+    }
+
+    if (conversation.isHumanInTheLoop) {
+      return;
+    }
+
+    await this.prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { isHumanInTheLoop: true },
+    });
+
+    const safeReason = reason?.trim() || 'Necesita atencion humana';
+    await this.utilityService.sendNotificationToAppClients(
+      organizationId,
+      [UserRole.OWNER, UserRole.ADMIN],
+      (NOTIFICATIONSENUM as any).HUMAN_INTERVENTION_REQUIRED ?? '0000-0114',
+      [conversation.id, conversation.workflowId, safeReason],
+    );
+  }
 
   /**
    * Busca o crea una conversación para la ejecución

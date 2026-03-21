@@ -118,6 +118,41 @@ def convert_langchain_messages_to_dict(messages: list) -> list[dict]:
     
     return result
 
+
+def extract_human_handoff_from_messages(messages: list) -> dict | None:
+    """
+    Detecta si una tool de handoff humano fue ejecutada durante la corrida.
+
+    Busca ToolMessage cuyo nombre empiece por request_human_handoff
+    (puede llevar sufijo por display name, ej: request_human_handoff_Soporte).
+    """
+    for msg in messages:
+        msg_type = type(msg).__name__
+        if msg_type != "ToolMessage":
+            continue
+
+        tool_name = getattr(msg, "name", "") or ""
+        if not str(tool_name).startswith("request_human_handoff"):
+            continue
+
+        raw_content = getattr(msg, "content", "") or ""
+        reason = "Necesita atencion humana"
+
+        try:
+            parsed = json.loads(raw_content) if isinstance(raw_content, str) else {}
+            if isinstance(parsed, dict):
+                reason = str(parsed.get("reason") or reason)
+        except Exception:
+            reason = str(raw_content).strip() or reason
+
+        return {
+            "requested": True,
+            "reason": reason,
+            "tool_name": str(tool_name),
+        }
+
+    return None
+
 async def stream_agent_execution(graph, messages: list, conversation_id: str, ctx=None):
     """
     Ejecuta el agente en modo streaming y genera eventos SSE.
@@ -139,6 +174,7 @@ async def stream_agent_execution(graph, messages: list, conversation_id: str, ct
         # Tracking de uso (misma lógica que execute_agent)
         usage_by_model: dict[str, dict[str, int]] = {}
         max_input_per_model: dict[str, int] = {}
+        human_handoff_requested: dict | None = None
         start_time = time.time()
         
         # Usar astream_events v2 (estándar moderno)
@@ -187,6 +223,22 @@ async def stream_agent_execution(graph, messages: list, conversation_id: str, ct
                 tool_name = event.get("name", "unknown")
                 data = event.get("data", {})
                 tool_output = data.get("output", "")
+
+                if str(tool_name).startswith("request_human_handoff"):
+                    reason = "Necesita atencion humana"
+                    if isinstance(tool_output, str) and tool_output.strip():
+                        try:
+                            parsed_output = json.loads(tool_output)
+                            if isinstance(parsed_output, dict):
+                                reason = str(parsed_output.get("reason") or reason)
+                        except Exception:
+                            reason = tool_output.strip()
+
+                    human_handoff_requested = {
+                        "requested": True,
+                        "reason": reason,
+                        "tool_name": str(tool_name),
+                    }
                 
                 stream_event = {
                     "type": "tool_end",
@@ -275,7 +327,8 @@ async def stream_agent_execution(graph, messages: list, conversation_id: str, ct
                 "input_tokens": total_input,
                 "output_tokens": total_output,
                 "total_tokens": total_input + total_output,
-                "usage_by_model": usage_by_model
+                "usage_by_model": usage_by_model,
+                "human_handoff_requested": human_handoff_requested,
             }
         }
         yield f"data: {json.dumps(metadata_event)}\n\n"
@@ -478,6 +531,7 @@ async def execute_agent(request: AgentExecutionRequest) -> AgentExecutionRespons
         
         # Convertir mensajes LangChain a dict
         all_messages = convert_langchain_messages_to_dict(output_messages)
+        human_handoff_requested = extract_human_handoff_from_messages(output_messages)
         
         # Solo retornar mensajes del asistente (el input del usuario ya lo tienen)
         # Esto reduce el payload y evita redundancia
@@ -492,6 +546,7 @@ async def execute_agent(request: AgentExecutionRequest) -> AgentExecutionRespons
             "output_tokens": total_output,
             "total_tokens": total_input + total_output,
             "usage_by_model": usage_by_model,  # Breakdown por modelo (sin duplicados)
+            "human_handoff_requested": human_handoff_requested,
         }
         
         logger.info(

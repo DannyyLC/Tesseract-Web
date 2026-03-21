@@ -194,6 +194,27 @@ const toolCatalogs: ToolCatalogSeed[] = [
     ],
   },
   {
+    toolName: 'human_handoff',
+    displayName: 'Human Handoff',
+    description:
+      'Escala la conversacion para atencion humana cuando el agente detecta que se requiere un miembro de la organizacion.',
+    provider: 'custom',
+    category: 'escalation',
+    icon: 'https://api.iconify.design/mdi:account-arrow-up.svg',
+    isActive: true,
+    isInBeta: false,
+    functions: [
+      {
+        functionName: 'request_human_handoff',
+        displayName: 'Solicitar intervencion humana',
+        description:
+          'Marca la conversacion para Human in the Loop y notifica a miembros de la organizacion.',
+        category: 'escalation',
+        dangerLevel: 'SAFE',
+      },
+    ],
+  },
+  {
     toolName: 'google_calendar',
     displayName: 'Google Calendar',
     description: 'Gestion de agenda y eventos en Google Calendar.',

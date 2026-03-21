@@ -856,6 +856,36 @@ export class WorkflowsService {
       return this.executionsService.getByIdFull(execution.id, organizationId);
     }
 
+    // 4.2 HITL LOCK (External conversation): guardar mensaje y detener respuesta de IA
+    if (conversation.isHumanInTheLoop && conversation.endUserId && !userId) {
+      this.logger.log(
+        `HITL active for external conversation ${conversation.id}. Skipping AI response.`,
+      );
+
+      await this.conversationsService.addMessage(
+        conversation.id,
+        ChatRole.USER,
+        userMessage,
+        undefined,
+        attachments,
+      );
+
+      await this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
+        result: {
+          messages: [],
+          conversationId: conversation.id,
+        },
+        cost: 0,
+        tokensUsed: 0,
+      });
+
+      await this.conversationsService.update(organizationId, conversation.id, {
+        messageCount: { increment: 1 },
+      });
+
+      return this.executionsService.getByIdFull(execution.id, organizationId);
+    }
+
     // OBTENER HISTORIAL ANTES de guardar el mensaje del usuario
     // Esto evita duplicados en el message_history que enviamos al agente
     const messageHistory = await this.conversationsService.getMessageHistory(conversation.id);
@@ -933,6 +963,7 @@ export class WorkflowsService {
 
       // 7. EXTRAER TOKENS Y CALCULAR COSTO (multi-modelo con BATCH QUERY)
       const metadata = (agentResponse.metadata ?? {}) as any;
+      const humanHandoffRequested = metadata.human_handoff_requested;
       const totalTokens = metadata.total_tokens ?? 0;
       const usageByModel = metadata.usage_by_model ?? {};
 
@@ -990,6 +1021,14 @@ export class WorkflowsService {
         `Costo total de ejecución ${execution.id}: $${costUSD} ` +
           `(breakdown: ${JSON.stringify(costBreakdown)})`,
       );
+
+      if (humanHandoffRequested?.requested) {
+        await this.conversationsService.requestHumanIntervention(
+          organizationId,
+          conversation.id,
+          humanHandoffRequested.reason,
+        );
+      }
 
       // 8. ACTUALIZAR EXECUTION Y CONVERSATION EN PARALELO
       const messageIncrement = assistantMessageSaved ? 2 : 1; // user + assistant (o solo user)
@@ -1214,6 +1253,33 @@ export class WorkflowsService {
       return stream;
     }
 
+    // 4.2 HITL LOCK (External conversation): guardar mensaje y detener respuesta de IA
+    if (conversation.isHumanInTheLoop && conversation.endUserId && !userId) {
+      this.logger.log(
+        `HITL active for external conversation ${conversation.id}. Skipping AI stream response.`,
+      );
+
+      await this.conversationsService.addMessage(conversation.id, ChatRole.USER, userMessage);
+
+      await this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
+        result: {
+          messages: [],
+          conversationId: conversation.id,
+        },
+        cost: 0,
+        tokensUsed: 0,
+      });
+
+      await this.conversationsService.update(organizationId, conversation.id, {
+        messageCount: { increment: 1 },
+      });
+
+      const stream = new PassThrough();
+      stream.write(`event: conversation_id\ndata: "${conversation.id}"\n\n`);
+      stream.end();
+      return stream;
+    }
+
     const messageHistory = await this.conversationsService.getMessageHistory(conversation.id);
 
     await this.conversationsService.addMessage(conversation.id, ChatRole.USER, userMessage);
@@ -1392,6 +1458,8 @@ export class WorkflowsService {
             this.logger.warn(`No se recibió metadata event en stream ${execution.id}`);
           }
 
+          const humanHandoffRequested = metadataEvent?.human_handoff_requested;
+
           const usageByModel = metadataEvent?.usage_by_model ?? {};
           const totalTokens = metadataEvent?.total_tokens ?? 0;
           let costUSD = 0;
@@ -1496,6 +1564,21 @@ export class WorkflowsService {
               `Non-critical post-stream credits deduction failed for ${execution.id}: ${(nonCriticalCreditsError as Error).message}`,
               (nonCriticalCreditsError as Error).stack,
             );
+          }
+
+          if (humanHandoffRequested?.requested) {
+            try {
+              await this.conversationsService.requestHumanIntervention(
+                organizationId,
+                conversation.id,
+                humanHandoffRequested.reason,
+              );
+            } catch (nonCriticalHitlError) {
+              this.logger.error(
+                `Non-critical post-stream HITL activation failed for ${execution.id}: ${(nonCriticalHitlError as Error).message}`,
+                (nonCriticalHitlError as Error).stack,
+              );
+            }
           }
 
           this.logger.log(

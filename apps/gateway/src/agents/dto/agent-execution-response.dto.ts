@@ -108,6 +108,23 @@ export class ExecutionMetadataDto {
     string,
     { input_tokens: number; output_tokens: number; total_tokens: number }
   >;
+
+  @ApiPropertyOptional({
+    description:
+      'Señal de escalamiento a humano emitida por una tool del agente cuando requiere intervencion.',
+    example: {
+      requested: true,
+      reason: 'El usuario solicita hablar con soporte humano',
+      tool_name: 'request_human_handoff_Soporte',
+    },
+  })
+  @IsOptional()
+  @IsObject()
+  human_handoff_requested?: {
+    requested: boolean;
+    reason?: string;
+    tool_name?: string;
+  } | null;
 }
 
 export class AgentExecutionResponseDto {

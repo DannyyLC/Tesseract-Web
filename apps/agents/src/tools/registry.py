@@ -388,6 +388,10 @@ def load_specific_tool(
     elif tool_name == "calculator":
         from tools.calculator import load_calculator_tools
         tools = load_calculator_tools()
+
+    elif tool_name == "human_handoff":
+        from tools.human_handoff import load_human_handoff_tools
+        tools = load_human_handoff_tools()
     
     else:
         logger.warning(
