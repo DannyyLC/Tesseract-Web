@@ -70,7 +70,11 @@ export default function PanelLayout({ children }: PanelLayoutProps) {
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className="fixed left-0 top-0 z-50 h-screen lg:hidden"
             >
-              <Sidebar isCollapsed={false} onToggle={() => setIsMobileSidebarOpen(false)} />
+              <Sidebar
+                isCollapsed={false}
+                onToggle={() => setIsMobileSidebarOpen(false)}
+                onNavigate={() => setIsMobileSidebarOpen(false)}
+              />
             </motion.div>
           </>
         )}
