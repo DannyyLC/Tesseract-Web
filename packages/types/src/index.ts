@@ -23,5 +23,6 @@ export * from './support';
 export * from './users';
 export * from './workflows';
 export * from './common';
+export * from './whatsapp-config';
 
 

@@ -125,10 +125,22 @@ export function useWorkflowMutations() {
     },
   });
 
+  const addWhatsappConfiguration = useMutation({
+    mutationFn: async ({ workflowId, phoneNumber }: { workflowId: string; phoneNumber: string }) => {
+      const api = RootApi.getInstance().getWhatsappConfigApi();
+      return await api.addWhatsappConfiguration({ workflowId, phoneNumber });
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['workflows', 'detail', variables.workflowId] });
+    },
+
+  });
+
   return {
     updateWorkflow,
     deleteWorkflow,
     executeWorkflow,
+    addWhatsappConfiguration,
   };
 }
 
