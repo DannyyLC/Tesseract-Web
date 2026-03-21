@@ -115,11 +115,11 @@ export default function WorkflowDetailPage() {
         workflowId: id,
         phoneNumber: whatsappNumber,
       });
-      toast.success('Workflow asociado a WhatsApp correctamente');
+      toast.success('Workflow vinculado a WhatsApp correctamente');
       setIsWhatsappModalOpen(false);
       setWhatsappNumber('');
     } catch (error) {
-      toast.error('Error al asociar el workflow a WhatsApp (verifica que el número no esté ya registrado)');
+      toast.error('Error al vincular el workflow a WhatsApp (verifica que el numero no este ya registrado)');
       console.error(error);
     }
   };
@@ -143,7 +143,7 @@ export default function WorkflowDetailPage() {
               </Link>
               <div className="flex w-full flex-col gap-3">
                 <div>
-                  <h1 className="flex flex-wrap items-center gap-3 text-3xl font-bold tracking-tight text-black dark:text-white">
+                  <h1 className="flex flex-wrap items-center gap-3 break-words text-3xl font-bold tracking-tight text-black dark:text-white">
                     {workflow.name}
                     {/* Minimal Status Dot */}
                     <div
@@ -163,7 +163,7 @@ export default function WorkflowDetailPage() {
                       </span>
                     </div>
                   </h1>
-                  <p className="mt-2 max-w-2xl text-lg leading-relaxed text-black/60 dark:text-white/60">
+                  <p className="mt-2 max-w-3xl break-words text-base leading-relaxed text-black/60 sm:text-lg dark:text-white/60">
                     {workflow.description || 'Sin descripción'}
                   </p>
                 </div>
@@ -197,34 +197,34 @@ export default function WorkflowDetailPage() {
               </div>
             </div>
 
-            <div className="flex w-full items-center gap-3 md:w-auto">
+            <div className="flex w-full flex-col gap-3 xl:w-auto xl:flex-row xl:items-center">
               <PermissionGuard permissions="workflows:execute">
                 <Link
                   href={`/conversations/new?workflowId=${workflow.id}`}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-full bg-black px-6 py-2.5 font-medium text-white shadow-sm transition-all hover:opacity-90 active:scale-95 md:flex-none dark:bg-white dark:text-black"
+                  className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-black px-5 text-sm font-medium text-white shadow-sm transition-all hover:opacity-90 active:scale-95 xl:w-auto dark:bg-white dark:text-black"
                 >
-                  <MessageSquare size={16} />
+                  <MessageSquare size={17} className="shrink-0" />
                   Probar Chat
                 </Link>
               </PermissionGuard>
 
+              <button
+                onClick={() => setIsWhatsappModalOpen(true)}
+                className="group flex h-11 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-black/10 bg-white px-5 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 xl:min-w-[230px] xl:w-auto dark:border-white/10 dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 text-black/70 transition-colors group-hover:bg-black/10 dark:bg-white/10 dark:text-white/80 dark:group-hover:bg-white/15">
+                  <WhatsappIcon className="h-4 w-4" />
+                </span>
+                Vincular a WhatsApp
+              </button>
+
               <PermissionGuard permissions="workflows:update">
                 <button
                   onClick={() => setIsEditOpen(true)}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2.5 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 md:flex-none dark:border-white/10 dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
+                  className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-black/10 bg-white px-4 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 xl:w-auto dark:border-white/10 dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
                 >
-                  <Edit3 size={16} />
+                  <Edit3 size={17} className="shrink-0" />
                   Editar
-                </button>
-              </PermissionGuard>
-
-              <PermissionGuard permissions="workflows:delete">
-                <button
-                  onClick={() => setIsDeleteOpen(true)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-white text-black/30 transition-all hover:border-red-500/20 hover:bg-red-500/5 hover:text-red-500 dark:bg-[#141414] dark:text-white/30"
-                  title="Eliminar Workflow"
-                >
-                  <Trash2 size={18} />
                 </button>
               </PermissionGuard>
             </div>
@@ -244,21 +244,28 @@ export default function WorkflowDetailPage() {
           <WorkflowAnalyticsPanel workflow={workflow} />
         </div>
 
+        <div className="border-t border-black/5 px-8 py-8 dark:border-white/5">
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-4 dark:bg-red-500/[0.08]">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-red-700 dark:text-red-400">Zona de peligro</h3>
+                <p className="mt-1 text-sm text-red-700/80 dark:text-red-300/80">
+                  Eliminar este workflow es una acción irreversible y removerá su historial.
+                </p>
+              </div>
 
-      <div className="space-y-8 px-8 py-8 flex justify-end">
-
-          <button
-            onClick={() => setIsWhatsappModalOpen(true)}
-            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-black px-6 py-2.5 font-medium text-white shadow-sm transition-all hover:opacity-90 active:scale-95 md:flex-none dark:bg-white dark:text-black">
-            <div className='flex items-center gap-4'>
-              <WhatsappIcon className="w-8 h-8" />
-              <span>
-                Asociar Workflow a WhatsApp
-              </span>
+              <PermissionGuard permissions="workflows:delete">
+                <button
+                  onClick={() => setIsDeleteOpen(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-red-500/30 bg-white px-4 py-2.5 text-sm font-medium text-red-600 transition-all hover:bg-red-500/10 active:scale-95 lg:w-auto dark:border-red-400/30 dark:bg-transparent dark:text-red-400 dark:hover:bg-red-500/10"
+                >
+                  <Trash2 size={16} />
+                  Eliminar workflow
+                </button>
+              </PermissionGuard>
             </div>
-          </button>
+          </div>
         </div>
-
       </div>
 
       {/* Edit Modal */}
@@ -383,16 +390,23 @@ export default function WorkflowDetailPage() {
       </Modal>
 
 
-      <Modal isOpen={isWhatsappModalOpen} onClose={() => setIsWhatsappModalOpen(false)} title="Asociar Workflow a WhatsApp">
+      <Modal isOpen={isWhatsappModalOpen} onClose={() => setIsWhatsappModalOpen(false)} title="Vincular workflow a WhatsApp">
         <div className="space-y-4">
           <div className="space-y-2">
-            <div className='flex items-center gap-2 justify-start'>
-              <WhatsappIcon className="w-8 h-8 mr-2" />
-              <label className="text-sm font-medium text-black dark:text-white">Numero de Whatsapp a Asociar</label>
+            <div className="flex items-center justify-start gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/5 text-black/70 dark:bg-white/10 dark:text-white/80">
+                <WhatsappIcon className="h-4 w-4" />
+              </span>
+              <label className="text-sm font-medium text-black dark:text-white">Numero de WhatsApp</label>
             </div>
-             <span className="text-sm font-medium text-black/70 dark:text-white/70">Una vez registrado, uno de nuestros empleados le dara seguimiento a esta operación y te ayudara a terminar de configurar la integración a través de la plataforma <b>Ycloud</b> para escuchar los eventos que lleguen a tu número asociado. La notificación a nuestros empleados será enviada y tan pronto como sea posible se te contactara, aun asi si deseas inmediata atención puedes contactarnos a través de Whatsapp al número +52449-129-24-35</span>
 
-              <input
+            <p className="rounded-xl border border-black/5 bg-black/[0.02] p-3 text-xs leading-relaxed text-black/60 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/65">
+              Cuando envies esta solicitud, el equipo te ayudara a finalizar la integracion en
+              Ycloud para habilitar eventos entrantes de WhatsApp. Si necesitas atencion inmediata,
+              puedes contactarnos al +52 449 129 24 35.
+            </p>
+
+            <input
               type="text"
               value={whatsappNumber}
               onChange={(e) => {
@@ -409,11 +423,11 @@ export default function WorkflowDetailPage() {
               className="w-full rounded-xl border border-transparent bg-black/5 px-3 py-2 text-black outline-none transition-all focus:border-blue-500 focus:bg-white dark:bg-white/5 dark:text-white dark:focus:bg-black"
               placeholder="Ej. +52234567890"
             />
-              {whatsappNumber.length > 11 && !isWhatsappNumberValid && (
-                <p className="text-sm text-red-500 dark:text-red-400">
-                  Usa solo números con prefijo internacional, por ejemplo: +524961337305
-                </p>
-              )}
+            {whatsappNumber.length > 11 && !isWhatsappNumberValid && (
+              <p className="text-sm text-red-500 dark:text-red-400">
+                Usa solo numeros con prefijo internacional, por ejemplo: +524961337305
+              </p>
+            )}
           </div>
           
         
