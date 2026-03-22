@@ -1,16 +1,18 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
-import { ArrowLeft, MessageSquare, Edit3, BarChart2, Trash2, Loader2 } from 'lucide-react';
-import Link from 'next/link';
-import { useWorkflow, useWorkflowMutations } from '@/hooks/useWorkflows';
-import { LogoLoader } from '@/components/ui/logo-loader';
-import WorkflowAnalyticsPanel from '../_components/workflow-analytics-panel';
-import { Modal } from '@/components/ui/modal';
-import { toast } from 'sonner';
-import PermissionGuard from '@/components/auth/PermissionGuard';
 import { WhatsappIcon } from '@/app/_shared/_components/icons/whatsapp-icon';
+import PermissionGuard from '@/components/auth/PermissionGuard';
+import { LogoLoader } from '@/components/ui/logo-loader';
+import { Modal } from '@/components/ui/modal';
+import { useWhatsappConfigSubscriptions, useWhatsappMutations, useWhatsappNumbers } from '@/hooks/useWhatsapp-config';
+import { useWorkflow, useWorkflowMutations } from '@/hooks/useWorkflows';
+import { ArrowLeft, BarChart2, Edit3, Loader2, MessageSquare, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import WhatsappNumberCard from '../_components/whatsapp-number-card';
+import WorkflowAnalyticsPanel from '../_components/workflow-analytics-panel';
 
 const WHATSAPP_PHONE_REGEX = /^\+\d{8,15}$/;
 
@@ -21,7 +23,7 @@ export default function WorkflowDetailPage() {
 
   // Queries
   const { data: workflow, isLoading } = useWorkflow(id);
-  const { updateWorkflow, deleteWorkflow, addWhatsappConfiguration } = useWorkflowMutations();
+  const { updateWorkflow, deleteWorkflow } = useWorkflowMutations();
 
   // UI State
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -36,6 +38,10 @@ export default function WorkflowDetailPage() {
     description: '',
     isActive: false,
   });
+
+  const { data: whatsappNumbers, isLoading: isWhatsappNumbersLoading } = useWhatsappNumbers(id);
+  const { deleteWhatsappConfig, setisActiveStatus, addWhatsappConfiguration } = useWhatsappMutations();
+  useWhatsappConfigSubscriptions();
 
   // Initialize form when workflow loads
   useEffect(() => {
@@ -81,6 +87,34 @@ export default function WorkflowDetailPage() {
       router.push('/workflows');
     } catch (error) {
       toast.error('Error al eliminar el workflow');
+      console.error(error);
+    }
+  };
+
+  const handleWhatsappDelete = async (id: string) => {
+    try {      
+      const success = await deleteWhatsappConfig.mutateAsync(id);
+      if (success) {
+        toast.success('Número de WhatsApp eliminado correctamente');
+      } else {
+        toast.error('Error al eliminar el número de WhatsApp');
+      }
+    } catch (error) {
+      toast.error('Error al eliminar el número de WhatsApp');
+      console.error(error);
+    }
+    };
+
+  const handleSetWhatsappActiveStatus = async (id: string, isActive: boolean) => {
+    try {
+      const success = await setisActiveStatus.mutateAsync({ id, data: isActive });
+      if (success) {
+        toast.success(`Número de WhatsApp ${isActive ? 'activado' : 'desactivado'} correctamente`);
+      } else {
+        toast.error(`Error al ${isActive ? 'activar' : 'desactivar'} el número de WhatsApp`);
+      }
+    } catch (error) {
+      toast.error(`Error al ${isActive ? 'activar' : 'desactivar'} el número de WhatsApp`);
       console.error(error);
     }
   };
@@ -245,6 +279,30 @@ export default function WorkflowDetailPage() {
         </div>
 
         <div className="border-t border-black/5 px-8 py-8 dark:border-white/5">
+
+          <div className="rounded-2xl border border-green-500/20 bg-green-500/[0.04] p-4 dark:bg-green-500/[0.08] mb-8">
+            <h3 className="ml-1 text-sm font-semibold text-green-700 dark:text-green-400">Números de Whatsapp Business Asociados</h3>
+            <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-start">
+              {isWhatsappNumbersLoading ? (
+                <div className="flex items-center justify-center">
+                  <Loader2 size={20} className="animate-spin text-green-500" />
+                </div>
+              ) : whatsappNumbers && whatsappNumbers.length > 0 ? (
+                whatsappNumbers.map((number, index) => (
+                  <WhatsappNumberCard key={number.id} number={{
+                    id: number.id,
+                    phoneNumber: number.phoneNumber,
+                    connectionStatus: number.connectionStatus,
+                    createdAt: number.createdAt.toString(),
+                  }} index={index} onDelete={handleWhatsappDelete} onSetActiveStatus={handleSetWhatsappActiveStatus}  isActive={number.isActive}/>
+                ))
+              ) : (
+                <p className="ml-1 text-sm text-green-700/80 dark:text-green-400/80">No hay números de WhatsApp asociados a este workflow. Vincula un número para comenzar a recibir mensajes.</p>
+              )}
+            </div>
+          </div>
+
+
           <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-4 dark:bg-red-500/[0.08]">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -265,6 +323,9 @@ export default function WorkflowDetailPage() {
               </PermissionGuard>
             </div>
           </div>
+
+        
+              
         </div>
       </div>
 

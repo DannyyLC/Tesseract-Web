@@ -33,6 +33,7 @@ export class EventsService {
   private readonly invoiceSubject = new Subject<MessageEvent>();
   private readonly llmModelSubject = new Subject<MessageEvent>();
   private readonly subscriptionSubject = new Subject<MessageEvent>();
+  private readonly whatsappConfigSubject = new Subject<MessageEvent>();
 
   constructor(
     private readonly utilityService: UtilityService,
@@ -161,6 +162,15 @@ export class EventsService {
           retry: 3000,
         });
         break;
+
+      case EventSubjectType.WHATSAPP_CONFIG:
+        this.whatsappConfigSubject.next({
+          id: data.id,
+          data: data as string | object,
+          type: `${model}.${action}`,
+          retry: 3000,
+        });
+         break;
 
       default:
         break;
@@ -352,6 +362,9 @@ export class EventsService {
           customFeatures: data.customFeatures,
           organizationId: data.organizationId,
         } as DashboardSubscriptionDto & { organizationId: string };
+      
+      case EventSubjectType.WHATSAPP_CONFIG:
+        return data;
       default:
         return null;
     }
@@ -407,5 +420,9 @@ export class EventsService {
 
   getAppNotificationsStream(): Observable<MessageEvent> {
     return this.utilityService.getAppNotificationsSubject().asObservable();
+  }
+
+  getWhatsappConfigStream(): Observable<MessageEvent> {
+    return this.whatsappConfigSubject.asObservable();
   }
 }

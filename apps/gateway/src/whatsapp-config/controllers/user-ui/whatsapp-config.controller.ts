@@ -1,7 +1,7 @@
 import { HttpService } from '@nestjs/axios';
-import { Body, Controller, Headers, HttpStatus, Inject, Post, Res, UseGuards } from '@nestjs/common';
-import { WhatsAppConfig } from '@tesseract/database';
-import { TriggerType } from '@tesseract/database';
+import { Body, Controller, Headers, HttpStatus, Inject, Post, Res, UseGuards, Delete, Param, Get, Patch } from '@nestjs/common';
+import { WhatsAppConfig, WhatsAppConnectionStatus } from '@tesseract/database';
+import { TriggerType, ConversationChannel } from '@tesseract/database';
 import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
 import { Response } from 'express';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
@@ -43,6 +43,20 @@ export class WhatsappConfigController {
             if (!account) {
                 this.logger.warn(`No WhatsApp config found for phone number: ${phoneNumber}`);
                 return res.status(200).send({ received: true });
+            }
+
+            if (!account.isActive) {
+                this.logger.warn(`Received message for inactive WhatsApp config with phone number: ${phoneNumber}`);
+                return res.status(200).send({ received: true });
+            }
+
+            if (account.connectionStatus !== WhatsAppConnectionStatus.CONNECTED) {
+                this.logger.warn(`Received message for WhatsApp config with phone number ${phoneNumber} that is not in CONNECTED status, connecting at first time...`);
+                const isConnected = await this.whatsappConfigService.updateConnectionStatus(account.id, WhatsAppConnectionStatus.CONNECTED);
+                if (!isConnected) {
+                    this.logger.error(`Failed to update WhatsApp config connection status to CONNECTED for phone number: ${phoneNumber}`);
+                    return res.status(200).send({ received: true });
+                }
             }
 
             if (!isValidSignature) {
@@ -93,7 +107,7 @@ export class WhatsappConfigController {
                     account.organizationId,
                     account.defaultWorkflowId,
                     { message: txtContent },
-                    { channel: 'whatsapp' },
+                    {  channel: ConversationChannel.WHATSAPP, },
                     undefined,
                     parsedBody,
                     undefined,
@@ -179,5 +193,72 @@ export class WhatsappConfigController {
             .setMessage('Failed to create WhatsApp config');
             return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
         }
+    }
+
+    @Delete(':id')
+    @UseGuards(JwtAuthGuard)
+    async deleteConfig(
+        @CurrentUser() currUser: UserPayload,
+        @Param('id') id: string,
+        @Res() res: Response,
+    ): Promise<Response<ApiResponse<boolean>>> {
+        const apiResponse = new ApiResponseBuilder<boolean>();
+
+        const deleted = await this.whatsappConfigService.deleteRecord(id);
+        if (deleted) {
+            apiResponse
+                .setStatusCode(HttpStatus.OK)
+                .setData(true)
+                .setMessage('WhatsApp config deleted successfully');
+            return res.status(HttpStatus.OK).json(apiResponse.build());
+        }
+
+        apiResponse
+            .setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
+            .setData(false)
+            .setMessage('Failed to delete WhatsApp config');
+        return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
+    }
+
+    @Get('list/:workflowId')
+    @UseGuards(JwtAuthGuard)
+    async listConfigsByOrgAndWorkflow(
+        @CurrentUser() currUser: UserPayload,
+        @Param('workflowId') workflowId: string,
+        @Res() res: Response,
+    ): Promise<Response<ApiResponse<WhatsAppConfig[]>>> {
+        const apiResponse = new ApiResponseBuilder<WhatsAppConfig[]>();
+        const records = await this.whatsappConfigService.getConfigsByOrganizationAndWorkflow(currUser.organizationId, workflowId);
+        apiResponse
+            .setStatusCode(HttpStatus.OK)
+            .setData(records)
+            .setMessage('WhatsApp configs retrieved');
+
+        return res.status(HttpStatus.OK).json(apiResponse.build());
+    }
+
+    @Patch(':id/isActive')
+    @UseGuards(JwtAuthGuard)
+    async setIsActive(
+        @CurrentUser() currUser: UserPayload,
+        @Param('id') id: string,
+        @Body('isActive') isActive: boolean,
+        @Res() res: Response,
+    ): Promise<Response<ApiResponse<boolean>>> {
+        const apiResponse = new ApiResponseBuilder<boolean>();
+        const success = await this.whatsappConfigService.updateIsActive(id, isActive);
+        if (success) {
+            apiResponse
+                .setStatusCode(HttpStatus.OK)
+                .setData(true)
+                .setMessage(`WhatsApp config isActive set to ${isActive}`);
+            return res.status(HttpStatus.OK).json(apiResponse.build());
+        }
+
+        apiResponse
+            .setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
+            .setData(false)
+            .setMessage('Failed to update isActive status');
+        return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
     }
 }
