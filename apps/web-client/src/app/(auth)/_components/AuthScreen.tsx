@@ -620,19 +620,19 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                           />
                           <span className="text-sm text-black/70 group-hover:text-black dark:text-white/70 dark:group-hover:text-white">
                             Acepto los{' '}
-                            <a
+                            <Link
                               href="/terms"
                               className="font-medium text-black underline dark:text-white"
                             >
                               Términos
-                            </a>{' '}
+                            </Link>{' '}
                             y la{' '}
-                            <a
+                            <Link
                               href="/privacy"
                               className="font-medium text-black underline dark:text-white"
                             >
                               Privacidad
-                            </a>
+                            </Link>
                           </span>
                         </label>
 
@@ -938,19 +938,19 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                 {!isLogin && (
                   <p className="text-center text-xs text-black/50 dark:text-white/50">
                     Al continuar con Google, aceptas nuestros{' '}
-                    <a
+                    <Link
                       href="/terms"
                       className="font-medium text-black underline transition-colors hover:text-black/80 dark:text-white dark:hover:text-white/80"
                     >
                       Términos
-                    </a>{' '}
+                    </Link>{' '}
                     y la{' '}
-                    <a
+                    <Link
                       href="/privacy"
                       className="font-medium text-black underline transition-colors hover:text-black/80 dark:text-white dark:hover:text-white/80"
                     >
                       Privacidad
-                    </a>
+                    </Link>
                   </p>
                 )}
               </div>
