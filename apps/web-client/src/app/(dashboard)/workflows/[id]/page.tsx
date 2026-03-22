@@ -1,6 +1,7 @@
 'use client';
 
 import { WhatsappIcon } from '@/app/_shared/_components/icons/whatsapp-icon';
+import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import PermissionGuard from '@/components/auth/PermissionGuard';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
@@ -305,6 +306,31 @@ export default function WorkflowDetailPage() {
         </div>
 
         <div className="border-t border-black/5 px-8 py-8 dark:border-white/5">
+
+          <div className="mb-8 rounded-2xl border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.03]">
+            <h3 className="ml-1 text-sm font-semibold text-black dark:text-white">Herramientas Conectadas</h3>
+            <div className="mt-4 flex flex-wrap gap-4">
+              {workflow.tenantTools && workflow.tenantTools.length > 0 ? (
+                workflow.tenantTools.map((tool: any) => (
+                  <div key={tool.id} className="flex min-w-[250px] flex-1 items-center gap-3 rounded-xl border border-black/10 bg-white p-4 shadow-sm transition-all hover:border-black/20 hover:shadow-md dark:border-white/10 dark:bg-[#141414] dark:hover:border-white/20">
+                    {tool.toolCatalog?.icon ? (
+                      <DynamicIcon name={tool.toolCatalog.icon} size={32} className="shrink-0 text-black dark:text-white" />
+                    ) : (
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-black/5 dark:bg-white/5">
+                        <span className="text-xs font-bold text-black/50 dark:text-white/50">{tool.toolCatalog?.displayName?.charAt(0) || tool.displayName?.charAt(0) || 'T'}</span>
+                      </div>
+                    )}
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-sm font-semibold text-black dark:text-white">{tool.displayName}</span>
+                      <span className="truncate text-xs text-black/50 dark:text-white/50">{tool.toolCatalog?.displayName || 'Herramienta'}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="ml-1 text-sm text-black/65 dark:text-white/65">No hay herramientas o integraciones vinculadas a este workflow.</p>
+              )}
+            </div>
+          </div>
 
           <div className="mb-8 rounded-2xl border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.03]">
             <h3 className="ml-1 text-sm font-semibold text-black dark:text-white">Números de WhatsApp Business Asociados</h3>

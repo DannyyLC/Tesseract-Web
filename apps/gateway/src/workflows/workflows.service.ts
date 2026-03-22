@@ -287,6 +287,19 @@ export class WorkflowsService {
         version: true,
         createdAt: true,
         updatedAt: true,
+        tenantTools: {
+          select: {
+            id: true,
+            displayName: true,
+            toolCatalog: {
+              select: {
+                id: true,
+                displayName: true,
+                icon: true,
+              },
+            },
+          },
+        },
       },
     });
 
