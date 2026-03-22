@@ -1,10 +1,9 @@
 "use client";
 
 import { motion } from 'framer-motion';
-import { MoreVertical, Unplug, Pencil, Trash2, Check, Loader2 } from 'lucide-react';
+import { MoreVertical, Unplug, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import PermissionGuard from '@/components/auth/PermissionGuard';
-import { toast } from 'sonner';
 import { WhatsappIcon } from '@/app/_shared/_components/icons/whatsapp-icon';
 
 interface WhatsappNumberDto {
@@ -17,7 +16,6 @@ interface WhatsappNumberDto {
 interface WhatsappNumberCardProps {
   number: WhatsappNumberDto;
   index?: number;
-  onDisconnect?: (id: string) => void;
   onDelete?: (id: string) => Promise<void>;
   onSetActiveStatus?: (id: string, isActive: boolean) => Promise<void>;
   isActive?: boolean;
@@ -26,29 +24,34 @@ interface WhatsappNumberCardProps {
 const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }> = {
   CONNECTED: {
     dot: 'bg-emerald-500',
-    label: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
+    label: 'border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
     text: 'Configurado',
   },
   ERROR: {
     dot: 'bg-red-500',
-    label: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400',
+    label: 'border border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300',
     text: 'Error',
   },
   DISCONNECTED: {
     dot: 'bg-amber-500',
-    label: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
+    label: 'border border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300',
     text: 'No Configurado',
   },
   PENDING: {
     dot: 'bg-zinc-400',
-    label: 'bg-zinc-50 text-zinc-700 dark:bg-zinc-950 dark:text-zinc-400',
+    label: 'border border-zinc-500/20 bg-zinc-500/10 text-zinc-700 dark:text-zinc-300',
     text: 'Pendiente',
   },
 };
 
-export function WhatsappNumberCard({ number, index = 0, onDisconnect, onDelete,  onSetActiveStatus, isActive }: WhatsappNumberCardProps) {
+export function WhatsappNumberCard({ number, index = 0, onDelete, onSetActiveStatus, isActive }: WhatsappNumberCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const status = STATUS_STYLES[number.connectionStatus ?? 'DISCONNECTED'] ?? STATUS_STYLES.DISCONNECTED;
+  const connectionLabel = isActive
+    ? 'border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+    : 'border border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300';
+  const connectionDot = isActive ? 'bg-emerald-500' : 'bg-red-500';
+  const connectionText = isActive ? 'Conectado' : 'Desconectado';
   const createdDate = new Date(number.createdAt).toLocaleDateString('es-MX', {
     month: 'short',
     day: 'numeric',
@@ -60,7 +63,7 @@ export function WhatsappNumberCard({ number, index = 0, onDisconnect, onDelete, 
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
-      className="group relative flex items-center gap-4 rounded-2xl border border-black/5 bg-white p-4 transition-shadow hover:shadow-md dark:border-white/5 dark:bg-white/[0.03]"
+      className="group relative flex w-full items-start gap-3 rounded-2xl border border-black/10 bg-white p-4 transition-shadow hover:shadow-md dark:border-white/10 dark:bg-[#141414]"
     >
       {/* Icon */}
       <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-black/[0.04] text-black dark:bg-white/[0.06] dark:text-white">
@@ -72,19 +75,19 @@ export function WhatsappNumberCard({ number, index = 0, onDisconnect, onDelete, 
         <p className="truncate font-semibold text-black dark:text-white">{number.phoneNumber}</p>
         <p className="text-xs text-black/40 dark:text-white/40">Número de Whatsapp</p>
         <p className="mt-0.5 text-xs text-black/30 dark:text-white/30">Agregado el {createdDate}</p>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${status.label}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+            {status.text}
+          </span>
+
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${connectionLabel}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${connectionDot}`} />
+            {connectionText}
+          </span>
+        </div>
       </div>
-
-
-      {/* Status badge */}
-      <span className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium sm:flex ${status.label}`}>
-        <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
-        {status.text}
-      </span>
-
-        <span className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium sm:flex ${isActive ? 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-400' : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400'}`}>
-        <span className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-green-500' : 'bg-red-500'}`} />
-        {isActive ? 'Connectado' : 'Desconectado'}
-      </span>
 
       {/* Actions menu */}
       <div className="relative">

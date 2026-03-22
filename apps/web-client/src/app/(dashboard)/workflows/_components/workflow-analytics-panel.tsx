@@ -11,6 +11,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { Activity } from 'lucide-react';
 import { formatDateByGranularity, getGranularityLabel } from '@/utils/date-formatters';
 
 interface WorkflowAnalyticsPanelProps {
@@ -189,8 +190,13 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
 
           <div className="relative min-h-[300px] w-full min-w-0 flex-1">
             {!hasRealData ? (
-              <div className="absolute inset-0 flex items-center justify-center text-sm text-black/30 dark:text-white/30">
-                No hay ejecuciones en este período
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-black/20 dark:text-white/20">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full">
+                  <Activity size={32} />
+                </div>
+                <p className="mt-4 text-sm font-medium text-black/40 dark:text-white/40">
+                  Sin ejecuciones en este período
+                </p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={300} minWidth={0}>

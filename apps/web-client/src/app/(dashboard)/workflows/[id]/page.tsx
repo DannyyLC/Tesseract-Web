@@ -152,8 +152,34 @@ export default function WorkflowDetailPage() {
       toast.success('Workflow vinculado a WhatsApp correctamente');
       setIsWhatsappModalOpen(false);
       setWhatsappNumber('');
-    } catch (error) {
-      toast.error('Error al vincular el workflow a WhatsApp (verifica que el numero no este ya registrado)');
+    } catch (error: any) {
+      const statusCode = error?.response?.status;
+      const backendMessage =
+        (typeof error?.response?.data?.message === 'string' && error.response.data.message.trim()) ||
+        (typeof error?.message === 'string' && error.message.trim()) ||
+        '';
+      const normalizedMessage = backendMessage.toLowerCase();
+      const isDuplicatePhoneError =
+        normalizedMessage.includes('whatsapp config') &&
+        normalizedMessage.includes('phone number') &&
+        normalizedMessage.includes('already exists');
+
+      if (statusCode === 409) {
+        toast.error(
+          isDuplicatePhoneError
+            ? 'Ese número ya está registrado en WhatsApp. Usa otro número o elimina la configuración existente.'
+            : backendMessage ||
+            'Ese número ya está registrado en WhatsApp. Usa otro número o elimina la configuración existente.',
+        );
+        console.error(error);
+        return;
+      }
+
+      toast.error(
+        isDuplicatePhoneError
+          ? 'Ese número ya está registrado en WhatsApp. Usa otro número o elimina la configuración existente.'
+          : backendMessage || 'No se pudo vincular el workflow a WhatsApp. Intenta nuevamente.',
+      );
       console.error(error);
     }
   };
@@ -280,24 +306,39 @@ export default function WorkflowDetailPage() {
 
         <div className="border-t border-black/5 px-8 py-8 dark:border-white/5">
 
-          <div className="rounded-2xl border border-green-500/20 bg-green-500/[0.04] p-4 dark:bg-green-500/[0.08] mb-8">
-            <h3 className="ml-1 text-sm font-semibold text-green-700 dark:text-green-400">Números de Whatsapp Business Asociados</h3>
-            <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-start">
+          <div className="mb-8 rounded-2xl border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.03]">
+            <h3 className="ml-1 text-sm font-semibold text-black dark:text-white">Números de WhatsApp Business Asociados</h3>
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
               {isWhatsappNumbersLoading ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 size={20} className="animate-spin text-green-500" />
+                <div className="flex min-h-28 items-center justify-center rounded-2xl border border-black/10 bg-white dark:border-white/10 dark:bg-[#141414]">
+                  <Loader2 size={20} className="animate-spin text-black/50 dark:text-white/50" />
                 </div>
               ) : whatsappNumbers && whatsappNumbers.length > 0 ? (
                 whatsappNumbers.map((number, index) => (
-                  <WhatsappNumberCard key={number.id} number={{
-                    id: number.id,
-                    phoneNumber: number.phoneNumber,
-                    connectionStatus: number.connectionStatus,
-                    createdAt: number.createdAt.toString(),
-                  }} index={index} onDelete={handleWhatsappDelete} onSetActiveStatus={handleSetWhatsappActiveStatus}  isActive={number.isActive}/>
+                  <div
+                    key={number.id}
+                    className={
+                      whatsappNumbers.length % 2 !== 0 && index === whatsappNumbers.length - 1
+                        ? 'lg:col-span-2'
+                        : ''
+                    }
+                  >
+                    <WhatsappNumberCard
+                      number={{
+                        id: number.id,
+                        phoneNumber: number.phoneNumber,
+                        connectionStatus: number.connectionStatus,
+                        createdAt: number.createdAt.toString(),
+                      }}
+                      index={index}
+                      onDelete={handleWhatsappDelete}
+                      onSetActiveStatus={handleSetWhatsappActiveStatus}
+                      isActive={number.isActive}
+                    />
+                  </div>
                 ))
               ) : (
-                <p className="ml-1 text-sm text-green-700/80 dark:text-green-400/80">No hay números de WhatsApp asociados a este workflow. Vincula un número para comenzar a recibir mensajes.</p>
+                <p className="ml-1 text-sm text-black/65 dark:text-white/65">No hay números de WhatsApp asociados a este workflow. Vincula un número para comenzar a recibir mensajes.</p>
               )}
             </div>
           </div>
