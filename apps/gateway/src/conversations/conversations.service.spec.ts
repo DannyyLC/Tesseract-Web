@@ -106,7 +106,7 @@ describe('ConversationsService', () => {
           channel: 'api',
           userId: 'user-1',
           endUserId: 'endUser-1',
-          status: 'active',
+          status: 'ACTIVE',
           messageCount: 0,
           totalTokens: 0,
           totalCost: 0,
@@ -139,7 +139,12 @@ describe('ConversationsService', () => {
 
   describe('update', () => {
     it('should update conversation if ownership verified and no forbidden HITL update', async () => {
-      mockPrismaService.conversation.findFirst.mockResolvedValue({ id: 'c-1' });
+      mockPrismaService.conversation.findFirst.mockResolvedValue({
+        id: 'c-1',
+        workflow: { inactivityHours: null },
+        organization: { defaultInactivityHours: null },
+        lastMessageAt: null,
+      });
       mockPrismaService.conversation.findUnique.mockResolvedValue({ userId: null });
       mockPrismaService.conversation.update.mockResolvedValue({ id: 'c-1', status: 'closed' });
 
@@ -150,13 +155,23 @@ describe('ConversationsService', () => {
       expect(result).toEqual({ id: 'c-1', status: 'closed' });
       expect(mockPrismaService.conversation.update).toHaveBeenCalledWith({
         where: { id: 'c-1' },
-        data: { status: 'closed', isHumanInTheLoop: true },
+        data: {
+          status: 'CLOSED',
+          isHumanInTheLoop: true,
+          closedAt: expect.any(Date),
+          autoCloseAt: null,
+        },
       });
     });
 
     it('should throw ForbiddenException if internal user tries to toggle HITL', async () => {
-      mockPrismaService.conversation.findFirst.mockResolvedValue({ id: 'c-1' });
-      mockPrismaService.conversation.findUnique.mockResolvedValue({ userId: 'u-1' });
+      mockPrismaService.conversation.findFirst.mockResolvedValue({
+        id: 'c-1',
+        userId: 'u-1',
+        workflow: { inactivityHours: null },
+        organization: { defaultInactivityHours: null },
+        lastMessageAt: null,
+      });
 
       await expect(
         service.update('org-1', 'c-1', { isHumanInTheLoop: true }),
@@ -234,7 +249,7 @@ describe('ConversationsService', () => {
   describe('addMessage', () => {
     it('should create message and update conversation in transaction', async () => {
       const mockMessage = { id: 'm-1' };
-      mockPrismaService.$transaction.mockResolvedValue([mockMessage, {}]);
+      mockPrismaService.$transaction.mockResolvedValue(mockMessage);
 
       const result = await service.addMessage('conv-1', 'USER', 'Hello');
       expect(result).toEqual(mockMessage);
@@ -272,7 +287,7 @@ describe('ConversationsService', () => {
         currentPeriodStart: new Date(),
       });
       mockPrismaService.conversation.count.mockImplementation((args) => {
-        if (args.where.status === 'active') return 2;
+        if (args.where.status === 'ACTIVE') return 2;
         return 5;
       });
       mockPrismaService.message.count.mockResolvedValue(20);

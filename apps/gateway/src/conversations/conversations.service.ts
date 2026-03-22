@@ -58,6 +58,50 @@ export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
   private readonly defaultCompactionLockTtlMs = 30_000;
 
+  private resolveInactivityHours(workflowHours?: number | null, orgHours?: number | null) {
+    if (workflowHours != null) return workflowHours;
+    if (orgHours != null) return orgHours;
+    return null;
+  }
+
+  private calculateAutoCloseAt(baseDate: Date, inactivityHours: number | null) {
+    if (inactivityHours == null || inactivityHours <= 0) {
+      return null;
+    }
+
+    return new Date(baseDate.getTime() + inactivityHours * 60 * 60 * 1000);
+  }
+
+  private async getAutoCloseContext(organizationId: string, id: string) {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        id,
+        organizationId,
+        deletedAt: null,
+      },
+      select: {
+        userId: true,
+        lastMessageAt: true,
+        workflow: {
+          select: {
+            inactivityHours: true,
+          },
+        },
+        organization: {
+          select: {
+            defaultInactivityHours: true,
+          },
+        },
+      },
+    });
+
+    if (!conversation) {
+      throw new NotFoundException(`Conversation with ID ${id} not found`);
+    }
+
+    return conversation;
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly utilityService: UtilityService,
@@ -264,28 +308,48 @@ export class ConversationsService {
    * @param data - Datos a actualizar (compatible con PrismaUpdateInput)
    */
   async update(organizationId: string, id: string, data: any) {
-    // 1. Verificar ownership
-    await this.findOne(organizationId, id);
+    // 1. Verificar ownership y obtener contexto mínimo para reglas de autocierre
+    const currentConversation = await this.getAutoCloseContext(organizationId, id);
 
     // RESTRICCIÓN HITL: Si es usuario interno (userId != null), no puede modificar isHumanInTheLoop
     if (data.isHumanInTheLoop !== undefined) {
-      const existing = await this.prisma.conversation.findUnique({
-        where: { id },
-        select: { userId: true },
-      });
-
-      if (existing?.userId) {
+      if (currentConversation.userId) {
         // Es una conversación interna (User), no debería tener HITL activado manualmente
         throw new ForbiddenException('Internal users cannot toggle Human in the Loop');
       }
     }
 
+    const updateData = { ...data };
+
+    if (typeof updateData.status === 'string') {
+      const normalizedStatus = updateData.status.toUpperCase();
+
+      if (normalizedStatus === ConversationStatus.CLOSED) {
+        updateData.status = ConversationStatus.CLOSED;
+        updateData.closedAt = updateData.closedAt ?? new Date();
+        updateData.autoCloseAt = null;
+      }
+
+      if (normalizedStatus === ConversationStatus.ACTIVE) {
+        const inactivityHours = this.resolveInactivityHours(
+          currentConversation.workflow?.inactivityHours,
+          currentConversation.organization?.defaultInactivityHours,
+        );
+
+        updateData.status = ConversationStatus.ACTIVE;
+        updateData.closedAt = null;
+        updateData.autoCloseAt = currentConversation.lastMessageAt
+          ? this.calculateAutoCloseAt(currentConversation.lastMessageAt, inactivityHours)
+          : null;
+      }
+    }
+
     const conversation = await this.prisma.conversation.update({
       where: { id },
-      data,
+      data: updateData,
     });
 
-    this.logger.debug(`Conversación ${id} actualizada: ${JSON.stringify(data)}`);
+    this.logger.debug(`Conversación ${id} actualizada: ${JSON.stringify(updateData)}`);
     return conversation;
   }
 
@@ -484,7 +548,19 @@ export class ConversationsService {
     const message = await this.prisma.$transaction(async (tx) => {
       const conversation = await tx.conversation.findUnique({
         where: { id: conversationId },
-        select: { organizationId: true },
+        select: {
+          organizationId: true,
+          workflow: {
+            select: {
+              inactivityHours: true,
+            },
+          },
+          organization: {
+            select: {
+              defaultInactivityHours: true,
+            },
+          },
+        },
       });
 
       if (!conversation) {
@@ -512,11 +588,18 @@ export class ConversationsService {
         },
       });
 
+      const messageTimestamp = new Date();
+      const inactivityHours = this.resolveInactivityHours(
+        conversation.workflow?.inactivityHours,
+        conversation.organization?.defaultInactivityHours,
+      );
+
       await tx.conversation.update({
         where: { id: conversationId },
         data: {
-          lastMessageAt: new Date(),
+          lastMessageAt: messageTimestamp,
           lastMessageRole: role === ChatRole.USER ? ChatRole.USER : role, // Normalize 'human' to 'user' if needed by schema enum, or keep string
+          autoCloseAt: this.calculateAutoCloseAt(messageTimestamp, inactivityHours),
           // messageCount increment removed to avoid double counting with batchUpdate
         },
       });

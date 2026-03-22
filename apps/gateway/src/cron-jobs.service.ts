@@ -22,19 +22,20 @@ export class CronJobsService {
   // Runs every day at midnight (00:00)
   @Cron('0 0 * * *')
   async handleConversationCleanup() {
-    // Auto-close inactive conversations
-    // Condition: Active status, Inactive for > 24 hours, Last message from USER
-    const inactivityThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+    const now = new Date();
 
     const result = await this.prisma.conversation.updateMany({
       where: {
         status: ConversationStatus.ACTIVE,
-        lastMessageAt: { lt: inactivityThreshold },
-        lastMessageRole: { not: ChatRole.USER }, // Close if AI/System had the last word (user abandoned)
+        autoCloseAt: { not: null, lte: now },
+        NOT: {
+          isHumanInTheLoop: true,
+          lastMessageRole: ChatRole.USER,
+        },
       },
       data: {
         status: ConversationStatus.CLOSED,
-        closedAt: new Date(),
+        closedAt: now,
       },
     });
 

@@ -50,7 +50,15 @@ describe('CronJobsService', () => {
       await service.handleConversationCleanup();
       expect(mockPrismaService.conversation.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: { status: 'closed', closedAt: expect.any(Date) },
+          where: expect.objectContaining({
+            status: 'ACTIVE',
+            autoCloseAt: expect.objectContaining({ not: null, lte: expect.any(Date) }),
+            NOT: {
+              isHumanInTheLoop: true,
+              lastMessageRole: 'USER',
+            },
+          }),
+          data: { status: 'CLOSED', closedAt: expect.any(Date) },
         })
       );
     });

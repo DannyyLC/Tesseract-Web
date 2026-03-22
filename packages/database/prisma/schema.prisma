@@ -527,6 +527,7 @@ model Conversation {
   compactingLockedAt DateTime? // Timestamp para TTL y recuperación de lock stale
   lastMessageAt    DateTime? // Último mensaje (para calcular inactividad)
   lastMessageRole  ChatRole? // Para auto-cierre eficiente
+  autoCloseAt      DateTime? // Próximo autocierre calculado según configuración de inactividad
   currentCompactionId String? @unique // FK a la compactación activa (nullable para conversaciones nuevas)
 
   // Información adicional
@@ -556,6 +557,7 @@ model Conversation {
   @@index([channel])
   @@index([createdAt])
   @@index([lastMessageAt])
+  @@index([autoCloseAt])
   @@index([closedAt])
   @@index([deletedAt])
   @@index([workflowId, status, lastMessageAt])
