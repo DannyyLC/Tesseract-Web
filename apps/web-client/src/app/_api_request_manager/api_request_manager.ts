@@ -22,6 +22,18 @@ class ApiRequestManager {
     );
     // Flag to prevent infinite loops
     let isRefreshing = false;
+    let failedQueue: Array<{ resolve: (value?: any) => void; reject: (reason?: any) => void }> = [];
+
+    const processQueue = (error: any, token: string | null = null) => {
+      failedQueue.forEach((prom) => {
+        if (error) {
+          prom.reject(error);
+        } else {
+          prom.resolve(token);
+        }
+      });
+      failedQueue = [];
+    };
 
     this.axiosInstance.interceptors.response.use(
       (response) => response,
@@ -33,12 +45,23 @@ class ApiRequestManager {
         if (
           status === 401 &&
           !originalRequest._retry &&
-          !isRefreshing &&
           !originalRequest.url.includes('/login') &&
           !originalRequest.url.includes('/signup') &&
           !originalRequest.url.includes('/verify-2fa') &&
           !originalRequest.url.includes('/forgot-password')
         ) {
+          if (isRefreshing) {
+            return new Promise(function (resolve, reject) {
+              failedQueue.push({ resolve, reject });
+            })
+              .then(() => {
+                return this.axiosInstance(originalRequest);
+              })
+              .catch((err) => {
+                return Promise.reject(err);
+              });
+          }
+
           originalRequest._retry = true;
           isRefreshing = true;
 
@@ -48,10 +71,12 @@ class ApiRequestManager {
             await this.axiosInstance.post('/auth/refresh');
 
             isRefreshing = false;
+            processQueue(null);
             // Reintentamos la petición original
             return this.axiosInstance(originalRequest);
           } catch (refreshError) {
             isRefreshing = false;
+            processQueue(refreshError);
             // Si falla el refresh (token expirado o inválido), redirigimos al login
             // SOLO si no estamos ya en el login, signup, verify-2fa o forgot-password para evitar bucles
             if (
