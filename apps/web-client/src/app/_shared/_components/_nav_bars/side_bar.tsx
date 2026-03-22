@@ -22,6 +22,7 @@ import {
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
+  onNavigate?: () => void;
 }
 interface NavItem {
   label: string;
@@ -55,7 +56,7 @@ const navSections: NavSection[] = [
   },
 ];
 
-export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
+export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarProps) {
   const pathname = usePathname();
 
   const { data: user } = useAuth();
@@ -94,7 +95,11 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       <div
         className={`flex h-16 shrink-0 items-center border-b border-black/5 px-4 dark:border-white/5 ${isCollapsed ? 'justify-center' : 'justify-start'}`}
       >
-        <Link href="/dashboard" className="flex items-center gap-3 overflow-hidden">
+        <Link
+          href="/dashboard"
+          onClick={onNavigate}
+          className="flex items-center gap-3 overflow-hidden"
+        >
           <div className="relative h-9 w-9 flex-shrink-0">
             <Image
               src="/favicon.svg"
@@ -129,6 +134,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      onClick={onNavigate}
                       className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all ${
                         isActive
                           ? 'bg-black text-white dark:bg-white dark:text-black'
@@ -155,6 +161,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       <div className="space-y-1 border-t border-black/5 p-2 dark:border-white/5">
         <Link
           href="/support"
+          onClick={onNavigate}
           className={`flex items-center gap-3 rounded-xl px-3 py-2 text-black/50 transition-all hover:bg-black/5 hover:text-black dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white ${
             isCollapsed ? 'justify-center' : ''
           }`}
