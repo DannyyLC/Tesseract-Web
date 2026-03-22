@@ -18,7 +18,7 @@ export enum EventSubjectType {
   TOOL_FUNCTION = 'ToolFunction',
   USER = 'User',
   USER_VERIFICATION = 'UserVerification',
-  WHATSAPP_CONFIG = 'WhatsappConfig',
+  WHATSAPP_CONFIG = 'WhatsAppConfig',
   WORKFLOW = 'Workflow',
   USER_NOTIFICATION = 'UserNotification',
 }

@@ -162,4 +162,18 @@ export class EventsController {
         }),
       );
   }
+
+  @Sse('whatsapp-config/stream')
+  getWhatsappConfigStream(@CurrentUser() user: UserPayload): Observable<MessageEvent> {
+    return this.eventsService
+      .getWhatsappConfigStream()
+      .pipe(
+        filter(
+          (event) => {
+            console.log('Received WhatsApp config event:', event.data);
+            return (event.data as { organizationId: string })?.organizationId === user.organizationId;
+          }
+        ),
+      );
+  }
 }

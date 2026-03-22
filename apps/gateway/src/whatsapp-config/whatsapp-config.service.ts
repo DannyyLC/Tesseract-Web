@@ -1,11 +1,9 @@
-import { PrismaService } from '../database/prisma.service';
 import { Inject, Injectable } from '@nestjs/common';
-import { randomUUID } from "crypto";
+import { WhatsAppConfig, WhatsAppConnectionStatus } from '@tesseract/database';
+import * as crypto from 'crypto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
-import { SetupCredentialDto } from './dto';
-import { WhatsAppConfig } from '@tesseract/database';
-import * as crypto from 'crypto';
+import { PrismaService } from '../database/prisma.service';
 
 
 @Injectable()
@@ -54,7 +52,7 @@ export class WhatsappConfigService {
                     phoneNumber: phoneNumber,
                     webhookUrl: `${process.env.DOMAIN_BASE_URL}/whatsapp-config/whatsapp-webhook`,
                     defaultWorkflowId: workflowId,
-                    connectionStatus: 'CONNECTED',
+                    isActive: true,
                 }
             });
 
@@ -73,6 +71,60 @@ export class WhatsappConfigService {
             });
         } catch (error) {
             this.logger.error('Error updating WhatsApp phone number:', error);
+        }
+    }
+
+    async deleteRecord(configId: string): Promise<boolean> {
+        try {
+            await this.prismaService.whatsAppConfig.delete({
+                where: { id: configId },
+            });
+            return true;
+        } catch (error) {
+            this.logger.error('Error deleting WhatsApp config record:', error);
+            return false;
+        }
+    }
+
+    async getConfigsByOrganizationAndWorkflow(organizationId: string, workflowId: string): Promise<WhatsAppConfig[]> {
+        try {
+            const records = await this.prismaService.whatsAppConfig.findMany({
+                where: {
+                    organizationId: organizationId,
+                    defaultWorkflowId: workflowId,
+                },
+                orderBy: { createdAt: 'desc' },
+            });
+            return records;
+        } catch (error) {
+            this.logger.error('Error fetching WhatsApp configs by organization and workflow:', error);
+            return [];
+        }
+    }
+
+    async updateIsActive(configId: string, isActive: boolean): Promise<boolean> {
+        try {
+            await this.prismaService.whatsAppConfig.update({
+                where: { id: configId },
+                data: { isActive: isActive },
+            });
+            return true;
+        } catch (error) {
+            this.logger.error('Error updating WhatsApp config isActive status:', error);
+            return false;
+        }
+    }
+
+    async updateConnectionStatus(configId: string, connectionStatus: WhatsAppConnectionStatus): Promise<boolean> {
+        try {
+            await this.prismaService.whatsAppConfig.update({
+                where: { id: configId },
+                data: { connectionStatus: connectionStatus },
+            });
+            return true;
+        } catch (error) {
+            this.logger.error('Error updating WhatsApp config connection status:', error);
+            return false;
         }
     }
 

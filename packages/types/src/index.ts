@@ -24,5 +24,5 @@ export * from './users';
 export * from './workflows';
 export * from './common';
 export * from './whatsapp-config';
-
+export * from './events';
 
