@@ -934,6 +934,25 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                   <FcGoogle className="h-5 w-5" />
                   <span className="font-medium text-black/70 dark:text-white/70">Google</span>
                 </button>
+
+                {!isLogin && (
+                  <p className="text-center text-xs text-black/50 dark:text-white/50">
+                    Al continuar con Google, aceptas nuestros{' '}
+                    <a
+                      href="/terms"
+                      className="font-medium text-black underline transition-colors hover:text-black/80 dark:text-white dark:hover:text-white/80"
+                    >
+                      Términos
+                    </a>{' '}
+                    y la{' '}
+                    <a
+                      href="/privacy"
+                      className="font-medium text-black underline transition-colors hover:text-black/80 dark:text-white dark:hover:text-white/80"
+                    >
+                      Privacidad
+                    </a>
+                  </p>
+                )}
               </div>
             </div>
           </motion.div>

@@ -48,7 +48,8 @@ class ApiRequestManager {
           !originalRequest.url.includes('/login') &&
           !originalRequest.url.includes('/signup') &&
           !originalRequest.url.includes('/verify-2fa') &&
-          !originalRequest.url.includes('/forgot-password')
+          !originalRequest.url.includes('/forgot-password') &&
+          !originalRequest.url.includes('/auth/refresh')
         ) {
           if (isRefreshing) {
             return new Promise(function (resolve, reject) {
