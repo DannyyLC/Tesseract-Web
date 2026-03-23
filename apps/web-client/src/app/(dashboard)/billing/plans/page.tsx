@@ -14,6 +14,7 @@ import { Loader2, ArrowLeft, PartyPopper, RefreshCw, ArrowDownRight } from 'luci
 import { toast } from 'sonner';
 import Loading from '@/app/(dashboard)/loading';
 import PermissionGuard from '@/components/auth/PermissionGuard';
+import { triggerWowConfetti } from '@/lib/confetti';
 
 export default function PlansPage() {
   const router = useRouter();
@@ -108,6 +109,7 @@ export default function PlansPage() {
           await updateSubscription.mutateAsync(selectedPlan.type as SubscriptionPlan);
           setChangedPlanName(selectedPlan.name);
           setShowPlanChangeSuccess(true);
+          triggerWowConfetti();
         } catch (updateError: any) {
           // Si el backend detectó que la suscripción está cancelada en Stripe (409 Conflict),
           // auto-recuperarse: crear una nueva suscripción via Checkout
