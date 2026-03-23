@@ -250,8 +250,8 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
     try {
       await submitSignup(signupData.email, password);
-      // Redirigir al dashboard o onboarding
-      router.push('/billing/plans');
+      // Redirigir al dashboard o onboarding con flag de bienvenida
+      router.push('/billing/plans?welcome=true');
       toast.success('Cuenta creada exitosamente');
     } catch (error: any) {
       console.error('Error al registrar usuario:', error);

@@ -264,7 +264,7 @@ export class AuthService {
           return { user: updatedUser, organization: newOrganization };
         });
 
-        return { user: reactivatedUser, organization: reactivatedOrg };
+        return { user: reactivatedUser, organization: reactivatedOrg, isNewUser: false };
       }
 
       // 2b. Si NO está eliminado, flujo normal de vinculación
@@ -275,7 +275,7 @@ export class AuthService {
           include: { organization: true },
         });
       }
-      return { user, organization: user.organization };
+      return { user, organization: user.organization, isNewUser: false };
     }
 
     // 3. Si no existe, crear usuario y organización ("Magic Creation")
@@ -324,7 +324,7 @@ export class AuthService {
         },
       });
 
-      return { user: newUser, organization: newOrganization };
+      return { user: newUser, organization: newOrganization, isNewUser: true };
     });
 
     return newUserResult;

@@ -149,8 +149,10 @@ export class AuthController {
       path: '/api/auth',
     });
 
+    // Construir la URL de redirección
+    const redirectUrl = user.isNewUser ? `${frontendUrl}/dashboard?welcome=true` : `${frontendUrl}/dashboard`;
     // Redirigir al Dashboard
-    return res.redirect(`${frontendUrl}/dashboard`);
+    return res.redirect(redirectUrl);
   }
 
   /**

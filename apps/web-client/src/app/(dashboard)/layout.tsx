@@ -6,6 +6,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Sidebar from '@/app/_shared/_components/_nav_bars/side_bar';
 import TopBar from '@/app/_shared/_components/_nav_bars/top_bar';
 import Loading from './loading';
+import { Suspense } from 'react';
+import { WelcomeOnboarding } from '@/components/ui/welcome-onboarding';
 
 interface PanelLayoutProps {
   children: React.ReactNode;
@@ -47,6 +49,10 @@ export default function PanelLayout({ children }: PanelLayoutProps) {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] dark:bg-black">
+      <Suspense fallback={null}>
+        <WelcomeOnboarding />
+      </Suspense>
+
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <Sidebar isCollapsed={isSidebarCollapsed} onToggle={handleSidebarToggle} />

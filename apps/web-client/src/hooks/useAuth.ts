@@ -68,7 +68,8 @@ export function useLogin() {
         // Login completo (sin 2FA o tokens ya seteados)
         queryClient.setQueryData(['auth', 'me'], response.data.user);
         queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-        router.push('/dashboard');
+        const queryStr = window.location.search;
+        router.push(`/dashboard${queryStr}`);
       } else if (response?.data?.require2FA) {
         // 2FA requerido - redirigir a página de verificación
         router.push('/verify-2fa');

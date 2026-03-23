@@ -54,7 +54,7 @@ function AcceptInvitationForm() {
         verificationCode: code,
       });
       toast.success('Invitación aceptada exitosamente. Por favor, inicia sesión.');
-      router.push('/login');
+      router.push('/login?welcome=true');
     } catch (error: any) {
       toast.error(error.message || 'Error al aceptar la invitación');
     }
