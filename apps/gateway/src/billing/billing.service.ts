@@ -434,7 +434,7 @@ export class BillingService {
       const periodEnd = invoice.period_end ? new Date(invoice.period_end * 1000) : new Date();
       const upsertPriceId = this.getLineItemPriceId(invoice.lines?.data?.[0]);
 
-      await this.prisma.subscription.upsert({
+      const dbSubscription = await this.prisma.subscription.upsert({
         where: { organizationId },
         create: {
           organizationId,
@@ -488,7 +488,7 @@ export class BillingService {
             })) ?? [],
         },
         amountPaidCents / 100,
-        subscriptionId,
+        dbSubscription.id,
         undefined, // invoiceId: Stripe ID is already stored in metadata.stripeInvoiceId
       );
 

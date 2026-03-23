@@ -8,7 +8,7 @@ class ApiRequestManager {
   private constructor() {
     this.axiosInstance = axios.create({
       baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api',
-      timeout: 10000, // 10 seconds
+      timeout: 30000, // 30 seconds
       withCredentials: true, // Importante para enviar cookies httpOnly
     });
 
