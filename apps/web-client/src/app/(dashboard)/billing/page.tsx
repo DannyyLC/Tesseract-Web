@@ -20,6 +20,7 @@ import Link from 'next/link';
 import PermissionGuard from '@/components/auth/PermissionGuard';
 import { Modal } from '@/components/ui/modal';
 import { toast } from 'sonner';
+import { triggerWowConfetti } from '@/lib/confetti';
 
 export default function BillingPage() {
   const { isLoading: isLoadingAuth } = useAuth();
@@ -38,6 +39,7 @@ export default function BillingPage() {
   useEffect(() => {
     if (searchParams.get('success') === 'true') {
       setShowSuccessModal(true);
+      triggerWowConfetti();
       // Clean URL params without reload
       router.replace('/billing', { scroll: false });
     } else if (searchParams.get('canceled') === 'true') {
