@@ -240,6 +240,7 @@ CREATE TABLE "conversations" (
     "compactingLockedAt" TIMESTAMP(3),
     "lastMessageAt" TIMESTAMP(3),
     "lastMessageRole" "ChatRole",
+    "autoCloseAt" TIMESTAMP(3),
     "currentCompactionId" TEXT,
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -792,6 +793,9 @@ CREATE INDEX "conversations_createdAt_idx" ON "conversations"("createdAt");
 CREATE INDEX "conversations_lastMessageAt_idx" ON "conversations"("lastMessageAt");
 
 -- CreateIndex
+CREATE INDEX "conversations_autoCloseAt_idx" ON "conversations"("autoCloseAt");
+
+-- CreateIndex
 CREATE INDEX "conversations_closedAt_idx" ON "conversations"("closedAt");
 
 -- CreateIndex
@@ -870,6 +874,9 @@ CREATE INDEX "tool_functions_isActive_idx" ON "tool_functions"("isActive");
 CREATE UNIQUE INDEX "tool_functions_toolCatalogId_functionName_key" ON "tool_functions"("toolCatalogId", "functionName");
 
 -- CreateIndex
+CREATE INDEX "tenant_tools_organizationId_displayName_idx" ON "tenant_tools"("organizationId", "displayName");
+
+-- CreateIndex
 CREATE INDEX "tenant_tools_organizationId_idx" ON "tenant_tools"("organizationId");
 
 -- CreateIndex
@@ -880,9 +887,6 @@ CREATE INDEX "tenant_tools_isConnected_idx" ON "tenant_tools"("isConnected");
 
 -- CreateIndex
 CREATE INDEX "tenant_tools_deletedAt_idx" ON "tenant_tools"("deletedAt");
-
--- CreateIndex
-CREATE UNIQUE INDEX "tenant_tools_organizationId_displayName_key" ON "tenant_tools"("organizationId", "displayName");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "tenant_tool_credentials_tenantToolId_key" ON "tenant_tool_credentials"("tenantToolId");

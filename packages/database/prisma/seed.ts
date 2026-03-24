@@ -22,6 +22,7 @@ type ToolFunctionSeed = {
   icon: string;
   category: string;
   dangerLevel: 'SAFE' | 'WARNING' | 'DANGER';
+  oauthScopes?: string[];
 };
 
 type ToolCatalogSeed = {
@@ -164,7 +165,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
     displayName: 'Calculator',
     description:
       'Herramienta de calculo matematico. Soporta operaciones basicas, porcentajes y conversiones de moneda.',
-    provider: 'custom',
+    provider: 'none',
     category: 'utility',
     icon: 'mdi:calculator',
     isActive: true,
@@ -202,7 +203,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
     displayName: 'Human Handoff',
     description:
       'Escala la conversacion para atencion humana cuando el agente detecta que se requiere un miembro de la organizacion.',
-    provider: 'custom',
+    provider: 'none',
     category: 'escalation',
     icon: 'mdi:account-arrow-up',
     isActive: true,
@@ -236,6 +237,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         icon: 'mdi:calendar-check-outline',
         category: 'read',
         dangerLevel: 'SAFE',
+        oauthScopes: ['https://www.googleapis.com/auth/calendar.events.readonly'],
       },
       {
         functionName: 'create_calendar_event',
@@ -244,6 +246,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         icon: 'mdi:calendar-plus',
         category: 'write',
         dangerLevel: 'SAFE',
+        oauthScopes: ['https://www.googleapis.com/auth/calendar.events'],
       },
       {
         functionName: 'list_calendar_events',
@@ -252,6 +255,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         icon: 'mdi:calendar-month-outline',
         category: 'read',
         dangerLevel: 'SAFE',
+        oauthScopes: ['https://www.googleapis.com/auth/calendar.events.readonly'],
       },
       {
         functionName: 'update_calendar_event',
@@ -260,6 +264,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         icon: 'mdi:calendar-edit',
         category: 'write',
         dangerLevel: 'WARNING',
+        oauthScopes: ['https://www.googleapis.com/auth/calendar.events'],
       },
       {
         functionName: 'delete_calendar_event',
@@ -268,6 +273,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         icon: 'mdi:calendar-remove',
         category: 'delete',
         dangerLevel: 'DANGER',
+        oauthScopes: ['https://www.googleapis.com/auth/calendar.events'],
       },
       {
         functionName: 'get_calendar_event_details',
@@ -276,6 +282,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
         icon: 'mdi:calendar-text-outline',
         category: 'read',
         dangerLevel: 'SAFE',
+        oauthScopes: ['https://www.googleapis.com/auth/calendar.events.readonly'],
       },
     ],
   },
@@ -464,6 +471,7 @@ async function seedToolCatalog() {
           icon: fn.icon,
           category: fn.category,
           dangerLevel: fn.dangerLevel,
+          oauthScopes: fn.oauthScopes ?? [],
           isActive: true,
           isInBeta: false,
         },
@@ -473,6 +481,7 @@ async function seedToolCatalog() {
           icon: fn.icon,
           category: fn.category,
           dangerLevel: fn.dangerLevel,
+          oauthScopes: fn.oauthScopes ?? [],
           isActive: true,
           isInBeta: false,
         },
