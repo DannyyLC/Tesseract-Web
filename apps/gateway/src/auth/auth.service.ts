@@ -129,8 +129,11 @@ export class AuthService {
    */
   async logout(refreshToken: string) {
     try {
-      // 1. Decodificar el token (sin verificar expiración para permitir logout de tokens expirados)
-      const payload = this.jwtService.decode(refreshToken);
+      // 1. Verificar firma del token (ignoreExpiration permite logout con tokens ya expirados)
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        ignoreExpiration: true,
+      });
 
       if (!payload) {
         throw new UnauthorizedException('Token inválido');
