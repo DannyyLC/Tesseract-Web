@@ -7,7 +7,7 @@ import { UtilityModule } from '../utility/utility.module';
   imports: [
     UtilityModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET ?? 'defaultSecret',
+      secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '1h' },
     }),
   ],

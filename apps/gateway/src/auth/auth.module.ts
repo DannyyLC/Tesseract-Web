@@ -29,7 +29,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       useFactory: (configService: ConfigService) => {
         const expiresIn = configService.get<string>('JWT_EXPIRES_IN') ?? '5m';
         return {
-          secret: configService.get<string>('JWT_SECRET') ?? 'your-secret-key-change-in-production',
+          secret: configService.get<string>('JWT_SECRET'),
           signOptions: {
             expiresIn: expiresIn as any, // Cast necesario debido a limitación de tipos
           },

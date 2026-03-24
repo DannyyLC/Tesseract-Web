@@ -199,7 +199,7 @@ export class ConversationsService {
       data: {
         workflowId,
         organizationId: workflow.organizationId, // Asignación obligatoria
-        channel: channel as ConversationChannel,
+        channel: ConversationChannel.DASHBOARD,
         userId,
         endUserId,
         status: ConversationStatus.ACTIVE,

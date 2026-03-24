@@ -117,7 +117,7 @@ export class AuthService {
    */
   generateTempToken(payload: UserPayload): string {
     return this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('TEMP_TOKEN_SECRET') ?? 'temp-token-secret',
+      secret: this.configService.get<string>('TEMP_TOKEN_SECRET')!,
       expiresIn: '15m',
     });
   }
@@ -427,7 +427,7 @@ export class AuthService {
 
     // 2. Generar access token (corta duración)
     const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_SECRET') ?? 'super-secret-change-in-production',
+      secret: this.configService.get<string>('JWT_SECRET')!,
       expiresIn: this.configService.get('JWT_EXPIRES_IN') ?? '5m',
     });
 
@@ -436,9 +436,7 @@ export class AuthService {
       ? '30d'
       : (this.configService.get('JWT_REFRESH_EXPIRES_IN') ?? '7d');
     const refreshToken = this.jwtService.sign(payload, {
-      secret:
-        this.configService.get<string>('JWT_REFRESH_SECRET') ??
-        'refresh-secret-change-in-production',
+      secret: this.configService.get<string>('JWT_REFRESH_SECRET')!,
       expiresIn: refreshExpiresIn,
     });
 
@@ -477,9 +475,7 @@ export class AuthService {
     try {
       // 1. Verificar y decodificar el refresh token
       const payload = this.jwtService.verify<UserPayload>(refreshToken, {
-        secret:
-          this.configService.get<string>('JWT_REFRESH_SECRET') ??
-          'refresh-secret-change-in-production',
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET')!,
       });
 
       // 2. Buscar refresh tokens en la DB que coincidan

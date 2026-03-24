@@ -15,7 +15,10 @@ export class TurnstileService {
     const secretKey = this.configService.get<string>('TURNSTILE_SECRET_KEY');
 
     if (!secretKey) {
-      this.logger.warn('Turnstile secret key is not configured. Skipping verification.');
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('TURNSTILE_SECRET_KEY is required in production');
+      }
+      this.logger.warn('Turnstile secret key is not configured. Skipping verification (dev only).');
       return;
     }
 

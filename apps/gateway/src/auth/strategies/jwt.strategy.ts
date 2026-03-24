@@ -31,8 +31,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ignoreExpiration: false,
 
       // Secret key para validar la firma del token
-      secretOrKey:
-        configService.get<string>('JWT_SECRET') ?? 'your-secret-key-change-in-production',
+      secretOrKey: configService.get<string>('JWT_SECRET')!,
     });
   }
 

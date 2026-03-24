@@ -1,0 +1,150 @@
+Vuln 2: Unauthenticated Agents Service API: apps/agents/src/api/routes.py
+Severity: High
+
+Confidence: 8/10
+
+Category: missing_authentication / unauthorized_access
+
+Description: The agents microservice exposes three endpoints with no authentication whatsoever — no Bearer token validation, no API key guard, no dependency injection security:
+
+POST /api/v1/agents/execute
+POST /api/v1/agents/execute/stream
+POST /api/v1/agents/validate
+The service is also bound to port 8000 on the host machine (per docker-compose.yml), making it reachable beyond the internal Docker network. The Gateway adds authentication before forwarding to this service, but this is not a security boundary — it only applies to requests routed through the Gateway.
+
+Exploit Scenario: An attacker with access to port 8000 (e.g., on the same host, same Docker network via lateral movement from another compromised container, or in any environment where the port is inadvertently exposed) can call these endpoints directly, bypassing Gateway authentication entirely. The request body accepts attacker-controlled fields including system_prompt, tools, credentials (OAuth tokens), and agent_tool_instances. This allows unauthorized LLM execution, credential theft from tool configurations, and unauthorized operations on connected third-party services (Google Calendar, HubSpot, etc.).
+
+Recommendation:
+
+Add service-to-service authentication (e.g., a shared secret header validated via a FastAPI Depends guard):
+
+from fastapi import Depends, HTTPException, Header
+
+async def verify_internal_token(x_internal_token: str = Header(...)):
+    if x_internal_token != settings.INTERNAL_SERVICE_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+@router.post("/agents/execute", dependencies=[Depends(verify_internal_token)])
+In docker-compose.yml, remove or restrict the host port binding for the agents service so it is only reachable on the internal tesseract_net network.
+
+
+
+
+
+
+
+
+
+
+The Big Picture: Cloud Run vs Docker Compose
+In Docker Compose, services share a private bridge network (tesseract_net), so agents:8000 is invisible outside the host. In Cloud Run, there is no shared private network by default — each service gets its own public HTTPS URL (e.g., https://agents-abc123-uc.a.run.app). This means if you deploy as-is, the agents service would be reachable from the entire internet.
+
+The good news: Cloud Run has two built-in mechanisms that solve Vuln 2 at the infrastructure level, without requiring you to write authentication code inside the agents service.
+
+
+Fix 2 — Unauthenticated Agents Service (The Complex One)
+This requires understanding two Cloud Run features, then a small code change in the gateway.
+
+How Cloud Run protects internal services
+Mechanism 1 — Ingress restriction (--ingress=internal)
+
+This tells GCP's load balancer to reject all traffic from the public internet at the network level before it ever reaches your container. Only traffic from:
+
+Other Cloud Run services in the same GCP project
+Cloud Scheduler, Cloud Tasks, or Pub/Sub
+Resources inside your VPC (if you add a connector)
+...can reach the service. This is equivalent to keeping it on tesseract_net but enforced by GCP infrastructure, not Docker.
+
+Mechanism 2 — IAM authentication (--no-allow-unauthenticated)
+
+This requires that every HTTP request to the agents service includes a valid Google-signed OIDC token in the Authorization: Bearer header. Without it, Cloud Run returns 403 before your application code even runs. The token must be issued to a service account that has roles/run.invoker on the agents service.
+
+Together these give you two independent layers: "wrong network → blocked at edge" AND "right network but no valid token → blocked by IAM."
+
+The deployment commands
+
+# 1. Create a dedicated service account for the gateway
+gcloud iam service-accounts create gateway-sa \
+  --display-name="Gateway Service"
+
+# 2. Deploy agents as PRIVATE (internal + requires auth)
+gcloud run deploy agents \
+  --image=gcr.io/YOUR_PROJECT/agents \
+  --ingress=internal \
+  --no-allow-unauthenticated \
+  --region=us-central1
+
+# 3. Grant gateway's service account permission to CALL agents
+gcloud run services add-iam-policy-binding agents \
+  --region=us-central1 \
+  --member="serviceAccount:gateway-sa@YOUR_PROJECT.iam.gserviceaccount.com" \
+  --role="roles/run.invoker"
+
+# 4. Deploy gateway with that service account identity
+gcloud run deploy gateway \
+  --image=gcr.io/YOUR_PROJECT/gateway \
+  --ingress=all \          # gateway IS public-facing
+  --allow-unauthenticated \
+  --service-account=gateway-sa@YOUR_PROJECT.iam.gserviceaccount.com \
+  --region=us-central1
+The code change in the gateway
+When the gateway runs on Cloud Run, it automatically has access to the GCP metadata server which can issue OIDC tokens for any target URL. You need to update agents.service.ts to fetch and attach this token.
+
+Install the auth library (already likely present given your KMS usage, but confirm):
+
+
+# In apps/gateway/
+npm install google-auth-library
+Then update apps/gateway/src/agents/agents.service.ts:
+
+
+import { GoogleAuth } from 'google-auth-library';
+
+@Injectable()
+export class AgentsService {
+  private readonly agentsApiUrl: string;
+  private readonly auth: GoogleAuth;
+  private readonly isCloudRun: boolean;
+
+  constructor(...) {
+    this.agentsApiUrl = this.configService.get('AGENTS_API_URL', 'http://localhost:8000');
+    this.isCloudRun = !!process.env.K_SERVICE; // Cloud Run always sets K_SERVICE
+    this.auth = new GoogleAuth();
+  }
+
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    if (!this.isCloudRun) return {}; // local dev: no auth needed
+    const client = await this.auth.getIdTokenClient(this.agentsApiUrl);
+    const headers = await client.getRequestHeaders();
+    return headers; // { Authorization: 'Bearer <oidc_token>' }
+  }
+
+  async executeAgent(request: AgentExecutionRequestDto) {
+    const authHeaders = await this.getAuthHeaders();
+    return this.httpService.post(
+      `${this.agentsApiUrl}/api/v1/agents/execute`,
+      request,
+      { headers: { ...authHeaders } }
+    ).toPromise();
+  }
+}
+The K_SERVICE environment variable is automatically set by Cloud Run on every deployed container, so this correctly switches between local (no auth) and production (OIDC auth) without any manual config.
+
+Do you need to change the agents service code?
+No — not for the core protection. The security is enforced entirely by GCP's infrastructure. Cloud Run rejects unauthorized requests before they reach your Python container. Your agents service code stays exactly as it is.
+
+However, as defense-in-depth, you could optionally add a simple shared secret header check in the agents service. But with both --ingress=internal and --no-allow-unauthenticated in place, that would be a third redundant layer.
+
+Summary of What Changes
+Item	Action	Where
+Remove ?? 'fallback' from JWT secrets	Code change	auth.service.ts, jwt.strategy.ts, temp-token.guard.ts
+Add startup validation	Code change	apps/gateway/src/main.ts
+Store secrets in Secret Manager	GCP config	CLI / GCP Console
+Mount secrets as env vars	Cloud Run deploy flag	--set-secrets=...
+Deploy agents as internal + private	Cloud Run config	--ingress=internal --no-allow-unauthenticated
+Create gateway service account	GCP config	gcloud iam service-accounts create
+Grant invoker permission	GCP config	gcloud run services add-iam-policy-binding
+Add OIDC token fetching in gateway	Code change (~15 lines)	agents.service.ts
+Fix 1 is purely code + GCP secrets configuration. Fix 2 requires the 15-line code change in the gateway plus the GCP deployment commands — no changes to the agents service itself.
+
+Would you like me to implement these changes directly in the code?
