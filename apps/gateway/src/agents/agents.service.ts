@@ -10,6 +10,7 @@ export class AgentsService {
   private readonly logger = new Logger(AgentsService.name);
   private readonly agentsServiceUrl: string;
   private readonly agentsServiceTimeout: number;
+  private readonly internalSecret: string;
 
   constructor(
     private readonly httpService: HttpService,
@@ -23,8 +24,13 @@ export class AgentsService {
       'AGENTS_SERVICE_TIMEOUT',
       30000, // 30 segundos por defecto
     );
+    this.internalSecret = this.configService.get<string>('AGENTS_INTERNAL_SECRET', '');
 
     this.logger.log(`Agents service URL: ${this.agentsServiceUrl}`);
+  }
+
+  private get internalHeaders(): Record<string, string> {
+    return this.internalSecret ? { 'X-Internal-Token': this.internalSecret } : {};
   }
 
   /**
@@ -42,7 +48,7 @@ export class AgentsService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.post<AgentExecutionResponseDto>(url, request).pipe(
+        this.httpService.post<AgentExecutionResponseDto>(url, request, { headers: this.internalHeaders }).pipe(
           timeout({ each: this.agentsServiceTimeout }),
           catchError((error: AxiosError) => {
             this.logger.error(`Failed to execute agent: ${error.message}`, error.stack);
@@ -117,6 +123,7 @@ export class AgentsService {
         this.httpService
           .post(url, request, {
             responseType: 'stream',
+            headers: this.internalHeaders,
           })
           .pipe(
             // El timeout inicial es solo para establecer la conexión
@@ -180,7 +187,7 @@ export class AgentsService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.get(url).pipe(
+        this.httpService.get(url, { headers: this.internalHeaders }).pipe(
           timeout(5000),
           catchError(() => {
             throw new Error('Health check failed');

@@ -25,6 +25,7 @@ const REQUIRED_ALWAYS: string[] = [
 const REQUIRED_IN_PRODUCTION: string[] = [
   // Auth & security
   'TURNSTILE_SECRET_KEY',
+  'AGENTS_INTERNAL_SECRET',
 
   // URLs
   'FRONTEND_URL',

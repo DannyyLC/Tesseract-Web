@@ -8,7 +8,8 @@ ENDPOINTS:
 - POST /agents/execute - Ejecutar un agente y retornar respuesta completa
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from api.auth import verify_internal_token
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 import logging
@@ -28,7 +29,7 @@ logger = logging.getLogger(__name__)
 # ==========================================
 # Router
 # ==========================================
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_internal_token)])
 
 
 # ==========================================
