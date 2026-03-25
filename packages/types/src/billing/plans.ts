@@ -112,14 +112,14 @@ export const WORKFLOW_CATEGORIES: Record<WorkflowCategory, WorkflowCategoryConfi
   [WorkflowCategory.STANDARD]: {
     category: WorkflowCategory.STANDARD,
     credits: 5,
-    maxTokens: 50_000,
+    maxTokens: 100_000,
     allowedModelTiers: [ModelTier.BASIC, ModelTier.STANDARD, ModelTier.PREMIUM],
     description: 'Workflows completos con múltiples pasos y herramientas',
   },
   [WorkflowCategory.ADVANCED]: {
     category: WorkflowCategory.ADVANCED,
-    credits: 25,
-    maxTokens: 128_000,
+    credits: 20,
+    maxTokens: 250_000,
     allowedModelTiers: [ModelTier.BASIC, ModelTier.STANDARD, ModelTier.PREMIUM],
     description: 'Agentes complejos multi-step con reasoning avanzado',
   },
@@ -131,7 +131,7 @@ export const WORKFLOW_CATEGORIES: Record<WorkflowCategory, WorkflowCategoryConfi
 /**
  * Precio por crédito en overage
  */
-export const OVERAGE_PRICE_PER_CREDIT = 0.19; // $0.19 USD por crédito
+export const OVERAGE_PRICE_PER_CREDIT = 0.16; // $0.16 USD por crédito
 
 /**
  * Configuración completa de todos los planes
@@ -169,8 +169,8 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxUsers: 10,
       maxWorkflows: 10,
       maxApiKeys: 50,
-      monthlyCredits: 150,
-      overageLimit: 150,
+      monthlyCredits: 200,
+      overageLimit: 200,
       allowOverages: true,
     },
     features: ['Soporte estándar por email'],
@@ -189,8 +189,8 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxUsers: 25,
       maxWorkflows: 25,
       maxApiKeys: 100,
-      monthlyCredits: 500,
-      overageLimit: 500,
+      monthlyCredits: 650,
+      overageLimit: 650,
       allowOverages: true,
     },
     features: ['Soporte prioritario 24h'],
@@ -210,8 +210,8 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxUsers: 50,
       maxWorkflows: 100,
       maxApiKeys: 250,
-      monthlyCredits: 1500,
-      overageLimit: 1500,
+      monthlyCredits: 1800,
+      overageLimit: 1800,
       allowOverages: true,
     },
     features: ['Soporte pioritario 12h'],
