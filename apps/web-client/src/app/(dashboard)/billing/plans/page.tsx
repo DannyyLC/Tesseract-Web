@@ -504,7 +504,7 @@ export default function PlansPage() {
             </h3>
             <p className="max-w-sm text-sm text-black/60 dark:text-white/60">
               Tu suscripción ha sido actualizada al plan <strong>{changedPlanName}</strong>.
-              Gracias por tu confianza.
+              Gracias por tu confianza. Los cambios pueden tardar unos segundos en reflejarse.
             </p>
           </div>
           <button

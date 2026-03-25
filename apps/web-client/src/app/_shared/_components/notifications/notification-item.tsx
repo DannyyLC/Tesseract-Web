@@ -1,4 +1,4 @@
-import { PanInfo, motion, useMotionValue, useTransform } from 'framer-motion';
+import { AnimatePresence, PanInfo, motion, useMotionValue, useTransform } from 'framer-motion';
 import { Trash2 } from 'lucide-react';
 import { NotificationEventDto } from '@tesseract/types';
 
@@ -66,7 +66,6 @@ export default function NotificationItem({
 
       {/* Foreground Content Layer */}
       <motion.div
-        layout
         style={{ x }}
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
@@ -76,7 +75,6 @@ export default function NotificationItem({
             onDelete(notification.id);
           }
         }}
-        transition={{ layout: { duration: 0.2, type: 'spring', stiffness: 300, damping: 30 } }}
         className={`relative z-10 cursor-pointer px-4 py-4 transition-colors ${
           !notification.isRead ? 'bg-[#F9FAFB] dark:bg-[#1A1A1A]' : 'bg-white dark:bg-[#141414]'
         }`}
@@ -113,20 +111,30 @@ export default function NotificationItem({
               {displayDescription}
             </p>
 
-            {isExpanded && (
-              <div className="mt-3 flex justify-end">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(notification.id);
-                  }}
-                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-500/10"
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
                 >
-                  <Trash2 size={12} />
-                  Eliminar
-                </button>
-              </div>
-            )}
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        onDelete(notification.id);
+                      }}
+                      className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-500/10"
+                    >
+                      <Trash2 size={12} />
+                      Eliminar
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </motion.div>

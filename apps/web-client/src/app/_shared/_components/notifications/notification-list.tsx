@@ -3,6 +3,7 @@ import { useInfiniteNotifications, useNotificationMutations } from '@/hooks/useN
 import NotificationItem from './notification-item';
 import { Bell, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { NotificationEventDto } from '@tesseract/types';
 
 export default function NotificationList() {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
@@ -10,6 +11,9 @@ export default function NotificationList() {
 
   const { markAsRead, deleteNotification } = useNotificationMutations();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [pendingReadIds, setPendingReadIds] = useState<Set<string>>(new Set());
+  // Orden congelado de IDs mientras hay una notificación abierta
+  const [frozenOrder, setFrozenOrder] = useState<string[] | null>(null);
 
   const handleDelete = (id: string) => {
     deleteNotification.mutate(id, {
@@ -20,6 +24,25 @@ export default function NotificationList() {
         toast.error('Error al eliminar la notificación');
       },
     });
+  };
+
+  const handleRead = (id: string) => {
+    setPendingReadIds((prev) => new Set(prev).add(id));
+    markAsRead.mutate(id);
+  };
+
+  const handleToggle = (id: string, currentNotifications: NotificationEventDto[]) => {
+    if (expandedId === id) {
+      // Cerrando → descongelar orden
+      setExpandedId(null);
+      setFrozenOrder(null);
+    } else {
+      // Abriendo → congelar el orden actual si aún no está congelado
+      if (frozenOrder === null) {
+        setFrozenOrder(currentNotifications.map((n) => n.id));
+      }
+      setExpandedId(id);
+    }
   };
 
   // Intersection Observer for infinite scroll
@@ -44,6 +67,13 @@ export default function NotificationList() {
 
   const notifications = data?.pages.flatMap((page) => page.items) || [];
 
+  // Si hay un orden congelado, mantener ese orden pero usar los datos actualizados del servidor
+  const displayNotifications: NotificationEventDto[] = frozenOrder
+    ? frozenOrder
+        .map((id) => notifications.find((n) => n.id === id))
+        .filter((n): n is NotificationEventDto => n !== undefined)
+    : notifications;
+
   if (isLoading) {
     return (
       <div className="flex h-40 items-center justify-center">
@@ -65,16 +95,18 @@ export default function NotificationList() {
 
   return (
     <div className="max-h-[400px] overflow-y-auto">
-      {notifications.map((notification) => (
+      {displayNotifications.map((notification) => (
         <NotificationItem
           key={notification.id}
-          notification={notification}
-          onRead={(id) => markAsRead.mutate(id)}
+          notification={
+            pendingReadIds.has(notification.id)
+              ? { ...notification, isRead: true }
+              : notification
+          }
+          onRead={handleRead}
           onDelete={handleDelete}
           isExpanded={expandedId === notification.id}
-          onToggle={() =>
-            setExpandedId((current) => (current === notification.id ? null : notification.id))
-          }
+          onToggle={() => handleToggle(notification.id, notifications)}
         />
       ))}
 
