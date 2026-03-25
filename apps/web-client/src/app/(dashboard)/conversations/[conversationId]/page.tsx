@@ -116,7 +116,7 @@ export default function WorkflowChatPage() {
 
       const serverMessages: Message[] = conversationData.messages.map((msg: any) => ({
         id: msg.id || Date.now().toString(),
-        role: msg.role,
+        role: (msg.role as string).toLowerCase() as 'user' | 'assistant',
         content: msg.content,
         timestamp: msg.createdAt
           ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -669,17 +669,31 @@ export default function WorkflowChatPage() {
                 <AlertCircle className="mt-0.5 flex-shrink-0 text-red-500" size={18} />
                 <div className="text-sm text-red-600 dark:text-red-400">
                   <p className="font-medium">No se pudo enviar el mensaje</p>
-                  <p className="opacity-90">
-                    {/* Error de Workflow Pausado (Conflict) o Inactivo (Bad Request) */}
-                    {error?.errorCode === 'WORKFLOW_2005' ||
-                    error?.message?.includes('paused') ||
-                    error?.message?.includes('Conflict') ||
-                    error?.errorCode === 'WORKFLOW_2003' ||
-                    error?.message?.includes('inactivo') ||
-                    error?.message?.includes('Bad Request')
-                      ? 'Este workflow ha sido desactivado o pausado y no puede procesar mensajes.'
-                      : error?.message || 'Ocurrió un error inesperado.'}
-                  </p>
+                  {/* Error de créditos insuficientes */}
+                  {error?.statusCode === 403 ||
+                  error?.message?.includes('Insufficient credits') ? (
+                    <p className="opacity-90">
+                      No tienes créditos suficientes para ejecutar este workflow.{' '}
+                      <a
+                        href="/billing"
+                        className="font-semibold underline underline-offset-2 hover:opacity-75"
+                      >
+                        Comprar créditos →
+                      </a>
+                    </p>
+                  ) : (
+                    <p className="opacity-90">
+                      {/* Error de Workflow Pausado (Conflict) o Inactivo (Bad Request) */}
+                      {error?.errorCode === 'WORKFLOW_2005' ||
+                      error?.message?.includes('paused') ||
+                      error?.message?.includes('Conflict') ||
+                      error?.errorCode === 'WORKFLOW_2003' ||
+                      error?.message?.includes('inactivo') ||
+                      error?.message?.includes('Bad Request')
+                        ? 'Este workflow ha sido desactivado o pausado y no puede procesar mensajes.'
+                        : error?.message || 'Ocurrió un error inesperado.'}
+                    </p>
+                  )}
                 </div>
               </div>
             )}

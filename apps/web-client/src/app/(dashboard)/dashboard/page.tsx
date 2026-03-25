@@ -54,9 +54,16 @@ function SectionTitle({
 // Custom tooltip for recharts with dark mode awareness
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
+  const displayLabel = label
+    ? (() => {
+        const d = new Date(label + 'T00:00:00');
+        const name = d.toLocaleDateString('es-MX', { weekday: 'short' });
+        return name.charAt(0).toUpperCase() + name.slice(1);
+      })()
+    : null;
   return (
     <div className="rounded-xl border border-black/10 bg-white px-3 py-2 shadow-lg dark:border-white/10 dark:bg-[#111]">
-      {label && <p className="mb-1 text-xs text-black/50 dark:text-white/40">{label}</p>}
+      {displayLabel && <p className="mb-1 text-xs text-black/50 dark:text-white/40">{displayLabel}</p>}
       {payload.map((p: any, i: number) => (
         <p key={i} className="text-sm font-semibold" style={{ color: p.color }}>
           {p.name}: {p.value?.toLocaleString()}
@@ -109,13 +116,14 @@ export default function DashboardPage() {
     if (stats7d?.dailyStats && stats7d.dailyStats.length > 0) {
       // Map to chart format { day: 'Lun', Ejecuciones: 10 }
       // Assuming dailyStats comes sorted or we just map by date
-      return stats7d.dailyStats.map((stat) => {
+      return [...stats7d.dailyStats].sort((a, b) => a.date.localeCompare(b.date)).map((stat) => {
         const date = new Date(stat.date + 'T00:00:00'); // appended time to ensure local day match if string is YYYY-MM-DD
         const dayName = date.toLocaleDateString('es-MX', { weekday: 'short' });
         // Capitalize first letter: 'lun' -> 'Lun'
         const day = dayName.charAt(0).toUpperCase() + dayName.slice(1);
         return {
           day,
+          date: stat.date,
           Ejecuciones: stat.count,
         };
       });
@@ -328,7 +336,12 @@ export default function DashboardPage() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.05} />
                   <XAxis
-                    dataKey="day"
+                    dataKey="date"
+                    tickFormatter={(dateStr) => {
+                      const d = new Date(dateStr + 'T00:00:00');
+                      const name = d.toLocaleDateString('es-MX', { weekday: 'short' });
+                      return name.charAt(0).toUpperCase() + name.slice(1);
+                    }}
                     tick={{ fontSize: 12, fill: 'currentColor', opacity: 0.4 }}
                     axisLine={false}
                     tickLine={false}

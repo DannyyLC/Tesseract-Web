@@ -1,5 +1,3 @@
-import SseRequestManager from '../../sse_request_manager';
-
 type StreamCallbacks = {
   onOpen?: () => void;
   onChunk: (chunk: string) => void;
@@ -13,7 +11,24 @@ class WorkflowsStream {
   private static API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
 
   /**
-   * Ejecuta un workflow y recibe la respuesta como stream (POST con fetch)
+   * Refresca el accessToken via cookie httpOnly.
+   * Retorna true si el refresh fue exitoso.
+   */
+  private static async _refreshToken(): Promise<boolean> {
+    try {
+      const response = await fetch(`${WorkflowsStream.API_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Ejecuta un workflow y recibe la respuesta como stream (POST con fetch).
+   * Si el accessToken expiró (401), intenta refrescarlo y reintenta una vez.
    * Ideal para chat en vivo o logs en tiempo real.
    */
   public static async executeStream(
@@ -21,6 +36,16 @@ class WorkflowsStream {
     input: any,
     metadata?: any,
     callbacks?: StreamCallbacks,
+  ): Promise<void> {
+    return WorkflowsStream._doExecuteStream(id, input, metadata, callbacks, false);
+  }
+
+  private static async _doExecuteStream(
+    id: string,
+    input: any,
+    metadata?: any,
+    callbacks?: StreamCallbacks,
+    retried?: boolean,
   ): Promise<void> {
     const url = `${WorkflowsStream.API_URL}${WorkflowsStream.BASE_URL}/${id}/execute/stream`;
 
@@ -36,7 +61,28 @@ class WorkflowsStream {
       });
 
       if (!response.ok) {
-        throw new Error(`Error executing stream: ${response.statusText}`);
+        // Token expirado: intentar refresh y reintentar una sola vez
+        if (response.status === 401 && !retried) {
+          const refreshed = await WorkflowsStream._refreshToken();
+          if (refreshed) {
+            return WorkflowsStream._doExecuteStream(id, input, metadata, callbacks, true);
+          }
+          // Refresh fallido: sesión expirada, redirigir al login
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+          return;
+        }
+
+        let errorBody: any = {};
+        try {
+          errorBody = await response.json();
+        } catch {}
+        const err: any = new Error(
+          errorBody.message || `Error executing stream: ${response.statusText}`,
+        );
+        err.statusCode = response.status;
+        throw err;
       }
 
       if (!response.body) {

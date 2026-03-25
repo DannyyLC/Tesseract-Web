@@ -90,7 +90,6 @@ export function ConnectToolModal({
 
       // Step 2: Handle Provider Auth logic
       if (provider === 'none') {
-        toast.success('Herramienta conectada correctamente.');
         setIsSuccess(true);
         setTimeout(onClose, 2500);
       } else {

@@ -229,6 +229,14 @@ export class TenantToolService {
         where: { tenantToolId },
       });
 
+      // Desconectar de todos los workflows para que no aparezca en la UI
+      await tx.tenantTool.update({
+        where: { id: tenantToolId },
+        data: {
+          workflows: { set: [] },
+        },
+      });
+
       // SOFT DELETE of shell (to keep execution history) y status update
       await tx.tenantTool.update({
         where: { id: tenantToolId },
