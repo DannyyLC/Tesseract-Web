@@ -205,6 +205,7 @@ export default function PlansPage() {
                       day: 'numeric',
                       month: 'long',
                       year: 'numeric',
+                      timeZone: 'UTC',
                     })
                   : 'final del periodo'}. Después cambiará automáticamente.
               </p>
@@ -395,6 +396,7 @@ export default function PlansPage() {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric',
+                  timeZone: 'UTC',
                 })
               : 'final del periodo'}
             , pero no se renovará automáticamente.
