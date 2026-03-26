@@ -888,6 +888,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                         <button
                           type="submit"
+                          data-testid="create-account-button"
                           disabled={
                             signupStepThreeMutation.isPending ||
                             !password ||
