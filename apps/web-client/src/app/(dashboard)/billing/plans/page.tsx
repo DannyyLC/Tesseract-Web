@@ -264,6 +264,10 @@ export default function PlansPage() {
                   Tu suscripción está programada para cancelarse. Puedes reactivarla antes de que termine el periodo.
                 </p>
               </>
+            ) : subscription.pendingPlanChange ? (
+              <p className="text-[10px] font-medium uppercase tracking-widest text-amber-500/70">
+                Cancela el cambio pendiente antes de cancelar la suscripción
+              </p>
             ) : (
               <>
                 <button
