@@ -163,8 +163,8 @@ export default function BillingHero({
 
             {(status === 'PAST_DUE' || status === 'past_due') && (
               <p className="max-w-[200px] text-right text-xs text-red-400 dark:text-red-300">
-                No pudimos procesar tu último pago. Por favor actualiza tu método de pago para
-                evitar interrupciones.
+                No pudimos procesar tu último pago. Usa el <strong>Portal de Pagos</strong> para
+                actualizar tu método de pago.
               </p>
             )}
 

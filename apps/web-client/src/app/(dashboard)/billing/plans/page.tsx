@@ -21,7 +21,7 @@ export default function PlansPage() {
   const { data: dashboardData, isLoading: isLoadingDashboard } = useBillingDashboard();
   const { data: plansData, isLoading: isLoadingPlans } = usePlans();
   const { data: workflowStats } = useWorkflowStats();
-  const { updateSubscription, cancelSubscription, resumeSubscription, createCheckoutSession, cancelPendingDowngrade } = useBillingMutations();
+  const { updateSubscription, cancelSubscription, resumeSubscription, createCheckoutSession, cancelPendingDowngrade, createPortalSession } = useBillingMutations();
 
   const [selectedPlan, setSelectedPlan] = useState<BillingPlan | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -115,6 +115,13 @@ export default function PlansPage() {
           // auto-recuperarse: crear una nueva suscripción via Checkout
           if (updateError?.response?.status === 409) {
             const { url } = await createCheckoutSession.mutateAsync(selectedPlan.type);
+            window.location.href = url;
+            return;
+          }
+          // Si hay un pago pendiente (PAST_DUE), redirigir al Portal para actualizar método de pago.
+          // Stripe reintentará el cobro automáticamente al actualizar la tarjeta.
+          if (updateError?.response?.data?.message === 'SUBSCRIPTION_PAST_DUE') {
+            const { url } = await createPortalSession.mutateAsync();
             window.location.href = url;
             return;
           }
@@ -352,7 +359,7 @@ export default function PlansPage() {
         <div className="space-y-4">
           <div className="rounded-lg bg-blue-500/10 p-4 text-sm text-blue-600 dark:text-blue-400">
             <p>
-              Te sugiero que antes de contratar el plan te comuniques con nosotros para crear tus
+              Te sugerimos que antes de contratar el plan te comuniques con nosotros para crear tus
               workflows, porque actualmente no podrías aprovechar todos los beneficios de la
               suscripción.
             </p>

@@ -430,8 +430,11 @@ export class BillingService {
       });
 
       // 2. Upsert Subscription
-      const periodStart = invoice.period_start ? new Date(invoice.period_start * 1000) : new Date();
-      const periodEnd = invoice.period_end ? new Date(invoice.period_end * 1000) : new Date();
+      // Period dates come from the Stripe subscription directly — invoices don't
+      // reliably carry current_period_start/end in the new API (2025-01-27.acacia).
+      const stripeSubForDates = await this.stripeClient.stripe.subscriptions.retrieve(subscriptionId) as any;
+      const periodStart = new Date(stripeSubForDates.current_period_start * 1000);
+      const periodEnd = new Date(stripeSubForDates.current_period_end * 1000);
       const upsertPriceId = this.getLineItemPriceId(invoice.lines?.data?.[0]);
 
       const dbSubscription = await this.prisma.subscription.upsert({
@@ -591,6 +594,10 @@ export class BillingService {
 
     if (sub.status === SubscriptionStatus.CANCELED) {
       throw new BadRequestException('Cannot change a canceled subscription. Please create a new subscription instead.');
+    }
+
+    if (sub.status === SubscriptionStatus.PAST_DUE) {
+      throw new BadRequestException('SUBSCRIPTION_PAST_DUE');
     }
 
     if (sub.plan === newPlan) {
@@ -817,6 +824,28 @@ export class BillingService {
       }
     }
 
+    // Map Stripe subscription status to internal status.
+    // Never hardcode ACTIVE — a subscription created via a failed checkout arrives as 'incomplete'.
+    const stripeStatusToInternal = (stripeStatus: string): SubscriptionStatus => {
+      switch (stripeStatus) {
+        case 'active':
+        case 'trialing':
+          return SubscriptionStatus.ACTIVE;
+        case 'past_due':
+        case 'incomplete':
+        case 'unpaid':
+          return SubscriptionStatus.PAST_DUE;
+        case 'canceled':
+        case 'incomplete_expired':
+          return SubscriptionStatus.CANCELED;
+        default:
+          return SubscriptionStatus.PAST_DUE;
+      }
+    };
+
+    const internalStatus = stripeStatusToInternal(sub.status);
+    const isEffectivelyActive = internalStatus === SubscriptionStatus.ACTIVE;
+
     // Only update period dates when Stripe provides valid non-zero timestamps AND
     // there is no active schedule. Two cases where we must NOT update:
     // 1. Schedule attached (downgrade/cancellation pending): Stripe sends current_period_end=0
@@ -836,14 +865,16 @@ export class BillingService {
     await this.prisma.$transaction([
       this.prisma.organization.update({
         where: { id: organizationId },
-        data: { plan: planName },
+        // Only grant plan benefits once Stripe confirms the subscription is active.
+        // For incomplete/past_due (e.g. failed checkout), keep existing plan.
+        data: isEffectivelyActive ? { plan: planName } : {},
       }),
       this.prisma.subscription.upsert({
         where: { organizationId },
         create: {
           organizationId,
           plan: planName,
-          status: SubscriptionStatus.ACTIVE,
+          status: internalStatus,
           currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : new Date(),
           currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : new Date(),
           stripeSubscriptionId: sub.id,
@@ -851,7 +882,7 @@ export class BillingService {
         },
         update: {
           plan: planName,
-          status: SubscriptionStatus.ACTIVE,
+          status: internalStatus,
           ...periodDates,
           stripeSubscriptionId: sub.id,
           stripePriceId: priceId,
