@@ -56,7 +56,7 @@ export default function StatusSection({ subscription, onCancel, isCanceling }: S
               <p className="flex items-center gap-1.5 text-xs font-medium text-black/40 dark:text-white/40">
                 <Shield size={12} />
                 El próximo corte de facturación es el{' '}
-                {new Date(subscription?.currentPeriodEnd).toLocaleDateString()}.
+                {new Date(subscription?.currentPeriodEnd).toLocaleDateString('es-MX', { timeZone: 'UTC' })}.
               </p>
             </div>
           </div>

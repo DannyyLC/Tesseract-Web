@@ -817,6 +817,22 @@ export class BillingService {
       }
     }
 
+    // Only update period dates when Stripe provides valid non-zero timestamps AND
+    // there is no active schedule. Two cases where we must NOT update:
+    // 1. Schedule attached (downgrade/cancellation pending): Stripe sends current_period_end=0
+    // 2. Schedule just released (cancel pending change): Stripe may also send current_period_end=0
+    //    during the transitional state before the subscription normalizes.
+    // Dates are only reliably updated on immediate changes (upgrades) and renewals,
+    // both of which send valid non-zero period timestamps with no active schedule.
+    const hasActiveSchedule = !!sub.schedule;
+    const hasValidPeriodDates = sub.current_period_start > 0 && sub.current_period_end > 0;
+    const periodDates = (!hasActiveSchedule && hasValidPeriodDates)
+      ? {
+          currentPeriodStart: new Date(sub.current_period_start * 1000),
+          currentPeriodEnd: new Date(sub.current_period_end * 1000),
+        }
+      : {};
+
     await this.prisma.$transaction([
       this.prisma.organization.update({
         where: { id: organizationId },
@@ -836,13 +852,10 @@ export class BillingService {
         update: {
           plan: planName,
           status: SubscriptionStatus.ACTIVE,
-          currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : new Date(),
-          currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : new Date(),
+          ...periodDates,
           stripeSubscriptionId: sub.id,
           stripePriceId: priceId,
           cancelAtPeriodEnd: sub.cancel_at_period_end,
-          pendingPlanChange: null, // Clear flags now that update is applied
-          planChangeRequestedAt: null,
         },
       }),
     ]);
