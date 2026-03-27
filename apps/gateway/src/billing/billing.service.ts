@@ -659,6 +659,7 @@ export class BillingService {
         ],
         proration_behavior: 'none',
         billing_cycle_anchor: 'now',
+        cancel_at_period_end: false,
       });
 
       // Clean pending downgrade from DB if there was one
@@ -696,6 +697,14 @@ export class BillingService {
           ],
         });
       } else {
+        // Clear cancel_at_period_end before handing control to the schedule.
+        // Once a schedule manages the subscription this flag can't be updated directly.
+        if (sub.cancelAtPeriodEnd) {
+          await this.stripeClient.stripe.subscriptions.update(sub.stripeSubscriptionId, {
+            cancel_at_period_end: false,
+          });
+        }
+
         // Create new schedule from current subscription
         const schedule = await this.stripeClient.stripe.subscriptionSchedules.create({
           from_subscription: sub.stripeSubscriptionId,
