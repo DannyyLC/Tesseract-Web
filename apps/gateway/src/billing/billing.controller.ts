@@ -169,7 +169,7 @@ export class BillingController {
     }
 
     const frontendUrl = this.configService.get('FRONTEND_URL') ?? 'http://localhost:3000';
-    const returnUrl = `${frontendUrl}/billing`;
+    const returnUrl = `${frontendUrl}/billing/plans?from_portal=1`;
 
     const url = await this.billingService.createCustomerPortalSession(
       customerId,

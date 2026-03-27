@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBillingDashboard, useBillingMutations } from '@/hooks/useBilling';
 import { usePlans } from '@/hooks/useBilling';
 import { useWorkflowStats } from '@/hooks/useWorkflows';
@@ -18,6 +19,30 @@ import { triggerWowConfetti } from '@/lib/confetti';
 
 export default function PlansPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // Cuando el portal/checkout de Stripe redirige de vuelta, refrescar datos y limpiar la URL.
+    if (searchParams.get('from_portal') === '1' || searchParams.get('from_checkout') === '1') {
+      queryClient.invalidateQueries({ queryKey: ['billing'] });
+      router.refresh();
+      const url = new URL(window.location.href);
+      url.searchParams.delete('from_portal');
+      url.searchParams.delete('from_checkout');
+      window.history.replaceState(null, '', url.toString());
+    }
+
+    // Refrescar datos cuando el usuario vuelve a esta pestaña (ej: cerró la de Stripe).
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        queryClient.invalidateQueries({ queryKey: ['billing'] });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   const { data: dashboardData, isLoading: isLoadingDashboard } = useBillingDashboard();
   const { data: plansData, isLoading: isLoadingPlans } = usePlans();
   const { data: workflowStats } = useWorkflowStats();
@@ -100,7 +125,7 @@ export default function PlansPage() {
       // para que el usuario actualice su método de pago. Stripe reintentará el cobro automáticamente.
       if (subStatus === 'PAST_DUE') {
         const { url } = await createPortalSession.mutateAsync();
-        window.location.href = url;
+        goToStripe(url);
         return;
       }
 
@@ -110,7 +135,7 @@ export default function PlansPage() {
       if (isFreeOrCanceled) {
         // Redirigir al Checkout si estaban en FREE o CANCELED
         const { url } = await createCheckoutSession.mutateAsync(selectedPlan.type);
-        window.location.href = url;
+        goToStripe(url);
       } else {
         try {
           // Intentar actualizar la suscripción existente
@@ -123,14 +148,14 @@ export default function PlansPage() {
           // auto-recuperarse: crear una nueva suscripción via Checkout
           if (updateError?.response?.status === 409) {
             const { url } = await createCheckoutSession.mutateAsync(selectedPlan.type);
-            window.location.href = url;
+            goToStripe(url);
             return;
           }
           // Si hay un pago pendiente (PAST_DUE), redirigir al Portal para actualizar método de pago.
           // Stripe reintentará el cobro automáticamente al actualizar la tarjeta.
           if (updateError?.response?.data?.message === 'SUBSCRIPTION_PAST_DUE') {
             const { url } = await createPortalSession.mutateAsync();
-            window.location.href = url;
+            goToStripe(url);
             return;
           }
           // Cualquier otro error, re-lanzar
@@ -167,6 +192,10 @@ export default function PlansPage() {
       setIsResuming(false);
       setShowResumeModal(false);
     }
+  };
+
+  const goToStripe = (url: string) => {
+    window.open(url, '_blank');
   };
 
   const currentPlanDetails = plansData?.find((p) => p.type === subscription.plan);
@@ -222,7 +251,7 @@ export default function PlansPage() {
           <button
             onClick={async () => {
               const { url } = await createPortalSession.mutateAsync();
-              window.location.href = url;
+              goToStripe(url);
             }}
             className="shrink-0 rounded-lg bg-red-500/10 px-4 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-red-500/20 dark:text-red-400"
           >
