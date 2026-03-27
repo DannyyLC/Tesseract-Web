@@ -10,7 +10,7 @@ import PlanGrid from '../_components/PlanGrid';
 import InfoSections from '../_components/InfoSections';
 import SpecializedCards from '../_components/SpecializedCards';
 import { Modal } from '@/components/ui/modal';
-import { Loader2, ArrowLeft, PartyPopper, RefreshCw, ArrowDownRight } from 'lucide-react';
+import { Loader2, ArrowLeft, PartyPopper, RefreshCw, ArrowDownRight, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import Loading from '@/app/(dashboard)/loading';
 import PermissionGuard from '@/components/auth/PermissionGuard';
@@ -92,10 +92,18 @@ export default function PlansPage() {
     if (!selectedPlan) return;
     try {
       setUpgradingPlan(selectedPlan.type);
-      
+
       const planState = subscription.plan;
       const subStatus = subscription.status?.toUpperCase() || 'FREE';
-      
+
+      // Si hay un pago pendiente (pago fallido / incomplete en Stripe), redirigir al Portal
+      // para que el usuario actualice su método de pago. Stripe reintentará el cobro automáticamente.
+      if (subStatus === 'PAST_DUE') {
+        const { url } = await createPortalSession.mutateAsync();
+        window.location.href = url;
+        return;
+      }
+
       const isFreeOrCanceled =
         planState === SubscriptionPlan.FREE || subStatus === 'CANCELED';
 
@@ -194,6 +202,34 @@ export default function PlansPage() {
           Administra tu plan actual, actualiza tu suscripción o cancela el servicio.
         </p>
       </div>
+
+      {/* Past Due / Failed Payment Banner */}
+      {subscription.status?.toUpperCase() === 'PAST_DUE' && (
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-red-500/20 bg-red-500/5 p-5">
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10">
+              <AlertCircle size={20} className="text-red-500" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-black dark:text-white">
+                Pago pendiente
+              </p>
+              <p className="text-xs text-black/50 dark:text-white/50">
+                Tu último pago no fue procesado. Actualiza tu método de pago para activar tu suscripción.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={async () => {
+              const { url } = await createPortalSession.mutateAsync();
+              window.location.href = url;
+            }}
+            className="shrink-0 rounded-lg bg-red-500/10 px-4 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-red-500/20 dark:text-red-400"
+          >
+            Actualizar Pago
+          </button>
+        </div>
+      )}
 
       {/* Pending Plan Change Banner */}
       {subscription.pendingPlanChange && (
