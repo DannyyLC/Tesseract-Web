@@ -33,10 +33,15 @@ describe('UsersService', () => {
       count: jest.fn(),
     },
     $transaction: jest.fn(),
+
+    organization: {
+      findUnique: jest.fn(),
+    },
   };
 
   const mockEmailService = {
     sendTemplateEmail: jest.fn(),
+    sendServiceRequestEmail: jest.fn(),
   };
 
   const mockLogger = {
@@ -305,6 +310,38 @@ describe('UsersService', () => {
         activeConversations: 10,
         lastLoginAt: expect.any(Date),
       });
+    });
+  });
+
+    describe('requestServiceInfoByEmail', () => {
+    it('returns true on successful email send', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue({ name: 'Org' });
+      mockEmailService.sendServiceRequestEmail.mockResolvedValue(true);
+      const res = await service.requestServiceInfoByEmail('User', 'a@b.com', 'sub', 'msg', 'org-1');
+      expect(res).toBe(true);
+      expect(mockEmailService.sendServiceRequestEmail).toHaveBeenCalled();
+    });
+
+    it('returns false when email send fails', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue({ name: 'Org' });
+      mockEmailService.sendServiceRequestEmail.mockResolvedValue(false);
+      const res = await service.requestServiceInfoByEmail('User', 'a@b.com', 'sub', 'msg', 'org-1');
+      expect(res).toBe(false);
+    });
+  });
+
+    describe('validateEmailUnique', () => {
+    it('returns false when email exists', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({ id: 'u1' });
+      const res = await service.validateEmailUnique('a@b.com');
+      expect(res).toBe(false);
+      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({ where: { email: 'a@b.com' } });
+    });
+
+    it('returns true when email does not exist', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      const res = await service.validateEmailUnique('new@b.com');
+      expect(res).toBe(true);
     });
   });
 
