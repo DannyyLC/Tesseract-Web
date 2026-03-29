@@ -626,6 +626,55 @@ Equipo de análisis de mercado: investigador, analista y redactor coordinados po
 
 ---
 
+## Configuración avanzada del LLM
+
+Todos los agentes, independientemente del tipo de grafo, usan LiteLLM para inicializar el modelo. Además de `model` y `temperature`, se pueden configurar parámetros avanzados por agente:
+
+```json
+{
+  "agents": {
+    "default": {
+      "model": "gpt-4o",
+      "temperature": 0.7,
+      "system_prompt": "...",
+
+      "max_tokens": 2000,
+      "fallbacks": ["claude-3-5-sonnet-20241022", "gemini-pro"],
+      "max_retries": 2,
+      "timeout": 60,
+      "api_base": "https://mi-proxy.com/v1"
+    }
+  }
+}
+```
+
+| Campo | Tipo | Default | Descripción |
+|---|---|---|---|
+| `model` | string | — | Modelo a usar. LiteLLM detecta el provider por el nombre: `"gpt-4o"` → OpenAI, `"claude-3-5-sonnet-20241022"` → Anthropic, `"gemini-pro"` → Google |
+| `temperature` | float | 0.7 | Temperatura del LLM (0 = determinista, 1 = creativo) |
+| `system_prompt` | string | — | Instrucciones base del agente |
+| `tools` | string[] | [] | UUIDs de TenantTools habilitadas para este agente |
+| `max_tokens` | int | null | Límite de tokens en la respuesta |
+| `fallbacks` | string[] | [] | Lista de modelos alternativos si el principal falla o está caído. Se prueban en orden |
+| `max_retries` | int | 2 | Reintentos con exponential backoff ante errores transitorios (rate limits, timeouts) |
+| `timeout` | int | 60 | Timeout en segundos por request al LLM |
+| `api_base` | string | null | URL base personalizada. Útil para proxies o endpoints compatibles con OpenAI |
+
+**Sobre `fallbacks`:** LiteLLM gestiona la conmutación automáticamente. Si `gpt-4o` devuelve error 429 o 503, pasa al siguiente modelo de la lista sin que el agente lo note. Permite combinar providers distintos como fallback:
+
+```json
+"fallbacks": ["claude-3-5-sonnet-20241022", "gemini-pro"]
+```
+
+**Sobre `api_base`:** Necesario cuando se usa un proxy de LLM (ej: LiteLLM Proxy, Azure OpenAI, o endpoints privados compatibles con OpenAI API):
+
+```json
+"model": "gpt-4o",
+"api_base": "https://mi-azure-endpoint.openai.azure.com/"
+```
+
+---
+
 ## Comparativa de los cinco tipos
 
 | | `react` | `pipeline` | `sequential` | `router` | `supervisor` |
