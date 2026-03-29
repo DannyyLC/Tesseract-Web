@@ -57,6 +57,7 @@
       "group": "Reference",
       "pages": [
         "reference/agent-types",
+        "reference/tools-catalog",
         "reference/api-endpoints",
         "reference/credits-and-plans"
       ]
