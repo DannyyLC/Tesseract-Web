@@ -17,8 +17,9 @@ from core.context import TenantContext
 # Imports de los builders específicos
 from graphs.react_agent import create_react_agent
 from graphs.pipeline_agent import create_pipeline_agent
-# from graphs.router_agent import create_router_agent
-# from graphs.supervisor_agent import create_supervisor_agent
+from graphs.router_agent import create_router_agent
+from graphs.sequential_agent import create_sequential_agent
+from graphs.supervisor_agent import create_supervisor_agent
 
 
 # ==========================================
@@ -49,6 +50,9 @@ GraphBuilder = Callable[[TenantContext], StateGraph]
 GRAPH_BUILDERS: Dict[str, GraphBuilder] = {
     "react": create_react_agent,
     "pipeline": create_pipeline_agent,
+    "router": create_router_agent,
+    "sequential": create_sequential_agent,
+    "supervisor": create_supervisor_agent,
 }
 
 
