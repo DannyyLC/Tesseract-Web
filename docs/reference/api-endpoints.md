@@ -229,6 +229,37 @@ Base path: `/tools/oauth` — Requiere JWT (salvo callback)
 
 ---
 
+## WhatsApp Config
+
+Base path: `/whatsapp-config`
+
+| Metodo | Endpoint | Descripcion | Auth |
+|---|---|---|---|
+| POST | `/whatsapp-config/whatsapp-webhook` | Webhook de entrada de mensajes YCloud | No (firma HMAC) |
+| POST | `/whatsapp-config/create-config` | Crear nueva configuracion de WhatsApp | JWT |
+| GET | `/whatsapp-config/list/:workflowId` | Listar configs de un workflow | JWT |
+| PATCH | `/whatsapp-config/:id/isActive` | Activar o desactivar una config | JWT |
+| DELETE | `/whatsapp-config/:id` | Eliminar una config | JWT |
+
+**Body de `POST /create-config`:**
+
+```json
+{
+  "workflowId": "uuid-del-workflow",
+  "phoneNumber": "+5212345678901"
+}
+```
+
+**Body de `PATCH /:id/isActive`:**
+
+```json
+{ "isActive": true }
+```
+
+**Nota sobre el webhook:** El endpoint `/whatsapp-webhook` es publico pero valida la firma `ycloud-signature` en el header. Si la firma es invalida o el numero de telefono no tiene config activa, responde `200` sin procesar el mensaje.
+
+---
+
 ## End Users
 
 Base path: `/end-users` — Requiere JWT
