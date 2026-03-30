@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Invitación a unirse a {{organizationName}}</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background-color: #f6f8fa;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      padding: 32px;
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #eaeaea;
+    }
+    .header h1 {
+      color: #2d3748;
+      margin: 0;
+      font-size: 1.8em;
+    }
+    .content {
+      margin-top: 24px;
+      color: #444;
+      font-size: 1.1em;
+    }
+    .cta {
+      margin: 32px 0;
+      text-align: center;
+    }
+    .cta a {
+      background: #2563eb;
+      color: #fff;
+      text-decoration: none;
+      padding: 12px 32px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 1.1em;
+      transition: background 0.2s;
+      display: inline-block;
+    }
+    .cta a:hover {
+      background: #1e40af;
+    }
+    .footer {
+      margin-top: 32px;
+      text-align: center;
+      color: #888;
+      font-size: 0.95em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Invitación para unirse a {{organizationName}}</h1>
+    </div>
+    <div class="content">
+      <p>Hola,</p>
+      <p>Has sido invitado a formar parte de <strong>{{organizationName}}</strong> en nuestra plataforma.</p>
+      <p>Para aceptar la invitación y completar tu registro, haz clic en el siguiente botón:</p>
+    </div>
+    <div class="cta">
+      <a href="{{inviteUrl}}" target="_blank">Aceptar Invitación</a>
+    </div>
+    <div class="content">
+      <p>Si no esperabas esta invitación, puedes ignorar este correo electrónico.</p>
+      <p>¡Esperamos verte pronto!</p>
+    </div>
+    <div class="footer">
+      <p>Este mensaje fue enviado automáticamente. Por favor, no respondas a este correo.</p>
+    </div>
+  </div>
+</body>
+</html>

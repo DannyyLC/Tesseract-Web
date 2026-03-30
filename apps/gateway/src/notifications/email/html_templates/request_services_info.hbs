@@ -1,0 +1,63 @@
+<html lang='es'>
+  <head>
+    <meta charset='UTF-8' />
+    <title>Solicitud de Información de Servicios</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f9f9f9;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background: #fff;
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      }
+      .header {
+        font-size: 1.4em;
+        margin-bottom: 16px;
+        color: #2a7ae2;
+      }
+      .message {
+        margin: 24px 0;
+        padding: 16px;
+        background: #f1f6fb;
+        border-radius: 6px;
+        font-size: 1.1em;
+      }
+      .footer {
+        margin-top: 32px;
+        font-size: 0.95em;
+        color: #888;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='container'>
+      <div class='header'>Solicitud de información sobre servicios: {{subject}}</div>
+      <p>Has recibido una solicitud de información de servicios por parte de un usuario de la
+        organización
+        <strong>{{organization_name}}</strong>:</p>
+      <p>Fecha y hora de la solicitud: {{date}}</p>
+      <div class='message'>
+        El correo
+        {{user_email}}
+        ha solicitado información sobre los servicios que ofrecemos.
+        <br />
+        El mensaje del usuario
+        {{user_name}}
+        es el siguiente:
+        <br /><br />
+        {{user_message}}
+      </div>
+      <div class='footer'>
+        Este correo fue generado automáticamente. Por favor, responde a la solicitud según
+        corresponda.<br />
+        Gracias por utilizar nuestro sistema.
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,1364 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  GROWTH
+  BUSINESS
+  PRO
+  ENTERPRISE
+}
+
+enum WorkflowCategory {
+  LIGHT // 1 crédito - Tareas simples, hasta 20k tokens
+  STANDARD // 5 créditos - Workflows completos, hasta 50k tokens
+  ADVANCED // 25 créditos - Multi-agente complejo, hasta 128k tokens
+}
+
+enum ModelTier {
+  BASIC // gpt-4o-mini, claude-haiku - Solo para LIGHT workflows
+  STANDARD // gpt-4o, claude-sonnet - Para LIGHT y STANDARD workflows
+  PREMIUM // gpt-4-turbo, claude-opus - Para todos los workflows
+}
+
+enum TransactionType {
+  SUBSCRIPTION_RENEWAL // Renovación mensual automática
+  PLAN_UPGRADE // Upgrade de plan (STARTER -> GROWTH)
+  PLAN_DOWNGRADE // Downgrade de plan (PRO -> BUSINESS)
+  EXECUTION_DEDUCTION // Deducción por ejecución de workflow
+  OVERAGE_CHARGE // Cargo por consumo en negativo
+  MANUAL_ADJUSTMENT // Ajuste manual por admin
+  REFUND // Reembolso
+  ONE_TIME_PURCHASE // Compra de paquete de créditos adicional
+}
+
+enum InvoiceType {
+  SUBSCRIPTION // Factura mensual de suscripción
+  OVERAGE // Factura de overages del mes anterior
+  ONE_TIME // Compra única de créditos
+}
+
+enum InvoiceStatus {
+  DRAFT // Borrador, no enviada
+  PENDING // Enviada, esperando pago
+  PAID // Pagada exitosamente
+  FAILED // Pago fallido
+  REFUNDED // Reembolsada
+}
+
+enum SubscriptionStatus {
+  ACTIVE // Suscripción activa
+  CANCELED // Cancelada, no renovará
+  PAST_DUE // Pago vencido
+  INCOMPLETE // Pago inicial incompleto
+}
+
+enum MessageAttachmentType {
+  IMAGE
+  AUDIO
+}
+
+enum MessageAttachmentStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+  UNSUPPORTED
+}
+
+enum UserRole {
+  VIEWER
+  ADMIN
+  OWNER
+}
+
+enum ConversationStatus {
+  ACTIVE
+  INACTIVE
+  CLOSED
+}
+
+enum CompactionStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum ConversationChannel {
+  DASHBOARD
+  WHATSAPP
+  WEB
+  API
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum MessageFeedback {
+  POSITIVE
+  NEGATIVE
+  NEUTRAL
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMEOUT
+}
+
+enum TriggerType {
+  MANUAL
+  API
+  SCHEDULE
+  WEBHOOK
+  WHATSAPP
+}
+
+enum ToolConnectionStatus {
+  DISCONNECTED
+  CONNECTED
+  ERROR
+  EXPIRED_AUTH
+}
+
+enum DangerLevel {
+  SAFE
+  WARNING
+  DANGER
+}
+
+enum WhatsAppConnectionStatus {
+  DISCONNECTED
+  CONNECTED
+  ERROR
+}
+
+// ============================================
+// ORGANIZATION (Tenant principal)
+// ============================================
+model Organization {
+  id   String           @id @default(uuid())
+  name String
+  slug String           @unique
+  plan SubscriptionPlan @default(FREE)
+
+  // Defaults para nuevos workflows (opcionales)
+  defaultMaxMessages     Int? // null = sin límite de mensajes por conversación
+  defaultInactivityHours Int? // null = sin límite temporal de inactividad
+  defaultMaxCostPerConv  Decimal? // null = sin límite de costo por conversación
+
+  // Credit System - Overage Control
+  allowOverages Boolean @default(false) // Permite balance negativo
+  overageLimit  Int? // Límite de créditos negativos (null = usar default del plan)
+
+  // Overrides de límites del plan (para super admins)
+  // null = usar valores por defecto del plan
+  customMaxUsers     Int? // Override del límite de usuarios
+  customMaxApiKeys   Int? // Override del límite de API keys
+  customMaxWorkflows Int? // Override del límite de workflows
+
+  // Estado
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Desactivación temporal (diferente a deletedAt que es eliminación lógica)
+  deactivatedAt      DateTime?
+  deactivatedBy      String? // userId del que desactivó (Owner o SuperAdmin)
+  deactivationReason String? // Motivo de la desactivación
+
+  // Escalabilidad futura
+  shardKey String? @default(uuid())
+  region   String? @default("us-central")
+  metadata Json?
+
+  // Billing (Stripe)
+  stripeCustomerId String? @unique
+
+  // Relaciones
+  users           User[]
+  apiKeys         ApiKey[]
+  workflows       Workflow[]
+  executions      Execution[]
+  tenantTools     TenantTool[]
+  whatsappConfigs WhatsAppConfig[]
+  auditLogs       AuditLog[]
+  endUsers        EndUser[]
+
+  // Credit System Relations
+  creditBalance      CreditBalance?
+  subscription       Subscription?
+  creditTransactions CreditTransaction[]
+  invoices           Invoice[]
+  conversations      Conversation[]
+  messageAttachments MessageAttachment[]
+  userNotifications  UserNotification[]
+
+  @@index([deletedAt])
+  @@index([isActive])
+  @@index([deactivatedAt])
+  @@index([plan])
+  @@map("organizations")
+}
+
+// ============================================
+// SUBSCRIPTION (Suscripción mensual activa)
+// ============================================
+model Subscription {
+  id             String       @id @default(uuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Plan y estado
+  plan   SubscriptionPlan
+  status SubscriptionStatus @default(ACTIVE)
+
+  // Ciclo de facturación
+  currentPeriodStart DateTime @default(now())
+  currentPeriodEnd   DateTime // Calculado: currentPeriodStart + 1 mes
+  cancelAtPeriodEnd  Boolean  @default(false) // Si true, no renueva al final del periodo
+
+  // Downgrade programado (se aplica al final del periodo = currentPeriodEnd)
+  pendingPlanChange     SubscriptionPlan? // null = sin cambio pendiente, ej: GROWTH
+  planChangeRequestedAt DateTime? // Cuándo el usuario SOLICITÓ el cambio
+  planChangeRequestedBy String? // userId que solicitó el cambio
+
+  // Stripe
+  stripeSubscriptionId String? @unique
+  stripePriceId        String?
+
+  // Campos personalizables para ENTERPRISE
+  customMonthlyPrice   Decimal? // null = usar precio estándar del plan
+  customMonthlyCredits Int? // null = usar defaults (150/500/1500/5000)
+  customMaxWorkflows   Int? // null = usar defaults (3/7/12/25)
+  customOverageLimit   Int? // null = calcular automático (1 mes de créditos)
+  customFeatures       Json? // Features especiales: { sla: "99.9%", support: "24/7", ... }
+
+  // Timestamps
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  canceledAt         DateTime? // Fecha de cancelación
+  creditTransactions CreditTransaction[]
+  invoices           Invoice[]
+
+  @@index([status])
+  @@index([currentPeriodEnd])
+  @@index([pendingPlanChange])
+  @@index([plan])
+  @@map("subscriptions")
+}
+
+// ============================================
+// CREDIT BALANCE (Balance de créditos por organización)
+// ============================================
+model CreditBalance {
+  id             String       @id @default(uuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Balance actual (puede ser negativo si hay overage)
+  balance Int @default(0)
+
+  // Contadores históricos acumulativos
+  lifetimeEarned Int @default(0) // Total créditos comprados históricamente
+  lifetimeSpent  Int @default(0) // Total créditos consumidos
+
+  // Contadores del mes actual
+  // NOTA: Se calculan sumando CreditTransaction del periodo actual (subscription.currentPeriodStart/End)
+  // Se actualizan con cada transacción, no se "reinician" sino que se recalculan desde transacciones
+  currentMonthSpent   Int     @default(0) // Créditos gastados este mes
+  currentMonthCostUSD Decimal @default(0) // Costo real en USD este mes (para análisis interno)
+
+  // Overage Billing Snapshot (Temporal)
+  invoicedOverageCredits Int @default(0) // Créditos de overage ya facturados (snapshot invoice.created) pero aun no pagados
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([balance])
+  @@index([updatedAt])
+  @@map("credit_balances")
+}
+
+// ============================================
+// CREDIT TRANSACTION (Historial de transacciones de créditos)
+// ============================================
+model CreditTransaction {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Tipo de transacción
+  type TransactionType
+
+  // Monto y balances (para auditoría completa)
+  amount        Int // Positivo = ingreso, Negativo = gasto
+  balanceBefore Int // Balance antes de la transacción
+  balanceAfter  Int // Balance después de la transacción
+
+  // Referencias opcionales según el tipo de transacción
+  subscriptionId String? // Para SUBSCRIPTION_RENEWAL, PLAN_UPGRADE, PLAN_DOWNGRADE
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  executionId    String?       @unique // Para EXECUTION_DEDUCTION
+  execution      Execution?    @relation("ExecutionTransaction", fields: [executionId], references: [id])
+  invoiceId      String? // Para compras (ONE_TIME_PURCHASE, OVERAGE_CHARGE)
+  invoice        Invoice?      @relation(fields: [invoiceId], references: [id])
+
+  // Metadata de la ejecución (para reportes y análisis)
+  workflowCategory WorkflowCategory? // LIGHT/STANDARD/ADVANCED (si es deducción por ejecución)
+  costUSD          Decimal? // Costo real en USD de esta transacción (para análisis interno)
+
+  // Información adicional
+  description String? // Descripción legible: "Renovación plan GROWTH", "Ejecución workflow Ventas"
+  metadata    Json? // Info extra: { tokens: 450, model: "gpt-4o", duration: 1250 }
+
+  // Timestamp
+  createdAt DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([type, createdAt])
+  @@index([executionId])
+  @@index([subscriptionId])
+  @@index([invoiceId])
+  @@map("credit_transactions")
+}
+
+// ============================================
+// INVOICE (Facturas de pago - Stripe)
+// ============================================
+model Invoice {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Identificación
+  invoiceNumber String        @unique // Auto-generado: INV-202601-0001
+  type          InvoiceType // SUBSCRIPTION, OVERAGE, ONE_TIME
+  status        InvoiceStatus @default(PENDING)
+
+  // Referencias opcionales
+  subscriptionId String? // Si es factura de suscripción mensual
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  // Periodo facturado (para facturas mensuales)
+  periodStart DateTime? // Inicio del periodo
+  periodEnd   DateTime? // Fin del periodo
+
+  // Montos
+  subtotal       Decimal // Precio base (suscripción o paquete)
+  overageCredits Int     @default(0) // Créditos en negativo del mes anterior
+  overageAmount  Decimal @default(0) // overageCredits * $0.01
+  tax            Decimal @default(0) // Impuestos si aplican
+  total          Decimal // subtotal + overageAmount + tax
+
+  // Stripe
+  stripeInvoiceId       String? @unique
+  stripePaymentIntentId String?
+  stripeHostedUrl       String? // URL para que el cliente pague
+  stripePdfUrl          String? // URL del PDF generado por Stripe
+
+  // Fechas
+  paidAt DateTime? // Cuándo se pagó
+  dueAt  DateTime? // Fecha límite de pago
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  creditTransactions CreditTransaction[]
+
+  @@index([organizationId, createdAt])
+  @@index([type, status])
+  @@index([status, dueAt])
+  @@index([subscriptionId])
+  @@map("invoices")
+}
+
+// ============================================
+// USER (Empleado de una Organization)
+// ============================================
+model User {
+  id       String  @id @default(uuid())
+  email    String  @unique
+  name     String
+  password String?
+  googleId String? @unique
+
+  // Verificación
+  emailVerified                 Boolean   @default(false)
+  emailVerificationToken        String?   @unique
+  emailVerificationTokenExpires DateTime? // Expiración del token de verificación
+
+  // Reset password
+  passwordResetToken   String?   @unique
+  passwordResetExpires DateTime?
+
+  // 2FA
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+
+  // Rol y estado
+  role     UserRole @default(VIEWER)
+  isActive Boolean  @default(true)
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  lastLoginAt DateTime?
+
+  // Preferencias
+  avatar   String?
+  timezone String? @default("UTC")
+
+  // Relación con Organization
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Relaciones
+  refreshTokens    RefreshToken[]
+  executionsManual Execution[]
+  conversations    Conversation[]
+  auditLogs        AuditLog[]
+  notifications    UserNotification[]
+  tenantTools      TenantTool[]
+
+  @@index([organizationId])
+  @@index([role])
+  @@index([deletedAt])
+  @@index([isActive])
+  @@map("users")
+}
+
+// ============================================
+// END USER (Cliente externo del negocio)
+// ============================================
+model EndUser {
+  id String @id @default(uuid())
+
+  // Identificadores flexibles
+  phoneNumber String? // Para WhatsApp
+  email       String? // Para web/email
+  externalId  String? // ID del sistema del cliente (ej: HubSpot contact ID)
+  sessionId   String? // Para usuarios anónimos
+
+  // Información del usuario
+  name     String?
+  avatar   String?
+  metadata Json? // Datos adicionales flexibles
+
+  // Timestamps
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  lastSeenAt DateTime?
+
+  // Relación con Organization (multi-tenancy)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Relaciones
+  conversations Conversation[]
+
+  @@unique([organizationId, phoneNumber])
+  @@unique([organizationId, email])
+  @@unique([organizationId, externalId])
+  @@index([organizationId])
+  @@index([phoneNumber])
+  @@index([email])
+  @@index([sessionId])
+  @@index([lastSeenAt])
+  @@map("end_users")
+}
+
+// ============================================
+// CONVERSATION (Sesión de chat)
+// ============================================
+model Conversation {
+  id String @id @default(uuid())
+
+  // USUARIO INTERNO (empleado usando dashboard) - OPCIONAL
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // USUARIO EXTERNO (cliente final) - OPCIONAL
+  endUserId String?
+  endUser   EndUser? @relation(fields: [endUserId], references: [id], onDelete: Cascade)
+
+  // REGLA DE NEGOCIO: Uno de los dos debe existir (userId o endUserId), pero NO ambos  
+  // Workflow/Agente relacionado
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  // Configuración de WhatsApp (opcional - solo si el canal es whatsapp)
+  whatsappConfigId  String?
+  whatsappConfig    WhatsAppConfig? @relation(fields: [whatsappConfigId], references: [id])
+  phoneNumberSender String?
+
+  // Metadata de la conversación
+  title   String? // "Consulta sobre productos", "Testing agente ventas"
+  channel ConversationChannel
+  status  ConversationStatus  @default(ACTIVE)
+
+  messageCount     Int       @default(0) // Contador de mensajes
+  totalTokens      Int       @default(0) // Suma de tokens usados
+  totalCost        Decimal   @default(0) // Costo acumulado en USD
+  isHumanInTheLoop Boolean   @default(false) // Si true, la IA no responde, espera humano
+  isCompacting     Boolean   @default(false) // Lock de compactación por conversación
+  compactingLockedAt DateTime? // Timestamp para TTL y recuperación de lock stale
+  lastMessageAt    DateTime? // Último mensaje (para calcular inactividad)
+  lastMessageRole  ChatRole? // Para auto-cierre eficiente
+  autoCloseAt      DateTime? // Próximo autocierre calculado según configuración de inactividad
+  currentCompactionId String? @unique // FK a la compactación activa (nullable para conversaciones nuevas)
+
+  // Información adicional
+  metadata Json?   @db.JsonB // Tags, categorías, sentimiento, etc.
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  closedAt  DateTime? // Cuándo se cerró la conversación
+  deletedAt DateTime? // Soft delete
+
+  // Relaciones
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  currentCompaction ConversationCompaction? @relation("ActiveCompaction", fields: [currentCompactionId], references: [id])
+
+  messages   Message[] // Una conversación tiene muchos mensajes
+  executions Execution[] // Ejecuciones asociadas a esta conversación
+  compactions ConversationCompaction[] @relation("CompactionHistory")
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([endUserId])
+  @@index([workflowId])
+  @@index([whatsappConfigId])
+  @@index([status])
+  @@index([channel])
+  @@index([createdAt])
+  @@index([lastMessageAt])
+  @@index([autoCloseAt])
+  @@index([closedAt])
+  @@index([deletedAt])
+  @@index([workflowId, status, lastMessageAt])
+  @@index([channel, whatsappConfigId, phoneNumberSender, status, createdAt])
+  @@map("conversations")
+}
+
+model ConversationCompaction {
+  id                  String           @id @default(uuid())
+  conversationId      String
+  version             Int
+  summary             String?          @db.Text // Nullable para estados PENDING/FAILED
+  sourceMessageFromId String?
+  sourceMessageToId   String?
+  tokensBefore        Int
+  tokensAfter         Int
+  compressionRatio    Float
+  modelUsed           String
+  status              CompactionStatus
+  error               String?
+  deletedAt           DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  conversation Conversation @relation("CompactionHistory", fields: [conversationId], references: [id], onDelete: Cascade)
+  activeFor     Conversation? @relation("ActiveCompaction")
+
+  @@unique([conversationId, version])
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@index([deletedAt])
+  @@map("conversation_compactions")
+}
+
+// ============================================
+// MESSAGE (Mensaje individual)
+// ============================================
+model Message {
+  id String @id @default(uuid())
+
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role ChatRole
+
+  content     String              @db.Text // Texto del mensaje (siempre presente) - puede ser largo
+  attachments MessageAttachment[]
+
+  metadata Json? @db.JsonB
+
+  // Datos de IA (si es respuesta del asistente)
+  model     String?
+  tokens    Int?
+  cost      Float?
+  latencyMs Int?
+
+  // Tool calls (cuando el asistente solicita ejecutar herramientas)
+  toolCalls Json? @db.JsonB
+  // Estructura de toolCalls:
+  // [
+  //   {
+  //     "id": "call_abc123",              // ID único del tool call
+  //     "type": "function",               // Tipo de llamada (siempre "function")
+  //     "function": {
+  //       "name": "get_weather",          // Nombre de la herramienta
+  //       "arguments": "{\"city\":\"NY\"}" // Argumentos en JSON string
+  //     }
+  //   }
+  // ]
+
+  toolResults Json? @db.JsonB
+  // Estructura de toolResults:
+  // [
+  //   {
+  //     "tool_call_id": "call_abc123",    // ID del tool call correspondiente
+  //     "role": "tool",                   // Siempre "tool"
+  //     "name": "get_weather",            // Nombre de la herramienta ejecutada
+  //     "content": "22°C, sunny"          // Resultado de la ejecución (string o JSON)
+  //   }
+  // ]
+
+  createdAt DateTime @default(now())
+
+  // Feedback del usuario
+  feedback        MessageFeedback?
+  feedbackComment String?          @db.Text
+
+  @@index([conversationId, createdAt])
+  @@index([role])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+model MessageAttachment {
+  id String @id @default(uuid())
+
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  type             MessageAttachmentType
+  mimeType         String
+  sourceUrl        String
+  sizeBytes        Int?
+  sha256           String?
+  contentHash      String?
+  processingStatus MessageAttachmentStatus @default(PENDING)
+  processedText    String?                 @db.Text
+  processedAt      DateTime?
+  processingError  String?                 @db.Text
+  processor        String?
+  processorVersion String?
+
+  metadata Json? @db.JsonB
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([messageId, createdAt])
+  @@index([organizationId, contentHash])
+  @@index([processingStatus])
+  @@index([createdAt])
+  @@map("message_attachments")
+}
+
+// ============================================
+// LLM MODEL (Modelos de IA con precios)
+// ============================================
+model LlmModel {
+  id String @id @default(uuid())
+
+  // Identificación del modelo
+  provider  String // "openai", "anthropic", "google"
+  modelName String // "gpt-4o", "claude-3-5-sonnet", etc.
+
+  // Tier del modelo (para restricciones por workflow category)
+  tier ModelTier // BASIC, STANDARD, PREMIUM
+
+  // Categoría para UI (agrupación visual)
+  category String? // "respuesta-rapida", "razonamiento-avanzado", "ultima-generacion"
+
+  // Precios por 1 millón de tokens
+  inputPricePer1m  Decimal // Precio por 1,000,000 tokens de entrada
+  outputPricePer1m Decimal // Precio por 1,000,000 tokens de salida
+
+  // Ventana de contexto
+  contextWindow        Int // Tokens máximos del modelo (ej: 128000 para GPT-4o)
+  recommendedMaxTokens Int // Tokens recomendados para conversaciones (ej: 100000)
+
+  // Vigencia del precio
+  effectiveFrom DateTime  @default(now()) // Desde cuándo aplica
+  effectiveTo   DateTime? // Hasta cuándo (null = actual)
+
+  // Estado
+  isActive Boolean @default(true)
+  currency String  @default("USD")
+
+  // Metadata
+  notes     String? // "Aumento de precios Q1 2025"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, modelName, effectiveFrom])
+  @@index([provider, modelName, isActive])
+  @@index([isActive, effectiveFrom])
+  @@index([tier, isActive])
+  @@map("llm_models")
+}
+
+// ============================================
+// TOOL CATALOG (Catálogo de tools - controlado por sistema)
+// ============================================
+model ToolCatalog {
+  id String @id @default(uuid())
+
+  // Identificación
+  toolName    String  @unique // "google_calendar", "hubspot", "slack"
+  displayName String // "Google Calendar", "HubSpot", "Slack"
+  description String? // Descripción de qué hace esta tool
+  provider    String? // "google", "microsoft", "custom"
+
+  // Control de disponibilidad (sistema)
+  isActive Boolean @default(false) // Si está lista para producción
+  isInBeta Boolean @default(false) // Si está en testing/beta
+
+  // Metadata para UI y Auth
+  icon       String? // URL o nombre del ícono
+  category   String? // "productivity", "crm", "communication"
+  authConfig Json? // Configuraciones específicas de OAuth como clientId o custom fields
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  functions   ToolFunction[]
+  tenantTools TenantTool[] // Instancias de organizaciones que usan esta tool
+
+  @@index([isActive])
+  @@index([category])
+  @@map("tool_catalog")
+}
+
+// ============================================
+// TOOL FUNCTION (Funciones de cada tool - controlado por sistema)
+// ============================================
+model ToolFunction {
+  id String @id @default(uuid())
+
+  // Relación con ToolCatalog
+  toolCatalogId String
+  toolCatalog   ToolCatalog @relation(fields: [toolCatalogId], references: [id], onDelete: Cascade)
+
+  // Identificación de la función
+  functionName String // "check_availability", "create_event", "delete_event"
+  displayName  String // "Verificar Disponibilidad", "Crear Evento"
+  description  String? // Descripción de qué hace esta función
+
+  // Categorización (para UI y control)
+  category String? @default("general") // "read", "write", "delete"
+
+  // OAuth Scopes que esta función específica requiere
+  oauthScopes String[] @default([])
+
+  // Control de disponibilidad
+  isActive Boolean @default(false) // Si está lista para uso
+  isInBeta Boolean @default(false) // Si está en testing
+
+  // Metadata para UI
+  icon        String? // Ícono específico de la función
+  dangerLevel DangerLevel? @default(SAFE)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([toolCatalogId, functionName])
+  @@index([toolCatalogId, isActive])
+  @@index([toolCatalogId, category])
+  @@index([isActive])
+  @@map("tool_functions")
+}
+
+// ============================================
+// TENANT TOOL (Conexiones con servicios externos)
+// ============================================
+model TenantTool {
+  id String @id @default(uuid())
+
+  // Relación con el catálogo (NUEVO - obligatorio)
+  // Define QUÉ tool es esta instancia (google_calendar, hubspot, etc)
+  toolCatalogId String
+  toolCatalog   ToolCatalog @relation(fields: [toolCatalogId], references: [id], onDelete: Restrict)
+
+  // Identificación personalizada
+  displayName String // "Google Calendar - Ventas", "HubSpot Portal US"
+
+  // Configuración específica del tenant (NO secretos)
+  config Json? // { "portal_id": "123", "default_pipeline": "ventas" }
+
+  // Funciones permitidas al momento de crear la tool (autorización granular)
+  // Ej: ["create_event", "list_events"]
+  allowedFunctions Json? @db.JsonB
+
+  // Estado de conexión
+  isConnected     Boolean              @default(false)
+  status          ToolConnectionStatus @default(DISCONNECTED)
+  connectionError String? // Último error si falló
+  connectedAt     DateTime?
+  lastUsedAt      DateTime?
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete para preservar histórico de ejecuciones
+
+  // Relación con organización
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Quién autorizó esta conexión OAuth. Solo este usuario debería poder editar/eliminar la tool.
+  createdByUserId String?
+  user            User?   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  // Workflows que usan esta tool
+  workflows  Workflow[]            @relation("WorkflowToTenantTool")
+  credential TenantToolCredential?
+
+  // NOTE: Unique among ACTIVE tools (deletedAt IS NULL) is enforced via partial unique index in SQL migration.
+  // Prisma schema cannot express partial unique indexes directly.
+  @@index([organizationId, displayName])
+  @@index([organizationId])
+  @@index([toolCatalogId])
+  @@index([isConnected])
+  @@index([deletedAt])
+  @@map("tenant_tools")
+}
+
+// ============================================
+// TENANT TOOL CREDENTIAL (Bóveda PII)
+// ============================================
+model TenantToolCredential {
+  id String @id @default(uuid())
+
+  // Relación 1:1 con la herramienta
+  tenantToolId String     @unique
+  tenantTool   TenantTool @relation(fields: [tenantToolId], references: [id], onDelete: Cascade)
+
+  // Proveedor de la identidad
+  oauthProvider String // "google", "hubspot", etc.
+
+  // Tokens Cifrados con KMS + Tink
+  encryptedAccessToken  String   @db.Text
+  encryptedRefreshToken String?  @db.Text
+  tokenExpiresAt        DateTime
+
+  // Scopes reales otorgados por el usuario
+  scopes Json? @db.JsonB
+
+  // Timestamps (NO deletedAt)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tenant_tool_credentials")
+}
+
+// ============================================
+// API KEY
+// ============================================
+model ApiKey {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+
+  // Key hasheada (determinista para búsqueda rápida)
+  keyHash String @unique
+
+  // Estado y uso
+  isActive   Boolean   @default(true)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  // Tracking
+  executions Execution[]
+
+  @@index([organizationId])
+  @@index([workflowId])
+  @@index([deletedAt])
+  @@index([isActive])
+  @@map("api_keys")
+}
+
+// ============================================
+// REFRESH TOKEN
+// ============================================
+model RefreshToken {
+  id        String @id @default(uuid())
+  tokenHash String @unique
+
+  // Familia de tokens (para detectar reuso)
+  familyId          String
+  previousTokenHash String?
+
+  // Expiración y revocación
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokedReason String?
+
+  // Metadata del dispositivo
+  userAgent String?
+  ipAddress String?
+  deviceId  String?
+
+  // Timestamps
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  // Relación
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// ============================================
+// WORKFLOW (Agente)
+// ============================================
+model Workflow {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+
+  // Configuración del workflow - Estructura unificada para todos los tipos de grafos
+  config Json
+  // Estructura unificada:
+  // {
+  //   "type": "agent",
+  //   "graph": {
+  //     "type": "react",                 // "react", "supervisor", "router", "sequential", "parallel"
+  //     "config": {
+  //       // Configuración específica del tipo de grafo
+  //       // REACT: { "max_iterations": 10, "allow_interrupts": false }
+  //       // SUPERVISOR: { "routing_strategy": "llm_based", "max_iterations": 20 }
+  //       // ROUTER: { "routes": [...], "default_route": "agent_name" }
+  //       // SEQUENTIAL: { "steps": [{"agent": "a", "output_to": "data"}, ...] }
+  //     }
+  //   },
+  //   "mediaProcessing": {
+  //     "ocrPrompt": "Extrae el total y la fecha de esta factura." // Opcional: Prompt para extracción de imágenes
+  //   },
+  //   "agents": {
+  //     // Para grafos simples (react): un agente "default"
+  //     "default": {
+  //       "model": "gpt-4o",
+  //       "temperature": 0.7,
+  //       "system_prompt": "Eres un asistente...",
+  //       "tools": ["tenant-tool-uuid-1", "tenant-tool-uuid-2"]  // IDs de TenantTools
+  //     },
+  //     // Para grafos multi-agente (supervisor, router, sequential): múltiples agentes
+  //     "supervisor": {
+  //       "model": "gpt-4o",
+  //       "system_prompt": "Coordinas agentes...",
+  //       "tools": []
+  //     },
+  //     "sales_agent": {
+  //       "model": "gpt-4o",
+  //       "temperature": 0.5,
+  //       "system_prompt": "Gestionas ventas...",
+  //       "tools": ["tenant-tool-uuid-calendar-ventas"]
+  //     },
+  //     "marketing_agent": {
+  //       "model": "gpt-4o-mini",
+  //       "temperature": 0.3,
+  //       "system_prompt": "Gestionas marketing...",
+  //       // OPCIÓN 1: Array simple de IDs (sin restricciones de funciones)
+  //       "tools": ["tenant-tool-uuid-calendar-marketing"]
+  //     },
+  //     "restricted_agent": {
+  //       "model": "gpt-4o",
+  //       "system_prompt": "Agente con permisos limitados...",
+  //       // OPCIÓN 2: Array de objetos con control granular de funciones
+  //       "tools": [
+  //         {
+  //           "id": "tenant-tool-uuid-calendar",
+  //           "functions": ["check_availability", "list_events"]  // Solo estas funciones
+  //         },
+  //         {
+  //           "id": "tenant-tool-uuid-calculator"  // Sin "functions" = usa todas
+  //         }
+  //       ]
+  //     }
+  //   }
+  // }
+  //
+  // FORMATOS SOPORTADOS PARA "tools":
+  // 
+  // 1. String simple (sin control granular):
+  //    "tools": ["uuid-1", "uuid-2"]
+  //    → Puede usar TODAS las funciones de cada tool
+  //
+  // 2. Objeto con funciones específicas (control granular):
+  //    "tools": [
+  //      {"id": "uuid-1", "functions": ["func1", "func2"]},  // Solo func1 y func2
+  //      {"id": "uuid-2"}  // Sin "functions" = usa todas
+  //    ]
+  //    → Puede usar solo las funciones especificadas
+  //
+  // 3. Array vacío (sin tools):
+  //    "tools": []
+  //    → El agente no tiene acceso a ninguna tool
+
+  // Tools habilitadas para este workflow (relación con TenantTools específicas)
+  // Representa el POOL de tools disponibles - cada agente decide cuáles usar en config.agents[].tools
+  tenantTools TenantTool[] @relation("WorkflowToTenantTool")
+
+  // Credit System - Workflow Category
+  category              WorkflowCategory // LIGHT (1cr), STANDARD (5cr), ADVANCED (25cr) - Asignado por admin
+  maxTokensPerExecution Int // Límite de tokens por ejecución (20k/50k/128k según category)
+
+  maxMessages            Int? // null = sin límite de mensajes
+  inactivityHours        Int? // null = sin límite temporal
+  maxCostPerConversation Decimal? // null = sin límite de costo
+
+  // Versionado
+  version Int @default(1)
+
+  // Estado
+  isActive Boolean @default(true)
+  isPaused Boolean @default(false)
+
+  // Programación
+  schedule    String? // Cron expression
+  timezone    String?       @default("UTC")
+  triggerType TriggerType[] @default([])
+
+  // Configuración de ejecución
+  timeout    Int @default(300)
+  maxRetries Int @default(3)
+
+  // Estadísticas (incluye tracking de créditos)
+  totalExecutions        Int       @default(0)
+  successfulExecutions   Int       @default(0)
+  failedExecutions       Int       @default(0)
+  totalCreditsConsumed   Int       @default(0) // Total créditos gastados por este workflow
+  avgCreditsPerExecution Float? // Promedio de créditos por ejecución
+  lastExecutedAt         DateTime?
+  avgExecutionTime       Float?
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relación
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Relaciones
+  executions      Execution[]
+  whatsappConfigs WhatsAppConfig[]
+  tags            Tag[]            @relation("TagToWorkflow")
+  conversations   Conversation[]
+  apiKeys         ApiKey[]
+
+  @@index([organizationId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@index([lastExecutedAt])
+  @@index([triggerType])
+  @@index([category])
+  @@map("workflows")
+}
+
+// ============================================
+// EXECUTION (Ejecución de un workflow)
+// ============================================
+model Execution {
+  id String @id @default(uuid())
+
+  // Estado
+  status ExecutionStatus @default(PENDING)
+
+  // Tiempos
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  duration   Int? // En segundos
+
+  // Resultado
+  result     Json?
+  error      String?
+  errorStack String?
+
+  // Trigger
+  trigger     TriggerType @default(MANUAL)
+  triggerData Json?
+
+  // Debug
+  logs        String?
+  stepResults Json?
+
+  // Credit System - Costos y Créditos
+  cost          Decimal @default(0) // Costo real en USD (de las APIs de modelos)
+  credits       Int     @default(0) // Créditos cobrados (1/5/25 según workflow.category)
+  tokensUsed    Int? // Total tokens consumidos en esta ejecución
+  balanceBefore Int? // Snapshot del balance antes de la ejecución
+  balanceAfter  Int? // Snapshot del balance después de la ejecución
+  wasOverage    Boolean @default(false) // True si se ejecutó con balance negativo
+
+  // Reintentos
+  retryCount Int @default(0)
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Conversación asociada (opcional - para agentes conversacionales)
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id])
+
+  // Quién lo ejecutó (opcional)
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  apiKeyId String?
+  apiKey   ApiKey? @relation(fields: [apiKeyId], references: [id])
+
+  // Credit Transaction asociada (para trazabilidad)
+  creditTransaction CreditTransaction? @relation("ExecutionTransaction")
+
+  @@index([workflowId])
+  @@index([organizationId])
+  @@index([conversationId])
+  @@index([apiKeyId])
+  @@index([userId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([trigger])
+  @@index([wasOverage])
+  @@index([organizationId, trigger, startedAt])
+  @@index([organizationId, wasOverage])
+  @@index([organizationId, userId, startedAt])
+  @@index([organizationId, apiKeyId, startedAt])
+  @@index([deletedAt])
+  @@map("executions")
+}
+
+// ============================================
+// TAG
+// ============================================
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  color     String?
+  createdAt DateTime @default(now())
+
+  workflows Workflow[] @relation("TagToWorkflow")
+
+  @@map("tags")
+}
+
+// ============================================
+// WHATSAPP CONFIG
+// ============================================
+model WhatsAppConfig {
+  id String @id @default(uuid())
+
+  // Identificación
+  phoneNumber String  @unique
+  displayName String?
+  description String?
+
+  // Proveedor (baileys, twilio, meta)
+  provider String
+
+  // Credenciales (referencia a Secret Manager en producción)
+  credentialPath String?
+
+  // Webhook
+  webhookSecret String  @default(uuid())
+  webhookUrl    String?
+
+  // Estado de conexión
+  connectionStatus WhatsAppConnectionStatus @default(DISCONNECTED)
+  lastConnectedAt  DateTime?
+  connectionError  String?
+
+  // QR (para baileys)
+  qrCode       String?
+  qrCodeExpiry DateTime?
+
+  // Sesión
+  sessionData Json?
+
+  // Estado
+  isActive Boolean @default(true)
+
+  // Workflow por defecto para mensajes entrantes
+  defaultWorkflowId String?
+  defaultWorkflow   Workflow? @relation(fields: [defaultWorkflowId], references: [id])
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relación
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Conversaciones por este canal de WhatsApp
+  conversations Conversation[]
+
+  @@index([phoneNumber])
+  @@index([connectionStatus])
+  @@index([organizationId])
+  @@index([deletedAt])
+  @@map("whatsapp_configs")
+}
+
+// ============================================
+// AUDIT LOG
+// ============================================
+model AuditLog {
+  id String @id @default(uuid())
+
+  // Quién hizo la acción (User de la organización)
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id])
+  userEmail String
+  userName  String
+
+  // Qué hizo
+  action     String // create, update, delete, login, etc.
+  resource   String // organization, user, workflow, etc.
+  resourceId String?
+
+  // Request
+  method   String // GET, POST, PUT, DELETE
+  endpoint String
+
+  // Cambios
+  changes  Json? // { before: {}, after: {} }
+  metadata Json?
+
+  // Contexto
+  ipAddress String
+  userAgent String?
+
+  // Resultado
+  statusCode   Int
+  success      Boolean @default(true)
+  errorMessage String?
+  duration     Int? // En ms
+
+  // Timestamp
+  timestamp DateTime @default(now())
+
+  // Relación opcional
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userEmail])
+  @@index([action])
+  @@index([timestamp])
+  @@index([organizationId])
+  @@index([success])
+  @@map("audit_logs")
+}
+
+model UserVerification {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  userName         String
+  organizationName String
+  verificationCode String   @unique
+  isEmailVerified  Boolean  @default(false)
+  isFromInvitation Boolean  @default(false)
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+  @@map("user_verifications")
+}
+
+model Notification {
+  id              String             @id @default(uuid())
+  code            String
+  version         Int                @default(1)
+  titleTemplate   String
+  messageTemplate String
+  targetRoles     Json               @db.JsonB
+  isActive        Boolean            @default(true)
+  users           UserNotification[]
+  createdAt       DateTime           @default(now())
+
+  @@unique([code, version])
+  @@index([code, isActive])
+  @@map("notifications")
+}
+
+model UserNotification {
+  id              String       @id @default(uuid())
+  userId          String
+  organizationId  String
+  notificationId  String
+  isRead          Boolean      @default(false)
+  titleSnapshot   String
+  messageSnapshot String
+  createdAt       DateTime     @default(now())
+  deletedAt       DateTime?
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  notification    Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, organizationId])
+  @@map("user_notifications")
+}
