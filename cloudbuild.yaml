@@ -1,0 +1,63 @@
+steps:
+  # ── Gateway ──────────────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-gateway'
+    args:
+      - build
+      - -f
+      - apps/gateway/Dockerfile
+      - -t
+      - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/gateway:$COMMIT_SHA
+      - -t
+      - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/gateway:latest
+      - .
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-gateway-sha'
+    waitFor: ['build-gateway']
+    args:
+      - push
+      - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/gateway:$COMMIT_SHA
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-gateway-latest'
+    waitFor: ['build-gateway']
+    args:
+      - push
+      - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/gateway:latest
+
+  # ── Agents ───────────────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-agents'
+    args:
+      - build
+      - -f
+      - apps/agents/Dockerfile
+      - -t
+      - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/agents:$COMMIT_SHA
+      - -t
+      - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/agents:latest
+      - .
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-agents-sha'
+    waitFor: ['build-agents']
+    args:
+      - push
+      - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/agents:$COMMIT_SHA
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-agents-latest'
+    waitFor: ['build-agents']
+    args:
+      - push
+      - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/agents:latest
+
+images:
+  - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/gateway:$COMMIT_SHA
+  - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/gateway:latest
+  - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/agents:$COMMIT_SHA
+  - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/agents:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
