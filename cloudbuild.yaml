@@ -37,7 +37,7 @@ steps:
       - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/agents:$COMMIT_SHA
       - -t
       - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/agents:latest
-      - .
+      - apps/agents
 
   - name: 'gcr.io/cloud-builders/docker'
     id: 'push-agents-sha'
