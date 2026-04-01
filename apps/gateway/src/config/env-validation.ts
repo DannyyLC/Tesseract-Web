@@ -47,7 +47,6 @@ const REQUIRED_IN_PRODUCTION: string[] = [
   'SMTP_PASS',
   'SMTP_EMAIL_FROM',
   'SMTP_VERIFIED_EMAIL_FROM',
-  'SMTP_TOKEN_FOR_VERIFICATION',
 
   // Google OAuth (login con Google)
   'GOOGLE_CLIENT_ID',
