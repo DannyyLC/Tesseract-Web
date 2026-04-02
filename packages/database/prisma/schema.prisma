@@ -162,7 +162,7 @@ model Organization {
   // Defaults para nuevos workflows (opcionales)
   defaultMaxMessages     Int? // null = sin límite de mensajes por conversación
   defaultInactivityHours Int? // null = sin límite temporal de inactividad
-  defaultMaxCostPerConv  Decimal? // null = sin límite de costo por conversación
+  defaultMaxCostPerConv  Decimal? @db.Decimal(19, 4) // null = sin límite de costo por conversación
 
   // Credit System - Overage Control
   allowOverages Boolean @default(false) // Permite balance negativo
@@ -209,6 +209,7 @@ model Organization {
   creditTransactions CreditTransaction[]
   invoices           Invoice[]
   conversations      Conversation[]
+  messages           Message[]
   messageAttachments MessageAttachment[]
   userNotifications  UserNotification[]
 
@@ -246,7 +247,7 @@ model Subscription {
   stripePriceId        String?
 
   // Campos personalizables para ENTERPRISE
-  customMonthlyPrice   Decimal? // null = usar precio estándar del plan
+  customMonthlyPrice   Decimal? @db.Decimal(19, 4) // null = usar precio estándar del plan
   customMonthlyCredits Int? // null = usar defaults (150/500/1500/5000)
   customMaxWorkflows   Int? // null = usar defaults (3/7/12/25)
   customOverageLimit   Int? // null = calcular automático (1 mes de créditos)
@@ -285,7 +286,7 @@ model CreditBalance {
   // NOTA: Se calculan sumando CreditTransaction del periodo actual (subscription.currentPeriodStart/End)
   // Se actualizan con cada transacción, no se "reinician" sino que se recalculan desde transacciones
   currentMonthSpent   Int     @default(0) // Créditos gastados este mes
-  currentMonthCostUSD Decimal @default(0) // Costo real en USD este mes (para análisis interno)
+  currentMonthCostUSD Decimal @default(0) @db.Decimal(19, 4) // Costo real en USD este mes (para análisis interno)
 
   // Overage Billing Snapshot (Temporal)
   invoicedOverageCredits Int @default(0) // Créditos de overage ya facturados (snapshot invoice.created) pero aun no pagados
@@ -318,14 +319,14 @@ model CreditTransaction {
   // Referencias opcionales según el tipo de transacción
   subscriptionId String? // Para SUBSCRIPTION_RENEWAL, PLAN_UPGRADE, PLAN_DOWNGRADE
   subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
-  executionId    String?       @unique // Para EXECUTION_DEDUCTION
+  executionId    String?       @unique // Solo para EXECUTION_DEDUCTION — un cobro por ejecución. MANUAL_ADJUSTMENT usa metadata.originalExecutionId
   execution      Execution?    @relation("ExecutionTransaction", fields: [executionId], references: [id])
   invoiceId      String? // Para compras (ONE_TIME_PURCHASE, OVERAGE_CHARGE)
   invoice        Invoice?      @relation(fields: [invoiceId], references: [id])
 
   // Metadata de la ejecución (para reportes y análisis)
   workflowCategory WorkflowCategory? // LIGHT/STANDARD/ADVANCED (si es deducción por ejecución)
-  costUSD          Decimal? // Costo real en USD de esta transacción (para análisis interno)
+  costUSD          Decimal? @db.Decimal(19, 8) // Costo real en USD de esta transacción (para análisis interno)
 
   // Información adicional
   description String? // Descripción legible: "Renovación plan GROWTH", "Ejecución workflow Ventas"
@@ -336,7 +337,6 @@ model CreditTransaction {
 
   @@index([organizationId, createdAt])
   @@index([type, createdAt])
-  @@index([executionId])
   @@index([subscriptionId])
   @@index([invoiceId])
   @@map("credit_transactions")
@@ -364,11 +364,11 @@ model Invoice {
   periodEnd   DateTime? // Fin del periodo
 
   // Montos
-  subtotal       Decimal // Precio base (suscripción o paquete)
-  overageCredits Int     @default(0) // Créditos en negativo del mes anterior
-  overageAmount  Decimal @default(0) // overageCredits * $0.01
-  tax            Decimal @default(0) // Impuestos si aplican
-  total          Decimal // subtotal + overageAmount + tax
+  subtotal       Decimal              @db.Decimal(19, 4) // Precio base (suscripción o paquete)
+  overageCredits Int                  @default(0) // Créditos en negativo del mes anterior
+  overageAmount  Decimal              @default(0) @db.Decimal(19, 4) // overageCredits * $0.01
+  tax            Decimal              @default(0) @db.Decimal(19, 4) // Impuestos si aplican
+  total          Decimal              @db.Decimal(19, 4) // subtotal + overageAmount + tax
 
   // Stripe
   stripeInvoiceId       String? @unique
@@ -521,7 +521,7 @@ model Conversation {
 
   messageCount     Int       @default(0) // Contador de mensajes
   totalTokens      Int       @default(0) // Suma de tokens usados
-  totalCost        Decimal   @default(0) // Costo acumulado en USD
+  totalCost        Decimal   @default(0) @db.Decimal(19, 8) // Costo acumulado en USD
   isHumanInTheLoop Boolean   @default(false) // Si true, la IA no responde, espera humano
   isCompacting     Boolean   @default(false) // Lock de compactación por conversación
   compactingLockedAt DateTime? // Timestamp para TTL y recuperación de lock stale
@@ -560,6 +560,7 @@ model Conversation {
   @@index([autoCloseAt])
   @@index([closedAt])
   @@index([deletedAt])
+  @@index([compactingLockedAt])
   @@index([workflowId, status, lastMessageAt])
   @@index([channel, whatsappConfigId, phoneNumberSender, status, createdAt])
   @@map("conversations")
@@ -601,6 +602,9 @@ model Message {
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   role ChatRole
 
   content     String              @db.Text // Texto del mensaje (siempre presente) - puede ser largo
@@ -611,7 +615,7 @@ model Message {
   // Datos de IA (si es respuesta del asistente)
   model     String?
   tokens    Int?
-  cost      Float?
+  cost      Decimal? @db.Decimal(19, 8)
   latencyMs Int?
 
   // Tool calls (cuando el asistente solicita ejecutar herramientas)
@@ -646,7 +650,7 @@ model Message {
   feedbackComment String?          @db.Text
 
   @@index([conversationId, createdAt])
-  @@index([role])
+  @@index([organizationId, createdAt])
   @@index([createdAt])
   @@map("messages")
 }
@@ -702,8 +706,8 @@ model LlmModel {
   category String? // "respuesta-rapida", "razonamiento-avanzado", "ultima-generacion"
 
   // Precios por 1 millón de tokens
-  inputPricePer1m  Decimal // Precio por 1,000,000 tokens de entrada
-  outputPricePer1m Decimal // Precio por 1,000,000 tokens de salida
+  inputPricePer1m  Decimal @db.Decimal(19, 6) // Precio por 1,000,000 tokens de entrada
+  outputPricePer1m Decimal @db.Decimal(19, 6) // Precio por 1,000,000 tokens de salida
 
   // Ventana de contexto
   contextWindow        Int // Tokens máximos del modelo (ej: 128000 para GPT-4o)
@@ -848,8 +852,9 @@ model TenantTool {
   workflows  Workflow[]            @relation("WorkflowToTenantTool")
   credential TenantToolCredential?
 
-  // NOTE: Unique among ACTIVE tools (deletedAt IS NULL) is enforced via partial unique index in SQL migration.
-  // Prisma schema cannot express partial unique indexes directly.
+  // NOTE: La unicidad de (organizationId, displayName) entre tools ACTIVAS se enforza con un partial unique
+  // index en el SQL: WHERE "deletedAt" IS NULL. Prisma no soporta partial unique indexes directamente.
+  // El índice regular de abajo cubre queries que incluyen tools eliminadas (historial, auditoría).
   @@index([organizationId, displayName])
   @@index([organizationId])
   @@index([toolCatalogId])
@@ -1056,7 +1061,7 @@ model Workflow {
 
   maxMessages            Int? // null = sin límite de mensajes
   inactivityHours        Int? // null = sin límite temporal
-  maxCostPerConversation Decimal? // null = sin límite de costo
+  maxCostPerConversation Decimal? @db.Decimal(19, 4) // null = sin límite de costo
 
   // Versionado
   version Int @default(1)
@@ -1136,7 +1141,7 @@ model Execution {
   stepResults Json?
 
   // Credit System - Costos y Créditos
-  cost          Decimal @default(0) // Costo real en USD (de las APIs de modelos)
+  cost          Decimal @default(0) @db.Decimal(19, 8) // Costo real en USD (de las APIs de modelos)
   credits       Int     @default(0) // Créditos cobrados (1/5/25 según workflow.category)
   tokensUsed    Int? // Total tokens consumidos en esta ejecución
   balanceBefore Int? // Snapshot del balance antes de la ejecución

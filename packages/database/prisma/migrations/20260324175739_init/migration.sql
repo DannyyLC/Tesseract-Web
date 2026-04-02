@@ -66,7 +66,7 @@ CREATE TABLE "organizations" (
     "plan" "SubscriptionPlan" NOT NULL DEFAULT 'FREE',
     "defaultMaxMessages" INTEGER,
     "defaultInactivityHours" INTEGER,
-    "defaultMaxCostPerConv" DECIMAL(65,30),
+    "defaultMaxCostPerConv" DECIMAL(19,4),
     "allowOverages" BOOLEAN NOT NULL DEFAULT false,
     "overageLimit" INTEGER,
     "customMaxUsers" INTEGER,
@@ -101,7 +101,7 @@ CREATE TABLE "subscriptions" (
     "planChangeRequestedBy" TEXT,
     "stripeSubscriptionId" TEXT,
     "stripePriceId" TEXT,
-    "customMonthlyPrice" DECIMAL(65,30),
+    "customMonthlyPrice" DECIMAL(19,4),
     "customMonthlyCredits" INTEGER,
     "customMaxWorkflows" INTEGER,
     "customOverageLimit" INTEGER,
@@ -121,7 +121,7 @@ CREATE TABLE "credit_balances" (
     "lifetimeEarned" INTEGER NOT NULL DEFAULT 0,
     "lifetimeSpent" INTEGER NOT NULL DEFAULT 0,
     "currentMonthSpent" INTEGER NOT NULL DEFAULT 0,
-    "currentMonthCostUSD" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "currentMonthCostUSD" DECIMAL(19,4) NOT NULL DEFAULT 0,
     "invoicedOverageCredits" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -141,7 +141,7 @@ CREATE TABLE "credit_transactions" (
     "executionId" TEXT,
     "invoiceId" TEXT,
     "workflowCategory" "WorkflowCategory",
-    "costUSD" DECIMAL(65,30),
+    "costUSD" DECIMAL(19,8),
     "description" TEXT,
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -159,11 +159,11 @@ CREATE TABLE "invoices" (
     "subscriptionId" TEXT,
     "periodStart" TIMESTAMP(3),
     "periodEnd" TIMESTAMP(3),
-    "subtotal" DECIMAL(65,30) NOT NULL,
+    "subtotal" DECIMAL(19,4) NOT NULL,
     "overageCredits" INTEGER NOT NULL DEFAULT 0,
-    "overageAmount" DECIMAL(65,30) NOT NULL DEFAULT 0,
-    "tax" DECIMAL(65,30) NOT NULL DEFAULT 0,
-    "total" DECIMAL(65,30) NOT NULL,
+    "overageAmount" DECIMAL(19,4) NOT NULL DEFAULT 0,
+    "tax" DECIMAL(19,4) NOT NULL DEFAULT 0,
+    "total" DECIMAL(19,4) NOT NULL,
     "stripeInvoiceId" TEXT,
     "stripePaymentIntentId" TEXT,
     "stripeHostedUrl" TEXT,
@@ -234,7 +234,7 @@ CREATE TABLE "conversations" (
     "status" "ConversationStatus" NOT NULL DEFAULT 'ACTIVE',
     "messageCount" INTEGER NOT NULL DEFAULT 0,
     "totalTokens" INTEGER NOT NULL DEFAULT 0,
-    "totalCost" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "totalCost" DECIMAL(19,8) NOT NULL DEFAULT 0,
     "isHumanInTheLoop" BOOLEAN NOT NULL DEFAULT false,
     "isCompacting" BOOLEAN NOT NULL DEFAULT false,
     "compactingLockedAt" TIMESTAMP(3),
@@ -249,7 +249,8 @@ CREATE TABLE "conversations" (
     "deletedAt" TIMESTAMP(3),
     "organizationId" TEXT NOT NULL,
 
-    CONSTRAINT "conversations_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "conversations_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "conversations_user_xor_enduser" CHECK (("userId" IS NULL) <> ("endUserId" IS NULL))
 );
 
 -- CreateTable
@@ -277,12 +278,13 @@ CREATE TABLE "conversation_compactions" (
 CREATE TABLE "messages" (
     "id" TEXT NOT NULL,
     "conversationId" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
     "role" "ChatRole" NOT NULL,
     "content" TEXT NOT NULL,
     "metadata" JSONB,
     "model" TEXT,
     "tokens" INTEGER,
-    "cost" DOUBLE PRECISION,
+    "cost" DECIMAL(19,8),
     "latencyMs" INTEGER,
     "toolCalls" JSONB,
     "toolResults" JSONB,
@@ -324,8 +326,8 @@ CREATE TABLE "llm_models" (
     "modelName" TEXT NOT NULL,
     "tier" "ModelTier" NOT NULL,
     "category" TEXT,
-    "inputPricePer1m" DECIMAL(65,30) NOT NULL,
-    "outputPricePer1m" DECIMAL(65,30) NOT NULL,
+    "inputPricePer1m" DECIMAL(19,6) NOT NULL,
+    "outputPricePer1m" DECIMAL(19,6) NOT NULL,
     "contextWindow" INTEGER NOT NULL,
     "recommendedMaxTokens" INTEGER NOT NULL,
     "effectiveFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -459,7 +461,7 @@ CREATE TABLE "workflows" (
     "maxTokensPerExecution" INTEGER NOT NULL,
     "maxMessages" INTEGER,
     "inactivityHours" INTEGER,
-    "maxCostPerConversation" DECIMAL(65,30),
+    "maxCostPerConversation" DECIMAL(19,4),
     "version" INTEGER NOT NULL DEFAULT 1,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "isPaused" BOOLEAN NOT NULL DEFAULT false,
@@ -497,7 +499,7 @@ CREATE TABLE "executions" (
     "triggerData" JSONB,
     "logs" TEXT,
     "stepResults" JSONB,
-    "cost" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "cost" DECIMAL(19,8) NOT NULL DEFAULT 0,
     "credits" INTEGER NOT NULL DEFAULT 0,
     "tokensUsed" INTEGER,
     "balanceBefore" INTEGER,
@@ -688,9 +690,6 @@ CREATE INDEX "credit_transactions_organizationId_createdAt_idx" ON "credit_trans
 CREATE INDEX "credit_transactions_type_createdAt_idx" ON "credit_transactions"("type", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "credit_transactions_executionId_idx" ON "credit_transactions"("executionId");
-
--- CreateIndex
 CREATE INDEX "credit_transactions_subscriptionId_idx" ON "credit_transactions"("subscriptionId");
 
 -- CreateIndex
@@ -802,6 +801,9 @@ CREATE INDEX "conversations_closedAt_idx" ON "conversations"("closedAt");
 CREATE INDEX "conversations_deletedAt_idx" ON "conversations"("deletedAt");
 
 -- CreateIndex
+CREATE INDEX "conversations_compactingLockedAt_idx" ON "conversations"("compactingLockedAt");
+
+-- CreateIndex
 CREATE INDEX "conversations_workflowId_status_lastMessageAt_idx" ON "conversations"("workflowId", "status", "lastMessageAt");
 
 -- CreateIndex
@@ -823,7 +825,7 @@ CREATE UNIQUE INDEX "conversation_compactions_conversationId_version_key" ON "co
 CREATE INDEX "messages_conversationId_createdAt_idx" ON "messages"("conversationId", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "messages_role_idx" ON "messages"("role");
+CREATE INDEX "messages_organizationId_createdAt_idx" ON "messages"("organizationId", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "messages_createdAt_idx" ON "messages"("createdAt");
@@ -875,6 +877,9 @@ CREATE UNIQUE INDEX "tool_functions_toolCatalogId_functionName_key" ON "tool_fun
 
 -- CreateIndex
 CREATE INDEX "tenant_tools_organizationId_displayName_idx" ON "tenant_tools"("organizationId", "displayName");
+
+-- CreateIndex (partial unique: solo tools activas, permite reusar nombre de eliminadas)
+CREATE UNIQUE INDEX "tenant_tools_organizationId_displayName_active_key" ON "tenant_tools"("organizationId", "displayName") WHERE "deletedAt" IS NULL;
 
 -- CreateIndex
 CREATE INDEX "tenant_tools_organizationId_idx" ON "tenant_tools"("organizationId");
@@ -1100,6 +1105,9 @@ ALTER TABLE "conversation_compactions" ADD CONSTRAINT "conversation_compactions_
 
 -- AddForeignKey
 ALTER TABLE "messages" ADD CONSTRAINT "messages_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "conversations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "messages" ADD CONSTRAINT "messages_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "message_attachments" ADD CONSTRAINT "message_attachments_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "messages"("id") ON DELETE CASCADE ON UPDATE CASCADE;
