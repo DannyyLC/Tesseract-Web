@@ -13,7 +13,7 @@ export interface WhatsAppConfig {
     credentialPath: string | null;
     webhookSecret: string;
     webhookUrl: string | null;
-    connectionStatus: string;
+    connectionStatus: 'PENDING' | 'CONNECTED' | 'ERROR' | 'DISCONNECTED';
     lastConnectedAt: Date | null;
     connectionError: string | null;
     qrCode: string | null;
