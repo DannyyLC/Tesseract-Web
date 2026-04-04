@@ -21,4 +21,8 @@ export interface WhatsAppConfig {
     sessionData: unknown;
     isActive: boolean;
     defaultWorkflowId: string | null;
+    organizationId: string;
+    createdAt: Date;
+    updatedAt: Date;
+    deletedAt: Date | null;
 }
