@@ -14,13 +14,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
       - name: Push to personal repo
-        uses: cpina/github-action-push-to-another-repository@main
-        env:
-          SSH_DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
-        with:
-          source-directory: '.'
-          destination-github-username: 'DannyyLC'
-          destination-repository-name: 'Tesseract-Web'
-          target-branch: main
-          user-email: cervantesdaniellimon50m@gmail.com
+        run: |
+          git config user.email "cervantesdaniellimon50m@gmail.com"
+          git config user.name "DannyyLC"
+          git remote add personal git@github.com:DannyyLC/Tesseract-Web.git
+          git push personal main --force
