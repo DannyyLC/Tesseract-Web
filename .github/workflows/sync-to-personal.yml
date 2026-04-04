@@ -8,6 +8,7 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    if: github.repository == 'FractalOps-Dev/Tesseract'
     steps:
       - name: Checkout source repo
         uses: actions/checkout@v4
