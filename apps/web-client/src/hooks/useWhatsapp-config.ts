@@ -2,8 +2,7 @@ import RootApi from "@/app/_api_request_manager/_apis/root-api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from 'react';
 import useEvents from '@/hooks/useEvents';
-import { WhatsAppConfig } from '@tesseract/database';
-import { ENDPOINT_EVENTS, TYPE_EVENTS } from "@tesseract/types";
+import { WhatsAppConfig, ENDPOINT_EVENTS, TYPE_EVENTS } from "@tesseract/types";
 
 
 export function useWhatsappMutations() {

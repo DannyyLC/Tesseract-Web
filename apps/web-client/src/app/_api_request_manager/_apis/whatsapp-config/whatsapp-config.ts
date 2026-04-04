@@ -1,6 +1,5 @@
-import { ApiResponse, CreateConfigDto } from "@tesseract/types";
+import { ApiResponse, CreateConfigDto, WhatsAppConfig } from "@tesseract/types";
 import ApiRequestManager from "../../api_request_manager";
-import { WhatsAppConfig } from '@tesseract/database';
 
 class WhatsappConfigApi {
   public apiRequestManager: ApiRequestManager;
