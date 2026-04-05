@@ -136,7 +136,7 @@ export class AuthController {
     res.cookie('accessToken', tokens.accessToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'lax',
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 5 * 60 * 1000, // 5 minutos
       path: '/',
     });
@@ -144,7 +144,7 @@ export class AuthController {
     res.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'lax',
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
       path: '/api/auth',
     });
@@ -391,7 +391,7 @@ export class AuthController {
     response.cookie('accessToken', result.accessToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'strict',
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 5 * 60 * 1000, // 5 minutos
       path: '/',
     });
@@ -400,7 +400,7 @@ export class AuthController {
     response.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'strict',
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: refreshMaxAge,
       path: '/api/auth',
     });
@@ -573,10 +573,10 @@ export class AuthController {
 
     // Establecer accessToken en cookie httpOnly
     response.cookie('accessToken', result.accessToken, {
-      httpOnly: true, // No accesible desde JavaScript
-      secure: isProduction, // Solo HTTPS en producción
-      sameSite: 'strict', // Protección CSRF
-      maxAge: 24 * 60 * 60 * 1000, // 24 horas - Wait, accessToken usually short? I'll keep it as was in verify2FA for now
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: 5 * 60 * 1000, // 5 minutos
       path: '/',
     });
 
@@ -584,9 +584,9 @@ export class AuthController {
     response.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'strict',
-      maxAge: refreshMaxAge, // Session or 30 days
-      path: '/api/auth', // Solo se envía a endpoints de auth
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: refreshMaxAge,
+      path: '/api/auth',
     });
 
     // Retornar solo la info del usuario (NO los tokens)
