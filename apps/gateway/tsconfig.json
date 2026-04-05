@@ -2,9 +2,9 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "baseUrl": "./",
+    "rootDir": "./src",
     "paths": {
-      "@/*": ["src/*"],
+      "@/*": ["./src/*"],
       "@tesseract/types": ["../../packages/types/dist"]
     },
     "emitDecoratorMetadata": true,

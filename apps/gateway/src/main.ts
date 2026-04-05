@@ -20,7 +20,6 @@ async function bootstrap() {
       credentials: true, // Permite envío de cookies
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Admin-Key'],
-      exposedHeaders: ['Set-Cookie'],
     });
 
     // Registro de Global exception filter

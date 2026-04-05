@@ -113,7 +113,7 @@ export class AuthController {
       res.cookie('temp2FAToken', tempToken, {
         httpOnly: true,
         secure: isProduction,
-        sameSite: 'lax',
+        sameSite: isProduction ? 'none' : 'lax',
         maxAge: 15 * 60 * 1000, // 15 minutos
         path: '/api/auth',
       });
@@ -206,7 +206,7 @@ export class AuthController {
         response.cookie('accessToken', result.accessToken, {
           httpOnly: true,
           secure: isProduction,
-          sameSite: 'strict',
+          sameSite: isProduction ? 'none' : 'strict',
           maxAge: 5 * 60 * 1000, // 5 minutos
           path: '/',
         });
@@ -214,7 +214,7 @@ export class AuthController {
         response.cookie('refreshToken', result.refreshToken, {
           httpOnly: true,
           secure: isProduction,
-          sameSite: 'strict',
+          sameSite: isProduction ? 'none' : 'strict',
           maxAge: refreshMaxAge,
           path: '/api/auth',
         });
@@ -238,7 +238,7 @@ export class AuthController {
         response.cookie('temp2FAToken', result.tempToken, {
           httpOnly: true,
           secure: isProduction,
-          sameSite: 'strict',
+          sameSite: isProduction ? 'none' : 'strict',
           maxAge: 15 * 60 * 1000,
           path: '/api/auth',
         });
@@ -701,7 +701,7 @@ export class AuthController {
       res.cookie('accessToken', result.accessToken, {
         httpOnly: true,
         secure: isProduction,
-        sameSite: 'strict',
+        sameSite: isProduction ? 'none' : 'strict',
         maxAge: 5 * 60 * 1000, // 5 minutos
         path: '/',
       });
@@ -709,7 +709,7 @@ export class AuthController {
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
         secure: isProduction,
-        sameSite: 'strict',
+        sameSite: isProduction ? 'none' : 'strict',
         // maxAge: undefined, // Session cookie
         path: '/api/auth',
       });
