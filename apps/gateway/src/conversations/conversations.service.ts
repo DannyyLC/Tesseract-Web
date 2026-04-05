@@ -570,6 +570,7 @@ export class ConversationsService {
       const createdMessage = await tx.message.create({
         data: {
           conversationId,
+          organizationId: conversation.organizationId,
           role: role === ChatRole.USER ? ChatRole.USER : role,
           content,
           metadata: metadata ?? undefined,
