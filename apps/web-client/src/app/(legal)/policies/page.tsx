@@ -176,10 +176,11 @@ export default function PoliciesPage() {
             <SubSection title="Tiempos de respuesta por plan">
               <InfoTable
                 rows={[
-                  ['Trial', 'Solo documentación y FAQs'],
-                  ['Micro / Pequeño', 'Email · respuesta en 24 horas'],
-                  ['Mediano', 'Email prioritario · respuesta en 12 horas'],
-                  ['Grande', 'Email y WhatsApp · respuesta en 12 horas'],
+                  ['Free', 'Solo documentación y FAQs'],
+                  ['Starter', 'Email · respuesta en 24 horas'],
+                  ['Growth', 'Email prioritario · respuesta en 24 horas'],
+                  ['Business', 'Email y WhatsApp · respuesta en 12 horas'],
+                  ['Pro', 'Email, WhatsApp y Account Manager · respuesta en 12 horas'],
                   ['Enterprise', 'Email, WhatsApp y Account Manager dedicado · 4–8 horas'],
                 ]}
               />

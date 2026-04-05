@@ -214,9 +214,9 @@ export default function TermsPage() {
               <InfoTable
                 rows={[
                   ['Free', '0 créditos (sin overage)'],
-                  ['Starter', '150 créditos · overage hasta 150 créditos'],
-                  ['Growth', '500 créditos · overage hasta 500 créditos'],
-                  ['Business', '1,500 créditos · overage hasta 1,500 créditos'],
+                  ['Starter', '200 créditos · overage hasta 200 créditos'],
+                  ['Growth', '650 créditos · overage hasta 650 créditos'],
+                  ['Business', '1,800 créditos · overage hasta 1,800 créditos'],
                   ['Pro', '5,000 créditos · overage hasta 5,000 créditos'],
                   ['Enterprise', 'Personalizado'],
                 ]}
@@ -249,11 +249,11 @@ export default function TermsPage() {
                 ['Light — 1 crédito', 'Tareas simples y directas · hasta 20,000 tokens'],
                 [
                   'Standard — 5 créditos',
-                  'Workflows multi-paso con herramientas · hasta 50,000 tokens',
+                  'Workflows multi-paso con herramientas · hasta 100,000 tokens',
                 ],
                 [
-                  'Advanced — 25 créditos',
-                  'Agentes complejos con reasoning avanzado · hasta 128,000 tokens',
+                  'Advanced — 20 créditos',
+                  'Agentes complejos con reasoning avanzado · hasta 250,000 tokens',
                 ],
               ]}
             />
@@ -261,7 +261,7 @@ export default function TermsPage() {
               La categoría de cada workflow es asignada por Fractal al momento de su creación y
               refleja los recursos computacionales requeridos. Un workflow{' '}
               <strong className="text-[var(--text-primary)]">Advanced</strong> con 5,000 créditos
-              mensuales permite hasta 200 ejecuciones; uno{' '}
+              mensuales permite hasta 250 ejecuciones; uno{' '}
               <strong className="text-[var(--text-primary)]">Light</strong> permitiría hasta 5,000
               ejecuciones con el mismo saldo.
             </p>
