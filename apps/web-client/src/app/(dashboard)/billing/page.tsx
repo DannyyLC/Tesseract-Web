@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import {
   useBillingDashboard,
@@ -26,7 +25,7 @@ export default function BillingPage() {
   const { isLoading: isLoadingAuth } = useAuth();
   const { data: dashboardData, isLoading } = useBillingDashboard();
   const { data: plans } = usePlans();
-  const { data: subscriptionDetails } = useSubscription();
+  useSubscription();
   const { createPortalSession } = useBillingMutations();
 
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
@@ -34,19 +33,17 @@ export default function BillingPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   useEffect(() => {
     if (searchParams.get('success') === 'true') {
       setShowSuccessModal(true);
       triggerWowConfetti();
-      // Clean URL params without reload
-      router.replace('/billing', { scroll: false });
+      window.history.replaceState(null, '', '/billing');
     } else if (searchParams.get('canceled') === 'true') {
       toast.error('El proceso de pago fue cancelado.');
-      router.replace('/billing', { scroll: false });
+      window.history.replaceState(null, '', '/billing');
     }
-  }, [searchParams, router]);
+  }, [searchParams]);
 
   const fetchPortalUrl = async () => {
     if (portalUrl) return portalUrl;
