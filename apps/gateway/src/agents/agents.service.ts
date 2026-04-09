@@ -34,6 +34,38 @@ export class AgentsService {
   }
 
   /**
+   * Reintenta una operación cuando el servicio de agents no está disponible (cold start de Cloud Run).
+   * Solo reintenta en errores de conexión (503/408), no en errores de lógica del agente.
+   */
+  private async withRetry<T>(
+    operation: () => Promise<T>,
+    context: string,
+    maxRetries = 3,
+    retryDelayMs = 4000,
+  ): Promise<T> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+        if (!(error instanceof HttpException)) throw error;
+        const status = error.getStatus();
+        const isRetryable =
+          status === HttpStatus.SERVICE_UNAVAILABLE || status === HttpStatus.REQUEST_TIMEOUT;
+        if (!isRetryable) throw error;
+        if (attempt < maxRetries) {
+          this.logger.warn(
+            `[${context}] Agents service not ready (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${retryDelayMs}ms...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  /**
    * Ejecuta un agente en el servicio de Python
    *
    * @param request - Request completo con toda la configuración
@@ -46,63 +78,61 @@ export class AgentsService {
       `Executing agent for tenant: ${request.tenant_id}, workflow: ${request.workflow_id}`,
     );
 
-    try {
-      const response = await firstValueFrom(
-        this.httpService.post<AgentExecutionResponseDto>(url, request, { headers: this.internalHeaders }).pipe(
-          timeout({ each: this.agentsServiceTimeout }),
-          catchError((error: AxiosError) => {
-            this.logger.error(`Failed to execute agent: ${error.message}`, error.stack);
+    return this.withRetry(async () => {
+      try {
+        const response = await firstValueFrom(
+          this.httpService.post<AgentExecutionResponseDto>(url, request, { headers: this.internalHeaders }).pipe(
+            timeout({ each: this.agentsServiceTimeout }),
+            catchError((error: AxiosError) => {
+              this.logger.error(`Failed to execute agent: ${error.message}`, error.stack);
 
-            if (error.code === 'ECONNREFUSED') {
+              if (error.code === 'ECONNREFUSED') {
+                throw new HttpException(
+                  'Agents service is not available',
+                  HttpStatus.SERVICE_UNAVAILABLE,
+                );
+              }
+
+              if (error.code === 'ETIMEDOUT' || error.name === 'TimeoutError') {
+                throw new HttpException('Agent execution timed out', HttpStatus.REQUEST_TIMEOUT);
+              }
+
+              if (error.response) {
+                throw new HttpException(
+                  error.response.data ?? 'Agent execution failed',
+                  error.response.status,
+                );
+              }
+
               throw new HttpException(
-                'Agents service is not available',
-                HttpStatus.SERVICE_UNAVAILABLE,
+                'Failed to communicate with agents service',
+                HttpStatus.INTERNAL_SERVER_ERROR,
               );
-            }
+            }),
+          ),
+        );
 
-            if (error.code === 'ETIMEDOUT' || error.name === 'TimeoutError') {
-              throw new HttpException('Agent execution timed out', HttpStatus.REQUEST_TIMEOUT);
-            }
+        this.logger.debug(
+          `Agent execution completed for conversation: ${response.data.conversation_id}`,
+        );
 
-            if (error.response) {
-              // El servicio de Python respondió con un error
-              throw new HttpException(
-                error.response.data ?? 'Agent execution failed',
-                error.response.status,
-              );
-            }
+        return response.data;
+      } catch (error) {
+        if (error instanceof HttpException) {
+          throw error;
+        }
 
-            // Error desconocido
-            throw new HttpException(
-              'Failed to communicate with agents service',
-              HttpStatus.INTERNAL_SERVER_ERROR,
-            );
-          }),
-        ),
-      );
+        this.logger.error(
+          `Unexpected error executing agent: ${(error as Error).message}`,
+          (error as Error).stack,
+        );
 
-      this.logger.debug(
-        `Agent execution completed for conversation: ${response.data.conversation_id}`,
-      );
-
-      return response.data;
-    } catch (error) {
-      // Re-throw si ya es un HttpException
-      if (error instanceof HttpException) {
-        throw error;
+        throw new HttpException(
+          'Unexpected error during agent execution',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
-
-      // Error inesperado
-      this.logger.error(
-        `Unexpected error executing agent: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-
-      throw new HttpException(
-        'Unexpected error during agent execution',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+    }, 'execute');
   }
   /**
    * Ejecuta un agente en modo streaming
@@ -117,64 +147,63 @@ export class AgentsService {
       `Executing streaming agent for tenant: ${request.tenant_id}, workflow: ${request.workflow_id}`,
     );
 
-    try {
-      // Usar responseType: 'stream' para obtener el stream raw
-      const response = await firstValueFrom(
-        this.httpService
-          .post(url, request, {
-            responseType: 'stream',
-            headers: this.internalHeaders,
-          })
-          .pipe(
-            // El timeout inicial es solo para establecer la conexión
-            // No aplica al stream completo (que puede durar mucho más)
-            timeout({ each: 10000 }),
-            catchError((error: AxiosError) => {
-              this.logger.error(
-                `Failed to initiate streaming agent: ${error.message}`,
-                error.stack,
-              );
-
-              if (error.code === 'ECONNREFUSED') {
-                throw new HttpException(
-                  'Agents service is not available',
-                  HttpStatus.SERVICE_UNAVAILABLE,
+    return this.withRetry(async () => {
+      try {
+        // Usar responseType: 'stream' para obtener el stream raw
+        const response = await firstValueFrom(
+          this.httpService
+            .post(url, request, {
+              responseType: 'stream',
+              headers: this.internalHeaders,
+            })
+            .pipe(
+              // El timeout inicial es solo para establecer la conexión
+              // No aplica al stream completo (que puede durar mucho más)
+              timeout({ each: 10000 }),
+              catchError((error: AxiosError) => {
+                this.logger.error(
+                  `Failed to initiate streaming agent: ${error.message}`,
+                  error.stack,
                 );
-              }
 
-              if (error.response) {
-                // Si hay response en error, es que el server rechazó el request (ej: 422)
-                // Si es stream, la data puede ser un stream también, hay que tener cuidado
-                // Pero usualmente errores 4xx/5xx devolvemos JSON antes de empezar el stream
-                throw new HttpException('Agent execution failed to start', error.response.status);
-              }
+                if (error.code === 'ECONNREFUSED') {
+                  throw new HttpException(
+                    'Agents service is not available',
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                  );
+                }
 
-              throw new HttpException(
-                'Failed to communicate with agents service',
-                HttpStatus.INTERNAL_SERVER_ERROR,
-              );
-            }),
-          ),
-      );
+                if (error.response) {
+                  throw new HttpException('Agent execution failed to start', error.response.status);
+                }
 
-      this.logger.debug(`Agent streaming initiatied for conversation: ${request.conversation_id}`);
+                throw new HttpException(
+                  'Failed to communicate with agents service',
+                  HttpStatus.INTERNAL_SERVER_ERROR,
+                );
+              }),
+            ),
+        );
 
-      return response.data; // Retorna el stream (Readable)
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
+        this.logger.debug(`Agent streaming initiatied for conversation: ${request.conversation_id}`);
+
+        return response.data; // Retorna el stream (Readable)
+      } catch (error) {
+        if (error instanceof HttpException) {
+          throw error;
+        }
+
+        this.logger.error(
+          `Unexpected error initiating stream: ${(error as Error).message}`,
+          (error as Error).stack,
+        );
+
+        throw new HttpException(
+          'Unexpected error during agent execution',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
-
-      this.logger.error(
-        `Unexpected error initiating stream: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-
-      throw new HttpException(
-        'Unexpected error during agent execution',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+    }, 'executeStream');
   }
 
   /**
