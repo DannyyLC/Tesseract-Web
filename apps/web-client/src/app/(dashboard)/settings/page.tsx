@@ -4,13 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { useOrganizationDashboard, useOrganizationMutations } from '@/hooks/useOrganizations';
 import { toast } from 'sonner';
 import { Loader2, Trash2, AlertTriangle, Building2 } from 'lucide-react';
+import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import PermissionGuard from '@/components/auth/PermissionGuard';
 
 export default function SettingsPage() {
-  const router = useRouter();
   const { data: orgData, isLoading, refetch } = useOrganizationDashboard();
   const { data: authUser, isLoading: isLoadingAuth } = useAuth();
   const { updateOrganization, deleteOrganization } = useOrganizationMutations();
@@ -80,11 +79,7 @@ export default function SettingsPage() {
   // ... (loading and error states remain the same) ...
 
   if (isLoading || isLoadingAuth) {
-    return (
-      <div className="flex h-full items-center justify-center p-8">
-        <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <LogoLoader />;
   }
 
   if (!orgData) {
