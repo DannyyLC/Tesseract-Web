@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useState } from 'react';
+import { useSearchParams, usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wrench, LayoutGrid } from 'lucide-react';
+import Link from 'next/link';
 import { MyToolsTab } from './_components/my-tools-tab';
 import { CatalogTab } from './_components/catalog-tab';
 import PermissionGuard from '@/components/auth/PermissionGuard';
@@ -21,14 +22,7 @@ export default function ToolsPage() {
   // Read active tab from URL — persists on refresh
   const activeTab: Tab = searchParams.get('tab') === 'catalog' ? 'catalog' : 'my-tools';
 
-  const setActiveTab = useCallback(
-    (tab: Tab) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set('tab', tab);
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    },
-    [router, pathname, searchParams],
-  );
+  const tabHref = (tab: Tab) => `${pathname}?tab=${tab}`;
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     {
@@ -58,9 +52,11 @@ export default function ToolsPage() {
       {/* ─── Tab switcher ───────────────────────────────────────────────── */}
       <div className="flex gap-1 rounded-2xl bg-black/[0.04] p-1 sm:w-fit dark:bg-white/[0.04]">
         {tabs.map((tab) => (
-          <button
+          <Link
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            href={tabHref(tab.id)}
+            replace
+            scroll={false}
             className={`relative flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-medium transition-all ${
               activeTab === tab.id
                 ? 'bg-white text-black shadow-sm dark:bg-white/10 dark:text-white'
@@ -74,7 +70,7 @@ export default function ToolsPage() {
                 {tab.badge}
               </span>
             )}
-          </button>
+          </Link>
         ))}
       </div>
 
@@ -89,7 +85,7 @@ export default function ToolsPage() {
         >
           {activeTab === 'my-tools' ? (
             <MyToolsTab
-              onAddTool={() => setActiveTab('catalog')}
+              onAddTool={() => router.push(tabHref('catalog'))}
               onCountChange={setConnectedCount}
             />
           ) : (
