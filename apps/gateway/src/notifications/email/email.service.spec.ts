@@ -1,6 +1,5 @@
 import { EmailService } from './email.service';
 import * as nodemailer from 'nodemailer';
-import * as fs from 'fs';
 
 jest.mock('nodemailer');
 
@@ -10,7 +9,6 @@ describe('EmailService', () => {
   const mockTransporter = { sendMail: jest.fn() } as any;
   const mockCreateTransport = (nodemailer.createTransport as jest.Mock).mockReturnValue(mockTransporter);
 
-  const mockJwtService = {} as any;
   const mockPrismaService = { userVerification: { findFirst: jest.fn() } } as any;
   const mockLogger = { error: jest.fn() } as any;
 
@@ -32,7 +30,7 @@ describe('EmailService', () => {
       });
     (nodemailer.createTransport as jest.Mock).mockReturnValue(mockTransporter);
     mockPrismaService.userVerification.findFirst.mockResolvedValue(null);
-    service = new EmailService(mockJwtService, mockPrismaService, mockLogger);
+    service = new EmailService(mockPrismaService, mockLogger);
   });
 
   afterEach(() => {

@@ -4,80 +4,106 @@
   <meta charset="UTF-8">
   <title>Invitación a unirse a {{organizationName}}</title>
   <style>
-    body {
-      font-family: 'Segoe UI', Arial, sans-serif;
-      background-color: #f6f8fa;
+    * {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
     }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      background-color: #f4f4f5;
+      padding: 40px 16px;
+    }
     .container {
-      max-width: 600px;
-      margin: 40px auto;
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-      padding: 32px;
+      max-width: 560px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 16px;
+      border: 1px solid #e4e4e7;
+      overflow: hidden;
     }
-    .header {
-      text-align: center;
-      padding-bottom: 16px;
-      border-bottom: 1px solid #eaeaea;
+    .brand {
+      padding: 32px 40px 24px;
+      border-bottom: 1px solid #f4f4f5;
     }
-    .header h1 {
-      color: #2d3748;
-      margin: 0;
-      font-size: 1.8em;
-    }
-    .content {
-      margin-top: 24px;
-      color: #444;
+    .brand-name {
       font-size: 1.1em;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #000000;
+    }
+    .body {
+      padding: 36px 40px;
+    }
+    .body h1 {
+      font-size: 1.45em;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 16px;
+      line-height: 1.3;
+    }
+    .body p {
+      font-size: 0.97em;
+      color: #52525b;
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+    .body p strong {
+      color: #000000;
+      font-weight: 600;
     }
     .cta {
-      margin: 32px 0;
-      text-align: center;
+      margin: 32px 0 8px;
     }
     .cta a {
-      background: #2563eb;
-      color: #fff;
-      text-decoration: none;
-      padding: 12px 32px;
-      border-radius: 6px;
-      font-weight: bold;
-      font-size: 1.1em;
-      transition: background 0.2s;
       display: inline-block;
+      background: #000000;
+      color: #ffffff;
+      text-decoration: none;
+      padding: 13px 28px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.95em;
+      letter-spacing: 0.01em;
     }
-    .cta a:hover {
-      background: #1e40af;
+    .divider {
+      border: none;
+      border-top: 1px solid #f4f4f5;
+      margin: 28px 0 0;
     }
     .footer {
-      margin-top: 32px;
-      text-align: center;
-      color: #888;
-      font-size: 0.95em;
+      padding: 20px 40px 28px;
+      background: #fafafa;
+    }
+    .footer p {
+      font-size: 0.82em;
+      color: #a1a1aa;
+      line-height: 1.6;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="header">
-      <h1>Invitación para unirse a {{organizationName}}</h1>
+    <div class="brand">
+      <span class="brand-name">Tesseract</span>
     </div>
-    <div class="content">
+
+    <div class="body">
+      <h1>Te han invitado a unirte a {{organizationName}}</h1>
       <p>Hola,</p>
-      <p>Has sido invitado a formar parte de <strong>{{organizationName}}</strong> en nuestra plataforma.</p>
-      <p>Para aceptar la invitación y completar tu registro, haz clic en el siguiente botón:</p>
+      <p>Has sido invitado a formar parte de <strong>{{organizationName}}</strong> en la plataforma. Acepta la invitación para completar tu registro y comenzar a colaborar.</p>
+      <div class="cta">
+        <a href="{{inviteUrl}}" target="_blank">Aceptar Invitación</a>
+      </div>
+      <hr class="divider">
+      <p style="margin-top: 24px; font-size: 0.88em; color: #a1a1aa;">
+        Si no esperabas esta invitación puedes ignorar este correo.
+      </p>
     </div>
-    <div class="cta">
-      <a href="{{inviteUrl}}" target="_blank">Aceptar Invitación</a>
-    </div>
-    <div class="content">
-      <p>Si no esperabas esta invitación, puedes ignorar este correo electrónico.</p>
-      <p>¡Esperamos verte pronto!</p>
-    </div>
+
     <div class="footer">
-      <p>Este mensaje fue enviado automáticamente. Por favor, no respondas a este correo.</p>
+      <p>Este mensaje fue enviado automáticamente desde Tesseract. Por favor, no respondas a este correo.</p>
     </div>
   </div>
 </body>

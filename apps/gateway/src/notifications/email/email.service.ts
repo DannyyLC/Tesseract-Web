@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
 import * as fs from 'fs';
@@ -19,7 +18,6 @@ export class EmailService {
   private emailServiceRequestTemplate: handlebars.TemplateDelegate;
 
   constructor(
-    private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {
@@ -43,7 +41,7 @@ export class EmailService {
 
     this.emailVerificationTemplate = this.loadTemplate('email_verification_view.hbs');
     this.emailInvitationTemplate = this.loadTemplate('email_invitation_view.hbs');
-    this.emailPasswordResetTemplate = this.loadTemplate('restore_password_es.html');
+    this.emailPasswordResetTemplate = this.loadTemplate('restore_password_es.hbs');
     this.emailOrganizationExistsTemplate = this.loadTemplate('email_organization_exists.hbs');
     this.emailServiceRequestTemplate = this.loadTemplate('request_services_info.hbs');
   }

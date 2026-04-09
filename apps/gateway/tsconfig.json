@@ -10,7 +10,8 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "incremental": true,
-    "strictPropertyInitialization": false
+    "strictPropertyInitialization": false,
+    "types": ["jest", "node"]
   },
   "include": ["src/**/*", "scripts"],
   "exclude": ["node_modules", "dist"]
