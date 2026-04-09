@@ -317,6 +317,7 @@ export default function WorkflowChatPage() {
             clearDraft();
           }
         },
+        isNewConversation ? undefined : conversationId, // Para que el hook invalide el query al terminar
       );
     }
   };

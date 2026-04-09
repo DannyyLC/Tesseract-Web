@@ -157,24 +157,33 @@ export class AgentsService {
               headers: this.internalHeaders,
             })
             .pipe(
-              // El timeout inicial es solo para establecer la conexión
-              // No aplica al stream completo (que puede durar mucho más)
-              timeout({ each: 10000 }),
-              catchError((error: AxiosError) => {
+              // Timeout para establecer la conexión inicial (misma config que el modo no-stream)
+              timeout({ each: this.agentsServiceTimeout }),
+              catchError((error: AxiosError | Error) => {
                 this.logger.error(
                   `Failed to initiate streaming agent: ${error.message}`,
                   error.stack,
                 );
 
-                if (error.code === 'ECONNREFUSED') {
+                // TimeoutError de RxJS — lanzar 408 para que withRetry lo reintente
+                if (error.name === 'TimeoutError') {
+                  throw new HttpException(
+                    'Agent streaming connection timed out',
+                    HttpStatus.REQUEST_TIMEOUT,
+                  );
+                }
+
+                const axiosError = error as AxiosError;
+
+                if (axiosError.code === 'ECONNREFUSED') {
                   throw new HttpException(
                     'Agents service is not available',
                     HttpStatus.SERVICE_UNAVAILABLE,
                   );
                 }
 
-                if (error.response) {
-                  throw new HttpException('Agent execution failed to start', error.response.status);
+                if (axiosError.response) {
+                  throw new HttpException('Agent execution failed to start', axiosError.response.status);
                 }
 
                 throw new HttpException(

@@ -140,16 +140,30 @@ export function useExecuteStream() {
   const [messages, setMessages] = useState<string>('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<any>(null);
+  const queryClient = useQueryClient();
 
   const execute = async (
     id: string,
     input: any,
     metadata?: any,
     onEvent?: (event: string, data: any) => void,
+    conversationId?: string,
   ) => {
     setIsStreaming(true);
     setMessages('');
     setError(null);
+
+    // Solo sincronizamos con el servidor cuando el stream falla o se trunca.
+    // En el caso normal el estado local ya tiene todo lo que el servidor guardaría.
+    const syncOnFailure = (resolvedId?: string) => {
+      const idToSync = resolvedId ?? conversationId;
+      if (idToSync) {
+        queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', idToSync] });
+      }
+    };
+
+    // Capturar el conversationId que llega por el evento SSE (para conversaciones nuevas)
+    let resolvedConversationId = conversationId;
 
     try {
       await WorkflowsStream.executeStream(id, input, metadata, {
@@ -158,18 +172,25 @@ export function useExecuteStream() {
         },
         onEvent: (event, data) => {
           if (onEvent) onEvent(event, data);
+          if (event === 'conversation_id') {
+            resolvedConversationId = data;
+          }
         },
         onError: (err) => {
           setError(err);
           setIsStreaming(false);
+          // Stream fallido o truncado: ir al servidor para mostrar la respuesta guardada en DB
+          syncOnFailure(resolvedConversationId);
         },
         onComplete: () => {
           setIsStreaming(false);
+          // Stream exitoso: el estado local ya tiene los tokens, no se necesita refetch
         },
       });
     } catch (e) {
       setError(e);
       setIsStreaming(false);
+      syncOnFailure(resolvedConversationId);
     }
   };
 
