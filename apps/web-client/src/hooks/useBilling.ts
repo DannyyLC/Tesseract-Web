@@ -26,13 +26,14 @@ export function useSubscription() {
 }
 
 // Hook para obtener los datos del dashboard de facturación
-export function useBillingDashboard() {
+export function useBillingDashboard({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['billing', 'dashboard'],
     queryFn: async () => {
       const api = RootApi.getInstance().getBillingApi();
       return await api.getDashboardData();
     },
+    enabled,
   });
 }
 

@@ -106,8 +106,8 @@ export default function DashboardPage() {
   const { data: workflowStats, isLoading: loadingWf } = useWorkflowStats();
   const { data: statsToday, isLoading: loadingToday } = useExecutionsStats('24h');
   const { data: stats7d, isLoading: loading7d } = useExecutionsStats('7d');
-  const { data: billingData, isLoading: loadingBilling } = useBillingDashboard();
-  const { data: userStats, isLoading: loadingUsers } = useUserStats();
+  const { data: billingData, isLoading: loadingBilling } = useBillingDashboard({ enabled: hasBilling });
+  const { data: userStats, isLoading: loadingUsers } = useUserStats({ enabled: hasUsers });
   const { data: recentExecs, isLoading: loadingExecs } = useDashboardExecutions({ pageSize: 5 });
 
   // ── Area chart data — executions last 7 days ────────────────────────────────

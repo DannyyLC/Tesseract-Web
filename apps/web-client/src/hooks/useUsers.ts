@@ -46,13 +46,14 @@ export function useInfiniteUsersDashboard(params: DashboardParams = {}) {
 }
 
 // Hook para estadisticas de usuarios
-export function useUserStats() {
+export function useUserStats({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['users', 'stats'],
     queryFn: async () => {
       const api = RootApi.getInstance().getUsersApi();
       return await api.getStats();
     },
+    enabled,
   });
 }
 
@@ -77,7 +78,7 @@ export function useUserMutations() {
       const api = RootApi.getInstance().getUsersApi();
       return await api.update(id, data);
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['users', 'detail', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['users', 'dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['users', 'stats'] }); // Update stats if active status changed
