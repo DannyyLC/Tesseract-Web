@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, useEffect } from 'react';
 // @ts-ignore
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Line, OrbitControls } from '@react-three/drei';
@@ -122,20 +122,28 @@ function Scene() {
 // --- Página Principal (Next.js) ---
 export default function Home() {
   const [hovered, setHovered] = useState(false);
+  const [cameraZ, setCameraZ] = useState(7);
+
+  useEffect(() => {
+    const update = () => setCameraZ(window.innerWidth < 640 ? 11 : 7);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'black' }}>
       {/* Capa 3D */}
       <div className="absolute inset-0 z-0">
-        <Canvas camera={{ position: [0, 0, 7], fov: 50 }}>
+        <Canvas camera={{ position: [0, 0, cameraZ], fov: 50 }}>
           <Scene />
         </Canvas>
       </div>
 
       {/* Capa de UI (Texto y Botón) */}
-      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center">
-        {/* Título (Opcional, puede ser invisible o muy sutil) */}
-        <h1 className="animate-fade-in-slow mb-8 select-none text-6xl font-bold tracking-[0.5em] text-white opacity-0 mix-blend-difference">
+      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-4">
+        {/* Título */}
+        <h1 className="animate-fade-in-slow mb-8 select-none text-center text-3xl font-bold tracking-[0.2em] text-white opacity-0 mix-blend-difference sm:text-5xl sm:tracking-[0.4em] md:text-6xl md:tracking-[0.5em]">
           TESSERACT
         </h1>
 
