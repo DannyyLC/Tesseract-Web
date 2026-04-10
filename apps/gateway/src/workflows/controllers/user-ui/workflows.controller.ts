@@ -187,6 +187,7 @@ export class WorkflowsController {
   @Header('Content-Type', 'text/event-stream')
   @Header('Cache-Control', 'no-cache')
   @Header('Connection', 'keep-alive')
+  @Header('X-Accel-Buffering', 'no')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async executeStream(
     @CurrentUser() user: UserPayload,

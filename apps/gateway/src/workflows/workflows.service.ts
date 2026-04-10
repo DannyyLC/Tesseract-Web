@@ -1373,8 +1373,8 @@ export class WorkflowsService {
     workflow: any,
     organizationId: string,
   ): NodeJS.ReadableStream {
-    // Stream que enviaremos al cliente (filtrado) on
-    const clientStream = new PassThrough();
+    // highWaterMark: 0 deshabilita el buffer interno para que cada token se envíe inmediatamente
+    const clientStream = new PassThrough({ highWaterMark: 0 });
 
     // 0. ENVIAR CONVERSATION ID AL INICIO (Evento custom)
     clientStream.write(`event: conversation_id\ndata: "${conversation.id}"\n\n`);

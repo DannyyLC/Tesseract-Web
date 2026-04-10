@@ -83,6 +83,7 @@ export default function WorkflowChatPage() {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const wasStreamingRef = useRef(false);
 
   // Draft persistence
   const { loadDraft, saveDraft, clearDraft, migrateDraft } = useDraftPersistence(
@@ -207,27 +208,31 @@ export default function WorkflowChatPage() {
   }, [conversationData, isStreaming]);
 
   useEffect(() => {
-    // En modo HITL (usuario externo), no queremos que el stream (vacío/ack) sobrescriba
-    // el mensaje que acabamos de escribir manualmente.
     const isExternalUser = conversationData && !conversationData.userId;
-    if (isStreaming && !isExternalUser) {
+    if (isExternalUser) {
+      wasStreamingRef.current = isStreaming;
+      return;
+    }
+
+    // Activo durante streaming O en la transición true→false (stream buffered que llega todo junto)
+    const justFinished = wasStreamingRef.current && !isStreaming;
+    wasStreamingRef.current = isStreaming;
+
+    if ((isStreaming || justFinished) && streamContent) {
       setMessages((prev) => {
         const lastMsg = prev[prev.length - 1];
         if (lastMsg && lastMsg.role === 'assistant') {
-          // Actualizar el último mensaje
           return [...prev.slice(0, -1), { ...lastMsg, content: streamContent }];
-        } else {
-          // Crear nuevo mensaje de asistente si no existe
-          return [
-            ...prev,
-            {
-              id: `streaming-${Date.now()}`,
-              role: 'assistant',
-              content: streamContent,
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            },
-          ];
         }
+        return [
+          ...prev,
+          {
+            id: `streaming-${Date.now()}`,
+            role: 'assistant',
+            content: streamContent,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ];
       });
       scrollToBottom();
     }

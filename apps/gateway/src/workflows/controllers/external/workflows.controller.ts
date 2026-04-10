@@ -75,6 +75,7 @@ export class ExternalWorkflowsController {
   @Header('Content-Type', 'text/event-stream')
   @Header('Cache-Control', 'no-cache')
   @Header('Connection', 'keep-alive')
+  @Header('X-Accel-Buffering', 'no')
   async executeStream(
     @CurrentApiKey() apiKey: ApiKeyPayload,
     @Param('id') id: string,
