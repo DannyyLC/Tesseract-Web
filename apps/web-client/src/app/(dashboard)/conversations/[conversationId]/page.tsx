@@ -32,6 +32,15 @@ interface Message {
   timestamp: string;
 }
 
+const THINKING_WORDS = [
+  'Pensando',
+  'Procesando',
+  'Analizando',
+  'Generando respuesta',
+  'Un momento',
+  'Revisando contexto',
+];
+
 export default function WorkflowChatPage() {
   const params = useParams();
   const conversationId = params.conversationId as string;
@@ -84,6 +93,7 @@ export default function WorkflowChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const wasStreamingRef = useRef(false);
+  const [thinkingIndex, setThinkingIndex] = useState(0);
 
   // Draft persistence
   const { loadDraft, saveDraft, clearDraft, migrateDraft } = useDraftPersistence(
@@ -246,6 +256,16 @@ export default function WorkflowChatPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages.length, isStreaming]);
+
+  // Ciclar palabras del thinking mientras espera respuesta
+  useEffect(() => {
+    if (!isStreaming) return;
+    setThinkingIndex(0);
+    const interval = setInterval(() => {
+      setThinkingIndex((prev) => (prev + 1) % THINKING_WORDS.length);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [isStreaming]);
 
   // Ajuste de altura del textarea
   useEffect(() => {
@@ -661,6 +681,54 @@ export default function WorkflowChatPage() {
               </motion.div>
             );
           })}
+          {/* Thinking placeholder — visible mientras isStreaming y aún no hay tokens */}
+          <AnimatePresence>
+            {isStreaming && !streamContent && !isExternalUser && (
+              <motion.div
+                key="thinking-placeholder"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.2 }}
+                className="flex justify-start"
+              >
+                <div className="flex max-w-[80%] gap-4">
+                  {/* Logo girando */}
+                  <div className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-transparent">
+                    <div className="relative h-6 w-6 animate-spin">
+                      <Image
+                        src="/favicon.svg"
+                        alt="AI"
+                        fill
+                        className="object-contain brightness-0 dark:invert"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Texto ciclando */}
+                  <div className="flex items-center gap-1.5 py-3 text-base text-black/40 dark:text-white/40">
+                    <AnimatePresence mode="wait">
+                      <motion.span
+                        key={thinkingIndex}
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.25 }}
+                      >
+                        {THINKING_WORDS[thinkingIndex]}
+                      </motion.span>
+                    </AnimatePresence>
+                    <span className="flex gap-0.5">
+                      <span className="animate-bounce [animation-delay:0ms]">.</span>
+                      <span className="animate-bounce [animation-delay:150ms]">.</span>
+                      <span className="animate-bounce [animation-delay:300ms]">.</span>
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div ref={messagesEndRef} />
         </div>
       </div>
