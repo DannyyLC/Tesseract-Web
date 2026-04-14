@@ -482,10 +482,27 @@ export class AuthController {
       await this.authService.logout(refreshToken);
     }
 
-    // Limpiar las cookies
-    response.clearCookie('accessToken', { path: '/' });
-    response.clearCookie('refreshToken', { path: '/api/auth' });
-    response.clearCookie('temp2FAToken', { path: '/api/auth' });
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    // Limpiar las cookies con los mismos atributos con los que fueron creadas
+    response.clearCookie('accessToken', {
+      path: '/',
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+    });
+    response.clearCookie('refreshToken', {
+      path: '/api/auth',
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+    });
+    response.clearCookie('temp2FAToken', {
+      path: '/api/auth',
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+    });
 
     return { message: 'Sesión cerrada exitosamente' };
   }
@@ -523,10 +540,27 @@ export class AuthController {
     // Invalidar TODOS los refresh tokens del usuario
     await this.authService.logoutAll(user.sub);
 
-    // Limpiar las cookies de esta sesión
-    response.clearCookie('accessToken', { path: '/' });
-    response.clearCookie('refreshToken', { path: '/api/auth' });
-    response.clearCookie('temp2FAToken', { path: '/api/auth' });
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    // Limpiar las cookies de esta sesión con los mismos atributos con los que fueron creadas
+    response.clearCookie('accessToken', {
+      path: '/',
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+    });
+    response.clearCookie('refreshToken', {
+      path: '/api/auth',
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+    });
+    response.clearCookie('temp2FAToken', {
+      path: '/api/auth',
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+    });
 
     return { message: 'Sesión cerrada en todos los dispositivos' };
   }
@@ -847,9 +881,25 @@ export class AuthController {
 
       // Limpiar cookies porque el servicio revoca todas las sesiones (incluida esta)
       // para forzar re-login con la nueva contraseña
-      response.clearCookie('accessToken', { path: '/' });
-      response.clearCookie('refreshToken', { path: '/api/auth' });
-      response.clearCookie('temp2FAToken', { path: '/api/auth' });
+      const isProduction = process.env.NODE_ENV === 'production';
+      response.clearCookie('accessToken', {
+        path: '/',
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+      });
+      response.clearCookie('refreshToken', {
+        path: '/api/auth',
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+      });
+      response.clearCookie('temp2FAToken', {
+        path: '/api/auth',
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+      });
 
       responseBuilder
         .setSuccess(true)

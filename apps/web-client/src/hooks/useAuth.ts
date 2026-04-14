@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/app/_api_request_manager/_apis/root-api';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 export interface User {
   sub: string;
@@ -190,6 +191,11 @@ export function useLogout() {
 
       // Redirigir al login
       router.push('/login');
+    },
+    onError: () => {
+      toast.error('Error al cerrar sesión', {
+        description: 'No se pudo cerrar la sesión. Intenta de nuevo.',
+      });
     },
   });
 }
