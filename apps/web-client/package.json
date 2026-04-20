@@ -23,6 +23,7 @@
     "@tanstack/react-query-devtools": "^5.91.2",
     "@tesseract/types": "*",
     "@types/three": "^0.182.0",
+    "@vercel/analytics": "^2.0.1",
     "axios": "^1.13.2",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",

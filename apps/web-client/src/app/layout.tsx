@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Geist_Mono } from 'next/font/google';
 import '@/styles/globals.css';
 import QueryProvider from '@/providers/QueryProvider';
+import { Analytics } from '@vercel/analytics/react';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -59,6 +60,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} ${geistMono.variable} antialiased`}>
         <QueryProvider>{children}</QueryProvider>
+        <Analytics />
         <Toaster
           position="bottom-right"
           theme="system"
