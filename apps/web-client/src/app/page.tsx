@@ -123,27 +123,33 @@ function Scene() {
 export default function Home() {
   const [hovered, setHovered] = useState(false);
   const [cameraZ, setCameraZ] = useState(7);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    const z = window.innerWidth < 640 ? 11 : 7;
+    setCameraZ(z);
+    setMounted(true);
+
     const update = () => setCameraZ(window.innerWidth < 640 ? 11 : 7);
-    update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'black' }}>
-      {/* Capa 3D */}
-      <div className="absolute inset-0 z-0">
-        <Canvas camera={{ position: [0, 0, cameraZ], fov: 50 }}>
-          <Scene />
-        </Canvas>
-      </div>
+      {/* Capa 3D — solo monta en cliente para evitar problemas de hidratación */}
+      {mounted && (
+        <div className="absolute inset-0 z-0">
+          <Canvas camera={{ position: [0, 0, cameraZ], fov: 50 }}>
+            <Scene />
+          </Canvas>
+        </div>
+      )}
 
       {/* Capa de UI (Texto y Botón) */}
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-4">
         {/* Título */}
-        <h1 className="animate-fade-in-slow mb-8 select-none text-center text-3xl font-bold tracking-[0.2em] text-white opacity-0 mix-blend-difference sm:text-5xl sm:tracking-[0.4em] md:text-6xl md:tracking-[0.5em]">
+        <h1 className="animate-fade-in-slow mb-8 select-none text-center text-3xl font-bold tracking-[0.2em] text-white mix-blend-difference sm:text-5xl sm:tracking-[0.4em] md:text-6xl md:tracking-[0.5em]">
           TESSERACT
         </h1>
 
@@ -173,7 +179,7 @@ export default function Home() {
           }
         }
         .animate-fade-in-slow {
-          animation: fadeIn 3s ease-out forwards;
+          animation: fadeIn 3s ease-out both;
           animation-delay: 0.5s;
         }
       `}</style>

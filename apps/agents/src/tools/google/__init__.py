@@ -9,7 +9,9 @@ Servicios disponibles:
 """
 
 from .calendar import load_google_calendar_tools
+from .sheets import load_google_sheets_tools
 
 __all__ = [
     "load_google_calendar_tools",
+    "load_google_sheets_tools",
 ]

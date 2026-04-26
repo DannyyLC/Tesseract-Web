@@ -384,6 +384,10 @@ def load_specific_tool(
     if tool_name == "google_calendar":
         from tools.google.calendar import load_google_calendar_tools
         tools = load_google_calendar_tools(credentials, config)
+        
+    elif tool_name == "google_sheets":
+        from tools.google.sheets import load_google_sheets_tools
+        tools = load_google_sheets_tools(credentials, config)
     
     elif tool_name == "calculator":
         from tools.calculator import load_calculator_tools
