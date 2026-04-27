@@ -5,11 +5,15 @@ import { ValidationPipe } from '@nestjs/common';
 import { GlobalExceptionFilter } from './common/exceptions';
 import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
 
 async function bootstrap() {
   validateEnv();
   try {
     const app = await NestFactory.create(AppModule, { rawBody: true });
+
+    // Security headers
+    app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
     // Middleware para parsear cookies
     app.use(cookieParser());
