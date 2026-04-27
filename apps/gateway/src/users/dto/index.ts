@@ -8,3 +8,4 @@ export * from './user-filters.dto';
 export * from './dashboard-users.dto';
 export * from './update-user.dto';
 export * from './user-detail.dto';
+export * from './pending-invitation.dto';
