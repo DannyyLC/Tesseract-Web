@@ -271,13 +271,14 @@ export class AuthService {
       }
 
       // 2b. Si NO está eliminado, flujo normal de vinculación
-      if (!user.googleId) {
-        user = await this.prisma.user.update({
-          where: { id: user.id },
-          data: { googleId: details.googleId, avatar: user.avatar ?? details.avatar },
-          include: { organization: true },
-        });
-      }
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          ...(!user.googleId && { googleId: details.googleId, avatar: user.avatar ?? details.avatar }),
+          lastLoginAt: new Date(),
+        },
+        include: { organization: true },
+      });
       return { user, organization: user.organization, isNewUser: false };
     }
 
@@ -324,6 +325,7 @@ export class AuthService {
           organizationId: newOrganization.id,
           isActive: true,
           emailVerified: true, // Google emails are verified
+          lastLoginAt: new Date(),
         },
       });
 
@@ -426,6 +428,7 @@ export class AuthService {
       role,
       organizationId,
       rememberMe,
+      lastLoginDate: new Date().toISOString().split('T')[0],
     };
 
     // 2. Generar access token (corta duración)
@@ -518,7 +521,16 @@ export class AuthService {
         },
       });
 
-      // 5. Generar nuevos tokens
+      // 5. Actualizar lastLoginAt si cambió el día (máximo 1 write/día por usuario)
+      const today = new Date().toISOString().split('T')[0];
+      if (payload.lastLoginDate !== today) {
+        await this.prisma.user.update({
+          where: { id: payload.sub },
+          data: { lastLoginAt: new Date() },
+        });
+      }
+
+      // 6. Generar nuevos tokens
       const tokens = await this.generateTokens(
         payload.sub,
         payload.email,

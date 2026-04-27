@@ -13,6 +13,7 @@ export interface UserPayload {
   organizationName?: string; // Nombre de la organización
   plan?: SubscriptionPlan; // Plan de suscripción de la organización
   rememberMe?: boolean; // Remember Me flag
+  lastLoginDate?: string; // YYYY-MM-DD — used to throttle lastLoginAt writes to once per day
   iat?: number; // Issued At - Timestamp de creación
   exp?: number; // Expiration - Timestamp de expiración
 }

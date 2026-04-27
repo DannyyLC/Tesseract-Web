@@ -25,20 +25,8 @@ export function UserDetails({ userId }: UserDetailsProps) {
   }
 
   return (
-    <div className="mb-6 mt-2 grid grid-cols-1 gap-8 md:grid-cols-3">
+    <div className="mb-6 mt-2 grid grid-cols-1 gap-8 md:grid-cols-2">
       <div className="flex flex-col gap-1">
-        <span className="text-xs font-semibold uppercase tracking-wider text-black/40 dark:text-white/40">
-          ID de Usuario
-        </span>
-        <p
-          className="select-all truncate font-mono text-sm text-black dark:text-white"
-          title={user.id}
-        >
-          {user.id}
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-1 border-black/5 md:border-l md:pl-8 dark:border-white/5">
         <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-black/40 dark:text-white/40">
           Fecha de Registro
         </span>
