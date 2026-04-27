@@ -106,6 +106,14 @@ class UsersApi {
     );
     return result.data.data!;
   }
+
+  public async getPendingInvitations(): Promise<any> {
+    const result = await this.apiRequestManager.get<ApiResponse<any>>(
+      `${UsersApi.BASE_URL}/pending-invitations`,
+    );
+    console.log('Pending invitations:', result.data.data);
+    return result.data.data;
+  }
 }
 
 export default UsersApi;

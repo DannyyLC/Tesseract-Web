@@ -17,6 +17,7 @@ import { Response } from 'express';
 import {
   DashboardUserDataDto,
   LeaveOrganizationDto,
+  PendingInvitationDto,
   UpdateUserDto,
   UserDetailDto,
 } from '../../dto';
@@ -119,6 +120,23 @@ export class UsersController {
       .setStatusCode(HttpStatusCode.Ok)
       .setMessage('User statistics retrieved successfully')
       .setData(stats);
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Get('pending-invitations')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async getPendingInvitations(
+    @CurrentUser() user: UserPayload,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponse<PendingInvitationDto[]>>> {
+    const apiResponse = new ApiResponseBuilder<PendingInvitationDto[]>();
+    const pendingInvitations = await this.usersService.getPendingInvitations(user.organizationId);
+
+    apiResponse
+      .setStatusCode(HttpStatusCode.Ok)
+      .setMessage('Pending invitations retrieved successfully')
+      .setData(pendingInvitations);
+
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 

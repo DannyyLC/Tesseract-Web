@@ -15,6 +15,7 @@ import { NotificationEventDto } from '../events/app-notifications/notification.d
 import { EmailService } from '../notifications/email/email.service';
 import * as speakeasy from 'speakeasy';
 import { DashboardUserDataDto, UpdateProfileDto, UserFiltersDto } from './dto';
+import { PendingInvitationDto } from './dto/pending-invitation.dto';
 
 interface PaginatedUsers {
   data: User[];
@@ -36,6 +37,7 @@ interface UserStats {
   inactive: number;
   verified: number;
   unverified: number;
+  pendingInvitations?: number;
 }
 interface UserActivity {
   totalExecutions: number;
@@ -364,7 +366,7 @@ export class UsersService {
    * Estadísticas de usuarios de la organización
    */
   async getStats(organizationId: string): Promise<UserStats> {
-    const [total, byRole, active, inactive, verified, unverified] = await Promise.all([
+    const [total, byRole, active, inactive, verified, unverified, pendingInvitations] = await Promise.all([
       // Total usuarios
       this.prisma.user.count({
         where: { organizationId, deletedAt: null },
@@ -390,6 +392,16 @@ export class UsersService {
       // No verificados
       this.prisma.user.count({
         where: { organizationId, deletedAt: null, emailVerified: false },
+      }),
+      // Invitaciones pendientes
+      this.prisma.userVerification.count({
+        where: {
+          organizationName: organizationId,
+          isFromInvitation: true,
+          expiresAt: {
+            gte: new Date(),
+          },
+        },
       }),
     ]);
 
@@ -420,7 +432,33 @@ export class UsersService {
       inactive,
       verified,
       unverified,
+      pendingInvitations,
     };
+  }
+
+  /**
+   * Obtener invitaciones pendientes de la organización
+   */
+  async getPendingInvitations(organizationId: string): Promise<PendingInvitationDto[]> {
+    const now = new Date();
+
+    return this.prisma.userVerification.findMany({
+      where: {
+        organizationName: organizationId,
+        isFromInvitation: true,
+        expiresAt: {
+          gte: now,
+        },
+      },
+      select: {
+        email: true,
+        expiresAt: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
   }
 
   /**

@@ -24,6 +24,18 @@ export function useUsersDashboard(params: DashboardParams = {}) {
   });
 }
 
+export function usePendingInvitations() {
+  return useQuery({
+    queryKey: ['users', 'pending-invitations'],
+    queryFn: async () => {
+      const api = RootApi.getInstance().getUsersApi();
+      return await api.getPendingInvitations();
+    },
+    retry: false,
+    staleTime: 5000,
+  });
+}
+
 // Hook para obtener el dashboard de usuarios con scroll infinito
 export function useInfiniteUsersDashboard(params: DashboardParams = {}) {
   return useInfiniteQuery({
