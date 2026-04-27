@@ -11,6 +11,8 @@ import {
   getPlanLimits,
   SubscriptionPlan as SharedSubscriptionPlan,
   NOTIFICATIONSENUM,
+  ErrorStrings,
+  OPERATIONS
 } from '@tesseract/types';
 import { Organization, SubscriptionStatus, UserRole } from '@tesseract/database';
 import { randomBytes } from 'crypto';
@@ -990,7 +992,7 @@ export class OrganizationsService {
     userName: string,
     pass: string,
     verificationCode: string,
-  ): Promise<DashboardUserDataDto | null> {
+  ): Promise<{success: DashboardUserDataDto | null, error?: string}> {
     const userVerification = await this.prisma.userVerification.findFirst({
       where: {
         verificationCode,
@@ -998,7 +1000,7 @@ export class OrganizationsService {
       },
     });
     if (!userVerification || userVerification.expiresAt < new Date()) {
-      return null;
+      return { success: null, error: ErrorStrings[OPERATIONS.ACCEPT_INVITATION].INVITATION_EXPIRED };
     }
 
     try {
@@ -1028,7 +1030,7 @@ export class OrganizationsService {
           NOTIFICATIONSENUM.ACCEPTED_INVITATION,
           [userVerification.email],
         );
-        return {
+        return { success: {
           email: existingUser.email,
           name: existingUser.name,
           role: existingUser.role,
@@ -1038,7 +1040,7 @@ export class OrganizationsService {
           avatar: existingUser.avatar,
           timezone: existingUser.timezone,
           emailVerified: existingUser.emailVerified,
-        };
+        }};
       }
 
       const hashedPassword = await this.utilityService.hashPassword(pass);
@@ -1065,7 +1067,7 @@ export class OrganizationsService {
           NOTIFICATIONSENUM.ACCEPTED_INVITATION,
           [userVerification.email],
         );
-      return {
+      return { success: {
         email: newUser.email,
         name: newUser.name,
         role: newUser.role,
@@ -1075,19 +1077,19 @@ export class OrganizationsService {
         avatar: newUser.avatar,
         timezone: newUser.timezone,
         emailVerified: newUser.emailVerified,
-      };
+      }};
     } catch (error) {
       this.logger.error(
         `createUserFromInvitation >> Error creating user from invitation: ${error instanceof Error ? error.message : String(error)}`,
       );
-      return null;
+      return { success: null, error: ErrorStrings[OPERATIONS.ACCEPT_INVITATION].SERVER_ERROR };
     }
   }
 
   /**
    * Reenviar invitación a usuario pendiente
    */
-  async resendInvitation(userEmail: string, organizationId: string): Promise<boolean> {
+  async resendInvitation(userEmail: string, organizationId: string): Promise<{success: boolean; error?: string}> {
     const userVerification = await this.prisma.userVerification.findFirst({
       where: {
         organizationName: organizationId,
@@ -1099,7 +1101,7 @@ export class OrganizationsService {
       this.logger.error(
         `resendInvitation >> No pending invitation found for ${userEmail} in org ${organizationId}`,
       );
-      return false;
+      return { success: false, error: ErrorStrings[OPERATIONS.RESEND_INVITATION].NO_INVITATION };
     }
     const emailSentInfo = await this.emailService.sendOrganizationInvitationToEmail(
       userEmail,
@@ -1107,7 +1109,7 @@ export class OrganizationsService {
     );
     if (!emailSentInfo) {
       this.logger.error(`resendInvitation >> Error sending invitation email to ${userEmail}`);
-      return false;
+      return { success: false, error: ErrorStrings[OPERATIONS.RESEND_INVITATION].SERVER_ERROR };
     }
 
     const modifiedRecords = await this.prisma.userVerification.updateMany({
@@ -1121,7 +1123,7 @@ export class OrganizationsService {
     });
     if (modifiedRecords.count === 0) {
       this.logger.error(`resendInvitation >> Error updating verification record for ${userEmail}`);
-      return false;
+      return { success: false, error: ErrorStrings[OPERATIONS.RESEND_INVITATION].SERVER_ERROR };
     }
 
     this.utilityService.sendNotificationToAppClients(
@@ -1131,13 +1133,14 @@ export class OrganizationsService {
       [userEmail],
     );
 
-    return true;
+    return { success: true };
+
   }
 
   /**
    * Cancelar invitación pendiente (elimina el usuario que nunca aceptó)
    */
-  async cancelInvitation(userEmail: string, organizationId: string): Promise<boolean> {
+  async cancelInvitation(userEmail: string, organizationId: string): Promise<{success: boolean; error?: string}> {
     const deletedRecords = await this.prisma.userVerification.deleteMany({
       where: {
         email: userEmail,
@@ -1146,7 +1149,7 @@ export class OrganizationsService {
     });
     if (deletedRecords.count === 0) {
       this.logger.error(`cancelInvitation >> No pending invitation found for ${userEmail}`);
-      return false;
+      return { success: false, error: ErrorStrings[OPERATIONS.CANCEL_INVITATION].CANCEL_FAILED };
     }
 
     this.utilityService.sendNotificationToAppClients(
@@ -1156,6 +1159,6 @@ export class OrganizationsService {
       [userEmail],
     );
 
-    return true;
+    return { success: true };
   }
 }
