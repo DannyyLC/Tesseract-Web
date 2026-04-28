@@ -11,3 +11,5 @@ export const NOTIFICATIONSENUM = {
     HUMAN_INTERVENTION_REQUIRED: '0000-0114',
     ACCEPTED_INVITATION: '0000-1000',
 }
+
+export * from './errors.enum';

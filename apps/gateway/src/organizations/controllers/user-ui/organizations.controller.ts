@@ -146,11 +146,11 @@ export class OrganizationsController {
       body.email,
       user.organizationId,
     );
-    if (result) {
-      apiResponse.setStatusCode(200).setMessage('Invitation resent successfully').setData(result);
+    if (result.success) {
+      apiResponse.setStatusCode(200).setMessage('Invitation resent successfully').setData(result.success);
       return res.status(200).json(apiResponse.build());
     } else {
-      apiResponse.setStatusCode(400).setMessage('Invitation could not be resent').setData(result);
+      apiResponse.setStatusCode(400).setMessage(result.error || 'Invitation could not be resent').setData(result.success);
       return res.status(400).json(apiResponse.build());
     }
   }
@@ -167,17 +167,17 @@ export class OrganizationsController {
   ): Promise<Response<ApiResponseBuilder<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
     const result = await this.organizationsService.cancelInvitation(body.email, user.organizationId);
-    if (result) {
+    if (result.success) {
       apiResponse
         .setStatusCode(200)
         .setMessage('Invitation cancelled successfully')
-        .setData(result);
+        .setData(result.success);
       return res.status(200).json(apiResponse.build());
     } else {
       apiResponse
         .setStatusCode(400)
-        .setMessage('Invitation could not be cancelled')
-        .setData(result);
+        .setMessage(result.error || 'Invitation could not be cancelled')
+        .setData(result.success);
       return res.status(400).json(apiResponse.build());
     }
   }
@@ -194,11 +194,11 @@ export class OrganizationsController {
       body.password,
       body.verificationCode,
     );
-    if (result) {
-      apiResponse.setStatusCode(200).setMessage('Invitation accepted successfully').setData(result);
+    if (result.success && result.success != null) {
+      apiResponse.setStatusCode(200).setMessage('Invitation accepted successfully').setData(result.success);
       return res.status(200).json(apiResponse.build());
     } else {
-      apiResponse.setStatusCode(400).setMessage('Invitation could not be accepted').setData(result);
+      apiResponse.setStatusCode(400).setMessage(result.error || 'Invitation could not be accepted').setData(null);
       return res.status(400).json(apiResponse.build());
     }
   }

@@ -12,7 +12,7 @@ import {
   ArrowRightLeft,
   AlertTriangle,
 } from 'lucide-react';
-import { useUsersDashboard, useUserStats, useUserMutations } from '@/hooks/useUsers';
+import { useUsersDashboard, useUserStats, useUserMutations, usePendingInvitations } from '@/hooks/useUsers';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardUserDataDto, UserRole } from '@tesseract/types';
 import { toast } from 'sonner';
@@ -30,10 +30,19 @@ import { InviteUserModal } from './_components/InviteUserModal';
 import PermissionGuard from '@/components/auth/PermissionGuard';
 
 type FilterRole = 'all' | 'OWNER' | 'ADMIN' | 'VIEWER';
+type ExtraDataSection = 'PENDING_INVITATIONS';
+
+interface PendingInvitationItem {
+  email: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
 
 export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<FilterRole>('all');
+  const [extraDataSection, setExtraDataSection] = useState<ExtraDataSection | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
 
   // Expansion State
@@ -54,19 +63,39 @@ export default function UsersPage() {
     role: filterRole === 'all' ? undefined : filterRole,
   });
 
+  const { data: pendingInvitations, isLoading: isLoadingPendingInvitations } = usePendingInvitations();
+
   const { data: statsData, isLoading: isLoadingStats } = useUserStats();
   const { updateUser, deleteUser, transferOwnership } = useUserMutations();
 
+  const isPendingInvitationsView = extraDataSection === 'PENDING_INVITATIONS';
+  const isListLoading = isPendingInvitationsView ? isLoadingPendingInvitations : isLoadingUsers;
+
+  const pendingInvitationItems = useMemo(() => {
+    const invitations = (pendingInvitations ?? []) as PendingInvitationItem[];
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+
+    if (!normalizedSearch) return invitations;
+
+    return invitations.filter((invitation) =>
+      invitation.email.toLowerCase().includes(normalizedSearch),
+    );
+  }, [pendingInvitations, searchQuery]);
+
   // Mapped Stats
   const stats = useMemo(() => {
-    if (!statsData) return { total: 0, active: 0, inactive: 0, verified: 0 };
+    if (!statsData) {
+      return { total: 0, active: 0, inactive: 0, verified: 0, pendingInvitations: 0 };
+    }
+
     return {
       total: statsData.total || 0,
       active: statsData.active || 0,
       inactive: statsData.inactive || 0,
       verified: statsData.verified || 0,
+      pendingInvitations: (pendingInvitations as PendingInvitationItem[] | undefined)?.length || 0,
     };
-  }, [statsData]);
+  }, [statsData, pendingInvitations]);
 
   const roleFilters: { value: FilterRole; label: string }[] = [
     { value: 'all', label: 'Todos' },
@@ -74,6 +103,11 @@ export default function UsersPage() {
     { value: 'ADMIN', label: 'Admin' },
     { value: 'VIEWER', label: 'Viewer' },
   ];
+
+  const extraDataSections: { label: string; value: ExtraDataSection }[] = [
+    { value: 'PENDING_INVITATIONS', label: 'Invitaciones' },
+  ]
+
 
   // Actions
 
@@ -192,7 +226,7 @@ export default function UsersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="mb-8 grid grid-cols-2 gap-8 px-2 lg:grid-cols-4">
+      <div className="mb-8 grid grid-cols-2 gap-8 px-2 lg:grid-cols-5">
         {isLoadingStats ? (
           <div className="col-span-4 flex h-24 items-center justify-center">
             <Loader2 className="animate-spin text-black/20 dark:text-white/20" />
@@ -265,6 +299,31 @@ export default function UsersPage() {
                   {stats.verified}
                 </p>
               </div>
+              
+
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+            >
+              <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+                Invitaciones
+              </span>
+              <div className="mt-1 flex items-baseline gap-1">
+                {isLoadingPendingInvitations ? (
+                  <Loader2 className="animate-spin text-black/30 dark:text-white/30" size={20} />
+                ) : (
+                  <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+                    {stats.pendingInvitations}
+                  </p>
+                )}
+                <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400">
+                  Pendientes
+                </span>
+              </div>
             </motion.div>
           </>
         )}
@@ -273,47 +332,143 @@ export default function UsersPage() {
       {/* Search and Filters */}
       <div className="flex flex-col gap-3 sm:flex-row">
         {/* Search */}
-        <div className="relative flex-1">
-          <Search
-            size={16}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30 dark:text-white/30"
-          />
-          <input
-            type="text"
-            placeholder="Buscar por nombre o email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-full border-none bg-black/5 py-2 pl-10 pr-4 text-sm text-black transition-all placeholder:text-black/30 hover:bg-black/10 focus:outline-none focus:ring-2 focus:ring-black/5 dark:bg-white/5 dark:text-white dark:placeholder:text-white/30 dark:hover:bg-white/10 dark:focus:ring-white/5"
-          />
+        <div className="flex-1 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-black/40 dark:text-white/40">
+            Buscar miembros
+          </p>
+          <div className="relative">
+            <Search
+              size={16}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30 dark:text-white/30"
+            />
+            <input
+              type="text"
+              placeholder="Buscar por nombre o email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-full border-none bg-black/5 py-2 pl-10 pr-4 text-sm text-black transition-all placeholder:text-black/30 hover:bg-black/10 focus:outline-none focus:ring-2 focus:ring-black/5 dark:bg-white/5 dark:text-white dark:placeholder:text-white/30 dark:hover:bg-white/10 dark:focus:ring-white/5"
+            />
+          </div>
         </div>
 
         {/* Role Filter Pills */}
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {roleFilters.map((filter) => (
-            <button
-              key={filter.value}
-              onClick={() => setFilterRole(filter.value)}
-              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all ${
-                filterRole === filter.value
-                  ? 'bg-black text-white dark:bg-white dark:text-black'
-                  : 'border border-black/5 bg-white text-black/60 hover:bg-black/5 dark:border-white/5 dark:bg-[#141414] dark:text-white/60 dark:hover:bg-white/5'
-              }`}
-            >
-              {filter.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-start gap-4 pb-1">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-black/40 dark:text-white/40">
+              Filtrar por rol
+            </p>
+            <div className="flex gap-2 overflow-x-auto">
+              {roleFilters.map((filter) => (
+                <button
+                  key={filter.value}
+                  onClick={() => {
+                    setExtraDataSection(null);
+                    setFilterRole(filter.value);
+                  }}
+                  className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                    extraDataSection === null && filterRole === filter.value
+                      ? 'bg-black text-white dark:bg-white dark:text-black'
+                      : 'border border-black/5 bg-white text-black/60 hover:bg-black/5 dark:border-white/5 dark:bg-[#141414] dark:text-white/60 dark:hover:bg-white/5'
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-black/40 dark:text-white/40">
+              Consultas adicionales
+            </p>
+            <div className="flex gap-2 overflow-x-auto">
+              {extraDataSections.map((section) => (
+                <button
+                  key={section.value}
+                  onClick={() => {
+                    setFilterRole('all');
+                    setExtraDataSection(section.value);
+                  }}
+                  className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                    extraDataSection === section.value
+                      ? 'bg-black text-white dark:bg-white dark:text-black'
+                      : 'border border-black/5 bg-white text-black/60 hover:bg-black/5 dark:border-white/5 dark:bg-[#141414] dark:text-white/60 dark:hover:bg-white/5'
+                  }`}
+                >
+                  {section.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Users List */}
       <div className="space-y-3">
-        {isLoadingUsers ? (
+        {isListLoading ? (
           <div className="flex h-40 items-center justify-center">
             <Loader2 className="animate-spin text-black/20 dark:text-white/20" />
           </div>
         ) : (
           <AnimatePresence mode="popLayout">
-            {usersData?.items.map((user, index) => {
+            {isPendingInvitationsView
+              ? pendingInvitationItems.map((invitation, index) => {
+                  const isExpired = new Date(invitation.expiresAt) < new Date();
+
+                  return (
+                    <motion.div
+                      key={`${invitation.email}-${invitation.createdAt}`}
+                      layout
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="overflow-hidden rounded-xl border border-black/5 bg-white shadow-sm dark:border-white/5 dark:bg-[#141414]"
+                    >
+                      <div className="p-5">
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={`h-12 w-12 rounded-full ${getAvatarColor(
+                              invitation.email,
+                            )} flex flex-shrink-0 items-center justify-center`}
+                          >
+                            <span className="font-semibold text-white">
+                              {getInitials(invitation.email)}
+                            </span>
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-1 flex items-center gap-2">
+                              <h3 className="truncate font-semibold text-black dark:text-white">
+                                {invitation.email}
+                              </h3>
+                              <span className="text-[10px] font-bold uppercase tracking-wide text-yellow-600 dark:text-yellow-400">
+                                Pendiente
+                              </span>
+                            </div>
+                            <p className="truncate text-sm text-black/50 dark:text-white/50">
+                              Enviada {formatTimeAgo(invitation.createdAt as any)}
+                            </p>
+                          </div>
+
+                          <div className="hidden text-right md:block">
+                            <p className="text-xs text-black/40 dark:text-white/40">Expira</p>
+                            <p
+                              className={`text-sm ${
+                                isExpired
+                                  ? 'text-red-600 dark:text-red-400'
+                                  : 'text-black/70 dark:text-white/70'
+                              }`}
+                            >
+                              {new Date(invitation.expiresAt).toLocaleString('es-ES')}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              : usersData?.items.map((user, index) => {
               const roleConfig = getRoleConfig(user.role);
               const statusConfig = getStatusConfig(user.isActive);
               const isExpanded = expandedUserId === user.id;
@@ -450,7 +605,10 @@ export default function UsersPage() {
         )}
 
         {/* Empty State */}
-        {!isLoadingUsers && (!usersData?.items || usersData.items.length === 0) && (
+        {!isListLoading &&
+          (isPendingInvitationsView
+            ? pendingInvitationItems.length === 0
+            : !usersData?.items || usersData.items.length === 0) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -460,16 +618,22 @@ export default function UsersPage() {
               <Search size={24} className="text-black/30 dark:text-white/30" />
             </div>
             <h3 className="mb-2 text-lg font-semibold text-black dark:text-white">
-              {searchQuery
-                ? `No se encontraron resultados para "${searchQuery}"`
-                : filterRole !== 'all'
-                  ? `No hay miembros con el rol ${roleFilters.find((f) => f.value === filterRole)?.label}`
-                  : 'No se encontraron miembros'}
+              {isPendingInvitationsView
+                ? searchQuery
+                  ? `No se encontraron invitaciones para "${searchQuery}"`
+                  : 'No hay invitaciones pendientes'
+                : searchQuery
+                  ? `No se encontraron resultados para "${searchQuery}"`
+                  : filterRole !== 'all'
+                    ? `No hay miembros con el rol ${roleFilters.find((f) => f.value === filterRole)?.label}`
+                    : 'No se encontraron miembros'}
             </h3>
             <p className="text-black/50 dark:text-white/50">
-              {searchQuery || filterRole !== 'all'
-                ? 'Intenta con otros términos de búsqueda o filtros'
-                : 'Comienza invitando miembros a tu organización'}
+              {isPendingInvitationsView
+                ? 'Cuando envíes invitaciones aparecerán aquí'
+                : searchQuery || filterRole !== 'all'
+                  ? 'Intenta con otros términos de búsqueda o filtros'
+                  : 'Comienza invitando miembros a tu organización'}
             </p>
           </motion.div>
         )}
