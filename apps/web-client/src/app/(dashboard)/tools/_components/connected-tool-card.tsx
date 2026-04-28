@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { DashboardTenantToolDto } from '@tesseract/types';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import PermissionGuard from '@/components/auth/PermissionGuard';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ConnectedToolCardProps {
   tool: DashboardTenantToolDto;
@@ -48,6 +49,10 @@ export function ConnectedToolCard({
   onDelete,
 }: ConnectedToolCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { data: currentUser } = useAuth();
+  const isOwnerRole = currentUser?.role === 'owner';
+  const isToolOwner = !!currentUser && tool.createdByUserId === currentUser.sub;
+  const canManageTool = isOwnerRole || isToolOwner;
   const status = STATUS_STYLES[tool.status] ?? STATUS_STYLES.DISCONNECTED;
   const connectedDate = new Date(tool.createdAt).toLocaleDateString('es-MX', {
     month: 'short',
@@ -90,6 +95,7 @@ export function ConnectedToolCard({
       </span>
 
       {/* Actions menu */}
+      {canManageTool && (
       <div className="relative">
         <button
           onClick={() => setMenuOpen((v) => !v)}
@@ -159,6 +165,7 @@ export function ConnectedToolCard({
           </>
         )}
       </div>
+      )}
     </motion.div>
   );
 }

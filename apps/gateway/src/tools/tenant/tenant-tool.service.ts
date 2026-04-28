@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PaginatedResponse, DashboardTenantToolDto } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../../common/responses/cursor-paginated-response';
 import { PrismaService } from '../../database/prisma.service';
@@ -39,6 +39,7 @@ export class TenantToolService {
           status: true,
           isConnected: true,
           createdAt: true,
+          createdByUserId: true,
           allowedFunctions: true,
           toolCatalog: {
             select: {
@@ -73,6 +74,7 @@ export class TenantToolService {
           status: true,
           isConnected: true,
           createdAt: true,
+          createdByUserId: true,
           allowedFunctions: true,
           toolCatalog: {
             select: {
@@ -155,7 +157,19 @@ export class TenantToolService {
     }
   }
 
-  async updateTenantTool(id: string, data: UpdateTenantToolDto) {
+  async updateTenantTool(id: string, orgId: string, userId: string, role: string, data: UpdateTenantToolDto) {
+    const tool = await this.prismaService.tenantTool.findFirst({
+      where: { id, organizationId: orgId },
+    });
+
+    if (!tool) {
+      throw new NotFoundException('Tool not found');
+    }
+
+    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== 'owner') {
+      throw new ForbiddenException('No tienes permisos para modificar esta herramienta');
+    }
+
     try {
       return await this.prismaService.tenantTool.update({
         where: { id },
@@ -171,7 +185,19 @@ export class TenantToolService {
     }
   }
 
-  async addWorkflowToTenantTool(tenantToolId: string, workflowIds: string[]) {
+  async addWorkflowToTenantTool(tenantToolId: string, orgId: string, userId: string, role: string, workflowIds: string[]) {
+    const tool = await this.prismaService.tenantTool.findFirst({
+      where: { id: tenantToolId, organizationId: orgId },
+    });
+
+    if (!tool) {
+      throw new NotFoundException('Tool not found');
+    }
+
+    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== 'owner') {
+      throw new ForbiddenException('No tienes permisos para modificar esta herramienta');
+    }
+
     try {
       return await this.prismaService.tenantTool.update({
         where: { id: tenantToolId },
@@ -189,7 +215,19 @@ export class TenantToolService {
     }
   }
 
-  async removeWorkflowFromTenantTool(tenantToolId: string, workflowIds: string[]) {
+  async removeWorkflowFromTenantTool(tenantToolId: string, orgId: string, userId: string, role: string, workflowIds: string[]) {
+    const tool = await this.prismaService.tenantTool.findFirst({
+      where: { id: tenantToolId, organizationId: orgId },
+    });
+
+    if (!tool) {
+      throw new NotFoundException('Tool not found');
+    }
+
+    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== 'owner') {
+      throw new ForbiddenException('No tienes permisos para modificar esta herramienta');
+    }
+
     try {
       return await this.prismaService.tenantTool.update({
         where: { id: tenantToolId },

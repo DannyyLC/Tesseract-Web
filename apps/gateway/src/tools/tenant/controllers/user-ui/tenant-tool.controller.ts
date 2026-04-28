@@ -88,10 +88,11 @@ export class TenantToolController {
   async updateTenantTool(
     @Param('id') id: string,
     @Body() body: UpdateTenantToolDto,
+    @CurrentUser() user: UserPayload,
     @Res() res: Response,
   ) {
     const apiResponse = new ApiResponseBuilder<UpdateTenantToolDto | null>();
-    const updated = await this.tenantToolService.updateTenantTool(id, body);
+    const updated = await this.tenantToolService.updateTenantTool(id, user.organizationId, user.sub, user.role, body);
     if (!updated) {
       apiResponse.setSuccess(false).setMessage('Error updating tenant tool');
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
@@ -105,10 +106,11 @@ export class TenantToolController {
   async addWorkflowsToTenantTool(
     @Param('id') id: string,
     @Body() body: WorkflowIdsDto,
+    @CurrentUser() user: UserPayload,
     @Res() res: Response,
   ) {
     const apiResponse = new ApiResponseBuilder<UpdateTenantToolDto | null>();
-    const updated = await this.tenantToolService.addWorkflowToTenantTool(id, body.workflowIds);
+    const updated = await this.tenantToolService.addWorkflowToTenantTool(id, user.organizationId, user.sub, user.role, body.workflowIds);
     if (!updated) {
       apiResponse.setSuccess(false).setMessage('Error adding workflows to tenant tool');
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
@@ -125,10 +127,11 @@ export class TenantToolController {
   async removeWorkflowsFromTenantTool(
     @Param('id') id: string,
     @Body() body: WorkflowIdsDto,
+    @CurrentUser() user: UserPayload,
     @Res() res: Response,
   ) {
     const apiResponse = new ApiResponseBuilder<UpdateTenantToolDto | null>();
-    const updated = await this.tenantToolService.removeWorkflowFromTenantTool(id, body.workflowIds);
+    const updated = await this.tenantToolService.removeWorkflowFromTenantTool(id, user.organizationId, user.sub, user.role, body.workflowIds);
     if (!updated) {
       apiResponse.setSuccess(false).setMessage('Error removing workflows from tenant tool');
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());

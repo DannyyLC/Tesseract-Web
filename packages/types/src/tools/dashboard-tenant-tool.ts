@@ -4,6 +4,7 @@ export interface DashboardTenantToolDto {
   status: string;
   isConnected: boolean;
   createdAt: Date;
+  createdByUserId?: string | null;
   toolCatalog: {
     toolName: string;
     displayName: string | null;
