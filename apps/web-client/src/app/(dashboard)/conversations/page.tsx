@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { MessageSquare, Search, Loader2 } from 'lucide-react';
@@ -37,6 +37,14 @@ export default function ConversationsPage() {
   // Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [modalSearchQuery, setModalSearchQuery] = useState('');
+  const [debouncedModalSearch, setDebouncedModalSearch] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedModalSearch(modalSearchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [modalSearchQuery]);
 
   // Modal Search Hook
   const {
@@ -45,7 +53,7 @@ export default function ConversationsPage() {
     hasNextPage: hasNextModalWorkflows,
     isFetchingNextPage: isFetchingNextModalWorkflows,
     isLoading: isLoadingModalWorkflows,
-  } = useInfiniteDashboardWorkflows(10, modalSearchQuery);
+  } = useInfiniteDashboardWorkflows(10, debouncedModalSearch);
 
   const modalWorkflows = modalWorkflowsData?.pages.flatMap((page) => page.items) ?? [];
 
@@ -194,6 +202,7 @@ export default function ConversationsPage() {
                 // If no workflow is selected in filter, open modal
                 setIsCreateModalOpen(true);
                 setModalSearchQuery('');
+                setDebouncedModalSearch('');
               }
             }}
             className="flex items-center gap-2 rounded-full bg-black px-6 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"

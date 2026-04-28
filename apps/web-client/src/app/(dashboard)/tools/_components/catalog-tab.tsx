@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 import { useToolCatalog, flattenToolCatalog } from '@/hooks/tools/useToolCatalog';
 import { useInfiniteTenantToolsDashboard, flattenTenantTools } from '@/hooks/tools/useTenantTools';
@@ -13,8 +13,16 @@ interface CatalogTabProps {
 }
 
 export function CatalogTab({ onConnect }: CatalogTabProps) {
-  const [search, setSearch] = useState('');
+  const [localSearch, setLocalSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [connectTarget, setConnectTarget] = useState<GetToolsDto | null>(null);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(localSearch);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [localSearch]);
 
   // ─── Real data ────────────────────────────────────────────────────────
   const {
@@ -23,7 +31,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
-  } = useToolCatalog({ pageSize: 20, search: search || undefined });
+  } = useToolCatalog({ pageSize: 20, search: debouncedSearch || undefined });
 
   const { data: tenantToolsData } = useInfiniteTenantToolsDashboard({ pageSize: 100 });
 
@@ -69,8 +77,8 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
           />
           <input
             type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
             placeholder="Buscar herramientas..."
             className="hover:bg-black/8 w-full rounded-full border-none bg-black/5 py-2.5 pl-10 pr-4 text-sm text-black transition-all placeholder:text-black/30 focus:outline-none focus:ring-2 focus:ring-black/10 dark:bg-white/5 dark:text-white dark:placeholder:text-white/30 dark:focus:ring-white/10"
           />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -41,6 +41,7 @@ interface PendingInvitationItem {
 
 export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterRole, setFilterRole] = useState<FilterRole>('all');
   const [extraDataSection, setExtraDataSection] = useState<ExtraDataSection | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -56,10 +57,17 @@ export default function UsersPage() {
   const [editFormData, setEditFormData] = useState({ role: '', isActive: true });
   const [confirmTransferName, setConfirmTransferName] = useState('');
 
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
   // Hooks
   const { data: currentUser } = useAuth();
   const { data: usersData, isLoading: isLoadingUsers } = useUsersDashboard({
-    search: searchQuery,
+    search: debouncedSearch,
     role: filterRole === 'all' ? undefined : filterRole,
   });
 
