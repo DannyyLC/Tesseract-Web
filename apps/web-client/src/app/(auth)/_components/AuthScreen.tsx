@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Eye, EyeOff, ArrowRight, Building2, Mail, Lock, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -17,7 +17,7 @@ import {
   useGoogleAuthUrl,
 } from '@/hooks/useAuth';
 import { LogoLoader } from '@/components/ui/logo-loader';
-import { Turnstile } from '@marsidev/react-turnstile';
+import { Turnstile, TurnstileInstance } from '@marsidev/react-turnstile';
 
 /* ========================================= */
 /* INTERFACES, TYPES & CONSTANTS */
@@ -79,6 +79,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
   const [verificationAttempts, setVerificationAttempts] = useState(0);
   const [verificationError, setVerificationError] = useState('');
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   /* ========================================= */
   /* EFFECTS */
@@ -271,6 +272,8 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
               ...prev,
               password: '',
             }));
+            setTurnstileToken(null);
+            turnstileRef.current?.reset();
           },
         },
       );
@@ -495,6 +498,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                     <div className="flex justify-center">
                       <Turnstile
+                        ref={turnstileRef}
                         siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
                         options={{ size: 'flexible' }}
                         onSuccess={(token) => setTurnstileToken(token)}
