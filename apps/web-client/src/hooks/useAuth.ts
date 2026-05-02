@@ -257,7 +257,7 @@ export function useResetPasswordStepTwo() {
 export function useChangePassword() {
   return useMutation({
     mutationFn: async (data: {
-      currentPassword: string;
+      currentPassword?: string;
       newPassword: string;
       code2FA?: string;
     }) => {
