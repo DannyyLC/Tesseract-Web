@@ -1,4 +1,5 @@
 export * from './create-config.dto';
 export * from './setup-credential.dto';
+export * from './template.dto';
 export * from './update-token.dto';
 export * from './whatsapp-inbound-event.dto';

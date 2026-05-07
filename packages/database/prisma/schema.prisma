@@ -1260,11 +1260,38 @@ model WhatsAppConfig {
   // Conversaciones por este canal de WhatsApp
   conversations Conversation[]
 
+  // Templates de WhatsApp de esta configuración
+  templates WhatsAppTemplate[]
+
   @@index([phoneNumber])
   @@index([connectionStatus])
   @@index([organizationId])
   @@index([deletedAt])
   @@map("whatsapp_configs")
+}
+
+// ============================================
+// WHATSAPP TEMPLATES
+// ============================================
+model WhatsAppTemplate {
+  id          String  @id @default(uuid())
+  name        String  // Nombre registrado en Meta (ej. "recordatorio_cita")
+  displayName String? // Nombre amigable para el UI
+  language    String  @default("es_MX")
+
+  // Define qué variables espera cada componente, en orden posicional.
+  // Ej: { "body": ["nombre_paciente", "fecha_cita"], "header": [], "buttons": [] }
+  variables   Json    @default("{}")
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  whatsAppConfigId String
+  whatsAppConfig   WhatsAppConfig @relation(fields: [whatsAppConfigId], references: [id], onDelete: Cascade)
+
+  @@index([whatsAppConfigId])
+  @@map("whatsapp_templates")
 }
 
 // ============================================
