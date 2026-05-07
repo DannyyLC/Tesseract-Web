@@ -396,7 +396,11 @@ def load_specific_tool(
     elif tool_name == "human_handoff":
         from tools.human_handoff import load_human_handoff_tools
         tools = load_human_handoff_tools()
-    
+
+    elif tool_name == "send_bulk_whatsapp":
+        from tools.whatsapp_outbound import load_whatsapp_outbound_tools
+        tools = load_whatsapp_outbound_tools(credentials, config)
+
     else:
         logger.warning(
             f"[{ctx.workflow_id}] Unknown tool: '{tool_name}'. "

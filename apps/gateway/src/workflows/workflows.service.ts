@@ -942,11 +942,8 @@ export class WorkflowsService {
         userId ?? endUserId,
         channel,
         historyForPayload,
-        // Si activeSummary no estuviera disponible en este punto, buildAgentPayload
-        // usa fallback defensivo a DB. Es aceptable por el bajo volumen esperado
-        // de streams con compactación activa y porque el post-stream no propaga
-        // contexto de compactación fuera de este flujo.
         compactionContext.activeSummary,
+        metadata?.whatsAppConfigId,
       );
 
       // Llamar al servicio de agents (Python)
@@ -1334,6 +1331,7 @@ export class WorkflowsService {
         channel,
         historyForPayload,
         compactionContext.activeSummary,
+        metadata?.whatsAppConfigId,
       );
 
       this.logger.debug(`Llamando al AgentsService (Stream)`);
@@ -1643,6 +1641,7 @@ export class WorkflowsService {
     channel = 'api',
     messageHistory: any[] = [],
     activeSummary?: string | null,
+    whatsAppConfigId?: string,
   ) {
     // 1. Extraer nueva estructura unificada de config
     const config = workflow.config;
@@ -1675,6 +1674,44 @@ export class WorkflowsService {
           tenantTool.toolCatalog.functions.map((fn: any) => fn.functionName),
         credentials: credentialsMap[toolId] ?? undefined,
       };
+
+      // Enriquecer send_bulk_whatsapp con config del sistema (el modelo nunca elige el remitente)
+      if (toolName === 'send_bulk_whatsapp') {
+        const configId =
+          (tenantTool.config as any)?.whatsapp_config_id ?? whatsAppConfigId ?? undefined;
+
+        if (configId) {
+          const wac = await this.prisma.whatsAppConfig.findFirst({
+            where: { id: configId, organizationId: workflow.organizationId },
+            include: { templates: { where: { isActive: true } } },
+          });
+
+          if (wac) {
+            const availableTemplates: Record<string, any> = {};
+            for (const tpl of wac.templates) {
+              availableTemplates[tpl.id] = {
+                name: tpl.name,
+                language: tpl.language,
+                variables: tpl.variables,
+              };
+            }
+            toolInstances[toolId].config = {
+              ...toolInstances[toolId].config,
+              from_number: wac.phoneNumber,
+              api_key: process.env.Y_CLOUD_API_KEY,
+              available_templates: availableTemplates,
+            };
+          } else {
+            this.logger.warn(
+              `send_bulk_whatsapp tool ${toolId}: whatsAppConfigId ${configId} not found`,
+            );
+          }
+        } else {
+          this.logger.warn(
+            `send_bulk_whatsapp tool ${toolId}: no whatsapp_config_id in TenantTool.config or execution metadata`,
+          );
+        }
+      }
     }
 
     // 3. Filtrar tool_instances por agente según su configuración

@@ -58,6 +58,17 @@ export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
   private readonly defaultCompactionLockTtlMs = 30_000;
 
+  private resolveChannel(channel: string): ConversationChannel {
+    const map: Record<string, ConversationChannel> = {
+      DASHBOARD: ConversationChannel.DASHBOARD,
+      WHATSAPP: ConversationChannel.WHATSAPP,
+      WEB: ConversationChannel.WEB,
+      API: ConversationChannel.API,
+      CRON: ConversationChannel.CRON,
+    };
+    return map[channel?.toUpperCase()] ?? ConversationChannel.API;
+  }
+
   private resolveInactivityHours(workflowHours?: number | null, orgHours?: number | null) {
     if (workflowHours != null) return workflowHours;
     if (orgHours != null) return orgHours;
@@ -199,7 +210,7 @@ export class ConversationsService {
       data: {
         workflowId,
         organizationId: workflow.organizationId, // Asignación obligatoria
-        channel: ConversationChannel.DASHBOARD,
+        channel: this.resolveChannel(channel),
         userId,
         endUserId,
         status: ConversationStatus.ACTIVE,

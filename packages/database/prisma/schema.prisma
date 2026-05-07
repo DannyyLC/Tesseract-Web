@@ -99,6 +99,7 @@ enum ConversationChannel {
   WHATSAPP
   WEB
   API
+  CRON
 }
 
 enum ChatRole {
@@ -202,6 +203,7 @@ model Organization {
   whatsappConfigs WhatsAppConfig[]
   auditLogs       AuditLog[]
   endUsers        EndUser[]
+  cronTriggers    WorkflowCronTrigger[]
 
   // Credit System Relations
   creditBalance      CreditBalance?
@@ -1103,6 +1105,7 @@ model Workflow {
   tags            Tag[]            @relation("TagToWorkflow")
   conversations   Conversation[]
   apiKeys         ApiKey[]
+  cronTriggers    WorkflowCronTrigger[]
 
   @@index([organizationId])
   @@index([isActive])
@@ -1261,7 +1264,8 @@ model WhatsAppConfig {
   conversations Conversation[]
 
   // Templates de WhatsApp de esta configuración
-  templates WhatsAppTemplate[]
+  templates    WhatsAppTemplate[]
+  cronTriggers WorkflowCronTrigger[]
 
   @@index([phoneNumber])
   @@index([connectionStatus])
@@ -1292,6 +1296,38 @@ model WhatsAppTemplate {
 
   @@index([whatsAppConfigId])
   @@map("whatsapp_templates")
+}
+
+// ============================================
+// WORKFLOW CRON TRIGGERS
+// ============================================
+model WorkflowCronTrigger {
+  id             String  @id @default(uuid())
+  name           String
+  cronExpression String
+  timezone       String  @default("UTC")
+  triggerMessage String  @db.Text
+
+  isActive  Boolean   @default(true)
+  lastRunAt DateTime?
+  nextRunAt DateTime?
+
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  whatsAppConfigId String?
+  whatsAppConfig   WhatsAppConfig? @relation(fields: [whatsAppConfigId], references: [id], onDelete: SetNull)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([workflowId])
+  @@index([isActive])
+  @@map("workflow_cron_triggers")
 }
 
 // ============================================

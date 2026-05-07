@@ -25,6 +25,7 @@ import { UtilityModule } from './utility/utility.module';
 import { ToolsCatalogModule } from './tools/catalog/tools-catalog.module';
 import { ToolsModule } from './tools/core/tools.module';
 import { WhatsappConfigModule } from './whatsapp-config/whatsapp-config.module';
+import { CronTriggersModule } from './cron-triggers/cron-triggers.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { WhatsappConfigModule } from './whatsapp-config/whatsapp-config.module';
     ToolsCatalogModule,
     ToolsModule,
     WhatsappConfigModule,
+    CronTriggersModule,
   ],
   controllers: [],
   providers: [

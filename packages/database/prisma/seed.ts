@@ -221,6 +221,28 @@ const toolCatalogs: ToolCatalogSeed[] = [
     ],
   },
   {
+    toolName: 'send_bulk_whatsapp',
+    displayName: 'WhatsApp Outbound',
+    description:
+      'Envia mensajes de plantilla de WhatsApp a multiples destinatarios usando templates pre-aprobados por Meta.',
+    provider: 'platform',
+    category: 'messaging',
+    icon: 'logos:whatsapp-icon',
+    isActive: true,
+    isInBeta: false,
+    functions: [
+      {
+        functionName: 'send_bulk_whatsapp',
+        displayName: 'Enviar mensajes masivos',
+        description:
+          'Envia mensajes de plantilla de WhatsApp a una lista de destinatarios. El numero remitente siempre es determinado por el sistema.',
+        icon: 'mdi:whatsapp',
+        category: 'write',
+        dangerLevel: 'WARNING',
+      },
+    ],
+  },
+  {
     toolName: 'google_calendar',
     displayName: 'Google Calendar',
     description: 'Gestion de agenda y eventos en Google Calendar.',
