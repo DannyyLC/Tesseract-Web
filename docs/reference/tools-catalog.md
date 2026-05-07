@@ -161,6 +161,70 @@ El Gateway detecta este payload en la respuesta del agente y activa la bandera d
 
 ---
 
+## `send_bulk_whatsapp` — WhatsApp Outbound
+
+**Autenticacion:** Ninguna. Las credenciales son inyectadas automáticamente por el Gateway desde el `WhatsAppConfig` de la organización. El agente nunca las ve.
+
+> **Nota de seguridad:** El número remitente (`from_number`) y el API key de YCloud son siempre determinados por el sistema. El modelo de IA **no puede elegir ni modificar el remitente** bajo ninguna circunstancia.
+
+### Credenciales requeridas
+
+Ninguna desde el punto de vista del agente. El Gateway inyecta en runtime:
+- `from_number` — número remitente (E.164), tomado del `WhatsAppConfig`
+- `api_key` — YCloud API key, tomado de `Y_CLOUD_API_KEY` en `.env`
+- `available_templates` — mapa de templates activos del `WhatsAppConfig`
+
+### Configuracion del tenant (`TenantTool.config`)
+
+| Campo | Tipo | Requerido | Descripcion |
+|---|---|---|---|
+| `whatsapp_config_id` | string (UUID) | **Sí** | ID del `WhatsAppConfig` desde el que se enviaran los mensajes. Determina el número remitente y los templates disponibles. |
+
+```json
+{
+  "whatsapp_config_id": "uuid-del-whatsapp-config"
+}
+```
+
+> **Sin UI aún:** Este campo debe configurarse manualmente en `TenantTool.config` via API (`PATCH /tenant-tool/:id`) hasta que la UI incluya un selector de `WhatsAppConfig`. Alternativamente, puede pasarse como `whatsAppConfigId` en el metadata de ejecucion si el trigger lo provee (ej: `WorkflowCronTrigger.whatsAppConfigId`).
+
+### Funciones disponibles
+
+| Nombre | Descripcion |
+|---|---|
+| `send_bulk_whatsapp` | Envia mensajes de plantilla a una lista de destinatarios. Requiere `to` (número E.164), `template_id` (UUID del `WhatsAppTemplate`), y `variables` (dict con claves `body`, `header`, `buttons`) |
+
+### Ejemplo de config en workflow
+
+```json
+{
+  "agents": {
+    "default": {
+      "model": "gpt-4o",
+      "system_prompt": "Eres un asistente de recordatorios. Envia recordatorios a los pacientes usando los templates disponibles.",
+      "tools": ["uuid-tenant-tool-whatsapp-outbound"]
+    }
+  }
+}
+```
+
+Con `TenantTool.config`:
+```json
+{
+  "whatsapp_config_id": "uuid-del-whatsapp-config-de-la-clinica"
+}
+```
+
+### Templates disponibles
+
+Los templates se administran en `WhatsAppConfig > Templates` (CRUD via `/whatsapp-config/:configId/templates`). Cada template tiene:
+- `id` — UUID que el agente usa como `template_id`
+- `name` — nombre registrado en Meta Business Manager
+- `language` — código de idioma (ej: `es_MX`, `en_US`)
+- `variables` — descripcion de los campos por componente
+
+---
+
 ## Como asignar tools a un agente
 
 Las tools se configuran en dos capas:
