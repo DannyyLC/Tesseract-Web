@@ -6,30 +6,31 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Instalar dependencias necesarias para build de prisma o node-gyp
-RUN apk add --no-cache python3 make g++ openssl
+RUN apk add --no-cache python3 make g++ openssl && \
+    corepack enable && corepack prepare pnpm@11.1.2 --activate
 
 # Copiar archivos de configuración de dependencias desde la raíz del monorepo
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # Copiar configuraciones de los sub-paquetes
 COPY packages/database/package.json ./packages/database/
 COPY packages/types/package.json ./packages/types/
 COPY apps/gateway/package.json ./apps/gateway/
 
 # Instalar TODAS las dependencias (incluyendo devDependencies para poder hacer el build)
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 
 # Copiar el resto del código fuente del monorepo
 COPY . .
 
 # Generar Prisma Client
-RUN cd packages/database && npx prisma generate
+RUN cd packages/database && pnpm dlx prisma generate
 
 # Construir paquetes compartidos del monorepo (Types y Database)
-RUN npm run build -w packages/types
-RUN npm run build -w packages/database
+RUN pnpm --filter @tesseract/types build
+RUN pnpm --filter @tesseract/database build
 
 # Construir la aplicación principal (Gateway)
-RUN npm run build -w apps/gateway
+RUN pnpm --filter @tesseract/gateway build
 
 
 # ==========================================
@@ -40,20 +41,20 @@ FROM node:22-alpine AS production
 WORKDIR /app
 
 # Instalar dependencias del sistema necesarias en prod (ej. OpenSSL para Prisma)
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl && \
+    corepack enable && corepack prepare pnpm@11.1.2 --activate
 
 # Copiar configuración de dependencias
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/database/package.json ./packages/database/
 COPY packages/types/package.json ./packages/types/
 COPY apps/gateway/package.json ./apps/gateway/
 
 # Instalar SOLO dependencias de producción
-RUN npm ci --omit=dev
+RUN pnpm install --frozen-lockfile --prod
 
-# Copiar Prisma client generado y el schema (necesario a veces en runtime)
+# Copiar el cliente Prisma generado (binarios) y el schema
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
 
 # Copiar los builds compilados (dist) del Gateway y paquetes dependientes
