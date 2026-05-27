@@ -32,6 +32,10 @@ Thumbs.db
 .idea/
 *.sublime-*
 
+# Lock files de otros package managers (este proyecto usa pnpm)
+package-lock.json
+yarn.lock
+
 # Logs
 logs/
 *.log

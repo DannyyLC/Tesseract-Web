@@ -7,9 +7,9 @@
   <br />
   <br />
 
-![Node](https://img.shields.io/badge/Node.js-v20_LTS-339933?logo=nodedotjs&logoColor=white)
-![NestJS](https://img.shields.io/badge/NestJS-v10-E0234E?logo=nestjs&logoColor=white)
-![Next.js](https://img.shields.io/badge/Next.js-v14-000000?logo=nextdotjs&logoColor=white)
+![Node](https://img.shields.io/badge/Node.js-v22_LTS-339933?logo=nodedotjs&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-v11-E0234E?logo=nestjs&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-v16-000000?logo=nextdotjs&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-v15-4169E1?logo=postgresql&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/License-Privado-red)
@@ -70,7 +70,7 @@ Tesseract/
 │   └── @tesseract/types     -> DTOs e interfaces TypeScript compartidas
 ├── docs/               -> Documentacion completa (Mintlify)
 ├── docker-compose.yml  -> PostgreSQL local para desarrollo
-└── package.json        -> Orquestador del monorepo (npm workspaces + Nx)
+└── package.json        -> Orquestador del monorepo (pnpm workspaces)
 ```
 
 ---
@@ -83,8 +83,8 @@ Tesseract/
 
 | Herramienta     | Version            | Requerido para        |
 | --------------- | ------------------ | --------------------- |
-| Node.js         | v18 o v20 LTS      | Todo                  |
-| npm             | v9+                | Todo                  |
+| Node.js         | v22 LTS            | Todo                  |
+| pnpm            | v11+               | Todo                  |
 | Docker          | Cualquier reciente | Base de datos local   |
 | Python + Poetry | 3.11+              | Solo modulo `agents`  |
 | Stripe CLI      | Ultima             | Solo pruebas de pagos |
@@ -97,22 +97,14 @@ git clone https://github.com/FractalIndustries/Tesseract.git
 cd Tesseract
 
 # 2. Instala todas las dependencias del monorepo
-npm run install:all
+pnpm install
 
 # 3. Configura tus variables de entorno
 cp .env.example .env
 # Edita el .env con tus valores (ver guia completa abajo)
 
-# 4. Levanta la base de datos con Docker
-docker compose up -d
-
-# 5. Sincroniza el esquema de base de datos
-npm run prisma:migrate
-npm run prisma:generate
-
-# 6. Levanta los servicios de desarrollo
-npm run dev:gateway   # Terminal 1 - Backend en :3000
-npm run dev:web       # Terminal 2 - Frontend en :3001
+# 4. Levanta todos los servicios de desarrollo
+make dev   # Postgres + Gateway (:3000) + Web (:3001) + Agents (:8000)
 ```
 
 Para una guia detallada de variables de entorno y configuraciones opcionales, visita **[docs/setup/local-env.md](docs/setup/local-env.md)**.

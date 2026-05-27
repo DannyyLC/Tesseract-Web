@@ -24,12 +24,7 @@
       "options": {
         "targetName": "test"
       },
-      "exclude": [
-        "apps/gateway-api-e2e/**/*",
-        "apps/w-e2e/**/*",
-        "packages/database/apps/whatsapp-service-e2e/**/*",
-        "apps/whatsapp-service-e2e/**/*"
-      ]
+      "exclude": []
     }
   ]
 }

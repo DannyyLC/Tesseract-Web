@@ -8,6 +8,7 @@
     "prisma"
   ],
   "scripts": {
+    "lint": "eslint \"src/**/*.ts\"",
     "clean": "rm -rf dist *.tsbuildinfo",
     "prebuild": "pnpm run clean",
     "build": "tsc",
