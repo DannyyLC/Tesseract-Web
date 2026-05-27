@@ -11,7 +11,7 @@ import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { CursorPaginatedResponseUtils } from '../common/responses/cursor-paginated-response';
 import { PrismaService } from '../database/prisma.service';
-import { NotificationEventDto } from '../events/app-notifications/notification.dto';
+import { NotificationEventDto } from './dto/notification.dto';
 import { EmailService } from '../notifications/email/email.service';
 import * as speakeasy from 'speakeasy';
 import { DashboardUserDataDto, UpdateProfileDto, UserFiltersDto } from './dto';

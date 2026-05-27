@@ -144,10 +144,4 @@ describe('UtilityService', () => {
     });
   });
 
-  describe('getAppNotificationsSubject', () => {
-    it('should return the Subject', () => {
-      const subject = service.getAppNotificationsSubject();
-      expect(subject).toBeDefined();
-    });
-  });
 });

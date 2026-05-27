@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { AuthModule } from './auth/auth.module';
 import { ExecutionsModule } from './executions/executions.module';
@@ -16,7 +15,6 @@ import { BillingModule } from './billing/billing.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { CronJobsService } from './cron-jobs.service';
 import { EndUsersModule } from './end-users/end-users.module';
-import { EventsModule } from './events/events.module';
 import { InvoiceModule } from './invoice/invoice.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TenantToolModule } from './tools/tenant/tenant-tool.module';
@@ -63,13 +61,11 @@ import { CronTriggersModule } from './cron-triggers/cron-triggers.module';
     ExecutionsModule,
     ApiKeysModule,
     NotificationsModule,
-    EventsModule,
     BillingModule,
     InvoiceModule,
     UsersModule,
     ScheduleModule.forRoot(),
     EndUsersModule,
-    EventEmitterModule.forRoot(),
     TenantToolModule,
     UtilityModule,
     ToolsCatalogModule,

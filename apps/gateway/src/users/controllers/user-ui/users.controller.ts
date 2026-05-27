@@ -26,7 +26,7 @@ import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import { UserPayload } from '../../../common/types/jwt-payload.type';
-import { NotificationEventDto } from '../../../events/app-notifications/notification.dto';
+import { NotificationEventDto } from '../../dto/notification.dto';
 import { UpdateProfileDto } from '../../dto';
 import { ServiceInfoRequestDto } from '../../../users/dto/service-info-request.dto';
 import { Throttle } from '@nestjs/throttler';

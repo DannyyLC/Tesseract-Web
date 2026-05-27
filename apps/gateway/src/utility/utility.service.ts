@@ -1,14 +1,11 @@
 import { PrismaService } from '../database/prisma.service';
-import { Inject, Injectable, MessageEvent } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { Subject } from 'rxjs';
 import { Logger } from 'winston';
 
 @Injectable()
 export class UtilityService {
-  private readonly appNotificationsSubject = new Subject<MessageEvent>();
-
   constructor(
     private readonly prismaService: PrismaService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
@@ -139,7 +136,4 @@ export class UtilityService {
       .map((role) => role.toUpperCase());
   }
 
-  getAppNotificationsSubject(): Subject<MessageEvent> {
-    return this.appNotificationsSubject;
-  }
 }
