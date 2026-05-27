@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package tesseract.agents.v1;
+
+import "google/protobuf/struct.proto";
+
+service AgentsService {
+  rpc Execute(AgentExecutionRequest) returns (AgentExecutionResponse);
+  rpc ExecuteStream(AgentExecutionRequest) returns (stream AgentStreamEvent);
+}
+
+// ── Request ───────────────────────────────────────────────────────────────────
+
+message AgentExecutionRequest {
+  string tenant_id      = 1;
+  string workflow_id    = 2;
+  string conversation_id = 3;
+  string user_type      = 4;
+  string user_id        = 5;
+  string channel        = 6;
+  string user_message   = 7;
+
+  // Flexible: pipeline evoluciona frecuentemente, se serializa como JSON
+  google.protobuf.Struct graph_config = 8;
+
+  map<string, AgentConfig>  agents_config        = 9;
+  map<string, AgentToolMap> agent_tool_instances = 10;
+  repeated Message          message_history      = 11;
+  google.protobuf.Struct    user_metadata        = 12;
+  string                    timezone             = 13;
+}
+
+message AgentConfig {
+  string          model         = 1;
+  float           temperature   = 2;
+  string          system_prompt = 3;
+  int32           max_tokens    = 4;
+  repeated string fallbacks     = 5;
+  int32           max_retries   = 6;
+  int32           timeout       = 7;
+  string          api_base      = 8;
+}
+
+message AgentToolMap {
+  map<string, ToolInstance> tools = 1;
+}
+
+message ToolInstance {
+  string                 tool_name         = 1;
+  string                 display_name      = 2;
+  google.protobuf.Struct config            = 3;  // dinámico por herramienta
+  repeated string        enabled_functions = 4;
+  google.protobuf.Struct credentials       = 5;  // dinámico por herramienta
+}
+
+message Message {
+  string role    = 1;
+  string content = 2;
+}
+
+// ── Response ──────────────────────────────────────────────────────────────────
+
+message AgentExecutionResponse {
+  string            conversation_id = 1;
+  repeated Message  messages        = 2;
+  ExecutionMetadata metadata        = 3;
+}
+
+message ExecutionMetadata {
+  int64                   execution_time_ms       = 1;
+  string                  graph_type              = 2;
+  int32                   agents_count            = 3;
+  int64                   input_tokens            = 4;
+  int64                   output_tokens           = 5;
+  int64                   total_tokens            = 6;
+  map<string, ModelUsage> usage_by_model          = 7;
+  HumanHandoff            human_handoff_requested = 8;
+}
+
+message ModelUsage {
+  int64 input_tokens  = 1;
+  int64 output_tokens = 2;
+  int64 total_tokens  = 3;
+}
+
+message HumanHandoff {
+  bool   requested = 1;
+  string reason    = 2;
+  string tool_name = 3;
+}
+
+// ── Streaming ─────────────────────────────────────────────────────────────────
+
+message AgentStreamEvent {
+  // token | tool_start | tool_end | metadata | end | error
+  string                 type     = 1;
+  string                 content  = 2;
+  google.protobuf.Struct metadata = 3;
+}

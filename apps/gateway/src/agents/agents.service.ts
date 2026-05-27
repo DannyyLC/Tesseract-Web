@@ -1,42 +1,62 @@
-import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  InternalServerErrorException,
+  ServiceUnavailableException,
+  RequestTimeoutException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom, timeout, catchError } from 'rxjs';
-import { AxiosError } from 'axios';
+import * as grpc from '@grpc/grpc-js';
+import * as protoLoader from '@grpc/proto-loader';
+import { join } from 'path';
 import { AgentExecutionRequestDto, AgentExecutionResponseDto } from './dto';
 
 @Injectable()
-export class AgentsService {
+export class AgentsService implements OnModuleInit {
   private readonly logger = new Logger(AgentsService.name);
-  private readonly agentsServiceUrl: string;
+  private readonly agentsGrpcUrl: string;
   private readonly agentsServiceTimeout: number;
   private readonly internalSecret: string;
+  private grpcClient: any;
 
-  constructor(
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
-  ) {
-    this.agentsServiceUrl = this.configService.get<string>(
-      'AGENTS_API_URL',
-      'http://localhost:8000',
-    );
-    this.agentsServiceTimeout = this.configService.get<number>(
-      'AGENTS_SERVICE_TIMEOUT',
-      30000, // 30 segundos por defecto
-    );
+  constructor(private readonly configService: ConfigService) {
+    this.agentsGrpcUrl = this.configService.get<string>('AGENTS_GRPC_URL', 'localhost:50051');
+    this.agentsServiceTimeout = this.configService.get<number>('AGENTS_SERVICE_TIMEOUT', 30000);
     this.internalSecret = this.configService.get<string>('AGENTS_INTERNAL_SECRET', '');
-
-    this.logger.log(`Agents service URL: ${this.agentsServiceUrl}`);
+    this.logger.log(`Agents gRPC URL: ${this.agentsGrpcUrl}`);
   }
 
-  private get internalHeaders(): Record<string, string> {
-    return this.internalSecret ? { 'X-Internal-Token': this.internalSecret } : {};
+  onModuleInit() {
+    const packageDef = protoLoader.loadSync(
+      join(process.cwd(), 'packages/contracts/proto/agents/v1/agents.proto'),
+      { keepCase: true, longs: Number, defaults: true, oneofs: true },
+    );
+    const proto = grpc.loadPackageDefinition(packageDef) as any;
+    this.grpcClient = new proto.tesseract.agents.v1.AgentsService(
+      this.agentsGrpcUrl,
+      grpc.credentials.createInsecure(),
+    );
   }
 
-  /**
-   * Reintenta una operación cuando el servicio de agents no está disponible (cold start de Cloud Run).
-   * Solo reintenta en errores de conexión (503/408), no en errores de lógica del agente.
-   */
+  private buildMetadata(): grpc.Metadata {
+    const metadata = new grpc.Metadata();
+    if (this.internalSecret) metadata.add('x-internal-token', this.internalSecret);
+    return metadata;
+  }
+
+  private isRetryableGrpcError(err: any): boolean {
+    return err?.code === grpc.status.UNAVAILABLE || err?.code === grpc.status.DEADLINE_EXCEEDED;
+  }
+
+  private toHttpException(err: any) {
+    if (err?.code === grpc.status.UNAVAILABLE)
+      return new ServiceUnavailableException('Agents service is not available');
+    if (err?.code === grpc.status.DEADLINE_EXCEEDED)
+      return new RequestTimeoutException('Agent execution timed out');
+    return new InternalServerErrorException((err as Error)?.message ?? 'Unknown error');
+  }
+
   private async withRetry<T>(
     operation: () => Promise<T>,
     context: string,
@@ -49,11 +69,7 @@ export class AgentsService {
         return await operation();
       } catch (error) {
         lastError = error;
-        if (!(error instanceof HttpException)) throw error;
-        const status = error.getStatus();
-        const isRetryable =
-          status === HttpStatus.SERVICE_UNAVAILABLE || status === HttpStatus.REQUEST_TIMEOUT;
-        if (!isRetryable) throw error;
+        if (!this.isRetryableGrpcError(error)) throw this.toHttpException(error);
         if (attempt < maxRetries) {
           this.logger.warn(
             `[${context}] Agents service not ready (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${retryDelayMs}ms...`,
@@ -62,181 +78,73 @@ export class AgentsService {
         }
       }
     }
-    throw lastError;
+    throw this.toHttpException(lastError);
   }
 
-  /**
-   * Ejecuta un agente en el servicio de Python
-   *
-   * @param request - Request completo con toda la configuración
-   * @returns Response del agente con los mensajes generados
-   */
   async execute(request: AgentExecutionRequestDto): Promise<AgentExecutionResponseDto> {
-    const url = `${this.agentsServiceUrl}/api/v1/agents/execute`;
-
     this.logger.debug(
       `Executing agent for tenant: ${request.tenant_id}, workflow: ${request.workflow_id}`,
     );
 
-    return this.withRetry(async () => {
-      try {
-        const response = await firstValueFrom(
-          this.httpService.post<AgentExecutionResponseDto>(url, request, { headers: this.internalHeaders }).pipe(
-            timeout({ each: this.agentsServiceTimeout }),
-            catchError((error: AxiosError) => {
-              this.logger.error(`Failed to execute agent: ${error.message}`, error.stack);
-
-              if (error.code === 'ECONNREFUSED') {
-                throw new HttpException(
-                  'Agents service is not available',
-                  HttpStatus.SERVICE_UNAVAILABLE,
-                );
-              }
-
-              if (error.code === 'ETIMEDOUT' || error.name === 'TimeoutError') {
-                throw new HttpException('Agent execution timed out', HttpStatus.REQUEST_TIMEOUT);
-              }
-
-              if (error.response) {
-                throw new HttpException(
-                  error.response.data ?? 'Agent execution failed',
-                  error.response.status,
-                );
-              }
-
-              throw new HttpException(
-                'Failed to communicate with agents service',
-                HttpStatus.INTERNAL_SERVER_ERROR,
-              );
-            }),
-          ),
+    return this.withRetry(() => {
+      return new Promise<AgentExecutionResponseDto>((resolve, reject) => {
+        const deadline = new Date(Date.now() + this.agentsServiceTimeout);
+        this.grpcClient.execute(
+          request,
+          this.buildMetadata(),
+          { deadline },
+          (err: any, response: any) => {
+            if (err) return reject(err);
+            resolve(this.mapExecutionResponse(response));
+          },
         );
-
-        this.logger.debug(
-          `Agent execution completed for conversation: ${response.data.conversation_id}`,
-        );
-
-        return response.data;
-      } catch (error) {
-        if (error instanceof HttpException) {
-          throw error;
-        }
-
-        this.logger.error(
-          `Unexpected error executing agent: ${(error as Error).message}`,
-          (error as Error).stack,
-        );
-
-        throw new HttpException(
-          'Unexpected error during agent execution',
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
+      });
     }, 'execute');
   }
-  /**
-   * Ejecuta un agente en modo streaming
-   *
-   * @param request - Request completo
-   * @returns Stream de SSE (Server-Sent Events)
-   */
-  async executeStream(request: AgentExecutionRequestDto): Promise<NodeJS.ReadableStream> {
-    const url = `${this.agentsServiceUrl}/api/v1/agents/execute/stream`;
 
+  async executeStream(request: AgentExecutionRequestDto): Promise<NodeJS.ReadableStream> {
     this.logger.debug(
       `Executing streaming agent for tenant: ${request.tenant_id}, workflow: ${request.workflow_id}`,
     );
-
-    return this.withRetry(async () => {
-      try {
-        // Usar responseType: 'stream' para obtener el stream raw
-        const response = await firstValueFrom(
-          this.httpService
-            .post(url, request, {
-              responseType: 'stream',
-              headers: this.internalHeaders,
-            })
-            .pipe(
-              // Timeout para establecer la conexión inicial (misma config que el modo no-stream)
-              timeout({ each: this.agentsServiceTimeout }),
-              catchError((error: AxiosError | Error) => {
-                this.logger.error(
-                  `Failed to initiate streaming agent: ${error.message}`,
-                  error.stack,
-                );
-
-                // TimeoutError de RxJS — lanzar 408 para que withRetry lo reintente
-                if (error.name === 'TimeoutError') {
-                  throw new HttpException(
-                    'Agent streaming connection timed out',
-                    HttpStatus.REQUEST_TIMEOUT,
-                  );
-                }
-
-                const axiosError = error as AxiosError;
-
-                if (axiosError.code === 'ECONNREFUSED') {
-                  throw new HttpException(
-                    'Agents service is not available',
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                  );
-                }
-
-                if (axiosError.response) {
-                  throw new HttpException('Agent execution failed to start', axiosError.response.status);
-                }
-
-                throw new HttpException(
-                  'Failed to communicate with agents service',
-                  HttpStatus.INTERNAL_SERVER_ERROR,
-                );
-              }),
-            ),
-        );
-
-        this.logger.debug(`Agent streaming initiatied for conversation: ${request.conversation_id}`);
-
-        return response.data; // Retorna el stream (Readable)
-      } catch (error) {
-        if (error instanceof HttpException) {
-          throw error;
-        }
-
-        this.logger.error(
-          `Unexpected error initiating stream: ${(error as Error).message}`,
-          (error as Error).stack,
-        );
-
-        throw new HttpException(
-          'Unexpected error during agent execution',
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
-    }, 'executeStream');
+    return this.grpcClient.executeStream(request, this.buildMetadata()) as NodeJS.ReadableStream;
   }
 
-  /**
-   * Health check del servicio de agents
-   *
-   * @returns true si el servicio está disponible
-   */
   async healthCheck(): Promise<boolean> {
-    const url = `${this.agentsServiceUrl}/health`;
-
     try {
-      const response = await firstValueFrom(
-        this.httpService.get(url, { headers: this.internalHeaders }).pipe(
-          timeout(5000),
-          catchError(() => {
-            throw new Error('Health check failed');
-          }),
-        ),
-      );
-
-      return response.status === 200;
-    } catch (error) {
-      this.logger.warn(`Agents service health check failed: ${(error as Error).message}`);
+      await new Promise<void>((resolve, reject) => {
+        const deadline = new Date(Date.now() + 5000);
+        this.grpcClient.waitForReady(deadline, (err: Error | null) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+      return true;
+    } catch {
+      this.logger.warn('Agents gRPC health check failed');
       return false;
     }
+  }
+
+  private mapExecutionResponse(response: any): AgentExecutionResponseDto {
+    const meta = response.metadata;
+    return {
+      conversation_id: response.conversation_id,
+      messages: (response.messages ?? []).map((m: any) => ({
+        role: m.role,
+        content: m.content,
+      })),
+      metadata: meta
+        ? {
+            execution_time_ms: meta.execution_time_ms,
+            graph_type: meta.graph_type,
+            agents_count: meta.agents_count,
+            input_tokens: meta.input_tokens,
+            output_tokens: meta.output_tokens,
+            total_tokens: meta.total_tokens,
+            usage_by_model: meta.usage_by_model,
+            human_handoff_requested: meta.human_handoff_requested,
+          }
+        : undefined,
+    };
   }
 }

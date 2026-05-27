@@ -1,0 +1,5 @@
+{
+  "name": "@tesseract/contracts",
+  "version": "1.0.0",
+  "description": "Proto contracts for internal gRPC communication"
+}

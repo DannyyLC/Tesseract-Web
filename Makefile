@@ -1,4 +1,4 @@
-.PHONY: install build dev gateway web db-up db-down db-logs clean \
+.PHONY: install build dev gateway web agents proto db-up db-down db-logs clean \
         prisma-migrate prisma-deploy prisma-studio prisma-generate prisma-seed prisma-reset
 
 # ── Install ───────────────────────────────────────────────────────────────────
@@ -24,7 +24,15 @@ web:
 	pnpm run dev:web
 
 agents:
-	cd apps/agents && poetry run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+	cd apps/agents && VIRTUAL_ENV= poetry run python src/grpc_server.py
+
+# ── Proto ─────────────────────────────────────────────────────────────────────
+proto:
+	cd apps/agents && VIRTUAL_ENV= poetry run python -m grpc_tools.protoc \
+	  -I ../../packages/contracts/proto \
+	  --python_out=src \
+	  --grpc_python_out=src \
+	  ../../packages/contracts/proto/agents/v1/agents.proto
 
 # ── Database (Docker) ─────────────────────────────────────────────────────────
 db-up:

@@ -19,7 +19,7 @@ import {
   WorkflowStatsDto,
   WorkflowMetricsDto,
 } from '@tesseract/types';
-import { Transform, PassThrough } from 'stream';
+import { PassThrough } from 'stream';
 import { AgentsService } from '../agents/agents.service';
 import { ToolsService } from '../tools/core/tools.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
@@ -1380,81 +1380,35 @@ export class WorkflowsService {
     // Configurar un heartbeat para mantener la conexión viva
     const keepAliveInterval = setInterval(() => {
       clientStream.write(': keep-alive\n\n');
-    }, 15000); // Cada 15 segundos
+    }, 15000);
 
-    // let fullContent = '';
     let metadataEvent: any = null;
     let assistantMessageBuilder = '';
-    let buffer = '';
 
-    // Transformador para procesar chunks y filtrar
-    const transformer = new Transform({
-      transform(chunk, encoding, callback) {
-        const text = chunk.toString();
-        // fullContent += text; // Acumular todo para debug/log
-        buffer += text;
-
-        // Procesar buffer por líneas (SSE standard)
-        const lines = buffer.split('\n\n');
-        // El último elemento puede ser un chunk incompleto
-        buffer = lines.pop() ?? '';
-
-        for (const eventBlock of lines) {
-          if (!eventBlock.trim().startsWith('data: ')) {
-            // Si el agente manda un keep-alive (empieza con :), lo pasamos tal cual
-            if (eventBlock.trim().startsWith(':')) {
-              this.push(`${eventBlock}\n\n`);
-            }
-            continue;
-          }
-
-          try {
-            const jsonStr = eventBlock.replace(/^data: /, '').trim();
-            if (!jsonStr) continue;
-
-            const event = JSON.parse(jsonStr);
-
-            // LÓGICA DE FILTRADO Y TRANSFORMACIÓN
-
-            // 1. TOKENS: Simplificar y pasar al cliente + ACUMULAR para guardar
-            if (event.type === 'token') {
-              // Cliente quiere: data: "El"\n\n
-              const simplifiedData = `data: ${JSON.stringify(event.content)}\n\n`;
-              this.push(simplifiedData);
-
-              // IMPORTANTE: Acumular también los tokens porque el agente puede NO mandar evento 'message' al final en streaming
-              assistantMessageBuilder += event.content ?? '';
-            }
-
-            // 2. MENSAJES: Acumular internamente (si el agente manda bloques completos)
-            else if (event.type === 'message') {
-              // Si ya acumulamos vía tokens, aquí podríamos duplicar si no tenemos cuidado.
-              // Asumimos que si manda tokens, NO manda el mensaje completo acumulado, o viceversa.
-              // PERO para seguridad: si event.content es TODO el mensaje, deberíamos usar ese.
-              // En este caso, simplemente acumulamos si es un chunk tipo mensaje.
-              // Si el 'message' event de tu agente es "todo el texto acumulado hasta ahora", entonces deberíamos REEMPLAZAR.
-              // Asumimos comportamiento estándar de chunks:
-              assistantMessageBuilder += event.content ?? '';
-            }
-
-            // 3. TOOLS y METADATA: Se filtran del cliente
-            else if (event.type === 'metadata') {
-              metadataEvent = event.metadata;
-            }
-          } catch {
-            // Error de parseo json
-          }
-        }
-
-        callback();
-      },
+    // gRPC data events emit decoded proto objects — no SSE parsing needed
+    rawStream.on('data', (event: any) => {
+      if (event.type === 'token') {
+        clientStream.write(`data: ${JSON.stringify(event.content)}\n\n`);
+        assistantMessageBuilder += event.content ?? '';
+      } else if (event.type === 'metadata') {
+        metadataEvent = event.metadata;
+      } else if (event.type === 'error') {
+        this.logger.error(`[${execution.id}] Agent stream error: ${event.content}`);
+      }
+      // tool_start, tool_end, end: consumed silently
     });
 
-    // Pipeline: Raw -> Transformer -> Client
-    rawStream.pipe(transformer).pipe(clientStream);
+    rawStream.on('error', (err: Error) => {
+      clearInterval(keepAliveInterval);
+      this.logger.error(`[${execution.id}] gRPC stream error: ${err.message}`, err.stack);
+      void this.executionsService.updateStatus(execution.id, ExecutionStatus.FAILED, {
+        error: err.message,
+        errorStack: err.stack,
+      });
+      clientStream.destroy(err);
+    });
 
-    // MANEJO DE FIN DE STREAM Y EFECTOS SECUNDARIOS
-    transformer.on('finish', () => {
+    rawStream.on('end', () => {
       // Limpiar el heartbeat al finalizar
       clearInterval(keepAliveInterval);
 

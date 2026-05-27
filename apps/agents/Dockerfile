@@ -22,12 +22,9 @@ RUN poetry install --only main --no-root
 
 COPY src/ ./src/
 
-# Exponer el puerto
-EXPOSE 8000
+EXPOSE 50051
 
-# Añadir a PYTHONPATH para que Uvicorn encuentre módulos hijos sin el prefijo "src."
 ENV PYTHONPATH="/app/src:${PYTHONPATH}"
 
-# Comando de inicio
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "src/grpc_server.py"]
 

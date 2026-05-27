@@ -30,7 +30,7 @@ const REQUIRED_IN_PRODUCTION: string[] = [
   // URLs
   'FRONTEND_URL',
   'DOMAIN_BASE_URL',
-  'AGENTS_API_URL',
+  'AGENTS_GRPC_URL',
 
   // Stripe billing
   'STRIPE_SECRET_KEY',
