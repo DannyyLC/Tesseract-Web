@@ -53,6 +53,31 @@ steps:
       - push
       - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/agents:latest
 
+  # ── Deploy a Cloud Run ────────────────────────────────────────────────────
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-gateway'
+    waitFor: ['push-gateway-sha', 'push-gateway-latest']
+    args:
+      - gcloud
+      - run
+      - deploy
+      - gateway
+      - --image=us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/gateway:$COMMIT_SHA
+      - --region=us-central1
+      - --platform=managed
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-agents'
+    waitFor: ['push-agents-sha', 'push-agents-latest']
+    args:
+      - gcloud
+      - run
+      - deploy
+      - agents
+      - --image=us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/agents:$COMMIT_SHA
+      - --region=us-central1
+      - --platform=managed
+
 images:
   - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/gateway:$COMMIT_SHA
   - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/gateway:latest
