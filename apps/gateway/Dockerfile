@@ -23,7 +23,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # Generar Prisma Client
-RUN cd packages/database && pnpm dlx prisma generate
+RUN cd packages/database && pnpm exec prisma generate
 
 # Construir paquetes compartidos del monorepo (Types y Database)
 RUN pnpm --filter @tesseract/types build
