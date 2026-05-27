@@ -53,10 +53,29 @@ steps:
       - push
       - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/agents:latest
 
+  # ── Migraciones DB ───────────────────────────────────────────────────────
+  - name: 'node:22-slim'
+    id: 'migrate-db'
+    waitFor: ['push-gateway-sha', 'push-agents-sha']
+    entrypoint: 'bash'
+    secretEnv: ['DATABASE_URL']
+    args:
+      - '-c'
+      - |
+        apt-get update -q && apt-get install -y -q wget
+        npm install -g pnpm@11.1.2 --silent
+        wget -q https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.1/cloud-sql-proxy.linux.amd64 -O /cloud-sql-proxy
+        chmod +x /cloud-sql-proxy
+        mkdir -p /cloudsql
+        /cloud-sql-proxy --unix-socket=/cloudsql fractal-tesseract:us-central1:tesseract-db &
+        sleep 3
+        pnpm install --frozen-lockfile --silent
+        DATABASE_URL=$$DATABASE_URL pnpm --filter @tesseract/database exec prisma migrate deploy
+
   # ── Deploy a Cloud Run ────────────────────────────────────────────────────
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy-gateway'
-    waitFor: ['push-gateway-sha', 'push-gateway-latest']
+    waitFor: ['migrate-db']
     args:
       - gcloud
       - run
@@ -68,7 +87,7 @@ steps:
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy-agents'
-    waitFor: ['push-agents-sha', 'push-agents-latest']
+    waitFor: ['migrate-db']
     args:
       - gcloud
       - run
@@ -83,6 +102,11 @@ images:
   - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/gateway:latest
   - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/agents:$COMMIT_SHA
   - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/agents:latest
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/fractal-tesseract/secrets/DATABASE_URL/versions/latest
+      env: DATABASE_URL
 
 options:
   logging: CLOUD_LOGGING_ONLY
