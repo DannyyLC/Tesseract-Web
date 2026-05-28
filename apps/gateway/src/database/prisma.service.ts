@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -13,11 +13,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         { emit: 'event', level: 'warn' },
       ],
       errorFormat: process.env.NODE_ENV === 'development' ? 'pretty' : 'minimal',
-      datasources: {
-        db: {
-          url: process.env.DATABASE_URL,
-        },
-      },
     });
     // Configurar listeners para logging
     this.setupLogging();

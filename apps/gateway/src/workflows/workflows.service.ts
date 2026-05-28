@@ -972,10 +972,10 @@ export class WorkflowsService {
       }
 
       // 7. EXTRAER TOKENS Y CALCULAR COSTO (multi-modelo con BATCH QUERY)
-      const metadata = (agentResponse.metadata ?? {}) as any;
-      const humanHandoffRequested = metadata.human_handoff_requested;
-      const totalTokens = metadata.total_tokens ?? 0;
-      const usageByModel = metadata.usage_by_model ?? {};
+      const responseMetadata = (agentResponse.metadata ?? {}) as any;
+      const humanHandoffRequested = responseMetadata.human_handoff_requested;
+      const totalTokens = responseMetadata.total_tokens ?? 0;
+      const usageByModel = responseMetadata.usage_by_model ?? {};
 
       let costUSD = 0;
       const costBreakdown: { model: string; cost: number }[] = [];
@@ -1006,9 +1006,9 @@ export class WorkflowsService {
         }
       } else {
         // Fallback: usar tokens totales con modelo por defecto
-        const inputTokens = metadata.input_tokens ?? 0;
-        const outputTokens = metadata.output_tokens ?? 0;
-        const modelUsed = metadata.model_used ?? 'gpt-4o-mini';
+        const inputTokens = responseMetadata.input_tokens ?? 0;
+        const outputTokens = responseMetadata.output_tokens ?? 0;
+        const modelUsed = responseMetadata.model_used ?? 'gpt-4o-mini';
 
         if (totalTokens > 0) {
           try {
@@ -1080,12 +1080,12 @@ export class WorkflowsService {
         workflow.name,
         costUSD,
         {
-          input_tokens: metadata.input_tokens ?? 0,
-          output_tokens: metadata.output_tokens ?? 0,
+          input_tokens: responseMetadata.input_tokens ?? 0,
+          output_tokens: responseMetadata.output_tokens ?? 0,
           total_tokens: totalTokens,
           usage_by_model: usageByModel,
           cost_breakdown: costBreakdown,
-          execution_time_ms: metadata.execution_time_ms,
+          execution_time_ms: responseMetadata.execution_time_ms,
         },
       );
 
