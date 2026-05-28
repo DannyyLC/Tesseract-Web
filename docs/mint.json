@@ -50,7 +50,8 @@
         "manuals/executions-engine",
         "manuals/billing",
         "manuals/rbac",
-        "manuals/testing"
+        "manuals/testing",
+        "manuals/migraciones-gcp"
       ]
     },
     {
