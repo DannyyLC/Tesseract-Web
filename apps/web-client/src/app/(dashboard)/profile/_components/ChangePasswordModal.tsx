@@ -57,7 +57,7 @@ export default function ChangePasswordModal({
 
     try {
       await changePassword.mutateAsync({
-        currentPassword: hasPassword ? currentPassword : '',
+        ...(hasPassword && { currentPassword }),
         newPassword,
         code2FA: twoFactorEnabled ? code2FA : undefined,
       });
