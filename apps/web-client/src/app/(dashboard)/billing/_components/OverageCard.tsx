@@ -132,9 +132,7 @@ export default function OverageCard({
       {/* Header — toggle + label, always visible */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-bold text-black dark:text-white">
-            Excedentes de Créditos
-          </h3>
+          <h3 className="text-sm font-bold text-black dark:text-white">Excedentes de Créditos</h3>
           <p className="text-xs text-black/50 dark:text-white/50">
             {allowOverages
               ? `El consumo extra se cobrará a ${OVERAGE_PRICE_PER_CREDIT}/crédito.`
@@ -149,9 +147,7 @@ export default function OverageCard({
           title={allowOverages ? 'Desactivar uso adicional' : 'Activar uso adicional'}
           aria-label={allowOverages ? 'Desactivar uso adicional' : 'Activar uso adicional'}
           className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-black/20 focus:ring-offset-2 focus:ring-offset-white disabled:opacity-50 dark:focus:ring-white/20 dark:focus:ring-offset-[#0A0A0A] ${
-            allowOverages
-              ? 'bg-black dark:bg-white'
-              : 'bg-black/10 dark:bg-white/20'
+            allowOverages ? 'bg-black dark:bg-white' : 'bg-black/10 dark:bg-white/20'
           }`}
         >
           <motion.span
@@ -204,7 +200,7 @@ export default function OverageCard({
                     onBlur={handleInputBlur}
                     onKeyDown={handleInputKeyDown}
                     disabled={isToggling}
-                    className="h-9 w-24 rounded-xl border border-black/10 bg-transparent px-3 text-center font-geist-mono text-sm font-medium text-black tabular-nums focus:border-black/30 focus:outline-none disabled:opacity-50 dark:border-white/10 dark:text-white dark:focus:border-white/30"
+                    className="font-geist-mono h-9 w-24 rounded-xl border border-black/10 bg-transparent px-3 text-center text-sm font-medium tabular-nums text-black focus:border-black/30 focus:outline-none disabled:opacity-50 dark:border-white/10 dark:text-white dark:focus:border-white/30"
                   />
 
                   <button

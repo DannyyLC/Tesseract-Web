@@ -25,7 +25,11 @@ jest.mock('next/image', () => ({
 
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: ({ href, children, ...rest }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
+  default: ({
+    href,
+    children,
+    ...rest
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
     <a href={href} {...rest}>
       {children}
     </a>
@@ -40,8 +44,12 @@ jest.mock('framer-motion', () => {
     motion: new Proxy(
       {},
       {
-        get: (_t, tag: string) =>
-          ({ children, ...props }: React.HTMLAttributes<HTMLElement> & { children?: React.ReactNode }) =>
+        get:
+          (_t, tag: string) =>
+          ({
+            children,
+            ...props
+          }: React.HTMLAttributes<HTMLElement> & { children?: React.ReactNode }) =>
             React.createElement(tag, props, children),
       },
     ),
@@ -278,7 +286,9 @@ describe('AuthScreen – Google auth button', () => {
     );
 
     if (hrefDescriptor?.set) {
-      const spy = jest.fn((val: string) => { capturedHref = val; });
+      const spy = jest.fn((val: string) => {
+        capturedHref = val;
+      });
       Object.defineProperty(window.location, 'href', {
         configurable: true,
         get: hrefDescriptor.get,
@@ -491,9 +501,7 @@ describe('AuthScreen – signup step 1', () => {
     await userEvent.click(screen.getByRole('button', { name: /continuar/i }));
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(
-        'Este correo electrónico ya está registrado.',
-      );
+      expect(toast.error).toHaveBeenCalledWith('Este correo electrónico ya está registrado.');
     });
   });
 

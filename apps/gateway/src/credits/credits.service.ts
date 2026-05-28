@@ -153,9 +153,8 @@ export class CreditsService {
       return { allowed: true };
     }
 
-    const shouldNotifyOverageLimit = await this.shouldSendOverageLimitReachedNotification(
-      organizationId,
-    );
+    const shouldNotifyOverageLimit =
+      await this.shouldSendOverageLimitReachedNotification(organizationId);
 
     if (shouldNotifyOverageLimit) {
       await this.utilityService.sendNotificationToAppClients(

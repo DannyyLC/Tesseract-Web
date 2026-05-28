@@ -1,9 +1,8 @@
-import RootApi from "@/app/_api_request_manager/_apis/root-api";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import RootApi from '@/app/_api_request_manager/_apis/root-api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import useEvents from '@/hooks/useEvents';
-import { WhatsAppConfig, ENDPOINT_EVENTS, TYPE_EVENTS } from "@tesseract/types";
-
+import { WhatsAppConfig, ENDPOINT_EVENTS, TYPE_EVENTS } from '@tesseract/types';
 
 export function useWhatsappMutations() {
   const queryClient = useQueryClient();
@@ -26,14 +25,19 @@ export function useWhatsappMutations() {
   });
 
   const addWhatsappConfiguration = useMutation({
-    mutationFn: async ({ workflowId, phoneNumber }: { workflowId: string; phoneNumber: string }) => {
+    mutationFn: async ({
+      workflowId,
+      phoneNumber,
+    }: {
+      workflowId: string;
+      phoneNumber: string;
+    }) => {
       const api = RootApi.getInstance().getWhatsappConfigApi();
       return await api.addWhatsappConfiguration({ workflowId, phoneNumber });
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp', 'list'] });
     },
-
   });
 
   return {
@@ -41,7 +45,6 @@ export function useWhatsappMutations() {
     deleteWhatsappConfig,
     addWhatsappConfiguration,
   };
-
 }
 
 export function useWhatsappNumbers(workflowId: string) {
@@ -56,13 +59,16 @@ export function useWhatsappNumbers(workflowId: string) {
 }
 
 export function useWhatsappConfigSubscriptions() {
-    const { subscribe } = useEvents();
-    const queryClient = useQueryClient();
+  const { subscribe } = useEvents();
+  const queryClient = useQueryClient();
 
-    useEffect(() => {
-        subscribe(ENDPOINT_EVENTS.WHATSAPP_CONFIG_STREAM, TYPE_EVENTS.WHATSAPP_CONFIG_UPDATED, (data: WhatsAppConfig) => {
-            queryClient.invalidateQueries({ queryKey: ['whatsapp', 'list'] });
-        });
-        
-    }, [subscribe, queryClient]);
+  useEffect(() => {
+    subscribe(
+      ENDPOINT_EVENTS.WHATSAPP_CONFIG_STREAM,
+      TYPE_EVENTS.WHATSAPP_CONFIG_UPDATED,
+      (data: WhatsAppConfig) => {
+        queryClient.invalidateQueries({ queryKey: ['whatsapp', 'list'] });
+      },
+    );
+  }, [subscribe, queryClient]);
 }

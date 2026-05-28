@@ -52,8 +52,15 @@ describe('ApiKeysController', () => {
   describe('create', () => {
     it('should create an API key', async () => {
       const createDto = { name: 'Test', description: 'Test Desc', workflowId: 'wf-1' };
-      const expectedResult = { id: '1', name: 'Test', apiKey: 'tst_live_123', isActive: true, createdAt: new Date(), updatedAt: new Date() };
-      
+      const expectedResult = {
+        id: '1',
+        name: 'Test',
+        apiKey: 'tst_live_123',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
       mockApiKeysService.create.mockResolvedValue(expectedResult as any);
 
       const result = await controller.create(mockUserPayload, createDto);
@@ -66,7 +73,7 @@ describe('ApiKeysController', () => {
   describe('findAll', () => {
     it('should return a list of API keys', async () => {
       const expectedResult = [{ id: '1', name: 'Test', isActive: true, createdAt: new Date() }];
-      
+
       mockApiKeysService.findAll.mockResolvedValue(expectedResult as any);
 
       const result = await controller.findAll(mockUserPayload);
@@ -79,7 +86,7 @@ describe('ApiKeysController', () => {
   describe('findOne', () => {
     it('should return a single API key', async () => {
       const expectedResult = { id: '1', name: 'Test', isActive: true, createdAt: new Date() };
-      
+
       mockApiKeysService.findOne.mockResolvedValue(expectedResult as any);
 
       const result = await controller.findOne(mockUserPayload, apiKeyId);
@@ -92,7 +99,7 @@ describe('ApiKeysController', () => {
   describe('delete', () => {
     it('should delete an API key', async () => {
       const expectedResult = { success: true, message: 'Deleted' };
-      
+
       mockApiKeysService.delete.mockResolvedValue(expectedResult as any);
 
       const result = await controller.delete(mockUserPayload, apiKeyId);
@@ -106,12 +113,16 @@ describe('ApiKeysController', () => {
     it('should update an API key', async () => {
       const updateDto = { name: 'Updated' };
       const expectedResult = { id: '1', name: 'Updated', isActive: true, createdAt: new Date() };
-      
+
       mockApiKeysService.update.mockResolvedValue(expectedResult as any);
 
       const result = await controller.update(mockUserPayload, apiKeyId, updateDto);
 
-      expect(service.update).toHaveBeenCalledWith(mockUserPayload.organizationId, apiKeyId, updateDto);
+      expect(service.update).toHaveBeenCalledWith(
+        mockUserPayload.organizationId,
+        apiKeyId,
+        updateDto,
+      );
       expect(result).toEqual(expectedResult);
     });
   });

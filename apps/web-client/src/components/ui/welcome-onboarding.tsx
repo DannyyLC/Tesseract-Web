@@ -21,7 +21,7 @@ export function WelcomeOnboarding() {
 
     // 3. Revisamos en localStorage si ya se le dio la bienvenida a este usuario antes.
     const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
-    
+
     // 4. Limpiamos la URL independientemente de si vemos la animación o no
     // para mantener la barra de direcciones limpia.
     const newSearchParams = new URLSearchParams(searchParams.toString());
@@ -44,12 +44,12 @@ export function WelcomeOnboarding() {
     // 6. Toast elegante de Sonner
     setTimeout(() => {
       toast.success('¡Bienvenido a Tesseract!', {
-        description: 'Gracias por confiar en el equipo de Fractal. Estás listo para empezar a automatizar el futuro de tu negocio.',
+        description:
+          'Gracias por confiar en el equipo de Fractal. Estás listo para empezar a automatizar el futuro de tu negocio.',
         duration: 8000,
         position: 'top-center',
       });
     }, 500);
-
   }, [searchParams, router, pathname]);
 
   return null;

@@ -36,9 +36,7 @@ describe('ConversationsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ConversationsController],
-      providers: [
-        { provide: ConversationsService, useValue: mockConversationsService },
-      ],
+      providers: [{ provide: ConversationsService, useValue: mockConversationsService }],
     }).compile();
 
     controller = module.get<ConversationsController>(ConversationsController);
@@ -126,9 +124,7 @@ describe('ConversationsController', () => {
       mockConversationsService.findOne.mockResolvedValue(null);
       const res = mockResponse();
 
-      await expect(controller.getById(mockUser, 'c-1', res)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(controller.getById(mockUser, 'c-1', res)).rejects.toThrow(NotFoundException);
     });
   });
 

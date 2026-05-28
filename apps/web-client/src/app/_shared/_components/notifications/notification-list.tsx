@@ -99,9 +99,7 @@ export default function NotificationList() {
         <NotificationItem
           key={notification.id}
           notification={
-            pendingReadIds.has(notification.id)
-              ? { ...notification, isRead: true }
-              : notification
+            pendingReadIds.has(notification.id) ? { ...notification, isRead: true } : notification
           }
           onRead={handleRead}
           onDelete={handleDelete}

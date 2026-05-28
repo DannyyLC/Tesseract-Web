@@ -6,11 +6,7 @@ import { WhatsappConfigController } from './controllers/user-ui/whatsapp-config.
 import { WhatsappConfigService } from './whatsapp-config.service';
 
 @Module({
-  imports: [
-    UtilityModule,
-    HttpModule,
-    WorkflowsModule,
-  ],
+  imports: [UtilityModule, HttpModule, WorkflowsModule],
   providers: [WhatsappConfigService],
   controllers: [WhatsappConfigController],
   exports: [WhatsappConfigService],

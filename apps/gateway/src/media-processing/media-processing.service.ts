@@ -43,13 +43,11 @@ export class MediaProcessingService {
 
     const processed = await Promise.all(
       attachments.map(async (attachment) => {
-        const hashInput = attachment.sha256 
+        const hashInput = attachment.sha256
           ? `${attachment.type}:${attachment.sha256}`
           : `${attachment.type}:${attachment.sourceUrl}`;
-          
-        const contentHash = createHash('sha256')
-          .update(hashInput)
-          .digest('hex');
+
+        const contentHash = createHash('sha256').update(hashInput).digest('hex');
 
         const cached = await this.prisma.messageAttachment.findFirst({
           where: {

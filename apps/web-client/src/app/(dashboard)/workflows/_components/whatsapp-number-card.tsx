@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { motion } from 'framer-motion';
 import { MoreVertical, Unplug, Trash2 } from 'lucide-react';
@@ -44,9 +44,16 @@ const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }
   },
 };
 
-export function WhatsappNumberCard({ number, index = 0, onDelete, onSetActiveStatus, isActive }: WhatsappNumberCardProps) {
+export function WhatsappNumberCard({
+  number,
+  index = 0,
+  onDelete,
+  onSetActiveStatus,
+  isActive,
+}: WhatsappNumberCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const status = STATUS_STYLES[number.connectionStatus ?? 'DISCONNECTED'] ?? STATUS_STYLES.DISCONNECTED;
+  const status =
+    STATUS_STYLES[number.connectionStatus ?? 'DISCONNECTED'] ?? STATUS_STYLES.DISCONNECTED;
   const connectionLabel = isActive
     ? 'border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
     : 'border border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300';
@@ -67,7 +74,7 @@ export function WhatsappNumberCard({ number, index = 0, onDelete, onSetActiveSta
     >
       {/* Icon */}
       <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-black/[0.04] text-black dark:bg-white/[0.06] dark:text-white">
-        <WhatsappIcon className="w-6 h-6" />
+        <WhatsappIcon className="h-6 w-6" />
       </div>
 
       {/* Info */}
@@ -77,12 +84,16 @@ export function WhatsappNumberCard({ number, index = 0, onDelete, onSetActiveSta
         <p className="mt-0.5 text-xs text-black/30 dark:text-white/30">Agregado el {createdDate}</p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${status.label}`}>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${status.label}`}
+          >
             <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
             {status.text}
           </span>
 
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${connectionLabel}`}>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${connectionLabel}`}
+          >
             <span className={`h-1.5 w-1.5 rounded-full ${connectionDot}`} />
             {connectionText}
           </span>
@@ -102,7 +113,6 @@ export function WhatsappNumberCard({ number, index = 0, onDelete, onSetActiveSta
           <>
             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
             <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-black/5 bg-white shadow-xl dark:border-white/5 dark:bg-[#111]">
-              
               {/* <PermissionGuard permissions="workflows:update">
                 <button
                   onClick={() => {
@@ -122,7 +132,9 @@ export function WhatsappNumberCard({ number, index = 0, onDelete, onSetActiveSta
                 <button
                   onClick={() => {
                     setMenuOpen(false);
-                    console.log(`Toggling active status for WhatsApp number with id: ${number.id}. Current status: ${isActive}`);
+                    console.log(
+                      `Toggling active status for WhatsApp number with id: ${number.id}. Current status: ${isActive}`,
+                    );
                     const targetState = !isActive;
 
                     if (onSetActiveStatus) {

@@ -48,7 +48,7 @@ describe('AgentsService', () => {
     jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
-    
+
     jest.clearAllMocks();
   });
 
@@ -72,7 +72,7 @@ describe('AgentsService', () => {
 
       expect(mockHttpService.post).toHaveBeenCalledWith(
         'http://localhost:8000/api/v1/agents/execute',
-        mockRequest
+        mockRequest,
       );
       expect(result).toEqual(mockResponse.data);
     });
@@ -83,7 +83,7 @@ describe('AgentsService', () => {
       mockHttpService.post.mockReturnValue(throwError(() => error));
 
       await expect(service.execute(mockRequest)).rejects.toMatchObject(
-        new HttpException('Agent execution timed out', HttpStatus.REQUEST_TIMEOUT)
+        new HttpException('Agent execution timed out', HttpStatus.REQUEST_TIMEOUT),
       );
     });
 
@@ -93,7 +93,7 @@ describe('AgentsService', () => {
       mockHttpService.post.mockReturnValue(throwError(() => error));
 
       await expect(service.execute(mockRequest)).rejects.toMatchObject(
-        new HttpException('Invalid configuration', 400)
+        new HttpException('Invalid configuration', 400),
       );
     });
 
@@ -102,7 +102,10 @@ describe('AgentsService', () => {
       mockHttpService.post.mockReturnValue(throwError(() => error));
 
       await expect(service.execute(mockRequest)).rejects.toMatchObject(
-        new HttpException('Failed to communicate with agents service', HttpStatus.INTERNAL_SERVER_ERROR)
+        new HttpException(
+          'Failed to communicate with agents service',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        ),
       );
     });
 
@@ -112,10 +115,8 @@ describe('AgentsService', () => {
       mockHttpService.post.mockReturnValue(throwError(() => error));
 
       await expect(service.execute(mockRequest)).rejects.toMatchObject(
-        new HttpException('Agents service is not available', HttpStatus.SERVICE_UNAVAILABLE)
+        new HttpException('Agents service is not available', HttpStatus.SERVICE_UNAVAILABLE),
       );
     });
-
   });
-
 });

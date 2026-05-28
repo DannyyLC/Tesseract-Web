@@ -199,7 +199,9 @@ export default function DashboardConversationItem({
                     >
                       {getChannelIcon(conversation.channel)}
                     </div>
-                    <span className="text-xs font-medium capitalize">{conversation.channel?.toLowerCase()}</span>
+                    <span className="text-xs font-medium capitalize">
+                      {conversation.channel?.toLowerCase()}
+                    </span>
                   </div>
                   <span className="text-black/20 dark:text-white/20">•</span>
                   <div className="flex items-center gap-1.5">

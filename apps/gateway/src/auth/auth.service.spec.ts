@@ -6,7 +6,13 @@ import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../notifications/email/email.service';
 import { UtilityService } from '../utility/utility.service';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { UnauthorizedException, NotFoundException, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  UnauthorizedException,
+  NotFoundException,
+  Logger,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { StepOneErrors, StepThreeErrors, ForgotPassErrors } from './dto';
 import * as bcrypt from 'bcrypt';
 import * as speakeasy from 'speakeasy';
@@ -121,32 +127,49 @@ describe('AuthService', () => {
 
     describe('login', () => {
       it('should return complete status and tokens if 2FA is disabled', async () => {
-        jest.spyOn(service, 'validateUser').mockResolvedValue({ user: mockUser as any, organization: mockOrg as any });
-        jest.spyOn(service, 'generateTokens').mockResolvedValue({ accessToken: 'acc', refreshToken: 'ref' });
-        
-        const result = await service.login({ email: 'test@test.com', password: 'pwd', rememberMe: false });
-        
+        jest
+          .spyOn(service, 'validateUser')
+          .mockResolvedValue({ user: mockUser as any, organization: mockOrg as any });
+        jest
+          .spyOn(service, 'generateTokens')
+          .mockResolvedValue({ accessToken: 'acc', refreshToken: 'ref' });
+
+        const result = await service.login({
+          email: 'test@test.com',
+          password: 'pwd',
+          rememberMe: false,
+        });
+
         expect(service.validateUser).toHaveBeenCalledWith('test@test.com', 'pwd');
-        expect(service.generateTokens).toHaveBeenCalledWith('u1', 'test@test.com', 'Test', 'admin', 'org1', false);
+        expect(service.generateTokens).toHaveBeenCalledWith(
+          'u1',
+          'test@test.com',
+          'Test',
+          'admin',
+          'org1',
+          false,
+        );
         expect(prisma.user.update).toHaveBeenCalledWith({
           where: { id: 'u1' },
-          data: { lastLoginAt: expect.any(Date) }
+          data: { lastLoginAt: expect.any(Date) },
         });
         expect(result).toEqual({
           status: 'complete',
           user: expect.objectContaining({ id: 'u1', email: 'test@test.com' }),
           accessToken: 'acc',
-          refreshToken: 'ref'
+          refreshToken: 'ref',
         });
       });
 
       it('should return 2fa_required and tempToken if 2FA is enabled', async () => {
         const user2fa = { ...mockUser, twoFactorEnabled: true };
-        jest.spyOn(service, 'validateUser').mockResolvedValue({ user: user2fa as any, organization: mockOrg as any });
+        jest
+          .spyOn(service, 'validateUser')
+          .mockResolvedValue({ user: user2fa as any, organization: mockOrg as any });
         jest.spyOn(service, 'generateTempToken').mockReturnValue('temp-jwt-token');
-        
+
         const result = await service.login({ email: 'test@test.com', password: 'pwd' });
-        
+
         expect(result).toEqual({ status: '2fa_required', tempToken: 'temp-jwt-token' });
         expect(service.generateTempToken).toHaveBeenCalled();
       });
@@ -156,7 +179,9 @@ describe('AuthService', () => {
       it('should logout by revoking the specific refresh token', async () => {
         mockJwtService.decode.mockReturnValue({ sub: 'u1', email: 'test@test.com' });
         // Mock token in DB
-        prisma.refreshToken.findMany = jest.fn().mockResolvedValue([{ id: 'rt1', tokenHash: 'hash1' }]);
+        prisma.refreshToken.findMany = jest
+          .fn()
+          .mockResolvedValue([{ id: 'rt1', tokenHash: 'hash1' }]);
         (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
         const result = await service.logout('raw-refresh-token');
@@ -164,7 +189,7 @@ describe('AuthService', () => {
         expect(bcrypt.compare).toHaveBeenCalledWith('raw-refresh-token', 'hash1');
         expect(prisma.refreshToken.update).toHaveBeenCalledWith({
           where: { id: 'rt1' },
-          data: { revokedAt: expect.any(Date), revokedReason: 'logout' }
+          data: { revokedAt: expect.any(Date), revokedReason: 'logout' },
         });
         expect(result).toEqual({ message: 'Sesión cerrada exitosamente' });
       });
@@ -178,7 +203,7 @@ describe('AuthService', () => {
         await service.logoutAll('u1');
         expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
           where: { userId: 'u1', revokedAt: null },
-          data: { revokedAt: expect.any(Date), revokedReason: 'logout_all' }
+          data: { revokedAt: expect.any(Date), revokedReason: 'logout_all' },
         });
       });
     });
@@ -198,36 +223,48 @@ describe('AuthService', () => {
     describe('validateUser', () => {
       it('should throw UnauthorizedException if user not found', async () => {
         prisma.user.findUnique = jest.fn().mockResolvedValue(null);
-        await expect(service.validateUser('test@example.com', 'pwd')).rejects.toThrow(UnauthorizedException);
+        await expect(service.validateUser('test@example.com', 'pwd')).rejects.toThrow(
+          UnauthorizedException,
+        );
       });
 
       it('should throw UnauthorizedException if user has no organization', async () => {
         prisma.user.findUnique = jest.fn().mockResolvedValue({ ...validUser, organization: null });
-        await expect(service.validateUser('test@example.com', 'pwd')).rejects.toThrow(UnauthorizedException);
+        await expect(service.validateUser('test@example.com', 'pwd')).rejects.toThrow(
+          UnauthorizedException,
+        );
       });
 
       it('should throw UnauthorizedException if user has no password', async () => {
         prisma.user.findUnique = jest.fn().mockResolvedValue({ ...validUser, password: null });
-        await expect(service.validateUser('test@example.com', 'pwd')).rejects.toThrow(UnauthorizedException);
+        await expect(service.validateUser('test@example.com', 'pwd')).rejects.toThrow(
+          UnauthorizedException,
+        );
       });
 
       it('should throw UnauthorizedException if password does not match', async () => {
         prisma.user.findUnique = jest.fn().mockResolvedValue(validUser);
         (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-        await expect(service.validateUser('test@example.com', 'pwd')).rejects.toThrow(UnauthorizedException);
+        await expect(service.validateUser('test@example.com', 'pwd')).rejects.toThrow(
+          UnauthorizedException,
+        );
       });
 
       it('should throw UnauthorizedException if user is inactive', async () => {
         prisma.user.findUnique = jest.fn().mockResolvedValue({ ...validUser, isActive: false });
         (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-        await expect(service.validateUser('test@example.com', 'pwd')).rejects.toThrow(UnauthorizedException);
+        await expect(service.validateUser('test@example.com', 'pwd')).rejects.toThrow(
+          UnauthorizedException,
+        );
       });
 
       it('should throw UnauthorizedException if organization is inactive', async () => {
         const inactiveOrgUser = { ...validUser, organization: { ...validOrg, isActive: false } };
         prisma.user.findUnique = jest.fn().mockResolvedValue(inactiveOrgUser);
         (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-        await expect(service.validateUser('test@example.com', 'pwd')).rejects.toThrow(UnauthorizedException);
+        await expect(service.validateUser('test@example.com', 'pwd')).rejects.toThrow(
+          UnauthorizedException,
+        );
       });
 
       it('should return user and organization if valid', async () => {
@@ -278,11 +315,23 @@ describe('AuthService', () => {
         prisma.$transaction = jest.fn().mockImplementation(async (cb) => {
           // Providing a stub transaction object
           const mockTx = {
-            organization: { create: jest.fn().mockResolvedValue({ id: 'new-org-id', name: "John's Organization" }) },
+            organization: {
+              create: jest
+                .fn()
+                .mockResolvedValue({ id: 'new-org-id', name: "John's Organization" }),
+            },
             creditBalance: { create: jest.fn().mockResolvedValue(true) },
-            user: { update: jest.fn().mockResolvedValue({ id: 'u-deleted', organization: { id: 'new-org-id' } }) }
+            user: {
+              update: jest
+                .fn()
+                .mockResolvedValue({ id: 'u-deleted', organization: { id: 'new-org-id' } }),
+            },
           };
-          jest.spyOn(require('../organizations/organizations.service').OrganizationsService, 'generateUniqueSlug')
+          jest
+            .spyOn(
+              require('../organizations/organizations.service').OrganizationsService,
+              'generateUniqueSlug',
+            )
             .mockResolvedValue('john-s-organization');
           return await cb(mockTx);
         });
@@ -297,11 +346,19 @@ describe('AuthService', () => {
 
         prisma.$transaction = jest.fn().mockImplementation(async (cb) => {
           const mockTx = {
-            organization: { create: jest.fn().mockResolvedValue({ id: 'new-org-id', name: "John's Organization" }) },
+            organization: {
+              create: jest
+                .fn()
+                .mockResolvedValue({ id: 'new-org-id', name: "John's Organization" }),
+            },
             creditBalance: { create: jest.fn().mockResolvedValue(true) },
-            user: { create: jest.fn().mockResolvedValue({ id: 'new-user', googleId: 'g123' }) }
+            user: { create: jest.fn().mockResolvedValue({ id: 'new-user', googleId: 'g123' }) },
           };
-          jest.spyOn(require('../organizations/organizations.service').OrganizationsService, 'generateUniqueSlug')
+          jest
+            .spyOn(
+              require('../organizations/organizations.service').OrganizationsService,
+              'generateUniqueSlug',
+            )
             .mockResolvedValue('john-s-organization');
           return await cb(mockTx);
         });
@@ -317,39 +374,65 @@ describe('AuthService', () => {
     it('should generate both tokens and save refresh token to db', async () => {
       mockUtilityService.hashPassword.mockResolvedValue('hashed-refresh-token');
       const result = await service.generateTokens('u1', 'test@test.com', 'Test', 'admin', 'org1');
-      
+
       expect(mockJwtService.sign).toHaveBeenCalledTimes(2); // Access and refresh
       expect(mockUtilityService.hashPassword).toHaveBeenCalledWith('mock-jwt-token');
-      expect(prisma.refreshToken.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({
-          userId: 'u1',
-          tokenHash: 'hashed-refresh-token',
+      expect(prisma.refreshToken.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: 'u1',
+            tokenHash: 'hashed-refresh-token',
+          }),
         }),
-      }));
+      );
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
     });
 
     describe('refreshTokens', () => {
       it('should refresh tokens if token is valid and found', async () => {
-        const mockPayload = { sub: 'u1', email: 'test@test.com', name: 'Test', role: 'admin', organizationId: 'org1', rememberMe: false };
+        const mockPayload = {
+          sub: 'u1',
+          email: 'test@test.com',
+          name: 'Test',
+          role: 'admin',
+          organizationId: 'org1',
+          rememberMe: false,
+        };
         mockJwtService.verify.mockReturnValue(mockPayload);
-        prisma.refreshToken.findMany = jest.fn().mockResolvedValue([{ id: 'rt1', tokenHash: 'hash1' }]);
+        prisma.refreshToken.findMany = jest
+          .fn()
+          .mockResolvedValue([{ id: 'rt1', tokenHash: 'hash1' }]);
         (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-        jest.spyOn(service, 'generateTokens').mockResolvedValue({ accessToken: 'new-acc', refreshToken: 'new-ref' });
+        jest
+          .spyOn(service, 'generateTokens')
+          .mockResolvedValue({ accessToken: 'new-acc', refreshToken: 'new-ref' });
 
         const result = await service.refreshTokens('valid-refresh');
 
-        expect(service.generateTokens).toHaveBeenCalledWith('u1', 'test@test.com', 'Test', 'admin', 'org1', false);
+        expect(service.generateTokens).toHaveBeenCalledWith(
+          'u1',
+          'test@test.com',
+          'Test',
+          'admin',
+          'org1',
+          false,
+        );
         expect(prisma.refreshToken.update).toHaveBeenCalledWith({
           where: { id: 'rt1' },
-          data: { revokedAt: expect.any(Date), revokedReason: 'token_rotated' }
+          data: { revokedAt: expect.any(Date), revokedReason: 'token_rotated' },
         });
-        expect(result).toEqual({ accessToken: 'new-acc', refreshToken: 'new-ref', rememberMe: false });
+        expect(result).toEqual({
+          accessToken: 'new-acc',
+          refreshToken: 'new-ref',
+          rememberMe: false,
+        });
       });
 
       it('should throw Unauthorized if token verification fails', async () => {
-        mockJwtService.verify.mockImplementation(() => { throw new Error('Invalid'); });
+        mockJwtService.verify.mockImplementation(() => {
+          throw new Error('Invalid');
+        });
         await expect(service.refreshTokens('invalid')).rejects.toThrow(UnauthorizedException);
       });
 
@@ -361,7 +444,9 @@ describe('AuthService', () => {
 
       it('should throw Unauthorized if hash compare fails', async () => {
         mockJwtService.verify.mockReturnValue({ sub: 'u1' });
-        prisma.refreshToken.findMany = jest.fn().mockResolvedValue([{ id: 'rt1', tokenHash: 'hash1' }]);
+        prisma.refreshToken.findMany = jest
+          .fn()
+          .mockResolvedValue([{ id: 'rt1', tokenHash: 'hash1' }]);
         (bcrypt.compare as jest.Mock).mockResolvedValue(false);
         await expect(service.refreshTokens('valid')).rejects.toThrow(UnauthorizedException);
       });
@@ -370,31 +455,38 @@ describe('AuthService', () => {
 
   describe('2FA Flows (setup2FA, enable2FA, verify2FACode)', () => {
     it('should setup 2FA by generating secret and QR', async () => {
-      (speakeasy.generateSecret as jest.Mock).mockReturnValue({ base32: 'secret32', otpauth_url: 'otpurl' });
+      (speakeasy.generateSecret as jest.Mock).mockReturnValue({
+        base32: 'secret32',
+        otpauth_url: 'otpurl',
+      });
       const result = await service.setup2FA('u1');
-      
+
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'u1' },
-        data: { twoFactorSecret: 'secret32', twoFactorEnabled: false }
+        data: { twoFactorSecret: 'secret32', twoFactorEnabled: false },
       });
       expect(result).toEqual({ qr: 'mock-qr-code-url' });
     });
 
     it('should enable 2FA if code is verified', async () => {
-      prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1', twoFactorSecret: 'secret32' });
+      prisma.user.findUnique = jest
+        .fn()
+        .mockResolvedValue({ id: 'u1', twoFactorSecret: 'secret32' });
       (speakeasy.totp.verify as jest.Mock).mockReturnValue(true);
 
       const result = await service.enable2FA('u1', '123456');
 
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'u1' },
-        data: { twoFactorEnabled: true }
+        data: { twoFactorEnabled: true },
       });
       expect(result).toBe(true);
     });
 
     it('should fail to enable 2FA if code is invalid', async () => {
-      prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1', twoFactorSecret: 'secret32' });
+      prisma.user.findUnique = jest
+        .fn()
+        .mockResolvedValue({ id: 'u1', twoFactorSecret: 'secret32' });
       (speakeasy.totp.verify as jest.Mock).mockReturnValue(false);
 
       const result = await service.enable2FA('u1', '000000');
@@ -402,34 +494,48 @@ describe('AuthService', () => {
     });
 
     describe('verify2FACode', () => {
-      const mockPayload = { sub: 'u1', email: 'test@test.com', name: 'Test', role: 'admin', organizationId: 'org1' };
-      
+      const mockPayload = {
+        sub: 'u1',
+        email: 'test@test.com',
+        name: 'Test',
+        role: 'admin',
+        organizationId: 'org1',
+      };
+
       it('should verify code, update user, and return tokens', async () => {
-        prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1', email: 'test@test.com', twoFactorSecret: 'secret32' });
-        prisma.organization.findUnique = jest.fn().mockResolvedValue({ id: 'org1', name: 'Org 1', plan: 'free' });
+        prisma.user.findUnique = jest
+          .fn()
+          .mockResolvedValue({ id: 'u1', email: 'test@test.com', twoFactorSecret: 'secret32' });
+        prisma.organization.findUnique = jest
+          .fn()
+          .mockResolvedValue({ id: 'org1', name: 'Org 1', plan: 'free' });
         (speakeasy.totp.verify as jest.Mock).mockReturnValue(true);
-        jest.spyOn(service, 'generateTokens').mockResolvedValue({ accessToken: 'acc2fa', refreshToken: 'ref2fa' });
+        jest
+          .spyOn(service, 'generateTokens')
+          .mockResolvedValue({ accessToken: 'acc2fa', refreshToken: 'ref2fa' });
 
         const result = await service.verify2FACode(mockPayload as any, '123456');
 
         expect(prisma.user.update).toHaveBeenCalledWith({
           where: { id: 'u1' },
-          data: { twoFactorEnabled: true }
+          data: { twoFactorEnabled: true },
         });
         expect(prisma.user.update).toHaveBeenCalledWith({
           where: { id: 'u1' },
-          data: { lastLoginAt: expect.any(Date) }
+          data: { lastLoginAt: expect.any(Date) },
         });
         expect(result).toMatchObject({
           user: { id: 'u1', email: 'test@test.com' },
           organization: { id: 'org1', name: 'Org 1' },
           accessToken: 'acc2fa',
-          refreshToken: 'ref2fa'
+          refreshToken: 'ref2fa',
         });
       });
 
       it('should return null if code is invalid', async () => {
-        prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1', twoFactorSecret: 'secret32' });
+        prisma.user.findUnique = jest
+          .fn()
+          .mockResolvedValue({ id: 'u1', twoFactorSecret: 'secret32' });
         prisma.organization.findUnique = jest.fn().mockResolvedValue({ id: 'org1' });
         (speakeasy.totp.verify as jest.Mock).mockReturnValue(false);
 
@@ -441,8 +547,13 @@ describe('AuthService', () => {
 
   describe('Signup Flows (signupStepOne, Two, Three)', () => {
     describe('signupStepOne', () => {
-      const payload = { email: 'new@test.com', organizationName: 'Org', userName: 'New', password: 'pwd' };
-      
+      const payload = {
+        email: 'new@test.com',
+        organizationName: 'Org',
+        userName: 'New',
+        password: 'pwd',
+      };
+
       it('should return EMAIL_ALREADY_EXISTS if email active', async () => {
         prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1', deletedAt: null });
         const result = await service.signupStepOne(payload);
@@ -459,8 +570,10 @@ describe('AuthService', () => {
       it('should return TRANSPORTER_ERROR if email fails', async () => {
         prisma.user.findUnique = jest.fn().mockResolvedValue(null);
         prisma.userVerification.findFirst = jest.fn().mockResolvedValue(null);
-        mockEmailService.sendVerificationCodeByEmail.mockResolvedValue({ sentMessageInfo: { success: false } });
-        
+        mockEmailService.sendVerificationCodeByEmail.mockResolvedValue({
+          sentMessageInfo: { success: false },
+        });
+
         const result = await service.signupStepOne(payload);
         expect(result).toBe(StepOneErrors.TRANSPORTER_ERROR);
       });
@@ -470,13 +583,16 @@ describe('AuthService', () => {
         prisma.userVerification.findFirst = jest.fn().mockResolvedValue(null);
         prisma.userVerification.deleteMany = jest.fn().mockResolvedValue({ count: 1 });
         const mockSentInfo = { success: true, messageId: '123' };
-        mockEmailService.sendVerificationCodeByEmail.mockResolvedValue({ sentMessageInfo: mockSentInfo, verificationCode: '123456' });
+        mockEmailService.sendVerificationCodeByEmail.mockResolvedValue({
+          sentMessageInfo: mockSentInfo,
+          verificationCode: '123456',
+        });
         prisma.userVerification.create = jest.fn().mockResolvedValue({ id: 'v1' });
 
         const result = await service.signupStepOne(payload);
-        
+
         expect(prisma.userVerification.create).toHaveBeenCalledWith({
-          data: expect.objectContaining({ email: 'new@test.com', verificationCode: '123456' })
+          data: expect.objectContaining({ email: 'new@test.com', verificationCode: '123456' }),
         });
         expect(result).toEqual(mockSentInfo);
       });
@@ -486,20 +602,26 @@ describe('AuthService', () => {
       it('should return true if code verified', async () => {
         prisma.userVerification.findFirst = jest.fn().mockResolvedValue({ id: 'v1' });
         prisma.userVerification.updateMany = jest.fn().mockResolvedValue({ count: 1 });
-        const result = await service.signupStepTwo({ email: 'new@test.com', verificationCode: '123456' });
+        const result = await service.signupStepTwo({
+          email: 'new@test.com',
+          verificationCode: '123456',
+        });
         expect(result).toBe(true);
       });
 
       it('should return false if code incorrect or expired', async () => {
         prisma.userVerification.findFirst = jest.fn().mockResolvedValue(null);
-        const result = await service.signupStepTwo({ email: 'new@test.com', verificationCode: '000000' });
+        const result = await service.signupStepTwo({
+          email: 'new@test.com',
+          verificationCode: '000000',
+        });
         expect(result).toBe(false);
       });
     });
 
     describe('signupStepThree', () => {
       const payload = { email: 'new@test.com', name: 'New', password: 'pwd', companyName: 'Org' };
-      
+
       it('should return EMAIL_NOT_VERIFIED if not verified', async () => {
         prisma.userVerification.findFirst = jest.fn().mockResolvedValue(null);
         const result = await service.signupStepThree(payload as any);
@@ -507,25 +629,40 @@ describe('AuthService', () => {
       });
 
       it('should create organization, balance, and user via transaction', async () => {
-        prisma.userVerification.findFirst = jest.fn().mockResolvedValue({ email: 'new@test.com', isEmailVerified: true, organizationName: 'Org', userName: 'New' });
+        prisma.userVerification.findFirst = jest
+          .fn()
+          .mockResolvedValue({
+            email: 'new@test.com',
+            isEmailVerified: true,
+            organizationName: 'Org',
+            userName: 'New',
+          });
         mockUtilityService.hashPassword.mockResolvedValue('hashed');
-        
+
         prisma.$transaction = jest.fn().mockImplementation(async (cb) => {
           const mockTx = {
-            organization: { create: jest.fn().mockResolvedValue({ id: 'org2', name: "Org" }) },
+            organization: { create: jest.fn().mockResolvedValue({ id: 'org2', name: 'Org' }) },
             creditBalance: { create: jest.fn().mockResolvedValue(true) },
-            user: { 
+            user: {
               findUnique: jest.fn().mockResolvedValue(null),
-              create: jest.fn().mockResolvedValue({ id: 'u2', email: 'new@test.com', name: 'New', role: 'owner' }),
-              update: jest.fn().mockResolvedValue(true)
+              create: jest
+                .fn()
+                .mockResolvedValue({ id: 'u2', email: 'new@test.com', name: 'New', role: 'owner' }),
+              update: jest.fn().mockResolvedValue(true),
             },
-            userVerification: { deleteMany: jest.fn() }
+            userVerification: { deleteMany: jest.fn() },
           };
-          jest.spyOn(require('../organizations/organizations.service').OrganizationsService, 'generateUniqueSlug')
+          jest
+            .spyOn(
+              require('../organizations/organizations.service').OrganizationsService,
+              'generateUniqueSlug',
+            )
             .mockResolvedValue('org');
           return await cb(mockTx);
         });
-        jest.spyOn(service, 'generateTokens').mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
+        jest
+          .spyOn(service, 'generateTokens')
+          .mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
 
         const result = await service.signupStepThree(payload as any);
         expect(prisma.$transaction).toHaveBeenCalled();
@@ -544,9 +681,14 @@ describe('AuthService', () => {
       });
 
       it('should store verification and return sent info', async () => {
-        prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1', name: 'Test', organization: { name: 'Org' } });
+        prisma.user.findUnique = jest
+          .fn()
+          .mockResolvedValue({ id: 'u1', name: 'Test', organization: { name: 'Org' } });
         prisma.userVerification.findFirst = jest.fn().mockResolvedValue(null);
-        mockEmailService.sendPasswordResetCodeByEmail.mockResolvedValue({ sentMessageInfo: { success: true }, verificationCode: '123' });
+        mockEmailService.sendPasswordResetCodeByEmail.mockResolvedValue({
+          sentMessageInfo: { success: true },
+          verificationCode: '123',
+        });
         prisma.userVerification.create = jest.fn().mockResolvedValue(true);
 
         const result = await service.resetPasswordStepOne('test@test.com');
@@ -569,10 +711,10 @@ describe('AuthService', () => {
         jest.spyOn(service, 'logoutAll').mockResolvedValue({} as any);
 
         const result = await service.resetPasswordStepTwo('123', 'newpwd');
-        
+
         expect(prisma.user.update).toHaveBeenCalledWith({
           where: { email: 'test@test.com' },
-          data: { password: 'hashed2' }
+          data: { password: 'hashed2' },
         });
         expect(service.logoutAll).toHaveBeenCalledWith('u1');
         expect(result).toBe(true);
@@ -581,38 +723,59 @@ describe('AuthService', () => {
 
     describe('changePassword', () => {
       it('should require current password if user has one', async () => {
-        prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1', password: 'old', twoFactorEnabled: false });
-        await expect(service.changePassword('u1', { newPassword: 'new' })).rejects.toThrow(BadRequestException);
+        prisma.user.findUnique = jest
+          .fn()
+          .mockResolvedValue({ id: 'u1', password: 'old', twoFactorEnabled: false });
+        await expect(service.changePassword('u1', { newPassword: 'new' })).rejects.toThrow(
+          BadRequestException,
+        );
       });
 
       it('should reject if current password is wrong', async () => {
-        prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1', password: 'old', twoFactorEnabled: false });
+        prisma.user.findUnique = jest
+          .fn()
+          .mockResolvedValue({ id: 'u1', password: 'old', twoFactorEnabled: false });
         (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-        await expect(service.changePassword('u1', { currentPassword: 'wrong', newPassword: 'new' })).rejects.toThrow(UnauthorizedException);
+        await expect(
+          service.changePassword('u1', { currentPassword: 'wrong', newPassword: 'new' }),
+        ).rejects.toThrow(UnauthorizedException);
       });
 
       it('should reject if 2FA code is missing when 2fa enabled', async () => {
-        prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1', password: 'old', twoFactorEnabled: true, twoFactorSecret: 'abc' });
+        prisma.user.findUnique = jest
+          .fn()
+          .mockResolvedValue({
+            id: 'u1',
+            password: 'old',
+            twoFactorEnabled: true,
+            twoFactorSecret: 'abc',
+          });
         (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-        await expect(service.changePassword('u1', { currentPassword: 'old', newPassword: 'new' })).rejects.toThrow(ForbiddenException);
+        await expect(
+          service.changePassword('u1', { currentPassword: 'old', newPassword: 'new' }),
+        ).rejects.toThrow(ForbiddenException);
       });
 
       it('should change password successfully', async () => {
-        prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1', password: 'old', twoFactorEnabled: false });
+        prisma.user.findUnique = jest
+          .fn()
+          .mockResolvedValue({ id: 'u1', password: 'old', twoFactorEnabled: false });
         (bcrypt.compare as jest.Mock).mockResolvedValue(true);
         mockUtilityService.hashPassword.mockResolvedValue('newhashed');
         jest.spyOn(service, 'logoutAll').mockResolvedValue({} as any);
 
-        const result = await service.changePassword('u1', { currentPassword: 'old', newPassword: 'new' });
-        
+        const result = await service.changePassword('u1', {
+          currentPassword: 'old',
+          newPassword: 'new',
+        });
+
         expect(prisma.user.update).toHaveBeenCalledWith({
           where: { id: 'u1' },
-          data: { password: 'newhashed' }
+          data: { password: 'newhashed' },
         });
         expect(service.logoutAll).toHaveBeenCalledWith('u1');
         expect(result).toHaveProperty('message');
       });
     });
   });
-
 });

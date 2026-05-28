@@ -126,7 +126,7 @@ describe('ApiKeysService', () => {
     it('should throw BadRequestException if max api keys limit is reached', async () => {
       // Simulate reaching limit for FREE plan (limit is usually 1, but we get it from PLANS)
       const maxApiKeys = PLANS.FREE.limits.maxApiKeys;
-      
+
       const mockOrganization = {
         id: organizationId,
         plan: 'FREE',
@@ -209,7 +209,11 @@ describe('ApiKeysService', () => {
       };
 
       mockPrismaService.apiKey.findUnique.mockResolvedValue(mockKey);
-      mockPrismaService.apiKey.update.mockResolvedValue({ ...mockKey, deletedAt: new Date(), isActive: false });
+      mockPrismaService.apiKey.update.mockResolvedValue({
+        ...mockKey,
+        deletedAt: new Date(),
+        isActive: false,
+      });
 
       const result = await service.delete(organizationId, apiKeyId);
 
@@ -300,13 +304,17 @@ describe('ApiKeysService', () => {
         deletedAt: null,
       });
 
-      await expect(service.update(organizationId, apiKeyId, {})).rejects.toThrow(BadRequestException);
+      await expect(service.update(organizationId, apiKeyId, {})).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw NotFoundException if key not found', async () => {
       mockPrismaService.apiKey.findUnique.mockResolvedValue(null);
 
-      await expect(service.update(organizationId, apiKeyId, updateDto)).rejects.toThrow(NotFoundException);
+      await expect(service.update(organizationId, apiKeyId, updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw ForbiddenException if key belongs to different organization', async () => {
@@ -315,7 +323,9 @@ describe('ApiKeysService', () => {
         organizationId: 'other-org',
       });
 
-      await expect(service.update(organizationId, apiKeyId, updateDto)).rejects.toThrow(ForbiddenException);
+      await expect(service.update(organizationId, apiKeyId, updateDto)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should throw ForbiddenException if key is deleted', async () => {
@@ -325,7 +335,9 @@ describe('ApiKeysService', () => {
         deletedAt: new Date(),
       });
 
-      await expect(service.update(organizationId, apiKeyId, updateDto)).rejects.toThrow(ForbiddenException);
+      await expect(service.update(organizationId, apiKeyId, updateDto)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 

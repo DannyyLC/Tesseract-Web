@@ -150,7 +150,9 @@ export class AuthController {
     });
 
     // Construir la URL de redirección
-    const redirectUrl = user.isNewUser ? `${frontendUrl}/dashboard?welcome=true` : `${frontendUrl}/dashboard`;
+    const redirectUrl = user.isNewUser
+      ? `${frontendUrl}/dashboard?welcome=true`
+      : `${frontendUrl}/dashboard`;
     // Redirigir al Dashboard
     return res.redirect(redirectUrl);
   }
@@ -642,9 +644,7 @@ export class AuthController {
   async signupStep1(
     @Body() payload: StartVerificationFlowDto,
     @Res() response: Response,
-  ): Promise<
-    Response<ApiResponseBuilder<object | keyof typeof StepOneErrors>>
-  > {
+  ): Promise<Response<ApiResponseBuilder<object | keyof typeof StepOneErrors>>> {
     const apiResponseBuilder = new ApiResponseBuilder<object | keyof typeof StepOneErrors>();
     try {
       await this.turnstileService.verifyToken(payload.turnstileToken);
@@ -719,7 +719,9 @@ export class AuthController {
     @Body() body: CreateUserDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<keyof typeof StepThreeErrors | Record<string, unknown>>>> {
-    const apiResponse = new ApiResponseBuilder<keyof typeof StepThreeErrors | Record<string, unknown>>();
+    const apiResponse = new ApiResponseBuilder<
+      keyof typeof StepThreeErrors | Record<string, unknown>
+    >();
     const result = await this.authService.signupStepThree(body);
     if (typeof result === 'string') {
       apiResponse

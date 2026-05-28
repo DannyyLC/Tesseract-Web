@@ -96,75 +96,78 @@ export function ConnectedToolCard({
 
       {/* Actions menu */}
       {canManageTool && (
-      <div className="relative">
-        <button
-          onClick={() => setMenuOpen((v) => !v)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-black/30 transition-colors hover:bg-black/5 hover:text-black dark:text-white/30 dark:hover:bg-white/5 dark:hover:text-white"
-        >
-          <MoreVertical size={16} />
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-black/30 transition-colors hover:bg-black/5 hover:text-black dark:text-white/30 dark:hover:bg-white/5 dark:hover:text-white"
+          >
+            <MoreVertical size={16} />
+          </button>
 
-        {menuOpen && (
-          <>
-            <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-            <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-black/5 bg-white shadow-xl dark:border-white/5 dark:bg-[#111]">
-              {(tool.status === 'DISCONNECTED' || tool.status === 'ERROR' || tool.status === 'EXPIRED_AUTH') && hasCredentials && (
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+              <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-black/5 bg-white shadow-xl dark:border-white/5 dark:bg-[#111]">
+                {(tool.status === 'DISCONNECTED' ||
+                  tool.status === 'ERROR' ||
+                  tool.status === 'EXPIRED_AUTH') &&
+                  hasCredentials && (
+                    <PermissionGuard permissions="tenant_tools:update">
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false);
+                          onConfigCredentials?.(tool.id);
+                        }}
+                        className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-black/70 transition-colors hover:bg-black/5 hover:text-black dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white"
+                      >
+                        <KeyRound size={14} />
+                        Configurar credenciales
+                      </button>
+                    </PermissionGuard>
+                  )}
                 <PermissionGuard permissions="tenant_tools:update">
                   <button
                     onClick={() => {
                       setMenuOpen(false);
-                      onConfigCredentials?.(tool.id);
+                      onRename?.(tool.id);
                     }}
                     className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-black/70 transition-colors hover:bg-black/5 hover:text-black dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white"
                   >
-                    <KeyRound size={14} />
-                    Configurar credenciales
+                    <Pencil size={14} />
+                    Renombrar
                   </button>
                 </PermissionGuard>
-              )}
-              <PermissionGuard permissions="tenant_tools:update">
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onRename?.(tool.id);
-                  }}
-                  className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-black/70 transition-colors hover:bg-black/5 hover:text-black dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white"
-                >
-                  <Pencil size={14} />
-                  Renombrar
-                </button>
-              </PermissionGuard>
-              <div className="mx-3 my-1 h-px bg-black/5 dark:bg-white/5" />
-              {tool.isConnected && hasCredentials && (
-                <PermissionGuard permissions="tenant_tools:disconnect">
+                <div className="mx-3 my-1 h-px bg-black/5 dark:bg-white/5" />
+                {tool.isConnected && hasCredentials && (
+                  <PermissionGuard permissions="tenant_tools:disconnect">
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onDisconnectCredentials?.(tool.id);
+                      }}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+                    >
+                      <Unplug size={14} />
+                      Desconectar credenciales
+                    </button>
+                  </PermissionGuard>
+                )}
+                <PermissionGuard permissions="tenant_tools:delete">
                   <button
                     onClick={() => {
                       setMenuOpen(false);
-                      onDisconnectCredentials?.(tool.id);
+                      onDelete?.(tool.id);
                     }}
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
                   >
-                    <Unplug size={14} />
-                    Desconectar credenciales
+                    <Trash2 size={14} />
+                    Eliminar
                   </button>
                 </PermissionGuard>
-              )}
-              <PermissionGuard permissions="tenant_tools:delete">
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onDelete?.(tool.id);
-                  }}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
-                >
-                  <Trash2 size={14} />
-                  Eliminar
-                </button>
-              </PermissionGuard>
-            </div>
-          </>
-        )}
-      </div>
+              </div>
+            </>
+          )}
+        </div>
       )}
     </motion.div>
   );

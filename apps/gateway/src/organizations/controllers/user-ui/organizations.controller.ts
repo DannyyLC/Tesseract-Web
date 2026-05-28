@@ -27,7 +27,6 @@ import {
 import { RolesGuard } from '../../../auth/guards/roles.guard';
 import { Roles } from '../../../auth/decorators/roles.decorator';
 
-
 @Controller('organizations')
 export class OrganizationsController {
   constructor(private readonly organizationsService: OrganizationsService) {}
@@ -147,10 +146,16 @@ export class OrganizationsController {
       user.organizationId,
     );
     if (result.success) {
-      apiResponse.setStatusCode(200).setMessage('Invitation resent successfully').setData(result.success);
+      apiResponse
+        .setStatusCode(200)
+        .setMessage('Invitation resent successfully')
+        .setData(result.success);
       return res.status(200).json(apiResponse.build());
     } else {
-      apiResponse.setStatusCode(400).setMessage(result.error || 'Invitation could not be resent').setData(result.success);
+      apiResponse
+        .setStatusCode(400)
+        .setMessage(result.error || 'Invitation could not be resent')
+        .setData(result.success);
       return res.status(400).json(apiResponse.build());
     }
   }
@@ -166,7 +171,10 @@ export class OrganizationsController {
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
-    const result = await this.organizationsService.cancelInvitation(body.email, user.organizationId);
+    const result = await this.organizationsService.cancelInvitation(
+      body.email,
+      user.organizationId,
+    );
     if (result.success) {
       apiResponse
         .setStatusCode(200)
@@ -195,10 +203,16 @@ export class OrganizationsController {
       body.verificationCode,
     );
     if (result.success && result.success != null) {
-      apiResponse.setStatusCode(200).setMessage('Invitation accepted successfully').setData(result.success);
+      apiResponse
+        .setStatusCode(200)
+        .setMessage('Invitation accepted successfully')
+        .setData(result.success);
       return res.status(200).json(apiResponse.build());
     } else {
-      apiResponse.setStatusCode(400).setMessage(result.error || 'Invitation could not be accepted').setData(null);
+      apiResponse
+        .setStatusCode(400)
+        .setMessage(result.error || 'Invitation could not be accepted')
+        .setData(null);
       return res.status(400).json(apiResponse.build());
     }
   }

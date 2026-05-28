@@ -135,5 +135,4 @@ export class UtilityService {
       .filter((role): role is string => typeof role === 'string')
       .map((role) => role.toUpperCase());
   }
-
 }

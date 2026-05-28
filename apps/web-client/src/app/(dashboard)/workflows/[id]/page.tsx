@@ -5,7 +5,11 @@ import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import PermissionGuard from '@/components/auth/PermissionGuard';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
-import { useWhatsappConfigSubscriptions, useWhatsappMutations, useWhatsappNumbers } from '@/hooks/useWhatsapp-config';
+import {
+  useWhatsappConfigSubscriptions,
+  useWhatsappMutations,
+  useWhatsappNumbers,
+} from '@/hooks/useWhatsapp-config';
 import { useWorkflow, useWorkflowMutations } from '@/hooks/useWorkflows';
 import { ArrowLeft, BarChart2, Edit3, Loader2, MessageSquare, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -41,7 +45,8 @@ export default function WorkflowDetailPage() {
   });
 
   const { data: whatsappNumbers, isLoading: isWhatsappNumbersLoading } = useWhatsappNumbers(id);
-  const { deleteWhatsappConfig, setisActiveStatus, addWhatsappConfiguration } = useWhatsappMutations();
+  const { deleteWhatsappConfig, setisActiveStatus, addWhatsappConfiguration } =
+    useWhatsappMutations();
   useWhatsappConfigSubscriptions();
 
   // Initialize form when workflow loads
@@ -93,7 +98,7 @@ export default function WorkflowDetailPage() {
   };
 
   const handleWhatsappDelete = async (id: string) => {
-    try {      
+    try {
       const success = await deleteWhatsappConfig.mutateAsync(id);
       if (success) {
         toast.success('Número de WhatsApp eliminado correctamente');
@@ -104,7 +109,7 @@ export default function WorkflowDetailPage() {
       toast.error('Error al eliminar el número de WhatsApp');
       console.error(error);
     }
-    };
+  };
 
   const handleSetWhatsappActiveStatus = async (id: string, isActive: boolean) => {
     try {
@@ -156,7 +161,8 @@ export default function WorkflowDetailPage() {
     } catch (error: any) {
       const statusCode = error?.response?.status;
       const backendMessage =
-        (typeof error?.response?.data?.message === 'string' && error.response.data.message.trim()) ||
+        (typeof error?.response?.data?.message === 'string' &&
+          error.response.data.message.trim()) ||
         (typeof error?.message === 'string' && error.message.trim()) ||
         '';
       const normalizedMessage = backendMessage.toLowerCase();
@@ -170,7 +176,7 @@ export default function WorkflowDetailPage() {
           isDuplicatePhoneError
             ? 'Ese número ya está registrado en WhatsApp. Usa otro número o elimina la configuración existente.'
             : backendMessage ||
-            'Ese número ya está registrado en WhatsApp. Usa otro número o elimina la configuración existente.',
+                'Ese número ya está registrado en WhatsApp. Usa otro número o elimina la configuración existente.',
         );
         console.error(error);
         return;
@@ -190,107 +196,107 @@ export default function WorkflowDetailPage() {
       <div className="flex h-full flex-col overflow-y-auto">
         <div className="w-full space-y-8 px-6 py-8">
           {/* Header Section */}
-        <div className="flex flex-col gap-8">
-          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-start">
-            <div className="flex w-full items-start gap-4 md:w-auto">
-              <Link
-                href="/workflows"
-                className="group -ml-2 mt-1 shrink-0 rounded-full p-2 text-black/40 transition-all hover:bg-black/5 dark:text-white/40 dark:hover:bg-white/5"
-              >
-                <ArrowLeft
-                  size={20}
-                  className="transition-transform group-hover:-translate-x-0.5"
-                />
-              </Link>
-              <div className="flex w-full flex-col gap-3">
-                <div>
-                  <h1 className="flex flex-wrap items-center gap-3 break-words text-3xl font-bold tracking-tight text-black dark:text-white">
-                    {workflow.name}
-                    {/* Minimal Status Dot */}
-                    <div
-                      className={`flex items-center gap-1 rounded-full border px-2 py-0.5 ${
-                        workflow.isActive
-                          ? 'border-emerald-500/20 bg-emerald-500/5'
-                          : 'border-zinc-500/20 bg-zinc-500/5'
-                      }`}
-                    >
+          <div className="flex flex-col gap-8">
+            <div className="flex flex-col justify-between gap-6 md:flex-row md:items-start">
+              <div className="flex w-full items-start gap-4 md:w-auto">
+                <Link
+                  href="/workflows"
+                  className="group -ml-2 mt-1 shrink-0 rounded-full p-2 text-black/40 transition-all hover:bg-black/5 dark:text-white/40 dark:hover:bg-white/5"
+                >
+                  <ArrowLeft
+                    size={20}
+                    className="transition-transform group-hover:-translate-x-0.5"
+                  />
+                </Link>
+                <div className="flex w-full flex-col gap-3">
+                  <div>
+                    <h1 className="flex flex-wrap items-center gap-3 break-words text-3xl font-bold tracking-tight text-black dark:text-white">
+                      {workflow.name}
+                      {/* Minimal Status Dot */}
                       <div
-                        className={`h-1.5 w-1.5 rounded-full ${workflow.isActive ? 'bg-emerald-500' : 'bg-zinc-500'}`}
-                      />
-                      <span
-                        className={`text-[10px] font-medium uppercase tracking-wide ${workflow.isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-600 dark:text-zinc-400'}`}
+                        className={`flex items-center gap-1 rounded-full border px-2 py-0.5 ${
+                          workflow.isActive
+                            ? 'border-emerald-500/20 bg-emerald-500/5'
+                            : 'border-zinc-500/20 bg-zinc-500/5'
+                        }`}
                       >
-                        {workflow.isActive ? 'Activo' : 'Inactivo'}
+                        <div
+                          className={`h-1.5 w-1.5 rounded-full ${workflow.isActive ? 'bg-emerald-500' : 'bg-zinc-500'}`}
+                        />
+                        <span
+                          className={`text-[10px] font-medium uppercase tracking-wide ${workflow.isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-600 dark:text-zinc-400'}`}
+                        >
+                          {workflow.isActive ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                    </h1>
+                    <p className="mt-2 max-w-3xl break-words text-base leading-relaxed text-black/60 sm:text-lg dark:text-white/60">
+                      {workflow.description || 'Sin descripción'}
+                    </p>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-8">
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-black/30 dark:text-white/30">
+                        Categoría
+                      </span>
+                      <span className="text-sm font-medium capitalize text-black dark:text-white">
+                        {workflow.category || 'Standard'}
                       </span>
                     </div>
-                  </h1>
-                  <p className="mt-2 max-w-3xl break-words text-base leading-relaxed text-black/60 sm:text-lg dark:text-white/60">
-                    {workflow.description || 'Sin descripción'}
-                  </p>
-                </div>
-
-                <div className="mt-2 flex flex-wrap items-center gap-8">
-                  <div className="flex flex-col">
-                    <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-black/30 dark:text-white/30">
-                      Categoría
-                    </span>
-                    <span className="text-sm font-medium capitalize text-black dark:text-white">
-                      {workflow.category || 'Standard'}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-black/30 dark:text-white/30">
-                      Versión
-                    </span>
-                    <span className="font-mono text-sm font-medium text-black dark:text-white">
-                      v{workflow.version || 1}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-black/30 dark:text-white/30">
-                      Creado
-                    </span>
-                    <span className="text-sm font-medium text-black dark:text-white">
-                      {new Date(workflow.createdAt).toLocaleDateString()}
-                    </span>
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-black/30 dark:text-white/30">
+                        Versión
+                      </span>
+                      <span className="font-mono text-sm font-medium text-black dark:text-white">
+                        v{workflow.version || 1}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-black/30 dark:text-white/30">
+                        Creado
+                      </span>
+                      <span className="text-sm font-medium text-black dark:text-white">
+                        {new Date(workflow.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex w-full flex-col gap-3 xl:w-auto xl:flex-row xl:items-center">
-              <PermissionGuard permissions="workflows:execute">
-                <Link
-                  href={`/conversations/new?workflowId=${workflow.id}`}
-                  className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-black px-5 text-sm font-medium text-white shadow-sm transition-all hover:opacity-90 active:scale-95 xl:w-auto dark:bg-white dark:text-black"
-                >
-                  <MessageSquare size={17} className="shrink-0" />
-                  Probar Chat
-                </Link>
-              </PermissionGuard>
+              <div className="flex w-full flex-col gap-3 xl:w-auto xl:flex-row xl:items-center">
+                <PermissionGuard permissions="workflows:execute">
+                  <Link
+                    href={`/conversations/new?workflowId=${workflow.id}`}
+                    className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-black px-5 text-sm font-medium text-white shadow-sm transition-all hover:opacity-90 active:scale-95 xl:w-auto dark:bg-white dark:text-black"
+                  >
+                    <MessageSquare size={17} className="shrink-0" />
+                    Probar Chat
+                  </Link>
+                </PermissionGuard>
 
-              <button
-                onClick={() => setIsWhatsappModalOpen(true)}
-                className="group flex h-11 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-black/10 bg-white px-5 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 xl:min-w-[230px] xl:w-auto dark:border-white/10 dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
-              >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 text-black/70 transition-colors group-hover:bg-black/10 dark:bg-white/10 dark:text-white/80 dark:group-hover:bg-white/15">
-                  <WhatsappIcon className="h-4 w-4" />
-                </span>
-                Vincular a WhatsApp
-              </button>
-
-              <PermissionGuard permissions="workflows:update">
                 <button
-                  onClick={() => setIsEditOpen(true)}
-                  className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-black/10 bg-white px-4 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 xl:w-auto dark:border-white/10 dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
+                  onClick={() => setIsWhatsappModalOpen(true)}
+                  className="group flex h-11 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-black/10 bg-white px-5 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 xl:w-auto xl:min-w-[230px] dark:border-white/10 dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
                 >
-                  <Edit3 size={17} className="shrink-0" />
-                  Editar
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 text-black/70 transition-colors group-hover:bg-black/10 dark:bg-white/10 dark:text-white/80 dark:group-hover:bg-white/15">
+                    <WhatsappIcon className="h-4 w-4" />
+                  </span>
+                  Vincular a WhatsApp
                 </button>
-              </PermissionGuard>
+
+                <PermissionGuard permissions="workflows:update">
+                  <button
+                    onClick={() => setIsEditOpen(true)}
+                    className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-black/10 bg-white px-4 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 xl:w-auto dark:border-white/10 dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
+                  >
+                    <Edit3 size={17} className="shrink-0" />
+                    Editar
+                  </button>
+                </PermissionGuard>
+              </div>
             </div>
           </div>
-        </div>
         </div>
 
         <div className="h-px w-full bg-black/5 dark:bg-white/5" />
@@ -306,34 +312,54 @@ export default function WorkflowDetailPage() {
         </div>
 
         <div className="border-t border-black/5 px-8 py-8 dark:border-white/5">
-
           <div className="mb-8 rounded-2xl border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.03]">
-            <h3 className="ml-1 text-sm font-semibold text-black dark:text-white">Herramientas Conectadas</h3>
+            <h3 className="ml-1 text-sm font-semibold text-black dark:text-white">
+              Herramientas Conectadas
+            </h3>
             <div className="mt-4 flex flex-wrap gap-4">
               {workflow.tenantTools && workflow.tenantTools.length > 0 ? (
                 workflow.tenantTools.map((tool: any) => (
-                  <div key={tool.id} className="flex min-w-[250px] flex-1 items-center gap-3 rounded-xl border border-black/10 bg-white p-4 shadow-sm transition-all hover:border-black/20 hover:shadow-md dark:border-white/10 dark:bg-[#141414] dark:hover:border-white/20">
+                  <div
+                    key={tool.id}
+                    className="flex min-w-[250px] flex-1 items-center gap-3 rounded-xl border border-black/10 bg-white p-4 shadow-sm transition-all hover:border-black/20 hover:shadow-md dark:border-white/10 dark:bg-[#141414] dark:hover:border-white/20"
+                  >
                     {tool.toolCatalog?.icon ? (
-                      <DynamicIcon name={tool.toolCatalog.icon} size={32} className="shrink-0 text-black dark:text-white" />
+                      <DynamicIcon
+                        name={tool.toolCatalog.icon}
+                        size={32}
+                        className="shrink-0 text-black dark:text-white"
+                      />
                     ) : (
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-black/5 dark:bg-white/5">
-                        <span className="text-xs font-bold text-black/50 dark:text-white/50">{tool.toolCatalog?.displayName?.charAt(0) || tool.displayName?.charAt(0) || 'T'}</span>
+                        <span className="text-xs font-bold text-black/50 dark:text-white/50">
+                          {tool.toolCatalog?.displayName?.charAt(0) ||
+                            tool.displayName?.charAt(0) ||
+                            'T'}
+                        </span>
                       </div>
                     )}
                     <div className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-sm font-semibold text-black dark:text-white">{tool.displayName}</span>
-                      <span className="truncate text-xs text-black/50 dark:text-white/50">{tool.toolCatalog?.displayName || 'Herramienta'}</span>
+                      <span className="truncate text-sm font-semibold text-black dark:text-white">
+                        {tool.displayName}
+                      </span>
+                      <span className="truncate text-xs text-black/50 dark:text-white/50">
+                        {tool.toolCatalog?.displayName || 'Herramienta'}
+                      </span>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="ml-1 text-sm text-black/65 dark:text-white/65">No hay herramientas o integraciones vinculadas a este workflow.</p>
+                <p className="ml-1 text-sm text-black/65 dark:text-white/65">
+                  No hay herramientas o integraciones vinculadas a este workflow.
+                </p>
               )}
             </div>
           </div>
 
           <div className="mb-8 rounded-2xl border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.03]">
-            <h3 className="ml-1 text-sm font-semibold text-black dark:text-white">Números de WhatsApp Business Asociados</h3>
+            <h3 className="ml-1 text-sm font-semibold text-black dark:text-white">
+              Números de WhatsApp Business Asociados
+            </h3>
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
               {isWhatsappNumbersLoading ? (
                 <div className="flex min-h-28 items-center justify-center rounded-2xl border border-black/10 bg-white dark:border-white/10 dark:bg-[#141414]">
@@ -364,16 +390,20 @@ export default function WorkflowDetailPage() {
                   </div>
                 ))
               ) : (
-                <p className="ml-1 text-sm text-black/65 dark:text-white/65">No hay números de WhatsApp asociados a este workflow. Vincula un número para comenzar a recibir mensajes.</p>
+                <p className="ml-1 text-sm text-black/65 dark:text-white/65">
+                  No hay números de WhatsApp asociados a este workflow. Vincula un número para
+                  comenzar a recibir mensajes.
+                </p>
               )}
             </div>
           </div>
 
-
           <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-4 dark:bg-red-500/[0.08]">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-red-700 dark:text-red-400">Zona de peligro</h3>
+                <h3 className="text-sm font-semibold text-red-700 dark:text-red-400">
+                  Zona de peligro
+                </h3>
                 <p className="mt-1 text-sm text-red-700/80 dark:text-red-300/80">
                   Eliminar este workflow es una acción irreversible y removerá su historial.
                 </p>
@@ -390,9 +420,6 @@ export default function WorkflowDetailPage() {
               </PermissionGuard>
             </div>
           </div>
-
-        
-              
         </div>
       </div>
 
@@ -517,15 +544,20 @@ export default function WorkflowDetailPage() {
         </div>
       </Modal>
 
-
-      <Modal isOpen={isWhatsappModalOpen} onClose={() => setIsWhatsappModalOpen(false)} title="Vincular workflow a WhatsApp">
+      <Modal
+        isOpen={isWhatsappModalOpen}
+        onClose={() => setIsWhatsappModalOpen(false)}
+        title="Vincular workflow a WhatsApp"
+      >
         <div className="space-y-4">
           <div className="space-y-2">
             <div className="flex items-center justify-start gap-2">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/5 text-black/70 dark:bg-white/10 dark:text-white/80">
                 <WhatsappIcon className="h-4 w-4" />
               </span>
-              <label className="text-sm font-medium text-black dark:text-white">Numero de WhatsApp</label>
+              <label className="text-sm font-medium text-black dark:text-white">
+                Numero de WhatsApp
+              </label>
             </div>
 
             <p className="rounded-xl border border-black/5 bg-black/[0.02] p-3 text-xs leading-relaxed text-black/60 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/65">
@@ -557,8 +589,7 @@ export default function WorkflowDetailPage() {
               </p>
             )}
           </div>
-          
-        
+
           <div className="flex gap-3 pt-4">
             <button
               onClick={() => setIsWhatsappModalOpen(false)}

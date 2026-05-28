@@ -44,7 +44,7 @@ describe('PrismaService', () => {
       global.setTimeout = ((fn: any) => fn()) as any;
 
       await expect(service.onModuleInit()).rejects.toThrow('Connection Failed');
-      
+
       global.setTimeout = originalSetTimeout;
       expect(service.$connect).toHaveBeenCalledTimes(5);
     });
@@ -81,10 +81,11 @@ describe('PrismaService', () => {
     });
 
     it('should retry and succeed', async () => {
-      const operation = jest.fn()
+      const operation = jest
+        .fn()
         .mockRejectedValueOnce(new Error('Fail 1'))
         .mockResolvedValueOnce('success');
-      
+
       const result = await service.withRetry(operation, 3, 10);
       expect(result).toBe('success');
       expect(operation).toHaveBeenCalledTimes(2);
@@ -105,7 +106,7 @@ describe('PrismaService', () => {
           callback();
         }
       });
-      
+
       service.enableShutdownHooks(mockApp);
       expect(service.$on).toHaveBeenCalledWith('beforeExit', expect.any(Function));
       expect(mockApp.close).toHaveBeenCalled();

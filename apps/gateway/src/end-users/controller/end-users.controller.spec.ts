@@ -16,10 +16,7 @@ describe('EndUsersController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EndUsersController],
-      providers: [
-        { provide: EndUsersService, useValue: mockEndUsersService },
-        Reflector,
-      ],
+      providers: [{ provide: EndUsersService, useValue: mockEndUsersService }, Reflector],
     }).compile();
 
     controller = module.get<EndUsersController>(EndUsersController);
@@ -83,10 +80,10 @@ describe('EndUsersController', () => {
 
       // Verifica que pasa el organizationId del usuario autenticado
       expect(service.getDashboardData).toHaveBeenCalledWith(
-        'org-123',  // ← del mockUser.organizationId
-        null,       // cursor
-        10,         // pageSize
-        null,       // paginationAction
+        'org-123', // ← del mockUser.organizationId
+        null, // cursor
+        10, // pageSize
+        null, // paginationAction
       );
 
       // Verifica response HTTP
@@ -107,18 +104,13 @@ describe('EndUsersController', () => {
 
       await controller.getDashboardData(
         mockUser,
-        'eu-cursor-123',  // cursor
-        25,               // pageSize
-        'next',           // paginationAction
+        'eu-cursor-123', // cursor
+        25, // pageSize
+        'next', // paginationAction
         res,
       );
 
-      expect(service.getDashboardData).toHaveBeenCalledWith(
-        'org-123',
-        'eu-cursor-123',
-        25,
-        'next',
-      );
+      expect(service.getDashboardData).toHaveBeenCalledWith('org-123', 'eu-cursor-123', 25, 'next');
     });
 
     // ─── Caso 3: Paginación hacia atrás ────────────────────────
@@ -126,20 +118,9 @@ describe('EndUsersController', () => {
       mockEndUsersService.getDashboardData.mockResolvedValue(mockPaginatedData);
       const res = createMockResponse();
 
-      await controller.getDashboardData(
-        mockUser,
-        'eu-cursor-456',
-        10,
-        'prev',
-        res,
-      );
+      await controller.getDashboardData(mockUser, 'eu-cursor-456', 10, 'prev', res);
 
-      expect(service.getDashboardData).toHaveBeenCalledWith(
-        'org-123',
-        'eu-cursor-456',
-        10,
-        'prev',
-      );
+      expect(service.getDashboardData).toHaveBeenCalledWith('org-123', 'eu-cursor-456', 10, 'prev');
     });
 
     // ─── Caso 4: El servicio lanza una excepción ───────────────
@@ -148,9 +129,9 @@ describe('EndUsersController', () => {
       mockEndUsersService.getDashboardData.mockRejectedValue(error);
       const res = createMockResponse();
 
-      await expect(
-        controller.getDashboardData(mockUser, null, 10, null, res),
-      ).rejects.toThrow('Database error');
+      await expect(controller.getDashboardData(mockUser, null, 10, null, res)).rejects.toThrow(
+        'Database error',
+      );
 
       // No debería haber intentado enviar respuesta
       expect(res.status).not.toHaveBeenCalled();

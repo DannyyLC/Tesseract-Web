@@ -90,98 +90,94 @@ export default function BillingPage() {
 
   return (
     <>
-    <PermissionGuard permissions="billing:read" redirect={true} fallbackRoute="/dashboard">
-      <div className="space-y-10 pb-20">
-        {/* Header */}
-        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold tracking-tight text-black dark:text-white">
-              Resumen de Facturación
-            </h1>
-            <p className="max-w-sm font-medium text-black/50 dark:text-white/50">
-              Monitorea tu consumo y el estado de tu suscripción.
-            </p>
+      <PermissionGuard permissions="billing:read" redirect={true} fallbackRoute="/dashboard">
+        <div className="space-y-10 pb-20">
+          {/* Header */}
+          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold tracking-tight text-black dark:text-white">
+                Resumen de Facturación
+              </h1>
+              <p className="max-w-sm font-medium text-black/50 dark:text-white/50">
+                Monitorea tu consumo y el estado de tu suscripción.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <PermissionGuard permissions="billing:checkout">
+                {dashboardData?.hasBillingAccount && (
+                  <a
+                    href={portalUrl || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={handleOpenPortal}
+                    onMouseEnter={() => fetchPortalUrl()}
+                    className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-medium text-black hover:bg-black/5 dark:border-white/10 dark:bg-transparent dark:text-white dark:hover:bg-white/5"
+                  >
+                    {isOpeningPortal ? 'Cargando...' : 'Portal de Pagos'}
+                  </a>
+                )}
+              </PermissionGuard>
+              <Link
+                href="/billing/plans"
+                className="flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+              >
+                Gestionar Plan
+                <ArrowUpRight size={16} />
+              </Link>
+            </div>
           </div>
-          <div className="flex gap-3">
-            <PermissionGuard permissions="billing:checkout">
-              {dashboardData?.hasBillingAccount && (
-              <a
-                  href={portalUrl || '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={handleOpenPortal}
-                  onMouseEnter={() => fetchPortalUrl()}
-                  className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-medium text-black hover:bg-black/5 dark:border-white/10 dark:bg-transparent dark:text-white dark:hover:bg-white/5"
-                >
-                  {isOpeningPortal ? 'Cargando...' : 'Portal de Pagos'}
-                </a>
-              )}
-            </PermissionGuard>
-            <Link
-              href="/billing/plans"
-              className="flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
-            >
-              Gestionar Plan
-              <ArrowUpRight size={16} />
-            </Link>
-          </div>
-        </div>
 
-        {/* Hero: Unified Billing Stats */}
-        <BillingHero
-          plan={subscription.plan}
-          status={subscription.status || 'unknown'}
-          nextBillingDate={subscription.currentPeriodEnd}
-          credits={credits}
-          cancelAtPeriodEnd={subscription.cancelAtPeriodEnd}
-          pendingPlanChange={dashboardData?.pendingPlanChange}
-        />
-
-        {/* Overage Configuration — only for paid plans */}
-        {isPaidPlan && (
-          <OverageCard
-            allowOverages={dashboardData?.allowOverages || false}
-            maxOverageLimit={maxOverageLimit}
-            currentOverageLimit={currentOverageLimit}
+          {/* Hero: Unified Billing Stats */}
+          <BillingHero
+            plan={subscription.plan}
+            status={subscription.status || 'unknown'}
+            nextBillingDate={subscription.currentPeriodEnd}
+            credits={credits}
+            cancelAtPeriodEnd={subscription.cancelAtPeriodEnd}
+            pendingPlanChange={dashboardData?.pendingPlanChange}
           />
-        )}
 
-        {/* Resource Usage Grid */}
-        <div>
-          <h2 className="mb-6 text-xl font-bold text-black dark:text-white">Uso de Recursos</h2>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            <UsageCard
-              title="Workflows Activos"
-              icon={<Workflow />}
-              used={usage.workflows.used}
-              limit={usage.workflows.limit}
-              unit="workflows"
+          {/* Overage Configuration — only for paid plans */}
+          {isPaidPlan && (
+            <OverageCard
+              allowOverages={dashboardData?.allowOverages || false}
+              maxOverageLimit={maxOverageLimit}
+              currentOverageLimit={currentOverageLimit}
             />
-            <UsageCard
-              title="API Keys"
-              icon={<Key />}
-              used={usage.apiKeys.used}
-              limit={usage.apiKeys.limit}
-              unit="keys"
-            />
-            <UsageCard
-              title="Usuarios"
-              icon={<Users />}
-              used={usage.users.used}
-              limit={usage.users.limit}
-              unit="usuarios"
-            />
+          )}
+
+          {/* Resource Usage Grid */}
+          <div>
+            <h2 className="mb-6 text-xl font-bold text-black dark:text-white">Uso de Recursos</h2>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              <UsageCard
+                title="Workflows Activos"
+                icon={<Workflow />}
+                used={usage.workflows.used}
+                limit={usage.workflows.limit}
+                unit="workflows"
+              />
+              <UsageCard
+                title="API Keys"
+                icon={<Key />}
+                used={usage.apiKeys.used}
+                limit={usage.apiKeys.limit}
+                unit="keys"
+              />
+              <UsageCard
+                title="Usuarios"
+                icon={<Users />}
+                used={usage.users.used}
+                limit={usage.users.limit}
+                unit="usuarios"
+              />
+            </div>
           </div>
         </div>
-      </div>
-    </PermissionGuard>
+      </PermissionGuard>
 
       {/* Success Modal after Checkout */}
-      <Modal
-        isOpen={showSuccessModal}
-        onClose={() => setShowSuccessModal(false)}
-        title=""
-      >
+      <Modal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} title="">
         <div className="flex flex-col items-center space-y-6 py-4">
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10">
             <PartyPopper size={40} className="text-emerald-500" />
@@ -191,8 +187,8 @@ export default function BillingPage() {
               ¡Gracias por tu confianza!
             </h3>
             <p className="max-w-sm text-sm text-black/60 dark:text-white/60">
-              Tu suscripción ha sido activada exitosamente. Ya puedes disfrutar
-              de todos los beneficios de tu nuevo plan.
+              Tu suscripción ha sido activada exitosamente. Ya puedes disfrutar de todos los
+              beneficios de tu nuevo plan.
             </p>
           </div>
           <button

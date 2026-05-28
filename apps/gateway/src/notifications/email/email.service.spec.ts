@@ -7,7 +7,9 @@ describe('EmailService', () => {
   let service: EmailService;
   let loadTemplateSpy: jest.SpyInstance;
   const mockTransporter = { sendMail: jest.fn() } as any;
-  const mockCreateTransport = (nodemailer.createTransport as jest.Mock).mockReturnValue(mockTransporter);
+  const mockCreateTransport = (nodemailer.createTransport as jest.Mock).mockReturnValue(
+    mockTransporter,
+  );
 
   const mockPrismaService = { userVerification: { findFirst: jest.fn() } } as any;
   const mockLogger = { error: jest.fn() } as any;
@@ -20,11 +22,15 @@ describe('EmailService', () => {
       .mockImplementation((...args: any[]) => {
         const templateName = String(args[0] ?? '');
         return (context: any) => {
-          if (templateName.includes('request_services_info')) return `user_name: ${context.user_name}; user_email: ${context.user_email}`;
-          if (templateName.includes('email_invitation_view')) return `inviteUrl: ${context.inviteUrl}; org: ${context.organizationName}`;
-          if (templateName.includes('email_verification_view')) return `${context.verificationCode}`;
+          if (templateName.includes('request_services_info'))
+            return `user_name: ${context.user_name}; user_email: ${context.user_email}`;
+          if (templateName.includes('email_invitation_view'))
+            return `inviteUrl: ${context.inviteUrl}; org: ${context.organizationName}`;
+          if (templateName.includes('email_verification_view'))
+            return `${context.verificationCode}`;
           if (templateName.includes('restore_password_es')) return `${context.verificationCode}`;
-          if (templateName.includes('email_organization_exists')) return `${context.organizationName}`;
+          if (templateName.includes('email_organization_exists'))
+            return `${context.organizationName}`;
           return '';
         };
       });
@@ -80,11 +86,13 @@ describe('EmailService', () => {
       '2026-03-23',
     );
 
-    expect(mockTransporter.sendMail).toHaveBeenCalledWith(expect.objectContaining({
-      from: 'from@example.com',
-      to: 'to@example.com',
-      subject: expect.stringContaining('Solicitud de Info'),
-    }));
+    expect(mockTransporter.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: 'from@example.com',
+        to: 'to@example.com',
+        subject: expect.stringContaining('Solicitud de Info'),
+      }),
+    );
     expect(res).toEqual(sent);
   });
 
@@ -109,7 +117,10 @@ describe('EmailService', () => {
     const sent = { messageId: 'inv-1' };
     mockTransporter.sendMail.mockResolvedValue(sent);
 
-    const result = await service.sendOrganizationInvitationToEmail('invitee@example.com', 'OrgName');
+    const result = await service.sendOrganizationInvitationToEmail(
+      'invitee@example.com',
+      'OrgName',
+    );
 
     expect(mockTransporter.sendMail).toHaveBeenCalled();
     expect(result).not.toBeNull();
@@ -144,7 +155,9 @@ describe('EmailService', () => {
 
   it('generateVerificationCode retries when duplicate found', async () => {
     // first call returns a duplicate, second returns null -> unique
-    mockPrismaService.userVerification.findFirst.mockResolvedValueOnce({ id: 'dup' }).mockResolvedValueOnce(null);
+    mockPrismaService.userVerification.findFirst
+      .mockResolvedValueOnce({ id: 'dup' })
+      .mockResolvedValueOnce(null);
     const code = await (service as any).generateVerificationCode();
     expect(mockPrismaService.userVerification.findFirst).toHaveBeenCalled();
     expect(code).toHaveLength(6);

@@ -2,7 +2,7 @@ import { InviteUserErrorsDto } from '../users/dto/invite-user-errors.dto';
 import { OrganizationsService } from './organizations.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../database/prisma.service';
-import { NotFoundException, BadRequestException } from '@nestjs/common'
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { EmailService } from '@/notifications/email/email.service';
 import { UtilityService } from '@/utility/utility.service';
@@ -16,8 +16,19 @@ describe('OrganizationsService invite', () => {
       organization: {
         findUnique: jest
           .fn()
-          .mockResolvedValueOnce({ id: organizationId, name: 'Fractal', isActive: true, deletedAt: null, deactivatedAt: null })
-          .mockResolvedValueOnce({ id: organizationId, plan: 'FREE', customMaxUsers: null, subscription: null }),
+          .mockResolvedValueOnce({
+            id: organizationId,
+            name: 'Fractal',
+            isActive: true,
+            deletedAt: null,
+            deactivatedAt: null,
+          })
+          .mockResolvedValueOnce({
+            id: organizationId,
+            plan: 'FREE',
+            customMaxUsers: null,
+            subscription: null,
+          }),
       },
       user: {
         count: jest.fn().mockResolvedValue(0),
@@ -95,7 +106,6 @@ describe('OrganizationsService invite', () => {
   });
 });
 
-
 describe('OrganizationsService', () => {
   let service: OrganizationsService;
 
@@ -143,7 +153,6 @@ describe('OrganizationsService', () => {
     sendNotificationToAppClients: jest.fn(),
   };
 
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -151,12 +160,12 @@ describe('OrganizationsService', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: WINSTON_MODULE_PROVIDER, useValue: mockLogger },
         { provide: EmailService, useValue: mockEmailService },
-        { provide: UtilityService, useValue: mockUtilityService }]
+        { provide: UtilityService, useValue: mockUtilityService },
+      ],
     }).compile();
 
     service = module.get<OrganizationsService>(OrganizationsService);
     jest.clearAllMocks();
-    
   });
 
   it('should be defined', () => {
@@ -165,7 +174,12 @@ describe('OrganizationsService', () => {
 
   describe('findOne', () => {
     it('returns organization when found', async () => {
-      const org = { id: 'org-1', name: 'Org', plan: 'FREE', _count: { users: 5, workflows: 2, apiKeys: 1 } };
+      const org = {
+        id: 'org-1',
+        name: 'Org',
+        plan: 'FREE',
+        _count: { users: 5, workflows: 2, apiKeys: 1 },
+      };
       mockPrismaService.organization.findUnique.mockResolvedValue(org);
       const res = await service.findOne('org-1');
       expect(res.name).toEqual('Org');
@@ -215,10 +229,20 @@ describe('OrganizationsService', () => {
   describe('remove (soft-delete)', () => {
     it('soft deletes organization', async () => {
       // softDelete requires user context and confirmation text
-      const user = { id: 'user-1', organizationId: 'org-1', organization: { name: 'Org' }, role: 'OWNER', twoFactorEnabled: false };
+      const user = {
+        id: 'user-1',
+        organizationId: 'org-1',
+        organization: { name: 'Org' },
+        role: 'OWNER',
+        twoFactorEnabled: false,
+      };
       mockPrismaService.user.findUnique.mockResolvedValue(user);
       mockPrismaService.organization.findUnique.mockResolvedValue({ id: 'org-1', deletedAt: null });
-      mockPrismaService.organization.update.mockResolvedValue({ id: 'org-1', deletedAt: new Date(), isActive: false });
+      mockPrismaService.organization.update.mockResolvedValue({
+        id: 'org-1',
+        deletedAt: new Date(),
+        isActive: false,
+      });
       await service.softDelete('org-1', 'user-1', 'Org');
       expect(mockPrismaService.organization.update).toHaveBeenCalledWith({
         where: { id: 'org-1' },
@@ -230,7 +254,10 @@ describe('OrganizationsService', () => {
   describe('getStats', () => {
     it('returns basic stats shape', async () => {
       // service.getStats expects organization.findUnique to return counts and plan
-      mockPrismaService.organization.findUnique.mockResolvedValue({ plan: 'FREE', _count: { users: 2, workflows: 1, apiKeys: 0 } });
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        plan: 'FREE',
+        _count: { users: 2, workflows: 1, apiKeys: 0 },
+      });
       mockPrismaService.execution.count.mockResolvedValue(7);
       const stats = await service.getStats('org-1');
       expect(stats.usage.users.current).toBe(2);

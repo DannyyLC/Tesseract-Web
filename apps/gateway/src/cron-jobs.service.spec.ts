@@ -22,10 +22,7 @@ describe('CronJobsService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        CronJobsService,
-        { provide: PrismaService, useValue: mockPrismaService },
-      ],
+      providers: [CronJobsService, { provide: PrismaService, useValue: mockPrismaService }],
     }).compile();
 
     service = module.get<CronJobsService>(CronJobsService);
@@ -59,7 +56,7 @@ describe('CronJobsService', () => {
             },
           }),
           data: { status: 'CLOSED', closedAt: expect.any(Date) },
-        })
+        }),
       );
     });
   });
@@ -79,8 +76,8 @@ describe('CronJobsService', () => {
       expect(mockPrismaService.userNotification.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
           data: { deletedAt: expect.any(Date) },
-          where: expect.objectContaining({ isRead: true })
-        })
+          where: expect.objectContaining({ isRead: true }),
+        }),
       );
     });
   });

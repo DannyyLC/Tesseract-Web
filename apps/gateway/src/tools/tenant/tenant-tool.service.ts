@@ -1,4 +1,10 @@
-import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PaginatedResponse, DashboardTenantToolDto } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../../common/responses/cursor-paginated-response';
 import { PrismaService } from '../../database/prisma.service';
@@ -140,7 +146,9 @@ export class TenantToolService {
           config: data.config,
           createdByUserId: userId,
           isConnected: noAuthRequired,
-          status: noAuthRequired ? ToolConnectionStatus.CONNECTED : ToolConnectionStatus.DISCONNECTED,
+          status: noAuthRequired
+            ? ToolConnectionStatus.CONNECTED
+            : ToolConnectionStatus.DISCONNECTED,
           workflows: {
             connect: data.workflowId ? [{ id: data.workflowId }] : [],
           },
@@ -157,7 +165,13 @@ export class TenantToolService {
     }
   }
 
-  async updateTenantTool(id: string, orgId: string, userId: string, role: string, data: UpdateTenantToolDto) {
+  async updateTenantTool(
+    id: string,
+    orgId: string,
+    userId: string,
+    role: string,
+    data: UpdateTenantToolDto,
+  ) {
     const tool = await this.prismaService.tenantTool.findFirst({
       where: { id, organizationId: orgId },
     });
@@ -185,7 +199,13 @@ export class TenantToolService {
     }
   }
 
-  async addWorkflowToTenantTool(tenantToolId: string, orgId: string, userId: string, role: string, workflowIds: string[]) {
+  async addWorkflowToTenantTool(
+    tenantToolId: string,
+    orgId: string,
+    userId: string,
+    role: string,
+    workflowIds: string[],
+  ) {
     const tool = await this.prismaService.tenantTool.findFirst({
       where: { id: tenantToolId, organizationId: orgId },
     });
@@ -215,7 +235,13 @@ export class TenantToolService {
     }
   }
 
-  async removeWorkflowFromTenantTool(tenantToolId: string, orgId: string, userId: string, role: string, workflowIds: string[]) {
+  async removeWorkflowFromTenantTool(
+    tenantToolId: string,
+    orgId: string,
+    userId: string,
+    role: string,
+    workflowIds: string[],
+  ) {
     const tool = await this.prismaService.tenantTool.findFirst({
       where: { id: tenantToolId, organizationId: orgId },
     });

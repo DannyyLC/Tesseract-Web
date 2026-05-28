@@ -12,7 +12,12 @@ import {
   ArrowRightLeft,
   AlertTriangle,
 } from 'lucide-react';
-import { useUsersDashboard, useUserStats, useUserMutations, usePendingInvitations } from '@/hooks/useUsers';
+import {
+  useUsersDashboard,
+  useUserStats,
+  useUserMutations,
+  usePendingInvitations,
+} from '@/hooks/useUsers';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardUserDataDto, UserRole } from '@tesseract/types';
 import { toast } from 'sonner';
@@ -37,7 +42,6 @@ interface PendingInvitationItem {
   expiresAt: string;
   createdAt: string;
 }
-
 
 export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,7 +75,8 @@ export default function UsersPage() {
     role: filterRole === 'all' ? undefined : filterRole,
   });
 
-  const { data: pendingInvitations, isLoading: isLoadingPendingInvitations } = usePendingInvitations();
+  const { data: pendingInvitations, isLoading: isLoadingPendingInvitations } =
+    usePendingInvitations();
 
   const { data: statsData, isLoading: isLoadingStats } = useUserStats();
   const { updateUser, deleteUser, transferOwnership } = useUserMutations();
@@ -114,8 +119,7 @@ export default function UsersPage() {
 
   const extraDataSections: { label: string; value: ExtraDataSection }[] = [
     { value: 'PENDING_INVITATIONS', label: 'Invitaciones' },
-  ]
-
+  ];
 
   // Actions
 
@@ -307,8 +311,6 @@ export default function UsersPage() {
                   {stats.verified}
                 </p>
               </div>
-              
-
             </motion.div>
 
             <motion.div
@@ -477,138 +479,142 @@ export default function UsersPage() {
                   );
                 })
               : usersData?.items.map((user, index) => {
-              const roleConfig = getRoleConfig(user.role);
-              const statusConfig = getStatusConfig(user.isActive);
-              const isExpanded = expandedUserId === user.id;
+                  const roleConfig = getRoleConfig(user.role);
+                  const statusConfig = getStatusConfig(user.isActive);
+                  const isExpanded = expandedUserId === user.id;
 
-              return (
-                <motion.div
-                  key={user.id}
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: index * 0.05 }}
-                  className={`overflow-hidden rounded-xl border border-transparent transition-all duration-200 ${
-                    isExpanded
-                      ? 'border-black/5 bg-white shadow-md dark:border-white/5 dark:bg-[#141414]'
-                      : 'bg-transparent hover:border-black/5 hover:bg-white hover:shadow-sm dark:hover:border-white/5 dark:hover:bg-[#141414]'
-                  }`}
-                >
-                  <div
-                    className="cursor-pointer p-5"
-                    onClick={() => setExpandedUserId(isExpanded ? null : user.id!)}
-                  >
-                    <div className="flex items-center gap-4">
-                      {/* Avatar */}
-                      <div className="relative">
-                        <div
-                          className={`h-12 w-12 rounded-full ${getAvatarColor(
-                            user.name,
-                          )} flex flex-shrink-0 items-center justify-center`}
-                        >
-                          <span className="font-semibold text-white">{getInitials(user.name)}</span>
-                        </div>
-                        {/* Status indicator */}
-                        <span
-                          className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 ${statusConfig.color} rounded-full border-2 border-white dark:border-[#141414]`}
-                        />
-                      </div>
-
-                      {/* User Info */}
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-1 flex items-center gap-2">
-                          <h3 className="truncate font-semibold text-black dark:text-white">
-                            {user.name}
-                          </h3>
-                          <span
-                            className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${roleConfig.color}`}
-                          >
-                            {roleConfig.label}
-                          </span>
-                        </div>
-                        <p className="truncate text-sm text-black/50 dark:text-white/50">
-                          {user.email}
-                        </p>
-                      </div>
-
-                      {/* Last Login */}
-                      <div className="hidden text-right md:block">
-                        <p className="text-xs text-black/40 dark:text-white/40">Último acceso</p>
-                        <p className="text-sm text-black/70 dark:text-white/70">
-                          {formatTimeAgo(user.lastLoginAt)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Expanded Actions */}
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
+                  return (
+                    <motion.div
+                      key={user.id}
+                      layout
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ delay: index * 0.05 }}
+                      className={`overflow-hidden rounded-xl border border-transparent transition-all duration-200 ${
+                        isExpanded
+                          ? 'border-black/5 bg-white shadow-md dark:border-white/5 dark:bg-[#141414]'
+                          : 'bg-transparent hover:border-black/5 hover:bg-white hover:shadow-sm dark:hover:border-white/5 dark:hover:bg-[#141414]'
+                      }`}
+                    >
+                      <div
+                        className="cursor-pointer p-5"
+                        onClick={() => setExpandedUserId(isExpanded ? null : user.id!)}
                       >
-                        <div className="border-t border-black/5 bg-black/[0.01] px-5 pb-5 pt-2 dark:border-white/5 dark:bg-white/[0.01]">
-                          <UserDetails userId={user.id} />
+                        <div className="flex items-center gap-4">
+                          {/* Avatar */}
+                          <div className="relative">
+                            <div
+                              className={`h-12 w-12 rounded-full ${getAvatarColor(
+                                user.name,
+                              )} flex flex-shrink-0 items-center justify-center`}
+                            >
+                              <span className="font-semibold text-white">
+                                {getInitials(user.name)}
+                              </span>
+                            </div>
+                            {/* Status indicator */}
+                            <span
+                              className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 ${statusConfig.color} rounded-full border-2 border-white dark:border-[#141414]`}
+                            />
+                          </div>
 
-                          <div className="flex flex-wrap gap-2">
-                            {/* Transfer Ownership - only for non-owner targets that are not yourself */}
-                            {user.role !== UserRole.OWNER && user.id !== currentUser?.id && (
-                              <PermissionGuard permissions="users:transfer_ownership">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleTransferOpen(user);
-                                  }}
-                                  className="flex items-center gap-2 rounded-full border border-yellow-500/20 px-4 py-2 text-sm font-medium text-yellow-600 transition-all hover:bg-yellow-500/10 dark:text-yellow-400"
-                                >
-                                  <ArrowRightLeft size={16} />
-                                  Transferir Propiedad
-                                </button>
-                              </PermissionGuard>
-                            )}
+                          {/* User Info */}
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-1 flex items-center gap-2">
+                              <h3 className="truncate font-semibold text-black dark:text-white">
+                                {user.name}
+                              </h3>
+                              <span
+                                className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${roleConfig.color}`}
+                              >
+                                {roleConfig.label}
+                              </span>
+                            </div>
+                            <p className="truncate text-sm text-black/50 dark:text-white/50">
+                              {user.email}
+                            </p>
+                          </div>
 
-                             {/* Edit/Delete — respects full hierarchy + no self-edit */}
-                             {canEditUser(user) && (
-                                <>
-                                  <PermissionGuard permissions="users:update">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEditOpen(user);
-                                      }}
-                                      className="flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
-                                    >
-                                      <Edit3 size={16} />
-                                      Editar
-                                    </button>
-                                  </PermissionGuard>
-                                  
-                                  <PermissionGuard permissions="users:delete">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteOpen(user);
-                                      }}
-                                      className="flex items-center gap-2 rounded-full border border-red-500/20 px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-red-500/10 dark:text-red-400"
-                                    >
-                                      <Trash2 size={16} />
-                                      Eliminar
-                                    </button>
-                                  </PermissionGuard>
-                                </>
-                              )}
+                          {/* Last Login */}
+                          <div className="hidden text-right md:block">
+                            <p className="text-xs text-black/40 dark:text-white/40">
+                              Último acceso
+                            </p>
+                            <p className="text-sm text-black/70 dark:text-white/70">
+                              {formatTimeAgo(user.lastLoginAt)}
+                            </p>
                           </div>
                         </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              );
-            })}
+                      </div>
+
+                      {/* Expanded Actions */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="border-t border-black/5 bg-black/[0.01] px-5 pb-5 pt-2 dark:border-white/5 dark:bg-white/[0.01]">
+                              <UserDetails userId={user.id} />
+
+                              <div className="flex flex-wrap gap-2">
+                                {/* Transfer Ownership - only for non-owner targets that are not yourself */}
+                                {user.role !== UserRole.OWNER && user.id !== currentUser?.id && (
+                                  <PermissionGuard permissions="users:transfer_ownership">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleTransferOpen(user);
+                                      }}
+                                      className="flex items-center gap-2 rounded-full border border-yellow-500/20 px-4 py-2 text-sm font-medium text-yellow-600 transition-all hover:bg-yellow-500/10 dark:text-yellow-400"
+                                    >
+                                      <ArrowRightLeft size={16} />
+                                      Transferir Propiedad
+                                    </button>
+                                  </PermissionGuard>
+                                )}
+
+                                {/* Edit/Delete — respects full hierarchy + no self-edit */}
+                                {canEditUser(user) && (
+                                  <>
+                                    <PermissionGuard permissions="users:update">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEditOpen(user);
+                                        }}
+                                        className="flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+                                      >
+                                        <Edit3 size={16} />
+                                        Editar
+                                      </button>
+                                    </PermissionGuard>
+
+                                    <PermissionGuard permissions="users:delete">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteOpen(user);
+                                        }}
+                                        className="flex items-center gap-2 rounded-full border border-red-500/20 px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-red-500/10 dark:text-red-400"
+                                      >
+                                        <Trash2 size={16} />
+                                        Eliminar
+                                      </button>
+                                    </PermissionGuard>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  );
+                })}
           </AnimatePresence>
         )}
 
@@ -617,34 +623,34 @@ export default function UsersPage() {
           (isPendingInvitationsView
             ? pendingInvitationItems.length === 0
             : !usersData?.items || usersData.items.length === 0) && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="py-16 text-center"
-          >
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-black/5 dark:bg-white/5">
-              <Search size={24} className="text-black/30 dark:text-white/30" />
-            </div>
-            <h3 className="mb-2 text-lg font-semibold text-black dark:text-white">
-              {isPendingInvitationsView
-                ? searchQuery
-                  ? `No se encontraron invitaciones para "${searchQuery}"`
-                  : 'No hay invitaciones pendientes'
-                : searchQuery
-                  ? `No se encontraron resultados para "${searchQuery}"`
-                  : filterRole !== 'all'
-                    ? `No hay miembros con el rol ${roleFilters.find((f) => f.value === filterRole)?.label}`
-                    : 'No se encontraron miembros'}
-            </h3>
-            <p className="text-black/50 dark:text-white/50">
-              {isPendingInvitationsView
-                ? 'Cuando envíes invitaciones aparecerán aquí'
-                : searchQuery || filterRole !== 'all'
-                  ? 'Intenta con otros términos de búsqueda o filtros'
-                  : 'Comienza invitando miembros a tu organización'}
-            </p>
-          </motion.div>
-        )}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="py-16 text-center"
+            >
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-black/5 dark:bg-white/5">
+                <Search size={24} className="text-black/30 dark:text-white/30" />
+              </div>
+              <h3 className="mb-2 text-lg font-semibold text-black dark:text-white">
+                {isPendingInvitationsView
+                  ? searchQuery
+                    ? `No se encontraron invitaciones para "${searchQuery}"`
+                    : 'No hay invitaciones pendientes'
+                  : searchQuery
+                    ? `No se encontraron resultados para "${searchQuery}"`
+                    : filterRole !== 'all'
+                      ? `No hay miembros con el rol ${roleFilters.find((f) => f.value === filterRole)?.label}`
+                      : 'No se encontraron miembros'}
+              </h3>
+              <p className="text-black/50 dark:text-white/50">
+                {isPendingInvitationsView
+                  ? 'Cuando envíes invitaciones aparecerán aquí'
+                  : searchQuery || filterRole !== 'all'
+                    ? 'Intenta con otros términos de búsqueda o filtros'
+                    : 'Comienza invitando miembros a tu organización'}
+              </p>
+            </motion.div>
+          )}
       </div>
 
       {/* Invite User Modal */}
@@ -664,31 +670,31 @@ export default function UsersPage() {
                   Rol
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                   {/* OWNER cannot be assigned here — use Transfer Ownership flow */}
-                   {[UserRole.ADMIN, UserRole.VIEWER]
-                    .map((role) => {
-                      const config = getRoleConfig(role);
-                      const isSelected = editFormData.role === role;
-                      return (
-                        <button
-                          key={role}
-                          type="button"
-                          onClick={() => setEditFormData({ ...editFormData, role })}
-                          className={`rounded-xl border px-4 py-3 transition-all ${
-                            isSelected
-                              ? `border-black bg-black/5 ring-2 ring-black dark:border-white dark:bg-white/5 dark:ring-white`
-                              : 'border-black/5 bg-white hover:bg-black/5 dark:border-white/5 dark:bg-[#141414] dark:hover:bg-white/5'
-                          }`}
-                        >
-                          <span className={`text-sm font-medium ${config.color}`}>
-                            {config.label}
-                          </span>
-                        </button>
-                      );
-                    })}
+                  {/* OWNER cannot be assigned here — use Transfer Ownership flow */}
+                  {[UserRole.ADMIN, UserRole.VIEWER].map((role) => {
+                    const config = getRoleConfig(role);
+                    const isSelected = editFormData.role === role;
+                    return (
+                      <button
+                        key={role}
+                        type="button"
+                        onClick={() => setEditFormData({ ...editFormData, role })}
+                        className={`rounded-xl border px-4 py-3 transition-all ${
+                          isSelected
+                            ? `border-black bg-black/5 ring-2 ring-black dark:border-white dark:bg-white/5 dark:ring-white`
+                            : 'border-black/5 bg-white hover:bg-black/5 dark:border-white/5 dark:bg-[#141414] dark:hover:bg-white/5'
+                        }`}
+                      >
+                        <span className={`text-sm font-medium ${config.color}`}>
+                          {config.label}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
                 <p className="mt-1 text-xs text-black/40 dark:text-white/40">
-                  Para transferir la propiedad (OWNER) usa el botón dedicado en el perfil del usuario.
+                  Para transferir la propiedad (OWNER) usa el botón dedicado en el perfil del
+                  usuario.
                 </p>
               </div>
 

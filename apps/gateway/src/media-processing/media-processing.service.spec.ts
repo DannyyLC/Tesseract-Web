@@ -27,7 +27,12 @@ describe('MediaProcessingService', () => {
   });
 
   it('returns cached processed attachment when cache hit', async () => {
-    const attachment: IncomingAttachment = { type: 'IMAGE', mimeType: 'image/png', sourceUrl: 'http://x', sha256: 'abc' };
+    const attachment: IncomingAttachment = {
+      type: 'IMAGE',
+      mimeType: 'image/png',
+      sourceUrl: 'http://x',
+      sha256: 'abc',
+    };
     const cached = {
       id: 'att-1',
       processedText: 'cached text',
@@ -50,7 +55,11 @@ describe('MediaProcessingService', () => {
   });
 
   it('returns FAILED status when adapter returns failed', async () => {
-    const attachment: IncomingAttachment = { type: 'AUDIO', mimeType: 'audio/mp3', sourceUrl: 'http://a' };
+    const attachment: IncomingAttachment = {
+      type: 'AUDIO',
+      mimeType: 'audio/mp3',
+      sourceUrl: 'http://a',
+    };
 
     mockPrisma.messageAttachment.findFirst.mockResolvedValue(null);
     mockAdapter.process.mockResolvedValue({
@@ -63,7 +72,9 @@ describe('MediaProcessingService', () => {
 
     const res = await service.processIncomingAttachments('org-1', [attachment]);
 
-    expect(mockAdapter.process).toHaveBeenCalledWith(expect.objectContaining({ sourceUrl: 'http://a' }));
+    expect(mockAdapter.process).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceUrl: 'http://a' }),
+    );
     const out = res.attachments?.[0];
     expect(out?.processingStatus).toBe('FAILED');
     expect(out?.processingError).toBe('network');
@@ -79,8 +90,20 @@ describe('MediaProcessingService', () => {
 
     mockPrisma.messageAttachment.findFirst.mockResolvedValue(null);
     mockAdapter.process
-      .mockResolvedValueOnce({ status: 'PROCESSED', processedText: 'text1', processor: 'p1', processorVersion: 'v1', metadata: { x: 1 } })
-      .mockResolvedValueOnce({ status: 'PROCESSED', processedText: 'text2', processor: 'p2', processorVersion: 'v2', metadata: { y: 2 } });
+      .mockResolvedValueOnce({
+        status: 'PROCESSED',
+        processedText: 'text1',
+        processor: 'p1',
+        processorVersion: 'v1',
+        metadata: { x: 1 },
+      })
+      .mockResolvedValueOnce({
+        status: 'PROCESSED',
+        processedText: 'text2',
+        processor: 'p2',
+        processorVersion: 'v2',
+        metadata: { y: 2 },
+      });
 
     const res = await service.processIncomingAttachments('org-1', [a1, a2]);
 
@@ -92,9 +115,20 @@ describe('MediaProcessingService', () => {
   });
 
   it('uses sha256 when provided for contentHash computation', async () => {
-    const a: IncomingAttachment = { type: 'IMAGE', mimeType: 'image/png', sourceUrl: 'http://z', sha256: 'deadbeef' };
+    const a: IncomingAttachment = {
+      type: 'IMAGE',
+      mimeType: 'image/png',
+      sourceUrl: 'http://z',
+      sha256: 'deadbeef',
+    };
     mockPrisma.messageAttachment.findFirst.mockResolvedValue(null);
-    mockAdapter.process.mockResolvedValue({ status: 'PROCESSED', processedText: 'ok', processor: 'p', processorVersion: 'v', metadata: {} });
+    mockAdapter.process.mockResolvedValue({
+      status: 'PROCESSED',
+      processedText: 'ok',
+      processor: 'p',
+      processorVersion: 'v',
+      metadata: {},
+    });
 
     const res = await service.processIncomingAttachments('org-1', [a]);
     const contentHash = res.attachments?.[0].contentHash;

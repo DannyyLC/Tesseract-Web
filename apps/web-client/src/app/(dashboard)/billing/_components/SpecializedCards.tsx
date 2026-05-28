@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 
 export default function SpecializedCards() {
   const router = useRouter();
-  
+
   return (
     <div className="grid gap-6 lg:grid-cols-5">
       {/* Consultancy */}

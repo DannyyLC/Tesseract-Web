@@ -253,13 +253,13 @@ export class ConversationsService {
       ); //TODO; Remove when sending to prod
       return existing;
     }
-    
+
     // Obtener la organización del workflow para asignarla a la conversación
     const workflow = await this.prisma.workflow.findUnique({
       where: { id: workflowId },
       select: { organizationId: true },
     });
-    
+
     if (!workflow) {
       throw new Error(`Workflow no encontrado: ${workflowId}`);
     }
@@ -468,9 +468,12 @@ export class ConversationsService {
       const processedMediaLines = message.attachments
         .filter(
           (attachment) =>
-            attachment.processingStatus === 'PROCESSED' && Boolean(attachment.processedText?.trim()),
+            attachment.processingStatus === 'PROCESSED' &&
+            Boolean(attachment.processedText?.trim()),
         )
-        .map((attachment) => `[${attachment.type.toLowerCase()}] ${attachment.processedText!.trim()}`);
+        .map(
+          (attachment) => `[${attachment.type.toLowerCase()}] ${attachment.processedText!.trim()}`,
+        );
 
       if (processedMediaLines.length === 0) {
         return {
@@ -516,9 +519,12 @@ export class ConversationsService {
       const processedMediaLines = message.attachments
         .filter(
           (attachment) =>
-            attachment.processingStatus === 'PROCESSED' && Boolean(attachment.processedText?.trim()),
+            attachment.processingStatus === 'PROCESSED' &&
+            Boolean(attachment.processedText?.trim()),
         )
-        .map((attachment) => `[${attachment.type.toLowerCase()}] ${attachment.processedText!.trim()}`);
+        .map(
+          (attachment) => `[${attachment.type.toLowerCase()}] ${attachment.processedText!.trim()}`,
+        );
 
       if (processedMediaLines.length === 0) {
         return {
@@ -746,8 +752,8 @@ export class ConversationsService {
   }
 
   /**
-    * Crea una compactación y actualiza currentCompactionId en Conversation
-    * dentro de una transacción atómica.
+   * Crea una compactación y actualiza currentCompactionId en Conversation
+   * dentro de una transacción atómica.
    */
   async createAndActivateCompaction(input: CreateCompactionInput) {
     return this.prisma.$transaction(async (tx) => {
@@ -810,5 +816,4 @@ export class ConversationsService {
       ? conversation.currentCompaction.summary
       : null;
   }
-
 }

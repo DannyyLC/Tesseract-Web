@@ -131,9 +131,7 @@ describe('CreditsService', () => {
       const result = await service.create('org-123');
 
       expect(result).toBeNull();
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.stringContaining('unknown error'),
-      );
+      expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('unknown error'));
     });
   });
 
@@ -163,9 +161,9 @@ describe('CreditsService', () => {
     it('should throw error when credit balance not found', async () => {
       mockPrismaService.creditBalance.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.addCredits(orgId, 50, 'SUBSCRIPTION_RENEWAL'),
-      ).rejects.toThrow('Credit balance not found');
+      await expect(service.addCredits(orgId, 50, 'SUBSCRIPTION_RENEWAL')).rejects.toThrow(
+        'Credit balance not found',
+      );
 
       expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
     });
@@ -399,13 +397,7 @@ describe('CreditsService', () => {
       });
       mockPrismaService.workflow.update.mockResolvedValue(undefined);
 
-      await service.deductCredits(
-        orgId,
-        executionId,
-        workflowId,
-        'ADVANCED',
-        'My Workflow',
-      );
+      await service.deductCredits(orgId, executionId, workflowId, 'ADVANCED', 'My Workflow');
 
       // Transaction should contain 4 operations
       expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
@@ -440,13 +432,7 @@ describe('CreditsService', () => {
       mockPrismaService.$transaction.mockResolvedValue(undefined);
       mockPrismaService.workflow.findUnique.mockResolvedValue(null);
 
-      await service.deductCredits(
-        orgId,
-        executionId,
-        workflowId,
-        'ADVANCED',
-        'My Workflow',
-      );
+      await service.deductCredits(orgId, executionId, workflowId, 'ADVANCED', 'My Workflow');
 
       // Transaction called but workflow.update for avg should NOT be called.
       // Note: workflow.update is called once INSIDE the transaction for total stats.
@@ -464,13 +450,7 @@ describe('CreditsService', () => {
         totalExecutions: 0,
       });
 
-      await service.deductCredits(
-        orgId,
-        executionId,
-        workflowId,
-        'LIGHT',
-        'My Workflow',
-      );
+      await service.deductCredits(orgId, executionId, workflowId, 'LIGHT', 'My Workflow');
 
       // Called once inside transaction, but avg update should not happen.
       expect(mockPrismaService.workflow.update).toHaveBeenCalledTimes(1);
@@ -486,15 +466,9 @@ describe('CreditsService', () => {
         totalExecutions: 2,
       });
 
-      await service.deductCredits(
-        orgId,
-        executionId,
-        workflowId,
-        'STANDARD',
-        'My Workflow',
-        0.05,
-        { model: 'gpt-4' },
-      );
+      await service.deductCredits(orgId, executionId, workflowId, 'STANDARD', 'My Workflow', 0.05, {
+        model: 'gpt-4',
+      });
 
       expect(mockPrismaService.$transaction).toHaveBeenCalled();
       expect(mockPrismaService.workflow.update).toHaveBeenCalledWith({
@@ -700,12 +674,7 @@ describe('CreditsService', () => {
         pageSize: 10,
       });
 
-      await service.getCreditTransactionsForOrganization(
-        orgId,
-        'cursor-1',
-        10,
-        'prev',
-      );
+      await service.getCreditTransactionsForOrganization(orgId, 'cursor-1', 10, 'prev');
 
       expect(mockPrismaService.creditTransaction.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -727,12 +696,7 @@ describe('CreditsService', () => {
         pageSize: 5,
       });
 
-      await service.getCreditTransactionsForOrganization(
-        orgId,
-        'cursor-2',
-        5,
-        'next',
-      );
+      await service.getCreditTransactionsForOrganization(orgId, 'cursor-2', 5, 'next');
 
       expect(mockPrismaService.creditTransaction.findMany).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -83,7 +83,7 @@ describe('UsersService', () => {
       prisma.user.findFirst = jest.fn().mockResolvedValue(mockUser);
 
       const result = await service.findOne('u1', 'org1');
-      
+
       expect(result).toEqual(mockUser);
       expect(prisma.user.findFirst).toHaveBeenCalledWith({
         where: { id: 'u1', organizationId: 'org1', deletedAt: null },
@@ -102,7 +102,12 @@ describe('UsersService', () => {
       prisma.user.count = jest.fn().mockResolvedValue(2);
       prisma.user.findMany = jest.fn().mockResolvedValue(mockUsers);
 
-      const result = await service.findAll('org1', { page: 1, limit: 10, role: 'viewer' as any, isActive: true });
+      const result = await service.findAll('org1', {
+        page: 1,
+        limit: 10,
+        role: 'viewer' as any,
+        isActive: true,
+      });
 
       expect(result.data).toEqual(mockUsers);
       expect(result.meta).toEqual({
@@ -115,18 +120,21 @@ describe('UsersService', () => {
       expect(prisma.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            organizationId: 'org1', role: 'viewer', isActive: true, deletedAt: null
-          })
-        })
+            organizationId: 'org1',
+            role: 'viewer',
+            isActive: true,
+            deletedAt: null,
+          }),
+        }),
       );
     });
 
     it('findByEmail should return user', async () => {
       const mockUser = { id: 'u1', email: 'test@test.com' };
       prisma.user.findFirst = jest.fn().mockResolvedValue(mockUser);
-      
+
       const result = await service.findByEmail('test@test.com', 'org1');
-      
+
       expect(result).toEqual(mockUser);
       expect(prisma.user.findFirst).toHaveBeenCalledWith({
         where: { email: 'test@test.com', organizationId: 'org1', deletedAt: null },
@@ -144,21 +152,25 @@ describe('UsersService', () => {
 
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'u1' },
-        data: { name: 'New Name' }
+        data: { name: 'New Name' },
       });
       expect(result).toEqual(mockUpdated);
     });
 
     it('updateRole should reject super_admin assignments', async () => {
-      jest.spyOn(service, 'findOne')
+      jest
+        .spyOn(service, 'findOne')
         .mockResolvedValueOnce({ id: 'target', role: 'viewer' } as any) // target
         .mockResolvedValueOnce({ id: 'actor', role: 'owner' } as any); // actor
 
-      await expect(service.updateRole('target', 'org1', 'super_admin', 'actor')).rejects.toThrow(ForbiddenException);
+      await expect(service.updateRole('target', 'org1', 'super_admin', 'actor')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('updateRole should properly update the role', async () => {
-      jest.spyOn(service, 'findOne')
+      jest
+        .spyOn(service, 'findOne')
         .mockResolvedValueOnce({ id: 'target', role: 'viewer' } as any) // target
         .mockResolvedValueOnce({ id: 'actor', role: 'owner' } as any); // actor
 
@@ -169,29 +181,31 @@ describe('UsersService', () => {
       expect(result).toEqual(mockUpdated);
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'target' },
-        data: { role: 'admin' }
+        data: { role: 'admin' },
       });
     });
 
     it('activate/deactivate should toggle isActive', async () => {
-      jest.spyOn(service, 'findOne')
+      jest
+        .spyOn(service, 'findOne')
         .mockResolvedValueOnce({ id: 'target', role: 'viewer' } as any) // target user
-        .mockResolvedValueOnce({ id: 'actor', role: 'admin' } as any);  // actor user
+        .mockResolvedValueOnce({ id: 'actor', role: 'admin' } as any); // actor user
 
       const mockActivated = { id: 'target', isActive: true };
       prisma.user.update = jest.fn().mockResolvedValue(mockActivated);
 
       const result = await service.activate('target', 'org1', 'actor');
-      
+
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'target' },
-        data: { isActive: true }
+        data: { isActive: true },
       });
       expect(result).toEqual(mockActivated);
     });
 
     it('transferOwnership should switch roles via transaction', async () => {
-      jest.spyOn(service, 'findOne')
+      jest
+        .spyOn(service, 'findOne')
         .mockResolvedValueOnce({ id: 'owner', role: 'owner' } as any)
         .mockResolvedValueOnce({ id: 'newOwner', role: 'admin', isActive: true } as any);
 
@@ -203,25 +217,29 @@ describe('UsersService', () => {
     });
 
     it('transferOwnership should reject if new owner is inactive', async () => {
-      jest.spyOn(service, 'findOne')
+      jest
+        .spyOn(service, 'findOne')
         .mockResolvedValueOnce({ id: 'owner', role: 'owner' } as any)
         .mockResolvedValueOnce({ id: 'newOwner', role: 'admin', isActive: false } as any);
 
-      await expect(service.transferOwnership('owner', 'newOwner', 'org1')).rejects.toThrow(BadRequestException);
+      await expect(service.transferOwnership('owner', 'newOwner', 'org1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('updateLastLogin should set lastLoginAt', async () => {
       await service.updateLastLogin('u1');
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'u1' },
-        data: { lastLoginAt: expect.any(Date) }
+        data: { lastLoginAt: expect.any(Date) },
       });
     });
   });
 
   describe('Management and Analytics (remove, restore, getStats, findInactive, getUserActivity)', () => {
     it('remove should soft-delete user if actor has permissions', async () => {
-      jest.spyOn(service, 'findOne')
+      jest
+        .spyOn(service, 'findOne')
         .mockResolvedValueOnce({ id: 'target', role: 'viewer' } as any) // target
         .mockResolvedValueOnce({ id: 'actor', role: 'admin' } as any); // actor
 
@@ -229,12 +247,13 @@ describe('UsersService', () => {
 
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'target' },
-        data: { deletedAt: expect.any(Date) }
+        data: { deletedAt: expect.any(Date) },
       });
     });
 
     it('remove should reject if actor lacks permissions', async () => {
-      jest.spyOn(service, 'findOne')
+      jest
+        .spyOn(service, 'findOne')
         .mockResolvedValueOnce({ id: 'target', role: 'admin' } as any) // target
         .mockResolvedValueOnce({ id: 'actor', role: 'viewer' } as any); // actor
 
@@ -250,17 +269,18 @@ describe('UsersService', () => {
       expect(result).toEqual(mockRestored);
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'u1' },
-        data: { deletedAt: null }
+        data: { deletedAt: null },
       });
     });
 
     it('getStats should aggregate counts correctly', async () => {
       // Mock the multiple promise all responses
-      prisma.user.count = jest.fn()
+      prisma.user.count = jest
+        .fn()
         .mockResolvedValueOnce(10) // total
-        .mockResolvedValueOnce(8)  // active
-        .mockResolvedValueOnce(2)  // inactive
-        .mockResolvedValueOnce(9)  // verified
+        .mockResolvedValueOnce(8) // active
+        .mockResolvedValueOnce(2) // inactive
+        .mockResolvedValueOnce(9) // verified
         .mockResolvedValueOnce(1); // unverified
 
       prisma.user.groupBy = jest.fn().mockResolvedValue([
@@ -291,16 +311,18 @@ describe('UsersService', () => {
           where: expect.objectContaining({
             OR: expect.arrayContaining([
               { lastLoginAt: { lt: expect.any(Date) } },
-              { lastLoginAt: null }
-            ])
-          })
-        })
+              { lastLoginAt: null },
+            ]),
+          }),
+        }),
       );
     });
 
     it('getUserActivity should fetch correct execution and conversation counts', async () => {
-      jest.spyOn(service, 'findOne').mockResolvedValue({ id: 'u1', lastLoginAt: new Date('2023-01-01') } as any);
-      
+      jest
+        .spyOn(service, 'findOne')
+        .mockResolvedValue({ id: 'u1', lastLoginAt: new Date('2023-01-01') } as any);
+
       prisma.execution.count = jest.fn().mockResolvedValue(55);
       prisma.conversation.count = jest.fn().mockResolvedValue(10);
 
@@ -313,7 +335,7 @@ describe('UsersService', () => {
     });
   });
 
-    describe('requestServiceInfoByEmail', () => {
+  describe('requestServiceInfoByEmail', () => {
     it('returns true on successful email send', async () => {
       mockPrismaService.organization.findUnique.mockResolvedValue({ name: 'Org' });
       mockEmailService.sendServiceRequestEmail.mockResolvedValue(true);
@@ -330,12 +352,14 @@ describe('UsersService', () => {
     });
   });
 
-    describe('validateEmailUnique', () => {
+  describe('validateEmailUnique', () => {
     it('returns false when email exists', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue({ id: 'u1' });
       const res = await service.validateEmailUnique('a@b.com');
       expect(res).toBe(false);
-      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({ where: { email: 'a@b.com' } });
+      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
+        where: { email: 'a@b.com' },
+      });
     });
 
     it('returns true when email does not exist', async () => {
@@ -344,5 +368,4 @@ describe('UsersService', () => {
       expect(res).toBe(true);
     });
   });
-
 });

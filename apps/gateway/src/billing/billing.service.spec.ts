@@ -124,9 +124,9 @@ describe('BillingService', () => {
     it('should create a customer and return its ID', async () => {
       mockStripeClient.customers.create.mockResolvedValue({ id: 'cus_123' });
       const dto = { email: 'test@test.com', name: 'Test User' };
-      
+
       const result = await service.createCustomer(dto);
-      
+
       expect(result).toBe('cus_123');
       expect(mockStripeClient.customers.create).toHaveBeenCalledWith({
         email: dto.email,
@@ -137,14 +137,18 @@ describe('BillingService', () => {
 
     it('should throw out error if creation fails', async () => {
       mockStripeClient.customers.create.mockRejectedValue(new Error('Stripe error'));
-      await expect(service.createCustomer({ email: 'test@test.com', name: 'Test User' })).rejects.toThrow('Stripe error');
+      await expect(
+        service.createCustomer({ email: 'test@test.com', name: 'Test User' }),
+      ).rejects.toThrow('Stripe error');
     });
   });
 
   describe('createCheckoutSession', () => {
     it('should create a checkout session and return URL', async () => {
-      mockStripeClient.stripe.checkout.sessions.create.mockResolvedValue({ url: 'https://checkout.stripe.com/123' });
-      
+      mockStripeClient.stripe.checkout.sessions.create.mockResolvedValue({
+        url: 'https://checkout.stripe.com/123',
+      });
+
       const dto = {
         customerId: 'cus_123',
         priceId: 'price_123',
@@ -165,16 +169,18 @@ describe('BillingService', () => {
           cancel_url: 'http://localhost/cancel',
           subscription_data: { metadata: { orgId: 'org-1' } },
           metadata: { orgId: 'org-1' },
-        })
+        }),
       );
     });
   });
 
   describe('createCustomerPortalSession', () => {
     it('should create a portal session', async () => {
-      mockStripeClient.stripe.billingPortal.sessions.create.mockResolvedValue({ url: 'https://portal.stripe.com/123' });
+      mockStripeClient.stripe.billingPortal.sessions.create.mockResolvedValue({
+        url: 'https://portal.stripe.com/123',
+      });
       const result = await service.createCustomerPortalSession('cus_123', 'http://ret');
-      
+
       expect(result).toBe('https://portal.stripe.com/123');
       expect(mockStripeClient.stripe.billingPortal.sessions.create).toHaveBeenCalledWith({
         customer: 'cus_123',
@@ -239,12 +245,18 @@ describe('BillingService', () => {
     });
 
     it('should throw if subscription is canceled', async () => {
-      mockPrismaService.subscription.findUnique.mockResolvedValue({ status: 'CANCELED', stripeSubscriptionId: 'sub_1' });
+      mockPrismaService.subscription.findUnique.mockResolvedValue({
+        status: 'CANCELED',
+        stripeSubscriptionId: 'sub_1',
+      });
       await expect(service.changePlan(orgId, 'PRO')).rejects.toThrow(BadRequestException);
     });
 
     it('should throw if already on target plan', async () => {
-      mockPrismaService.subscription.findUnique.mockResolvedValue({ plan: 'PRO', stripeSubscriptionId: 'sub_1' });
+      mockPrismaService.subscription.findUnique.mockResolvedValue({
+        plan: 'PRO',
+        stripeSubscriptionId: 'sub_1',
+      });
       await expect(service.changePlan(orgId, 'PRO')).rejects.toThrow(BadRequestException);
     });
 
@@ -254,20 +266,23 @@ describe('BillingService', () => {
         plan: 'STANDARD',
         stripeSubscriptionId: 'sub_stripe_1',
       });
-      
+
       mockStripeClient.stripe.subscriptions.retrieve.mockResolvedValue({
         status: 'active',
-        items: { data: [{ id: 'item_1', price: { id: 'price_1'} }] },
+        items: { data: [{ id: 'item_1', price: { id: 'price_1' } }] },
       });
 
       await service.changePlan(orgId, 'PRO');
 
       // Verify update called with config mapped price ID
-      expect(mockStripeClient.stripe.subscriptions.update).toHaveBeenCalledWith('sub_stripe_1', expect.objectContaining({
-        items: [{ id: 'item_1', price: 'price_pro_m_123' }],
-        proration_behavior: 'none',
-        billing_cycle_anchor: 'now',
-      }));
+      expect(mockStripeClient.stripe.subscriptions.update).toHaveBeenCalledWith(
+        'sub_stripe_1',
+        expect.objectContaining({
+          items: [{ id: 'item_1', price: 'price_pro_m_123' }],
+          proration_behavior: 'none',
+          billing_cycle_anchor: 'now',
+        }),
+      );
     });
 
     it('should handle DOWNGRADE by scheduling change', async () => {
@@ -276,7 +291,7 @@ describe('BillingService', () => {
         plan: 'PRO',
         stripeSubscriptionId: 'sub_stripe_1',
       });
-      
+
       mockStripeClient.stripe.subscriptions.retrieve.mockResolvedValue({
         status: 'active',
         current_period_start: 1000,
@@ -292,8 +307,10 @@ describe('BillingService', () => {
       expect(mockStripeClient.stripe.subscriptionSchedules.create).toHaveBeenCalledWith({
         from_subscription: 'sub_stripe_1',
       });
-      expect(mockStripeClient.stripe.subscriptionSchedules.update).toHaveBeenCalledWith('sched_1', expect.objectContaining({
-        phases: [
+      expect(mockStripeClient.stripe.subscriptionSchedules.update).toHaveBeenCalledWith(
+        'sched_1',
+        expect.objectContaining({
+          phases: [
             {
               start_date: 1000,
               end_date: 2000,
@@ -303,13 +320,16 @@ describe('BillingService', () => {
               start_date: 2000,
               items: [{ price: 'price_MISSING_CONFIG_STARTER' }],
             },
-          ]
-      }));
+          ],
+        }),
+      );
 
-      expect(mockPrismaService.subscription.update).toHaveBeenCalledWith(expect.objectContaining({
-        where: { id: 'sub-db' },
-        data: expect.objectContaining({ pendingPlanChange: 'STARTER' })
-      }));
+      expect(mockPrismaService.subscription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'sub-db' },
+          data: expect.objectContaining({ pendingPlanChange: 'STARTER' }),
+        }),
+      );
     });
   });
 
@@ -322,22 +342,22 @@ describe('BillingService', () => {
       });
 
       mockStripeClient.stripe.subscriptions.retrieve.mockResolvedValue({
-        schedule: 'sched_1'
+        schedule: 'sched_1',
       });
 
       await service.cancelPendingDowngrade('org-1');
 
       expect(mockStripeClient.stripe.subscriptionSchedules.release).toHaveBeenCalledWith('sched_1');
       expect(mockPrismaService.subscription.update).toHaveBeenCalledWith({
-         where: { id: 'sub-1' },
-         data: expect.objectContaining({ pendingPlanChange: null }),
+        where: { id: 'sub-1' },
+        data: expect.objectContaining({ pendingPlanChange: null }),
       });
     });
   });
 
   describe('Webhook Events - Invoice Methods', () => {
     // We export private methods using index access for testing purposes
-    
+
     it('handleInvoiceCreated - should bill overage if negative balance', async () => {
       const invoice = {
         id: 'inv_1',
@@ -350,7 +370,10 @@ describe('BillingService', () => {
       mockPrismaService.creditBalance.findUnique.mockResolvedValue({ balance: -500 });
 
       // Call internal handler (mocking structure of webhook dispatch)
-      await service.handleWebhookEvent({ type: 'invoice.created', data: { object: invoice } } as any);
+      await service.handleWebhookEvent({
+        type: 'invoice.created',
+        data: { object: invoice },
+      } as any);
 
       expect(mockStripeClient.stripe.invoiceItems.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -358,9 +381,9 @@ describe('BillingService', () => {
           invoice: 'inv_1',
           price: 'price_overage_123',
           quantity: 500,
-        })
+        }),
       );
-      
+
       expect(mockPrismaService.creditBalance.update).toHaveBeenCalledWith({
         where: { organizationId: 'org-1' },
         data: { invoicedOverageCredits: 500 },
@@ -376,7 +399,10 @@ describe('BillingService', () => {
 
       mockPrismaService.subscription.findUnique.mockResolvedValue({ id: 'sub-db' });
 
-      await service.handleWebhookEvent({ type: 'invoice.payment_failed', data: { object: invoice } } as any);
+      await service.handleWebhookEvent({
+        type: 'invoice.payment_failed',
+        data: { object: invoice },
+      } as any);
 
       expect(mockPrismaService.organization.update).toHaveBeenCalledWith({
         where: { id: 'org-1' },
@@ -387,6 +413,5 @@ describe('BillingService', () => {
         data: { status: 'PAST_DUE' },
       });
     });
-
   });
 });

@@ -63,7 +63,10 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
         };
       }
 
-      const { text: processedText, modelUsed } = await this.extractImageText(media.sourceUrl, media.customOcrPrompt);
+      const { text: processedText, modelUsed } = await this.extractImageText(
+        media.sourceUrl,
+        media.customOcrPrompt,
+      );
       return {
         status: 'PROCESSED',
         processedText,
@@ -116,7 +119,8 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
 
         const payload = (await response.json()) as { text?: string };
         return {
-          text: payload.text?.trim() || 'Audio recibido, pero no se pudo transcribir contenido util.',
+          text:
+            payload.text?.trim() || 'Audio recibido, pero no se pudo transcribir contenido util.',
           modelUsed: model,
         };
       } catch (error) {
@@ -127,10 +131,14 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
     throw new Error(lastError?.message || 'STT request failed for all configured models');
   }
 
-  private async extractImageText(sourceUrl: string, customPrompt?: string): Promise<{ text: string; modelUsed: string }> {
+  private async extractImageText(
+    sourceUrl: string,
+    customPrompt?: string,
+  ): Promise<{ text: string; modelUsed: string }> {
     let lastError: Error | null = null;
-    
-    const userPrompt = customPrompt?.trim() || 'Extrae texto y resume contenido visual clave en maximo 6 lineas.';
+
+    const userPrompt =
+      customPrompt?.trim() || 'Extrae texto y resume contenido visual clave en maximo 6 lineas.';
 
     for (const model of this.ocrModels) {
       try {
@@ -159,7 +167,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
                   {
                     type: 'image_url',
                     image_url: {
-                       url: sourceUrl,
+                      url: sourceUrl,
                     },
                   },
                 ],
@@ -245,9 +253,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
   }
 
   private buildModelChain(primary: string, fallback?: string): string[] {
-    const chain = [primary, fallback ?? '']
-      .map((value) => value.trim())
-      .filter(Boolean);
+    const chain = [primary, fallback ?? ''].map((value) => value.trim()).filter(Boolean);
 
     return [...new Set(chain)];
   }

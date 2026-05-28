@@ -94,7 +94,7 @@ describe('ExecutionsService', () => {
       prisma.execution.findUnique = jest.fn().mockResolvedValue(mockExecution);
       // Make Prisma update return the expected object
       prisma.execution.update = jest.fn().mockResolvedValue(mockUpdated);
-      
+
       // Mock updateWorkflowStats which is triggered on completion
       prisma.workflow.findUnique = jest.fn().mockResolvedValue({
         id: 'wf-1',
@@ -137,9 +137,9 @@ describe('ExecutionsService', () => {
     it('should throw NotFoundException if execution not found', async () => {
       prisma.execution.findUnique = jest.fn().mockResolvedValue(null);
 
-      await expect(
-        service.updateStatus('invalid-id', 'COMPLETED')
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.updateStatus('invalid-id', 'COMPLETED')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -151,11 +151,11 @@ describe('ExecutionsService', () => {
         organizationId: 'org-1',
         apiKey: { name: 'Test Key' },
       };
-      
+
       prisma.execution.findFirst = jest.fn().mockResolvedValue(mockExec);
 
       const result = await service.findOneForClient('123', 'org-1');
-      
+
       expect(result).toEqual({
         id: '123',
         workflowId: 'wf-1',
@@ -198,13 +198,13 @@ describe('ExecutionsService', () => {
       prisma.execution.findMany = jest.fn().mockResolvedValue(mockResult);
 
       const result = await service.findByWorkflow('wf-1', 'org-1', 10, 'COMPLETED');
-      
+
       expect(result).toEqual(mockResult);
       expect(prisma.execution.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { workflowId: 'wf-1', status: 'COMPLETED' },
           take: 10,
-        })
+        }),
       );
     });
 
@@ -216,9 +216,11 @@ describe('ExecutionsService', () => {
     it('findAll should return paginated data with hasMore=true', async () => {
       // Mock count
       prisma.execution.count = jest.fn().mockResolvedValue(20);
-      
+
       // Mock findMany returning (limit + 1) items to trigger `hasMore = true`
-      const mockResults = Array(11).fill({ id: 'exec' }).map((x, i) => ({ id: `exec-${i}` }));
+      const mockResults = Array(11)
+        .fill({ id: 'exec' })
+        .map((x, i) => ({ id: `exec-${i}` }));
       prisma.execution.findMany = jest.fn().mockResolvedValue(mockResults);
 
       const result = await service.findAll('org-1', { limit: 10, status: 'COMPLETED' });
@@ -235,7 +237,7 @@ describe('ExecutionsService', () => {
         expect.objectContaining({
           take: 11, // limit + 1
           where: expect.objectContaining({ status: 'completed' }),
-        })
+        }),
       );
     });
   });
@@ -244,8 +246,14 @@ describe('ExecutionsService', () => {
     it('getStats should accurately aggregate statuses and categories', async () => {
       const mockExecs = [
         { status: 'completed', duration: 10, credits: 5, workflow: { category: 'STANDARD' } },
-        { status: 'failed', duration: 5, credits: 0, workflow: { category: 'LIGHT' }, wasOverage: true },
-        { status: 'completed', duration: 15, credits: 10, workflow: { category: 'ADVANCED' } }
+        {
+          status: 'failed',
+          duration: 5,
+          credits: 0,
+          workflow: { category: 'LIGHT' },
+          wasOverage: true,
+        },
+        { status: 'completed', duration: 15, credits: 10, workflow: { category: 'ADVANCED' } },
       ];
       prisma.execution.findMany = jest.fn().mockResolvedValue(mockExecs);
 
@@ -254,11 +262,11 @@ describe('ExecutionsService', () => {
       expect(result.total).toBe(3);
       expect(result.successful).toBe(2);
       expect(result.failed).toBe(1);
-      
+
       // Calculate avg duration => (10+5+15)/3 = 10
       expect(result.avgDuration).toBe(10);
       expect(result.successRate).toBeCloseTo(66.67, 1);
-      
+
       // Credits test
       expect(result.credits.totalConsumed).toBe(15);
       expect(result.credits.executionsInOverage).toBe(1);
@@ -269,10 +277,24 @@ describe('ExecutionsService', () => {
     it('getAnalyticsBySource should compute averages properly per user and key', async () => {
       prisma.workflow.findFirst = jest.fn().mockResolvedValue({ id: 'wf-1', name: 'Test' });
 
-      // Grouping 
+      // Grouping
       const mockExecs = [
-        { status: 'completed', duration: 10, apiKeyId: 'k1', userId: 'u1', apiKey: { name: 'K1' }, user: { name: 'U1', email: 'u1@' } },
-        { status: 'failed', duration: 6, apiKeyId: 'k1', userId: 'u1', apiKey: { name: 'K1' }, user: { name: 'U1', email: 'u1@' } },
+        {
+          status: 'completed',
+          duration: 10,
+          apiKeyId: 'k1',
+          userId: 'u1',
+          apiKey: { name: 'K1' },
+          user: { name: 'U1', email: 'u1@' },
+        },
+        {
+          status: 'failed',
+          duration: 6,
+          apiKeyId: 'k1',
+          userId: 'u1',
+          apiKey: { name: 'K1' },
+          user: { name: 'U1', email: 'u1@' },
+        },
       ];
       prisma.execution.findMany = jest.fn().mockResolvedValue(mockExecs);
 
@@ -315,5 +337,4 @@ describe('ExecutionsService', () => {
       });
     });
   });
-
 });

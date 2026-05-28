@@ -33,11 +33,7 @@ export class ExecutionsService {
    * @param triggerData - Datos del trigger (IP, payload, metadata, organizationId, userId, apiKeyId, etc.)
    * @returns La ejecución creada con status="pending"
    */
-  async create(
-    workflowId: string,
-    trigger: TriggerType,
-    triggerData?: any,
-  ) {
+  async create(workflowId: string, trigger: TriggerType, triggerData?: any) {
     const execution = await this.prisma.execution.create({
       data: {
         workflowId,
@@ -189,11 +185,7 @@ export class ExecutionsService {
    * @param status - Estado final de la ejecución (completed o failed)
    * @param duration - Duración de la ejecución en segundos
    */
-  private async updateWorkflowStats(
-    workflowId: string,
-    status: ExecutionStatus,
-    duration: number,
-  ) {
+  private async updateWorkflowStats(workflowId: string, status: ExecutionStatus, duration: number) {
     const workflow = await this.prisma.workflow.findUnique({
       where: { id: workflowId },
       select: {
@@ -410,7 +402,12 @@ export class ExecutionsService {
    * @param limit - Número máximo de resultados (default: 50)
    * @param status - Filtrar por estado (opcional)
    */
-  async findByWorkflow(workflowId: string, organizationId: string, limit = 50, status?: ExecutionStatus) {
+  async findByWorkflow(
+    workflowId: string,
+    organizationId: string,
+    limit = 50,
+    status?: ExecutionStatus,
+  ) {
     // Verificar que el workflow pertenece a la organización
     const workflow = await this.prisma.workflow.findFirst({
       where: {

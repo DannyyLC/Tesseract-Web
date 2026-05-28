@@ -44,7 +44,9 @@ describe('WhatsappConfigService', () => {
       const record = { id: 'r2' };
       mockPrisma.whatsAppConfig.findFirst.mockResolvedValue(record);
       const res = await service.getWhatsappConfigByPhoneNumber('+123');
-      expect(mockPrisma.whatsAppConfig.findFirst).toHaveBeenCalledWith({ where: { phoneNumber: '+123' } });
+      expect(mockPrisma.whatsAppConfig.findFirst).toHaveBeenCalledWith({
+        where: { phoneNumber: '+123' },
+      });
       expect(res).toEqual(record);
     });
 
@@ -69,7 +71,11 @@ describe('WhatsappConfigService', () => {
       const created = { id: 'n1', phoneNumber: '+1' };
       mockPrisma.whatsAppConfig.create.mockResolvedValue(created);
       const res = await service.createRecordAndgenerateWebhookSecret('org-1', 'wf-1', '+1');
-      expect(mockPrisma.whatsAppConfig.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ phoneNumber: '+1', provider: 'ycloud' }) }));
+      expect(mockPrisma.whatsAppConfig.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ phoneNumber: '+1', provider: 'ycloud' }),
+        }),
+      );
       expect(res).toEqual(created);
     });
 
@@ -85,7 +91,10 @@ describe('WhatsappConfigService', () => {
     it('calls update and resolves', async () => {
       mockPrisma.whatsAppConfig.update.mockResolvedValue({});
       await expect(service.updatePhoneNumber('c1', '+2')).resolves.toBeUndefined();
-      expect(mockPrisma.whatsAppConfig.update).toHaveBeenCalledWith({ where: { id: 'c1' }, data: { phoneNumber: '+2' } });
+      expect(mockPrisma.whatsAppConfig.update).toHaveBeenCalledWith({
+        where: { id: 'c1' },
+        data: { phoneNumber: '+2' },
+      });
     });
 
     it('logs on error and does not throw', async () => {
@@ -115,7 +124,9 @@ describe('WhatsappConfigService', () => {
       const list = [{ id: 'a' }];
       mockPrisma.whatsAppConfig.findMany.mockResolvedValue(list);
       const res = await service.getConfigsByOrganizationAndWorkflow('org', 'wf');
-      expect(mockPrisma.whatsAppConfig.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { organizationId: 'org', defaultWorkflowId: 'wf' } }));
+      expect(mockPrisma.whatsAppConfig.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { organizationId: 'org', defaultWorkflowId: 'wf' } }),
+      );
       expect(res).toEqual(list);
     });
 
@@ -170,7 +181,10 @@ describe('WhatsappConfigService', () => {
       const payload = JSON.stringify({ hello: 'world' });
       const timestamp = `${Date.now()}`;
       const signedPayload = `${timestamp}.${payload}`;
-      const expectedSignature = crypto.createHmac('sha256', process.env.Y_CLOUD_WEBHOOK_SECRET || '').update(signedPayload).digest('hex');
+      const expectedSignature = crypto
+        .createHmac('sha256', process.env.Y_CLOUD_WEBHOOK_SECRET || '')
+        .update(signedPayload)
+        .digest('hex');
       const header = `t=${timestamp},s=${expectedSignature}`;
 
       const res = await service.verifySignature(payload, header);

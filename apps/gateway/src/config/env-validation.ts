@@ -76,9 +76,7 @@ const REQUIRED_IN_PRODUCTION: string[] = [
 
 export function validateEnv(): void {
   const isProduction = process.env.NODE_ENV === 'production';
-  const toCheck = isProduction
-    ? [...REQUIRED_ALWAYS, ...REQUIRED_IN_PRODUCTION]
-    : REQUIRED_ALWAYS;
+  const toCheck = isProduction ? [...REQUIRED_ALWAYS, ...REQUIRED_IN_PRODUCTION] : REQUIRED_ALWAYS;
 
   const missing = toCheck.filter((key) => !process.env[key]);
 

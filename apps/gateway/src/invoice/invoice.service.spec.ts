@@ -6,7 +6,9 @@ describe('InvoiceService', () => {
   const mockBuild = jest.fn();
 
   // Spy CursorPaginatedResponseUtils.getInstance().build
-  jest.spyOn(CursorPaginatedResponseUtils, 'getInstance').mockReturnValue({ build: mockBuild } as any);
+  jest
+    .spyOn(CursorPaginatedResponseUtils, 'getInstance')
+    .mockReturnValue({ build: mockBuild } as any);
 
   const mockPrismaService = {
     invoice: {
@@ -55,9 +57,7 @@ describe('InvoiceService', () => {
 
     expect(mockPrismaService.invoice.findMany).toHaveBeenCalled();
     expect(mockBuild).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({ id: 'inv-1', subtotal: 10, total: 11.5 }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ id: 'inv-1', subtotal: 10, total: 11.5 })]),
       10,
       null,
     );

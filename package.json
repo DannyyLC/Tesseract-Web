@@ -25,6 +25,8 @@
     "lint": "pnpm -r --if-present run lint",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "format:web": "pnpm --filter @tesseract/web-client exec prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "format:web:check": "pnpm --filter @tesseract/web-client exec prettier --check \"**/*.{ts,tsx,json,md}\"",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",

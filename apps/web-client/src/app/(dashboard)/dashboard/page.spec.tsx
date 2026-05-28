@@ -33,7 +33,10 @@ jest.mock('next/link', () => ({
     href,
     children,
     ...rest
-  }: { href: string; children: React.ReactNode } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+  }: {
+    href: string;
+    children: React.ReactNode;
+  } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
     <a href={href} {...rest}>
       {children}
     </a>
@@ -48,7 +51,8 @@ jest.mock('framer-motion', () => {
     motion: new Proxy(
       {},
       {
-        get: (_t, tag: string) =>
+        get:
+          (_t, tag: string) =>
           ({
             children,
             ...props
@@ -408,16 +412,12 @@ describe('DashboardPage', () => {
           topWorkflows: [],
         },
       });
-      expect(
-        screen.getByText(/sin ejecuciones en los últimos 7 días/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/sin ejecuciones en los últimos 7 días/i)).toBeInTheDocument();
     });
 
     it('shows the empty-state message when stats7d provides no dailyStats', () => {
       renderDashboard({ stats7dData: { total: 0, dailyStats: [], topWorkflows: [] } });
-      expect(
-        screen.getByText(/sin ejecuciones en los últimos 7 días/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/sin ejecuciones en los últimos 7 días/i)).toBeInTheDocument();
     });
   });
 

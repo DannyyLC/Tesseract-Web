@@ -366,44 +366,45 @@ export class UsersService {
    * Estadísticas de usuarios de la organización
    */
   async getStats(organizationId: string): Promise<UserStats> {
-    const [total, byRole, active, inactive, verified, unverified, pendingInvitations] = await Promise.all([
-      // Total usuarios
-      this.prisma.user.count({
-        where: { organizationId, deletedAt: null },
-      }),
-      // Por rol
-      this.prisma.user.groupBy({
-        by: ['role'],
-        where: { organizationId, deletedAt: null },
-        _count: true,
-      }),
-      // Activos
-      this.prisma.user.count({
-        where: { organizationId, deletedAt: null, isActive: true },
-      }),
-      // Inactivos
-      this.prisma.user.count({
-        where: { organizationId, deletedAt: null, isActive: false },
-      }),
-      // Verificados
-      this.prisma.user.count({
-        where: { organizationId, deletedAt: null, emailVerified: true },
-      }),
-      // No verificados
-      this.prisma.user.count({
-        where: { organizationId, deletedAt: null, emailVerified: false },
-      }),
-      // Invitaciones pendientes
-      this.prisma.userVerification.count({
-        where: {
-          organizationName: organizationId,
-          isFromInvitation: true,
-          expiresAt: {
-            gte: new Date(),
+    const [total, byRole, active, inactive, verified, unverified, pendingInvitations] =
+      await Promise.all([
+        // Total usuarios
+        this.prisma.user.count({
+          where: { organizationId, deletedAt: null },
+        }),
+        // Por rol
+        this.prisma.user.groupBy({
+          by: ['role'],
+          where: { organizationId, deletedAt: null },
+          _count: true,
+        }),
+        // Activos
+        this.prisma.user.count({
+          where: { organizationId, deletedAt: null, isActive: true },
+        }),
+        // Inactivos
+        this.prisma.user.count({
+          where: { organizationId, deletedAt: null, isActive: false },
+        }),
+        // Verificados
+        this.prisma.user.count({
+          where: { organizationId, deletedAt: null, emailVerified: true },
+        }),
+        // No verificados
+        this.prisma.user.count({
+          where: { organizationId, deletedAt: null, emailVerified: false },
+        }),
+        // Invitaciones pendientes
+        this.prisma.userVerification.count({
+          where: {
+            organizationName: organizationId,
+            isFromInvitation: true,
+            expiresAt: {
+              gte: new Date(),
+            },
           },
-        },
-      }),
-    ]);
+        }),
+      ]);
 
     const roleMap: Record<UserRole, 'viewer' | 'admin' | 'owner'> = {
       [UserRole.OWNER]: 'owner',
@@ -516,18 +517,23 @@ export class UsersService {
     targetCurrentRole: string,
     targetNewRole: string,
   ): void {
-
     const actorLevel = ROLE_HIERARCHY[actorRole.toUpperCase()] || 0;
     const targetCurrentLevel = ROLE_HIERARCHY[targetCurrentRole.toUpperCase()] || 0;
     const targetNewLevel = ROLE_HIERARCHY[targetNewRole.toUpperCase()] || 0;
 
     // Solo owner puede modificar a owner
-    if (targetCurrentRole.toUpperCase() === UserRole.OWNER && actorRole.toUpperCase() !== UserRole.OWNER) {
+    if (
+      targetCurrentRole.toUpperCase() === UserRole.OWNER &&
+      actorRole.toUpperCase() !== UserRole.OWNER
+    ) {
       throw new ForbiddenException('Only owner can modify owner role');
     }
 
     // Admin no puede asignar roles superiores a su nivel
-    if (actorRole.toUpperCase() === UserRole.ADMIN && targetNewLevel >= ROLE_HIERARCHY[UserRole.ADMIN]) {
+    if (
+      actorRole.toUpperCase() === UserRole.ADMIN &&
+      targetNewLevel >= ROLE_HIERARCHY[UserRole.ADMIN]
+    ) {
       throw new ForbiddenException('Admin cannot assign admin or owner roles');
     }
 

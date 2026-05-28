@@ -63,7 +63,9 @@ function ChartTooltip({ active, payload, label }: any) {
     : null;
   return (
     <div className="rounded-xl border border-black/10 bg-white px-3 py-2 shadow-lg dark:border-white/10 dark:bg-[#111]">
-      {displayLabel && <p className="mb-1 text-xs text-black/50 dark:text-white/40">{displayLabel}</p>}
+      {displayLabel && (
+        <p className="mb-1 text-xs text-black/50 dark:text-white/40">{displayLabel}</p>
+      )}
       {payload.map((p: any, i: number) => (
         <p key={i} className="text-sm font-semibold" style={{ color: p.color }}>
           {p.name}: {p.value?.toLocaleString()}
@@ -97,7 +99,7 @@ function getLast7DaysLabels() {
 export default function DashboardPage() {
   const { data: user } = useAuth();
   const userPermissions = user ? ROLE_PERMISSIONS[user.role] || [] : [];
-  
+
   const hasBilling = userPermissions.includes('billing:read');
   const hasUsers = userPermissions.includes('users:read');
   const hasTopStats = hasBilling || hasUsers;
@@ -106,7 +108,9 @@ export default function DashboardPage() {
   const { data: workflowStats, isLoading: loadingWf } = useWorkflowStats();
   const { data: statsToday, isLoading: loadingToday } = useExecutionsStats('24h');
   const { data: stats7d, isLoading: loading7d } = useExecutionsStats('7d');
-  const { data: billingData, isLoading: loadingBilling } = useBillingDashboard({ enabled: hasBilling });
+  const { data: billingData, isLoading: loadingBilling } = useBillingDashboard({
+    enabled: hasBilling,
+  });
   const { data: userStats, isLoading: loadingUsers } = useUserStats({ enabled: hasUsers });
   const { data: recentExecs, isLoading: loadingExecs } = useDashboardExecutions({ pageSize: 5 });
 
@@ -116,17 +120,19 @@ export default function DashboardPage() {
     if (stats7d?.dailyStats && stats7d.dailyStats.length > 0) {
       // Map to chart format { day: 'Lun', Ejecuciones: 10 }
       // Assuming dailyStats comes sorted or we just map by date
-      return [...stats7d.dailyStats].sort((a, b) => a.date.localeCompare(b.date)).map((stat) => {
-        const date = new Date(stat.date + 'T00:00:00'); // appended time to ensure local day match if string is YYYY-MM-DD
-        const dayName = date.toLocaleDateString('es-MX', { weekday: 'short' });
-        // Capitalize first letter: 'lun' -> 'Lun'
-        const day = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-        return {
-          day,
-          date: stat.date,
-          Ejecuciones: stat.count,
-        };
-      });
+      return [...stats7d.dailyStats]
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((stat) => {
+          const date = new Date(stat.date + 'T00:00:00'); // appended time to ensure local day match if string is YYYY-MM-DD
+          const dayName = date.toLocaleDateString('es-MX', { weekday: 'short' });
+          // Capitalize first letter: 'lun' -> 'Lun'
+          const day = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+          return {
+            day,
+            date: stat.date,
+            Ejecuciones: stat.count,
+          };
+        });
     }
 
     // Fallback if no real data (e.g. while backend is being updated)
@@ -194,7 +200,9 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Stats ──────────────────────────────────────────────────────────── */}
-      <div className={`mb-8 grid grid-cols-2 gap-8 px-2 ${hasTopStats ? 'lg:grid-cols-4' : 'lg:grid-cols-2'}`}>
+      <div
+        className={`mb-8 grid grid-cols-2 gap-8 px-2 ${hasTopStats ? 'lg:grid-cols-4' : 'lg:grid-cols-2'}`}
+      >
         {/* Workflows Activos — all roles */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}

@@ -21,10 +21,7 @@ describe('EndUsersService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        EndUsersService,
-        { provide: PrismaService, useValue: mockPrismaService },
-      ],
+      providers: [EndUsersService, { provide: PrismaService, useValue: mockPrismaService }],
     }).compile();
 
     service = module.get<EndUsersService>(EndUsersService);
@@ -86,8 +83,8 @@ describe('EndUsersService', () => {
       // Verificar que Prisma fue llamado con los parámetros correctos
       expect(mockPrismaService.endUser.findMany).toHaveBeenCalledWith({
         where: { organizationId },
-        skip: 0,           // sin cursor → skip 0
-        take: 11,          // pageSize (10) + 1 para detectar next page
+        skip: 0, // sin cursor → skip 0
+        take: 11, // pageSize (10) + 1 para detectar next page
         cursor: undefined, // sin cursor
         select: {
           id: true,
@@ -120,9 +117,9 @@ describe('EndUsersService', () => {
 
       expect(mockPrismaService.endUser.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          skip: 1,                    // con cursor → skip 1
-          cursor: { id: cursor },     // cursor activo
-          take: 11,                   // next → positivo (pageSize + 1)
+          skip: 1, // con cursor → skip 1
+          cursor: { id: cursor }, // cursor activo
+          take: 11, // next → positivo (pageSize + 1)
         }),
       );
 
@@ -139,7 +136,7 @@ describe('EndUsersService', () => {
 
       expect(mockPrismaService.endUser.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          take: -6,                    // prev → -(pageSize + 1)
+          take: -6, // prev → -(pageSize + 1)
           cursor: { id: cursor },
           skip: 1,
         }),
@@ -191,9 +188,9 @@ describe('EndUsersService', () => {
       const dbError = new Error('Database connection lost');
       mockPrismaService.endUser.findMany.mockRejectedValue(dbError);
 
-      await expect(
-        service.getDashboardData(organizationId),
-      ).rejects.toThrow('Database connection lost');
+      await expect(service.getDashboardData(organizationId)).rejects.toThrow(
+        'Database connection lost',
+      );
 
       expect(mockBuild).not.toHaveBeenCalled();
     });

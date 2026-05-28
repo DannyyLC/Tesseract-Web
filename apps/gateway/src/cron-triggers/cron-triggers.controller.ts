@@ -33,10 +33,7 @@ export class CronTriggersController {
   }
 
   @Get(':id')
-  findOne(
-    @CurrentUser() user: UserPayload,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  findOne(@CurrentUser() user: UserPayload, @Param('id', ParseUUIDPipe) id: string) {
     return this.cronTriggersService.findOne(user.organizationId, id);
   }
 
@@ -60,10 +57,7 @@ export class CronTriggersController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(
-    @CurrentUser() user: UserPayload,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  remove(@CurrentUser() user: UserPayload, @Param('id', ParseUUIDPipe) id: string) {
     return this.cronTriggersService.delete(user.organizationId, id);
   }
 }

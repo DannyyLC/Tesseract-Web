@@ -12,7 +12,7 @@ import {
   SubscriptionPlan as SharedSubscriptionPlan,
   NOTIFICATIONSENUM,
   ErrorStrings,
-  OPERATIONS
+  OPERATIONS,
 } from '@tesseract/types';
 import { Organization, SubscriptionStatus, UserRole } from '@tesseract/database';
 import { randomBytes } from 'crypto';
@@ -72,7 +72,9 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      this.logger.error(`Error al crear organización "${dto.name}": ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Error al crear organización "${dto.name}": ${error instanceof Error ? error.message : String(error)}`,
+      );
       return null;
     }
 
@@ -142,7 +144,9 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      this.logger.error(`Error al actualizar organización "${id}": ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Error al actualizar organización "${id}": ${error instanceof Error ? error.message : String(error)}`,
+      );
       return null;
     }
 
@@ -571,7 +575,9 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      this.logger.error(`Error al desactivar organización "${organizationId}": ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Error al desactivar organización "${organizationId}": ${error instanceof Error ? error.message : String(error)}`,
+      );
       return null;
     }
 
@@ -619,7 +625,9 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      this.logger.error(`Error al reactivar organización "${organizationId}": ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Error al reactivar organización "${organizationId}": ${error instanceof Error ? error.message : String(error)}`,
+      );
       return null;
     }
 
@@ -703,7 +711,9 @@ export class OrganizationsService {
         `Organization ${organization.name} (${organizationId}) soft-deleted by user ${userId}`,
       );
     } catch (error) {
-      this.logger.error(`Error deleting organization ${organizationId}: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Error deleting organization ${organizationId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return null;
     }
     return updated;
@@ -923,7 +933,9 @@ export class OrganizationsService {
       );
       return true;
     } catch (error) {
-      this.logger.error(`invite >> Error creating user verification for ${email}: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `invite >> Error creating user verification for ${email}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return InviteUserErrorsDto.ERROR_SENDING_EMAIL;
     }
   }
@@ -992,7 +1004,7 @@ export class OrganizationsService {
     userName: string,
     pass: string,
     verificationCode: string,
-  ): Promise<{success: DashboardUserDataDto | null, error?: string}> {
+  ): Promise<{ success: DashboardUserDataDto | null; error?: string }> {
     const userVerification = await this.prisma.userVerification.findFirst({
       where: {
         verificationCode,
@@ -1000,7 +1012,10 @@ export class OrganizationsService {
       },
     });
     if (!userVerification || userVerification.expiresAt < new Date()) {
-      return { success: null, error: ErrorStrings[OPERATIONS.ACCEPT_INVITATION].INVITATION_EXPIRED };
+      return {
+        success: null,
+        error: ErrorStrings[OPERATIONS.ACCEPT_INVITATION].INVITATION_EXPIRED,
+      };
     }
 
     try {
@@ -1030,17 +1045,19 @@ export class OrganizationsService {
           NOTIFICATIONSENUM.ACCEPTED_INVITATION,
           [userVerification.email],
         );
-        return { success: {
-          email: existingUser.email,
-          name: existingUser.name,
-          role: existingUser.role,
-          isActive: existingUser.isActive,
-          lastLoginAt: existingUser.lastLoginAt,
-          createdAt: existingUser.createdAt,
-          avatar: existingUser.avatar,
-          timezone: existingUser.timezone,
-          emailVerified: existingUser.emailVerified,
-        }};
+        return {
+          success: {
+            email: existingUser.email,
+            name: existingUser.name,
+            role: existingUser.role,
+            isActive: existingUser.isActive,
+            lastLoginAt: existingUser.lastLoginAt,
+            createdAt: existingUser.createdAt,
+            avatar: existingUser.avatar,
+            timezone: existingUser.timezone,
+            emailVerified: existingUser.emailVerified,
+          },
+        };
       }
 
       const hashedPassword = await this.utilityService.hashPassword(pass);
@@ -1061,23 +1078,25 @@ export class OrganizationsService {
           isFromInvitation: true,
         },
       });
-       this.utilityService.sendNotificationToAppClients(
-          userVerification.organizationName,
-          [UserRole.OWNER, UserRole.ADMIN],
-          NOTIFICATIONSENUM.ACCEPTED_INVITATION,
-          [userVerification.email],
-        );
-      return { success: {
-        email: newUser.email,
-        name: newUser.name,
-        role: newUser.role,
-        isActive: newUser.isActive,
-        lastLoginAt: newUser.lastLoginAt,
-        createdAt: newUser.createdAt,
-        avatar: newUser.avatar,
-        timezone: newUser.timezone,
-        emailVerified: newUser.emailVerified,
-      }};
+      this.utilityService.sendNotificationToAppClients(
+        userVerification.organizationName,
+        [UserRole.OWNER, UserRole.ADMIN],
+        NOTIFICATIONSENUM.ACCEPTED_INVITATION,
+        [userVerification.email],
+      );
+      return {
+        success: {
+          email: newUser.email,
+          name: newUser.name,
+          role: newUser.role,
+          isActive: newUser.isActive,
+          lastLoginAt: newUser.lastLoginAt,
+          createdAt: newUser.createdAt,
+          avatar: newUser.avatar,
+          timezone: newUser.timezone,
+          emailVerified: newUser.emailVerified,
+        },
+      };
     } catch (error) {
       this.logger.error(
         `createUserFromInvitation >> Error creating user from invitation: ${error instanceof Error ? error.message : String(error)}`,
@@ -1089,7 +1108,10 @@ export class OrganizationsService {
   /**
    * Reenviar invitación a usuario pendiente
    */
-  async resendInvitation(userEmail: string, organizationId: string): Promise<{success: boolean; error?: string}> {
+  async resendInvitation(
+    userEmail: string,
+    organizationId: string,
+  ): Promise<{ success: boolean; error?: string }> {
     const userVerification = await this.prisma.userVerification.findFirst({
       where: {
         organizationName: organizationId,
@@ -1134,13 +1156,15 @@ export class OrganizationsService {
     );
 
     return { success: true };
-
   }
 
   /**
    * Cancelar invitación pendiente (elimina el usuario que nunca aceptó)
    */
-  async cancelInvitation(userEmail: string, organizationId: string): Promise<{success: boolean; error?: string}> {
+  async cancelInvitation(
+    userEmail: string,
+    organizationId: string,
+  ): Promise<{ success: boolean; error?: string }> {
     const deletedRecords = await this.prisma.userVerification.deleteMany({
       where: {
         email: userEmail,

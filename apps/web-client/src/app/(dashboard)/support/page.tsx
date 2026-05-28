@@ -127,7 +127,7 @@ function SupportContent() {
   }
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="max-w-5xl p-6">
       {/* Page Header */}
       <div className="mb-8 space-y-2">
         <h1 className="text-3xl font-bold tracking-tight text-black dark:text-white">

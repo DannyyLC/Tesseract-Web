@@ -92,7 +92,13 @@ export class TenantToolController {
     @Res() res: Response,
   ) {
     const apiResponse = new ApiResponseBuilder<UpdateTenantToolDto | null>();
-    const updated = await this.tenantToolService.updateTenantTool(id, user.organizationId, user.sub, user.role, body);
+    const updated = await this.tenantToolService.updateTenantTool(
+      id,
+      user.organizationId,
+      user.sub,
+      user.role,
+      body,
+    );
     if (!updated) {
       apiResponse.setSuccess(false).setMessage('Error updating tenant tool');
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
@@ -110,7 +116,13 @@ export class TenantToolController {
     @Res() res: Response,
   ) {
     const apiResponse = new ApiResponseBuilder<UpdateTenantToolDto | null>();
-    const updated = await this.tenantToolService.addWorkflowToTenantTool(id, user.organizationId, user.sub, user.role, body.workflowIds);
+    const updated = await this.tenantToolService.addWorkflowToTenantTool(
+      id,
+      user.organizationId,
+      user.sub,
+      user.role,
+      body.workflowIds,
+    );
     if (!updated) {
       apiResponse.setSuccess(false).setMessage('Error adding workflows to tenant tool');
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
@@ -131,7 +143,13 @@ export class TenantToolController {
     @Res() res: Response,
   ) {
     const apiResponse = new ApiResponseBuilder<UpdateTenantToolDto | null>();
-    const updated = await this.tenantToolService.removeWorkflowFromTenantTool(id, user.organizationId, user.sub, user.role, body.workflowIds);
+    const updated = await this.tenantToolService.removeWorkflowFromTenantTool(
+      id,
+      user.organizationId,
+      user.sub,
+      user.role,
+      body.workflowIds,
+    );
     if (!updated) {
       apiResponse.setSuccess(false).setMessage('Error removing workflows from tenant tool');
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());

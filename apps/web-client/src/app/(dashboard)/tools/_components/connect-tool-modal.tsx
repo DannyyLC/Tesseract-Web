@@ -103,7 +103,8 @@ export function ConnectToolModal({
       const statusCode = error?.response?.status;
       const backendMessage =
         (typeof error?.message === 'string' && error.message.trim()) ||
-        (typeof error?.response?.data?.message === 'string' && error.response.data.message.trim()) ||
+        (typeof error?.response?.data?.message === 'string' &&
+          error.response.data.message.trim()) ||
         '';
 
       if (statusCode === 409) {

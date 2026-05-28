@@ -22,7 +22,10 @@ jest.mock('next/link', () => ({
     href,
     children,
     ...rest
-  }: { href: string; children: React.ReactNode } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+  }: {
+    href: string;
+    children: React.ReactNode;
+  } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
     <a href={href} {...rest}>
       {children}
     </a>
@@ -36,8 +39,12 @@ jest.mock('framer-motion', () => {
     motion: new Proxy(
       {},
       {
-        get: (_target, tag: string) =>
-          ({ children, ...props }: React.HTMLAttributes<HTMLElement> & { children?: React.ReactNode }) =>
+        get:
+          (_target, tag: string) =>
+          ({
+            children,
+            ...props
+          }: React.HTMLAttributes<HTMLElement> & { children?: React.ReactNode }) =>
             React.createElement(tag, props, children),
       },
     ),

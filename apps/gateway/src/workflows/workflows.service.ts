@@ -1,10 +1,10 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { 
-  TriggerType, 
-  ExecutionStatus, 
-  ChatRole, 
-  MessageAttachmentType, 
+import {
+  TriggerType,
+  ExecutionStatus,
+  ChatRole,
+  MessageAttachmentType,
   SubscriptionStatus,
   CompactionStatus,
   WorkflowCategory as DbWorkflowCategory,
@@ -39,7 +39,6 @@ import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { WhatsAppInboundEvent } from '../whatsapp-config/dto/whatsapp-inbound-event.dto';
 import { MediaProcessingService } from '../media-processing/media-processing.service';
-
 
 /**
  * Service que maneja la lógica de negocio de workflows
@@ -747,15 +746,15 @@ export class WorkflowsService {
           metadata?: Record<string, any>;
         }[]
       | undefined;
-    let userMessage = "";
-   
+    let userMessage = '';
+
     let conversation;
     if (channel === 'WHATSAPP') {
       if (whatsappData) {
         conversation = await this.conversationsService.findOrCreateConversationFromWhatsAppMessage(
           workflowId,
-          whatsappData?.whatsappInboundMessage?.to || "",
-          whatsappData?.whatsappInboundMessage?.from || ""
+          whatsappData?.whatsappInboundMessage?.to || '',
+          whatsappData?.whatsappInboundMessage?.from || '',
         );
       } else {
         throw new InvalidWorkflowConfigException(
@@ -768,9 +767,10 @@ export class WorkflowsService {
       }
 
       if (whatsappData.whatsappInboundMessage.type === 'text') {
-        userMessage = whatsappData.whatsappInboundMessage.text?.body || "";
+        userMessage = whatsappData.whatsappInboundMessage.text?.body || '';
       } else if (whatsappData.whatsappInboundMessage.type === 'image') {
-        userMessage = whatsappData.whatsappInboundMessage.image?.caption || "Picture without caption";
+        userMessage =
+          whatsappData.whatsappInboundMessage.image?.caption || 'Picture without caption';
         const imageLink = whatsappData.whatsappInboundMessage.image?.link;
         if (imageLink) {
           attachments = [
@@ -783,7 +783,7 @@ export class WorkflowsService {
           ];
         }
       } else if (whatsappData.whatsappInboundMessage.type === 'audio') {
-        userMessage = "audio message";
+        userMessage = 'audio message';
         const audioLink = whatsappData.whatsappInboundMessage.audio?.link;
         if (audioLink) {
           attachments = [
@@ -796,10 +796,13 @@ export class WorkflowsService {
           ];
         }
       } else if (whatsappData.whatsappInboundMessage.type === 'video') {
-        throw new InvalidWorkflowConfigException('Los mensajes de video por WhatsApp aún no están soportados', {
-          workflowId,
-          channel,
-        });
+        throw new InvalidWorkflowConfigException(
+          'Los mensajes de video por WhatsApp aún no están soportados',
+          {
+            workflowId,
+            channel,
+          },
+        );
       }
     } else {
       conversation = await this.conversationsService.findOrCreateConversation(
@@ -818,13 +821,15 @@ export class WorkflowsService {
     const processedMedia = await this.mediaProcessingService.processIncomingAttachments(
       organizationId,
       attachments,
-      ocrPrompt
+      ocrPrompt,
     );
     attachments = processedMedia.attachments;
 
     if (
       processedMedia.derivedText &&
-      (userMessage === 'audio message' || userMessage === 'Picture without caption' || !userMessage.trim())
+      (userMessage === 'audio message' ||
+        userMessage === 'Picture without caption' ||
+        !userMessage.trim())
     ) {
       userMessage = processedMedia.derivedText;
     }
@@ -844,11 +849,15 @@ export class WorkflowsService {
       this.logger.log(`HITL Execution: User ${userId} acting as assistant.`);
 
       // 1. Guardar el mensaje del usuario como 'assistant' (la persona responde por la IA)
-      await this.conversationsService.addMessage(conversation.id, ChatRole.ASSISTANT, userMessage, {
-        is_hitl_bypass: true,
-        original_user_id: userId,
-      },
-        attachments
+      await this.conversationsService.addMessage(
+        conversation.id,
+        ChatRole.ASSISTANT,
+        userMessage,
+        {
+          is_hitl_bypass: true,
+          original_user_id: userId,
+        },
+        attachments,
       );
 
       // 2. Actualizar ejecución como completada
@@ -904,7 +913,13 @@ export class WorkflowsService {
     const messageHistory = await this.conversationsService.getMessageHistory(conversation.id);
 
     // GUARDAR MENSAJE DEL USUARIO INMEDIATAMENTE
-    await this.conversationsService.addMessage(conversation.id, ChatRole.USER, userMessage, undefined, attachments);
+    await this.conversationsService.addMessage(
+      conversation.id,
+      ChatRole.USER,
+      userMessage,
+      undefined,
+      attachments,
+    );
 
     // 5. EJECUTAR WORKFLOW CON EL SERVICIO DE AGENTS
     try {
@@ -1706,7 +1721,6 @@ export class WorkflowsService {
     // 4. Limpiar agents_config - remover campo 'tools' (redundante, ya está en agent_tool_instances)
     const cleanedAgentsConfig: Record<string, any> = {};
     for (const [agentName, agentConfig] of Object.entries(agentsConfig)) {
-       
       const { tools: _tools, ...configWithoutTools } = agentConfig as any;
       cleanedAgentsConfig[agentName] = configWithoutTools;
     }
@@ -1719,7 +1733,8 @@ export class WorkflowsService {
     // El recorte de ventana se realiza fuera de este método para evitar doble transformación.
     // Fallback defensivo: cubre llamadas directas a buildAgentPayload sin contexto de compactación.
     const resolvedActiveSummary =
-      activeSummary ?? (await this.conversationsService.getActiveCompactionSummary(conversation.id));
+      activeSummary ??
+      (await this.conversationsService.getActiveCompactionSummary(conversation.id));
     const safeRecentHistory =
       messageHistory.length > 0 &&
       ['assistant', 'ai'].includes(String(messageHistory[0]?.role ?? '').toLowerCase())
@@ -1811,7 +1826,8 @@ export class WorkflowsService {
 
     try {
       const fullHistory = await this.conversationsService.getMessageHistoryWithIds(conversationId);
-      const existingSummary = await this.conversationsService.getActiveCompactionSummary(conversationId);
+      const existingSummary =
+        await this.conversationsService.getActiveCompactionSummary(conversationId);
 
       const boundary = Math.max(0, fullHistory.length - this.recentMessagesToKeepWithSummary);
       const archivedMessages = fullHistory.slice(0, boundary);
@@ -1828,9 +1844,7 @@ export class WorkflowsService {
 
       const estimatedAfter = Math.max(1, Math.floor(composedSummary.length / 4));
       const compressionRatio =
-        historyTokens > 0
-          ? Number((estimatedAfter / historyTokens).toFixed(6))
-          : 1;
+        historyTokens > 0 ? Number((estimatedAfter / historyTokens).toFixed(6)) : 1;
 
       await this.conversationsService.createAndActivateCompaction({
         conversationId,
@@ -1873,9 +1887,7 @@ export class WorkflowsService {
     }
   }
 
-  private estimateMessageHistoryTokens(
-    messageHistory: Array<{ content?: string | null }>,
-  ): number {
+  private estimateMessageHistoryTokens(messageHistory: Array<{ content?: string | null }>): number {
     return messageHistory.reduce((acc, msg) => {
       const content = String(msg.content ?? '');
       return acc + Math.max(1, Math.ceil(content.length / 4));
@@ -1908,39 +1920,45 @@ export class WorkflowsService {
     const archivedText = archivedMessages
       .map((msg) => {
         const role = String(msg.role).toUpperCase();
-        const content = String(msg.content ?? '').replace(/\s+/g, ' ').trim().slice(0, 600);
+        const content = String(msg.content ?? '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 600);
         return `${role}: ${content}`;
       })
       .join('\n');
 
-    const response = await this.fetchWithCompactionTimeout(`${this.compactionApiBaseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.compactionApiKey}`,
-        'Content-Type': 'application/json',
+    const response = await this.fetchWithCompactionTimeout(
+      `${this.compactionApiBaseUrl}/chat/completions`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.compactionApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: this.compactionModel,
+          temperature: 0,
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a conversation compression engine. Return only a concise Spanish summary preserving facts, decisions, pending tasks, entities, constraints, tone and language. Do not invent.',
+            },
+            {
+              role: 'user',
+              content: [
+                existingSummary ? `Resumen previo:\n${existingSummary}` : '',
+                `Mensajes a compactar:\n${archivedText}`,
+                'Devuelve un unico resumen consolidado, legible y breve.',
+              ]
+                .filter(Boolean)
+                .join('\n\n'),
+            },
+          ],
+        }),
       },
-      body: JSON.stringify({
-        model: this.compactionModel,
-        temperature: 0,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are a conversation compression engine. Return only a concise Spanish summary preserving facts, decisions, pending tasks, entities, constraints, tone and language. Do not invent.',
-          },
-          {
-            role: 'user',
-            content: [
-              existingSummary ? `Resumen previo:\n${existingSummary}` : '',
-              `Mensajes a compactar:\n${archivedText}`,
-              'Devuelve un unico resumen consolidado, legible y breve.',
-            ]
-              .filter(Boolean)
-              .join('\n\n'),
-          },
-        ],
-      }),
-    });
+    );
 
     if (!response.ok) {
       throw new Error(`Compaction model request failed with status ${response.status}`);

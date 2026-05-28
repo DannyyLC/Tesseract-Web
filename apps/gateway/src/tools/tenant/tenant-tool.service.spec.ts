@@ -6,7 +6,9 @@ describe('TenantToolService', () => {
   let service: TenantToolService;
 
   const mockBuild = jest.fn();
-  jest.spyOn(CursorPaginatedResponseUtils, 'getInstance').mockReturnValue({ build: mockBuild } as any);
+  jest
+    .spyOn(CursorPaginatedResponseUtils, 'getInstance')
+    .mockReturnValue({ build: mockBuild } as any);
 
   const mockPrismaService: any = {
     tenantTool: {
@@ -68,7 +70,9 @@ describe('TenantToolService', () => {
       const tool = { id: 'tt-1' };
       mockPrismaService.tenantTool.findUnique.mockResolvedValue(tool);
       const res = await service.getTenantToolById('tt-1');
-      expect(mockPrismaService.tenantTool.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'tt-1' } }));
+      expect(mockPrismaService.tenantTool.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'tt-1' } }),
+      );
       expect(res).toEqual(tool);
     });
 
@@ -83,13 +87,37 @@ describe('TenantToolService', () => {
   describe('createTenantTool', () => {
     it('throws NotFoundException when tool catalog missing', async () => {
       mockPrismaService.toolCatalog.findUnique.mockResolvedValue(null);
-      await expect(service.createTenantTool({ displayName: 'X', toolCatalogId: 'c1', allowedFunctions: [], config: {}, workflowId: null } as any, 'org-1', 'user-1')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(
+        service.createTenantTool(
+          {
+            displayName: 'X',
+            toolCatalogId: 'c1',
+            allowedFunctions: [],
+            config: {},
+            workflowId: null,
+          } as any,
+          'org-1',
+          'user-1',
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('throws ConflictException when active tool with same name exists', async () => {
       mockPrismaService.toolCatalog.findUnique.mockResolvedValue({ provider: 'custom' });
       mockPrismaService.tenantTool.findFirst.mockResolvedValue({ id: 'exists' });
-      await expect(service.createTenantTool({ displayName: 'Same', toolCatalogId: 'c1', allowedFunctions: [], config: {}, workflowId: null } as any, 'org-1', 'user-1')).rejects.toBeInstanceOf(ConflictException);
+      await expect(
+        service.createTenantTool(
+          {
+            displayName: 'Same',
+            toolCatalogId: 'c1',
+            allowedFunctions: [],
+            config: {},
+            workflowId: null,
+          } as any,
+          'org-1',
+          'user-1',
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
 
     it('creates tool as connected when provider requires no auth', async () => {
@@ -98,15 +126,27 @@ describe('TenantToolService', () => {
       const created = { id: 'new' };
       mockPrismaService.tenantTool.create.mockResolvedValue(created);
 
-      const res = await service.createTenantTool({ displayName: 'New Tool', toolCatalogId: 'c1', allowedFunctions: [], config: {}, workflowId: null } as any, 'org-1', 'user-1');
-
-      expect(mockPrismaService.tenantTool.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({
+      const res = await service.createTenantTool(
+        {
           displayName: 'New Tool',
-          organizationId: 'org-1',
-          isConnected: true,
+          toolCatalogId: 'c1',
+          allowedFunctions: [],
+          config: {},
+          workflowId: null,
+        } as any,
+        'org-1',
+        'user-1',
+      );
+
+      expect(mockPrismaService.tenantTool.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            displayName: 'New Tool',
+            organizationId: 'org-1',
+            isConnected: true,
+          }),
         }),
-      }));
+      );
       expect(res).toEqual(created);
     });
 
@@ -117,7 +157,19 @@ describe('TenantToolService', () => {
       err.code = 'P2002';
       mockPrismaService.tenantTool.create.mockRejectedValue(err);
 
-      await expect(service.createTenantTool({ displayName: 'New Tool', toolCatalogId: 'c1', allowedFunctions: [], config: {}, workflowId: null } as any, 'org-1', 'user-1')).rejects.toBeInstanceOf(ConflictException);
+      await expect(
+        service.createTenantTool(
+          {
+            displayName: 'New Tool',
+            toolCatalogId: 'c1',
+            allowedFunctions: [],
+            config: {},
+            workflowId: null,
+          } as any,
+          'org-1',
+          'user-1',
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
   });
 
@@ -142,7 +194,9 @@ describe('TenantToolService', () => {
       const updated = { id: 't1' };
       mockPrismaService.tenantTool.update.mockResolvedValue(updated);
       const res = await service.addWorkflowToTenantTool('t1', ['w1']);
-      expect(mockPrismaService.tenantTool.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 't1' } }));
+      expect(mockPrismaService.tenantTool.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 't1' } }),
+      );
       expect(res).toEqual(updated);
     });
 
@@ -150,7 +204,9 @@ describe('TenantToolService', () => {
       const updated = { id: 't1' };
       mockPrismaService.tenantTool.update.mockResolvedValue(updated);
       const res = await service.removeWorkflowFromTenantTool('t1', ['w1']);
-      expect(mockPrismaService.tenantTool.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 't1' } }));
+      expect(mockPrismaService.tenantTool.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 't1' } }),
+      );
       expect(res).toEqual(updated);
     });
   });
@@ -158,16 +214,24 @@ describe('TenantToolService', () => {
   describe('deleteTool', () => {
     it('throws NotFoundException if tool not found', async () => {
       mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
-      await expect(service.deleteTool('t1', 'org-1', 'user-1', 'owner')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.deleteTool('t1', 'org-1', 'user-1', 'owner')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('throws when user not owner and did not create', async () => {
-      mockPrismaService.tenantTool.findFirst.mockResolvedValue({ id: 't1', createdByUserId: 'someone' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue({
+        id: 't1',
+        createdByUserId: 'someone',
+      });
       await expect(service.deleteTool('t1', 'org-1', 'user-1', 'member')).rejects.toThrow();
     });
 
     it('calls transaction when deletion allowed', async () => {
-      mockPrismaService.tenantTool.findFirst.mockResolvedValue({ id: 't1', createdByUserId: 'user-1' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue({
+        id: 't1',
+        createdByUserId: 'user-1',
+      });
       await service.deleteTool('t1', 'org-1', 'user-1', 'member');
       expect(mockPrismaService.$transaction).toHaveBeenCalled();
     });
@@ -176,16 +240,24 @@ describe('TenantToolService', () => {
   describe('disconnectTool', () => {
     it('throws NotFoundException if tool not found', async () => {
       mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
-      await expect(service.disconnectTool('t1', 'org-1', 'user-1', 'owner')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.disconnectTool('t1', 'org-1', 'user-1', 'owner')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('throws when user not owner and did not create', async () => {
-      mockPrismaService.tenantTool.findFirst.mockResolvedValue({ id: 't1', createdByUserId: 'someone' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue({
+        id: 't1',
+        createdByUserId: 'someone',
+      });
       await expect(service.disconnectTool('t1', 'org-1', 'user-1', 'member')).rejects.toThrow();
     });
 
     it('calls transaction and updates config to null-like value', async () => {
-      mockPrismaService.tenantTool.findFirst.mockResolvedValue({ id: 't1', createdByUserId: 'user-1' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue({
+        id: 't1',
+        createdByUserId: 'user-1',
+      });
       await service.disconnectTool('t1', 'org-1', 'user-1', 'member');
       expect(mockPrismaService.$transaction).toHaveBeenCalled();
     });

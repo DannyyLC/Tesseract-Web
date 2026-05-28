@@ -4,7 +4,13 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { CreditsService } from '../credits/credits.service';
 import { TransactionType, SubscriptionPlan, SubscriptionStatus } from '@tesseract/database';
-import { PLANS, getPlanLimits, SubscriptionPlan as SharedSubscriptionPlan, UserRole, NOTIFICATIONSENUM } from '@tesseract/types';
+import {
+  PLANS,
+  getPlanLimits,
+  SubscriptionPlan as SharedSubscriptionPlan,
+  UserRole,
+  NOTIFICATIONSENUM,
+} from '@tesseract/types';
 import { ConfigService } from '@nestjs/config';
 import { SUBSCRIPTION_PLANS } from './billing.constants';
 import { PrismaService } from '../database/prisma.service';
@@ -133,9 +139,7 @@ export class BillingService {
     // Old API: invoice.subscription (string or object)
     return (
       invoice.parent?.subscription_details?.subscription ??
-      (typeof invoice.subscription === 'string'
-        ? invoice.subscription
-        : invoice.subscription?.id)
+      (typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id)
     );
   }
 
@@ -152,10 +156,7 @@ export class BillingService {
   private getLineItemPriceId(lineItem: any): string | undefined {
     // New API: pricing.price_details.price
     // Old API: price.id
-    return (
-      lineItem.pricing?.price_details?.price ??
-      lineItem.price?.id
-    );
+    return lineItem.pricing?.price_details?.price ?? lineItem.price?.id;
   }
 
   /**
@@ -312,7 +313,9 @@ export class BillingService {
       return;
     }
 
-    this.logger.log(`Processing invoice ${invoice.id} for org ${organizationId} (sub: ${subscriptionId})`);
+    this.logger.log(
+      `Processing invoice ${invoice.id} for org ${organizationId} (sub: ${subscriptionId})`,
+    );
 
     const amountPaidCents = invoice.amount_paid;
 
@@ -361,13 +364,12 @@ export class BillingService {
 
       if (existingSub?.plan === 'ENTERPRISE') {
         // Use custom monthly credits if defined, otherwise -1 (unlimited)
-        creditsToAdd = existingSub.customMonthlyCredits ?? SUBSCRIPTION_PLANS.ENTERPRISE.limits.monthlyCredits;
+        creditsToAdd =
+          existingSub.customMonthlyCredits ?? SUBSCRIPTION_PLANS.ENTERPRISE.limits.monthlyCredits;
         planName = 'ENTERPRISE';
         this.logger.log(`Using custom ENTERPRISE plan limits for Org ${organizationId}`);
       }
     }
-
-
 
     if (creditsToAdd === 0) {
       this.logger.warn(
@@ -432,7 +434,9 @@ export class BillingService {
       // 2. Upsert Subscription
       // Period dates come from the Stripe subscription directly — invoices don't
       // reliably carry current_period_start/end in the new API (2025-01-27.acacia).
-      const stripeSubForDates = await this.stripeClient.stripe.subscriptions.retrieve(subscriptionId) as any;
+      const stripeSubForDates = (await this.stripeClient.stripe.subscriptions.retrieve(
+        subscriptionId,
+      )) as any;
       const periodStart = new Date(stripeSubForDates.current_period_start * 1000);
       const periodEnd = new Date(stripeSubForDates.current_period_end * 1000);
       const upsertPriceId = this.getLineItemPriceId(invoice.lines?.data?.[0]);
@@ -580,7 +584,9 @@ export class BillingService {
    */
   async changePlan(organizationId: string, newPlan: SubscriptionPlan): Promise<void> {
     if (newPlan === 'FREE') {
-      throw new BadRequestException('Cannot change to FREE plan directly. Please cancel your subscription instead.');
+      throw new BadRequestException(
+        'Cannot change to FREE plan directly. Please cancel your subscription instead.',
+      );
     }
 
     // 1. Get current subscription
@@ -593,7 +599,9 @@ export class BillingService {
     }
 
     if (sub.status === SubscriptionStatus.CANCELED) {
-      throw new BadRequestException('Cannot change a canceled subscription. Please create a new subscription instead.');
+      throw new BadRequestException(
+        'Cannot change a canceled subscription. Please create a new subscription instead.',
+      );
     }
 
     if (sub.status === SubscriptionStatus.PAST_DUE) {
@@ -628,9 +636,7 @@ export class BillingService {
         where: { id: sub.id },
         data: { status: SubscriptionStatus.CANCELED },
       });
-      throw new ConflictException(
-        'SUBSCRIPTION_CANCELED_IN_STRIPE',
-      );
+      throw new ConflictException('SUBSCRIPTION_CANCELED_IN_STRIPE');
     }
 
     const itemId = stripeSub.items.data[0].id;
@@ -647,7 +653,9 @@ export class BillingService {
       const existingScheduleId = (stripeSub as any).schedule as string;
       if (existingScheduleId) {
         await this.stripeClient.stripe.subscriptionSchedules.release(existingScheduleId);
-        this.logger.log(`Released schedule ${existingScheduleId} before upgrading org ${organizationId}`);
+        this.logger.log(
+          `Released schedule ${existingScheduleId} before upgrading org ${organizationId}`,
+        );
       }
 
       await this.stripeClient.stripe.subscriptions.update(sub.stripeSubscriptionId, {
@@ -864,12 +872,13 @@ export class BillingService {
     // both of which send valid non-zero period timestamps with no active schedule.
     const hasActiveSchedule = !!sub.schedule;
     const hasValidPeriodDates = sub.current_period_start > 0 && sub.current_period_end > 0;
-    const periodDates = (!hasActiveSchedule && hasValidPeriodDates)
-      ? {
-          currentPeriodStart: new Date(sub.current_period_start * 1000),
-          currentPeriodEnd: new Date(sub.current_period_end * 1000),
-        }
-      : {};
+    const periodDates =
+      !hasActiveSchedule && hasValidPeriodDates
+        ? {
+            currentPeriodStart: new Date(sub.current_period_start * 1000),
+            currentPeriodEnd: new Date(sub.current_period_end * 1000),
+          }
+        : {};
 
     await this.prisma.$transaction([
       this.prisma.organization.update({
@@ -884,8 +893,12 @@ export class BillingService {
           organizationId,
           plan: planName,
           status: internalStatus,
-          currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : new Date(),
-          currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : new Date(),
+          currentPeriodStart: sub.current_period_start
+            ? new Date(sub.current_period_start * 1000)
+            : new Date(),
+          currentPeriodEnd: sub.current_period_end
+            ? new Date(sub.current_period_end * 1000)
+            : new Date(),
           stripeSubscriptionId: sub.id,
           stripePriceId: priceId,
         },
@@ -908,7 +921,9 @@ export class BillingService {
         where: { id: organizationId },
         data: { allowOverages: false },
       });
-      this.logger.log(`Disabled overages for org ${organizationId} (cancel_at_period_end detected via webhook)`);
+      this.logger.log(
+        `Disabled overages for org ${organizationId} (cancel_at_period_end detected via webhook)`,
+      );
     }
 
     // CLEANUP: Cancel any other active subscriptions for this customer (prevent duplicates)

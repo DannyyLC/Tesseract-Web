@@ -92,12 +92,7 @@ describe('ConversationsService', () => {
       const mockNewConversation = { id: 'new-conv-1' };
       mockPrismaService.conversation.create.mockResolvedValue(mockNewConversation);
 
-      const result = await service.findOrCreateConversation(
-        'wf-1',
-        'api',
-        'user-1',
-        'endUser-1',
-      );
+      const result = await service.findOrCreateConversation('wf-1', 'api', 'user-1', 'endUser-1');
 
       expect(mockPrismaService.conversation.create).toHaveBeenCalledWith({
         data: {
@@ -173,9 +168,9 @@ describe('ConversationsService', () => {
         lastMessageAt: null,
       });
 
-      await expect(
-        service.update('org-1', 'c-1', { isHumanInTheLoop: true }),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.update('org-1', 'c-1', { isHumanInTheLoop: true })).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 

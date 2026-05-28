@@ -115,8 +115,8 @@ export default function BillingHero({
           {/* Negative Balance Helper Text */}
           {isNegative && (
             <p className="max-w-md text-sm text-red-600/80 dark:text-red-500/80">
-              Has excedido tu límite. El consumo extra (${OVERAGE_PRICE_PER_CREDIT}/crédito) se cargará en tu próxima
-              factura.
+              Has excedido tu límite. El consumo extra (${OVERAGE_PRICE_PER_CREDIT}/crédito) se
+              cargará en tu próxima factura.
             </p>
           )}
         </div>
@@ -139,16 +139,12 @@ export default function BillingHero({
           {/* Billing Info */}
           <div className="space-y-1">
             {cancelAtPeriodEnd ? (
-              <div
-                className="inline-flex items-center gap-2 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-amber-300 dark:text-amber-400"
-              >
+              <div className="inline-flex items-center gap-2 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-amber-300 dark:text-amber-400">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
                 Cancelación Pendiente
               </div>
             ) : pendingPlanChange ? (
-              <div
-                className="inline-flex items-center gap-2 rounded-full bg-blue-500/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-blue-300 dark:text-blue-400"
-              >
+              <div className="inline-flex items-center gap-2 rounded-full bg-blue-500/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-blue-300 dark:text-blue-400">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
                 Cambio programado → {pendingPlanChange}
               </div>
@@ -178,7 +174,9 @@ export default function BillingHero({
                 ) : pendingPlanChange ? (
                   <>
                     <ArrowDownRight size={14} />
-                    <span>Cambia a {pendingPlanChange} el {nextDateFormatted}</span>
+                    <span>
+                      Cambia a {pendingPlanChange} el {nextDateFormatted}
+                    </span>
                   </>
                 ) : (
                   <>

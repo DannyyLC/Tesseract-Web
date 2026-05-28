@@ -21,9 +21,7 @@ describe('ToolsCatalogController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ToolsCatalogController],
-      providers: [
-        { provide: ToolsCatalogService, useValue: mockToolsCatalogService },
-      ],
+      providers: [{ provide: ToolsCatalogService, useValue: mockToolsCatalogService }],
     }).compile();
 
     controller = module.get<ToolsCatalogController>(ToolsCatalogController);
@@ -41,13 +39,7 @@ describe('ToolsCatalogController', () => {
         items: [],
       });
 
-      await controller.getAllToolsWithFunctions(
-        res,
-        null,
-        10,
-        null,
-        null,
-      );
+      await controller.getAllToolsWithFunctions(res, null, 10, null, null);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatusCode.NotFound);
       expect(res.json).toHaveBeenCalledWith(
@@ -61,13 +53,7 @@ describe('ToolsCatalogController', () => {
         items: [{ id: 't-1' }],
       });
 
-      await controller.getAllToolsWithFunctions(
-        res,
-        'cursor-1',
-        5,
-        'next',
-        'searchQuery',
-      );
+      await controller.getAllToolsWithFunctions(res, 'cursor-1', 5, 'next', 'searchQuery');
 
       expect(mockToolsCatalogService.getAllToolsWithFunctions).toHaveBeenCalledWith(
         'cursor-1',

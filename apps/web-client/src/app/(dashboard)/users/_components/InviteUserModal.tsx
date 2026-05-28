@@ -17,14 +17,12 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
 
   const getErrorMessage = (error: any): string => {
     const raw: string =
-      error?.response?.data?.errors?.[0] ||
-      error?.response?.data?.message ||
-      error?.message ||
-      '';
+      error?.response?.data?.errors?.[0] || error?.response?.data?.message || error?.message || '';
 
     const messages: Record<string, string> = {
       USER_ALREADY_REGISTERED: 'Este usuario ya es miembro de la organización.',
-      USER_ALREADY_INVITED: 'Ya se envió una invitación a este correo. Puedes reenviarla si es necesario.',
+      USER_ALREADY_INVITED:
+        'Ya se envió una invitación a este correo. Puedes reenviarla si es necesario.',
       EMAIL_IN_SINUP_PROGRESS: 'Este correo ya tiene un registro en proceso.',
       INVITE_LIMIT_EXCEEDED: 'Se alcanzó el límite de invitaciones pendientes.',
       ORGANIZATION_NOT_FOUND: 'No se encontró la organización.',

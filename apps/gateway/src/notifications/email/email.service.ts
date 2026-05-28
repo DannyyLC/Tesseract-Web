@@ -56,7 +56,10 @@ export class EmailService {
 
   async sendVerificationCodeByEmail(
     payload: StartVerificationFlowDto,
-  ): Promise<{ sentMessageInfo: nodemailer.SentMessageInfo; verificationCode: string } | { sentMessageInfo: null; verificationCode: string }> {
+  ): Promise<
+    | { sentMessageInfo: nodemailer.SentMessageInfo; verificationCode: string }
+    | { sentMessageInfo: null; verificationCode: string }
+  > {
     const verificationCode = await this.generateVerificationCode();
     let sentMessageInfo: nodemailer.SentMessageInfo;
     try {
@@ -144,10 +147,7 @@ export class EmailService {
     return { sentMessageInfo, verificationCode };
   }
 
-  async sendOrganizationExistsEmail(
-    email: string,
-    organizationName: string,
-  ): Promise<unknown> {
+  async sendOrganizationExistsEmail(email: string, organizationName: string): Promise<unknown> {
     try {
       return await this.transporter.sendMail({
         to: email,
@@ -158,7 +158,9 @@ export class EmailService {
       });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`sendOrganizationExistsEmail >> Error enviando email a ${email}: ${errorMessage}`);
+      this.logger.error(
+        `sendOrganizationExistsEmail >> Error enviando email a ${email}: ${errorMessage}`,
+      );
       return null;
     }
   }

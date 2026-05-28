@@ -171,17 +171,16 @@ export class BillingController {
     const frontendUrl = this.configService.get('FRONTEND_URL') ?? 'http://localhost:3000';
     const returnUrl = `${frontendUrl}/billing/plans?from_portal=1`;
 
-    const url = await this.billingService.createCustomerPortalSession(
-      customerId,
-      returnUrl,
-    );
+    const url = await this.billingService.createCustomerPortalSession(customerId, returnUrl);
 
     return { url };
   }
 
   @Get('plans')
   getPlans() {
-    return Object.values(SUBSCRIPTION_PLANS).map(({ priceIdEnvKey: _priceIdEnvKey, ...plan }) => plan);
+    return Object.values(SUBSCRIPTION_PLANS).map(
+      ({ priceIdEnvKey: _priceIdEnvKey, ...plan }) => plan,
+    );
   }
 
   @Get('subscription')
@@ -241,7 +240,9 @@ export class BillingController {
   @Get('dashboard')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  async getDashboardData(@Req() req: Request & { user: UserPayload }): Promise<BillingDashboardDto> {
+  async getDashboardData(
+    @Req() req: Request & { user: UserPayload },
+  ): Promise<BillingDashboardDto> {
     const organizationId = req.user.organizationId;
     if (!organizationId) {
       throw new BadRequestException('User does not belong to an organization');

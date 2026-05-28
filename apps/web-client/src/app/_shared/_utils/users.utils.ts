@@ -37,7 +37,7 @@ export const getStatusConfig = (isActive: boolean) => {
 
 export const formatTimeAgo = (dateInput: Date | string | null): string => {
   if (!dateInput) return 'Nunca';
-  
+
   const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();

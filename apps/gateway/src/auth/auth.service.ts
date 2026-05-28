@@ -221,51 +221,52 @@ export class AuthService {
         const orgName = `${details.firstName}'s Organization`;
         const userId = user.id; // Capture ID to avoid TS null error inside transaction
 
-        const { user: reactivatedUser, organization: reactivatedOrg } = await this.prisma.$transaction(async (tx) => {
-          // Crear nueva Org
-          const slug = await OrganizationsService.generateUniqueSlug(orgName, tx);
-          const newOrganization = await tx.organization.create({
-            data: {
-              name: orgName,
-              slug: slug,
-              plan: SubscriptionPlan.FREE,
-              isActive: true,
-              allowOverages: false,
-            },
-          });
+        const { user: reactivatedUser, organization: reactivatedOrg } =
+          await this.prisma.$transaction(async (tx) => {
+            // Crear nueva Org
+            const slug = await OrganizationsService.generateUniqueSlug(orgName, tx);
+            const newOrganization = await tx.organization.create({
+              data: {
+                name: orgName,
+                slug: slug,
+                plan: SubscriptionPlan.FREE,
+                isActive: true,
+                allowOverages: false,
+              },
+            });
 
-          // Crear Balance
-          await tx.creditBalance.create({
-            data: {
-              organizationId: newOrganization.id,
-              balance: 0,
-              lifetimeEarned: 0,
-              lifetimeSpent: 0,
-              currentMonthSpent: 0,
-              currentMonthCostUSD: 0,
-            },
-          });
+            // Crear Balance
+            await tx.creditBalance.create({
+              data: {
+                organizationId: newOrganization.id,
+                balance: 0,
+                lifetimeEarned: 0,
+                lifetimeSpent: 0,
+                currentMonthSpent: 0,
+                currentMonthCostUSD: 0,
+              },
+            });
 
-          // Actualizar Usuario (Reciclar ID)
-          const updatedUser = await tx.user.update({
-            where: { id: userId },
-            data: {
-              deletedAt: null, // Reactivar
-              email: details.email, // Confirmar email
-              name: `${details.firstName} ${details.lastName}`,
-              googleId: details.googleId,
-              avatar: details.avatar,
-              role: UserRole.OWNER, // Vuelve a ser Owner de su nueva org
-              organizationId: newOrganization.id, // Movemos al usuario a la nueva org
-              isActive: true,
-              emailVerified: true,
-              lastLoginAt: new Date(),
-            },
-            include: { organization: true },
-          });
+            // Actualizar Usuario (Reciclar ID)
+            const updatedUser = await tx.user.update({
+              where: { id: userId },
+              data: {
+                deletedAt: null, // Reactivar
+                email: details.email, // Confirmar email
+                name: `${details.firstName} ${details.lastName}`,
+                googleId: details.googleId,
+                avatar: details.avatar,
+                role: UserRole.OWNER, // Vuelve a ser Owner de su nueva org
+                organizationId: newOrganization.id, // Movemos al usuario a la nueva org
+                isActive: true,
+                emailVerified: true,
+                lastLoginAt: new Date(),
+              },
+              include: { organization: true },
+            });
 
-          return { user: updatedUser, organization: newOrganization };
-        });
+            return { user: updatedUser, organization: newOrganization };
+          });
 
         return { user: reactivatedUser, organization: reactivatedOrg, isNewUser: false };
       }
@@ -274,7 +275,10 @@ export class AuthService {
       user = await this.prisma.user.update({
         where: { id: user.id },
         data: {
-          ...(!user.googleId && { googleId: details.googleId, avatar: user.avatar ?? details.avatar }),
+          ...(!user.googleId && {
+            googleId: details.googleId,
+            avatar: user.avatar ?? details.avatar,
+          }),
           lastLoginAt: new Date(),
         },
         include: { organization: true },
@@ -751,9 +755,7 @@ export class AuthService {
     }
   }
 
-  async signupStepOne(
-    payload: StartVerificationFlowDto,
-  ): Promise<StepOneErrors | object> {
+  async signupStepOne(payload: StartVerificationFlowDto): Promise<StepOneErrors | object> {
     const emailExists = await this.prisma.user.findUnique({
       where: { email: payload.email },
     });
@@ -845,14 +847,29 @@ export class AuthService {
     return true;
   }
 
-  async signupStepThree(user: CreateUserDto): Promise<StepThreeErrors | { user: { id: string; email: string; name: string; role: string; [key: string]: unknown }; accessToken: string; refreshToken: string; rememberMe: boolean }> {
+  async signupStepThree(
+    user: CreateUserDto,
+  ): Promise<
+    | StepThreeErrors
+    | {
+        user: { id: string; email: string; name: string; role: string; [key: string]: unknown };
+        accessToken: string;
+        refreshToken: string;
+        rememberMe: boolean;
+      }
+  > {
     const userVerificationRow = await this.prisma.userVerification.findFirst({
       where: {
         email: user.email,
         isEmailVerified: true,
       },
     });
-    let createdResult: { user: { id: string; email: string; name: string; role: string; [key: string]: unknown }; accessToken: string; refreshToken: string; rememberMe: boolean } | null = null;
+    let createdResult: {
+      user: { id: string; email: string; name: string; role: string; [key: string]: unknown };
+      accessToken: string;
+      refreshToken: string;
+      rememberMe: boolean;
+    } | null = null;
     // Hashear password
     const hashedPassword = await this.utilityService.hashPassword(user.password);
     if (userVerificationRow) {
@@ -997,9 +1014,7 @@ export class AuthService {
     return false;
   }
 
-  async resetPasswordStepOne(
-    email: string,
-  ): Promise<ForgotPassErrors | object> {
+  async resetPasswordStepOne(email: string): Promise<ForgotPassErrors | object> {
     const user = await this.prisma.user.findUnique({
       where: { email },
       include: { organization: true },
@@ -1022,7 +1037,10 @@ export class AuthService {
     // Usar EmailService para generar y enviar el código
     const emailResult = await this.emailService.sendPasswordResetCodeByEmail(email);
 
-    if (!emailResult?.sentMessageInfo || (emailResult.sentMessageInfo as Record<string, unknown>).success === false) {
+    if (
+      !emailResult?.sentMessageInfo ||
+      (emailResult.sentMessageInfo as Record<string, unknown>).success === false
+    ) {
       return ForgotPassErrors.SEND_EMAIL_ERROR;
     }
 
