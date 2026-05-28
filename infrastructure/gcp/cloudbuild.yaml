@@ -65,6 +65,7 @@ steps:
       - --image=us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/gateway:$COMMIT_SHA
       - --region=us-central1
       - --platform=managed
+      - --add-cloudsql-instances=fractal-tesseract:us-central1:tesseract-db
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy-agents'
