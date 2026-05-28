@@ -50,12 +50,15 @@ COPY packages/database/package.json ./packages/database/
 COPY packages/types/package.json ./packages/types/
 COPY apps/gateway/package.json ./apps/gateway/
 
-# Instalar SOLO dependencias de producción
+# Instalar SOLO dependencias de producción (prisma CLI incluido como dependency)
 RUN pnpm install --frozen-lockfile --prod
 
-# Copiar el cliente Prisma generado (binarios) y el schema
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Copiar schema y config de Prisma para poder generar el cliente
 COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
+COPY --from=builder /app/packages/database/prisma.config.ts ./packages/database/prisma.config.ts
+
+# Generar Prisma Client (DATABASE_URL dummy: generate no necesita conexión real)
+RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder" sh -c "cd packages/database && pnpm exec prisma generate"
 
 # Copiar los builds compilados (dist) del Gateway y paquetes dependientes
 COPY --from=builder /app/packages/types/dist ./packages/types/dist
