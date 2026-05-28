@@ -1406,7 +1406,7 @@ export class WorkflowsService {
         clientStream.write(`data: ${JSON.stringify(event.content)}\n\n`);
         assistantMessageBuilder += event.content ?? '';
       } else if (event.type === 'metadata') {
-        metadataEvent = event.metadata;
+        metadataEvent = event.metadata ? JSON.parse(event.metadata) : null;
       } else if (event.type === 'error') {
         this.logger.error(`[${execution.id}] Agent stream error: ${event.content}`);
       }

@@ -48,6 +48,37 @@ export class AgentsService implements OnModuleInit {
     return metadata;
   }
 
+  /**
+   * Los campos dinámicos del proto (graph_config, user_metadata, config/credentials
+   * de cada tool) viajan como JSON string. Aquí los serializamos antes de enviar.
+   */
+  private toWireRequest(request: AgentExecutionRequestDto): Record<string, any> {
+    const toJson = (value: unknown): string =>
+      value === undefined || value === null ? '' : JSON.stringify(value);
+
+    // El proto define agent_tool_instances como map<string, AgentToolMap>,
+    // donde AgentToolMap = { tools: map<string, ToolInstance> }. Envolvemos bajo `tools`.
+    const agentToolInstances: Record<string, { tools: Record<string, any> }> = {};
+    for (const [agentName, tools] of Object.entries(request.agent_tool_instances ?? {})) {
+      const wrappedTools: Record<string, any> = {};
+      for (const [toolId, tool] of Object.entries(tools as Record<string, any>)) {
+        wrappedTools[toolId] = {
+          ...tool,
+          config: toJson(tool.config),
+          credentials: toJson(tool.credentials),
+        };
+      }
+      agentToolInstances[agentName] = { tools: wrappedTools };
+    }
+
+    return {
+      ...request,
+      graph_config: toJson(request.graph_config),
+      user_metadata: toJson((request as Record<string, any>).user_metadata),
+      agent_tool_instances: agentToolInstances,
+    };
+  }
+
   private isRetryableGrpcError(err: any): boolean {
     return err?.code === grpc.status.UNAVAILABLE || err?.code === grpc.status.DEADLINE_EXCEEDED;
   }
@@ -89,11 +120,13 @@ export class AgentsService implements OnModuleInit {
       `Executing agent for tenant: ${request.tenant_id}, workflow: ${request.workflow_id}`,
     );
 
+    const wireRequest = this.toWireRequest(request);
+
     return this.withRetry(() => {
       return new Promise<AgentExecutionResponseDto>((resolve, reject) => {
         const deadline = new Date(Date.now() + this.agentsServiceTimeout);
         this.grpcClient.execute(
-          request,
+          wireRequest,
           this.buildMetadata(),
           { deadline },
           (err: any, response: any) => {
@@ -109,7 +142,10 @@ export class AgentsService implements OnModuleInit {
     this.logger.debug(
       `Executing streaming agent for tenant: ${request.tenant_id}, workflow: ${request.workflow_id}`,
     );
-    return this.grpcClient.executeStream(request, this.buildMetadata()) as NodeJS.ReadableStream;
+    return this.grpcClient.executeStream(
+      this.toWireRequest(request),
+      this.buildMetadata(),
+    ) as NodeJS.ReadableStream;
   }
 
   async healthCheck(): Promise<boolean> {

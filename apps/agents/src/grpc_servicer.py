@@ -6,12 +6,12 @@ La lógica de negocio (build_context, create_agent_graph, tokens) no cambia.
 """
 
 import os
+import json
 import hmac
 import time
 import logging
 from typing import AsyncIterator
 import grpc
-from google.protobuf import json_format
 from agents.v1 import agents_pb2, agents_pb2_grpc
 from langchain_core.messages import HumanMessage
 from api.deps import AgentExecutionRequest, validate_request, build_context
@@ -57,9 +57,9 @@ def _proto_to_pydantic_request(req: agents_pb2.AgentExecutionRequest) -> AgentEx
             tool_uuid: {
                 "tool_name": tool.tool_name,
                 "display_name": tool.display_name,
-                "config": json_format.MessageToDict(tool.config),
+                "config": json.loads(tool.config) if tool.config else {},
                 "enabled_functions": list(tool.enabled_functions),
-                "credentials": json_format.MessageToDict(tool.credentials),
+                "credentials": json.loads(tool.credentials) if tool.credentials else {},
             }
             for tool_uuid, tool in tool_map.tools.items()
         }
@@ -74,13 +74,13 @@ def _proto_to_pydantic_request(req: agents_pb2.AgentExecutionRequest) -> AgentEx
         user_id=req.user_id,
         channel=req.channel,
         user_message=req.user_message,
-        graph_config=json_format.MessageToDict(req.graph_config),
+        graph_config=json.loads(req.graph_config) if req.graph_config else {},
         agents_config=agents_config,
         agent_tool_instances=agent_tool_instances,
         message_history=[
             {"role": m.role, "content": m.content} for m in req.message_history
         ],
-        user_metadata=json_format.MessageToDict(req.user_metadata),
+        user_metadata=json.loads(req.user_metadata) if req.user_metadata else {},
         timezone=req.timezone or "UTC",
     )
 
@@ -122,12 +122,6 @@ def _build_execution_metadata(
     )
 
 
-def _dict_to_struct(d: dict):
-    s = agents_pb2.Struct()
-    s.update(d or {})
-    return s
-
-
 # ── Servicer ──────────────────────────────────────────────────────────────────
 
 class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
@@ -151,12 +145,6 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
         start_time = time.time()
 
         try:
-            logger.info(
-                "TEMP-DIAG Execute raw: graph_config=%s agents_config_keys=%s channel=%s",
-                json_format.MessageToDict(request.graph_config),
-                list(request.agents_config.keys()),
-                request.channel,
-            )
             pydantic_req = _proto_to_pydantic_request(request)
             validated = validate_request(pydantic_req)
             ctx = build_context(validated)
@@ -247,12 +235,6 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
         human_handoff: dict | None = None
 
         try:
-            logger.info(
-                "TEMP-DIAG ExecuteStream raw: graph_config=%s agents_config_keys=%s channel=%s",
-                json_format.MessageToDict(request.graph_config),
-                list(request.agents_config.keys()),
-                request.channel,
-            )
             pydantic_req = _proto_to_pydantic_request(request)
             validated = validate_request(pydantic_req)
             ctx = build_context(validated, streaming=True)
@@ -275,13 +257,10 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
                 elif event_type == "on_tool_start":
                     tool_name = event.get("name", "unknown")
                     tool_input = event.get("data", {}).get("input", {})
-                    from google.protobuf.struct_pb2 import Struct
-                    meta = Struct()
-                    meta.update({"tool_name": tool_name, "input": str(tool_input)[:200]})
                     yield agents_pb2.AgentStreamEvent(
                         type="tool_start",
                         content=f"Usando herramienta: {tool_name}",
-                        metadata=meta,
+                        metadata=json.dumps({"tool_name": tool_name, "input": str(tool_input)[:200]}),
                     )
 
                 elif event_type == "on_tool_end":
@@ -300,13 +279,10 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
                                 reason = tool_output.strip()
                         human_handoff = {"requested": True, "reason": reason, "tool_name": str(tool_name)}
 
-                    from google.protobuf.struct_pb2 import Struct
-                    meta = Struct()
-                    meta.update({"tool_name": tool_name, "output": str(tool_output)[:200]})
                     yield agents_pb2.AgentStreamEvent(
                         type="tool_end",
                         content=f"Herramienta completada: {tool_name}",
-                        metadata=meta,
+                        metadata=json.dumps({"tool_name": tool_name, "output": str(tool_output)[:200]}),
                     )
 
                 elif event_type == "on_chat_model_end":
@@ -348,17 +324,18 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
             total_input = sum(v["input_tokens"] for v in usage_by_model.values())
             total_output = sum(v["output_tokens"] for v in usage_by_model.values())
 
-            from google.protobuf.struct_pb2 import Struct
-            meta_struct = Struct()
-            meta_struct.update({
-                "execution_time_ms": execution_time_ms,
-                "input_tokens": total_input,
-                "output_tokens": total_output,
-                "total_tokens": total_input + total_output,
-                "usage_by_model": usage_by_model,
-                "human_handoff_requested": human_handoff,
-            })
-            yield agents_pb2.AgentStreamEvent(type="metadata", content="", metadata=meta_struct)
+            yield agents_pb2.AgentStreamEvent(
+                type="metadata",
+                content="",
+                metadata=json.dumps({
+                    "execution_time_ms": execution_time_ms,
+                    "input_tokens": total_input,
+                    "output_tokens": total_output,
+                    "total_tokens": total_input + total_output,
+                    "usage_by_model": usage_by_model,
+                    "human_handoff_requested": human_handoff,
+                }),
+            )
             yield agents_pb2.AgentStreamEvent(type="end", content="")
 
         except Exception as e:
