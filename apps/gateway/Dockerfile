@@ -61,6 +61,7 @@ COPY --from=builder /app/packages/database/prisma.config.ts ./packages/database/
 RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder" sh -c "cd packages/database && pnpm exec prisma generate"
 
 # Copiar los builds compilados (dist) del Gateway y paquetes dependientes
+COPY --from=builder /app/packages/contracts/proto ./packages/contracts/proto
 COPY --from=builder /app/packages/types/dist ./packages/types/dist
 COPY --from=builder /app/packages/database/dist ./packages/database/dist
 COPY --from=builder /app/apps/gateway/dist ./apps/gateway/dist

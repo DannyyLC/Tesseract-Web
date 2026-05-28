@@ -16,12 +16,15 @@ import { AgentExecutionRequestDto, AgentExecutionResponseDto } from './dto';
 export class AgentsService implements OnModuleInit {
   private readonly logger = new Logger(AgentsService.name);
   private readonly agentsGrpcUrl: string;
+  private readonly agentsGrpcUseTls: boolean;
   private readonly agentsServiceTimeout: number;
   private readonly internalSecret: string;
   private grpcClient: any;
 
   constructor(private readonly configService: ConfigService) {
-    this.agentsGrpcUrl = this.configService.get<string>('AGENTS_GRPC_URL', 'localhost:50051');
+    const configuredUrl = this.configService.get<string>('AGENTS_GRPC_URL', 'localhost:50051');
+    this.agentsGrpcUseTls = configuredUrl.startsWith('https://');
+    this.agentsGrpcUrl = configuredUrl.replace(/^https?:\/\//, '');
     this.agentsServiceTimeout = this.configService.get<number>('AGENTS_SERVICE_TIMEOUT', 30000);
     this.internalSecret = this.configService.get<string>('AGENTS_INTERNAL_SECRET', '');
     this.logger.log(`Agents gRPC URL: ${this.agentsGrpcUrl}`);
@@ -29,13 +32,13 @@ export class AgentsService implements OnModuleInit {
 
   onModuleInit() {
     const packageDef = protoLoader.loadSync(
-      join(process.cwd(), '../../packages/contracts/proto/agents/v1/agents.proto'),
+      join(__dirname, '../../../../packages/contracts/proto/agents/v1/agents.proto'),
       { keepCase: true, longs: Number, defaults: true, oneofs: true },
     );
     const proto = grpc.loadPackageDefinition(packageDef) as any;
     this.grpcClient = new proto.tesseract.agents.v1.AgentsService(
       this.agentsGrpcUrl,
-      grpc.credentials.createInsecure(),
+      this.agentsGrpcUseTls ? grpc.credentials.createSsl() : grpc.credentials.createInsecure(),
     );
   }
 
