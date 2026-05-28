@@ -151,6 +151,12 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
         start_time = time.time()
 
         try:
+            logger.info(
+                "TEMP-DIAG Execute raw: graph_config=%s agents_config_keys=%s channel=%s",
+                json_format.MessageToDict(request.graph_config),
+                list(request.agents_config.keys()),
+                request.channel,
+            )
             pydantic_req = _proto_to_pydantic_request(request)
             validated = validate_request(pydantic_req)
             ctx = build_context(validated)
@@ -241,6 +247,12 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
         human_handoff: dict | None = None
 
         try:
+            logger.info(
+                "TEMP-DIAG ExecuteStream raw: graph_config=%s agents_config_keys=%s channel=%s",
+                json_format.MessageToDict(request.graph_config),
+                list(request.agents_config.keys()),
+                request.channel,
+            )
             pydantic_req = _proto_to_pydantic_request(request)
             validated = validate_request(pydantic_req)
             ctx = build_context(validated, streaming=True)
