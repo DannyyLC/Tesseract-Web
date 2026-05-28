@@ -22,8 +22,8 @@ RUN pnpm install --frozen-lockfile
 # Copiar el resto del código fuente del monorepo
 COPY . .
 
-# Generar Prisma Client
-RUN cd packages/database && pnpm exec prisma generate
+# Generar Prisma Client (DATABASE_URL dummy para satisfacer validación en build time)
+RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder" sh -c "cd packages/database && pnpm exec prisma generate"
 
 # Construir paquetes compartidos del monorepo (Types y Database)
 RUN pnpm --filter @tesseract/types build
