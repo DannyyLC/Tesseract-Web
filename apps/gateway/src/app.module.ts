@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { ExecutionsModule } from './executions/executions.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { WorkflowsModule } from './workflows/workflows.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
@@ -64,6 +65,7 @@ import { CronTriggersModule } from './cron-triggers/cron-triggers.module';
     BillingModule,
     InvoiceModule,
     UsersModule,
+    EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
     EndUsersModule,
     TenantToolModule,

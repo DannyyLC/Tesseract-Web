@@ -29,7 +29,7 @@ export class AgentsService implements OnModuleInit {
 
   onModuleInit() {
     const packageDef = protoLoader.loadSync(
-      join(process.cwd(), 'packages/contracts/proto/agents/v1/agents.proto'),
+      join(process.cwd(), '../../packages/contracts/proto/agents/v1/agents.proto'),
       { keepCase: true, longs: Number, defaults: true, oneofs: true },
     );
     const proto = grpc.loadPackageDefinition(packageDef) as any;
