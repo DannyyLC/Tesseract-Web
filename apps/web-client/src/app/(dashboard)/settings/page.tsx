@@ -137,7 +137,7 @@ export default function SettingsPage() {
                 <button
                   type="submit"
                   disabled={updateOrganization.isPending || name === orgData.name}
-                  className="inline-flex h-8 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white transition-colors hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-white/90"
+                  className="inline-flex h-8 items-center justify-center rounded-xl bg-accent px-4 text-sm font-semibold text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {updateOrganization.isPending ? (
                     <>
@@ -155,16 +155,16 @@ export default function SettingsPage() {
 
         {/* Danger Zone Section */}
         <PermissionGuard permissions="organization:delete">
-          <section className="space-y-6 rounded-2xl border border-red-200 bg-red-50/50 p-6 dark:border-red-900/30 dark:bg-red-950/10">
-            <div className="flex items-center gap-3 border-b border-red-200 pb-4 dark:border-red-900/30">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+          <section className="space-y-6 rounded-2xl border border-danger-500 bg-danger-500/5 p-6">
+            <div className="flex items-center gap-3 border-b border-danger-500 pb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-danger-500/10 text-danger-500">
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-red-900 dark:text-red-200">
+                <h2 className="text-lg font-semibold text-danger-500">
                   Zona de Peligro
                 </h2>
-                <p className="text-sm text-red-700/80 dark:text-red-300/70">
+                <p className="text-sm text-danger-500/80">
                   Acciones irreversibles para tu organización.
                 </p>
               </div>
@@ -172,10 +172,10 @@ export default function SettingsPage() {
 
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <h3 className="font-medium text-red-900 dark:text-red-200">
+                <h3 className="font-medium text-danger-500">
                   Eliminar Organización
                 </h3>
-                <p className="text-sm text-red-700/80 dark:text-red-300/70">
+                <p className="text-sm text-danger-500/80">
                   Esta acción eliminará permanentemente tu organización y todos sus datos.
                 </p>
               </div>
@@ -186,7 +186,7 @@ export default function SettingsPage() {
                   setCode2FA('');
                   setIsAgreed(false);
                 }}
-                className="focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md border border-red-200 bg-transparent px-4 py-2 text-sm font-medium text-red-600 ring-offset-background transition-colors hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/30"
+                className="focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md border border-danger-500 bg-transparent px-4 py-2 text-sm font-medium text-danger-500 ring-offset-background transition-colors hover:bg-danger-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Eliminar
@@ -207,10 +207,10 @@ export default function SettingsPage() {
           title="¿Estás absolutamente seguro?"
         >
           <div className="space-y-4">
-            <div className="rounded-lg bg-red-50 p-4 dark:bg-red-900/20">
+            <div className="rounded-lg bg-danger-500/10 p-4">
               <div className="flex gap-3">
-                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                <div className="text-sm text-red-800 dark:text-red-200">
+                <AlertTriangle className="h-5 w-5 text-danger-500" />
+                <div className="text-sm text-danger-500">
                   <p className="font-semibold">Esta acción es destructiva e irreversible.</p>
                   <p className="mt-1">
                     Se eliminarán permanentemente todos los datos asociados a{' '}
@@ -254,7 +254,7 @@ export default function SettingsPage() {
                 type="checkbox"
                 checked={isAgreed}
                 onChange={(e) => setIsAgreed(e.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-danger-600 focus:ring-danger-500"
               />
               <span className="text-foreground/80 text-sm">
                 Entiendo que esta acción es irreversible y eliminará todos los datos de mi
@@ -270,7 +270,7 @@ export default function SettingsPage() {
                   setCode2FA('');
                   setIsAgreed(false);
                 }}
-                className="focus-visible:ring-ring border-input hover:text-accent-foreground inline-flex h-10 items-center justify-center rounded-md border bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                className="focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface-secondary px-4 py-2 text-sm font-medium text-text-secondary ring-offset-background transition-colors hover:border-border-hover hover:bg-surface-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -282,7 +282,7 @@ export default function SettingsPage() {
                   !isAgreed ||
                   (authUser?.twoFactorEnabled && code2FA.length !== 6)
                 }
-                className="focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white ring-offset-background transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-700 dark:hover:bg-red-800"
+                className="focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md bg-danger-500 px-4 py-2 text-sm font-medium text-brand-white ring-offset-background transition-colors hover:bg-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {deleteOrganization.isPending ? (
                   <>

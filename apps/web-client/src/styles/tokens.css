@@ -154,6 +154,12 @@
   --badge-warning-bg: color-mix(in srgb, var(--warning-500) 25%, transparent);
   --badge-warning-text: var(--warning-500);
 
+  /* Loader de marca */
+  --logo-loader-bg: color-mix(in srgb, var(--brand-white) 80%, transparent);
+  --logo-loader-logo-filter: brightness(0);
+  --logo-loader-track: rgba(0, 0, 0, 0.05);
+  --logo-loader-text: #000000;
+
   /* Marca (elementos decorativos) */
   --brand-white: #ffffff;
   --brand-black: #000000;
@@ -232,6 +238,12 @@
     --badge-danger-text: var(--danger-500);
     --badge-warning-bg: color-mix(in srgb, var(--warning-500) 30%, transparent);
     --badge-warning-text: var(--warning-500);
+
+    /* Loader de marca */
+    --logo-loader-bg: color-mix(in srgb, var(--brand-black) 80%, transparent);
+    --logo-loader-logo-filter: brightness(0) invert(1);
+    --logo-loader-track: rgba(255, 255, 255, 0.05);
+    --logo-loader-text: #ffffff;
 
     /* Scrollbar */
     --scrollbar-track: #000000;
