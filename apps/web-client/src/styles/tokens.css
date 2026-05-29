@@ -1,0 +1,231 @@
+/* ============================================================================
+ * tokens.css — Única fuente de verdad de COLOR del web-client.
+ *
+ * Regla: ningún componente debe usar un color "crudo" (hex, rgb, o clase de
+ * paleta tipo bg-red-500). Todo color sale de una de estas variables, expuesta
+ * como utilidad de Tailwind en tailwind.config.ts.
+ *
+ * Dos niveles:
+ *  1) Escalas semánticas (danger/success/warning/info/neutral): constantes
+ *     entre temas, valores fieles a la paleta Tailwind para no romper el look.
+ *  2) Tokens de tema (background/surface/text/accent/border/input...): cambian
+ *     automáticamente entre claro y oscuro vía prefers-color-scheme.
+ * ========================================================================== */
+
+:root {
+  /* === Escalas semánticas (constantes en claro/oscuro) ==================== */
+
+  /* danger — estados de error/destructivo (antes: red-*) */
+  --danger-50: #fef2f2;
+  --danger-100: #fee2e2;
+  --danger-200: #fecaca;
+  --danger-300: #fca5a5;
+  --danger-400: #f87171;
+  --danger-500: #ef4444;
+  --danger-600: #dc2626;
+  --danger-700: #b91c1c;
+  --danger-800: #991b1b;
+  --danger-900: #7f1d1d;
+  --danger-950: #450a0a;
+
+  /* success — estados positivos (antes: emerald-* / green-*) */
+  --success-50: #ecfdf5;
+  --success-100: #d1fae5;
+  --success-200: #a7f3d0;
+  --success-300: #6ee7b7;
+  --success-400: #34d399;
+  --success-500: #10b981;
+  --success-600: #059669;
+  --success-700: #047857;
+  --success-800: #065f46;
+  --success-900: #064e3b;
+  --success-950: #022c22;
+
+  /* warning — alertas (antes: amber-* / yellow-* / orange-*) */
+  --warning-50: #fffbeb;
+  --warning-100: #fef3c7;
+  --warning-200: #fde68a;
+  --warning-300: #fcd34d;
+  --warning-400: #fbbf24;
+  --warning-500: #f59e0b;
+  --warning-600: #d97706;
+  --warning-700: #b45309;
+  --warning-800: #92400e;
+  --warning-900: #78350f;
+  --warning-950: #451a03;
+
+  /* info — informativo/azulado (antes: blue-* / sky-* / indigo-*) */
+  --info-50: #eff6ff;
+  --info-100: #dbeafe;
+  --info-200: #bfdbfe;
+  --info-300: #93c5fd;
+  --info-400: #60a5fa;
+  --info-500: #3b82f6;
+  --info-600: #2563eb;
+  --info-700: #1d4ed8;
+  --info-800: #1e40af;
+  --info-900: #1e3a8a;
+  --info-950: #172554;
+
+  /* neutral — grises de superficie/borde/texto sutil (antes: zinc / gray / slate) */
+  --neutral-50: #fafafa;
+  --neutral-100: #f4f4f5;
+  --neutral-200: #e4e4e7;
+  --neutral-300: #d4d4d8;
+  --neutral-400: #a1a1aa;
+  --neutral-500: #71717a;
+  --neutral-600: #52525b;
+  --neutral-700: #3f3f46;
+  --neutral-800: #27272a;
+  --neutral-900: #18181b;
+  --neutral-950: #09090b;
+
+  /* === Tokens de tema — CLARO ============================================ */
+
+  /* Base */
+  --background: #ffffff;
+  --foreground: #171717;
+
+  /* Superficie */
+  --surface: #ffffff;
+  --surface-secondary: #f5f5f5;
+  --surface-elevated: #ffffff;
+
+  /* Texto */
+  --text-primary: #171717;
+  --text-secondary: rgba(23, 23, 23, 0.7);
+  --text-tertiary: rgba(23, 23, 23, 0.4);
+  --text-inverse: #ffffff;
+
+  /* Acento (blanco/negro) */
+  --accent: #000000;
+  --accent-hover: rgba(0, 0, 0, 0.9);
+  --accent-active: rgba(0, 0, 0, 0.8);
+
+  /* Borde */
+  --border: rgba(0, 0, 0, 0.1);
+  --border-hover: rgba(0, 0, 0, 0.3);
+  --border-focus: #000000;
+
+  /* Input */
+  --input-bg: #f5f5f5;
+  --input-bg-hover: #ffffff;
+  --input-border: transparent;
+  --input-border-focus: #000000;
+  --input-placeholder: rgba(0, 0, 0, 0.3);
+
+  /* Semánticos planos (alias al 500 de cada escala, para compat con tokens existentes) */
+  --success: var(--success-500);
+  --error: var(--danger-500);
+  --warning: var(--warning-500);
+  --info: var(--info-500);
+
+  /* Overlay y sombras */
+  --overlay: rgba(0, 0, 0, 0.5);
+  --shadow-sm: rgba(0, 0, 0, 0.05);
+  --shadow-md: rgba(0, 0, 0, 0.1);
+  --shadow-lg: rgba(0, 0, 0, 0.2);
+
+  /* Gradientes */
+  --gradient-start: #000000;
+  --gradient-mid: #0a0a0a;
+  --gradient-end: #1a1a1a;
+
+  /* Marca (elementos decorativos) */
+  --brand-white: #ffffff;
+  --brand-black: #000000;
+
+  /* Scrollbar */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #d4d4d4;
+  --scrollbar-thumb-hover: #a3a3a3;
+  --scrollbar-border: #ffffff;
+}
+
+/* === Tokens de tema — OSCURO ============================================= */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Base */
+    --background: #0a0a0a;
+    --foreground: #ededed;
+
+    /* Superficie */
+    --surface: #0a0a0a;
+    --surface-secondary: #171717;
+    --surface-elevated: #1a1a1a;
+
+    /* Texto */
+    --text-primary: #ededed;
+    --text-secondary: rgba(237, 237, 237, 0.7);
+    --text-tertiary: rgba(237, 237, 237, 0.4);
+    --text-inverse: #000000;
+
+    /* Acento (invertido) */
+    --accent: #ffffff;
+    --accent-hover: rgba(255, 255, 255, 0.9);
+    --accent-active: rgba(255, 255, 255, 0.8);
+
+    /* Borde */
+    --border: rgba(255, 255, 255, 0.1);
+    --border-hover: rgba(255, 255, 255, 0.3);
+    --border-focus: #ffffff;
+
+    /* Input */
+    --input-bg: #171717;
+    --input-bg-hover: #1a1a1a;
+    --input-border: transparent;
+    --input-border-focus: #ffffff;
+    --input-placeholder: rgba(255, 255, 255, 0.3);
+
+    /* Overlay y sombras */
+    --overlay: rgba(0, 0, 0, 0.7);
+    --shadow-sm: rgba(0, 0, 0, 0.3);
+    --shadow-md: rgba(0, 0, 0, 0.5);
+    --shadow-lg: rgba(0, 0, 0, 0.7);
+
+    /* Scrollbar */
+    --scrollbar-track: #000000;
+    --scrollbar-thumb: #262626;
+    --scrollbar-thumb-hover: #333333;
+    --scrollbar-border: #000000;
+  }
+}
+
+/* === Mapeo @theme (forward-compat Tailwind v4; inerte en v3 con config JS) = */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-inverse: var(--text-inverse);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-active: var(--accent-active);
+  --color-border: var(--border);
+  --color-border-hover: var(--border-hover);
+  --color-border-focus: var(--border-focus);
+  --color-input-bg: var(--input-bg);
+  --color-input-bg-hover: var(--input-bg-hover);
+  --color-input-border: var(--input-border);
+  --color-input-border-focus: var(--input-border-focus);
+  --color-input-placeholder: var(--input-placeholder);
+  --color-success: var(--success);
+  --color-error: var(--error);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-overlay: var(--overlay);
+  --color-shadow-sm: var(--shadow-sm);
+  --color-shadow-md: var(--shadow-md);
+  --color-shadow-lg: var(--shadow-lg);
+  --color-gradient-start: var(--gradient-start);
+  --color-gradient-mid: var(--gradient-mid);
+  --color-gradient-end: var(--gradient-end);
+  --color-brand-white: var(--brand-white);
+  --color-brand-black: var(--brand-black);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+}

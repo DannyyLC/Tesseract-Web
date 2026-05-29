@@ -1,170 +1,8 @@
+@import './tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Paleta de colores - Tema Claro */
-:root {
-  /* Colores base */
-  --background: #ffffff;
-  --foreground: #171717;
-
-  /* Colores de superficie */
-  --surface: #ffffff;
-  --surface-secondary: #f5f5f5;
-  --surface-elevated: #ffffff;
-
-  /* Colores de texto */
-  --text-primary: #171717;
-  --text-secondary: rgba(23, 23, 23, 0.7);
-  --text-tertiary: rgba(23, 23, 23, 0.4);
-  --text-inverse: #ffffff;
-
-  /* Colores de acento (blanco y negro) */
-  --accent: #000000;
-  --accent-hover: rgba(0, 0, 0, 0.9);
-  --accent-active: rgba(0, 0, 0, 0.8);
-
-  /* Colores de borde */
-  --border: rgba(0, 0, 0, 0.1);
-  --border-hover: rgba(0, 0, 0, 0.3);
-  --border-focus: #000000;
-
-  /* Colores de input */
-  --input-bg: #f5f5f5;
-  --input-bg-hover: #ffffff;
-  --input-border: transparent;
-  --input-border-focus: #000000;
-  --input-placeholder: rgba(0, 0, 0, 0.3);
-
-  /* Colores semánticos */
-  --success: #10b981;
-  --error: #ef4444;
-  --warning: #f59e0b;
-  --info: #3b82f6;
-
-  /* Colores de overlay y sombras */
-  --overlay: rgba(0, 0, 0, 0.5);
-  --shadow-sm: rgba(0, 0, 0, 0.05);
-  --shadow-md: rgba(0, 0, 0, 0.1);
-  --shadow-lg: rgba(0, 0, 0, 0.2);
-
-  /* Colores de gradientes */
-  --gradient-start: #000000;
-  --gradient-mid: #0a0a0a;
-  --gradient-end: #1a1a1a;
-
-  /* Colores de marca (para elementos decorativos) */
-  --brand-white: #ffffff;
-  --brand-black: #000000;
-
-  /* Scrollbar */
-  --scrollbar-track: transparent;
-  --scrollbar-thumb: #d4d4d4;
-  --scrollbar-thumb-hover: #a3a3a3;
-  --scrollbar-border: #ffffff;
-}
-
-/* Paleta de colores - Tema Oscuro */
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Colores base */
-    --background: #0a0a0a;
-    --foreground: #ededed;
-
-    /* Colores de superficie */
-    --surface: #0a0a0a;
-    --surface-secondary: #171717;
-    --surface-elevated: #1a1a1a;
-
-    /* Colores de texto */
-    --text-primary: #ededed;
-    --text-secondary: rgba(237, 237, 237, 0.7);
-    --text-tertiary: rgba(237, 237, 237, 0.4);
-    --text-inverse: #000000;
-
-    /* Colores de acento (blanco y negro invertidos) */
-    --accent: #ffffff;
-    --accent-hover: rgba(255, 255, 255, 0.9);
-    --accent-active: rgba(255, 255, 255, 0.8);
-
-    /* Colores de borde */
-    --border: rgba(255, 255, 255, 0.1);
-    --border-hover: rgba(255, 255, 255, 0.3);
-    --border-focus: #ffffff;
-
-    /* Colores de input */
-    --input-bg: #171717;
-    --input-bg-hover: #1a1a1a;
-    --input-border: transparent;
-    --input-border-focus: #ffffff;
-    --input-placeholder: rgba(255, 255, 255, 0.3);
-
-    /* Colores semánticos (ajustados para tema oscuro) */
-    --success: #10b981;
-    --error: #ef4444;
-    --warning: #f59e0b;
-    --info: #3b82f6;
-
-    /* Colores de overlay y sombras */
-    --overlay: rgba(0, 0, 0, 0.7);
-    --shadow-sm: rgba(0, 0, 0, 0.3);
-    --shadow-md: rgba(0, 0, 0, 0.5);
-    --shadow-lg: rgba(0, 0, 0, 0.7);
-
-    /* Colores de gradientes */
-    --gradient-start: #000000;
-    --gradient-mid: #0a0a0a;
-    --gradient-end: #1a1a1a;
-
-    /* Colores de marca */
-    --brand-white: #ffffff;
-    --brand-black: #000000;
-
-    /* Scrollbar */
-    --scrollbar-track: #000000;
-    --scrollbar-thumb: #262626;
-    --scrollbar-thumb-hover: #333333;
-    --scrollbar-border: #000000;
-  }
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-surface: var(--surface);
-  --color-surface-secondary: var(--surface-secondary);
-  --color-surface-elevated: var(--surface-elevated);
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-text-tertiary: var(--text-tertiary);
-  --color-text-inverse: var(--text-inverse);
-  --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-hover);
-  --color-accent-active: var(--accent-active);
-  --color-border: var(--border);
-  --color-border-hover: var(--border-hover);
-  --color-border-focus: var(--border-focus);
-  --color-input-bg: var(--input-bg);
-  --color-input-bg-hover: var(--input-bg-hover);
-  --color-input-border: var(--input-border);
-  --color-input-border-focus: var(--input-border-focus);
-  --color-input-placeholder: var(--input-placeholder);
-  --color-success: var(--success);
-  --color-error: var(--error);
-  --color-warning: var(--warning);
-  --color-info: var(--info);
-  --color-overlay: var(--overlay);
-  --color-shadow-sm: var(--shadow-sm);
-  --color-shadow-md: var(--shadow-md);
-  --color-shadow-lg: var(--shadow-lg);
-  --color-gradient-start: var(--gradient-start);
-  --color-gradient-mid: var(--gradient-mid);
-  --color-gradient-end: var(--gradient-end);
-  --color-brand-white: var(--brand-white);
-  --color-brand-black: var(--brand-black);
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-geist-mono);
-}
 
 body {
   background: var(--background);
@@ -205,15 +43,15 @@ label {
   /* Firefox baja la opacidad por defecto, la reseteamos para controlar el color nosotros */
 }
 
-/* Selección de texto - Tema Claro */
+/* Selección de texto (tokens: sirve para claro y oscuro automáticamente) */
 ::selection {
-  background-color: #000000;
-  color: #ffffff;
+  background-color: var(--accent);
+  color: var(--text-inverse);
 }
 
 ::-moz-selection {
-  background-color: #000000;
-  color: #ffffff;
+  background-color: var(--accent);
+  color: var(--text-inverse);
 }
 
 /* Estilos para navegadores basados en Webkit (Chrome, Safari, Edge) */
@@ -241,19 +79,6 @@ label {
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
-/* Selección de texto - Tema Oscuro */
-@media (prefers-color-scheme: dark) {
-  ::selection {
-    background-color: #ffffff;
-    color: #000000;
-  }
-
-  ::-moz-selection {
-    background-color: #ffffff;
-    color: #000000;
-  }
-}
-
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -278,21 +103,6 @@ label {
 /* Fix para el scroll en iOS */
 html {
   -webkit-overflow-scrolling: touch;
-}
-
-/* Asegurar colores correctos en dark mode */
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: #000000;
-    color: #ededed;
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  body {
-    background-color: #ffffff;
-    color: #171717;
-  }
 }
 
 /* Animación de spin para loading */
