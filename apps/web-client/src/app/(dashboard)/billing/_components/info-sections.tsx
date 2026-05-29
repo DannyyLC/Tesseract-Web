@@ -122,7 +122,7 @@ export default function InfoSections() {
           {SUPPORT.map((item) => (
             <div
               key={item.title}
-              className="rounded-2xl border border-transparent bg-surface-secondary p-5 transition-all hover:border-border"
+              className="rounded-2xl border border-border bg-surface p-5 transition-all hover:border-border-hover"
             >
               <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg bg-surface-secondary">
                 {item.icon}
