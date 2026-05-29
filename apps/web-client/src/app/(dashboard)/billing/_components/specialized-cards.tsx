@@ -82,7 +82,7 @@ export default function SpecializedCards() {
       </div>
 
       {/* Enterprise */}
-      <div className="group relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-surface-popover to-brand-black p-8 text-brand-white shadow-2xl lg:col-span-2">
+      <div className="group relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-neutral-800 to-brand-black p-8 text-brand-white shadow-2xl lg:col-span-2">
         <div className="relative z-10 flex h-full flex-col">
           <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10">
             <Building2 size={24} />

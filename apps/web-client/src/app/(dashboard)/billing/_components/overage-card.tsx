@@ -147,13 +147,13 @@ export default function OverageCard({
           title={allowOverages ? 'Desactivar uso adicional' : 'Activar uso adicional'}
           aria-label={allowOverages ? 'Desactivar uso adicional' : 'Activar uso adicional'}
           className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus/20 focus:ring-offset-2 focus:ring-offset-surface disabled:opacity-50 ${
-            allowOverages ? 'bg-accent' : 'bg-surface-secondary'
+            allowOverages ? 'bg-accent' : 'bg-border-hover'
           }`}
         >
           <motion.span
             layout
             transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-            className="inline-block h-4 w-4 rounded-full bg-surface-elevated shadow-sm"
+            className="inline-block h-4 w-4 rounded-full bg-brand-white shadow-sm"
             style={{
               marginLeft: allowOverages ? '1.5rem' : '0.25rem',
             }}
