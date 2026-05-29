@@ -268,7 +268,6 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
                     tool_output = event.get("data", {}).get("output", "")
 
                     if str(tool_name).startswith("request_human_handoff"):
-                        import json
                         reason = "Necesita atencion humana"
                         if isinstance(tool_output, str) and tool_output.strip():
                             try:
