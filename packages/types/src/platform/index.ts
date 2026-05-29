@@ -1,6 +1,6 @@
 // ============================================================
-// Billing
+// Platform
 // ============================================================
-export * from './subscriptions';
-export * from './credits';
-export * from './invoice';
+export * from './api';
+export * from './common';
+export * from './support';

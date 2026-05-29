@@ -1,5 +1,5 @@
-import { PaginatedResponse } from '../api/api_response';
-import { WorkflowCategory } from '../billing/plans';
+import { PaginatedResponse } from '../../platform/api/api_response';
+import { WorkflowCategory } from '../../billing/subscriptions/plans';
 
 export interface DashboardExecutionDto {
   status: string;
