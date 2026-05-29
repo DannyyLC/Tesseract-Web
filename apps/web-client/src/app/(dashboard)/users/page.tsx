@@ -569,7 +569,7 @@ export default function UsersPage() {
                                         e.stopPropagation();
                                         handleTransferOpen(user);
                                       }}
-                                      className="flex items-center gap-2 rounded-full border border-warning-500/20 px-4 py-2 text-sm font-medium text-warning-600 transition-all hover:bg-warning-500/10"
+                                      className="flex items-center gap-2 rounded-full border border-warning-600 px-4 py-2 text-sm font-medium text-warning-600 transition-all hover:bg-warning-500/10"
                                     >
                                       <ArrowRightLeft size={16} />
                                       Transferir Propiedad
@@ -599,7 +599,7 @@ export default function UsersPage() {
                                           e.stopPropagation();
                                           handleDeleteOpen(user);
                                         }}
-                                        className="flex items-center gap-2 rounded-full border border-danger-500/20 px-4 py-2 text-sm font-medium text-danger-600 transition-all hover:bg-danger/10"
+                                        className="flex items-center gap-2 rounded-full border border-danger-600 px-4 py-2 text-sm font-medium text-danger-600 transition-all hover:bg-danger-500/10"
                                       >
                                         <Trash2 size={16} />
                                         Eliminar
