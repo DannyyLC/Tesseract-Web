@@ -455,6 +455,9 @@ importers:
         specifier: ^0.182.0
         version: 0.182.0
     devDependencies:
+      '@eslint/eslintrc':
+        specifier: ^3.3.5
+        version: 3.3.5
       '@testing-library/jest-dom':
         specifier: ^6.9.1
         version: 6.9.1
