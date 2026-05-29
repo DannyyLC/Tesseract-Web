@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "./",
     "paths": {
       "@/*": ["./src/*"],
       "@tesseract/types": ["../../packages/types/dist"]
@@ -13,6 +13,6 @@
     "strictPropertyInitialization": false,
     "types": ["jest", "node"]
   },
-  "include": ["src/**/*", "scripts"],
+  "include": ["src/**/*", "scripts", "test/**/*.e2e-spec.ts"],
   "exclude": ["node_modules", "dist"]
 }

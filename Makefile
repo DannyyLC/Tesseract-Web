@@ -1,5 +1,6 @@
 .PHONY: install build dev gateway web agents proto db-up db-down db-logs clean \
-        prisma-migrate prisma-deploy prisma-studio prisma-generate prisma-seed prisma-reset
+        prisma-migrate prisma-deploy prisma-studio prisma-generate prisma-seed prisma-reset \
+        test test-gateway test-unit test-e2e
 
 # ── Install ───────────────────────────────────────────────────────────────────
 install:
@@ -62,6 +63,23 @@ prisma-studio:
 
 prisma-seed:
 	pnpm run prisma:seed
+
+# ── Test ──────────────────────────────────────────────────────────────────────
+# test         -> toda la suite del monorepo (todos los paquetes)
+# test-gateway -> gateway completo (unitarios + e2e)
+# test-unit    -> solo unitarios del gateway
+# test-e2e     -> solo e2e del gateway
+test:
+	pnpm run test:all
+
+test-gateway:
+	pnpm run test:gateway
+
+test-unit:
+	pnpm run test:gateway:unit
+
+test-e2e:
+	pnpm run test:gateway:e2e
 
 # ── Clean ─────────────────────────────────────────────────────────────────────
 clean:

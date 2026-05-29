@@ -22,6 +22,8 @@
     "prisma:seed": "pnpm dlx ts-node packages/database/prisma/seed.ts",
     "test:all": "pnpm -r --if-present run test",
     "test:gateway": "pnpm --filter @tesseract/gateway test",
+    "test:gateway:unit": "pnpm --filter @tesseract/gateway test:unit",
+    "test:gateway:e2e": "pnpm --filter @tesseract/gateway test:e2e",
     "lint": "pnpm -r --if-present run lint",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",

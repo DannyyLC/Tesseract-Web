@@ -1,9 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/platform/database/prisma.service';
+import { GlobalExceptionFilter } from './../src/platform/common/exceptions';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -46,6 +50,10 @@ describe('AppController (e2e)', () => {
     })
       .overrideProvider(PrismaService)
       .useValue(mockPrismaService)
+      // Desactivar el rate limiting para que los tests de validacion sean
+      // deterministas (algunas rutas, p.ej. /auth/login, tienen @Throttle).
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -53,7 +61,12 @@ describe('AppController (e2e)', () => {
     // Obtener el servicio de Prisma mockeado
     prismaService = app.get<PrismaService>(PrismaService);
 
-    // Configurar la app igual que en main.ts
+    // Replicar la configuracion real de main.ts para que el E2E ejerza el
+    // mismo stack (security headers, cookies, filtro de errores, validacion
+    // y prefijo global) que corre en produccion.
+    app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+    app.use(cookieParser());
+    app.useGlobalFilters(new GlobalExceptionFilter());
     app.setGlobalPrefix('api');
     app.useGlobalPipes(
       new ValidationPipe({
@@ -73,17 +86,58 @@ describe('AppController (e2e)', () => {
     await app.close();
   });
 
-  it('should have the application running', () => {
-    expect(app).toBeDefined();
+  describe('bootstrap', () => {
+    it('should have the application running', () => {
+      expect(app).toBeDefined();
+    });
+
+    it('should apply helmet security headers', async () => {
+      const response = await request(app.getHttpServer()).get('/api/auth/login');
+      // helmet activa nosniff por defecto en todas las respuestas
+      expect(response.headers['x-content-type-options']).toBe('nosniff');
+    });
   });
 
-  // Probar que una ruta protegida retorna error sin autenticación
-  // En E2E con dependencias mockeadas, puede retornar 401 o 500 dependiendo del flujo
-  it('/api/workflows (GET) should return error without auth', async () => {
-    const response = await request(app.getHttpServer()).get('/api/workflows');
+  describe('routing', () => {
+    it('should enforce the global /api prefix (404 outside it)', async () => {
+      // Sin el prefijo /api ninguna ruta existe
+      const response = await request(app.getHttpServer()).get('/workflows');
+      expect(response.status).toBe(404);
+    });
 
-    // Verificar que la ruta está protegida (retorna error, no 200)
-    expect(response.status).toBeGreaterThanOrEqual(400);
-    expect(response.status).not.toBe(200);
+    it('should return 404 for an unknown route under /api', async () => {
+      const response = await request(app.getHttpServer()).get('/api/this-route-does-not-exist');
+      expect(response.status).toBe(404);
+    });
+  });
+
+  describe('auth guards', () => {
+    it('/api/workflows (GET) should reject requests without authentication', async () => {
+      const response = await request(app.getHttpServer()).get('/api/workflows');
+      // Ruta protegida: debe devolver error (no 200) sin credenciales
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).not.toBe(200);
+    });
+  });
+
+  describe('validation (ValidationPipe)', () => {
+    it('should reject login with an empty body (400)', async () => {
+      const response = await request(app.getHttpServer()).post('/api/auth/login').send({});
+      expect(response.status).toBe(400);
+    });
+
+    it('should reject login with an invalid email (400)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: 'not-an-email', password: 'whatever' });
+      expect(response.status).toBe(400);
+    });
+
+    it('should reject login with non-whitelisted properties (400)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: 'user@acme.com', password: 'Password123!', hackerField: 'x' });
+      expect(response.status).toBe(400);
+    });
   });
 });

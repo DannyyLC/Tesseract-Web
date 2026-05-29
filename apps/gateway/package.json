@@ -12,6 +12,8 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "test": "jest",
+    "test:unit": "jest --testPathPattern=src",
+    "test:e2e": "jest --testPathPattern=e2e-spec",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
