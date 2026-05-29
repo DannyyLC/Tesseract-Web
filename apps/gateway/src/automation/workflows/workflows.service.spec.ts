@@ -68,7 +68,9 @@ describe('WorkflowsService', () => {
   };
   const mockLlmModelsService = {
     getActiveModels: jest.fn().mockResolvedValue([{ name: 'gpt-4o' }]),
-    calculateCostBatch: jest.fn().mockResolvedValue(0.15),
+    // Devuelve un array (CostCalculation[]) como el servicio real; antes
+    // devolvia un numero y el codigo logueaba "calculations is not iterable".
+    calculateCostBatch: jest.fn().mockResolvedValue([]),
   };
   const mockConversationsService = {
     findOrCreateConversation: jest.fn(),

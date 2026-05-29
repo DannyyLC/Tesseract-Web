@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Logger } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 
 // We just test the functionality we can easily mock
@@ -21,6 +22,9 @@ describe('PrismaService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    // Restaura cualquier spy (p.ej. el del Logger en los tests de error) para
+    // que no se filtre a otros tests y un error inesperado vuelva a verse.
+    jest.restoreAllMocks();
   });
 
   it('should be defined', () => {
@@ -37,6 +41,10 @@ describe('PrismaService', () => {
     });
 
     it('should retry connection on failure and throw if max retries reached', async () => {
+      // El fallo de conexión es esperado: silenciamos el Logger para no ensuciar
+      // la salida y de paso verificamos que el error SÍ se loguea.
+      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
       // Mock failure
       (service.$connect as jest.Mock).mockRejectedValue(new Error('Connection Failed'));
 
@@ -47,6 +55,7 @@ describe('PrismaService', () => {
 
       global.setTimeout = originalSetTimeout;
       expect(service.$connect).toHaveBeenCalledTimes(5);
+      expect(errorSpy).toHaveBeenCalled();
     });
   });
 
@@ -66,9 +75,12 @@ describe('PrismaService', () => {
     });
 
     it('should return false if query fails', async () => {
+      // El fallo del health check es esperado: silenciamos el Logger.
+      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
       (service.$queryRaw as jest.Mock).mockRejectedValue(new Error('DB Error'));
       const isHealthy = await service.healthCheck();
       expect(isHealthy).toBe(false);
+      expect(errorSpy).toHaveBeenCalled();
     });
   });
 

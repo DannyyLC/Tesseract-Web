@@ -142,14 +142,6 @@ export class WhatsappConfigService {
 
   async verifySignature(payload: string, signatureHeader: string): Promise<boolean> {
     const secret = process.env.Y_CLOUD_WEBHOOK_SECRET || '';
-    console.log(
-      'Verifying signature. Payload:',
-      payload,
-      'Signature header:',
-      signatureHeader,
-      'webhook secret:',
-      secret,
-    );
     const parts = signatureHeader.split(',');
     const timestamp = parts[0].split('=')[1];
     const signature = parts[1].split('=')[1];
@@ -158,7 +150,6 @@ export class WhatsappConfigService {
       .createHmac('sha256', secret)
       .update(signedPayload)
       .digest('hex');
-    console.log('Expected signature:', expectedSignature);
     return signature === expectedSignature;
   }
 
