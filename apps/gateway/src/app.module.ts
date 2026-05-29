@@ -16,15 +16,23 @@ import { PlatformModule } from './platform/platform.module';
   imports: [
     WinstonModule.forRoot({
       transports: [
-        new winston.transports.DailyRotateFile({
-          filename: 'logs/app-%DATE%.log',
-          datePattern: 'YYYY-MM-DD',
-          zippedArchive: false,
-          maxSize: '20m',
-          maxFiles: '14d',
-          level: 'info',
-        }),
+        // En produccion (Cloud Run) los logs van a stdout -> Cloud Logging los
+        // captura automaticamente. El filesystem del contenedor es efimero y en
+        // memoria, asi que NO escribimos archivos en prod.
         new winston.transports.Console(),
+        // Solo en desarrollo: archivos rotados en ./logs para inspeccion local.
+        ...(process.env.NODE_ENV !== 'production'
+          ? [
+              new winston.transports.DailyRotateFile({
+                filename: 'logs/app-%DATE%.log',
+                datePattern: 'YYYY-MM-DD',
+                zippedArchive: false,
+                maxSize: '20m',
+                maxFiles: '14d',
+                level: 'info',
+              }),
+            ]
+          : []),
       ],
     }),
     ThrottlerModule.forRoot([
