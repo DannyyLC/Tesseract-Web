@@ -269,7 +269,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
 
                     <div className="border-t border-border p-2">
                       <button
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-danger transition-colors hover:bg-danger-50 hover:text-danger-600"
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-danger-500 transition-colors hover:bg-[color-mix(in_srgb,var(--danger-500)_12%,transparent)] hover:text-danger-600 disabled:opacity-50"
                         onClick={() => logoutMutation.mutate()}
                         disabled={logoutMutation.isPending}
                       >
