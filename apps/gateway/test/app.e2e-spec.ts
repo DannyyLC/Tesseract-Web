@@ -29,6 +29,9 @@ describe('AppController (e2e)', () => {
     apiKey: {
       findFirst: jest.fn(),
     },
+    workflowCronTrigger: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
   };
 
   beforeAll(async () => {

@@ -98,7 +98,7 @@ describe('ConversationsService', () => {
         data: {
           workflowId: 'wf-1',
           organizationId: 'org-1',
-          channel: 'api',
+          channel: 'API',
           userId: 'user-1',
           endUserId: 'endUser-1',
           status: 'ACTIVE',

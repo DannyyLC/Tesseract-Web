@@ -8,6 +8,8 @@ import { CreditsService } from '@/billing/credits/credits.service';
 import { LlmModelsService } from '@/automation/llm-models/llm-models.service';
 import { ConversationsService } from '@/messaging/conversations/conversations.service';
 import { ToolsService } from '../tools/core/tools.service';
+import { MediaProcessingService } from '../media-processing/media-processing.service';
+import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { InvalidWorkflowConfigException } from '@/platform/common/exceptions';
 import { WorkflowCategory, SubscriptionPlan } from '@tesseract/types';
@@ -70,13 +72,28 @@ describe('WorkflowsService', () => {
   };
   const mockConversationsService = {
     findOrCreateConversation: jest.fn(),
+    findOrCreateConversationFromWhatsAppMessage: jest.fn(),
     getMessageHistory: jest.fn(),
+    getMessageHistoryWithIds: jest.fn().mockResolvedValue([]),
     addMessage: jest.fn(),
     update: jest.fn(),
+    requestHumanIntervention: jest.fn(),
+    tryAcquireCompactionLock: jest.fn().mockResolvedValue(false),
+    releaseCompactionLock: jest.fn(),
+    getActiveCompactionSummary: jest.fn().mockResolvedValue(null),
+    createAndActivateCompaction: jest.fn(),
   };
   const mockToolsService = {
     findToolById: jest.fn(),
     populateDecryptedCredentials: jest.fn().mockResolvedValue({}),
+  };
+
+  const mockMediaProcessingService = {
+    processIncomingAttachments: jest.fn().mockResolvedValue({ attachments: [], derivedText: null }),
+  };
+
+  const mockConfigService = {
+    get: jest.fn((_key: string, defaultValue?: string) => defaultValue),
   };
 
   beforeEach(async () => {
@@ -91,6 +108,8 @@ describe('WorkflowsService', () => {
         { provide: LlmModelsService, useValue: mockLlmModelsService },
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: ToolsService, useValue: mockToolsService },
+        { provide: MediaProcessingService, useValue: mockMediaProcessingService },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
@@ -221,7 +240,7 @@ describe('WorkflowsService', () => {
 
   describe('getDashboardData', () => {
     it('should return paginated items', async () => {
-      const mockWf = { id: 'wf1', name: 'Work 1' };
+      const mockWf = { id: 'wf1', name: 'Work 1', category: 'STANDARD' };
       prisma.workflow.findMany = jest.fn().mockResolvedValue([mockWf]);
 
       const result = await service.getDashboardData('org1', null, 10);
@@ -286,8 +305,8 @@ describe('WorkflowsService', () => {
           .fn()
           .mockResolvedValue({ _count: { id: 10 }, _avg: { duration: 15.5 } });
         prisma.execution.groupBy = jest.fn().mockResolvedValue([
-          { status: 'completed', _count: 8 },
-          { status: 'failed', _count: 2 },
+          { status: 'COMPLETED', _count: 8 },
+          { status: 'FAILED', _count: 2 },
         ]);
         prisma.$queryRawUnsafe = jest
           .fn()
@@ -371,7 +390,7 @@ describe('WorkflowsService', () => {
         expect((mockAgentsService as any).execute).toHaveBeenCalled();
         expect((mockExecutionsService as any).updateStatus).toHaveBeenCalledWith(
           'exec1',
-          'completed',
+          'COMPLETED',
           expect.any(Object),
         );
         expect(result.id).toBe('exec1');

@@ -121,7 +121,7 @@ describe('UsersService', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             organizationId: 'org1',
-            role: 'viewer',
+            role: 'VIEWER',
             isActive: true,
             deletedAt: null,
           }),
@@ -181,7 +181,7 @@ describe('UsersService', () => {
       expect(result).toEqual(mockUpdated);
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'target' },
-        data: { role: 'admin' },
+        data: { role: 'ADMIN' },
       });
     });
 
@@ -206,8 +206,8 @@ describe('UsersService', () => {
     it('transferOwnership should switch roles via transaction', async () => {
       jest
         .spyOn(service, 'findOne')
-        .mockResolvedValueOnce({ id: 'owner', role: 'owner' } as any)
-        .mockResolvedValueOnce({ id: 'newOwner', role: 'admin', isActive: true } as any);
+        .mockResolvedValueOnce({ id: 'owner', role: 'OWNER' } as any)
+        .mockResolvedValueOnce({ id: 'newOwner', role: 'ADMIN', isActive: true } as any);
 
       await service.transferOwnership('owner', 'newOwner', 'org1');
 
@@ -219,8 +219,8 @@ describe('UsersService', () => {
     it('transferOwnership should reject if new owner is inactive', async () => {
       jest
         .spyOn(service, 'findOne')
-        .mockResolvedValueOnce({ id: 'owner', role: 'owner' } as any)
-        .mockResolvedValueOnce({ id: 'newOwner', role: 'admin', isActive: false } as any);
+        .mockResolvedValueOnce({ id: 'owner', role: 'OWNER' } as any)
+        .mockResolvedValueOnce({ id: 'newOwner', role: 'ADMIN', isActive: false } as any);
 
       await expect(service.transferOwnership('owner', 'newOwner', 'org1')).rejects.toThrow(
         BadRequestException,
@@ -284,10 +284,12 @@ describe('UsersService', () => {
         .mockResolvedValueOnce(1); // unverified
 
       prisma.user.groupBy = jest.fn().mockResolvedValue([
-        { role: 'admin', _count: 3 },
-        { role: 'viewer', _count: 6 },
-        { role: 'owner', _count: 1 },
+        { role: 'ADMIN', _count: 3 },
+        { role: 'VIEWER', _count: 6 },
+        { role: 'OWNER', _count: 1 },
       ]);
+
+      (prisma as any).userVerification = { count: jest.fn().mockResolvedValue(4) };
 
       const result = await service.getStats('org1');
       expect(result).toEqual({
@@ -297,6 +299,7 @@ describe('UsersService', () => {
         inactive: 2,
         verified: 9,
         unverified: 1,
+        pendingInvitations: 4,
       });
     });
 

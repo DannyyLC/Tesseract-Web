@@ -61,8 +61,8 @@ describe('ExecutionsService', () => {
 
       expect(mockPrismaService.execution.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          workflowId: 'wf-1',
-          status: 'pending',
+          workflowId: 'workflow-id',
+          status: 'PENDING',
           trigger: 'API',
           organizationId: 'org-1',
         }),
@@ -236,7 +236,7 @@ describe('ExecutionsService', () => {
       expect(prisma.execution.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           take: 11, // limit + 1
-          where: expect.objectContaining({ status: 'completed' }),
+          where: expect.objectContaining({ status: 'COMPLETED' }),
         }),
       );
     });
@@ -245,15 +245,15 @@ describe('ExecutionsService', () => {
   describe('Analytics and Dashboard (getStats, getAnalyticsBySource, getDashboardData)', () => {
     it('getStats should accurately aggregate statuses and categories', async () => {
       const mockExecs = [
-        { status: 'completed', duration: 10, credits: 5, workflow: { category: 'STANDARD' } },
+        { status: 'COMPLETED', duration: 10, credits: 5, workflow: { category: 'STANDARD' } },
         {
-          status: 'failed',
+          status: 'FAILED',
           duration: 5,
           credits: 0,
           workflow: { category: 'LIGHT' },
           wasOverage: true,
         },
-        { status: 'completed', duration: 15, credits: 10, workflow: { category: 'ADVANCED' } },
+        { status: 'COMPLETED', duration: 15, credits: 10, workflow: { category: 'ADVANCED' } },
       ];
       prisma.execution.findMany = jest.fn().mockResolvedValue(mockExecs);
 
@@ -280,7 +280,7 @@ describe('ExecutionsService', () => {
       // Grouping
       const mockExecs = [
         {
-          status: 'completed',
+          status: 'COMPLETED',
           duration: 10,
           apiKeyId: 'k1',
           userId: 'u1',
@@ -288,7 +288,7 @@ describe('ExecutionsService', () => {
           user: { name: 'U1', email: 'u1@' },
         },
         {
-          status: 'failed',
+          status: 'FAILED',
           duration: 6,
           apiKeyId: 'k1',
           userId: 'u1',
@@ -309,8 +309,8 @@ describe('ExecutionsService', () => {
 
   describe('Management (cancel, remove, link, updateUsageStats)', () => {
     it('cancel should set status to cancelled', async () => {
-      prisma.execution.findFirst = jest.fn().mockResolvedValue({ status: 'running' });
-      prisma.execution.update = jest.fn().mockResolvedValue({ status: 'cancelled' });
+      prisma.execution.findFirst = jest.fn().mockResolvedValue({ status: 'RUNNING' });
+      prisma.execution.update = jest.fn().mockResolvedValue({ status: 'CANCELLED' });
 
       // Intercept internally calling updateStatus
       jest.spyOn(service, 'updateStatus').mockResolvedValue({} as any);

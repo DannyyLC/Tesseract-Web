@@ -15,11 +15,15 @@ describe('WhatsappConfigService', () => {
     },
   };
 
+  const mockHttpService: any = {
+    axiosRef: { post: jest.fn(), get: jest.fn() },
+  };
+
   const mockLogger = { error: jest.fn() } as any;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new WhatsappConfigService(mockPrisma, mockLogger);
+    service = new WhatsappConfigService(mockPrisma, mockHttpService, mockLogger);
   });
 
   describe('getWhatsappConfigById', () => {

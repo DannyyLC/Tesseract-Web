@@ -193,8 +193,8 @@ describe('LlmModelsService', () => {
         id: 'm1',
         modelName: 'gpt-4o',
         provider: 'openai',
-        inputPricePer1m: 5,
-        outputPricePer1m: 15,
+        inputPricePer1m: { toNumber: () => 5 },
+        outputPricePer1m: { toNumber: () => 15 },
       });
 
       const usage = { inputTokens: 1_000_000, outputTokens: 2_000_000, totalTokens: 3_000_000 };
@@ -231,8 +231,18 @@ describe('LlmModelsService', () => {
   describe('calculateCostBatch', () => {
     it('should correctly calculate costs for a batch of models', async () => {
       mockPrismaService.llmModel.findMany.mockResolvedValue([
-        { modelName: 'model-a', provider: 'prov-a', inputPricePer1m: 2, outputPricePer1m: 4 },
-        { modelName: 'model-b', provider: 'prov-b', inputPricePer1m: 1, outputPricePer1m: 2 },
+        {
+          modelName: 'model-a',
+          provider: 'prov-a',
+          inputPricePer1m: { toNumber: () => 2 },
+          outputPricePer1m: { toNumber: () => 4 },
+        },
+        {
+          modelName: 'model-b',
+          provider: 'prov-b',
+          inputPricePer1m: { toNumber: () => 1 },
+          outputPricePer1m: { toNumber: () => 2 },
+        },
       ]);
 
       const usages = {

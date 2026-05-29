@@ -334,7 +334,7 @@ describe('CreditsService', () => {
         orgId,
         ['OWNER', 'ADMIN'],
         '0000-0113',
-        ['20', '3'],
+        ['5', '3'],
       );
     });
 
@@ -501,9 +501,9 @@ describe('CreditsService', () => {
     });
 
     it('should send CONSUMPTION_ALERT only when crossing 20 percent threshold', async () => {
-      // STARTER monthlyCredits = 150, threshold 20% = 30
+      // STARTER monthlyCredits = 200, threshold 20% = 40
       mockPrismaService.creditBalance.findUnique.mockResolvedValue({
-        balance: 31,
+        balance: 41,
       });
       mockPrismaService.$transaction.mockResolvedValue(undefined);
       mockPrismaService.workflow.findUnique.mockResolvedValue({
@@ -521,7 +521,7 @@ describe('CreditsService', () => {
         orgId,
         ['OWNER', 'ADMIN'],
         '0000-0110',
-        ['30'],
+        ['40'],
       );
     });
 

@@ -1,24 +1,25 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  InternalServerErrorException,
+  Logger,
+  RequestTimeoutException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
+import * as grpc from '@grpc/grpc-js';
 import { AgentsService } from './agents.service';
-import { of, throwError } from 'rxjs';
 import { AgentExecutionRequestDto } from './dto';
 
 describe('AgentsService', () => {
   let service: AgentsService;
-  let httpService: HttpService;
-  let configService: ConfigService;
 
-  const mockHttpService = {
-    post: jest.fn(),
-    get: jest.fn(),
+  const mockGrpcClient = {
+    execute: jest.fn(),
   };
 
   const mockConfigService = {
     get: jest.fn().mockImplementation((key, defaultValue) => {
-      if (key === 'AGENTS_API_URL') return 'http://localhost:8000';
+      if (key === 'AGENTS_GRPC_URL') return 'localhost:50051';
       if (key === 'AGENTS_SERVICE_TIMEOUT') return 30000;
       return defaultValue;
     }),
@@ -26,30 +27,30 @@ describe('AgentsService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AgentsService,
-        {
-          provide: HttpService,
-          useValue: mockHttpService,
-        },
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-      ],
+      providers: [AgentsService, { provide: ConfigService, useValue: mockConfigService }],
     }).compile();
 
     service = module.get<AgentsService>(AgentsService);
-    httpService = module.get<HttpService>(HttpService);
-    configService = module.get<ConfigService>(ConfigService);
 
-    // Suppress console output for logger in test execution
+    // onModuleInit (que crea el cliente gRPC real) no corre en compile();
+    // inyectamos un cliente mock directamente.
+    (service as any).grpcClient = mockGrpcClient;
+
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    // Neutraliza los delays de reintento (withRetry usa setTimeout).
+    jest.spyOn(global, 'setTimeout').mockImplementation(((fn: () => void) => {
+      fn();
+      return 0 as any;
+    }) as any);
 
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('should be defined', () => {
@@ -64,58 +65,42 @@ describe('AgentsService', () => {
       agents_config: { models: [] },
     } as unknown as AgentExecutionRequestDto;
 
-    it('should successfully execute agent and return response data', async () => {
-      const mockResponse = { data: { conversation_id: 'conv1', messages: ['test'] } };
-      mockHttpService.post.mockReturnValue(of(mockResponse));
+    it('should successfully execute agent and return mapped response data', async () => {
+      const grpcResponse = {
+        conversation_id: 'conv1',
+        messages: [{ role: 'assistant', content: 'test' }],
+        metadata: { total_tokens: 15 },
+      };
+      mockGrpcClient.execute.mockImplementation((_req, _meta, _opts, cb) => cb(null, grpcResponse));
 
       const result = await service.execute(mockRequest);
 
-      expect(mockHttpService.post).toHaveBeenCalledWith(
-        'http://localhost:8000/api/v1/agents/execute',
-        mockRequest,
-      );
-      expect(result).toEqual(mockResponse.data);
+      expect(mockGrpcClient.execute).toHaveBeenCalled();
+      expect(result.conversation_id).toBe('conv1');
+      expect(result.messages).toEqual([{ role: 'assistant', content: 'test' }]);
+      expect(result.metadata?.total_tokens).toBe(15);
     });
 
-    it('should throw REQUEST_TIMEOUT if ETIMEDOUT', async () => {
-      const error = new Error('Timeout') as any;
-      error.code = 'ETIMEDOUT';
-      mockHttpService.post.mockReturnValue(throwError(() => error));
+    it('should throw RequestTimeoutException on DEADLINE_EXCEEDED', async () => {
+      const error = { code: grpc.status.DEADLINE_EXCEEDED, message: 'deadline' };
+      mockGrpcClient.execute.mockImplementation((_req, _meta, _opts, cb) => cb(error));
 
-      await expect(service.execute(mockRequest)).rejects.toMatchObject(
-        new HttpException('Agent execution timed out', HttpStatus.REQUEST_TIMEOUT),
-      );
+      await expect(service.execute(mockRequest)).rejects.toBeInstanceOf(RequestTimeoutException);
     });
 
-    it('should throw error from python service if response exists', async () => {
-      const error = new Error('Bad Request') as any;
-      error.response = { status: 400, data: 'Invalid configuration' };
-      mockHttpService.post.mockReturnValue(throwError(() => error));
+    it('should throw ServiceUnavailableException on UNAVAILABLE', async () => {
+      const error = { code: grpc.status.UNAVAILABLE, message: 'unavailable' };
+      mockGrpcClient.execute.mockImplementation((_req, _meta, _opts, cb) => cb(error));
 
-      await expect(service.execute(mockRequest)).rejects.toMatchObject(
-        new HttpException('Invalid configuration', 400),
-      );
+      await expect(service.execute(mockRequest)).rejects.toBeInstanceOf(ServiceUnavailableException);
     });
 
-    it('should throw INTERNAL_SERVER_ERROR for unknown errors', async () => {
-      const error = new Error('Unknown stuff');
-      mockHttpService.post.mockReturnValue(throwError(() => error));
+    it('should throw InternalServerErrorException for non-retryable errors', async () => {
+      const error = { code: grpc.status.INVALID_ARGUMENT, message: 'Invalid configuration' };
+      mockGrpcClient.execute.mockImplementation((_req, _meta, _opts, cb) => cb(error));
 
-      await expect(service.execute(mockRequest)).rejects.toMatchObject(
-        new HttpException(
-          'Failed to communicate with agents service',
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        ),
-      );
-    });
-
-    it('should throw SERVICE_UNAVAILABLE if ECONNREFUSED', async () => {
-      const error = new Error('Connection refused') as any;
-      error.code = 'ECONNREFUSED';
-      mockHttpService.post.mockReturnValue(throwError(() => error));
-
-      await expect(service.execute(mockRequest)).rejects.toMatchObject(
-        new HttpException('Agents service is not available', HttpStatus.SERVICE_UNAVAILABLE),
+      await expect(service.execute(mockRequest)).rejects.toBeInstanceOf(
+        InternalServerErrorException,
       );
     });
   });

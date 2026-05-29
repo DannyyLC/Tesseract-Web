@@ -5,6 +5,7 @@ import { StripeClient } from './stripe.client';
 import { CreditsService } from '../credits/credits.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { UtilityService } from '@/platform/utility/utility.service';
 
 const mockStripeClient = {
   stripe: {
@@ -77,6 +78,10 @@ const mockConfigService = {
   }),
 };
 
+const mockUtilityService = {
+  sendNotificationToAppClients: jest.fn(),
+};
+
 describe('BillingService', () => {
   let service: BillingService;
 
@@ -88,6 +93,7 @@ describe('BillingService', () => {
         { provide: CreditsService, useValue: mockCreditsService },
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: UtilityService, useValue: mockUtilityService },
       ],
     }).compile();
 
@@ -195,6 +201,7 @@ describe('BillingService', () => {
       mockPrismaService.subscription.findUnique.mockResolvedValue({
         id: 'sub-1',
         stripeSubscriptionId: 'stripe-sub-1',
+        plan: 'PRO',
       });
 
       await service.cancelSubscription('org-1');
