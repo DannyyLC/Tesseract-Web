@@ -51,11 +51,11 @@ export function DeleteToolModal({
         </div>
 
         {/* Explanation */}
-        <div className="space-y-3 text-sm text-black/60 dark:text-white/60">
+        <div className="space-y-3 text-sm text-text-secondary">
           <p>
             Los agentes de Tesseract utilizan las herramientas conectadas como base para ejecutar
             sus tareas. Si un agente necesita{' '}
-            <strong className="text-black/80 dark:text-white/80">"{toolDisplayName}"</strong> y esta
+            <strong className="text-text-primary">"{toolDisplayName}"</strong> y esta
             no está disponible:
           </p>
           <ul className="ml-4 list-disc space-y-1 text-xs leading-relaxed">
@@ -65,7 +65,7 @@ export function DeleteToolModal({
             </li>
             <li>Los workflows afectados no se recuperarán solos; requerirán reconexión manual.</li>
           </ul>
-          <p className="text-xs font-medium text-black/50 dark:text-white/50">
+          <p className="text-xs font-medium text-text-secondary">
             Solo procede si estás seguro de que esta herramienta no está en uso, o si asumes
             conscientemente que los workflows que la utilizan dejarán de funcionar.
           </p>

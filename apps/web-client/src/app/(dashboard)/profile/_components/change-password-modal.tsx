@@ -96,7 +96,7 @@ export default function ChangePasswordModal({
         {/* Current Password - Only show if user has password */}
         {hasPassword && (
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+            <label className="block text-sm font-medium text-text-primary">
               Contraseña Actual
             </label>
             <div className="relative">
@@ -105,17 +105,17 @@ export default function ChangePasswordModal({
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="Ingresa tu contraseña actual"
-                className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 pr-12 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5 dark:border-white/10 dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+                className="w-full rounded-xl border border-border bg-white px-4 py-3 pr-12 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5  dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
               />
               <button
                 type="button"
                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 transition-colors hover:bg-surface-secondary"
               >
                 {showCurrentPassword ? (
-                  <EyeOff size={18} className="text-black/40 dark:text-white/40" />
+                  <EyeOff size={18} className="text-text-tertiary" />
                 ) : (
-                  <Eye size={18} className="text-black/40 dark:text-white/40" />
+                  <Eye size={18} className="text-text-tertiary" />
                 )}
               </button>
             </div>
@@ -124,7 +124,7 @@ export default function ChangePasswordModal({
 
         {/* New Password */}
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+          <label className="block text-sm font-medium text-text-primary">
             Nueva Contraseña
           </label>
           <div className="relative">
@@ -133,17 +133,17 @@ export default function ChangePasswordModal({
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Mínimo 8 caracteres"
-              className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 pr-12 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5 dark:border-white/10 dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+              className="w-full rounded-xl border border-border bg-white px-4 py-3 pr-12 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5  dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
             />
             <button
               type="button"
               onClick={() => setShowNewPassword(!showNewPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 transition-colors hover:bg-surface-secondary"
             >
               {showNewPassword ? (
-                <EyeOff size={18} className="text-black/40 dark:text-white/40" />
+                <EyeOff size={18} className="text-text-tertiary" />
               ) : (
-                <Eye size={18} className="text-black/40 dark:text-white/40" />
+                <Eye size={18} className="text-text-tertiary" />
               )}
             </button>
           </div>
@@ -151,7 +151,7 @@ export default function ChangePasswordModal({
 
         {/* Confirm Password */}
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+          <label className="block text-sm font-medium text-text-primary">
             Confirmar Nueva Contraseña
           </label>
           <div className="relative">
@@ -160,17 +160,17 @@ export default function ChangePasswordModal({
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Repite la nueva contraseña"
-              className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 pr-12 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5 dark:border-white/10 dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+              className="w-full rounded-xl border border-border bg-white px-4 py-3 pr-12 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5  dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
             />
             <button
               type="button"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 transition-colors hover:bg-surface-secondary"
             >
               {showConfirmPassword ? (
-                <EyeOff size={18} className="text-black/40 dark:text-white/40" />
+                <EyeOff size={18} className="text-text-tertiary" />
               ) : (
-                <Eye size={18} className="text-black/40 dark:text-white/40" />
+                <Eye size={18} className="text-text-tertiary" />
               )}
             </button>
           </div>
@@ -179,7 +179,7 @@ export default function ChangePasswordModal({
         {/* 2FA Code (if enabled) */}
         {twoFactorEnabled && (
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+            <label className="block text-sm font-medium text-text-primary">
               Código 2FA
             </label>
             <input
@@ -194,7 +194,7 @@ export default function ChangePasswordModal({
                 }
               }}
               placeholder="000000"
-              className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-center font-mono text-lg tracking-widest text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5 dark:border-white/10 dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+              className="w-full rounded-xl border border-border bg-white px-4 py-3 text-center font-mono text-lg tracking-widest text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5  dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
             />
           </div>
         )}

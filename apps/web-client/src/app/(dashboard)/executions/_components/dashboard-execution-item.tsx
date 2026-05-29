@@ -50,16 +50,16 @@ const getStatusConfig = (status: string) => {
     case 'FAILED':
       return {
         label: 'Fallida',
-        color: 'text-red-500',
-        statusColor: 'bg-red-500',
-        bgColor: 'bg-red-500/10',
+        color: 'text-danger',
+        statusColor: 'bg-danger',
+        bgColor: 'bg-danger/10',
       };
     case 'RUNNING':
       return {
         label: 'Ejecutando',
-        color: 'text-blue-500',
-        statusColor: 'bg-blue-500',
-        bgColor: 'bg-blue-500/10',
+        color: 'text-info',
+        statusColor: 'bg-info',
+        bgColor: 'bg-info/10',
       };
     case 'CANCELLED':
       return {
@@ -139,7 +139,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
       exit={{ opacity: 0, scale: 0.98 }}
       className={`group overflow-hidden rounded-xl border transition-all duration-200 ${
         isExpanded
-          ? 'border-black/20 bg-white shadow-md dark:border-white/20 dark:bg-[#141414]'
+          ? 'border-border-hover bg-white shadow-md  dark:bg-[#141414]'
           : 'border-transparent bg-transparent hover:border-black/5 hover:bg-white hover:shadow-sm dark:hover:border-white/5 dark:hover:bg-[#141414]'
       }`}
     >
@@ -158,12 +158,12 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
             {/* Name & User */}
             <div className="flex flex-col justify-center md:col-span-4">
               <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-medium text-black dark:text-white">
+                <p className="truncate text-sm font-medium text-text-primary">
                   {workflowName}
                 </p>
               </div>
               <div className="mt-0.5 flex items-center gap-1.5">
-                <span className="truncate text-xs text-black/40 dark:text-white/40">
+                <span className="truncate text-xs text-text-tertiary">
                   by {userName}
                 </span>
               </div>
@@ -176,7 +176,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                   {statusConfig.label}
                 </span>
               </div>
-              <span className="mt-0.5 text-xs text-black/40 dark:text-white/40">
+              <span className="mt-0.5 text-xs text-text-tertiary">
                 {formatTimeAgo(execution.startedAt)}
               </span>
             </div>
@@ -184,26 +184,26 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
             {/* Metrics (Hidden on Mobile) */}
             <div className="hidden items-center justify-end gap-6 md:col-span-4 md:flex">
               <div className="flex flex-col items-end">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-black/30 dark:text-white/30">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
                   Duration
                 </span>
-                <span className="font-mono text-sm text-black/70 dark:text-white/70">
+                <span className="font-mono text-sm text-text-primary">
                   {execution.duration !== null ? `${execution.duration}s` : '-'}
                 </span>
               </div>
               <div className="flex min-w-[60px] flex-col items-end">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-black/30 dark:text-white/30">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
                   Credits
                 </span>
-                <span className="font-mono text-sm text-black/70 dark:text-white/70">
+                <span className="font-mono text-sm text-text-primary">
                   {execution.credits !== null ? execution.credits : '-'}
                 </span>
               </div>
               <div className="flex min-w-[60px] flex-col items-end">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-black/30 dark:text-white/30">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
                   Trigger
                 </span>
-                <span className="text-xs text-black/70 dark:text-white/70">
+                <span className="text-xs text-text-primary">
                   {getTriggerLabel(execution.trigger)}
                 </span>
               </div>
@@ -221,7 +221,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
         {/* Error Preview inline */}
         {execution.status === 'FAILED' && !isExpanded && (
           <div className="ml-12 mt-2 pl-1">
-            <p className="w-fit max-w-full truncate rounded bg-red-500/5 px-2 py-1 font-mono text-xs text-red-500/80">
+            <p className="w-fit max-w-full truncate rounded bg-danger/5 px-2 py-1 font-mono text-xs text-danger/80">
               Error en la ejecución.
             </p>
           </div>
@@ -242,7 +242,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
               <div className="border-t border-black/5 pt-4 dark:border-white/5">
                 {isLoading ? (
                   <div className="flex items-center justify-center py-6">
-                    <Loader2 className="animate-spin text-black/20 dark:text-white/20" size={20} />
+                    <Loader2 className="animate-spin text-text-tertiary" size={20} />
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -250,34 +250,34 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                     <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                       <div className="rounded-lg border border-black/5 bg-black/[0.02] p-3 dark:border-white/5 dark:bg-white/[0.02]">
                         <div className="mb-1 flex items-center gap-2">
-                          <Zap size={12} className="text-black/40 dark:text-white/40" />
-                          <span className="text-xs font-medium text-black/50 dark:text-white/50">
+                          <Zap size={12} className="text-text-tertiary" />
+                          <span className="text-xs font-medium text-text-secondary">
                             Credits
                           </span>
                         </div>
-                        <p className="font-mono text-sm font-medium text-black dark:text-white">
+                        <p className="font-mono text-sm font-medium text-text-primary">
                           {displayData.credits !== null ? displayData.credits : '0'}
                         </p>
                       </div>
 
                       <div className="rounded-lg border border-black/5 bg-black/[0.02] p-3 md:col-span-2 dark:border-white/5 dark:bg-white/[0.02]">
                         <div className="mb-1 flex items-center gap-2">
-                          <Clock size={12} className="text-black/40 dark:text-white/40" />
-                          <span className="text-xs font-medium text-black/50 dark:text-white/50">
+                          <Clock size={12} className="text-text-tertiary" />
+                          <span className="text-xs font-medium text-text-secondary">
                             Timing
                           </span>
                         </div>
                         <div className="flex flex-col gap-x-6 gap-y-1 sm:flex-row">
-                          <div className="text-xs text-black/80 dark:text-white/80">
-                            <span className="mr-1 text-black/40 dark:text-white/40">Start:</span>
+                          <div className="text-xs text-text-primary">
+                            <span className="mr-1 text-text-tertiary">Start:</span>
                             <span className="font-mono">
                               {formatDate(displayData.startedAt)}{' '}
                               {formatTime(displayData.startedAt)}
                             </span>
                           </div>
                           {displayData.finishedAt && (
-                            <div className="text-xs text-black/80 dark:text-white/80">
-                              <span className="mr-1 text-black/40 dark:text-white/40">End:</span>
+                            <div className="text-xs text-text-primary">
+                              <span className="mr-1 text-text-tertiary">End:</span>
                               <span className="font-mono">
                                 {formatDate(displayData.finishedAt)}{' '}
                                 {formatTime(displayData.finishedAt)}
@@ -291,8 +291,8 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                         displayData.balanceAfter !== undefined) && (
                         <div className="rounded-lg border border-black/5 bg-black/[0.02] p-3 dark:border-white/5 dark:bg-white/[0.02]">
                           <div className="mb-2 flex items-center gap-2">
-                            <Coins size={12} className="text-black/40 dark:text-white/40" />
-                            <span className="text-xs font-medium text-black/50 dark:text-white/50">
+                            <Coins size={12} className="text-text-tertiary" />
+                            <span className="text-xs font-medium text-text-secondary">
                               Balance
                             </span>
                           </div>
@@ -300,8 +300,8 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                             {displayData.balanceBefore !== undefined &&
                               displayData.balanceBefore !== null && (
                                 <div className="flex items-center justify-between text-xs">
-                                  <span className="text-black/40 dark:text-white/40">Antes:</span>
-                                  <span className="font-mono text-black/70 dark:text-white/70">
+                                  <span className="text-text-tertiary">Antes:</span>
+                                  <span className="font-mono text-text-primary">
                                     {displayData.balanceBefore}
                                   </span>
                                 </div>
@@ -309,8 +309,8 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                             {displayData.balanceAfter !== undefined &&
                               displayData.balanceAfter !== null && (
                                 <div className="flex items-center justify-between text-xs">
-                                  <span className="text-black/40 dark:text-white/40">Despues:</span>
-                                  <span className="font-mono font-medium text-black dark:text-white">
+                                  <span className="text-text-tertiary">Despues:</span>
+                                  <span className="font-mono font-medium text-text-primary">
                                     {displayData.balanceAfter}
                                   </span>
                                 </div>
@@ -324,7 +324,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                     {(displayData.error || displayData.wasOverage) && (
                       <div className="space-y-2">
                         {displayData.error && (
-                          <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                          <div className="rounded-lg border border-red-500/20 bg-danger/5 p-3">
                             <div className="mb-1 flex items-center gap-2">
                               <AlertCircle size={12} className="text-red-600 dark:text-red-400" />
                               <span className="text-xs font-medium text-red-600 dark:text-red-400">
@@ -360,10 +360,10 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                     <div className="flex items-center justify-between pt-1">
                       {displayData.apiKeyName && (
                         <div className="flex items-center gap-1.5 rounded border border-black/5 bg-black/[0.02] px-2 py-1 dark:border-white/5 dark:bg-white/[0.02]">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-black/40 dark:text-white/40">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
                             API Key
                           </span>
-                          <span className="font-mono text-xs text-black/70 dark:text-white/70">
+                          <span className="font-mono text-xs text-text-primary">
                             {displayData.apiKeyName}
                           </span>
                         </div>

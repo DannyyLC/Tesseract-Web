@@ -54,14 +54,14 @@ export default function NotificationItem({
     : description;
 
   return (
-    <div className="relative overflow-hidden border-b border-black/5 last:border-0 dark:border-white/5">
+    <div className="relative overflow-hidden border-b border-border last:border-0">
       {/* Background Actions Layer */}
       <motion.div
         style={{ opacity: bgOpacity }}
-        className="absolute inset-0 flex items-center justify-between bg-red-500 px-6"
+        className="absolute inset-0 flex items-center justify-between bg-danger px-6"
       >
-        <Trash2 className="text-white" size={20} />
-        <Trash2 className="text-white" size={20} />
+        <Trash2 className="text-text-inverse" size={20} />
+        <Trash2 className="text-text-inverse" size={20} />
       </motion.div>
 
       {/* Foreground Content Layer */}
@@ -76,13 +76,13 @@ export default function NotificationItem({
           }
         }}
         className={`relative z-10 cursor-pointer px-4 py-4 transition-colors ${
-          !notification.isRead ? 'bg-[#F9FAFB] dark:bg-[#1A1A1A]' : 'bg-white dark:bg-[#141414]'
+          !notification.isRead ? 'bg-surface-secondary' : 'bg-surface'
         }`}
       >
         <div className="flex items-start gap-3" onClick={handleClick}>
           {/* Unread Indicator */}
           {!notification.isRead && (
-            <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+            <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-info shadow-sm" />
           )}
 
           <div className={`flex-1 ${!notification.isRead ? '' : 'ml-5'}`}>
@@ -90,13 +90,13 @@ export default function NotificationItem({
               <p
                 className={`text-sm font-medium ${
                   !notification.isRead
-                    ? 'text-black dark:text-white'
-                    : 'text-black/60 dark:text-white/60'
+                    ? 'text-text-primary'
+                    : 'text-text-secondary'
                 }`}
               >
                 {notification.title}
               </p>
-              <span className="whitespace-nowrap text-[10px] text-black/40 dark:text-white/40">
+              <span className="whitespace-nowrap text-[10px] text-text-tertiary">
                 {formatTimeAgo(notification.createdAt)}
               </span>
             </div>
@@ -104,8 +104,8 @@ export default function NotificationItem({
             <p
               className={`mt-0.5 text-sm ${
                 !notification.isRead
-                  ? 'text-black/90 dark:text-white/90'
-                  : 'text-black/50 dark:text-white/50'
+                  ? 'text-text-primary'
+                  : 'text-text-secondary'
               }`}
             >
               {displayDescription}
@@ -126,7 +126,7 @@ export default function NotificationItem({
                         ev.stopPropagation();
                         onDelete(notification.id);
                       }}
-                      className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-500/10"
+                      className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-danger hover:bg-danger-50"
                     >
                       <Trash2 size={12} />
                       Eliminar

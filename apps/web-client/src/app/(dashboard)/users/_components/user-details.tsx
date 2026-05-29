@@ -11,14 +11,14 @@ export function UserDetails({ userId }: UserDetailsProps) {
   if (isLoading) {
     return (
       <div className="flex justify-center p-4">
-        <Loader2 className="animate-spin text-black/20 dark:text-white/20" />
+        <Loader2 className="animate-spin text-text-tertiary" />
       </div>
     );
   }
 
   if (error || !user) {
     return (
-      <div className="p-4 text-center text-sm text-red-500">
+      <div className="p-4 text-center text-sm text-danger">
         Error al cargar detalles del usuario.
       </div>
     );
@@ -27,11 +27,11 @@ export function UserDetails({ userId }: UserDetailsProps) {
   return (
     <div className="mb-6 mt-2 grid grid-cols-1 gap-8 md:grid-cols-2">
       <div className="flex flex-col gap-1">
-        <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-black/40 dark:text-white/40">
+        <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-text-tertiary">
           Fecha de Registro
         </span>
         <div className="flex flex-col">
-          <p className="text-sm font-medium text-black dark:text-white">
+          <p className="text-sm font-medium text-text-primary">
             {new Date(user.createdAt).toLocaleDateString('es-MX', {
               year: 'numeric',
               month: 'short',
@@ -42,7 +42,7 @@ export function UserDetails({ userId }: UserDetailsProps) {
       </div>
 
       <div className="flex flex-col gap-1 border-black/5 md:border-l md:pl-8 dark:border-white/5">
-        <span className="text-xs font-semibold uppercase tracking-wider text-black/40 dark:text-white/40">
+        <span className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
           Verificación
         </span>
         <div className="flex items-center gap-2">

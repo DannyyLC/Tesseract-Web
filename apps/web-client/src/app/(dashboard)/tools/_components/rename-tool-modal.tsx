@@ -42,14 +42,14 @@ export function RenameToolModal({ isOpen, onClose, toolId, currentName }: Rename
     <Modal isOpen={isOpen} onClose={onClose} title="Renombrar herramienta">
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-black/50 dark:text-white/50">Nombre</label>
+          <label className="text-xs font-medium text-text-secondary">Nombre</label>
           <input
             autoFocus
             type="text"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             maxLength={80}
-            className="w-full rounded-xl border border-black/10 bg-black/[0.03] px-4 py-2.5 text-sm text-black outline-none transition-all focus:border-black/20 focus:ring-2 focus:ring-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+            className="w-full rounded-xl border border-border bg-black/[0.03] px-4 py-2.5 text-sm text-black outline-none transition-all focus:border-black/20 focus:ring-2 focus:ring-black/5  dark:bg-white/[0.03] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
           />
         </div>
 

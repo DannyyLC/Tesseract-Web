@@ -69,7 +69,7 @@ export default function DashboardWorkflowItem({ workflow }: DashboardWorkflowIte
                 </span>
               </div>
             </div>
-            <p className="line-clamp-2 text-sm text-black/50 dark:text-white/50">
+            <p className="line-clamp-2 text-sm text-text-secondary">
               {workflow.description || 'Sin descripción'}
             </p>
           </div>
@@ -83,7 +83,7 @@ export default function DashboardWorkflowItem({ workflow }: DashboardWorkflowIte
               <Link
                 href={`/conversations/new?workflowId=${workflow.id}`}
                 onClick={(e) => e.stopPropagation()}
-                className="rounded-full p-2 text-black/40 transition-colors hover:bg-black/5 hover:text-black dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white"
+                className="rounded-full p-2 text-black/40 transition-colors hover:bg-black/5 hover:text-text-primary/40 dark:hover:bg-white/5 dark:hover:text-white"
                 title="Iniciar Chat"
               >
                 <MessageSquare size={18} />
@@ -95,13 +95,13 @@ export default function DashboardWorkflowItem({ workflow }: DashboardWorkflowIte
         {/* Quick Info (Lightweight) */}
         <div className="mt-4 flex items-center justify-between border-t border-black/5 pt-4 dark:border-white/5">
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-xs font-medium text-black/40 dark:text-white/40">
+            <span className="text-xs font-medium text-text-tertiary">
               {workflow.category || 'STANDARD'}
             </span>
           </div>
 
           {workflow.lastExecutedAt && (
-            <div className="flex items-center gap-2 text-sm text-black/40 dark:text-white/40">
+            <div className="flex items-center gap-2 text-sm text-text-tertiary">
               <span className="text-xs">Ejecutado {formatTimeAgo(workflow.lastExecutedAt)}</span>
             </div>
           )}

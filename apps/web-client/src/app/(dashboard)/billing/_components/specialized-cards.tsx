@@ -17,14 +17,14 @@ export default function SpecializedCards() {
               <Handshake size={24} />
             </div>
             <div>
-              <h3 className="text-xl font-bold tracking-tight text-black dark:text-white">
+              <h3 className="text-xl font-bold tracking-tight text-text-primary">
                 Socio Estratégico
               </h3>
               <div className="flex flex-col">
-                <span className="font-geist-mono font-bold text-black dark:text-white">
+                <span className="font-geist-mono font-bold text-text-primary">
                   $600 MXN / sesión
                 </span>
-                <span className="text-[10px] uppercase tracking-wide text-black/40 dark:text-white/40">
+                <span className="text-[10px] uppercase tracking-wide text-text-tertiary">
                   * Primer diagnóstico GRATIS
                 </span>
               </div>
@@ -36,7 +36,7 @@ export default function SpecializedCards() {
               <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-black opacity-40 dark:text-white">
                 FORMACIÓN
               </p>
-              <p className="text-xs font-medium leading-relaxed text-black/60 dark:text-white/60">
+              <p className="text-xs font-medium leading-relaxed text-text-secondary">
                 Capacitación del equipo para maximizar productividad.
               </p>
             </div>
@@ -44,7 +44,7 @@ export default function SpecializedCards() {
               <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-black opacity-40 dark:text-white">
                 EXPLORACIÓN
               </p>
-              <p className="text-xs font-medium leading-relaxed text-black/60 dark:text-white/60">
+              <p className="text-xs font-medium leading-relaxed text-text-secondary">
                 Análisis de procesos para descubrir automatizaciones.
               </p>
             </div>
@@ -52,7 +52,7 @@ export default function SpecializedCards() {
               <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-black opacity-40 dark:text-white">
                 REFINAMIENTO
               </p>
-              <p className="text-xs font-medium leading-relaxed text-black/60 dark:text-white/60">
+              <p className="text-xs font-medium leading-relaxed text-text-secondary">
                 Optimización de créditos y mejor rendimiento mensual.
               </p>
             </div>
@@ -60,7 +60,7 @@ export default function SpecializedCards() {
               <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-black opacity-40 dark:text-white">
                 VIGILANCIA
               </p>
-              <p className="text-xs font-medium leading-relaxed text-black/60 dark:text-white/60">
+              <p className="text-xs font-medium leading-relaxed text-text-secondary">
                 Roadmap estratégico para escalado eficiente.
               </p>
             </div>

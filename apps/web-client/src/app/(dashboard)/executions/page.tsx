@@ -156,10 +156,10 @@ export default function ExecutionsPage() {
         {/* Header */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl font-medium tracking-tight text-black dark:text-white">
+            <h1 className="text-xl font-medium tracking-tight text-text-primary">
               Registro de Actividad del Mes
             </h1>
-            <p className="mt-1 text-sm font-light text-black/40 dark:text-white/40">
+            <p className="mt-1 text-sm font-light text-text-tertiary">
               Monitoreo en tiempo real de ejecuciones y rendimiento
             </p>
           </div>
@@ -173,14 +173,14 @@ export default function ExecutionsPage() {
             transition={{ delay: 0.1 }}
             className="flex flex-col justify-between"
           >
-            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Ejecuciones
             </span>
             <div className="mt-1 flex items-baseline gap-1">
-              <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+              <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {stats?.total ?? 0}
               </p>
-              <span className="text-xs font-medium text-black/30 dark:text-white/30">totales</span>
+              <span className="text-xs font-medium text-text-tertiary">totales</span>
             </div>
           </motion.div>
 
@@ -190,11 +190,11 @@ export default function ExecutionsPage() {
             transition={{ delay: 0.15 }}
             className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
           >
-            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Tasa de Éxito
             </span>
             <div className="mt-1 flex items-baseline gap-3">
-              <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+              <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {stats?.successful ?? 0}
               </p>
               <span className="px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-500">
@@ -209,15 +209,15 @@ export default function ExecutionsPage() {
             transition={{ delay: 0.2 }}
             className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
           >
-            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Fallidas
             </span>
             <div className="mt-1 flex items-baseline gap-3">
-              <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+              <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {stats?.failed ?? 0}
               </p>
               {stats && stats.failed > 0 && (
-                <span className="px-2 py-0.5 text-xs font-medium text-red-600 dark:text-red-500">
+                <span className="px-2 py-0.5 text-xs font-medium text-red-600 dark:text-danger">
                   {((stats.failed / stats.total) * 100).toFixed(0)}%
                 </span>
               )}
@@ -230,14 +230,14 @@ export default function ExecutionsPage() {
             transition={{ delay: 0.25 }}
             className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
           >
-            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Duración Prom.
             </span>
             <div className="mt-1 flex items-baseline gap-1">
-              <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+              <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {stats?.avgDuration?.toFixed(2) ?? 0}
               </p>
-              <span className="text-xs font-medium text-black/30 dark:text-white/30">segundos</span>
+              <span className="text-xs font-medium text-text-tertiary">segundos</span>
             </div>
           </motion.div>
         </div>
@@ -312,7 +312,7 @@ export default function ExecutionsPage() {
                 <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-black/40 transition-colors group-hover:text-black/60 dark:text-white/40 dark:group-hover:text-white/60">
                   Desde
                 </span>
-                <div className="mx-1 h-3 w-[1px] bg-black/10 dark:bg-white/10" />
+                <div className="mx-1 h-3 w-[1px] bg-surface-secondary" />
                 <input
                   id="startDateInput"
                   type="date"
@@ -333,7 +333,7 @@ export default function ExecutionsPage() {
                 <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-black/40 transition-colors group-hover:text-black/60 dark:text-white/40 dark:group-hover:text-white/60">
                   Hasta
                 </span>
-                <div className="mx-1 h-3 w-[1px] bg-black/10 dark:bg-white/10" />
+                <div className="mx-1 h-3 w-[1px] bg-surface-secondary" />
                 <input
                   id="endDateInput"
                   type="date"
@@ -368,13 +368,13 @@ export default function ExecutionsPage() {
               animate={{ opacity: 1 }}
               className="py-16 text-center"
             >
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-black/5 dark:bg-white/5">
-                <Search size={24} className="text-black/30 dark:text-white/30" />
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-secondary">
+                <Search size={24} className="text-text-tertiary" />
               </div>
-              <h3 className="mb-2 text-lg font-semibold text-black dark:text-white">
+              <h3 className="mb-2 text-lg font-semibold text-text-primary">
                 No se encontraron ejecuciones
               </h3>
-              <p className="text-black/50 dark:text-white/50">
+              <p className="text-text-secondary">
                 Intenta con otros filtros o criterios de búsqueda
               </p>
             </motion.div>
@@ -386,17 +386,17 @@ export default function ExecutionsPage() {
           <button
             onClick={handlePrevPage}
             disabled={!prevCursor}
-            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-black/60 dark:text-white/60 dark:hover:text-white dark:disabled:hover:text-white/60"
+            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-text-secondary dark:hover:text-white dark:disabled:hover:text-white/60"
           >
             Anterior
           </button>
-          <span className="text-xs text-black/30 dark:text-white/30">
+          <span className="text-xs text-text-tertiary">
             Showing {executions.length} items
           </span>
           <button
             onClick={handleNextPage}
             disabled={!nextPageAvailable}
-            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-black/60 dark:text-white/60 dark:hover:text-white dark:disabled:hover:text-white/60"
+            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-text-secondary dark:hover:text-white dark:disabled:hover:text-white/60"
           >
             Siguiente
           </button>

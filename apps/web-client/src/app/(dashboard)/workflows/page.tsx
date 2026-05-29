@@ -159,8 +159,8 @@ export default function WorkflowsPage() {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-black dark:text-white">Mis Workflows</h1>
-            <p className="mt-1 text-black/50 dark:text-white/50">
+            <h1 className="text-2xl font-bold text-text-primary">Mis Workflows</h1>
+            <p className="mt-1 text-text-secondary">
               Gestiona y monitorea tus automatizaciones
             </p>
           </div>
@@ -184,11 +184,11 @@ export default function WorkflowsPage() {
             transition={{ delay: 0.1 }}
             className="flex flex-col justify-between"
           >
-            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Workflows Activos
             </span>
             <div className="mt-1 flex items-baseline gap-1">
-              <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+              <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {globalStats?.activeWorkflows ?? 0}
               </p>
               <span className="px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-500">
@@ -203,14 +203,14 @@ export default function WorkflowsPage() {
             transition={{ delay: 0.15 }}
             className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
           >
-            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Ejecuciones (Mes)
             </span>
             <div className="mt-1 flex items-baseline gap-1">
-              <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+              <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {formatNumber(globalStats?.totalExecutionsMonth ?? 0)}
               </p>
-              <span className="px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-500">
+              <span className="px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-info">
                 Últimos 30 días
               </span>
             </div>
@@ -222,14 +222,14 @@ export default function WorkflowsPage() {
             transition={{ delay: 0.2 }}
             className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
           >
-            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Créditos (Mes)
             </span>
             <div className="mt-1 flex items-baseline gap-1">
-              <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+              <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {formatNumber(globalStats?.creditsConsumedMonth ?? 0)}
               </p>
-              <span className="text-xs font-medium text-black/30 dark:text-white/30">
+              <span className="text-xs font-medium text-text-tertiary">
                 Consumo mensual
               </span>
             </div>
@@ -241,7 +241,7 @@ export default function WorkflowsPage() {
             transition={{ delay: 0.25 }}
             className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
           >
-            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Workflows por Categoría
             </span>
             <div className="flex flex-col justify-end gap-1">
@@ -249,10 +249,10 @@ export default function WorkflowsPage() {
                 (cat) => (
                   <div
                     key={cat}
-                    className="flex items-center justify-between text-[11px] text-black/40 dark:text-white/40"
+                    className="flex items-center justify-between text-[11px] text-text-tertiary"
                   >
                     <span className="uppercase tracking-wide">{toTitleCase(cat)}</span>
-                    <span className="ml-2 font-mono text-black dark:text-white">
+                    <span className="ml-2 font-mono text-text-primary">
                       {getCategoryCount(cat)}
                     </span>
                   </div>
@@ -268,7 +268,7 @@ export default function WorkflowsPage() {
           <div className="relative flex-1">
             <Search
               size={16}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30 dark:text-white/30"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary"
             />
             <input
               type="text"
@@ -323,13 +323,13 @@ export default function WorkflowsPage() {
               animate={{ opacity: 1 }}
               className="py-16 text-center"
             >
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-black/5 dark:bg-white/5">
-                <Search size={24} className="text-black/30 dark:text-white/30" />
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-secondary">
+                <Search size={24} className="text-text-tertiary" />
               </div>
-              <h3 className="mb-2 text-lg font-semibold text-black dark:text-white">
+              <h3 className="mb-2 text-lg font-semibold text-text-primary">
                 No se encontraron workflows
               </h3>
-              <p className="text-black/50 dark:text-white/50">
+              <p className="text-text-secondary">
                 No hay workflows que coincidan con tus filtros.
               </p>
             </motion.div>
@@ -341,17 +341,17 @@ export default function WorkflowsPage() {
           <button
             onClick={handlePrevPage}
             disabled={!prevCursor}
-            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-black/60 dark:text-white/60 dark:hover:text-white dark:disabled:hover:text-white/60"
+            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-text-secondary dark:hover:text-white dark:disabled:hover:text-white/60"
           >
             Anterior
           </button>
-          <span className="text-xs text-black/30 dark:text-white/30">
+          <span className="text-xs text-text-tertiary">
             Showing {workflows.length} items
           </span>
           <button
             onClick={handleNextPage}
             disabled={!nextPageAvailable}
-            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-black/60 dark:text-white/60 dark:hover:text-white dark:disabled:hover:text-white/60"
+            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-text-secondary dark:hover:text-white dark:disabled:hover:text-white/60"
           >
             Siguiente
           </button>
@@ -367,11 +367,11 @@ export default function WorkflowsPage() {
             >
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <p className="text-sm text-black/60 dark:text-white/60">
+                  <p className="text-sm text-text-secondary">
                     Para crear un nuevo workflow, necesitamos entender tus requerimientos
                     específicos.
                   </p>
-                  <p className="text-sm text-black/60 dark:text-white/60">
+                  <p className="text-sm text-text-secondary">
                     Al confirmar, enviaremos una solicitud a nuestro equipo para agendar una reunión
                     y definir los detalles de tu nueva automatización.
                   </p>

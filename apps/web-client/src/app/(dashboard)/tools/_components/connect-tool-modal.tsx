@@ -147,8 +147,8 @@ export function ConnectToolModal({
         {isSuccess ? (
           <div className="flex flex-col items-center justify-center space-y-3 py-8 text-center">
             <CheckCircle2 size={48} className="text-emerald-500" />
-            <h3 className="text-lg font-semibold text-black dark:text-white">¡Listo!</h3>
-            <p className="text-sm text-black/50 dark:text-white/50">
+            <h3 className="text-lg font-semibold text-text-primary">¡Listo!</h3>
+            <p className="text-sm text-text-secondary">
               La herramienta ha sido configurada correctamente.
             </p>
           </div>
@@ -156,7 +156,7 @@ export function ConnectToolModal({
           <>
             {/* Step 1: Naming */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-black/50 dark:text-white/50">
+              <label className="text-xs font-medium text-text-secondary">
                 Nombre de la instancia
               </label>
               <input
@@ -165,7 +165,7 @@ export function ConnectToolModal({
                 placeholder="Nombre de la herramienta"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full rounded-xl border border-black/10 bg-black/[0.03] px-4 py-2.5 text-sm text-black outline-none transition-all focus:border-black/20 focus:ring-2 focus:ring-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+                className="w-full rounded-xl border border-border bg-black/[0.03] px-4 py-2.5 text-sm text-black outline-none transition-all focus:border-black/20 focus:ring-2 focus:ring-black/5  dark:bg-white/[0.03] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
               />
             </div>
 
@@ -173,12 +173,12 @@ export function ConnectToolModal({
             {functions.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-black/50 dark:text-white/50">
+                  <label className="text-xs font-medium text-text-secondary">
                     Habilitar funciones
                   </label>
                   <button
                     onClick={toggleAll}
-                    className="text-[10px] font-bold uppercase tracking-wider text-black/40 hover:text-black dark:text-white/40 dark:hover:text-white"
+                    className="text-[10px] font-bold uppercase tracking-wider text-text-secondary hover:text-text-primary"
                   >
                     {selectedFunctions.length === functions.length
                       ? 'Desmarcar todas'
@@ -192,7 +192,7 @@ export function ConnectToolModal({
                       onClick={() => toggleFunction(fn.functionName)}
                       className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all ${
                         selectedFunctions.includes(fn.functionName)
-                          ? 'border-black/20 bg-black/5 dark:border-white/20 dark:bg-white/5'
+                          ? 'border-border-hover bg-black/5  dark:bg-white/5'
                           : 'border-black/5 bg-black/[0.02] hover:bg-black/[0.04] dark:border-white/5 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]'
                       }`}
                     >
@@ -200,7 +200,7 @@ export function ConnectToolModal({
                         className={`flex h-5 w-5 items-center justify-center rounded-md border ${
                           selectedFunctions.includes(fn.functionName)
                             ? 'border-black bg-black text-white dark:border-white dark:bg-white dark:text-black'
-                            : 'border-black/20 bg-white dark:border-white/20 dark:bg-white/5'
+                            : 'border-border-hover bg-white  dark:bg-white/5'
                         }`}
                       >
                         {selectedFunctions.includes(fn.functionName) && (
@@ -212,13 +212,13 @@ export function ConnectToolModal({
                           <DynamicIcon
                             name={fn.icon}
                             size={14}
-                            className="text-black/40 dark:text-white/40"
+                            className="text-text-tertiary"
                           />
-                          <p className="truncate text-xs font-semibold text-black dark:text-white">
+                          <p className="truncate text-xs font-semibold text-text-primary">
                             {fn.displayName}
                           </p>
                         </div>
-                        <p className="mt-0.5 truncate text-[10px] text-black/40 dark:text-white/40">
+                        <p className="mt-0.5 truncate text-[10px] text-text-tertiary">
                           {fn.description}
                         </p>
                       </div>
@@ -235,14 +235,14 @@ export function ConnectToolModal({
                   {catalogTool ? (
                     <DynamicIcon name={catalogTool.icon} size={24} />
                   ) : (
-                    <KeyRound size={20} className="text-black/50 dark:text-white/50" />
+                    <KeyRound size={20} className="text-text-secondary" />
                   )}
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-black dark:text-white">
+                  <h4 className="text-sm font-semibold text-text-primary">
                     {catalogTool?.displayName || existingToolDisplayName}
                   </h4>
-                  <p className="text-xs text-black/40 dark:text-white/40">
+                  <p className="text-xs text-text-tertiary">
                     Proveedor: {provider === 'none' ? 'Ninguno (Herramienta local)' : provider}
                   </p>
                 </div>
@@ -283,7 +283,7 @@ export function ConnectToolModal({
               )}
             </div>
 
-            <p className="text-center text-[11px] leading-relaxed text-black/30 dark:text-white/30">
+            <p className="text-center text-[11px] leading-relaxed text-text-tertiary">
               {provider !== 'none'
                 ? 'Al conectar, autorizas a Tesseract para acceder a los datos necesarios para ejecutar los workflows configurados.'
                 : 'Esta herramienta no requiere credenciales externas para funcionar.'}

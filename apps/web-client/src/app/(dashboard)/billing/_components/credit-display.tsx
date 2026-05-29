@@ -23,7 +23,7 @@ export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDi
           <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-widest opacity-60">
             {isNegative ? (
               <>
-                <AlertCircle size={16} className="text-red-500" />
+                <AlertCircle size={16} className="text-danger" />
                 <span className="text-red-400">Balance Negativo (Overdraft)</span>
               </>
             ) : (
@@ -46,7 +46,7 @@ export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDi
 
         <div className="flex flex-col items-end gap-2">
           <div
-            className={`rounded-full px-4 py-1.5 text-sm font-medium backdrop-blur-md ${isNegative ? 'bg-red-500/20 text-red-200 dark:text-red-800' : 'bg-white/10 text-white dark:bg-black/10 dark:text-black'}`}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium backdrop-blur-md ${isNegative ? 'bg-danger/20 text-red-200 dark:text-red-800' : 'bg-white/10 text-white dark:bg-black/10 dark:text-black'}`}
           >
             {isNegative ? 'Pago pendiente' : 'Activo'}
           </div>

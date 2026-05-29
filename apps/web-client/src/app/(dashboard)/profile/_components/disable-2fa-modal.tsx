@@ -57,7 +57,7 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+          <label className="block text-sm font-medium text-text-primary">
             Ingresa el código de 6 dígitos de tu aplicación de autenticación
           </label>
           <input
@@ -72,7 +72,7 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
               }
             }}
             placeholder="000000"
-            className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-center font-mono text-lg tracking-widest text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5 dark:border-white/10 dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+            className="w-full rounded-xl border border-border bg-white px-4 py-3 text-center font-mono text-lg tracking-widest text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5  dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
           />
         </div>
 
@@ -86,7 +86,7 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
           <button
             onClick={handleDisable}
             disabled={disable2FA.isPending || verificationCode.length !== 6}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {disable2FA.isPending ? (
               <>

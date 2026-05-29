@@ -57,11 +57,11 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
     <Modal isOpen={isOpen} onClose={onClose} title="Invitar Usuario">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+          <label className="block text-sm font-medium text-text-primary">
             Correo Electrónico
           </label>
           <div className="relative">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30 dark:text-white/30">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary">
               <Mail size={18} />
             </div>
             <input
@@ -69,12 +69,12 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="ejemplo@empresa.com"
-              className="w-full rounded-xl border border-black/10 bg-white py-3 pl-11 pr-4 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5 dark:border-white/10 dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+              className="w-full rounded-xl border border-border bg-white py-3 pl-11 pr-4 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5  dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
               autoFocus
               required
             />
           </div>
-          <p className="text-xs text-black/50 dark:text-white/50">
+          <p className="text-xs text-text-secondary">
             Se enviará un correo con las instrucciones para unirse a la organización.
           </p>
         </div>

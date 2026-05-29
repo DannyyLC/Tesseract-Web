@@ -87,13 +87,13 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
 
   return (
     <aside
-      className={`fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-black/5 bg-white transition-all duration-300 dark:border-white/5 dark:bg-[#0A0A0A] ${
+      className={`fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border bg-surface transition-all duration-300 ${
         isCollapsed ? 'w-20' : 'w-[280px] lg:w-[260px]'
       }`}
     >
       {/* Header */}
       <div
-        className={`flex h-16 shrink-0 items-center border-b border-black/5 px-4 dark:border-white/5 ${isCollapsed ? 'justify-center' : 'justify-start'}`}
+        className={`flex h-16 shrink-0 items-center border-b border-border px-4 ${isCollapsed ? 'justify-center' : 'justify-start'}`}
       >
         <Link
           href="/dashboard"
@@ -110,7 +110,7 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
             />
           </div>
           {!isCollapsed && (
-            <span className="whitespace-nowrap text-lg font-bold text-black dark:text-white">
+            <span className="whitespace-nowrap text-lg font-bold text-text-primary">
               Tesseract
             </span>
           )}
@@ -122,7 +122,7 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
         {filteredNavSections.map((section, sectionIndex) => (
           <div key={section.title} className={sectionIndex > 0 ? 'mt-6' : ''}>
             {!isCollapsed && (
-              <p className="mb-2 px-3 text-xs font-semibold tracking-wider text-black/30 dark:text-white/30">
+              <p className="mb-2 px-3 text-xs font-semibold tracking-wider text-text-tertiary">
                 {section.title}
               </p>
             )}
@@ -137,8 +137,8 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
                       onClick={onNavigate}
                       className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all ${
                         isActive
-                          ? 'bg-black text-white dark:bg-white dark:text-black'
-                          : 'text-black/60 hover:bg-black/5 hover:text-black dark:text-white/60 dark:hover:bg-white/5 dark:hover:text-white'
+                          ? 'bg-accent text-text-inverse'
+                          : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
                       } ${isCollapsed ? 'justify-center' : ''}`}
                       title={isCollapsed ? item.label : undefined}
                     >
@@ -158,11 +158,11 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
       </nav>
 
       {/* Footer */}
-      <div className="space-y-1 border-t border-black/5 p-2 dark:border-white/5">
+      <div className="space-y-1 border-t border-border p-2">
         <Link
           href="/support"
           onClick={onNavigate}
-          className={`flex items-center gap-3 rounded-xl px-3 py-2 text-black/50 transition-all hover:bg-black/5 hover:text-black dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white ${
+          className={`flex items-center gap-3 rounded-xl px-3 py-2 text-text-secondary transition-all hover:bg-surface-secondary hover:text-text-primary ${
             isCollapsed ? 'justify-center' : ''
           }`}
           title={isCollapsed ? 'Soporte' : undefined}
@@ -173,7 +173,7 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
 
         <button
           onClick={onToggle}
-          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-black/50 transition-all hover:bg-black/5 hover:text-black dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white ${
+          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-text-secondary transition-all hover:bg-surface-secondary hover:text-text-primary ${
             isCollapsed ? 'justify-center' : ''
           }`}
           title={isCollapsed ? 'Expandir' : 'Colapsar'}

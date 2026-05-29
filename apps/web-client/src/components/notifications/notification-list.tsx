@@ -77,7 +77,7 @@ export default function NotificationList() {
   if (isLoading) {
     return (
       <div className="flex h-40 items-center justify-center">
-        <Loader2 className="animate-spin text-black/30 dark:text-white/30" />
+        <Loader2 className="animate-spin text-text-tertiary" />
       </div>
     );
   }
@@ -85,10 +85,10 @@ export default function NotificationList() {
   if (notifications.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-black/5 dark:bg-white/5">
-          <Bell size={20} className="text-black/30 dark:text-white/30" />
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-secondary">
+          <Bell size={20} className="text-text-tertiary" />
         </div>
-        <p className="text-sm text-black/50 dark:text-white/50">No tienes notificaciones</p>
+        <p className="text-sm text-text-secondary">No tienes notificaciones</p>
       </div>
     );
   }
@@ -111,7 +111,7 @@ export default function NotificationList() {
       {/* Loading sentinel */}
       <div ref={observerTarget} className="flex justify-center p-4">
         {isFetchingNextPage && (
-          <Loader2 size={16} className="animate-spin text-black/30 dark:text-white/30" />
+          <Loader2 size={16} className="animate-spin text-text-tertiary" />
         )}
       </div>
     </div>

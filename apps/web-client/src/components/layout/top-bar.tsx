@@ -112,7 +112,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
   return (
     <>
       <header
-        className={`fixed left-0 right-0 top-0 z-30 h-16 border-b border-black/5 bg-white/80 backdrop-blur-xl transition-all duration-300 dark:border-white/5 dark:bg-[#0A0A0A]/80 ${
+        className={`fixed left-0 right-0 top-0 z-30 h-16 border-b border-border bg-surface/80 backdrop-blur-xl transition-all duration-300 ${
           isSidebarCollapsed ? 'lg:left-20' : 'lg:left-[260px]'
         }`}
       >
@@ -121,23 +121,23 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
           <div className="flex items-center gap-4">
             <button
               onClick={onMenuClick}
-              className="rounded-lg p-2 transition-colors hover:bg-black/5 lg:hidden dark:hover:bg-white/5"
+              className="rounded-lg p-2 transition-colors hover:bg-surface-secondary lg:hidden"
             >
-              <Menu size={20} className="text-black dark:text-white" />
+              <Menu size={20} className="text-text-primary" />
             </button>
 
             <nav className="hidden items-center gap-2 text-sm md:flex">
               {breadcrumbs.map((crumb, index) => (
                 <div key={crumb.href} className="flex items-center gap-2">
                   {index > 0 && (
-                    <ChevronRight size={14} className="text-black/30 dark:text-white/30" />
+                    <ChevronRight size={14} className="text-text-tertiary" />
                   )}
                   <Link
                     href={crumb.href}
                     className={`transition-colors ${
                       index === breadcrumbs.length - 1
-                        ? 'font-medium text-black dark:text-white'
-                        : 'text-black/50 hover:text-black dark:text-white/50 dark:hover:text-white'
+                        ? 'font-medium text-text-primary'
+                        : 'text-text-secondary hover:text-text-primary'
                     }`}
                   >
                     {crumb.label}
@@ -146,7 +146,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
               ))}
             </nav>
 
-            <h1 className="text-lg font-semibold text-black md:hidden dark:text-white">
+            <h1 className="text-lg font-semibold text-text-primary md:hidden">
               {breadcrumbs[breadcrumbs.length - 1]?.label || 'Dashboard'}
             </h1>
           </div>
@@ -160,11 +160,11 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                   setIsNotificationsOpen(!isNotificationsOpen);
                   setIsProfileOpen(false);
                 }}
-                className="relative rounded-lg p-2 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                className="relative rounded-lg p-2 transition-colors hover:bg-surface-secondary"
               >
-                <Bell size={20} className="text-black/60 dark:text-white/60" />
+                <Bell size={20} className="text-text-secondary" />
                 {unreadCount > 0 && (
-                  <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-[#0A0A0A]">
+                  <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-text-inverse shadow-sm ring-2 ring-surface">
                     {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
@@ -177,15 +177,15 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-2xl border border-black/5 bg-white shadow-xl shadow-black/10 sm:w-96 dark:border-white/5 dark:bg-[#141414] dark:shadow-black/30"
+                    className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-surface shadow-md sm:w-96"
                   >
-                    <div className="flex items-center justify-between border-b border-black/5 p-4 dark:border-white/5">
-                      <h3 className="font-semibold text-black dark:text-white">Notificaciones</h3>
+                    <div className="flex items-center justify-between border-b border-border p-4">
+                      <h3 className="font-semibold text-text-primary">Notificaciones</h3>
                       {unreadCount > 0 && (
                         <button
                           onClick={() => setIsMarkReadModalOpen(true)}
                           disabled={markAllAsRead.isPending}
-                          className="flex items-center gap-1 text-xs font-medium text-blue-500 hover:text-blue-600 disabled:opacity-50"
+                          className="flex items-center gap-1 text-xs font-medium text-info hover:text-info-600 disabled:opacity-50"
                         >
                           {markAllAsRead.isPending ? (
                             <Loader2 size={12} className="animate-spin" />
@@ -210,10 +210,10 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                   setIsProfileOpen(!isProfileOpen);
                   setIsNotificationsOpen(false);
                 }}
-                className="flex items-center gap-2 rounded-xl p-1 pr-2 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                className="flex items-center gap-2 rounded-xl p-1 pr-2 transition-colors hover:bg-surface-secondary"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black dark:bg-white">
-                  <span className="text-sm font-semibold text-white dark:text-black">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent">
+                  <span className="text-sm font-semibold text-text-inverse">
                     {user.name.charAt(0).toUpperCase()}
                   </span>
                 </div>
@@ -226,22 +226,22 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-2 w-64 overflow-hidden rounded-2xl border border-black/5 bg-white shadow-xl shadow-black/10 dark:border-white/5 dark:bg-[#141414] dark:shadow-black/30"
+                    className="absolute right-0 top-full mt-2 w-64 overflow-hidden rounded-2xl border border-border bg-surface shadow-md"
                   >
-                    <div className="border-b border-black/5 p-4 dark:border-white/5">
+                    <div className="border-b border-border p-4">
                       <div className="mb-0.5 flex items-center gap-2">
-                        <p className="font-semibold text-black dark:text-white">{user.name}</p>
-                        <span className="rounded-md border border-black/5 bg-black/5 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-black/60 dark:border-white/5 dark:bg-white/10 dark:text-white/60">
+                        <p className="font-semibold text-text-primary">{user.name}</p>
+                        <span className="rounded-md border border-border bg-surface-secondary px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                           {user.role}
                         </span>
                       </div>
                       <p
-                        className="truncate text-sm text-black/50 dark:text-white/50"
+                        className="truncate text-sm text-text-secondary"
                         title={user.email}
                       >
                         {user.email}
                       </p>
-                      <p className="mt-1 text-xs text-black/40 dark:text-white/40">
+                      <p className="mt-1 text-xs text-text-tertiary">
                         {user.organization}
                       </p>
                     </div>
@@ -249,7 +249,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                     <div className="p-2">
                       <Link
                         href="/profile"
-                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-black/70 transition-colors hover:bg-black/5 dark:text-white/70 dark:hover:bg-white/5"
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
                         onClick={() => setIsProfileOpen(false)}
                       >
                         <User size={18} />
@@ -257,19 +257,19 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                       </Link>
                     </div>
 
-                    <div className="border-t border-black/5 p-2 dark:border-white/5">
+                    <div className="border-t border-border p-2">
                       <Link
                         href="/terms"
-                        className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-black/60 transition-colors hover:bg-black/5 dark:text-white/60 dark:hover:bg-white/5"
+                        className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
                         onClick={() => setIsProfileOpen(false)}
                       >
                         <span>Términos y Condiciones</span>
                       </Link>
                     </div>
 
-                    <div className="border-t border-black/5 p-2 dark:border-white/5">
+                    <div className="border-t border-border p-2">
                       <button
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-red-500 transition-colors hover:bg-red-500/5"
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-danger transition-colors hover:bg-danger-50 hover:text-danger-600"
                         onClick={() => logoutMutation.mutate()}
                         disabled={logoutMutation.isPending}
                       >
@@ -296,21 +296,21 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
             title="Marcar todas como leídas"
           >
             <div className="space-y-6">
-              <p className="text-sm text-black/60 dark:text-white/60">
+              <p className="text-sm text-text-secondary">
                 ¿Estás seguro de que quieres marcar todas las notificaciones como leídas?
               </p>
 
               <div className="flex gap-3">
                 <button
                   onClick={() => setIsMarkReadModalOpen(false)}
-                  className="flex-1 rounded-xl bg-black/5 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                  className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-elevated"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleMarkAllAsRead}
                   disabled={markAllAsRead.isPending}
-                  className="flex-1 rounded-xl bg-black px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-white dark:text-black"
+                  className="flex-1 rounded-xl bg-accent px-4 py-2 text-sm font-bold text-text-inverse transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
                   {markAllAsRead.isPending ? (
                     <Loader2 className="mx-auto h-4 w-4 animate-spin" />

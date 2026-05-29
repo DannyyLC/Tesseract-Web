@@ -85,7 +85,7 @@ export default function SettingsPage() {
   if (!orgData) {
     return (
       <div className="p-8">
-        <p className="text-red-500">Error al cargar la información de la organización.</p>
+        <p className="text-danger">Error al cargar la información de la organización.</p>
       </div>
     );
   }

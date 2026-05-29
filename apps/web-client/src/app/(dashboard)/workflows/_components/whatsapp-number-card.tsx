@@ -28,8 +28,8 @@ const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }
     text: 'Configurado',
   },
   ERROR: {
-    dot: 'bg-red-500',
-    label: 'border border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300',
+    dot: 'bg-danger',
+    label: 'border border-red-500/25 bg-danger/10 text-red-700 dark:text-red-300',
     text: 'Error',
   },
   DISCONNECTED: {
@@ -56,8 +56,8 @@ export function WhatsappNumberCard({
     STATUS_STYLES[number.connectionStatus ?? 'DISCONNECTED'] ?? STATUS_STYLES.DISCONNECTED;
   const connectionLabel = isActive
     ? 'border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-    : 'border border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300';
-  const connectionDot = isActive ? 'bg-emerald-500' : 'bg-red-500';
+    : 'border border-red-500/25 bg-danger/10 text-red-700 dark:text-red-300';
+  const connectionDot = isActive ? 'bg-emerald-500' : 'bg-danger';
   const connectionText = isActive ? 'Conectado' : 'Desconectado';
   const createdDate = new Date(number.createdAt).toLocaleDateString('es-MX', {
     month: 'short',
@@ -70,7 +70,7 @@ export function WhatsappNumberCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
-      className="group relative flex w-full items-start gap-3 rounded-2xl border border-black/10 bg-white p-4 transition-shadow hover:shadow-md dark:border-white/10 dark:bg-[#141414]"
+      className="group relative flex w-full items-start gap-3 rounded-2xl border border-border bg-white p-4 transition-shadow hover:shadow-md  dark:bg-[#141414]"
     >
       {/* Icon */}
       <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-black/[0.04] text-black dark:bg-white/[0.06] dark:text-white">
@@ -79,9 +79,9 @@ export function WhatsappNumberCard({
 
       {/* Info */}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-black dark:text-white">{number.phoneNumber}</p>
-        <p className="text-xs text-black/40 dark:text-white/40">Número de Whatsapp</p>
-        <p className="mt-0.5 text-xs text-black/30 dark:text-white/30">Agregado el {createdDate}</p>
+        <p className="truncate font-semibold text-text-primary">{number.phoneNumber}</p>
+        <p className="text-xs text-text-tertiary">Número de Whatsapp</p>
+        <p className="mt-0.5 text-xs text-text-tertiary">Agregado el {createdDate}</p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span
@@ -104,7 +104,7 @@ export function WhatsappNumberCard({
       <div className="relative">
         <button
           onClick={() => setMenuOpen((v) => !v)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-black/30 transition-colors hover:bg-black/5 hover:text-black dark:text-white/30 dark:hover:bg-white/5 dark:hover:text-white"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-black/30 transition-colors hover:bg-black/5 hover:text-text-primary/30 dark:hover:bg-white/5 dark:hover:text-white"
         >
           <MoreVertical size={16} />
         </button>
@@ -119,14 +119,14 @@ export function WhatsappNumberCard({
                     setMenuOpen(false);
                     onEdit?.(number.id);
                   }}
-                  className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-black/70 transition-colors hover:bg-black/5 hover:text-black dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white"
+                  className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-black/70 transition-colors hover:bg-black/5 hover:text-text-primary/70 dark:hover:bg-white/5 dark:hover:text-white"
                 >
                   <Pencil size={14} />
                   Editar número
                 </button>
               </PermissionGuard> */}
 
-              <div className="mx-3 my-1 h-px bg-black/5 dark:bg-white/5" />
+              <div className="mx-3 my-1 h-px bg-surface-secondary" />
 
               <PermissionGuard permissions="workflows:update">
                 <button

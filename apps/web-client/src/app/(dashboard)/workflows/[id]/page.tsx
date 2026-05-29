@@ -135,9 +135,9 @@ export default function WorkflowDetailPage() {
 
   if (!workflow) {
     return (
-      <div className="flex h-full flex-col items-center justify-center text-black/50 dark:text-white/50">
+      <div className="flex h-full flex-col items-center justify-center text-text-secondary">
         <p>Workflow no encontrado</p>
-        <Link href="/workflows" className="mt-4 text-blue-500 hover:underline">
+        <Link href="/workflows" className="mt-4 text-info hover:underline">
           Volver al Dashboard
         </Link>
       </div>
@@ -210,7 +210,7 @@ export default function WorkflowDetailPage() {
                 </Link>
                 <div className="flex w-full flex-col gap-3">
                   <div>
-                    <h1 className="flex flex-wrap items-center gap-3 break-words text-3xl font-bold tracking-tight text-black dark:text-white">
+                    <h1 className="flex flex-wrap items-center gap-3 break-words text-3xl font-bold tracking-tight text-text-primary">
                       {workflow.name}
                       {/* Minimal Status Dot */}
                       <div
@@ -237,26 +237,26 @@ export default function WorkflowDetailPage() {
 
                   <div className="mt-2 flex flex-wrap items-center gap-8">
                     <div className="flex flex-col">
-                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-black/30 dark:text-white/30">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
                         Categoría
                       </span>
-                      <span className="text-sm font-medium capitalize text-black dark:text-white">
+                      <span className="text-sm font-medium capitalize text-text-primary">
                         {workflow.category || 'Standard'}
                       </span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-black/30 dark:text-white/30">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
                         Versión
                       </span>
-                      <span className="font-mono text-sm font-medium text-black dark:text-white">
+                      <span className="font-mono text-sm font-medium text-text-primary">
                         v{workflow.version || 1}
                       </span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-black/30 dark:text-white/30">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
                         Creado
                       </span>
-                      <span className="text-sm font-medium text-black dark:text-white">
+                      <span className="text-sm font-medium text-text-primary">
                         {new Date(workflow.createdAt).toLocaleDateString()}
                       </span>
                     </div>
@@ -277,9 +277,9 @@ export default function WorkflowDetailPage() {
 
                 <button
                   onClick={() => setIsWhatsappModalOpen(true)}
-                  className="group flex h-11 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-black/10 bg-white px-5 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 xl:w-auto xl:min-w-[230px] dark:border-white/10 dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
+                  className="group flex h-11 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-border bg-white px-5 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 xl:w-auto xl:min-w-[230px]  dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
                 >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 text-black/70 transition-colors group-hover:bg-black/10 dark:bg-white/10 dark:text-white/80 dark:group-hover:bg-white/15">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 text-black/70 transition-colors group-hover:bg-surface-secondary dark:text-white/80 dark:group-hover:bg-white/15">
                     <WhatsappIcon className="h-4 w-4" />
                   </span>
                   Vincular a WhatsApp
@@ -288,7 +288,7 @@ export default function WorkflowDetailPage() {
                 <PermissionGuard permissions="workflows:update">
                   <button
                     onClick={() => setIsEditOpen(true)}
-                    className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-black/10 bg-white px-4 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 xl:w-auto dark:border-white/10 dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
+                    className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-border bg-white px-4 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 xl:w-auto  dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
                   >
                     <Edit3 size={17} className="shrink-0" />
                     Editar
@@ -299,11 +299,11 @@ export default function WorkflowDetailPage() {
           </div>
         </div>
 
-        <div className="h-px w-full bg-black/5 dark:bg-white/5" />
+        <div className="h-px w-full bg-surface-secondary" />
 
         {/* Main Content - Analytics */}
         <div className="space-y-8 px-8 py-8">
-          <div className="flex items-center gap-2 text-black dark:text-white">
+          <div className="flex items-center gap-2 text-text-primary">
             <BarChart2 size={24} />
             <h2 className="text-xl font-bold">Análisis de Rendimiento</h2>
           </div>
@@ -312,8 +312,8 @@ export default function WorkflowDetailPage() {
         </div>
 
         <div className="border-t border-black/5 px-8 py-8 dark:border-white/5">
-          <div className="mb-8 rounded-2xl border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.03]">
-            <h3 className="ml-1 text-sm font-semibold text-black dark:text-white">
+          <div className="mb-8 rounded-2xl border border-border bg-black/[0.02] p-4  dark:bg-white/[0.03]">
+            <h3 className="ml-1 text-sm font-semibold text-text-primary">
               Herramientas Conectadas
             </h3>
             <div className="mt-4 flex flex-wrap gap-4">
@@ -321,17 +321,17 @@ export default function WorkflowDetailPage() {
                 workflow.tenantTools.map((tool: any) => (
                   <div
                     key={tool.id}
-                    className="flex min-w-[250px] flex-1 items-center gap-3 rounded-xl border border-black/10 bg-white p-4 shadow-sm transition-all hover:border-black/20 hover:shadow-md dark:border-white/10 dark:bg-[#141414] dark:hover:border-white/20"
+                    className="flex min-w-[250px] flex-1 items-center gap-3 rounded-xl border border-border bg-white p-4 shadow-sm transition-all hover:border-black/20 hover:shadow-md  dark:bg-[#141414] dark:hover:border-white/20"
                   >
                     {tool.toolCatalog?.icon ? (
                       <DynamicIcon
                         name={tool.toolCatalog.icon}
                         size={32}
-                        className="shrink-0 text-black dark:text-white"
+                        className="shrink-0 text-text-primary"
                       />
                     ) : (
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-black/5 dark:bg-white/5">
-                        <span className="text-xs font-bold text-black/50 dark:text-white/50">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-secondary">
+                        <span className="text-xs font-bold text-text-secondary">
                           {tool.toolCatalog?.displayName?.charAt(0) ||
                             tool.displayName?.charAt(0) ||
                             'T'}
@@ -339,10 +339,10 @@ export default function WorkflowDetailPage() {
                       </div>
                     )}
                     <div className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-sm font-semibold text-black dark:text-white">
+                      <span className="truncate text-sm font-semibold text-text-primary">
                         {tool.displayName}
                       </span>
-                      <span className="truncate text-xs text-black/50 dark:text-white/50">
+                      <span className="truncate text-xs text-text-secondary">
                         {tool.toolCatalog?.displayName || 'Herramienta'}
                       </span>
                     </div>
@@ -356,14 +356,14 @@ export default function WorkflowDetailPage() {
             </div>
           </div>
 
-          <div className="mb-8 rounded-2xl border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.03]">
-            <h3 className="ml-1 text-sm font-semibold text-black dark:text-white">
+          <div className="mb-8 rounded-2xl border border-border bg-black/[0.02] p-4  dark:bg-white/[0.03]">
+            <h3 className="ml-1 text-sm font-semibold text-text-primary">
               Números de WhatsApp Business Asociados
             </h3>
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
               {isWhatsappNumbersLoading ? (
-                <div className="flex min-h-28 items-center justify-center rounded-2xl border border-black/10 bg-white dark:border-white/10 dark:bg-[#141414]">
-                  <Loader2 size={20} className="animate-spin text-black/50 dark:text-white/50" />
+                <div className="flex min-h-28 items-center justify-center rounded-2xl border border-border bg-white  dark:bg-[#141414]">
+                  <Loader2 size={20} className="animate-spin text-text-secondary" />
                 </div>
               ) : whatsappNumbers && whatsappNumbers.length > 0 ? (
                 whatsappNumbers.map((number, index) => (
@@ -398,7 +398,7 @@ export default function WorkflowDetailPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-4 dark:bg-red-500/[0.08]">
+          <div className="rounded-2xl border border-red-500/20 bg-danger/[0.04] p-4 dark:bg-danger/[0.08]">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-red-700 dark:text-red-400">
@@ -412,7 +412,7 @@ export default function WorkflowDetailPage() {
               <PermissionGuard permissions="workflows:delete">
                 <button
                   onClick={() => setIsDeleteOpen(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-full border border-red-500/30 bg-white px-4 py-2.5 text-sm font-medium text-red-600 transition-all hover:bg-red-500/10 active:scale-95 lg:w-auto dark:border-red-400/30 dark:bg-transparent dark:text-red-400 dark:hover:bg-red-500/10"
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-red-500/30 bg-white px-4 py-2.5 text-sm font-medium text-red-600 transition-all hover:bg-danger/10 active:scale-95 lg:w-auto dark:border-red-400/30 dark:bg-transparent dark:text-red-400 dark:hover:bg-danger/10"
                 >
                   <Trash2 size={16} />
                   Eliminar workflow
@@ -427,7 +427,7 @@ export default function WorkflowDetailPage() {
       <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Editar Workflow">
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-black dark:text-white">Nombre</label>
+            <label className="text-sm font-medium text-text-primary">Nombre</label>
             <input
               type="text"
               value={formData.name}
@@ -438,7 +438,7 @@ export default function WorkflowDetailPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-black dark:text-white">Descripción</label>
+            <label className="text-sm font-medium text-text-primary">Descripción</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -448,7 +448,7 @@ export default function WorkflowDetailPage() {
           </div>
 
           <div className="flex items-center justify-between rounded-xl bg-black/5 p-3 dark:bg-white/5">
-            <span className="text-sm font-medium text-black dark:text-white">Estado Activo</span>
+            <span className="text-sm font-medium text-text-primary">Estado Activo</span>
             <button
               onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
               className={`relative h-6 w-11 rounded-full transition-colors ${formData.isActive ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-700'}`}
@@ -491,7 +491,7 @@ export default function WorkflowDetailPage() {
         title="Eliminar Workflow"
       >
         <div className="space-y-4">
-          <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
+          <div className="rounded-xl border border-red-500/20 bg-danger/10 p-4 text-sm text-red-600 dark:text-red-400">
             <p className="mb-2 flex items-center gap-2 font-semibold">
               <Trash2 size={16} />
               ¿Estás absolutamente seguro?
@@ -503,9 +503,9 @@ export default function WorkflowDetailPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm text-black/70 dark:text-white/70">
+            <label className="text-sm text-text-primary">
               Escribe{' '}
-              <span className="select-all font-bold text-black dark:text-white">
+              <span className="select-all font-bold text-text-primary">
                 {workflow.name}
               </span>{' '}
               para confirmar:
@@ -532,7 +532,7 @@ export default function WorkflowDetailPage() {
             <button
               onClick={handleDelete}
               disabled={deleteWorkflow.isPending || deleteConfirmation !== workflow.name}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {deleteWorkflow.isPending ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -555,7 +555,7 @@ export default function WorkflowDetailPage() {
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/5 text-black/70 dark:bg-white/10 dark:text-white/80">
                 <WhatsappIcon className="h-4 w-4" />
               </span>
-              <label className="text-sm font-medium text-black dark:text-white">
+              <label className="text-sm font-medium text-text-primary">
                 Numero de WhatsApp
               </label>
             </div>
@@ -584,7 +584,7 @@ export default function WorkflowDetailPage() {
               placeholder="Ej. +52234567890"
             />
             {whatsappNumber.length > 11 && !isWhatsappNumberValid && (
-              <p className="text-sm text-red-500 dark:text-red-400">
+              <p className="text-sm text-danger dark:text-red-400">
                 Usa solo numeros con prefijo internacional, por ejemplo: +524961337305
               </p>
             )}

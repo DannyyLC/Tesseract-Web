@@ -183,8 +183,8 @@ export default function ConversationsPage() {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-black dark:text-white">Conversaciones</h1>
-            <p className="mt-1 text-black/50 dark:text-white/50">
+            <h1 className="text-2xl font-bold text-text-primary">Conversaciones</h1>
+            <p className="mt-1 text-text-secondary">
               Gestiona y monitorea las interacciones con tus usuarios
             </p>
           </div>
@@ -217,11 +217,11 @@ export default function ConversationsPage() {
             transition={{ delay: 0.1 }}
             className="flex flex-col justify-between"
           >
-            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Conversaciones Activas
             </span>
             <div className="mt-1 flex items-baseline gap-1">
-              <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+              <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {stats?.activeConversations ?? 0}
               </p>
               <span className="text-xs font-medium text-emerald-500">En curso</span>
@@ -234,14 +234,14 @@ export default function ConversationsPage() {
             transition={{ delay: 0.15 }}
             className="flex flex-col justify-between border-black/5 md:border-l md:pl-8 dark:border-white/5"
           >
-            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Mensajes (Mes)
             </span>
             <div className="mt-1 flex items-baseline gap-1">
-              <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+              <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {formatNumber(stats?.totalMessagesMonth ?? 0)}
               </p>
-              <span className="text-xs font-medium text-black/30 dark:text-white/30">
+              <span className="text-xs font-medium text-text-tertiary">
                 Total mensual
               </span>
             </div>
@@ -253,14 +253,14 @@ export default function ConversationsPage() {
             transition={{ delay: 0.2 }}
             className="flex flex-col justify-between border-black/5 md:border-l md:pl-8 dark:border-white/5"
           >
-            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Total Histórico
             </span>
             <div className="mt-1 flex items-baseline gap-1">
-              <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+              <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {formatNumber(stats?.totalConversations ?? 0)}
               </p>
-              <span className="text-xs font-medium text-black/30 dark:text-white/30">
+              <span className="text-xs font-medium text-text-tertiary">
                 Conversaciones
               </span>
             </div>
@@ -332,13 +332,13 @@ export default function ConversationsPage() {
               animate={{ opacity: 1 }}
               className="py-16 text-center"
             >
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-black/5 dark:bg-white/5">
-                <MessageSquare size={24} className="text-black/30 dark:text-white/30" />
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-secondary">
+                <MessageSquare size={24} className="text-text-tertiary" />
               </div>
-              <h3 className="mb-2 text-lg font-semibold text-black dark:text-white">
+              <h3 className="mb-2 text-lg font-semibold text-text-primary">
                 No se encontraron conversaciones
               </h3>
-              <p className="text-black/50 dark:text-white/50">
+              <p className="text-text-secondary">
                 Aún no hay conversaciones registradas o activa un workflow para comenzar.
               </p>
             </motion.div>
@@ -350,17 +350,17 @@ export default function ConversationsPage() {
           <button
             onClick={handlePrevPage}
             disabled={!prevCursor}
-            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-black/60 dark:text-white/60 dark:hover:text-white dark:disabled:hover:text-white/60"
+            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-text-secondary dark:hover:text-white dark:disabled:hover:text-white/60"
           >
             Anterior
           </button>
-          <span className="text-xs text-black/30 dark:text-white/30">
+          <span className="text-xs text-text-tertiary">
             Showing {conversations.length} items
           </span>
           <button
             onClick={handleNextPage}
             disabled={!nextPageAvailable}
-            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-black/60 dark:text-white/60 dark:hover:text-white dark:disabled:hover:text-white/60"
+            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-text-secondary dark:hover:text-white dark:disabled:hover:text-white/60"
           >
             Siguiente
           </button>
@@ -375,7 +375,7 @@ export default function ConversationsPage() {
               title="Nueva Conversación"
             >
               <div className="space-y-4">
-                <p className="text-sm text-black/60 dark:text-white/60">
+                <p className="text-sm text-text-secondary">
                   Selecciona un Workflow para iniciar la conversación
                 </p>
 
@@ -383,7 +383,7 @@ export default function ConversationsPage() {
                 <div className="relative">
                   <Search
                     size={16}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-black/30 dark:text-white/30"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
                   />
                   <input
                     type="text"
@@ -395,11 +395,11 @@ export default function ConversationsPage() {
                 </div>
 
                 {/* List */}
-                <div className="overflow-hidden rounded-xl border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5">
+                <div className="overflow-hidden rounded-xl border border-border bg-black/5  dark:bg-white/5">
                   {isLoadingModalWorkflows ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2
-                        className="animate-spin text-black/20 dark:text-white/20"
+                        className="animate-spin text-text-tertiary"
                         size={20}
                       />
                     </div>
@@ -416,33 +416,33 @@ export default function ConversationsPage() {
                               className="flex w-full items-center border-b border-black/5 bg-white p-3 text-left text-black/70 transition-colors last:border-0 hover:bg-black/5 dark:border-white/5 dark:bg-[#141414] dark:text-white/70 dark:hover:bg-white/5"
                             >
                               <div className="flex-1 truncate pr-2">
-                                <div className="truncate text-sm font-medium text-black dark:text-white">
+                                <div className="truncate text-sm font-medium text-text-primary">
                                   {wf.name}
                                 </div>
                                 {wf.description && (
-                                  <div className="truncate text-xs text-black/40 dark:text-white/40">
+                                  <div className="truncate text-xs text-text-tertiary">
                                     {wf.description}
                                   </div>
                                 )}
                               </div>
-                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-black/5 dark:bg-white/5">
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-secondary">
                                 <MessageSquare
                                   size={12}
-                                  className="text-black/30 dark:text-white/30"
+                                  className="text-text-tertiary"
                                 />
                               </div>
                             </button>
                           );
                         })
                       ) : (
-                        <div className="p-4 text-center text-sm text-black/40 dark:text-white/40">
+                        <div className="p-4 text-center text-sm text-text-tertiary">
                           No se encontraron workflows
                         </div>
                       )}
                       {isFetchingNextModalWorkflows && (
                         <div className="flex justify-center p-2">
                           <Loader2
-                            className="animate-spin text-black/20 dark:text-white/20"
+                            className="animate-spin text-text-tertiary"
                             size={16}
                           />
                         </div>
@@ -453,7 +453,7 @@ export default function ConversationsPage() {
 
                 <button
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="w-full bg-transparent px-4 py-2 text-sm font-medium text-black/40 transition-colors hover:text-black dark:text-white/40 dark:hover:text-white"
+                  className="w-full bg-transparent px-4 py-2 text-sm font-medium text-black/40 transition-colors hover:text-text-primary hover:text-text-primary"
                 >
                   Cancelar
                 </button>

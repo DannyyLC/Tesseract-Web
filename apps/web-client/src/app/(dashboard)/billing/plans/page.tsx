@@ -230,7 +230,7 @@ export default function PlansPage() {
         <div>
           <button
             onClick={() => router.back()}
-            className="group flex items-center gap-2 text-sm font-medium text-black/50 transition-colors hover:text-black dark:text-white/50 dark:hover:text-white"
+            className="group flex items-center gap-2 text-sm font-medium text-black/50 transition-colors hover:text-text-primary hover:text-text-primary"
           >
             <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
             Atrás
@@ -239,24 +239,24 @@ export default function PlansPage() {
 
         {/* Header */}
         <div className="space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight text-black dark:text-white">
+          <h1 className="text-4xl font-bold tracking-tight text-text-primary">
             Planes de Suscripción
           </h1>
-          <p className="max-w-xl font-medium text-black/50 dark:text-white/50">
+          <p className="max-w-xl font-medium text-text-secondary">
             Administra tu plan actual, actualiza tu suscripción o cancela el servicio.
           </p>
         </div>
 
         {/* Past Due / Failed Payment Banner */}
         {subscription.status?.toUpperCase() === 'PAST_DUE' && (
-          <div className="flex items-center justify-between gap-4 rounded-2xl border border-red-500/20 bg-red-500/5 p-5">
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-red-500/20 bg-danger/5 p-5">
             <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10">
-                <AlertCircle size={20} className="text-red-500" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger/10">
+                <AlertCircle size={20} className="text-danger" />
               </div>
               <div>
-                <p className="text-sm font-bold text-black dark:text-white">Pago pendiente</p>
-                <p className="text-xs text-black/50 dark:text-white/50">
+                <p className="text-sm font-bold text-text-primary">Pago pendiente</p>
+                <p className="text-xs text-text-secondary">
                   Tu último pago no fue procesado. Actualiza tu método de pago para activar tu
                   suscripción.
                 </p>
@@ -267,7 +267,7 @@ export default function PlansPage() {
                 const { url } = await createPortalSession.mutateAsync();
                 goToStripe(url);
               }}
-              className="shrink-0 rounded-lg bg-red-500/10 px-4 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-red-500/20 dark:text-red-400"
+              className="shrink-0 rounded-lg bg-danger/10 px-4 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-danger/20 dark:text-red-400"
             >
               Actualizar Pago
             </button>
@@ -276,17 +276,17 @@ export default function PlansPage() {
 
         {/* Pending Plan Change Banner */}
         {subscription.pendingPlanChange && (
-          <div className="flex items-center justify-between gap-4 rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5">
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-blue-500/20 bg-info/5 p-5">
             <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
-                <ArrowDownRight size={20} className="text-blue-500" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-info/10">
+                <ArrowDownRight size={20} className="text-info" />
               </div>
               <div>
-                <p className="text-sm font-bold text-black dark:text-white">
+                <p className="text-sm font-bold text-text-primary">
                   Cambio programado a{' '}
-                  <span className="text-blue-500">{subscription.pendingPlanChange}</span>
+                  <span className="text-info">{subscription.pendingPlanChange}</span>
                 </p>
-                <p className="text-xs text-black/50 dark:text-white/50">
+                <p className="text-xs text-text-secondary">
                   Tu plan actual seguirá activo hasta el{' '}
                   {subscription.currentPeriodEnd
                     ? new Date(subscription.currentPeriodEnd).toLocaleDateString('es-MX', {
@@ -303,7 +303,7 @@ export default function PlansPage() {
             <button
               onClick={() => setShowCancelDowngradeModal(true)}
               disabled={isCancellingDowngrade}
-              className="shrink-0 rounded-lg bg-blue-500/10 px-4 py-2 text-sm font-bold text-blue-600 transition-colors hover:bg-blue-500/20 disabled:opacity-50 dark:text-blue-400"
+              className="shrink-0 rounded-lg bg-info/10 px-4 py-2 text-sm font-bold text-blue-600 transition-colors hover:bg-info/20 disabled:opacity-50 dark:text-blue-400"
             >
               {isCancellingDowngrade ? (
                 <span className="flex items-center gap-2">
@@ -353,7 +353,7 @@ export default function PlansPage() {
                   >
                     Reactivar Suscripción
                   </button>
-                  <p className="text-[10px] font-medium uppercase tracking-widest text-black/30 dark:text-white/30">
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-text-tertiary">
                     Tu suscripción está programada para cancelarse. Puedes reactivarla antes de que
                     termine el periodo.
                   </p>
@@ -366,11 +366,11 @@ export default function PlansPage() {
                 <>
                   <button
                     onClick={handleCancelClick}
-                    className="group flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-6 py-3 text-sm font-bold text-red-500/70 shadow-sm transition-all hover:border-red-500 hover:bg-red-500/10 hover:text-red-500"
+                    className="group flex items-center gap-2 rounded-xl border border-red-500/20 bg-danger/5 px-6 py-3 text-sm font-bold text-danger/70 shadow-sm transition-all hover:border-red-500 hover:bg-danger/10 hover:text-danger"
                   >
                     Cancelar suscripción actual
                   </button>
-                  <p className="text-[10px] font-medium uppercase tracking-widest text-black/30 dark:text-white/30">
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-text-tertiary">
                     Al cancelar, mantendrás tus beneficios hasta el final del periodo
                   </p>
                 </>
@@ -387,14 +387,14 @@ export default function PlansPage() {
             title={isUpgrade ? 'Confirmar Actualización' : 'Confirmar Cambio de Plan'}
           >
             <div className="space-y-4">
-              <p className="text-sm text-black/70 dark:text-white/70">
+              <p className="text-sm text-text-primary">
                 Estás a punto de cambiar tu suscripción al plan{' '}
-                <strong className="text-black dark:text-white">{selectedPlan.name}</strong> ($
+                <strong className="text-text-primary">{selectedPlan.name}</strong> ($
                 {selectedPlan.price.monthly}/{selectedPlan.price.currency}).
               </p>
 
               {isUpgrade ? (
-                <div className="rounded-lg bg-blue-500/10 p-4 text-sm text-blue-600 dark:text-blue-400">
+                <div className="rounded-lg bg-info/10 p-4 text-sm text-blue-600 dark:text-blue-400">
                   <p>
                     <strong>Actualización Inmediata:</strong>
                   </p>
@@ -420,7 +420,7 @@ export default function PlansPage() {
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   onClick={() => setSelectedPlan(null)}
-                  className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-black dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
+                  className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-text-primary/50 dark:hover:bg-white/5 dark:hover:text-white"
                 >
                   Cancelar
                 </button>
@@ -443,7 +443,7 @@ export default function PlansPage() {
           title="Sugerencia antes de contratar"
         >
           <div className="space-y-4">
-            <div className="rounded-lg bg-blue-500/10 p-4 text-sm text-blue-600 dark:text-blue-400">
+            <div className="rounded-lg bg-info/10 p-4 text-sm text-blue-600 dark:text-blue-400">
               <p>
                 Te sugerimos que antes de contratar el plan te comuniques con nosotros para crear
                 tus workflows, porque actualmente no podrías aprovechar todos los beneficios de la
@@ -454,7 +454,7 @@ export default function PlansPage() {
             <div className="flex justify-end gap-3 pt-4">
               <button
                 onClick={handleProceedWithAdvice}
-                className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-black dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
+                className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-text-primary/50 dark:hover:bg-white/5 dark:hover:text-white"
               >
                 Continuar de todos modos
               </button>
@@ -474,7 +474,7 @@ export default function PlansPage() {
           title="Cancelar Suscripción"
         >
           <div className="space-y-4">
-            <div className="rounded-lg bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
+            <div className="rounded-lg bg-danger/10 p-4 text-sm text-red-600 dark:text-red-400">
               <p className="mb-2 font-bold">¿Estás seguro de que deseas cancelar?</p>
               <p>
                 Perderás acceso a tus beneficios premium al finalizar el periodo de facturación
@@ -482,7 +482,7 @@ export default function PlansPage() {
               </p>
             </div>
 
-            <p className="text-xs text-black/50 dark:text-white/50">
+            <p className="text-xs text-text-secondary">
               Si cancelas ahora, tu acceso continuará hasta el{' '}
               {subscription.currentPeriodEnd
                 ? new Date(subscription.currentPeriodEnd).toLocaleDateString('es-MX', {
@@ -498,14 +498,14 @@ export default function PlansPage() {
             <div className="flex justify-end gap-3 pt-4">
               <button
                 onClick={() => setShowCancelModal(false)}
-                className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-black dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
+                className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-text-primary/50 dark:hover:bg-white/5 dark:hover:text-white"
               >
                 Mantener Suscripción
               </button>
               <button
                 onClick={confirmCancel}
                 disabled={isCanceling}
-                className="flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50"
               >
                 {isCanceling && <Loader2 size={16} className="animate-spin" />}
                 Cancelar Suscripción
@@ -531,7 +531,7 @@ export default function PlansPage() {
             <div className="flex justify-end gap-3 pt-4">
               <button
                 onClick={() => setShowResumeModal(false)}
-                className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-black dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
+                className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-text-primary/50 dark:hover:bg-white/5 dark:hover:text-white"
               >
                 Cancelar
               </button>
@@ -554,12 +554,12 @@ export default function PlansPage() {
           title="Cancelar Cambio Programado"
         >
           <div className="space-y-6">
-            <p className="text-black/70 dark:text-white/70">
+            <p className="text-text-primary">
               ¿Estás seguro de que deseas cancelar el cambio programado a{' '}
               <span className="font-bold">{subscription.pendingPlanChange}</span>?
             </p>
 
-            <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 text-sm text-blue-600 dark:text-blue-400">
+            <div className="rounded-xl border border-blue-500/20 bg-info/5 p-4 text-sm text-blue-600 dark:text-blue-400">
               Mantendrás tu plan actual (<span className="font-bold">{subscription.plan}</span>) de
               forma continua y no habrá interrupciones en tu servicio.
             </div>
@@ -568,7 +568,7 @@ export default function PlansPage() {
               <button
                 onClick={() => setShowCancelDowngradeModal(false)}
                 disabled={isCancellingDowngrade}
-                className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-black dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
+                className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-text-primary/50 dark:hover:bg-white/5 dark:hover:text-white"
               >
                 Cerrar
               </button>
@@ -578,7 +578,7 @@ export default function PlansPage() {
                   setShowCancelDowngradeModal(false);
                 }}
                 disabled={isCancellingDowngrade}
-                className="flex items-center justify-center gap-2 rounded-xl bg-blue-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+                className="flex items-center justify-center gap-2 rounded-xl bg-info px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
               >
                 {isCancellingDowngrade && <Loader2 size={16} className="animate-spin" />}
                 Confirmar Cancelación
@@ -598,8 +598,8 @@ export default function PlansPage() {
               <PartyPopper size={40} className="text-emerald-500" />
             </div>
             <div className="space-y-2 text-center">
-              <h3 className="text-2xl font-bold text-black dark:text-white">¡Plan actualizado!</h3>
-              <p className="max-w-sm text-sm text-black/60 dark:text-white/60">
+              <h3 className="text-2xl font-bold text-text-primary">¡Plan actualizado!</h3>
+              <p className="max-w-sm text-sm text-text-secondary">
                 Tu suscripción ha sido actualizada al plan <strong>{changedPlanName}</strong>.
                 Gracias por tu confianza. Los cambios pueden tardar unos segundos en reflejarse.
               </p>
@@ -620,10 +620,10 @@ export default function PlansPage() {
               <RefreshCw size={40} className="text-emerald-500" />
             </div>
             <div className="space-y-2 text-center">
-              <h3 className="text-2xl font-bold text-black dark:text-white">
+              <h3 className="text-2xl font-bold text-text-primary">
                 ¡Bienvenido de vuelta!
               </h3>
-              <p className="max-w-sm text-sm text-black/60 dark:text-white/60">
+              <p className="max-w-sm text-sm text-text-secondary">
                 Tu suscripción ha sido reactivada exitosamente. Seguirás disfrutando de todos tus
                 beneficios sin interrupción.
               </p>
@@ -640,10 +640,10 @@ export default function PlansPage() {
         {/* Enterprise / Specialized Cards */}
         <div className="space-y-8 pt-6">
           <div className="space-y-3">
-            <h2 className="text-3xl font-bold tracking-tight text-black dark:text-white">
+            <h2 className="text-3xl font-bold tracking-tight text-text-primary">
               Servicios de Élite
             </h2>
-            <p className="max-w-xl font-medium text-black/50 dark:text-white/50">
+            <p className="max-w-xl font-medium text-text-secondary">
               Capacidad ilimitada y acompañamiento experto para escalar tu transformación digital.
             </p>
           </div>

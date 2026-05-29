@@ -53,9 +53,9 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
     return (
       <div className="grid animate-pulse grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-32 rounded-2xl bg-black/5 dark:bg-white/5" />
+          <div key={i} className="h-32 rounded-2xl bg-surface-secondary" />
         ))}
-        <div className="col-span-full mt-4 h-64 rounded-2xl bg-black/5 dark:bg-white/5" />
+        <div className="col-span-full mt-4 h-64 rounded-2xl bg-surface-secondary" />
       </div>
     );
   }
@@ -78,14 +78,14 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
           transition={{ delay: 0.1 }}
           className="flex flex-col justify-between"
         >
-          <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+          <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
             Ejecuciones
           </span>
           <div className="mt-1 flex items-baseline gap-1">
-            <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+            <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
               {kpis.total}
             </p>
-            <span className="text-xs font-medium text-black/30 dark:text-white/30">
+            <span className="text-xs font-medium text-text-tertiary">
               En este periodo
             </span>
           </div>
@@ -97,16 +97,16 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
           transition={{ delay: 0.2 }}
           className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
         >
-          <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+          <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
             Tasa de Éxito
           </span>
           <div className="mt-1 flex w-full flex-col gap-2">
             <div className="flex items-baseline gap-1">
-              <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+              <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {kpis.successRate.toFixed(1)}%
               </p>
             </div>
-            <div className="h-1 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/5">
+            <div className="h-1 w-full overflow-hidden rounded-full bg-surface-secondary">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${kpis.successRate}%` }}
@@ -122,14 +122,14 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
           transition={{ delay: 0.3 }}
           className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
         >
-          <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+          <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
             Tiempo Promedio
           </span>
           <div className="mt-1 flex items-baseline gap-1">
-            <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+            <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
               {kpis.avgDuration.toFixed(2)}s
             </p>
-            <span className="text-xs font-medium text-black/30 dark:text-white/30">
+            <span className="text-xs font-medium text-text-tertiary">
               Por ejecución
             </span>
           </div>
@@ -141,12 +141,12 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
           transition={{ delay: 0.4 }}
           className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
         >
-          <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+          <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
             Fallidas
           </span>
           <div className="mt-1 flex items-baseline gap-1">
             <p
-              className={`font-geist-mono text-4xl font-light tracking-tight ${kpis.failed > 0 ? 'text-red-500' : 'text-black dark:text-white'}`}
+              className={`font-geist-mono text-4xl font-light tracking-tight ${kpis.failed > 0 ? 'text-danger' : 'text-text-primary'}`}
             >
               {kpis.failed}
             </p>
@@ -163,10 +163,10 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
           className={`${Object.keys(errors).length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} flex flex-col rounded-2xl border border-black/5 bg-white p-6 dark:border-white/5 dark:bg-[#141414]`}
         >
           <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-            <h3 className="flex items-center gap-2 font-semibold text-black dark:text-white">
+            <h3 className="flex items-center gap-2 font-semibold text-text-primary">
               Actividad
               {metrics?.granularity && (
-                <span className="text-xs font-normal text-black/40 dark:text-white/40">
+                <span className="text-xs font-normal text-text-tertiary">
                   ({getGranularityLabel(metrics.granularity)})
                 </span>
               )}
@@ -179,7 +179,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
                   className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
                     period === p.value
                       ? 'bg-white text-black shadow-sm dark:bg-black dark:text-white'
-                      : 'text-black/50 hover:text-black dark:text-white/50 dark:hover:text-white'
+                      : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
                   {p.label}
@@ -190,11 +190,11 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
 
           <div className="relative min-h-[300px] w-full min-w-0 flex-1">
             {!hasRealData ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-black/20 dark:text-white/20">
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-text-tertiary">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full">
                   <Activity size={32} />
                 </div>
-                <p className="mt-4 text-sm font-medium text-black/40 dark:text-white/40">
+                <p className="mt-4 text-sm font-medium text-text-tertiary">
                   Sin ejecuciones en este período
                 </p>
               </div>
@@ -235,7 +235,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
                         return (
-                          <div className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs text-black shadow-xl dark:border-white/10 dark:bg-[#141414] dark:text-white">
+                          <div className="rounded-lg border border-border bg-white px-3 py-2 text-xs text-black shadow-xl  dark:bg-[#141414] dark:text-white">
                             <div className="mb-1 border-b border-black/5 pb-1 font-semibold dark:border-white/5">
                               {formatDateByGranularity(String(label || ''), metrics?.granularity)}
                             </div>
@@ -248,8 +248,8 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
                               </div>
                               {data.failed > 0 && (
                                 <div className="flex items-center gap-2">
-                                  <div className="h-2 w-2 rounded-full bg-red-500"></div>
-                                  <span className="text-red-500">
+                                  <div className="h-2 w-2 rounded-full bg-danger"></div>
+                                  <span className="text-danger">
                                     Fallidas: <span className="font-medium">{data.failed}</span>
                                   </span>
                                 </div>
@@ -296,7 +296,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
             transition={{ delay: 0.6 }}
             className="rounded-2xl border border-black/5 bg-white p-6 dark:border-white/5 dark:bg-[#141414]"
           >
-            <h3 className="mb-6 flex items-center gap-2 font-semibold text-black dark:text-white">
+            <h3 className="mb-6 flex items-center gap-2 font-semibold text-text-primary">
               Errores Frecuentes
             </h3>
 
@@ -317,18 +317,18 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
                     <div key={idx} className="group space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-black/80 dark:text-white/80">
+                          <span className="font-medium text-text-primary">
                             {formattedName}
                           </span>
                           <span className="rounded-md bg-black/5 px-1.5 py-0.5 font-mono text-[10px] text-black/50 dark:bg-white/5 dark:text-white/50">
                             {percentage.toFixed(0)}%
                           </span>
                         </div>
-                        <span className="font-mono text-xs text-black/60 dark:text-white/60">
+                        <span className="font-mono text-xs text-text-secondary">
                           {count}
                         </span>
                       </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/5">
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-surface-secondary">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${percentage}%` }}

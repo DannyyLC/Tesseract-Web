@@ -43,8 +43,8 @@ export default function ToolsPage() {
       <div className="space-y-8">
         {/* ─── Header ─────────────────────────────────────────────────────── */}
         <div>
-          <h1 className="text-2xl font-bold text-black dark:text-white">Tools</h1>
-          <p className="mt-1 text-sm text-black/50 dark:text-white/50">
+          <h1 className="text-2xl font-bold text-text-primary">Tools</h1>
+          <p className="mt-1 text-sm text-text-secondary">
             Gestiona las herramientas conectadas a tu organización y explora el catálogo disponible.
           </p>
         </div>
@@ -60,7 +60,7 @@ export default function ToolsPage() {
               className={`relative flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-medium transition-all ${
                 activeTab === tab.id
                   ? 'bg-white text-black shadow-sm dark:bg-white/10 dark:text-white'
-                  : 'text-black/50 hover:text-black dark:text-white/50 dark:hover:text-white'
+                  : 'text-text-secondary hover:text-text-primary'
               }`}
             >
               {tab.icon}

@@ -132,8 +132,8 @@ export default function OverageCard({
       {/* Header — toggle + label, always visible */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-bold text-black dark:text-white">Excedentes de Créditos</h3>
-          <p className="text-xs text-black/50 dark:text-white/50">
+          <h3 className="text-sm font-bold text-text-primary">Excedentes de Créditos</h3>
+          <p className="text-xs text-text-secondary">
             {allowOverages
               ? `El consumo extra se cobrará a ${OVERAGE_PRICE_PER_CREDIT}/crédito.`
               : 'Los workflows se detendrán al agotar créditos.'}
@@ -147,7 +147,7 @@ export default function OverageCard({
           title={allowOverages ? 'Desactivar uso adicional' : 'Activar uso adicional'}
           aria-label={allowOverages ? 'Desactivar uso adicional' : 'Activar uso adicional'}
           className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-black/20 focus:ring-offset-2 focus:ring-offset-white disabled:opacity-50 dark:focus:ring-white/20 dark:focus:ring-offset-[#0A0A0A] ${
-            allowOverages ? 'bg-black dark:bg-white' : 'bg-black/10 dark:bg-white/20'
+            allowOverages ? 'bg-accent' : 'bg-black/10 dark:bg-white/20'
           }`}
         >
           <motion.span
@@ -173,10 +173,10 @@ export default function OverageCard({
             <div className="mt-5 border-t border-black/5 pt-5 dark:border-white/5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-black dark:text-white">
+                  <p className="text-sm font-medium text-text-primary">
                     Límite de Gasto Extra
                   </p>
-                  <p className="text-xs text-black/40 dark:text-white/40">
+                  <p className="text-xs text-text-tertiary">
                     Máximo: {maxOverageLimit.toLocaleString()} créditos
                   </p>
                 </div>
@@ -186,7 +186,7 @@ export default function OverageCard({
                   <button
                     onClick={() => debouncedCommit(localLimit - STEP)}
                     disabled={isToggling || localLimit <= 0}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 text-black/60 transition-colors hover:bg-black/5 disabled:opacity-30 dark:border-white/10 dark:text-white/60 dark:hover:bg-white/5"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-border text-black/60 transition-colors hover:bg-black/5 disabled:opacity-30  dark:text-white/60 dark:hover:bg-white/5"
                   >
                     <Minus size={14} />
                   </button>
@@ -200,13 +200,13 @@ export default function OverageCard({
                     onBlur={handleInputBlur}
                     onKeyDown={handleInputKeyDown}
                     disabled={isToggling}
-                    className="font-geist-mono h-9 w-24 rounded-xl border border-black/10 bg-transparent px-3 text-center text-sm font-medium tabular-nums text-black focus:border-black/30 focus:outline-none disabled:opacity-50 dark:border-white/10 dark:text-white dark:focus:border-white/30"
+                    className="font-geist-mono h-9 w-24 rounded-xl border border-border bg-transparent px-3 text-center text-sm font-medium tabular-nums text-black focus:border-black/30 focus:outline-none disabled:opacity-50  dark:text-white dark:focus:border-white/30"
                   />
 
                   <button
                     onClick={() => debouncedCommit(localLimit + STEP)}
                     disabled={isToggling || localLimit >= maxOverageLimit}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 text-black/60 transition-colors hover:bg-black/5 disabled:opacity-30 dark:border-white/10 dark:text-white/60 dark:hover:bg-white/5"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-border text-black/60 transition-colors hover:bg-black/5 disabled:opacity-30  dark:text-white/60 dark:hover:bg-white/5"
                   >
                     <Plus size={14} />
                   </button>
@@ -215,10 +215,10 @@ export default function OverageCard({
 
               {/* Estimated cost */}
               <div className="mt-3 flex items-center justify-between rounded-xl bg-black/[0.02] px-4 py-2.5 dark:bg-white/[0.02]">
-                <span className="text-xs text-black/40 dark:text-white/40">
+                <span className="text-xs text-text-tertiary">
                   Costo máximo estimado
                 </span>
-                <span className="font-geist-mono text-sm font-medium text-black dark:text-white">
+                <span className="font-geist-mono text-sm font-medium text-text-primary">
                   ${estimatedCost} USD
                 </span>
               </div>

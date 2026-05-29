@@ -37,11 +37,11 @@ function SectionTitle({
 }) {
   return (
     <div className="flex items-center justify-between border-b border-black/5 p-5 dark:border-white/5">
-      <h2 className="text-lg font-semibold text-black dark:text-white">{children}</h2>
+      <h2 className="text-lg font-semibold text-text-primary">{children}</h2>
       {href && (
         <Link
           href={href}
-          className="flex items-center gap-1 text-sm text-black/50 transition-colors hover:text-black dark:text-white/50 dark:hover:text-white"
+          className="flex items-center gap-1 text-sm text-black/50 transition-colors hover:text-text-primary hover:text-text-primary"
         >
           {linkLabel ?? 'Ver todos'}
           <ArrowUpRight size={14} />
@@ -62,7 +62,7 @@ function ChartTooltip({ active, payload, label }: any) {
       })()
     : null;
   return (
-    <div className="rounded-xl border border-black/10 bg-white px-3 py-2 shadow-lg dark:border-white/10 dark:bg-[#111]">
+    <div className="rounded-xl border border-border bg-white px-3 py-2 shadow-lg  dark:bg-[#111]">
       {displayLabel && (
         <p className="mb-1 text-xs text-black/50 dark:text-white/40">{displayLabel}</p>
       )}
@@ -79,7 +79,7 @@ function ChartTooltip({ active, payload, label }: any) {
 function ChartSkeleton({ height = 200 }: { height?: number }) {
   return (
     <div
-      className="w-full animate-pulse rounded-xl bg-black/5 dark:bg-white/5"
+      className="w-full animate-pulse rounded-xl bg-surface-secondary"
       style={{ height }}
     />
   );
@@ -193,7 +193,7 @@ export default function DashboardPage() {
               {user?.name ? `Bienvenido, ${user.name.split(' ')[0]}` : 'Dashboard'}
             </h1>
           </div>
-          <p className="mt-1 text-sm text-black/50 dark:text-white/50">
+          <p className="mt-1 text-sm text-text-secondary">
             {user?.organizationName ?? 'Tu organización'} · Resumen de actividad
           </p>
         </div>
@@ -210,18 +210,18 @@ export default function DashboardPage() {
           transition={{ delay: 0.1 }}
           className="flex flex-col justify-between"
         >
-          <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+          <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
             Workflows Activos
           </span>
           <div className="mt-1 flex items-baseline gap-1">
             {loadingWf ? (
-              <Loader2 size={18} className="animate-spin text-black/20 dark:text-white/20" />
+              <Loader2 size={18} className="animate-spin text-text-tertiary" />
             ) : (
               <>
-                <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+                <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                   {workflowStats?.activeWorkflows ?? 0}
                 </p>
-                <span className="text-xs font-medium text-black/30 dark:text-white/30">
+                <span className="text-xs font-medium text-text-tertiary">
                   de {workflowStats?.totalWorkflows ?? 0}
                 </span>
               </>
@@ -236,15 +236,15 @@ export default function DashboardPage() {
           transition={{ delay: 0.15 }}
           className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
         >
-          <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+          <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
             Ejecuciones Hoy
           </span>
           <div className="mt-1 flex items-baseline gap-2">
             {loadingToday ? (
-              <Loader2 size={18} className="animate-spin text-black/20 dark:text-white/20" />
+              <Loader2 size={18} className="animate-spin text-text-tertiary" />
             ) : (
               <>
-                <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+                <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                   {(statsToday?.total ?? 0).toLocaleString()}
                 </p>
                 {(statsToday?.successful ?? 0) > 0 && (
@@ -265,18 +265,18 @@ export default function DashboardPage() {
             transition={{ delay: 0.2 }}
             className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
           >
-            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Créditos Disponibles
             </span>
             <div className="mt-1 flex items-baseline gap-2">
               {loadingBilling ? (
-                <Loader2 size={18} className="animate-spin text-black/20 dark:text-white/20" />
+                <Loader2 size={18} className="animate-spin text-text-tertiary" />
               ) : (
                 <>
-                  <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+                  <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                     {creditData.available.toLocaleString()}
                   </p>
-                  <span className="text-xs font-medium text-black/30 dark:text-white/30">
+                  <span className="text-xs font-medium text-text-tertiary">
                     {creditData.used.toLocaleString()} usados este mes
                   </span>
                 </>
@@ -293,18 +293,18 @@ export default function DashboardPage() {
             transition={{ delay: 0.25 }}
             className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
           >
-            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+            <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Miembros del Equipo
             </span>
             <div className="mt-1 flex items-baseline gap-2">
               {loadingUsers ? (
-                <Loader2 size={18} className="animate-spin text-black/20 dark:text-white/20" />
+                <Loader2 size={18} className="animate-spin text-text-tertiary" />
               ) : (
                 <>
-                  <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+                  <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                     {userStats?.total ?? 0}
                   </p>
-                  <span className="text-xs font-medium text-black/30 dark:text-white/30">
+                  <span className="text-xs font-medium text-text-tertiary">
                     {userStats?.active ?? 0} activos
                   </span>
                 </>
@@ -325,11 +325,11 @@ export default function DashboardPage() {
             {loading7d ? (
               <ChartSkeleton height={220} />
             ) : areaData.every((d) => d.Ejecuciones === 0) ? (
-              <div className="flex flex-col items-center justify-center py-12 text-black/20 dark:text-white/20">
+              <div className="flex flex-col items-center justify-center py-12 text-text-tertiary">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full">
                   <Activity size={32} />
                 </div>
-                <p className="mt-4 text-sm font-medium text-black/40 dark:text-white/40">
+                <p className="mt-4 text-sm font-medium text-text-tertiary">
                   Sin ejecuciones en los últimos 7 días
                 </p>
               </div>
@@ -411,9 +411,9 @@ export default function DashboardPage() {
                         layout="vertical"
                         iconType="circle"
                         formatter={(value, entry: any) => (
-                          <span className="text-sm font-medium text-black dark:text-white">
+                          <span className="text-sm font-medium text-text-primary">
                             {value}{' '}
-                            <span className="text-black/40 dark:text-white/40">
+                            <span className="text-text-tertiary">
                               ({entry.payload.value})
                             </span>
                           </span>
@@ -422,7 +422,7 @@ export default function DashboardPage() {
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex h-[220px] w-full flex-col items-center justify-center gap-3 text-black/20 dark:text-white/20">
+                  <div className="flex h-[220px] w-full flex-col items-center justify-center gap-3 text-text-tertiary">
                     <div className="relative flex h-32 w-32 items-center justify-center rounded-full border-[16px] border-current opacity-20"></div>
                     <p className="text-sm font-medium">Sin workflows creados</p>
                   </div>
@@ -456,28 +456,28 @@ export default function DashboardPage() {
                     <div key={wf.workflowId} className="flex items-center gap-4 px-5 py-4">
                       {/* Rank */}
                       <span className="w-6 flex-shrink-0 text-center text-lg leading-none">
-                        <span className="text-sm font-light text-black/30 dark:text-white/30">
+                        <span className="text-sm font-light text-text-tertiary">
                           {i + 1}
                         </span>
                       </span>
 
                       {/* Name + bar */}
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-black dark:text-white">
+                        <p className="truncate text-sm font-medium text-text-primary">
                           {wf.workflowName}
                         </p>
                         {/* Success rate bar */}
                         <div className="mt-1.5 flex items-center gap-2">
-                          <span className="text-xs text-black/40 dark:text-white/40">
+                          <span className="text-xs text-text-tertiary">
                             Tasa de éxito
                           </span>
-                          <div className="h-1 flex-1 overflow-hidden rounded-full bg-black/5 dark:bg-white/5">
+                          <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-secondary">
                             <div
                               className={`h-full rounded-full ${barColor} transition-all duration-500`}
                               style={{ width: `${successPct}%` }}
                             />
                           </div>
-                          <span className="flex-shrink-0 text-xs text-black/40 dark:text-white/40">
+                          <span className="flex-shrink-0 text-xs text-text-tertiary">
                             {successPct}%
                           </span>
                         </div>
@@ -485,20 +485,20 @@ export default function DashboardPage() {
 
                       {/* Execution count */}
                       <div className="flex-shrink-0 text-right">
-                        <p className="font-geist-mono text-sm font-light text-black dark:text-white">
+                        <p className="font-geist-mono text-sm font-light text-text-primary">
                           {wf.executions.toLocaleString()}
                         </p>
-                        <p className="text-xs text-black/30 dark:text-white/30">ejecuciones</p>
+                        <p className="text-xs text-text-tertiary">ejecuciones</p>
                       </div>
                     </div>
                   );
                 })
               ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-black/20 dark:text-white/20">
+                <div className="flex flex-col items-center justify-center py-12 text-text-tertiary">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full">
                     <Activity size={32} />
                   </div>
-                  <p className="mt-4 text-sm font-medium text-black/40 dark:text-white/40">
+                  <p className="mt-4 text-sm font-medium text-text-tertiary">
                     Sin datos del período actual
                   </p>
                 </div>
@@ -518,11 +518,11 @@ export default function DashboardPage() {
             <ChartSkeleton height={140} />
           </div>
         ) : executions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-black/20 dark:text-white/20">
+          <div className="flex flex-col items-center justify-center py-12 text-text-tertiary">
             <div className="flex h-16 w-16 items-center justify-center rounded-full">
               <Activity size={32} />
             </div>
-            <p className="mt-4 text-sm font-medium text-black/40 dark:text-white/40">
+            <p className="mt-4 text-sm font-medium text-text-tertiary">
               No hay ejecuciones recientes
             </p>
           </div>
@@ -530,17 +530,17 @@ export default function DashboardPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-black/5 dark:border-white/5">
-                  <th className="px-5 py-3 text-left font-medium text-black/40 dark:text-white/40">
+                <tr className="border-b border-border">
+                  <th className="px-5 py-3 text-left font-medium text-text-tertiary">
                     Workflow
                   </th>
-                  <th className="px-5 py-3 text-left font-medium text-black/40 dark:text-white/40">
+                  <th className="px-5 py-3 text-left font-medium text-text-tertiary">
                     Estado
                   </th>
-                  <th className="px-5 py-3 text-left font-medium text-black/40 dark:text-white/40">
+                  <th className="px-5 py-3 text-left font-medium text-text-tertiary">
                     Créditos
                   </th>
-                  <th className="px-5 py-3 text-left font-medium text-black/40 dark:text-white/40">
+                  <th className="px-5 py-3 text-left font-medium text-text-tertiary">
                     Fecha
                   </th>
                 </tr>
@@ -563,7 +563,7 @@ export default function DashboardPage() {
                       key={exec.id ?? i}
                       className="transition-colors hover:bg-black/[0.01] dark:hover:bg-white/[0.01]"
                     >
-                      <td className="max-w-[200px] truncate px-5 py-3.5 font-medium text-black dark:text-white">
+                      <td className="max-w-[200px] truncate px-5 py-3.5 font-medium text-text-primary">
                         {wfName}
                       </td>
                       <td className="px-5 py-3.5">
@@ -572,7 +572,7 @@ export default function DashboardPage() {
                             exec.status === 'COMPLETED'
                               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                               : exec.status === 'FAILED'
-                                ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                                ? 'bg-danger/10 text-red-600 dark:text-red-400'
                                 : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                           }`}
                         >
@@ -580,10 +580,10 @@ export default function DashboardPage() {
                           {statusLabel(exec.status)}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-black/60 dark:text-white/60">
+                      <td className="px-5 py-3.5 text-text-secondary">
                         {typeof credits === 'number' ? credits.toLocaleString() : credits}
                       </td>
-                      <td className="px-5 py-3.5 text-black/50 dark:text-white/50">{date}</td>
+                      <td className="px-5 py-3.5 text-text-secondary">{date}</td>
                     </tr>
                   );
                 })}

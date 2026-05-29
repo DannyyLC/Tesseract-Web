@@ -85,9 +85,9 @@ const getStatusConfig = (status: string, isHITL: boolean) => {
     default:
       return {
         label: status,
-        color: 'bg-blue-500',
-        textColor: 'text-blue-500',
-        bg: 'bg-blue-500/10',
+        color: 'bg-info',
+        textColor: 'text-info',
+        bg: 'bg-info/10',
       };
   }
 };
@@ -171,7 +171,7 @@ export default function DashboardConversationItem({
                           setIsEditing(true);
                         }
                       }}
-                      className={`truncate text-base font-semibold text-black dark:text-white ${canUpdate ? 'cursor-pointer transition-colors hover:opacity-70' : ''}`}
+                      className={`truncate text-base font-semibold text-text-primary ${canUpdate ? 'cursor-pointer transition-colors hover:opacity-70' : ''}`}
                       title={canUpdate ? 'Click para editar nombre' : undefined}
                     >
                       {conversation.title || 'Conversación sin título'}
@@ -192,10 +192,10 @@ export default function DashboardConversationItem({
                 </div>
 
                 {/* Metadata Row */}
-                <div className="mb-3 flex items-center gap-3 pl-8 text-sm text-black/50 dark:text-white/50">
+                <div className="mb-3 flex items-center gap-3 pl-8 text-sm text-text-secondary">
                   <div className="flex items-center gap-1.5">
                     <div
-                      className={`rounded-full p-1 ${conversation.channel === 'WHATSAPP' ? 'bg-green-500/10 text-green-600' : 'bg-blue-500/10 text-blue-600'}`}
+                      className={`rounded-full p-1 ${conversation.channel === 'WHATSAPP' ? 'bg-green-500/10 text-green-600' : 'bg-info/10 text-blue-600'}`}
                     >
                       {getChannelIcon(conversation.channel)}
                     </div>
@@ -203,7 +203,7 @@ export default function DashboardConversationItem({
                       {conversation.channel?.toLowerCase()}
                     </span>
                   </div>
-                  <span className="text-black/20 dark:text-white/20">•</span>
+                  <span className="text-text-tertiary">•</span>
                   <div className="flex items-center gap-1.5">
                     <Calendar size={12} />
                     <span className="text-xs">{formatTimeAgo(conversation.lastMessageAt)}</span>
@@ -220,7 +220,7 @@ export default function DashboardConversationItem({
                       e.stopPropagation();
                       setIsDeleteOpen(true);
                     }}
-                    className="rounded-full p-2 text-black/30 opacity-0 transition-colors hover:bg-black/5 hover:text-red-500 group-hover:opacity-100 dark:text-white/30 dark:hover:bg-white/5"
+                    className="rounded-full p-2 text-black/30 opacity-0 transition-colors hover:bg-black/5 hover:text-danger group-hover:opacity-100 dark:text-white/30 dark:hover:bg-white/5"
                     title="Eliminar"
                   >
                     {deleteConversation.isPending ? (
@@ -235,7 +235,7 @@ export default function DashboardConversationItem({
 
             {/* Footer Info */}
             <div className="mt-4 flex items-center justify-between border-t border-black/5 pt-4 dark:border-white/5">
-              <div className="flex items-center gap-1 text-xs text-black/40 dark:text-white/40">
+              <div className="flex items-center gap-1 text-xs text-text-tertiary">
                 <MessageSquare size={12} />
                 <span>{conversation.messageCount} mensajes</span>
               </div>
@@ -250,7 +250,7 @@ export default function DashboardConversationItem({
         title="Eliminar conversación"
       >
         <div className="space-y-4">
-          <p className="text-black/60 dark:text-white/60">
+          <p className="text-text-secondary">
             ¿Estás seguro de que deseas eliminar esta conversación? Esta acción no se puede
             deshacer.
           </p>
@@ -268,7 +268,7 @@ export default function DashboardConversationItem({
                 });
               }}
               disabled={deleteConversation.isPending}
-              className="flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-600 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-600 disabled:opacity-50"
             >
               {deleteConversation.isPending && <Loader2 size={14} className="animate-spin" />}
               Eliminar

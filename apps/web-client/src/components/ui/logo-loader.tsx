@@ -48,7 +48,7 @@ export function LogoLoader({ text = 'Cargando', className = '' }: LogoLoaderProp
               stroke="currentColor"
               strokeWidth="4"
               strokeLinecap="round"
-              className="animate-spinner-dash text-black dark:text-white"
+              className="animate-spinner-dash text-text-primary"
               style={{
                 strokeDasharray: '280',
                 strokeDashoffset: '280',
@@ -61,11 +61,11 @@ export function LogoLoader({ text = 'Cargando', className = '' }: LogoLoaderProp
         {/* Loading Text */}
         <div className="mt-12 flex flex-col items-center gap-3">
           <div className="flex items-center gap-3">
-            <span className="h-[1px] w-6 bg-gradient-to-r from-transparent to-black/40 dark:to-white/40" />
+            <span className="h-[1px] w-6 bg-gradient-to-r from-transparent to-border" />
             <p className="text-[11px] font-bold uppercase tracking-[0.4em] text-black opacity-80 dark:text-white">
               {text}
             </p>
-            <span className="h-[1px] w-6 bg-gradient-to-l from-transparent to-black/40 dark:to-white/40" />
+            <span className="h-[1px] w-6 bg-gradient-to-l from-transparent to-border" />
           </div>
         </div>
 

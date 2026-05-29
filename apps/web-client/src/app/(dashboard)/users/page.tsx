@@ -221,8 +221,8 @@ export default function UsersPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-black dark:text-white">Miembros</h1>
-          <p className="mt-1 text-black/50 dark:text-white/50">
+          <h1 className="text-2xl font-bold text-text-primary">Miembros</h1>
+          <p className="mt-1 text-text-secondary">
             Gestión de miembros de tu organización
           </p>
         </div>
@@ -241,7 +241,7 @@ export default function UsersPage() {
       <div className="mb-8 grid grid-cols-2 gap-8 px-2 lg:grid-cols-5">
         {isLoadingStats ? (
           <div className="col-span-4 flex h-24 items-center justify-center">
-            <Loader2 className="animate-spin text-black/20 dark:text-white/20" />
+            <Loader2 className="animate-spin text-text-tertiary" />
           </div>
         ) : (
           <>
@@ -251,14 +251,14 @@ export default function UsersPage() {
               transition={{ delay: 0.1 }}
               className="flex flex-col justify-between"
             >
-              <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+              <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
                 Total Miembros
               </span>
               <div className="mt-1 flex items-baseline gap-1">
-                <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+                <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                   {stats.total}
                 </p>
-                <span className="px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-500">
+                <span className="px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-info">
                   Registrados
                 </span>
               </div>
@@ -270,11 +270,11 @@ export default function UsersPage() {
               transition={{ delay: 0.15 }}
               className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
             >
-              <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+              <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
                 Activos
               </span>
               <div className="mt-1 flex items-baseline gap-1">
-                <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+                <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                   {stats.active}
                 </p>
               </div>
@@ -286,11 +286,11 @@ export default function UsersPage() {
               transition={{ delay: 0.2 }}
               className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
             >
-              <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+              <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
                 Inactivos
               </span>
               <div className="mt-1 flex items-baseline gap-1">
-                <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+                <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                   {stats.inactive}
                 </p>
                 <span className="text-xs font-medium text-zinc-500">Sin acceso</span>
@@ -303,11 +303,11 @@ export default function UsersPage() {
               transition={{ delay: 0.25 }}
               className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
             >
-              <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+              <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
                 Verificados
               </span>
               <div className="mt-1 flex items-baseline gap-1">
-                <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+                <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                   {stats.verified}
                 </p>
               </div>
@@ -319,14 +319,14 @@ export default function UsersPage() {
               transition={{ delay: 0.3 }}
               className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
             >
-              <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-black/50 dark:text-white/50">
+              <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
                 Invitaciones
               </span>
               <div className="mt-1 flex items-baseline gap-1">
                 {isLoadingPendingInvitations ? (
-                  <Loader2 className="animate-spin text-black/30 dark:text-white/30" size={20} />
+                  <Loader2 className="animate-spin text-text-tertiary" size={20} />
                 ) : (
-                  <p className="font-geist-mono text-4xl font-light tracking-tight text-black dark:text-white">
+                  <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                     {stats.pendingInvitations}
                   </p>
                 )}
@@ -343,13 +343,13 @@ export default function UsersPage() {
       <div className="flex flex-col gap-3 sm:flex-row">
         {/* Search */}
         <div className="flex-1 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-black/40 dark:text-white/40">
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
             Buscar miembros
           </p>
           <div className="relative">
             <Search
               size={16}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30 dark:text-white/30"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary"
             />
             <input
               type="text"
@@ -364,7 +364,7 @@ export default function UsersPage() {
         {/* Role Filter Pills */}
         <div className="flex flex-wrap items-start gap-4 pb-1">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-black/40 dark:text-white/40">
+            <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
               Filtrar por rol
             </p>
             <div className="flex gap-2 overflow-x-auto">
@@ -388,7 +388,7 @@ export default function UsersPage() {
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-black/40 dark:text-white/40">
+            <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
               Consultas adicionales
             </p>
             <div className="flex gap-2 overflow-x-auto">
@@ -417,7 +417,7 @@ export default function UsersPage() {
       <div className="space-y-3">
         {isListLoading ? (
           <div className="flex h-40 items-center justify-center">
-            <Loader2 className="animate-spin text-black/20 dark:text-white/20" />
+            <Loader2 className="animate-spin text-text-tertiary" />
           </div>
         ) : (
           <AnimatePresence mode="popLayout">
@@ -449,25 +449,25 @@ export default function UsersPage() {
 
                           <div className="min-w-0 flex-1">
                             <div className="mb-1 flex items-center gap-2">
-                              <h3 className="truncate font-semibold text-black dark:text-white">
+                              <h3 className="truncate font-semibold text-text-primary">
                                 {invitation.email}
                               </h3>
                               <span className="text-[10px] font-bold uppercase tracking-wide text-yellow-600 dark:text-yellow-400">
                                 Pendiente
                               </span>
                             </div>
-                            <p className="truncate text-sm text-black/50 dark:text-white/50">
+                            <p className="truncate text-sm text-text-secondary">
                               Enviada {formatTimeAgo(invitation.createdAt as any)}
                             </p>
                           </div>
 
                           <div className="hidden text-right md:block">
-                            <p className="text-xs text-black/40 dark:text-white/40">Expira</p>
+                            <p className="text-xs text-text-tertiary">Expira</p>
                             <p
                               className={`text-sm ${
                                 isExpired
                                   ? 'text-red-600 dark:text-red-400'
-                                  : 'text-black/70 dark:text-white/70'
+                                  : 'text-text-primary'
                               }`}
                             >
                               {new Date(invitation.expiresAt).toLocaleString('es-ES')}
@@ -522,7 +522,7 @@ export default function UsersPage() {
                           {/* User Info */}
                           <div className="min-w-0 flex-1">
                             <div className="mb-1 flex items-center gap-2">
-                              <h3 className="truncate font-semibold text-black dark:text-white">
+                              <h3 className="truncate font-semibold text-text-primary">
                                 {user.name}
                               </h3>
                               <span
@@ -531,17 +531,17 @@ export default function UsersPage() {
                                 {roleConfig.label}
                               </span>
                             </div>
-                            <p className="truncate text-sm text-black/50 dark:text-white/50">
+                            <p className="truncate text-sm text-text-secondary">
                               {user.email}
                             </p>
                           </div>
 
                           {/* Last Login */}
                           <div className="hidden text-right md:block">
-                            <p className="text-xs text-black/40 dark:text-white/40">
+                            <p className="text-xs text-text-tertiary">
                               Último acceso
                             </p>
-                            <p className="text-sm text-black/70 dark:text-white/70">
+                            <p className="text-sm text-text-primary">
                               {formatTimeAgo(user.lastLoginAt)}
                             </p>
                           </div>
@@ -599,7 +599,7 @@ export default function UsersPage() {
                                           e.stopPropagation();
                                           handleDeleteOpen(user);
                                         }}
-                                        className="flex items-center gap-2 rounded-full border border-red-500/20 px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-red-500/10 dark:text-red-400"
+                                        className="flex items-center gap-2 rounded-full border border-red-500/20 px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-danger/10 dark:text-red-400"
                                       >
                                         <Trash2 size={16} />
                                         Eliminar
@@ -628,10 +628,10 @@ export default function UsersPage() {
               animate={{ opacity: 1 }}
               className="py-16 text-center"
             >
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-black/5 dark:bg-white/5">
-                <Search size={24} className="text-black/30 dark:text-white/30" />
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-secondary">
+                <Search size={24} className="text-text-tertiary" />
               </div>
-              <h3 className="mb-2 text-lg font-semibold text-black dark:text-white">
+              <h3 className="mb-2 text-lg font-semibold text-text-primary">
                 {isPendingInvitationsView
                   ? searchQuery
                     ? `No se encontraron invitaciones para "${searchQuery}"`
@@ -642,7 +642,7 @@ export default function UsersPage() {
                       ? `No hay miembros con el rol ${roleFilters.find((f) => f.value === filterRole)?.label}`
                       : 'No se encontraron miembros'}
               </h3>
-              <p className="text-black/50 dark:text-white/50">
+              <p className="text-text-secondary">
                 {isPendingInvitationsView
                   ? 'Cuando envíes invitaciones aparecerán aquí'
                   : searchQuery || filterRole !== 'all'
@@ -666,7 +666,7 @@ export default function UsersPage() {
           >
             <div className="space-y-4">
               <div>
-                <label className="mb-2 block text-sm font-medium text-black/70 dark:text-white/70">
+                <label className="mb-2 block text-sm font-medium text-text-primary">
                   Rol
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -692,14 +692,14 @@ export default function UsersPage() {
                     );
                   })}
                 </div>
-                <p className="mt-1 text-xs text-black/40 dark:text-white/40">
+                <p className="mt-1 text-xs text-text-tertiary">
                   Para transferir la propiedad (OWNER) usa el botón dedicado en el perfil del
                   usuario.
                 </p>
               </div>
 
               <div className="py-2">
-                <div className="flex items-center justify-between rounded-xl border border-black/10 p-3 dark:border-white/10">
+                <div className="flex items-center justify-between rounded-xl border border-border p-3 ">
                   <div className="flex items-center gap-3">
                     <div
                       className={`rounded-lg p-2 ${editFormData.isActive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-black/5 text-black/40 dark:bg-white/5 dark:text-white/40'}`}
@@ -707,8 +707,8 @@ export default function UsersPage() {
                       <Power size={18} />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-black dark:text-white">Estado</p>
-                      <p className="text-xs text-black/50 dark:text-white/50">
+                      <p className="text-sm font-medium text-text-primary">Estado</p>
+                      <p className="text-xs text-text-secondary">
                         {editFormData.isActive
                           ? 'El usuario está activo'
                           : 'El usuario está deshabilitado'}
@@ -765,7 +765,7 @@ export default function UsersPage() {
             title="Eliminar Usuario"
           >
             <div className="space-y-4">
-              <p className="text-black/70 dark:text-white/70">
+              <p className="text-text-primary">
                 ¿Estás seguro de que quieres eliminar a <strong>{modalUser.name}</strong>? Esta
                 acción no se puede deshacer.
               </p>
@@ -779,7 +779,7 @@ export default function UsersPage() {
                 <button
                   onClick={handleDelete}
                   disabled={deleteUser.isPending}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-3 font-medium text-white transition-colors hover:bg-red-600"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-3 font-medium text-white transition-colors hover:bg-red-600"
                 >
                   {deleteUser.isPending ? (
                     <Loader2 className="animate-spin" size={18} />
@@ -817,7 +817,7 @@ export default function UsersPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-black/70 dark:text-white/70">
+                <label className="mb-2 block text-sm font-medium text-text-primary">
                   Escribe <strong>confirmar</strong> para continuar
                 </label>
                 <input
@@ -825,7 +825,7 @@ export default function UsersPage() {
                   value={confirmTransferName}
                   onChange={(e) => setConfirmTransferName(e.target.value)}
                   placeholder="confirmar"
-                  className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5 dark:border-white/10 dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+                  className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5  dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
                 />
               </div>
 

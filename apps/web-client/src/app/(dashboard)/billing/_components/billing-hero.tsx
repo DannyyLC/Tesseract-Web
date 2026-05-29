@@ -53,9 +53,9 @@ export default function BillingHero({
       case 'past_due':
         return {
           label: 'Pago Pendiente',
-          color: 'bg-red-500',
+          color: 'bg-danger',
           text: 'text-red-300 dark:text-red-400',
-          bg: 'bg-red-500/20',
+          bg: 'bg-danger/20',
         };
       case 'CANCELED':
       case 'canceled':
@@ -91,7 +91,7 @@ export default function BillingHero({
           <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-widest opacity-60">
             {isNegative ? (
               <>
-                <span className="text-red-600 dark:text-red-500">Balance Negativo</span>
+                <span className="text-red-600 dark:text-danger">Balance Negativo</span>
               </>
             ) : (
               <div className="flex items-center gap-2">
@@ -104,7 +104,7 @@ export default function BillingHero({
             <motion.span
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`font-geist-mono text-7xl font-light tracking-tighter ${isNegative ? 'text-red-600 dark:text-red-500' : ''}`}
+              className={`font-geist-mono text-7xl font-light tracking-tighter ${isNegative ? 'text-red-600 dark:text-danger' : ''}`}
             >
               {isNegative ? '-' : ''}
               {formattedBalance}
@@ -114,7 +114,7 @@ export default function BillingHero({
 
           {/* Negative Balance Helper Text */}
           {isNegative && (
-            <p className="max-w-md text-sm text-red-600/80 dark:text-red-500/80">
+            <p className="max-w-md text-sm text-red-600/80 dark:text-danger/80">
               Has excedido tu límite. El consumo extra (${OVERAGE_PRICE_PER_CREDIT}/crédito) se
               cargará en tu próxima factura.
             </p>
@@ -144,8 +144,8 @@ export default function BillingHero({
                 Cancelación Pendiente
               </div>
             ) : pendingPlanChange ? (
-              <div className="inline-flex items-center gap-2 rounded-full bg-blue-500/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-blue-300 dark:text-blue-400">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
+              <div className="inline-flex items-center gap-2 rounded-full bg-info/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-blue-300 dark:text-blue-400">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-info" />
                 Cambio programado → {pendingPlanChange}
               </div>
             ) : (

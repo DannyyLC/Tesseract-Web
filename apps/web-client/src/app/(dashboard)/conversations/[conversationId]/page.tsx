@@ -357,7 +357,7 @@ export default function WorkflowChatPage() {
   if (isLoadingWorkflow) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="animate-spin text-black/20 dark:text-white/20" size={32} />
+        <Loader2 className="animate-spin text-text-tertiary" size={32} />
       </div>
     );
   }
@@ -366,7 +366,7 @@ export default function WorkflowChatPage() {
 
   return (
     <PermissionGuard permissions="conversations:read" redirect={true} fallbackRoute="/dashboard">
-      <div className="relative flex h-full flex-col bg-white dark:bg-[#0A0A0A]">
+      <div className="relative flex h-full flex-col bg-surface">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-black/5 bg-white px-6 py-4 dark:border-white/5 dark:bg-[#0A0A0A]">
           <div className="flex items-center gap-4">
@@ -412,7 +412,7 @@ export default function WorkflowChatPage() {
                     }
                   }}
                   autoFocus
-                  className="w-full min-w-[200px] border-b border-black/20 bg-transparent p-0 text-lg font-bold text-black outline-none dark:border-white/20 dark:text-white"
+                  className="w-full min-w-[200px] border-b border-border-hover bg-transparent p-0 text-lg font-bold text-black outline-none  dark:text-white"
                 />
               ) : (
                 <h1
@@ -422,18 +422,18 @@ export default function WorkflowChatPage() {
                       setIsEditing(true);
                     }
                   }}
-                  className={`flex items-center gap-2 text-lg font-bold text-black dark:text-white ${canUpdate ? 'cursor-pointer transition-opacity hover:opacity-70' : ''}`}
+                  className={`flex items-center gap-2 text-lg font-bold text-text-primary ${canUpdate ? 'cursor-pointer transition-opacity hover:opacity-70' : ''}`}
                   title={canUpdate ? 'Haz clic para editar el nombre' : undefined}
                 >
                   {isEmpty ? workflow?.name : conversationData?.title || 'Nueva Conversación'}
                 </h1>
               )}
-              <p className="max-w-md truncate text-xs text-black/40 dark:text-white/40">
+              <p className="max-w-md truncate text-xs text-text-tertiary">
                 {isEmpty ? (
                   workflow?.description || 'Probador Interactivo'
                 ) : (
                   <span className="flex items-center gap-1">
-                    <span className="font-medium text-black/60 dark:text-white/60">
+                    <span className="font-medium text-text-secondary">
                       {workflow?.name}
                     </span>
                   </span>
@@ -447,8 +447,8 @@ export default function WorkflowChatPage() {
             {/* User Badge - Relocated here */}
             {user && (
               <div className="hidden items-center gap-2 rounded-full border border-black/5 bg-black/5 px-3 py-1.5 sm:flex dark:border-white/5 dark:bg-white/5">
-                <User size={14} className="text-black/40 dark:text-white/40" />
-                <span className="max-w-[100px] truncate text-xs font-medium text-black/60 dark:text-white/60">
+                <User size={14} className="text-text-tertiary" />
+                <span className="max-w-[100px] truncate text-xs font-medium text-text-secondary">
                   {user.name}
                 </span>
               </div>
@@ -525,7 +525,7 @@ export default function WorkflowChatPage() {
                   <button
                     onClick={() => setIsDeleteOpen(true)}
                     disabled={deleteConversation.isPending}
-                    className="rounded-full p-2 text-black/40 transition-colors hover:bg-red-500/10 hover:text-red-500 dark:text-white/40"
+                    className="rounded-full p-2 text-black/40 transition-colors hover:bg-danger/10 hover:text-danger dark:text-white/40"
                     title="Eliminar conversación"
                   >
                     {deleteConversation.isPending ? (
@@ -571,9 +571,9 @@ export default function WorkflowChatPage() {
                     className="object-contain brightness-0 dark:invert"
                   />
                 </div>
-                <h3 className="max-w-sm text-center text-xl font-medium text-black/30 dark:text-white/30">
+                <h3 className="max-w-sm text-center text-xl font-medium text-text-tertiary">
                   Comienza una conversación con <br />
-                  <span className="font-bold text-black/50 dark:text-white/50">
+                  <span className="font-bold text-text-secondary">
                     {workflow?.name}
                   </span>
                 </h3>
@@ -630,7 +630,7 @@ export default function WorkflowChatPage() {
                         className={`px-5 py-3.5 text-base leading-7 ${
                           msg.role === 'user'
                             ? 'rounded-[2rem] bg-[#F4F4F4] text-black dark:bg-[#262626] dark:text-white'
-                            : 'bg-transparent px-0 py-0 text-black dark:text-white'
+                            : 'bg-transparent px-0 py-0 text-text-primary'
                         }`}
                       >
                         {msg.role === 'user' ? (
@@ -641,22 +641,22 @@ export default function WorkflowChatPage() {
                               remarkPlugins={[remarkGfm]}
                               components={{
                                 table: ({ node, ...props }) => (
-                                  <div className="my-4 overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
+                                  <div className="my-4 overflow-x-auto rounded-lg border border-border">
                                     <table
-                                      className="w-full border-collapse text-left text-black dark:text-white"
+                                      className="w-full border-collapse text-left text-text-primary"
                                       {...props}
                                     />
                                   </div>
                                 ),
                                 thead: ({ node, ...props }) => (
                                   <thead
-                                    className="border-b border-black/10 bg-black/5 text-black dark:border-white/10 dark:bg-white/5 dark:text-white"
+                                    className="border-b border-border bg-black/5 text-black  dark:bg-white/5 dark:text-white"
                                     {...props}
                                   />
                                 ),
                                 th: ({ node, ...props }) => (
                                   <th
-                                    className="p-3 text-sm font-semibold text-black dark:text-white"
+                                    className="p-3 text-sm font-semibold text-text-primary"
                                     {...props}
                                   />
                                 ),
@@ -675,7 +675,7 @@ export default function WorkflowChatPage() {
                       </div>
                       {msg.timestamp && (
                         <span
-                          className={`mt-2 text-[10px] text-black/30 dark:text-white/30 ${isRightSide ? 'mr-2' : 'ml-0'}`}
+                          className={`mt-2 text-[10px] text-text-tertiary ${isRightSide ? 'mr-2' : 'ml-0'}`}
                         >
                           {msg.timestamp}
                         </span>
@@ -710,7 +710,7 @@ export default function WorkflowChatPage() {
                     </div>
 
                     {/* Texto ciclando */}
-                    <div className="flex items-center gap-1.5 py-3 text-base text-black/40 dark:text-white/40">
+                    <div className="flex items-center gap-1.5 py-3 text-base text-text-tertiary">
                       <AnimatePresence mode="wait">
                         <motion.span
                           key={thinkingIndex}
@@ -744,7 +744,7 @@ export default function WorkflowChatPage() {
               {/* Error Alert */}
               {error && (
                 <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/10">
-                  <AlertCircle className="mt-0.5 flex-shrink-0 text-red-500" size={18} />
+                  <AlertCircle className="mt-0.5 flex-shrink-0 text-danger" size={18} />
                   <div className="text-sm text-red-600 dark:text-red-400">
                     <p className="font-medium">No se pudo enviar el mensaje</p>
                     {/* Error de créditos insuficientes */}
@@ -836,7 +836,7 @@ export default function WorkflowChatPage() {
                 </button>
               </div>
               <div className="mt-2 text-center">
-                <p className="text-[10px] text-black/30 dark:text-white/30">
+                <p className="text-[10px] text-text-tertiary">
                   La IA puede cometer errores. Considera verificar la información importante.
                 </p>
               </div>
@@ -850,7 +850,7 @@ export default function WorkflowChatPage() {
             title="Eliminar conversación"
           >
             <div className="space-y-4">
-              <p className="text-black/60 dark:text-white/60">
+              <p className="text-text-secondary">
                 ¿Estás seguro de que deseas eliminar esta conversación? Esta acción no se puede
                 deshacer.
               </p>
@@ -871,7 +871,7 @@ export default function WorkflowChatPage() {
                     });
                   }}
                   disabled={deleteConversation.isPending}
-                  className="flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-600 disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-full bg-danger px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-600 disabled:opacity-50"
                 >
                   {deleteConversation.isPending && <Loader2 size={14} className="animate-spin" />}
                   Eliminar

@@ -67,7 +67,7 @@ function AcceptInvitationForm() {
           <Building2 className="h-8 w-8" />
         </div>
         <h2 className="text-xl font-semibold">Invitación inválida</h2>
-        <p className="text-black/60 dark:text-white/60">
+        <p className="text-text-secondary">
           El enlace de invitación no es válido o ha expirado.
         </p>
       </div>
@@ -77,20 +77,20 @@ function AcceptInvitationForm() {
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6">
       <div className="space-y-2 text-center">
-        <h2 className="text-2xl font-bold tracking-tight text-black dark:text-white">
+        <h2 className="text-2xl font-bold tracking-tight text-text-primary">
           Aceptar Invitación
         </h2>
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-text-secondary">
           Completa tus datos para unirte a la organización
           {email && (
-            <span className="mt-1 block font-medium text-black dark:text-white">{email}</span>
+            <span className="mt-1 block font-medium text-text-primary">{email}</span>
           )}
         </p>
       </div>
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+          <label className="block text-sm font-medium text-text-primary">
             Nombre Completo
           </label>
           <input
@@ -98,13 +98,13 @@ function AcceptInvitationForm() {
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             placeholder="Tu nombre"
-            className="w-full rounded-xl border-2 border-transparent bg-[#F5F5F5] px-4 py-3.5 text-black outline-none transition-all focus:border-black focus:bg-white dark:bg-[#171717] dark:text-white dark:focus:border-white dark:focus:bg-[#1A1A1A]"
+            className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
             required
           />
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+          <label className="block text-sm font-medium text-text-primary">
             Contraseña
           </label>
           <div className="relative">
@@ -113,13 +113,13 @@ function AcceptInvitationForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full rounded-xl border-2 border-transparent bg-[#F5F5F5] px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-black focus:bg-white dark:bg-[#171717] dark:text-white dark:focus:border-white dark:focus:bg-[#1A1A1A]"
+              className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
               required
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-black dark:text-white/40 dark:hover:text-white"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-text-primary hover:text-text-primary"
             >
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
@@ -127,7 +127,7 @@ function AcceptInvitationForm() {
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+          <label className="block text-sm font-medium text-text-primary">
             Confirmar Contraseña
           </label>
           <div className="relative">
@@ -136,13 +136,13 @@ function AcceptInvitationForm() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full rounded-xl border-2 border-transparent bg-[#F5F5F5] px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-black focus:bg-white dark:bg-[#171717] dark:text-white dark:focus:border-white dark:focus:bg-[#1A1A1A]"
+              className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
               required
             />
             <button
               type="button"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-black dark:text-white/40 dark:hover:text-white"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-text-primary hover:text-text-primary"
             >
               {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
@@ -153,7 +153,7 @@ function AcceptInvitationForm() {
       <button
         type="submit"
         disabled={acceptInvitation.isPending}
-        className="group flex w-full items-center justify-center gap-2 rounded-xl bg-black py-4 font-semibold text-white transition-all hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-white dark:text-black dark:hover:bg-white/90"
+        className="group flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-4 font-semibold text-text-inverse transition-all hover:bg-accent-hover"
       >
         {acceptInvitation.isPending ? (
           <>
@@ -177,7 +177,7 @@ export default function AcceptInvitationPage() {
     <div className="flex h-screen overflow-hidden bg-black">
       {/* SECCIÓN IZQUIERDA - BRANDING (Reutilizado de AuthScreen) */}
       <div className="relative hidden overflow-hidden bg-gradient-to-br from-black via-[#0A0A0A] to-[#1A1A1A] lg:flex lg:w-1/2">
-        <div className="absolute inset-0 z-0 hidden bg-gradient-to-r from-black via-[#0A0A0A] to-black dark:block" />
+        <div className="absolute inset-0 z-0 hidden bg-gradient-to-r from-brand-black via-brand-black to-brand-black block" />
         <div
           className="pointer-events-none absolute inset-y-0 right-0 z-20 hidden dark:block"
           style={{
@@ -225,11 +225,11 @@ export default function AcceptInvitationPage() {
       </div>
 
       {/* SECCIÓN DERECHA - FORMULARIO */}
-      <div className="h-full flex-1 overflow-y-auto bg-white transition-colors duration-300 dark:bg-black">
+      <div className="h-full flex-1 overflow-y-auto bg-background transition-colors duration-300">
         <div className="flex min-h-full flex-col items-center justify-center p-8 py-20">
           {/* Mobile Logo */}
           <div className="mb-12 flex items-center gap-3 lg:hidden">
-            <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-black dark:bg-white">
+            <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-accent">
               <Image
                 src="/favicon.svg"
                 alt="Tesseract Logo"
@@ -238,7 +238,7 @@ export default function AcceptInvitationPage() {
                 className="h-28 w-28 object-contain invert"
               />
             </div>
-            <span className="text-xl font-bold text-black dark:text-white">Tesseract</span>
+            <span className="text-xl font-bold text-text-primary">Tesseract</span>
           </div>
 
           <Suspense fallback={<LogoLoader text="Cargando..." />}>

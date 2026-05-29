@@ -192,8 +192,8 @@ export default function ApiKeysPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-black dark:text-white">API Keys</h1>
-          <p className="mt-1 text-black/50 dark:text-white/50">
+          <h1 className="text-2xl font-bold text-text-primary">API Keys</h1>
+          <p className="mt-1 text-text-secondary">
             Gestiona las llaves de acceso para ejecutar tus workflows externamente
           </p>
         </div>
@@ -212,7 +212,7 @@ export default function ApiKeysPage() {
       <div className="relative">
         <Search
           size={16}
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30 dark:text-white/30"
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary"
         />
         <input
           type="text"
@@ -245,7 +245,7 @@ export default function ApiKeysPage() {
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex items-center gap-3">
                   <h3
-                    className={`truncate text-base font-semibold ${key.isActive ? 'text-black dark:text-white' : 'text-black/50 line-through dark:text-white/50'}`}
+                    className={`truncate text-base font-semibold ${key.isActive ? 'text-text-primary' : 'text-black/50 line-through dark:text-white/50'}`}
                   >
                     {key.name}
                   </h3>
@@ -264,12 +264,12 @@ export default function ApiKeysPage() {
                 </div>
 
                 {key.description && (
-                  <p className="mb-2 line-clamp-1 text-sm text-black/60 dark:text-white/60">
+                  <p className="mb-2 line-clamp-1 text-sm text-text-secondary">
                     {key.description}
                   </p>
                 )}
 
-                <div className="mt-1 flex items-center gap-2 text-xs text-black/40 dark:text-white/40">
+                <div className="mt-1 flex items-center gap-2 text-xs text-text-tertiary">
                   <Workflow size={12} />
                   <span className="truncate font-medium">
                     {workflows.find((w) => w.id === key.workflowId)?.name || 'Workflow desconocido'}
@@ -281,7 +281,7 @@ export default function ApiKeysPage() {
                 <PermissionGuard permissions="api_keys:update">
                   <button
                     onClick={() => openEditModal(key)}
-                    className="rounded-full p-2 text-black/40 transition-colors hover:bg-black/5 hover:text-black dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white"
+                    className="rounded-full p-2 text-black/40 transition-colors hover:bg-black/5 hover:text-text-primary/40 dark:hover:bg-white/5 dark:hover:text-white"
                     title="Editar"
                   >
                     <Edit2 size={16} />
@@ -294,7 +294,7 @@ export default function ApiKeysPage() {
                       setSelectedKey(key);
                       setIsDeleteModalOpen(true);
                     }}
-                    className="rounded-full p-2 text-black/40 transition-colors hover:bg-red-500/10 hover:text-red-500 dark:text-white/40"
+                    className="rounded-full p-2 text-black/40 transition-colors hover:bg-danger/10 hover:text-danger dark:text-white/40"
                     title="Eliminar"
                   >
                     <Trash2 size={16} />
@@ -311,13 +311,13 @@ export default function ApiKeysPage() {
             animate={{ opacity: 1 }}
             className="py-16 text-center"
           >
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-black/5 dark:bg-white/5">
-              <Key size={24} className="text-black/30 dark:text-white/30" />
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-secondary">
+              <Key size={24} className="text-text-tertiary" />
             </div>
-            <h3 className="mb-2 text-lg font-semibold text-black dark:text-white">
+            <h3 className="mb-2 text-lg font-semibold text-text-primary">
               No se encontraron API Keys
             </h3>
-            <p className="text-black/50 dark:text-white/50">Crea una nueva llave para comenzar.</p>
+            <p className="text-text-secondary">Crea una nueva llave para comenzar.</p>
           </motion.div>
         )}
       </div>
@@ -332,7 +332,7 @@ export default function ApiKeysPage() {
           >
             <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-black/70 dark:text-white/70">
+                <label className="mb-1 block text-sm font-medium text-text-primary">
                   Nombre
                 </label>
                 <input
@@ -345,7 +345,7 @@ export default function ApiKeysPage() {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-black/70 dark:text-white/70">
+                <label className="mb-1 block text-sm font-medium text-text-primary">
                   Descripción (Opcional)
                 </label>
                 <textarea
@@ -358,14 +358,14 @@ export default function ApiKeysPage() {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-black/70 dark:text-white/70">
+                <label className="mb-1 block text-sm font-medium text-text-primary">
                   Workflow Asociado
                 </label>
-                <div className="overflow-hidden rounded-xl border border-black/10 dark:border-white/10">
+                <div className="overflow-hidden rounded-xl border border-border">
                   {isLoadingWorkflows ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2
-                        className="animate-spin text-black/20 dark:text-white/20"
+                        className="animate-spin text-text-tertiary"
                         size={20}
                       />
                     </div>
@@ -388,7 +388,7 @@ export default function ApiKeysPage() {
                               <div className="truncate text-sm font-medium">{wf.name}</div>
                             </div>
                             {formData.workflowId === wf.id && (
-                              <Check size={16} className="shrink-0 text-black dark:text-white" />
+                              <Check size={16} className="shrink-0 text-text-primary" />
                             )}
                           </button>
                         );
@@ -396,7 +396,7 @@ export default function ApiKeysPage() {
                       {isFetchingNextPage && (
                         <div className="flex justify-center p-2">
                           <Loader2
-                            className="animate-spin text-black/20 dark:text-white/20"
+                            className="animate-spin text-text-tertiary"
                             size={16}
                           />
                         </div>
@@ -451,7 +451,7 @@ export default function ApiKeysPage() {
               </div>
 
               <div className="group/key relative">
-                <div className="w-full break-all rounded-xl border border-black/10 bg-black/5 p-4 pr-12 font-mono text-sm text-black dark:border-white/10 dark:bg-white/5 dark:text-white">
+                <div className="w-full break-all rounded-xl border border-border bg-black/5 p-4 pr-12 font-mono text-sm text-black  dark:bg-white/5 dark:text-white">
                   {createdKeyToken}
                 </div>
                 <CopyButton
@@ -484,7 +484,7 @@ export default function ApiKeysPage() {
           >
             <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-black/70 dark:text-white/70">
+                <label className="mb-1 block text-sm font-medium text-text-primary">
                   Nombre
                 </label>
                 <input
@@ -496,7 +496,7 @@ export default function ApiKeysPage() {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-black/70 dark:text-white/70">
+                <label className="mb-1 block text-sm font-medium text-text-primary">
                   Descripción
                 </label>
                 <textarea
@@ -508,7 +508,7 @@ export default function ApiKeysPage() {
               </div>
 
               <div className="py-2">
-                <div className="flex items-center justify-between rounded-xl border border-black/10 p-3 dark:border-white/10">
+                <div className="flex items-center justify-between rounded-xl border border-border p-3 ">
                   <div className="flex items-center gap-3">
                     <div
                       className={`rounded-lg p-2 ${formData.isActive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-black/5 text-black/40 dark:bg-white/5 dark:text-white/40'}`}
@@ -516,8 +516,8 @@ export default function ApiKeysPage() {
                       <Power size={18} />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-black dark:text-white">Estado</p>
-                      <p className="text-xs text-black/50 dark:text-white/50">
+                      <p className="text-sm font-medium text-text-primary">Estado</p>
+                      <p className="text-xs text-text-secondary">
                         {formData.isActive
                           ? 'La llave está activa y funcionando'
                           : 'La llave está deshabilitada'}
@@ -572,14 +572,14 @@ export default function ApiKeysPage() {
             title="Eliminar API Key"
           >
             <div className="space-y-4">
-              <div className="flex items-center gap-3 rounded-xl bg-red-500/10 p-4 text-red-600 dark:text-red-400">
+              <div className="flex items-center gap-3 rounded-xl bg-danger/10 p-4 text-red-600 dark:text-red-400">
                 <AlertTriangle size={24} />
                 <p className="text-sm font-medium">
                   Esta acción es irreversible. La API Key dejará de funcionar inmediatamente.
                 </p>
               </div>
 
-              <p className="text-center text-sm text-black/60 dark:text-white/60">
+              <p className="text-center text-sm text-text-secondary">
                 ¿Estás seguro de que deseas eliminar <strong>{selectedKey?.name}</strong>?
               </p>
 
@@ -593,7 +593,7 @@ export default function ApiKeysPage() {
                 <button
                   onClick={handleDelete}
                   disabled={deleteApiKey.isPending}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-2 font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2 font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50"
                 >
                   {deleteApiKey.isPending ? (
                     <Loader2 className="animate-spin" size={18} />

@@ -35,7 +35,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
       {sortedPlans.map((plan) => (
         <div
           key={plan.type}
-          className={`relative flex flex-grow basis-[calc(100%)] flex-col rounded-2xl border bg-white transition-all duration-300 hover:border-black/20 sm:basis-[calc(50%-12px)] lg:basis-[calc(33.33%-16px)] 2xl:basis-[calc(20%-20px)] dark:bg-[#0A0A0A] dark:hover:border-white/20 ${plan.popular ? 'border-black shadow-lg ring-1 ring-black dark:border-white dark:ring-white' : 'border-black/5 dark:border-white/5'}`}
+          className={`relative flex flex-grow basis-[calc(100%)] flex-col rounded-2xl border bg-white transition-all duration-300 hover:border-black/20 sm:basis-[calc(50%-12px)] lg:basis-[calc(33.33%-16px)] 2xl:basis-[calc(20%-20px)] dark:bg-[#0A0A0A] dark:hover:border-white/20 ${plan.popular ? 'border-black shadow-lg ring-1 ring-black dark:border-white dark:ring-white' : 'border-border'}`}
         >
           {plan.popular && (
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-black px-3 py-1 text-xs font-bold uppercase tracking-wide text-white dark:bg-white dark:text-black">
@@ -50,16 +50,16 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
               {getPlanIcon(plan.type)}
             </div>
 
-            <h3 className="text-lg font-bold text-black dark:text-white">{plan.name}</h3>
-            <p className="mt-1 min-h-[40px] text-sm text-black/50 dark:text-white/50">
+            <h3 className="text-lg font-bold text-text-primary">{plan.name}</h3>
+            <p className="mt-1 min-h-[40px] text-sm text-text-secondary">
               {plan.description}
             </p>
 
             <div className="mt-4 flex items-baseline gap-1">
-              <span className="font-geist-mono text-3xl font-bold text-black dark:text-white">
+              <span className="font-geist-mono text-3xl font-bold text-text-primary">
                 ${plan.price.monthly}
               </span>
-              <span className="text-sm font-medium text-black/40 dark:text-white/40">
+              <span className="text-sm font-medium text-text-tertiary">
                 /{plan.price.currency}
               </span>
             </div>
@@ -68,8 +68,8 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
             <div className="mt-6 space-y-3 border-t border-black/5 pt-6 dark:border-white/5">
               {/* Credits */}
               <div className="flex items-center gap-2 text-sm">
-                <span className="font-medium text-black/70 dark:text-white/70">
-                  <strong className="font-geist-mono text-black dark:text-white">
+                <span className="font-medium text-text-primary">
+                  <strong className="font-geist-mono text-text-primary">
                     {plan.limits.monthlyCredits.toLocaleString()}
                   </strong>{' '}
                   créditos/mes
@@ -77,7 +77,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
               </div>
 
               {/* Workflows */}
-              <div className="flex items-center gap-2 text-sm text-black/70 dark:text-white/70">
+              <div className="flex items-center gap-2 text-sm text-text-primary">
                 <span>
                   {plan.limits.maxWorkflows === -1 ? (
                     'Workflows ilimitados'
@@ -90,7 +90,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
               </div>
 
               {/* API Keys */}
-              <div className="flex items-center gap-2 text-sm text-black/70 dark:text-white/70">
+              <div className="flex items-center gap-2 text-sm text-text-primary">
                 <span>
                   {plan.limits.maxApiKeys === -1 ? (
                     'API Keys ilimitadas'
@@ -103,7 +103,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
               </div>
 
               {/* Users */}
-              <div className="flex items-center gap-2 text-sm text-black/70 dark:text-white/70">
+              <div className="flex items-center gap-2 text-sm text-text-primary">
                 <span>
                   {plan.limits.maxUsers === -1 ? (
                     'Usuarios ilimitados'
@@ -119,7 +119,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
             {/* Features */}
             <div className="mt-6 space-y-3">
               {plan.features.length > 0 && (
-                <p className="text-xs font-bold uppercase tracking-wider text-black/30 dark:text-white/30">
+                <p className="text-xs font-bold uppercase tracking-wider text-text-tertiary">
                   INCLUYE
                 </p>
               )}
@@ -128,7 +128,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
                   <div className="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/10">
                     <Check size={10} className="text-emerald-500" />
                   </div>
-                  <span className="text-black/70 dark:text-white/70">{feature}</span>
+                  <span className="text-text-primary">{feature}</span>
                 </div>
               ))}
 
@@ -138,7 +138,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
                   <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-amber-500/10">
                     <Zap size={10} className="fill-amber-500 text-amber-500" />
                   </div>
-                  <span className="font-semibold italic text-black/70 dark:text-white/70">
+                  <span className="font-semibold italic text-text-primary">
                     {plan.highlightFeature}
                   </span>
                 </div>

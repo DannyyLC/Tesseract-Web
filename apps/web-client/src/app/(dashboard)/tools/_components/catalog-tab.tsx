@@ -73,7 +73,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
         <div className="relative flex-1">
           <Search
             size={15}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30 dark:text-white/30"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary"
           />
           <input
             type="text"
@@ -87,7 +87,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
 
       {/* Results count */}
       {!catalogLoading && (
-        <p className="text-xs text-black/40 dark:text-white/40">
+        <p className="text-xs text-text-tertiary">
           {allCatalogTools.length} herramienta{allCatalogTools.length !== 1 ? 's' : ''}
         </p>
       )}
@@ -96,7 +96,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
       {catalogLoading && (
         <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-52 animate-pulse rounded-2xl bg-black/5 dark:bg-white/5" />
+            <div key={i} className="h-52 animate-pulse rounded-2xl bg-surface-secondary" />
           ))}
         </div>
       )}
@@ -119,11 +119,11 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
       {/* Empty state */}
       {!catalogLoading && allCatalogTools.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-black/5 dark:bg-white/5">
-            <Search size={24} className="text-black/30 dark:text-white/30" />
+          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-secondary">
+            <Search size={24} className="text-text-tertiary" />
           </div>
-          <p className="font-medium text-black dark:text-white">Sin resultados</p>
-          <p className="mt-1 text-sm text-black/50 dark:text-white/50">
+          <p className="font-medium text-text-primary">Sin resultados</p>
+          <p className="mt-1 text-sm text-text-secondary">
             Intenta con otra búsqueda.
           </p>
         </div>
@@ -133,7 +133,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
       <div ref={sentinelRef} />
       {isFetchingNextPage && (
         <div className="flex justify-center py-4">
-          <Loader2 size={20} className="animate-spin text-black/30 dark:text-white/30" />
+          <Loader2 size={20} className="animate-spin text-text-tertiary" />
         </div>
       )}
 

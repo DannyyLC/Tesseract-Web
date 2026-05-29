@@ -80,7 +80,7 @@ const socialLinks = [
     name: 'Facebook',
     icon: <FaFacebook size={24} />,
     href: 'https://www.facebook.com/profile.php?id=61583896372008',
-    color: 'hover:text-blue-500',
+    color: 'hover:text-info',
   },
   {
     name: 'TikTok',

@@ -46,7 +46,7 @@ export default function ProfilePage() {
   if (!authUser || !userDetails) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
-        <p className="text-black/50 dark:text-white/50">
+        <p className="text-text-secondary">
           No se pudo cargar la información del usuario
         </p>
       </div>
@@ -62,8 +62,8 @@ export default function ProfilePage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-black dark:text-white">Mi Perfil</h1>
-        <p className="mt-1 text-black/50 dark:text-white/50">
+        <h1 className="text-2xl font-bold text-text-primary">Mi Perfil</h1>
+        <p className="mt-1 text-text-secondary">
           Gestiona tu información personal y configuración de seguridad
         </p>
       </div>
@@ -76,8 +76,8 @@ export default function ProfilePage() {
         className="overflow-hidden rounded-2xl border border-black/5 bg-white dark:border-white/5 dark:bg-[#141414]"
       >
         <div className="border-b border-black/5 p-6 dark:border-white/5">
-          <h2 className="text-lg font-semibold text-black dark:text-white">Información Personal</h2>
-          <p className="mt-1 text-sm text-black/50 dark:text-white/50">
+          <h2 className="text-lg font-semibold text-text-primary">Información Personal</h2>
+          <p className="mt-1 text-sm text-text-secondary">
             Detalles de tu cuenta y organización
           </p>
         </div>
@@ -86,11 +86,11 @@ export default function ProfilePage() {
           {/* Name */}
           <div className="flex items-start gap-4">
             <div className="rounded-lg bg-black/5 p-2.5 dark:bg-white/5">
-              <UserIcon size={20} className="text-black/60 dark:text-white/60" />
+              <UserIcon size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-black/50 dark:text-white/50">Nombre</p>
-              <p className="mt-0.5 text-base font-medium text-black dark:text-white">
+              <p className="text-sm font-medium text-text-secondary">Nombre</p>
+              <p className="mt-0.5 text-base font-medium text-text-primary">
                 {userDetails.name}
               </p>
             </div>
@@ -99,11 +99,11 @@ export default function ProfilePage() {
           {/* Email */}
           <div className="flex items-start gap-4">
             <div className="rounded-lg bg-black/5 p-2.5 dark:bg-white/5">
-              <Mail size={20} className="text-black/60 dark:text-white/60" />
+              <Mail size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-black/50 dark:text-white/50">Email</p>
-              <p className="mt-0.5 text-base font-medium text-black dark:text-white">
+              <p className="text-sm font-medium text-text-secondary">Email</p>
+              <p className="mt-0.5 text-base font-medium text-text-primary">
                 {userDetails.email}
               </p>
             </div>
@@ -112,10 +112,10 @@ export default function ProfilePage() {
           {/* Role */}
           <div className="flex items-start gap-4">
             <div className="rounded-lg bg-black/5 p-2.5 dark:bg-white/5">
-              <Shield size={20} className="text-black/60 dark:text-white/60" />
+              <Shield size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-black/50 dark:text-white/50">Rol</p>
+              <p className="text-sm font-medium text-text-secondary">Rol</p>
               <div className="mt-1">
                 <span className={`text-sm font-bold uppercase tracking-wide ${roleConfig.color}`}>
                   {roleConfig.label}
@@ -127,11 +127,11 @@ export default function ProfilePage() {
           {/* Organization */}
           <div className="flex items-start gap-4">
             <div className="rounded-lg bg-black/5 p-2.5 dark:bg-white/5">
-              <Building2 size={20} className="text-black/60 dark:text-white/60" />
+              <Building2 size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-black/50 dark:text-white/50">Organización</p>
-              <p className="mt-0.5 text-base font-medium text-black dark:text-white">
+              <p className="text-sm font-medium text-text-secondary">Organización</p>
+              <p className="mt-0.5 text-base font-medium text-text-primary">
                 {authUser.organizationName}
               </p>
             </div>
@@ -140,11 +140,11 @@ export default function ProfilePage() {
           {/* Member Since */}
           <div className="flex items-start gap-4">
             <div className="rounded-lg bg-black/5 p-2.5 dark:bg-white/5">
-              <Calendar size={20} className="text-black/60 dark:text-white/60" />
+              <Calendar size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-black/50 dark:text-white/50">Miembro desde</p>
-              <p className="mt-0.5 text-base font-medium text-black dark:text-white">
+              <p className="text-sm font-medium text-text-secondary">Miembro desde</p>
+              <p className="mt-0.5 text-base font-medium text-text-primary">
                 {new Date(userDetails.createdAt).toLocaleDateString('es-MX', {
                   year: 'numeric',
                   month: 'long',
@@ -164,8 +164,8 @@ export default function ProfilePage() {
         className="overflow-hidden rounded-2xl border border-black/5 bg-white dark:border-white/5 dark:bg-[#141414]"
       >
         <div className="border-b border-black/5 p-6 dark:border-white/5">
-          <h2 className="text-lg font-semibold text-black dark:text-white">Seguridad</h2>
-          <p className="mt-1 text-sm text-black/50 dark:text-white/50">
+          <h2 className="text-lg font-semibold text-text-primary">Seguridad</h2>
+          <p className="mt-1 text-sm text-text-secondary">
             Gestiona tu contraseña y autenticación de dos factores
           </p>
         </div>
@@ -184,10 +184,10 @@ export default function ProfilePage() {
                 <ShieldCheck size={20} />
               </div>
               <div>
-                <p className="text-sm font-medium text-black dark:text-white">
+                <p className="text-sm font-medium text-text-primary">
                   Autenticación de Dos Factores
                 </p>
-                <p className="text-xs text-black/50 dark:text-white/50">
+                <p className="text-xs text-text-secondary">
                   {twoFactorEnabled
                     ? 'Tu cuenta está protegida con 2FA'
                     : 'Agrega una capa extra de seguridad'}
@@ -200,7 +200,7 @@ export default function ProfilePage() {
               }
               className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${
                 twoFactorEnabled
-                  ? 'border border-red-500/20 text-red-600 hover:bg-red-500/10 dark:text-red-400'
+                  ? 'border border-red-500/20 text-red-600 hover:bg-danger/10 dark:text-red-400'
                   : 'bg-black text-white hover:opacity-90 dark:bg-white dark:text-black'
               }`}
             >
@@ -212,13 +212,13 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between rounded-xl border border-black/5 p-4 dark:border-white/5">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-black/5 p-2.5 dark:bg-white/5">
-                <Key size={20} className="text-black/60 dark:text-white/60" />
+                <Key size={20} className="text-text-secondary" />
               </div>
               <div>
-                <p className="text-sm font-medium text-black dark:text-white">
+                <p className="text-sm font-medium text-text-primary">
                   {hasPassword ? 'Contraseña' : 'Crear Contraseña'}
                 </p>
-                <p className="text-xs text-black/50 dark:text-white/50">
+                <p className="text-xs text-text-secondary">
                   {hasPassword
                     ? 'Cambia tu contraseña regularmente'
                     : 'Establece una contraseña para tu cuenta'}
@@ -237,18 +237,18 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between rounded-xl border border-black/5 p-4 dark:border-white/5">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-black/5 p-2.5 dark:bg-white/5">
-                <MonitorX size={20} className="text-black/60 dark:text-white/60" />
+                <MonitorX size={20} className="text-text-secondary" />
               </div>
               <div>
-                <p className="text-sm font-medium text-black dark:text-white">Sesiones Activas</p>
-                <p className="text-xs text-black/50 dark:text-white/50">
+                <p className="text-sm font-medium text-text-primary">Sesiones Activas</p>
+                <p className="text-xs text-text-secondary">
                   Cierra sesión en todos los dispositivos
                 </p>
               </div>
             </div>
             <button
               onClick={() => setIsLogoutAllModalOpen(true)}
-              className="rounded-xl border border-black/10 px-4 py-2 text-sm font-medium text-black transition-all hover:bg-black/5 dark:border-white/10 dark:text-white dark:hover:bg-white/5"
+              className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-black transition-all hover:bg-black/5  dark:text-white dark:hover:bg-white/5"
             >
               Cerrar todas
             </button>
@@ -261,7 +261,7 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="overflow-hidden rounded-2xl border border-red-500/20 bg-red-500/5 dark:bg-red-500/10"
+        className="overflow-hidden rounded-2xl border border-red-500/20 bg-danger/5 dark:bg-danger/10"
       >
         <div className="border-b border-red-500/20 p-6">
           <h2 className="text-lg font-semibold text-red-600 dark:text-red-400">Zona Peligrosa</h2>
@@ -273,21 +273,21 @@ export default function ProfilePage() {
         <div className="p-6">
           <div className="flex items-center justify-between rounded-xl border border-red-500/20 bg-white p-4 dark:bg-[#141414]">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-red-500/10 p-2.5 text-red-500">
+              <div className="rounded-lg bg-danger/10 p-2.5 text-danger">
                 <LogOut size={20} />
               </div>
               <div>
-                <p className="text-sm font-medium text-black dark:text-white">
+                <p className="text-sm font-medium text-text-primary">
                   Salir de la Organización
                 </p>
-                <p className="text-xs text-black/50 dark:text-white/50">
+                <p className="text-xs text-text-secondary">
                   Perderás acceso a todos los recursos
                 </p>
               </div>
             </div>
             <button
               onClick={() => setIsLeaveOrgModalOpen(true)}
-              className="rounded-xl border border-red-500/20 px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-red-500/10 dark:text-red-400"
+              className="rounded-xl border border-red-500/20 px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-danger/10 dark:text-red-400"
             >
               Salir
             </button>

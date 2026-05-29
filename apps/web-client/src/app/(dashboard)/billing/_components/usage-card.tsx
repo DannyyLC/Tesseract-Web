@@ -32,13 +32,13 @@ export default function UsageCard({ title, icon, used, limit, unit }: UsageCardP
       </div>
 
       <div>
-        <h3 className="text-sm font-medium text-black/50 dark:text-white/50">{title}</h3>
+        <h3 className="text-sm font-medium text-text-secondary">{title}</h3>
         <div className="mt-1 flex items-baseline gap-1">
-          <span className="font-geist-mono text-3xl font-light tracking-tight text-black dark:text-white">
+          <span className="font-geist-mono text-3xl font-light tracking-tight text-text-primary">
             {used.toLocaleString()}
           </span>
           {!isUnlimited && (
-            <span className="text-sm text-black/30 dark:text-white/30">
+            <span className="text-sm text-text-tertiary">
               / {limit.toLocaleString()}
             </span>
           )}
@@ -48,12 +48,12 @@ export default function UsageCard({ title, icon, used, limit, unit }: UsageCardP
       {/* Progress Bar - Monochrome */}
       {!isUnlimited ? (
         <div className="mt-4 space-y-2">
-          <div className="h-1 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/5">
+          <div className="h-1 w-full overflow-hidden rounded-full bg-surface-secondary">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${percentage}%` }}
               transition={{ duration: 1, ease: 'easeOut' }}
-              className="h-full rounded-full bg-black dark:bg-white"
+              className="h-full rounded-full bg-accent"
             />
           </div>
         </div>

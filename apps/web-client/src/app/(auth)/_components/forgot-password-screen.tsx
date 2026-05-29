@@ -34,7 +34,7 @@ export default function ForgotPasswordScreen() {
     <div className="flex h-screen overflow-hidden bg-black">
       {/* SECCIÓN IZQUIERDA - BRANDING */}
       <div className="relative hidden overflow-hidden bg-gradient-to-br from-black via-[#0A0A0A] to-[#1A1A1A] lg:flex lg:w-1/2">
-        <div className="absolute inset-0 z-0 hidden bg-gradient-to-r from-black via-[#0A0A0A] to-black dark:block" />
+        <div className="absolute inset-0 z-0 hidden bg-gradient-to-r from-brand-black via-brand-black to-brand-black block" />
         <div
           className="pointer-events-none absolute inset-y-0 right-0 z-20 hidden dark:block"
           style={{
@@ -82,7 +82,7 @@ export default function ForgotPasswordScreen() {
       </div>
 
       {/* SECCIÓN DERECHA - FORMULARIO */}
-      <div className="h-full flex-1 overflow-y-auto bg-white transition-colors duration-300 dark:bg-black">
+      <div className="h-full flex-1 overflow-y-auto bg-background transition-colors duration-300">
         <div className="flex min-h-full flex-col items-center justify-center p-8 py-20">
           <motion.div
             className="w-full max-w-md space-y-8"
@@ -92,7 +92,7 @@ export default function ForgotPasswordScreen() {
           >
             {/* Mobile Logo */}
             <div className="mb-12 flex items-center gap-3 lg:hidden">
-              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-black dark:bg-white">
+              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-accent">
                 <Image
                   src="/favicon.svg"
                   alt="Tesseract Logo"
@@ -101,22 +101,22 @@ export default function ForgotPasswordScreen() {
                   className="h-28 w-28 object-contain invert"
                 />
               </div>
-              <span className="text-xl font-bold text-black dark:text-white">Tesseract</span>
+              <span className="text-xl font-bold text-text-primary">Tesseract</span>
             </div>
 
             <div className="w-full max-w-md space-y-8">
               <div className="space-y-2 text-center">
-                <h2 className="text-3xl font-bold text-black dark:text-white">
+                <h2 className="text-3xl font-bold text-text-primary">
                   ¿Olvidaste tu contraseña?
                 </h2>
-                <p className="text-black/60 dark:text-white/60">
+                <p className="text-text-secondary">
                   Ingresa tu correo electrónico y te enviaremos un código de verificación.
                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+                  <label className="block text-sm font-medium text-text-primary">
                     Email
                   </label>
                   <input
@@ -124,7 +124,7 @@ export default function ForgotPasswordScreen() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="ejemplo@empresa.com"
-                    className="w-full rounded-xl border-2 border-transparent bg-[#F5F5F5] px-4 py-3.5 text-black outline-none transition-all focus:border-black focus:bg-white dark:bg-[#171717] dark:text-white dark:focus:border-white dark:focus:bg-[#1A1A1A]"
+                    className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                     required
                   />
                 </div>
@@ -141,7 +141,7 @@ export default function ForgotPasswordScreen() {
                 <button
                   type="submit"
                   disabled={isPending || !turnstileToken}
-                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-black py-4 font-semibold text-white transition-all hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-white dark:text-black dark:hover:bg-white/90"
+                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-4 font-semibold text-text-inverse transition-all hover:bg-accent-hover"
                 >
                   {isPending ? (
                     <>
@@ -162,7 +162,7 @@ export default function ForgotPasswordScreen() {
                 <div className="mt-6 text-center">
                   <Link
                     href="/login"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-black/60 transition-colors hover:text-black dark:text-white/60 dark:hover:text-white"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-black/60 transition-colors hover:text-text-primary hover:text-text-primary"
                   >
                     <ArrowLeft size={16} />
                     Volver al login

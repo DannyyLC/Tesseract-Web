@@ -95,10 +95,10 @@ export default function BillingPage() {
           {/* Header */}
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div className="space-y-2">
-              <h1 className="text-4xl font-bold tracking-tight text-black dark:text-white">
+              <h1 className="text-4xl font-bold tracking-tight text-text-primary">
                 Resumen de Facturación
               </h1>
-              <p className="max-w-sm font-medium text-black/50 dark:text-white/50">
+              <p className="max-w-sm font-medium text-text-secondary">
                 Monitorea tu consumo y el estado de tu suscripción.
               </p>
             </div>
@@ -111,7 +111,7 @@ export default function BillingPage() {
                     rel="noopener noreferrer"
                     onClick={handleOpenPortal}
                     onMouseEnter={() => fetchPortalUrl()}
-                    className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-medium text-black hover:bg-black/5 dark:border-white/10 dark:bg-transparent dark:text-white dark:hover:bg-white/5"
+                    className="flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-2 text-sm font-medium text-black hover:bg-black/5  dark:bg-transparent dark:text-white dark:hover:bg-white/5"
                   >
                     {isOpeningPortal ? 'Cargando...' : 'Portal de Pagos'}
                   </a>
@@ -148,7 +148,7 @@ export default function BillingPage() {
 
           {/* Resource Usage Grid */}
           <div>
-            <h2 className="mb-6 text-xl font-bold text-black dark:text-white">Uso de Recursos</h2>
+            <h2 className="mb-6 text-xl font-bold text-text-primary">Uso de Recursos</h2>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <UsageCard
                 title="Workflows Activos"
@@ -183,10 +183,10 @@ export default function BillingPage() {
             <PartyPopper size={40} className="text-emerald-500" />
           </div>
           <div className="space-y-2 text-center">
-            <h3 className="text-2xl font-bold text-black dark:text-white">
+            <h3 className="text-2xl font-bold text-text-primary">
               ¡Gracias por tu confianza!
             </h3>
-            <p className="max-w-sm text-sm text-black/60 dark:text-white/60">
+            <p className="max-w-sm text-sm text-text-secondary">
               Tu suscripción ha sido activada exitosamente. Ya puedes disfrutar de todos los
               beneficios de tu nuevo plan.
             </p>

@@ -67,8 +67,8 @@ export function CatalogToolCard({
 
       {/* Body */}
       <div className="flex-1">
-        <h3 className="font-semibold text-black dark:text-white">{tool.displayName}</h3>
-        <p className="mt-1 text-xs leading-relaxed text-black/50 dark:text-white/50">
+        <h3 className="font-semibold text-text-primary">{tool.displayName}</h3>
+        <p className="mt-1 text-xs leading-relaxed text-text-secondary">
           {tool.description}
         </p>
 
@@ -78,7 +78,7 @@ export function CatalogToolCard({
               {tool.category}
             </span>
             {tool.functions.length > 0 && (
-              <span className="flex items-center gap-1 text-[10px] font-medium text-black/40 dark:text-white/40">
+              <span className="flex items-center gap-1 text-[10px] font-medium text-text-tertiary">
                 {tool.functions.length} función{tool.functions.length !== 1 ? 'es' : ''}
                 {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
               </span>
@@ -98,7 +98,7 @@ export function CatalogToolCard({
             className="overflow-hidden"
           >
             <div className="mt-4 space-y-3 border-t border-black/5 pt-4 dark:border-white/5">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-black/30 dark:text-white/30">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
                 Funciones disponibles
               </p>
               <div className="space-y-2">
@@ -111,11 +111,11 @@ export function CatalogToolCard({
                       <div className="flex h-5 w-5 items-center justify-center rounded bg-black/5 text-black/50 dark:bg-white/10 dark:text-white/50">
                         <DynamicIcon name={fn.icon} size={12} />
                       </div>
-                      <p className="text-xs font-semibold text-black dark:text-white">
+                      <p className="text-xs font-semibold text-text-primary">
                         {fn.displayName}
                       </p>
                     </div>
-                    <p className="mt-1 text-[10px] leading-relaxed text-black/50 dark:text-white/50">
+                    <p className="mt-1 text-[10px] leading-relaxed text-text-secondary">
                       {fn.description}
                     </p>
                   </div>

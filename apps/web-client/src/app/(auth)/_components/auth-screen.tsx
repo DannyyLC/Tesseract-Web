@@ -290,7 +290,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
   // Mostrar loading mientras verificamos autenticación para evitar flash del formulario
   if (isLoadingUser) {
     return (
-      <div className="flex h-screen items-center justify-center bg-white dark:bg-black">
+      <div className="flex h-screen items-center justify-center bg-surface">
         <LogoLoader text="Verificando" />
       </div>
     );
@@ -306,7 +306,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
       {/* SECCIÓN IZQUIERDA - BRANDING */}
       <div className="relative hidden overflow-hidden bg-gradient-to-br from-black via-[#0A0A0A] to-[#1A1A1A] lg:flex lg:w-1/2">
         {/* Capa base para Dark Mode: Gradiente de izquierda a derecha para uniformidad vertical */}
-        <div className="absolute inset-0 z-0 hidden bg-gradient-to-r from-black via-[#0A0A0A] to-black dark:block" />
+        <div className="absolute inset-0 z-0 bg-gradient-to-r from-brand-black via-brand-black to-brand-black block" />
 
         {/* Seamless Overlay */}
         <div
@@ -365,7 +365,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
       </div>
 
       {/* SECCIÓN DERECHA - FORMULARIO */}
-      <div className="h-full flex-1 overflow-y-auto bg-white transition-colors duration-300 dark:bg-black">
+      <div className="h-full flex-1 overflow-y-auto bg-background transition-colors duration-300">
         <div className="flex min-h-full flex-col items-center justify-center p-8 py-20">
           <motion.div
             className="w-full max-w-md space-y-8"
@@ -375,7 +375,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
           >
             {/* Mobile Logo */}
             <div className="mb-12 flex items-center gap-3 lg:hidden">
-              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-black dark:bg-white">
+              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-accent">
                 <Image
                   src="/favicon.svg"
                   alt="Tesseract Logo"
@@ -384,7 +384,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                   className="h-28 w-28 object-contain invert"
                 />
               </div>
-              <span className="text-xl font-bold text-black dark:text-white">Tesseract</span>
+              <span className="text-xl font-bold text-text-primary">Tesseract</span>
             </div>
 
             <div className="w-full max-w-md space-y-8">
@@ -394,7 +394,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                   <Link
                     href="/login"
                     className={`relative rounded-xl py-3 text-center font-semibold transition-colors duration-300 ${
-                      isLogin ? 'text-white dark:text-black' : 'text-black/50 dark:text-white/50'
+                      isLogin ? 'text-text-inverse' : 'text-text-secondary'
                     }`}
                   >
                     {/* El fondo animado solo se renderiza si isLogin es true */}
@@ -411,7 +411,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                   <Link
                     href="/signup"
                     className={`relative rounded-xl py-3 text-center font-semibold transition-colors duration-300 ${
-                      !isLogin ? 'text-white dark:text-black' : 'text-black/50 dark:text-white/50'
+                      !isLogin ? 'text-text-inverse' : 'text-text-secondary'
                     }`}
                   >
                     {/* El mismo layoutId para que la animación se comparta */}
@@ -433,12 +433,12 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                   // FORMULARIO DE LOGIN
                   <form onSubmit={handleLogin} className="space-y-5">
                     {loginMutationError && (
-                      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-900/20 dark:bg-red-900/10 dark:text-red-400">
+                      <div className="rounded-xl border border-danger-200 bg-danger-50 p-4 text-sm text-danger-600">
                         {(loginMutationError as Error).message || 'Error al iniciar sesión'}
                       </div>
                     )}
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+                      <label className="block text-sm font-medium text-text-primary">
                         Email
                       </label>
                       <input
@@ -446,13 +446,13 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                         value={loginData.email}
                         onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                         placeholder="ejemplo@empresa.com"
-                        className="w-full rounded-xl border-2 border-transparent bg-[#F5F5F5] px-4 py-3.5 text-black outline-none transition-all focus:border-black focus:bg-white dark:bg-[#171717] dark:text-white dark:focus:border-white dark:focus:bg-[#1A1A1A]"
+                        className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                         required
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+                      <label className="block text-sm font-medium text-text-primary">
                         Contraseña
                       </label>
                       <div className="relative">
@@ -461,13 +461,13 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                           value={loginData.password}
                           onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                           placeholder="••••••••"
-                          className="w-full rounded-xl border-2 border-transparent bg-[#F5F5F5] px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-black focus:bg-white dark:bg-[#171717] dark:text-white dark:focus:border-white dark:focus:bg-[#1A1A1A]"
+                          className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                           required
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-black dark:text-white/40 dark:hover:text-white"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-text-primary"
                         >
                           {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                         </button>
@@ -482,15 +482,15 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                           onChange={(e) =>
                             setLoginData({ ...loginData, rememberMe: e.target.checked })
                           }
-                          className="h-5 w-5 cursor-pointer rounded border-2 border-black/20 text-black focus:ring-0 dark:border-white/20 dark:text-white"
+                          className="h-5 w-5 cursor-pointer rounded border-2 border-border-hover text-black focus:ring-0  dark:text-white"
                         />
-                        <span className="text-sm text-black/70 group-hover:text-black dark:text-white/70 dark:group-hover:text-white">
+                        <span className="text-sm text-text-secondary group-hover:text-text-primary/70 ">
                           Recordarme
                         </span>
                       </label>
                       <Link
                         href="/forgot-password"
-                        className="text-sm font-medium text-black/60 hover:text-black dark:text-white/60 dark:hover:text-white"
+                        className="text-sm font-medium text-text-secondary hover:text-text-primary"
                       >
                         ¿Olvidaste tu contraseña?
                       </Link>
@@ -509,7 +509,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                     <button
                       type="submit"
                       disabled={isLoggingIn || !turnstileToken}
-                      className="group flex w-full items-center justify-center gap-2 rounded-xl bg-black py-4 font-semibold text-white transition-all hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-white dark:text-black dark:hover:bg-white/90"
+                      className="group flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-4 font-semibold text-text-inverse transition-all hover:bg-accent-hover"
                     >
                       {isLoggingIn ? (
                         <>
@@ -546,19 +546,19 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                       >
                         {/* Indicador de progreso */}
                         <div className="mb-4 flex items-center gap-2">
-                          <div className="h-1 flex-1 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+                          <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-secondary">
                             <motion.div
-                              className="h-full rounded-full bg-black dark:bg-white"
+                              className="h-full rounded-full bg-accent"
                               initial={{ width: '0%' }}
                               animate={{ width: '33%' }}
                               transition={{ duration: 0.3 }}
                             />
                           </div>
-                          <span className="text-xs text-black/40 dark:text-white/40">1/3</span>
+                          <span className="text-xs text-text-tertiary">1/3</span>
                         </div>
 
                         <div className="space-y-2">
-                          <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+                          <label className="block text-sm font-medium text-text-primary">
                             Nombre completo
                           </label>
                           <input
@@ -568,13 +568,13 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                               setSignupData({ ...signupData, fullName: e.target.value })
                             }
                             placeholder="Tu nombre y apellido"
-                            className="w-full rounded-xl border-2 border-transparent bg-[#F5F5F5] px-4 py-3.5 text-black outline-none transition-all focus:border-black focus:bg-white dark:bg-[#171717] dark:text-white dark:focus:border-white dark:focus:bg-[#1A1A1A]"
+                            className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                             required
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+                          <label className="block text-sm font-medium text-text-primary">
                             Email corporativo
                           </label>
                           <input
@@ -584,17 +584,17 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                               setSignupData({ ...signupData, email: e.target.value })
                             }
                             placeholder="ejemplo@empresa.com"
-                            className="w-full rounded-xl border-2 border-transparent bg-[#F5F5F5] px-4 py-3.5 text-black outline-none transition-all focus:border-black focus:bg-white dark:bg-[#171717] dark:text-white dark:focus:border-white dark:focus:bg-[#1A1A1A]"
+                            className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                             required
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+                          <label className="block text-sm font-medium text-text-primary">
                             Nombre de la organización
                           </label>
                           <div className="relative">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-black/40 dark:text-white/40">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary">
                               <Building2 size={20} />
                             </div>
                             <input
@@ -604,11 +604,11 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                                 setSignupData({ ...signupData, organizationName: e.target.value })
                               }
                               placeholder="Ej: Mi Empresa S.A."
-                              className="w-full rounded-xl border-2 border-transparent bg-[#F5F5F5] py-3.5 pl-12 pr-4 text-black outline-none transition-all focus:border-black focus:bg-white dark:bg-[#171717] dark:text-white dark:focus:border-white dark:focus:bg-[#1A1A1A]"
+                              className="w-full rounded-xl border-2 border-transparent bg-input-bg py-3.5 pl-12 pr-4 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                               required
                             />
                           </div>
-                          <p className="mt-1 text-xs text-black/50 dark:text-white/50">
+                          <p className="mt-1 text-xs text-text-secondary">
                             Este será el espacio de trabajo para tu equipo. Podrás invitar miembros
                             y configurar permisos después.
                           </p>
@@ -619,10 +619,10 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             type="checkbox"
                             checked={acceptTerms}
                             onChange={(e) => setAcceptTerms(e.target.checked)}
-                            className="mt-0.5 h-5 w-5 cursor-pointer rounded border-2 border-black/20 text-black focus:ring-0 dark:border-white/20 dark:text-white"
+                            className="mt-0.5 h-5 w-5 cursor-pointer rounded border-2 border-border-hover text-black focus:ring-0  dark:text-white"
                             required
                           />
-                          <span className="text-sm text-black/70 group-hover:text-black dark:text-white/70 dark:group-hover:text-white">
+                          <span className="text-sm text-text-secondary group-hover:text-text-primary/70 ">
                             Acepto los{' '}
                             <Link
                               href="/terms"
@@ -659,7 +659,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             !acceptTerms ||
                             !turnstileToken
                           }
-                          className="group flex w-full items-center justify-center gap-2 rounded-xl bg-black py-4 font-semibold text-white transition-all hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-white/90"
+                          className="group flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-4 font-semibold text-text-inverse transition-all hover:bg-accent-hover"
                         >
                           {signupStepOneMutation.isPending ? (
                             <>
@@ -692,34 +692,34 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                       >
                         {/* Indicador de progreso */}
                         <div className="mb-4 flex items-center gap-2">
-                          <div className="h-1 flex-1 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+                          <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-secondary">
                             <motion.div
-                              className="h-full rounded-full bg-black dark:bg-white"
+                              className="h-full rounded-full bg-accent"
                               initial={{ width: '33%' }}
                               animate={{ width: '66%' }}
                               transition={{ duration: 0.3 }}
                             />
                           </div>
-                          <span className="text-xs text-black/40 dark:text-white/40">2/3</span>
+                          <span className="text-xs text-text-tertiary">2/3</span>
                         </div>
 
                         <div className="mb-4 text-center">
-                          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-black/5 dark:bg-white/5">
-                            <Mail className="h-8 w-8 text-black dark:text-white" />
+                          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-secondary">
+                            <Mail className="h-8 w-8 text-text-primary" />
                           </div>
-                          <h3 className="mb-2 text-lg font-semibold text-black dark:text-white">
+                          <h3 className="mb-2 text-lg font-semibold text-text-primary">
                             Verifica tu email
                           </h3>
-                          <p className="text-sm text-black/60 dark:text-white/60">
+                          <p className="text-sm text-text-secondary">
                             Hemos enviado un código de verificación a
                           </p>
-                          <p className="mt-1 text-sm font-medium text-black dark:text-white">
+                          <p className="mt-1 text-sm font-medium text-text-primary">
                             {signupData.email}
                           </p>
                         </div>
 
                         <div className="space-y-2">
-                          <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+                          <label className="block text-sm font-medium text-text-primary">
                             Código de verificación
                           </label>
                           <input
@@ -731,18 +731,18 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                               setVerificationError('');
                             }}
                             placeholder="000000"
-                            className="w-full rounded-xl border-2 border-transparent bg-[#F5F5F5] px-4 py-3.5 text-center font-mono text-2xl tracking-widest text-black outline-none transition-all focus:border-black focus:bg-white dark:bg-[#171717] dark:text-white dark:focus:border-white dark:focus:bg-[#1A1A1A]"
+                            className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-center font-mono text-2xl tracking-widest text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                             required
                             maxLength={6}
                             autoFocus
                           />
                           {verificationError && (
-                            <p className="text-sm text-red-500 dark:text-red-400">
+                            <p className="text-sm text-danger dark:text-red-400">
                               {verificationError}
                             </p>
                           )}
                           {verificationAttempts > 0 && verificationAttempts < 3 && (
-                            <p className="text-xs text-black/50 dark:text-white/50">
+                            <p className="text-xs text-text-secondary">
                               Intentos restantes: {3 - verificationAttempts}
                             </p>
                           )}
@@ -755,7 +755,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             !verificationCode.trim() ||
                             verificationCode.length !== 6
                           }
-                          className="group flex w-full items-center justify-center gap-2 rounded-xl bg-black py-4 font-semibold text-white transition-all hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-white/90"
+                          className="group flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-4 font-semibold text-text-inverse transition-all hover:bg-accent-hover"
                         >
                           {signupStepTwoMutation.isPending ? (
                             <>
@@ -814,31 +814,31 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                         />
                         {/* Indicador de progreso */}
                         <div className="mb-4 flex items-center gap-2">
-                          <div className="h-1 flex-1 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+                          <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-secondary">
                             <motion.div
-                              className="h-full rounded-full bg-black dark:bg-white"
+                              className="h-full rounded-full bg-accent"
                               initial={{ width: '66%' }}
                               animate={{ width: '100%' }}
                               transition={{ duration: 0.3 }}
                             />
                           </div>
-                          <span className="text-xs text-black/40 dark:text-white/40">3/3</span>
+                          <span className="text-xs text-text-tertiary">3/3</span>
                         </div>
 
                         <div className="mb-4 text-center">
-                          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-black/5 dark:bg-white/5">
-                            <Lock className="h-8 w-8 text-black dark:text-white" />
+                          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-secondary">
+                            <Lock className="h-8 w-8 text-text-primary" />
                           </div>
-                          <h3 className="mb-2 text-lg font-semibold text-black dark:text-white">
+                          <h3 className="mb-2 text-lg font-semibold text-text-primary">
                             Crea tu contraseña
                           </h3>
-                          <p className="text-sm text-black/60 dark:text-white/60">
+                          <p className="text-sm text-text-secondary">
                             Tu contraseña debe tener al menos 8 caracteres
                           </p>
                         </div>
 
                         <div className="space-y-2">
-                          <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+                          <label className="block text-sm font-medium text-text-primary">
                             Contraseña
                           </label>
                           <div className="relative">
@@ -847,7 +847,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                               value={password}
                               onChange={(e) => setPassword(e.target.value)}
                               placeholder="••••••••"
-                              className="w-full rounded-xl border-2 border-transparent bg-[#F5F5F5] px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-black focus:bg-white dark:bg-[#171717] dark:text-white dark:focus:border-white dark:focus:bg-[#1A1A1A]"
+                              className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                               required
                               minLength={8}
                               autoComplete="new-password"
@@ -857,7 +857,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             <button
                               type="button"
                               onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-black dark:text-white/40 dark:hover:text-white"
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-text-primary"
                             >
                               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                             </button>
@@ -865,7 +865,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                         </div>
 
                         <div className="space-y-2">
-                          <label className="block text-sm font-medium text-black/70 dark:text-white/70">
+                          <label className="block text-sm font-medium text-text-primary">
                             Confirmar contraseña
                           </label>
                           <div className="relative">
@@ -874,7 +874,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                               value={confirmPassword}
                               onChange={(e) => setConfirmPassword(e.target.value)}
                               placeholder="••••••••"
-                              className="w-full rounded-xl border-2 border-transparent bg-[#F5F5F5] px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-black focus:bg-white dark:bg-[#171717] dark:text-white dark:focus:border-white dark:focus:bg-[#1A1A1A]"
+                              className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                               required
                               autoComplete="new-password"
                               id="confirm-password"
@@ -883,7 +883,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             <button
                               type="button"
                               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-black dark:text-white/40 dark:hover:text-white"
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-text-primary"
                             >
                               {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                             </button>
@@ -899,7 +899,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             !confirmPassword ||
                             password.length < 8
                           }
-                          className="group flex w-full items-center justify-center gap-2 rounded-xl bg-black py-4 font-semibold text-white transition-all hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-white/90"
+                          className="group flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-4 font-semibold text-text-inverse transition-all hover:bg-accent-hover"
                         >
                           {signupStepThreeMutation.isPending ? (
                             <>
@@ -923,7 +923,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-black/10 dark:border-white/10" />
+                    <div className="w-full border-t border-border" />
                   </div>
                   <div className="relative flex justify-center text-sm">
                     <span className="bg-white px-4 text-xs uppercase tracking-wider text-black/40 dark:bg-black dark:text-white/40">
@@ -934,14 +934,14 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                 <button
                   onClick={handleGoogleAuth}
-                  className="flex w-full items-center justify-center gap-3 rounded-xl border-2 border-black/10 bg-white px-4 py-3.5 transition-all hover:border-black/30 dark:border-white/10 dark:bg-[#171717] dark:hover:border-white/30"
+                  className="flex w-full items-center justify-center gap-3 rounded-xl border-2 border-border bg-white px-4 py-3.5 transition-all hover:border-black/30  dark:bg-[#171717] dark:hover:border-white/30"
                 >
                   <FcGoogle className="h-5 w-5" />
-                  <span className="font-medium text-black/70 dark:text-white/70">Google</span>
+                  <span className="font-medium text-text-primary">Google</span>
                 </button>
 
                 {!isLogin && (
-                  <p className="text-center text-xs text-black/50 dark:text-white/50">
+                  <p className="text-center text-xs text-text-secondary">
                     Al continuar con Google, aceptas nuestros{' '}
                     <Link
                       href="/terms"

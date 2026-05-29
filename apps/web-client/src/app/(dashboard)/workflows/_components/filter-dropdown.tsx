@@ -87,12 +87,12 @@ export default function FilterDropdown({
         }`}
       >
         <div className="flex items-center gap-2 truncate">
-          <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-black/40 dark:text-white/40">
+          <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-text-tertiary">
             {label}
           </span>
-          <div className="mx-1 h-3 w-[1px] bg-black/10 dark:bg-white/10" />
+          <div className="mx-1 h-3 w-[1px] bg-surface-secondary" />
           <span
-            className={`truncate font-medium ${selectedOption ? 'text-black dark:text-white' : 'text-black/50 dark:text-white/50'}`}
+            className={`truncate font-medium ${selectedOption ? 'text-text-primary' : 'text-text-secondary'}`}
           >
             {selectedOption ? selectedOption.label : placeholder}
           </span>
@@ -141,19 +141,19 @@ export default function FilterDropdown({
                     >
                       <span className="truncate pr-2">{option.label}</span>
                       {value === option.value && (
-                        <Check size={14} className="shrink-0 text-black dark:text-white" />
+                        <Check size={14} className="shrink-0 text-text-primary" />
                       )}
                     </button>
                   );
                 })
               ) : (
-                <div className="px-3 py-4 text-center text-xs text-black/40 dark:text-white/40">
+                <div className="px-3 py-4 text-center text-xs text-text-tertiary">
                   No hay opciones disponibles
                 </div>
               )}
               {isLoadingMore && (
                 <div className="flex justify-center p-2">
-                  <Loader2 className="animate-spin text-black/20 dark:text-white/20" size={16} />
+                  <Loader2 className="animate-spin text-text-tertiary" size={16} />
                 </div>
               )}
             </div>

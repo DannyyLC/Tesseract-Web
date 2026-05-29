@@ -24,7 +24,7 @@ const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }
     text: 'Conectado',
   },
   ERROR: {
-    dot: 'bg-red-500',
+    dot: 'bg-danger',
     label: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400',
     text: 'Error',
   },
@@ -77,11 +77,11 @@ export function ConnectedToolCard({
 
       {/* Info */}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-black dark:text-white">{tool.displayName}</p>
-        <p className="text-xs text-black/40 dark:text-white/40">
+        <p className="truncate font-semibold text-text-primary">{tool.displayName}</p>
+        <p className="text-xs text-text-tertiary">
           {tool.toolCatalog.displayName} · {tool.toolCatalog.category}
         </p>
-        <p className="mt-0.5 text-xs text-black/30 dark:text-white/30">
+        <p className="mt-0.5 text-xs text-text-tertiary">
           Conectado el {connectedDate}
         </p>
       </div>
@@ -99,7 +99,7 @@ export function ConnectedToolCard({
         <div className="relative">
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-black/30 transition-colors hover:bg-black/5 hover:text-black dark:text-white/30 dark:hover:bg-white/5 dark:hover:text-white"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-black/30 transition-colors hover:bg-black/5 hover:text-text-primary/30 dark:hover:bg-white/5 dark:hover:text-white"
           >
             <MoreVertical size={16} />
           </button>
@@ -118,7 +118,7 @@ export function ConnectedToolCard({
                           setMenuOpen(false);
                           onConfigCredentials?.(tool.id);
                         }}
-                        className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-black/70 transition-colors hover:bg-black/5 hover:text-black dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white"
+                        className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-black/70 transition-colors hover:bg-black/5 hover:text-text-primary/70 dark:hover:bg-white/5 dark:hover:text-white"
                       >
                         <KeyRound size={14} />
                         Configurar credenciales
@@ -131,13 +131,13 @@ export function ConnectedToolCard({
                       setMenuOpen(false);
                       onRename?.(tool.id);
                     }}
-                    className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-black/70 transition-colors hover:bg-black/5 hover:text-black dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white"
+                    className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-black/70 transition-colors hover:bg-black/5 hover:text-text-primary/70 dark:hover:bg-white/5 dark:hover:text-white"
                   >
                     <Pencil size={14} />
                     Renombrar
                   </button>
                 </PermissionGuard>
-                <div className="mx-3 my-1 h-px bg-black/5 dark:bg-white/5" />
+                <div className="mx-3 my-1 h-px bg-surface-secondary" />
                 {tool.isConnected && hasCredentials && (
                   <PermissionGuard permissions="tenant_tools:disconnect">
                     <button

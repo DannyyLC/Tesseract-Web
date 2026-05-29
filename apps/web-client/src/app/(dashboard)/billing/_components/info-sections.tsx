@@ -62,8 +62,8 @@ export default function InfoSections() {
       {/* Credits Definition */}
       <section className="space-y-8">
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-black dark:text-white">¿Qué es un Crédito?</h2>
-          <p className="max-w-2xl leading-relaxed text-black/50 dark:text-white/50">
+          <h2 className="text-2xl font-bold text-text-primary">¿Qué es un Crédito?</h2>
+          <p className="max-w-2xl leading-relaxed text-text-secondary">
             Es nuestra unidad de medida. No cobramos por ejecución, sino por la complejidad del
             razonamiento requerido. El precio por crédito de overage es de $
             {OVERAGE_PRICE_PER_CREDIT} USD.
@@ -79,26 +79,26 @@ export default function InfoSections() {
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-black/5 text-black/80 transition-all group-hover:scale-110 dark:bg-white/5 dark:text-white/80">
                 {tier.icon}
               </div>
-              <h3 className="flex items-center justify-between font-bold text-black dark:text-white">
+              <h3 className="flex items-center justify-between font-bold text-text-primary">
                 {tier.name}
                 <span className="font-geist-mono text-xs font-bold uppercase tracking-tighter opacity-40">
                   {tier.id}
                 </span>
               </h3>
-              <p className="font-geist-mono mt-1 text-lg font-bold text-black dark:text-white">
+              <p className="font-geist-mono mt-1 text-lg font-bold text-text-primary">
                 {tier.cost}
               </p>
 
               <div className="mt-4 space-y-2 border-t border-black/5 pt-4 text-sm dark:border-white/5">
-                <p className="text-black/60 dark:text-white/60">
-                  <span className="font-bold text-black dark:text-white">Modelos:</span>{' '}
+                <p className="text-text-secondary">
+                  <span className="font-bold text-text-primary">Modelos:</span>{' '}
                   {tier.models}
                 </p>
-                <p className="text-black/60 dark:text-white/60">
-                  <span className="font-bold text-black dark:text-white">Contexto:</span>{' '}
+                <p className="text-text-secondary">
+                  <span className="font-bold text-text-primary">Contexto:</span>{' '}
                   <span className="font-geist-mono">{tier.context}</span>
                 </p>
-                <p className="mt-3 text-xs italic text-black/40 dark:text-white/40">
+                <p className="mt-3 text-xs italic text-text-tertiary">
                   {tier.description}
                 </p>
               </div>
@@ -110,10 +110,10 @@ export default function InfoSections() {
       {/* Support levels */}
       <section className="space-y-8">
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-black dark:text-white">
+          <h2 className="text-2xl font-bold text-text-primary">
             Capas de Soporte Técnico
           </h2>
-          <p className="max-w-2xl leading-relaxed text-black/50 dark:text-white/50">
+          <p className="max-w-2xl leading-relaxed text-text-secondary">
             Atención diseñada para garantizar que tu operación fluya sin interrupciones.
           </p>
         </div>
@@ -124,11 +124,11 @@ export default function InfoSections() {
               key={item.title}
               className="rounded-2xl border border-transparent bg-[#F5F5F5] p-5 transition-all hover:border-black/5 dark:bg-[#111]"
             >
-              <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg bg-black/5 dark:bg-white/5">
+              <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg bg-surface-secondary">
                 {item.icon}
               </div>
-              <h4 className="text-sm font-bold text-black dark:text-white">{item.title}</h4>
-              <p className="mt-1 text-xs leading-relaxed text-black/50 dark:text-white/50">
+              <h4 className="text-sm font-bold text-text-primary">{item.title}</h4>
+              <p className="mt-1 text-xs leading-relaxed text-text-secondary">
                 {item.desc}
               </p>
             </div>

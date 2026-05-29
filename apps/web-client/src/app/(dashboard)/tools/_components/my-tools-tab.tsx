@@ -126,7 +126,7 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
     return (
       <div className="space-y-3">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-20 animate-pulse rounded-2xl bg-black/5 dark:bg-white/5" />
+          <div key={i} className="h-20 animate-pulse rounded-2xl bg-surface-secondary" />
         ))}
       </div>
     );
@@ -140,13 +140,13 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
         animate={{ opacity: 1 }}
         className="flex flex-col items-center justify-center py-24 text-center"
       >
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-black/5 dark:bg-white/5">
-          <Wrench size={28} className="text-black/30 dark:text-white/30" />
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-secondary">
+          <Wrench size={28} className="text-text-tertiary" />
         </div>
-        <h3 className="mb-1 text-lg font-semibold text-black dark:text-white">
+        <h3 className="mb-1 text-lg font-semibold text-text-primary">
           Sin herramientas conectadas
         </h3>
-        <p className="mb-6 text-sm text-black/50 dark:text-white/50">
+        <p className="mb-6 text-sm text-text-secondary">
           Conecta tu primera herramienta desde el catálogo.
         </p>
         <PermissionGuard permissions="tenant_tools:create">
@@ -183,7 +183,7 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
 
         {isFetchingNextPage && (
           <div className="flex justify-center py-4">
-            <Loader2 size={20} className="animate-spin text-black/30 dark:text-white/30" />
+            <Loader2 size={20} className="animate-spin text-text-tertiary" />
           </div>
         )}
       </div>
