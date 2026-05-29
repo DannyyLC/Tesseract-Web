@@ -2,29 +2,28 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { ApiKeysModule } from './api-keys/api-keys.module';
-import { AuthModule } from './auth/auth.module';
-import { ExecutionsModule } from './executions/executions.module';
-import { OrganizationsModule } from './organizations/organizations.module';
-import { WorkflowsModule } from './workflows/workflows.module';
+import { ApiKeysModule } from './identity/api-keys/api-keys.module';
+import { AuthModule } from './identity/auth/auth.module';
+import { ExecutionsModule } from '@/automation/executions/executions.module';
+import { OrganizationsModule } from './identity/organizations/organizations.module';
+import { WorkflowsModule } from './automation/workflows/workflows.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 import 'winston-daily-rotate-file';
 import { BillingModule } from './billing/billing.module';
-import { ConversationsModule } from './conversations/conversations.module';
+import { ConversationsModule } from './messaging/conversations/conversations.module';
 import { CronJobsService } from './cron-jobs.service';
-import { EndUsersModule } from './end-users/end-users.module';
-import { InvoiceModule } from './invoice/invoice.module';
-import { NotificationsModule } from './notifications/notifications.module';
-import { TenantToolModule } from './tools/tenant/tenant-tool.module';
-import { UsersModule } from './users/users.module';
-import { UtilityModule } from './utility/utility.module';
-import { ToolsCatalogModule } from './tools/catalog/tools-catalog.module';
-import { ToolsModule } from './tools/core/tools.module';
-import { WhatsappConfigModule } from './whatsapp-config/whatsapp-config.module';
-import { CronTriggersModule } from './cron-triggers/cron-triggers.module';
+import { EndUsersModule } from './identity/end-users/end-users.module';
+import { NotificationsModule } from './messaging/notifications/notifications.module';
+import { TenantToolModule } from './automation/tools/tenant/tenant-tool.module';
+import { UsersModule } from '@/identity/users/users.module';
+import { UtilityModule } from '@/platform/utility/utility.module';
+import { ToolsCatalogModule } from './automation/tools/catalog/tools-catalog.module';
+import { ToolsModule } from './automation/tools/core/tools.module';
+import { WhatsappConfigModule } from './messaging/channels/whatsapp-config/whatsapp-config.module';
+import { CronTriggersModule } from './automation/cron-triggers/cron-triggers.module';
 
 @Module({
   imports: [
@@ -63,7 +62,6 @@ import { CronTriggersModule } from './cron-triggers/cron-triggers.module';
     ApiKeysModule,
     NotificationsModule,
     BillingModule,
-    InvoiceModule,
     UsersModule,
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),

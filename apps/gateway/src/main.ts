@@ -1,8 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { validateEnv } from './config/env-validation';
+import { validateEnv } from './platform/config/env-validation';
 import { ValidationPipe } from '@nestjs/common';
-import { GlobalExceptionFilter } from './common/exceptions';
+import { GlobalExceptionFilter } from './platform/common/exceptions';
 import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
