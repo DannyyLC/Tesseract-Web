@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import { GetToolsDto } from '@tesseract/types';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
-import PermissionGuard from '@/components/auth/PermissionGuard';
+import PermissionGuard from '@/components/auth/permission-guard';
 
 interface CatalogToolCardProps {
   tool: GetToolsDto;

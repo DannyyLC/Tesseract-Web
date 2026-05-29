@@ -1,4 +1,4 @@
-import SupportScreen from '../_components/SupportScreen';
+import SupportScreen from '../_components/support-screen';
 
 export const metadata = {
   title: 'Soporte y Contacto | Tesseract',

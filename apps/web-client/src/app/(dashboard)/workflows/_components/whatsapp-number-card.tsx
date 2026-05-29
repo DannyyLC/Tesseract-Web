@@ -3,8 +3,8 @@
 import { motion } from 'framer-motion';
 import { MoreVertical, Unplug, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import PermissionGuard from '@/components/auth/PermissionGuard';
-import { WhatsappIcon } from '@/app/_shared/_components/icons/whatsapp-icon';
+import PermissionGuard from '@/components/auth/permission-guard';
+import { WhatsappIcon } from '@/components/icons/whatsapp-icon';
 
 interface WhatsappNumberDto {
   id: string;

@@ -3,14 +3,14 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Search } from 'lucide-react';
-import { useDashboardExecutions, useExecutionsStats } from '@/hooks/useExecutions';
-import { useInfiniteDashboardWorkflows } from '@/hooks/useWorkflows';
-import { useInfiniteUsersDashboard } from '@/hooks/useUsers';
+import { useDashboardExecutions, useExecutionsStats } from '@/hooks/automation/use-executions';
+import { useInfiniteDashboardWorkflows } from '@/hooks/automation/use-workflows';
+import { useInfiniteUsersDashboard } from '@/hooks/identity/use-users';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import DashboardExecutionItem from './_components/dashboard-execution-item';
 import FilterDropdown from './_components/filter-dropdown';
-import PermissionGuard from '@/components/auth/PermissionGuard';
-import { useAuth } from '@/hooks/useAuth';
+import PermissionGuard from '@/components/auth/permission-guard';
+import { useAuth } from '@/hooks/identity/use-auth';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
 
 export default function ExecutionsPage() {

@@ -92,32 +92,32 @@ jest.mock('@/components/ui/logo-loader', () => ({
 // Hook mocks
 // ---------------------------------------------------------------------------
 
-jest.mock('@/hooks/useAuth', () => ({
+jest.mock('@/hooks/identity/use-auth', () => ({
   useAuth: jest.fn(),
 }));
 
-jest.mock('@/hooks/useWorkflows', () => ({
+jest.mock('@/hooks/automation/use-workflows', () => ({
   useWorkflowStats: jest.fn(),
 }));
 
-jest.mock('@/hooks/useExecutions', () => ({
+jest.mock('@/hooks/automation/use-executions', () => ({
   useExecutionsStats: jest.fn(),
   useDashboardExecutions: jest.fn(),
 }));
 
-jest.mock('@/hooks/useBilling', () => ({
+jest.mock('@/hooks/billing/use-billing', () => ({
   useBillingDashboard: jest.fn(),
 }));
 
-jest.mock('@/hooks/useUsers', () => ({
+jest.mock('@/hooks/identity/use-users', () => ({
   useUserStats: jest.fn(),
 }));
 
-import { useAuth } from '@/hooks/useAuth';
-import { useWorkflowStats } from '@/hooks/useWorkflows';
-import { useExecutionsStats, useDashboardExecutions } from '@/hooks/useExecutions';
-import { useBillingDashboard } from '@/hooks/useBilling';
-import { useUserStats } from '@/hooks/useUsers';
+import { useAuth } from '@/hooks/identity/use-auth';
+import { useWorkflowStats } from '@/hooks/automation/use-workflows';
+import { useExecutionsStats, useDashboardExecutions } from '@/hooks/automation/use-executions';
+import { useBillingDashboard } from '@/hooks/billing/use-billing';
+import { useUserStats } from '@/hooks/identity/use-users';
 import DashboardPage from './page';
 
 // ---------------------------------------------------------------------------

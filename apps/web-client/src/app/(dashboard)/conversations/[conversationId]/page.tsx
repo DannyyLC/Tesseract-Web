@@ -14,15 +14,15 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import Image from 'next/image';
-import { useWorkflow, useExecuteStream } from '@/hooks/useWorkflows';
-import { useDraftPersistence } from '@/hooks/useDraftPersistence';
-import { useConversation, useConversationMutations } from '@/hooks/useConversations';
-import { useUser } from '@/hooks/useUsers';
+import { useWorkflow, useExecuteStream } from '@/hooks/automation/use-workflows';
+import { useDraftPersistence } from '@/hooks/shared/use-draft-persistence';
+import { useConversation, useConversationMutations } from '@/hooks/messaging/use-conversations';
+import { useUser } from '@/hooks/identity/use-users';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Modal } from '@/components/ui/modal';
-import PermissionGuard from '@/components/auth/PermissionGuard';
-import { useAuth } from '@/hooks/useAuth';
+import PermissionGuard from '@/components/auth/permission-guard';
+import { useAuth } from '@/hooks/identity/use-auth';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
 
 interface Message {

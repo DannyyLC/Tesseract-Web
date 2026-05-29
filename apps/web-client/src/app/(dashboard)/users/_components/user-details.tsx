@@ -1,4 +1,4 @@
-import { useUser } from '@/hooks/useUsers';
+import { useUser } from '@/hooks/identity/use-users';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 interface UserDetailsProps {

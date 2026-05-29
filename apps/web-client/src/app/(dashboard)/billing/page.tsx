@@ -2,21 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/identity/use-auth';
 import {
   useBillingDashboard,
   useBillingMutations,
   usePlans,
   useSubscription,
-} from '@/hooks/useBilling';
+} from '@/hooks/billing/use-billing';
 import { SubscriptionPlan } from '@tesseract/types';
-import BillingHero from './_components/BillingHero';
-import OverageCard from './_components/OverageCard';
-import UsageCard from './_components/UsageCard';
+import BillingHero from './_components/billing-hero';
+import OverageCard from './_components/overage-card';
+import UsageCard from './_components/usage-card';
 import Loading from '@/app/(dashboard)/loading';
 import { Workflow, Key, Users, ArrowUpRight, PartyPopper } from 'lucide-react';
 import Link from 'next/link';
-import PermissionGuard from '@/components/auth/PermissionGuard';
+import PermissionGuard from '@/components/auth/permission-guard';
 import { Modal } from '@/components/ui/modal';
 import { toast } from 'sonner';
 import { triggerWowConfetti } from '@/lib/confetti';

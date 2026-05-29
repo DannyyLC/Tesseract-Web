@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Loader2, AlertCircle, Zap, Clock, Coins } from 'lucide-react';
 import { DashboardExecutionDataDto } from '@tesseract/types';
-import { useExecution } from '@/hooks/useExecutions';
+import { useExecution } from '@/hooks/automation/use-executions';
 
 interface DashboardExecutionItemProps {
   execution: DashboardExecutionDataDto;

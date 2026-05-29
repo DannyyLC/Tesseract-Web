@@ -2,8 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Search, Loader2 } from 'lucide-react';
-import { useToolCatalog, flattenToolCatalog } from '@/hooks/tools/useToolCatalog';
-import { useInfiniteTenantToolsDashboard, flattenTenantTools } from '@/hooks/tools/useTenantTools';
+import { useToolCatalog, flattenToolCatalog } from '@/hooks/automation/use-tool-catalog';
+import { useInfiniteTenantToolsDashboard, flattenTenantTools } from '@/hooks/automation/use-tenant-tools';
 import { GetToolsDto } from '@tesseract/types';
 import { CatalogToolCard } from './catalog-tool-card';
 import { ConnectToolModal } from './connect-tool-modal';

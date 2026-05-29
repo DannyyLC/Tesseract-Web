@@ -15,10 +15,10 @@ import {
   Edit2,
   Power,
 } from 'lucide-react';
-import { useApiKeysList, useApiKeyMutations } from '@/hooks/useApiKey';
-import { useInfiniteDashboardWorkflows } from '@/hooks/useWorkflows';
+import { useApiKeysList, useApiKeyMutations } from '@/hooks/identity/use-api-key';
+import { useInfiniteDashboardWorkflows } from '@/hooks/automation/use-workflows';
 import { ApiKeyListDto } from '@tesseract/types';
-import PermissionGuard from '@/components/auth/PermissionGuard';
+import PermissionGuard from '@/components/auth/permission-guard';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';

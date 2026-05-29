@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useAcceptInvitation } from '@/hooks/useOrganizations';
+import { useAcceptInvitation } from '@/hooks/identity/use-organizations';
 import { toast } from 'sonner';
 import { Loader2, Eye, EyeOff, Building2, ArrowRight } from 'lucide-react';
 import Image from 'next/image';

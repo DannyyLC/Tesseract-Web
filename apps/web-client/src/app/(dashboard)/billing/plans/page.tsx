@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { useBillingDashboard, useBillingMutations } from '@/hooks/useBilling';
-import { usePlans } from '@/hooks/useBilling';
-import { useWorkflowStats } from '@/hooks/useWorkflows';
+import { useBillingDashboard, useBillingMutations } from '@/hooks/billing/use-billing';
+import { usePlans } from '@/hooks/billing/use-billing';
+import { useWorkflowStats } from '@/hooks/automation/use-workflows';
 import { SubscriptionPlan, BillingPlan } from '@tesseract/types';
-import PlanGrid from '../_components/PlanGrid';
-import InfoSections from '../_components/InfoSections';
-import SpecializedCards from '../_components/SpecializedCards';
+import PlanGrid from '../_components/plan-grid';
+import InfoSections from '../_components/info-sections';
+import SpecializedCards from '../_components/specialized-cards';
 import { Modal } from '@/components/ui/modal';
 import {
   Loader2,
@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Loading from '@/app/(dashboard)/loading';
-import PermissionGuard from '@/components/auth/PermissionGuard';
+import PermissionGuard from '@/components/auth/permission-guard';
 import { triggerWowConfetti } from '@/lib/confetti';
 
 export default function PlansPage() {

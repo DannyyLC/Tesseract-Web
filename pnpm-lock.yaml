@@ -303,7 +303,7 @@ importers:
     devDependencies:
       '@nestjs/cli':
         specifier: ^11.0.0
-        version: 11.0.21(@swc/core@1.5.29(@swc/helpers@0.5.21))(@types/node@22.19.19)(postcss@8.5.15)(prettier@3.8.3)(webpack-cli@5.1.4)
+        version: 11.0.21(@swc/core@1.5.29(@swc/helpers@0.5.21))(@types/node@22.19.19)(postcss@8.5.15)(prettier@3.8.3)(webpack-cli@5.1.4(webpack@5.107.2))
       '@nestjs/testing':
         specifier: ^11.1.7
         version: 11.1.24(@nestjs/common@11.1.24(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.24)(@nestjs/microservices@11.1.24)(@nestjs/platform-express@11.1.24)
@@ -391,9 +391,6 @@ importers:
       '@react-three/postprocessing':
         specifier: ^3.0.4
         version: 3.0.4(@react-three/fiber@9.6.1(@types/react@18.3.29)(immer@11.1.8)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(three@0.182.0))(@types/three@0.182.0)(react@19.2.6)(three@0.182.0)
-      '@reduxjs/toolkit':
-        specifier: ^2.11.2
-        version: 2.12.0(react-redux@9.3.0(@types/react@18.3.29)(react@19.2.6)(redux@5.0.1))(react@19.2.6)
       '@tailwindcss/typography':
         specifier: ^0.5.19
         version: 0.5.19(tailwindcss@3.4.19(yaml@2.9.0))
@@ -442,9 +439,6 @@ importers:
       react-markdown:
         specifier: ^10.1.0
         version: 10.1.0(@types/react@18.3.29)(react@19.2.6)
-      react-redux:
-        specifier: ^9.2.0
-        version: 9.3.0(@types/react@18.3.29)(react@19.2.6)(redux@5.0.1)
       recharts:
         specifier: ^3.7.0
         version: 3.8.1(@types/react@18.3.29)(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(redux@5.0.1)
@@ -11490,7 +11484,7 @@ snapshots:
       axios: 1.16.1
       rxjs: 7.8.2
 
-  '@nestjs/cli@11.0.21(@swc/core@1.5.29(@swc/helpers@0.5.21))(@types/node@22.19.19)(postcss@8.5.15)(prettier@3.8.3)(webpack-cli@5.1.4)':
+  '@nestjs/cli@11.0.21(@swc/core@1.5.29(@swc/helpers@0.5.21))(@types/node@22.19.19)(postcss@8.5.15)(prettier@3.8.3)(webpack-cli@5.1.4(webpack@5.107.2))':
     dependencies:
       '@angular-devkit/core': 19.2.24(chokidar@4.0.3)
       '@angular-devkit/schematics': 19.2.24(chokidar@4.0.3)
@@ -11501,14 +11495,14 @@ snapshots:
       chokidar: 4.0.3
       cli-table3: 0.6.5
       commander: 4.1.1
-      fork-ts-checker-webpack-plugin: 9.1.0(typescript@5.9.3)(webpack@5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4))
+      fork-ts-checker-webpack-plugin: 9.1.0(typescript@5.9.3)(webpack@5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2)))
       glob: 13.0.6
       node-emoji: 1.11.0
       ora: 5.4.1
       tsconfig-paths: 4.2.0
       tsconfig-paths-webpack-plugin: 4.2.0
       typescript: 5.9.3
-      webpack: 5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4)
+      webpack: 5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2))
       webpack-node-externals: 3.0.0
     optionalDependencies:
       '@swc/core': 1.5.29(@swc/helpers@0.5.21)
@@ -15660,7 +15654,7 @@ snapshots:
       typescript: 5.9.3
       webpack: 5.107.2(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4)
 
-  fork-ts-checker-webpack-plugin@9.1.0(typescript@5.9.3)(webpack@5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4)):
+  fork-ts-checker-webpack-plugin@9.1.0(typescript@5.9.3)(webpack@5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2))):
     dependencies:
       '@babel/code-frame': 7.29.7
       chalk: 4.1.2
@@ -15675,7 +15669,7 @@ snapshots:
       semver: 7.8.1
       tapable: 2.3.3
       typescript: 5.9.3
-      webpack: 5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4)
+      webpack: 5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2))
 
   form-data@4.0.5:
     dependencies:
@@ -19932,13 +19926,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  terser-webpack-plugin@5.6.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack@5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4)):
+  terser-webpack-plugin@5.6.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack@5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2))):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       terser: 5.48.0
-      webpack: 5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4)
+      webpack: 5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2))
     optionalDependencies:
       '@swc/core': 1.5.29(@swc/helpers@0.5.21)
       postcss: 8.5.15
@@ -20588,7 +20582,7 @@ snapshots:
       typed-assert: 1.0.9
       webpack: 5.107.2(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4)
 
-  webpack@5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4):
+  webpack@5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2)):
     dependencies:
       '@types/eslint-scope': 3.7.7
       '@types/estree': 1.0.9
@@ -20612,7 +20606,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.3.3
       tapable: 2.3.3
-      terser-webpack-plugin: 5.6.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack@5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4))
+      terser-webpack-plugin: 5.6.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack@5.106.0(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2)))
       watchpack: 2.5.1
       webpack-sources: 3.5.0
     optionalDependencies:

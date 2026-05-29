@@ -5,8 +5,8 @@ import { MoreVertical, Unplug, Pencil, KeyRound, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { DashboardTenantToolDto } from '@tesseract/types';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
-import PermissionGuard from '@/components/auth/PermissionGuard';
-import { useAuth } from '@/hooks/useAuth';
+import PermissionGuard from '@/components/auth/permission-guard';
+import { useAuth } from '@/hooks/identity/use-auth';
 
 interface ConnectedToolCardProps {
   tool: DashboardTenantToolDto;

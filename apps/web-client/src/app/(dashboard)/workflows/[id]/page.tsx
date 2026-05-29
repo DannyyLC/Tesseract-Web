@@ -1,16 +1,16 @@
 'use client';
 
-import { WhatsappIcon } from '@/app/_shared/_components/icons/whatsapp-icon';
+import { WhatsappIcon } from '@/components/icons/whatsapp-icon';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
-import PermissionGuard from '@/components/auth/PermissionGuard';
+import PermissionGuard from '@/components/auth/permission-guard';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
 import {
   useWhatsappConfigSubscriptions,
   useWhatsappMutations,
   useWhatsappNumbers,
-} from '@/hooks/useWhatsapp-config';
-import { useWorkflow, useWorkflowMutations } from '@/hooks/useWorkflows';
+} from '@/hooks/messaging/use-whatsapp-config';
+import { useWorkflow, useWorkflowMutations } from '@/hooks/automation/use-workflows';
 import { ArrowLeft, BarChart2, Edit3, Loader2, MessageSquare, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';

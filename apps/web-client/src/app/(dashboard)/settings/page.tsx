@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useOrganizationDashboard, useOrganizationMutations } from '@/hooks/useOrganizations';
+import { useOrganizationDashboard, useOrganizationMutations } from '@/hooks/identity/use-organizations';
 import { toast } from 'sonner';
 import { Loader2, Trash2, AlertTriangle, Building2 } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
-import { useAuth } from '@/hooks/useAuth';
-import PermissionGuard from '@/components/auth/PermissionGuard';
+import { useAuth } from '@/hooks/identity/use-auth';
+import PermissionGuard from '@/components/auth/permission-guard';
 
 export default function SettingsPage() {
   const { data: orgData, isLoading, refetch } = useOrganizationDashboard();

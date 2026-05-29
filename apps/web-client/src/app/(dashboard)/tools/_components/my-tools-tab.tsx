@@ -7,7 +7,7 @@ import {
   useInfiniteTenantToolsDashboard,
   flattenTenantTools,
   useTenantToolMutations,
-} from '@/hooks/tools/useTenantTools';
+} from '@/hooks/automation/use-tenant-tools';
 import { DashboardTenantToolDto } from '@tesseract/types';
 import { toast } from 'sonner';
 import { ConnectedToolCard } from './connected-tool-card';
@@ -15,7 +15,7 @@ import { RenameToolModal } from './rename-tool-modal';
 import { DisconnectCredentialsToolModal } from './disconnect-tool-modal';
 import { DeleteToolModal } from './delete-tool';
 import { ConnectToolModal } from './connect-tool-modal';
-import PermissionGuard from '@/components/auth/PermissionGuard';
+import PermissionGuard from '@/components/auth/permission-guard';
 
 interface MyToolsTabProps {
   onAddTool?: () => void;

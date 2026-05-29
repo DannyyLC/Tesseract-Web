@@ -14,10 +14,10 @@ import {
 import Link from 'next/link';
 import { useState } from 'react';
 import { DashboardConversationDto } from '@tesseract/types';
-import { useConversationMutations } from '@/hooks/useConversations';
+import { useConversationMutations } from '@/hooks/messaging/use-conversations';
 import { Modal } from '@/components/ui/modal';
-import PermissionGuard from '@/components/auth/PermissionGuard';
-import { useAuth } from '@/hooks/useAuth';
+import PermissionGuard from '@/components/auth/permission-guard';
+import { useAuth } from '@/hooks/identity/use-auth';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
 
 interface DashboardConversationItemProps {

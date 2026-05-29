@@ -5,7 +5,7 @@ import { MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { DashboardWorkflowDto } from '@tesseract/types';
-import PermissionGuard from '@/components/auth/PermissionGuard';
+import PermissionGuard from '@/components/auth/permission-guard';
 
 interface DashboardWorkflowItemProps {
   workflow: DashboardWorkflowDto;

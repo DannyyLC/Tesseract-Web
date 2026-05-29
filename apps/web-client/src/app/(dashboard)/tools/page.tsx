@@ -7,7 +7,7 @@ import { Wrench, LayoutGrid } from 'lucide-react';
 import Link from 'next/link';
 import { MyToolsTab } from './_components/my-tools-tab';
 import { CatalogTab } from './_components/catalog-tab';
-import PermissionGuard from '@/components/auth/PermissionGuard';
+import PermissionGuard from '@/components/auth/permission-guard';
 
 type Tab = 'my-tools' | 'catalog';
 

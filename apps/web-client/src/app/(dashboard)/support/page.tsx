@@ -4,8 +4,8 @@ import { useState, Suspense, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, Send, ChevronDown, Check, CalendarDays, Mail } from 'lucide-react';
-import { useSupportMutations } from '@/hooks/useSupport';
-import { useAuth } from '@/hooks/useAuth';
+import { useSupportMutations } from '@/hooks/platform/use-support';
+import { useAuth } from '@/hooks/identity/use-auth';
 import Cal, { getCalApi } from '@calcom/embed-react';
 import { CAL_CONFIG } from '@/config/cal';
 

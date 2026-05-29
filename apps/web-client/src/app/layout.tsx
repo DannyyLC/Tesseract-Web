@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Geist_Mono } from 'next/font/google';
 import '@/styles/globals.css';
-import QueryProvider from '@/providers/QueryProvider';
+import QueryProvider from '@/providers/query-provider';
 import { Analytics } from '@vercel/analytics/react';
 
 const inter = Inter({

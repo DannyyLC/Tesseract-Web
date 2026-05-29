@@ -51,7 +51,7 @@ jest.mock('framer-motion', () => {
   };
 });
 
-jest.mock('@/components/auth/PermissionGuard', () => ({
+jest.mock('@/components/auth/permission-guard', () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) =>
     allowWorkflowExecute ? <>{children}</> : null,

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Metadata } from 'next';
-import LegalToc from '../_components/LegalToc';
+import LegalToc from '../_components/legal-toc';
 
 export const metadata: Metadata = {
   title: 'Política de Privacidad de Datos · Fractal',

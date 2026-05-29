@@ -5,13 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { MessageSquare, Search, Loader2 } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
-import { useConversationsDashboard, useConversationsStats } from '@/hooks/useConversations';
-import { useInfiniteDashboardWorkflows } from '@/hooks/useWorkflows';
-import { useInfiniteUsersDashboard } from '@/hooks/useUsers';
+import { useConversationsDashboard, useConversationsStats } from '@/hooks/messaging/use-conversations';
+import { useInfiniteDashboardWorkflows } from '@/hooks/automation/use-workflows';
+import { useInfiniteUsersDashboard } from '@/hooks/identity/use-users';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import DashboardConversationItem from './_components/dashboard-conversation-item';
 import FilterDropdown from './_components/filter-dropdown';
-import PermissionGuard from '@/components/auth/PermissionGuard';
+import PermissionGuard from '@/components/auth/permission-guard';
 
 const formatNumber = (num: number): string => {
   if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;

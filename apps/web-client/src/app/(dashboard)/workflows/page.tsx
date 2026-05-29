@@ -5,14 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Search, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useDashboardWorkflows, useWorkflowStats } from '@/hooks/useWorkflows';
-import { useSupportMutations } from '@/hooks/useSupport';
+import { useDashboardWorkflows, useWorkflowStats } from '@/hooks/automation/use-workflows';
+import { useSupportMutations } from '@/hooks/platform/use-support';
 import { WorkflowCategory } from '@tesseract/types';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
 import DashboardWorkflowItem from './_components/dashboard-workflow-item';
 import FilterDropdown from './_components/filter-dropdown';
-import PermissionGuard from '@/components/auth/PermissionGuard';
+import PermissionGuard from '@/components/auth/permission-guard';
 
 const formatNumber = (num: number): string => {
   if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;

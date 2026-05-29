@@ -17,8 +17,8 @@ import {
   useUserStats,
   useUserMutations,
   usePendingInvitations,
-} from '@/hooks/useUsers';
-import { useAuth } from '@/hooks/useAuth';
+} from '@/hooks/identity/use-users';
+import { useAuth } from '@/hooks/identity/use-auth';
 import { DashboardUserDataDto, UserRole } from '@tesseract/types';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
@@ -29,10 +29,10 @@ import {
   formatTimeAgo,
   getInitials,
   getAvatarColor,
-} from '@/app/_shared/_utils/users.utils';
+} from '@/utils/users.utils';
 import { UserDetails } from './_components/user-details';
-import { InviteUserModal } from './_components/InviteUserModal';
-import PermissionGuard from '@/components/auth/PermissionGuard';
+import { InviteUserModal } from './_components/invite-user-modal';
+import PermissionGuard from '@/components/auth/permission-guard';
 
 type FilterRole = 'all' | 'OWNER' | 'ADMIN' | 'VIEWER';
 type ExtraDataSection = 'PENDING_INVITATIONS';

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
-import { useTenantToolMutations } from '@/hooks/tools/useTenantTools';
+import { useTenantToolMutations } from '@/hooks/automation/use-tenant-tools';
 import { toast } from 'sonner';
 
 interface RenameToolModalProps {

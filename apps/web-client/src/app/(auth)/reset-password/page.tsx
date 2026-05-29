@@ -1,4 +1,4 @@
-import ResetPasswordScreen from '../_components/ResetPasswordScreen';
+import ResetPasswordScreen from '../_components/reset-password-screen';
 
 export const metadata = {
   title: 'Restablecer contraseña | Tesseract',

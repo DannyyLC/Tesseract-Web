@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { Loader2, KeyRound, CheckCircle2, Check } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
-import { useTenantToolMutations } from '@/hooks/tools/useTenantTools';
+import { useTenantToolMutations } from '@/hooks/automation/use-tenant-tools';
 import { GetToolsDto } from '@tesseract/types';
 import { toast } from 'sonner';
-import RootApi from '@/app/_api_request_manager/_apis/root-api';
+import RootApi from '@/lib/api/endpoints/root-api';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 
 interface ConnectToolModalProps {

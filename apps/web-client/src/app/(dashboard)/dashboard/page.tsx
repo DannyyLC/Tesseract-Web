@@ -17,12 +17,12 @@ import {
 } from 'recharts';
 import { Activity, ArrowUpRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth';
-import { useWorkflowStats } from '@/hooks/useWorkflows';
-import { useExecutionsStats, useDashboardExecutions } from '@/hooks/useExecutions';
-import { useBillingDashboard } from '@/hooks/useBilling';
-import { useUserStats } from '@/hooks/useUsers';
-import PermissionGuard from '@/components/auth/PermissionGuard';
+import { useAuth } from '@/hooks/identity/use-auth';
+import { useWorkflowStats } from '@/hooks/automation/use-workflows';
+import { useExecutionsStats, useDashboardExecutions } from '@/hooks/automation/use-executions';
+import { useBillingDashboard } from '@/hooks/billing/use-billing';
+import { useUserStats } from '@/hooks/identity/use-users';
+import PermissionGuard from '@/components/auth/permission-guard';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

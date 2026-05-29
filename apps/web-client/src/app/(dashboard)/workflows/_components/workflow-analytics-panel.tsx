@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useWorkflowMetrics } from '@/hooks/useWorkflows';
+import { useWorkflowMetrics } from '@/hooks/automation/use-workflows';
 import { DashboardWorkflowDto } from '@tesseract/types';
 import {
   AreaChart,

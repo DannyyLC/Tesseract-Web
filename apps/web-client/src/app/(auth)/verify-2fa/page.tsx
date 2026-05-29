@@ -7,7 +7,7 @@ import { Shield, ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useVerify2FA, useAuth } from '@/hooks/useAuth';
+import { useVerify2FA, useAuth } from '@/hooks/identity/use-auth';
 import { LogoLoader } from '@/components/ui/logo-loader';
 
 export default function Verify2FAPage() {

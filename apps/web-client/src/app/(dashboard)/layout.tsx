@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import Sidebar from '@/app/_shared/_components/_nav_bars/side_bar';
-import TopBar from '@/app/_shared/_components/_nav_bars/top_bar';
+import Sidebar from '@/components/layout/side-bar';
+import TopBar from '@/components/layout/top-bar';
 import Loading from './loading';
 import { Suspense } from 'react';
 import { WelcomeOnboarding } from '@/components/ui/welcome-onboarding';

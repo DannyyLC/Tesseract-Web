@@ -13,15 +13,15 @@ import {
   ShieldCheck,
   MonitorX,
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { useUser } from '@/hooks/useUsers';
+import { useAuth } from '@/hooks/identity/use-auth';
+import { useUser } from '@/hooks/identity/use-users';
 import { LogoLoader } from '@/components/ui/logo-loader';
-import { getRoleConfig } from '@/app/_shared/_utils/users.utils';
-import Enable2FAModal from './_components/Enable2FAModal';
-import Disable2FAModal from './_components/Disable2FAModal';
-import ChangePasswordModal from './_components/ChangePasswordModal';
-import LeaveOrganizationModal from './_components/LeaveOrganizationModal';
-import LogoutAllModal from './_components/LogoutAllModal';
+import { getRoleConfig } from '@/utils/users.utils';
+import Enable2FAModal from './_components/enable-2fa-modal';
+import Disable2FAModal from './_components/disable-2fa-modal';
+import ChangePasswordModal from './_components/change-password-modal';
+import LeaveOrganizationModal from './_components/leave-organization-modal';
+import LogoutAllModal from './_components/logout-all-modal';
 
 export default function ProfilePage() {
   const { data: authUser, isLoading: isLoadingAuth } = useAuth();

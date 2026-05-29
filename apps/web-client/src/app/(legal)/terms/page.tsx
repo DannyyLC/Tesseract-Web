@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import LegalToc from '../_components/LegalToc';
+import LegalToc from '../_components/legal-toc';
 import { OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
 
 export const metadata: Metadata = {
