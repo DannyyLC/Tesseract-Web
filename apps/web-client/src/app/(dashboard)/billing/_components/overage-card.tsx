@@ -153,7 +153,7 @@ export default function OverageCard({
           <motion.span
             layout
             transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-            className="inline-block h-4 w-4 rounded-full bg-brand-white shadow-sm"
+            className="inline-block h-4 w-4 rounded-full bg-surface-elevated shadow-sm"
             style={{
               marginLeft: allowOverages ? '1.5rem' : '0.25rem',
             }}
