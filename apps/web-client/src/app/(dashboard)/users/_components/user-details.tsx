@@ -41,20 +41,20 @@ export function UserDetails({ userId }: UserDetailsProps) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-1 border-black/5 md:border-l md:pl-8 dark:border-white/5">
+      <div className="flex flex-col gap-1 border-border md:border-l md:pl-8">
         <span className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
           Verificación
         </span>
         <div className="flex items-center gap-2">
           <p
-            className={`text-sm font-medium ${user.emailVerified ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}
+            className={`text-sm font-medium ${user.emailVerified ? 'text-success-600' : 'text-warning-600'}`}
           >
             {user.emailVerified ? 'Email Verificado' : 'Email Pendiente'}
           </p>
           {user.emailVerified ? (
-            <CheckCircle size={14} className="text-emerald-500" />
+            <CheckCircle size={14} className="text-success-500" />
           ) : (
-            <XCircle size={14} className="text-amber-500" />
+            <XCircle size={14} className="text-warning-500" />
           )}
         </div>
       </div>

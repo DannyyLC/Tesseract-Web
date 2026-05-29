@@ -69,7 +69,7 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="ejemplo@empresa.com"
-              className="w-full rounded-xl border border-border bg-white py-3 pl-11 pr-4 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5  dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+              className="w-full rounded-xl border border-border bg-surface py-3 pl-11 pr-4 text-sm text-text-primary outline-none focus:border-border-hover focus:ring-4 focus:ring-border-focus/5"
               autoFocus
               required
             />
@@ -83,14 +83,14 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-xl bg-black/5 px-4 py-3 font-medium text-black/70 transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
+            className="flex-1 rounded-xl bg-surface-secondary px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={inviteUser.isPending || !email.trim()}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-white dark:text-black"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {inviteUser.isPending ? (
               <>

@@ -229,7 +229,7 @@ export default function UsersPage() {
         <PermissionGuard permissions="organization:invite_user">
           <button
             onClick={() => setShowInviteModal(true)}
-            className="flex items-center gap-2 rounded-xl bg-black px-5 py-2.5 font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+            className="flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 font-medium text-text-inverse transition-opacity hover:opacity-90"
           >
             <UserPlus size={18} />
             Invitar Usuario
@@ -258,7 +258,7 @@ export default function UsersPage() {
                 <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                   {stats.total}
                 </p>
-                <span className="px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-info">
+                <span className="px-2 py-0.5 text-xs font-medium text-info-600">
                   Registrados
                 </span>
               </div>
@@ -268,7 +268,7 @@ export default function UsersPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+              className="flex flex-col justify-between border-border lg:border-l lg:pl-8"
             >
               <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
                 Activos
@@ -284,7 +284,7 @@ export default function UsersPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+              className="flex flex-col justify-between border-border lg:border-l lg:pl-8"
             >
               <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
                 Inactivos
@@ -293,7 +293,7 @@ export default function UsersPage() {
                 <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                   {stats.inactive}
                 </p>
-                <span className="text-xs font-medium text-zinc-500">Sin acceso</span>
+                <span className="text-xs font-medium text-neutral-500">Sin acceso</span>
               </div>
             </motion.div>
 
@@ -301,7 +301,7 @@ export default function UsersPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 }}
-              className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+              className="flex flex-col justify-between border-border lg:border-l lg:pl-8"
             >
               <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
                 Verificados
@@ -317,7 +317,7 @@ export default function UsersPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+              className="flex flex-col justify-between border-border lg:border-l lg:pl-8"
             >
               <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
                 Invitaciones
@@ -330,7 +330,7 @@ export default function UsersPage() {
                     {stats.pendingInvitations}
                   </p>
                 )}
-                <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400">
+                <span className="text-xs font-medium text-warning-600">
                   Pendientes
                 </span>
               </div>
@@ -356,7 +356,7 @@ export default function UsersPage() {
               placeholder="Buscar por nombre o email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-full border-none bg-black/5 py-2 pl-10 pr-4 text-sm text-black transition-all placeholder:text-black/30 hover:bg-black/10 focus:outline-none focus:ring-2 focus:ring-black/5 dark:bg-white/5 dark:text-white dark:placeholder:text-white/30 dark:hover:bg-white/10 dark:focus:ring-white/5"
+              className="w-full rounded-full border-none bg-surface-secondary py-2 pl-10 pr-4 text-sm text-text-primary transition-all placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-border-focus/10"
             />
           </div>
         </div>
@@ -377,8 +377,8 @@ export default function UsersPage() {
                   }}
                   className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all ${
                     extraDataSection === null && filterRole === filter.value
-                      ? 'bg-black text-white dark:bg-white dark:text-black'
-                      : 'border border-black/5 bg-white text-black/60 hover:bg-black/5 dark:border-white/5 dark:bg-[#141414] dark:text-white/60 dark:hover:bg-white/5'
+                      ? 'bg-accent text-text-inverse'
+                      : 'border border-border bg-surface-panel text-text-secondary hover:bg-surface-secondary'
                   }`}
                 >
                   {filter.label}
@@ -401,8 +401,8 @@ export default function UsersPage() {
                   }}
                   className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all ${
                     extraDataSection === section.value
-                      ? 'bg-black text-white dark:bg-white dark:text-black'
-                      : 'border border-black/5 bg-white text-black/60 hover:bg-black/5 dark:border-white/5 dark:bg-[#141414] dark:text-white/60 dark:hover:bg-white/5'
+                      ? 'bg-accent text-text-inverse'
+                      : 'border border-border bg-surface-panel text-text-secondary hover:bg-surface-secondary'
                   }`}
                 >
                   {section.label}
@@ -433,7 +433,7 @@ export default function UsersPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ delay: index * 0.05 }}
-                      className="overflow-hidden rounded-xl border border-black/5 bg-white shadow-sm dark:border-white/5 dark:bg-[#141414]"
+                      className="overflow-hidden rounded-xl border border-border bg-surface-panel shadow-sm"
                     >
                       <div className="p-5">
                         <div className="flex items-center gap-4">
@@ -442,7 +442,7 @@ export default function UsersPage() {
                               invitation.email,
                             )} flex flex-shrink-0 items-center justify-center`}
                           >
-                            <span className="font-semibold text-white">
+                            <span className="font-semibold text-brand-white">
                               {getInitials(invitation.email)}
                             </span>
                           </div>
@@ -452,7 +452,7 @@ export default function UsersPage() {
                               <h3 className="truncate font-semibold text-text-primary">
                                 {invitation.email}
                               </h3>
-                              <span className="text-[10px] font-bold uppercase tracking-wide text-yellow-600 dark:text-yellow-400">
+                              <span className="text-[10px] font-bold uppercase tracking-wide text-warning-600">
                                 Pendiente
                               </span>
                             </div>
@@ -466,7 +466,7 @@ export default function UsersPage() {
                             <p
                               className={`text-sm ${
                                 isExpired
-                                  ? 'text-red-600 dark:text-red-400'
+                                  ? 'text-danger-600'
                                   : 'text-text-primary'
                               }`}
                             >
@@ -493,8 +493,8 @@ export default function UsersPage() {
                       transition={{ delay: index * 0.05 }}
                       className={`overflow-hidden rounded-xl border border-transparent transition-all duration-200 ${
                         isExpanded
-                          ? 'border-black/5 bg-white shadow-md dark:border-white/5 dark:bg-[#141414]'
-                          : 'bg-transparent hover:border-black/5 hover:bg-white hover:shadow-sm dark:hover:border-white/5 dark:hover:bg-[#141414]'
+                          ? 'border-border bg-surface-panel shadow-md'
+                          : 'bg-transparent hover:border-border hover:bg-surface-panel hover:shadow-sm'
                       }`}
                     >
                       <div
@@ -509,13 +509,13 @@ export default function UsersPage() {
                                 user.name,
                               )} flex flex-shrink-0 items-center justify-center`}
                             >
-                              <span className="font-semibold text-white">
+                              <span className="font-semibold text-brand-white">
                                 {getInitials(user.name)}
                               </span>
                             </div>
                             {/* Status indicator */}
                             <span
-                              className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 ${statusConfig.color} rounded-full border-2 border-white dark:border-[#141414]`}
+                              className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 ${statusConfig.color} rounded-full border-2 border-surface-panel`}
                             />
                           </div>
 
@@ -557,7 +557,7 @@ export default function UsersPage() {
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden"
                           >
-                            <div className="border-t border-black/5 bg-black/[0.01] px-5 pb-5 pt-2 dark:border-white/5 dark:bg-white/[0.01]">
+                            <div className="border-t border-border bg-surface px-5 pb-5 pt-2">
                               <UserDetails userId={user.id} />
 
                               <div className="flex flex-wrap gap-2">
@@ -569,7 +569,7 @@ export default function UsersPage() {
                                         e.stopPropagation();
                                         handleTransferOpen(user);
                                       }}
-                                      className="flex items-center gap-2 rounded-full border border-yellow-500/20 px-4 py-2 text-sm font-medium text-yellow-600 transition-all hover:bg-yellow-500/10 dark:text-yellow-400"
+                                      className="flex items-center gap-2 rounded-full border border-warning-500/20 px-4 py-2 text-sm font-medium text-warning-600 transition-all hover:bg-warning-500/10"
                                     >
                                       <ArrowRightLeft size={16} />
                                       Transferir Propiedad
@@ -586,7 +586,7 @@ export default function UsersPage() {
                                           e.stopPropagation();
                                           handleEditOpen(user);
                                         }}
-                                        className="flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+                                        className="flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90"
                                       >
                                         <Edit3 size={16} />
                                         Editar
@@ -599,7 +599,7 @@ export default function UsersPage() {
                                           e.stopPropagation();
                                           handleDeleteOpen(user);
                                         }}
-                                        className="flex items-center gap-2 rounded-full border border-red-500/20 px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-danger/10 dark:text-red-400"
+                                        className="flex items-center gap-2 rounded-full border border-danger-500/20 px-4 py-2 text-sm font-medium text-danger-600 transition-all hover:bg-danger/10"
                                       >
                                         <Trash2 size={16} />
                                         Eliminar
@@ -681,8 +681,8 @@ export default function UsersPage() {
                         onClick={() => setEditFormData({ ...editFormData, role })}
                         className={`rounded-xl border px-4 py-3 transition-all ${
                           isSelected
-                            ? `border-black bg-black/5 ring-2 ring-black dark:border-white dark:bg-white/5 dark:ring-white`
-                            : 'border-black/5 bg-white hover:bg-black/5 dark:border-white/5 dark:bg-[#141414] dark:hover:bg-white/5'
+                            ? 'border-border-focus bg-surface-secondary ring-2 ring-border-focus'
+                            : 'border-border bg-surface hover:bg-surface-secondary'
                         }`}
                       >
                         <span className={`text-sm font-medium ${config.color}`}>
@@ -702,7 +702,7 @@ export default function UsersPage() {
                 <div className="flex items-center justify-between rounded-xl border border-border p-3 ">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`rounded-lg p-2 ${editFormData.isActive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-black/5 text-black/40 dark:bg-white/5 dark:text-white/40'}`}
+                      className={`rounded-lg p-2 ${editFormData.isActive ? 'bg-success-500/10 text-success-500' : 'bg-surface-secondary text-text-tertiary'}`}
                     >
                       <Power size={18} />
                     </div>
@@ -720,11 +720,11 @@ export default function UsersPage() {
                       setEditFormData({ ...editFormData, isActive: !editFormData.isActive })
                     }
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      editFormData.isActive ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-700'
+                      editFormData.isActive ? 'bg-success-500' : 'bg-border-hover'
                     }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      className={`inline-block h-4 w-4 transform rounded-full bg-surface-elevated transition-transform ${
                         editFormData.isActive ? 'translate-x-6' : 'translate-x-1'
                       }`}
                     />
@@ -735,14 +735,14 @@ export default function UsersPage() {
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setIsEditModalOpen(false)}
-                  className="flex-1 rounded-xl bg-black/5 px-4 py-3 font-medium text-black/70 transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
+                  className="flex-1 rounded-xl bg-surface-secondary px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleUpdate}
                   disabled={updateUser.isPending}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 font-medium text-text-inverse transition-opacity hover:opacity-90"
                 >
                   {updateUser.isPending ? (
                     <Loader2 className="animate-spin" size={18} />
@@ -772,14 +772,14 @@ export default function UsersPage() {
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setIsDeleteModalOpen(false)}
-                  className="flex-1 rounded-xl bg-black/5 px-4 py-3 font-medium text-black/70 transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
+                  className="flex-1 rounded-xl bg-surface-secondary px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={deleteUser.isPending}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-3 font-medium text-white transition-colors hover:bg-red-600"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-3 font-medium text-brand-white transition-colors hover:bg-danger-600"
                 >
                   {deleteUser.isPending ? (
                     <Loader2 className="animate-spin" size={18} />
@@ -802,7 +802,7 @@ export default function UsersPage() {
             title="Transferir Propiedad"
           >
             <div className="space-y-4">
-              <div className="rounded-xl bg-yellow-500/10 p-4 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400">
+              <div className="rounded-xl bg-warning-500/10 p-4 text-warning-600">
                 <div className="flex gap-3">
                   <AlertTriangle className="h-5 w-5 flex-shrink-0" />
                   <p className="text-sm font-medium">
@@ -825,21 +825,21 @@ export default function UsersPage() {
                   value={confirmTransferName}
                   onChange={(e) => setConfirmTransferName(e.target.value)}
                   placeholder="confirmar"
-                  className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5  dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary outline-none focus:border-border-hover focus:ring-4 focus:ring-border-focus/5"
                 />
               </div>
 
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setIsTransferModalOpen(false)}
-                  className="flex-1 rounded-xl bg-black/5 px-4 py-3 font-medium text-black/70 transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
+                  className="flex-1 rounded-xl bg-surface-secondary px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleTransferOwnership}
                   disabled={transferOwnership.isPending || confirmTransferName !== 'confirmar'}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-yellow-500 px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-warning-500 px-4 py-3 font-medium text-brand-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   title={
                     confirmTransferName !== 'confirmar' ? 'Escribe "confirmar" para habilitar' : ''
                   }
