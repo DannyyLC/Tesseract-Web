@@ -281,7 +281,7 @@ export default function ApiKeysPage() {
                 <PermissionGuard permissions="api_keys:update">
                   <button
                     onClick={() => openEditModal(key)}
-                    className="rounded-full p-2 text-black/40 transition-colors hover:bg-black/5 hover:text-text-primary/40 dark:hover:bg-white/5 dark:hover:text-white"
+                    className="rounded-full p-2 text-text-tertiary transition-colors hover:bg-surface-secondary hover:text-text-primary"
                     title="Editar"
                   >
                     <Edit2 size={16} />
