@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CronJobsService } from './cron-jobs.service';
-import { PrismaService } from './platform/database/prisma.service';
+import { PrismaService } from '../database/prisma.service';
 
 describe('CronJobsService', () => {
   let service: CronJobsService;

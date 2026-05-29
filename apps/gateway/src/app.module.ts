@@ -3,11 +3,9 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { ScheduleModule } from '@nestjs/schedule';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 import 'winston-daily-rotate-file';
-import { CronJobsService } from './cron-jobs.service';
 import { IdentityModule } from './identity/identity.module';
 import { BillingModule } from './billing/billing.module';
 import { AutomationModule } from './automation/automation.module';
@@ -44,7 +42,6 @@ import { PlatformModule } from './platform/platform.module';
       ignoreEnvFile: false,
     }),
     EventEmitterModule.forRoot(),
-    ScheduleModule.forRoot(),
     PlatformModule,
     IdentityModule,
     BillingModule,
@@ -53,7 +50,6 @@ import { PlatformModule } from './platform/platform.module';
   ],
   controllers: [],
   providers: [
-    CronJobsService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
