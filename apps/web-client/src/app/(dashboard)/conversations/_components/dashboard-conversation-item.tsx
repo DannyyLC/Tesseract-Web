@@ -61,26 +61,26 @@ const getStatusConfig = (status: string, isHITL: boolean) => {
   if (isHITL)
     return {
       label: 'Intervenido',
-      color: 'bg-orange-500',
-      textColor: 'text-orange-500',
-      bg: 'bg-orange-500/10',
+      color: 'bg-warning-500',
+      textColor: 'text-warning-500',
+      bg: 'bg-warning-500/10',
     };
 
   switch (status.toUpperCase()) {
     case 'CLOSED':
       return {
         label: 'Cerrado',
-        color: 'bg-zinc-400',
-        textColor: 'text-zinc-400',
-        bg: 'bg-zinc-400/10',
+        color: 'bg-neutral-400',
+        textColor: 'text-neutral-400',
+        bg: 'bg-neutral-400/10',
       };
     case 'ACTIVE':
     case 'OPEN':
       return {
         label: 'Activo',
-        color: 'bg-emerald-500',
-        textColor: 'text-emerald-500',
-        bg: 'bg-emerald-500/10',
+        color: 'bg-success-500',
+        textColor: 'text-success-500',
+        bg: 'bg-success-500/10',
       };
     default:
       return {
@@ -138,14 +138,14 @@ export default function DashboardConversationItem({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
-          className="rounded-xl border border-transparent bg-transparent transition-all duration-200 hover:border-black/5 hover:bg-white hover:shadow-sm dark:hover:border-white/5 dark:hover:bg-[#141414]"
+          className="rounded-xl border border-transparent bg-transparent transition-all duration-200 hover:border-border hover:bg-surface-panel hover:shadow-sm"
         >
           <div className="p-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
                 {/* Header: User/Title + Date */}
                 <div className="mb-1 flex items-center gap-3">
-                  <div className="rounded-full bg-black/5 p-1.5 text-black/60 dark:bg-white/5 dark:text-white/60">
+                  <div className="rounded-full bg-surface-secondary p-1.5 text-text-tertiary">
                     <User size={14} />
                   </div>
 
@@ -158,7 +158,7 @@ export default function DashboardConversationItem({
                         onBlur={handleRename}
                         autoFocus
                         onClick={(e) => e.stopPropagation()}
-                        className="border-primary w-full border-b-2 bg-transparent p-0 text-lg font-semibold text-black outline-none focus:ring-0 dark:text-white"
+                        className="border-primary w-full border-b-2 bg-transparent p-0 text-lg font-semibold text-text-primary outline-none focus:ring-0"
                       />
                     </div>
                   ) : (
@@ -179,7 +179,7 @@ export default function DashboardConversationItem({
                   )}
 
                   {/* Minimal Status Dot */}
-                  <div className="flex items-center gap-1.5 rounded-full bg-black/5 px-2 py-0.5 dark:bg-white/5">
+                  <div className="flex items-center gap-1.5 rounded-full bg-surface-secondary px-2 py-0.5">
                     <div
                       className={`h-1.5 w-1.5 rounded-full ${statusConfig.color.replace('text-', 'bg-')}`}
                     />
@@ -195,7 +195,7 @@ export default function DashboardConversationItem({
                 <div className="mb-3 flex items-center gap-3 pl-8 text-sm text-text-secondary">
                   <div className="flex items-center gap-1.5">
                     <div
-                      className={`rounded-full p-1 ${conversation.channel === 'WHATSAPP' ? 'bg-green-500/10 text-green-600' : 'bg-info/10 text-blue-600'}`}
+                      className={`rounded-full p-1 ${conversation.channel === 'WHATSAPP' ? 'bg-success-500/10 text-success-600' : 'bg-info/10 text-info-600'}`}
                     >
                       {getChannelIcon(conversation.channel)}
                     </div>
@@ -220,7 +220,7 @@ export default function DashboardConversationItem({
                       e.stopPropagation();
                       setIsDeleteOpen(true);
                     }}
-                    className="rounded-full p-2 text-black/30 opacity-0 transition-colors hover:bg-black/5 hover:text-danger group-hover:opacity-100 dark:text-white/30 dark:hover:bg-white/5"
+                    className="rounded-full p-2 text-text-tertiary opacity-0 transition-colors hover:bg-surface-secondary hover:text-danger group-hover:opacity-100"
                     title="Eliminar"
                   >
                     {deleteConversation.isPending ? (
@@ -234,7 +234,7 @@ export default function DashboardConversationItem({
             </div>
 
             {/* Footer Info */}
-            <div className="mt-4 flex items-center justify-between border-t border-black/5 pt-4 dark:border-white/5">
+            <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
               <div className="flex items-center gap-1 text-xs text-text-tertiary">
                 <MessageSquare size={12} />
                 <span>{conversation.messageCount} mensajes</span>
@@ -257,7 +257,7 @@ export default function DashboardConversationItem({
           <div className="flex justify-end gap-2 pt-2">
             <button
               onClick={() => setIsDeleteOpen(false)}
-              className="rounded-xl px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:bg-black/5 dark:text-white/60 dark:hover:bg-white/5"
+              className="rounded-xl px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-secondary"
             >
               Cancelar
             </button>
@@ -268,7 +268,7 @@ export default function DashboardConversationItem({
                 });
               }}
               disabled={deleteConversation.isPending}
-              className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-600 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2 text-sm font-medium text-brand-white transition-all hover:bg-danger-600 disabled:opacity-50"
             >
               {deleteConversation.isPending && <Loader2 size={14} className="animate-spin" />}
               Eliminar

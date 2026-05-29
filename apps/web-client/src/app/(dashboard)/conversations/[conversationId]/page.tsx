@@ -368,11 +368,11 @@ export default function WorkflowChatPage() {
     <PermissionGuard permissions="conversations:read" redirect={true} fallbackRoute="/dashboard">
       <div className="relative flex h-full flex-col bg-surface">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-black/5 bg-white px-6 py-4 dark:border-white/5 dark:bg-[#0A0A0A]">
+        <div className="flex items-center justify-between border-b border-border bg-surface-panel px-6 py-4">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.back()}
-              className="-ml-2 rounded-lg p-2 text-black/50 transition-colors hover:bg-black/5 dark:text-white/50 dark:hover:bg-white/5"
+              className="-ml-2 rounded-lg p-2 text-text-tertiary transition-colors hover:bg-surface-secondary"
             >
               <ArrowLeft size={20} />
             </button>
@@ -412,7 +412,7 @@ export default function WorkflowChatPage() {
                     }
                   }}
                   autoFocus
-                  className="w-full min-w-[200px] border-b border-border-hover bg-transparent p-0 text-lg font-bold text-black outline-none  dark:text-white"
+                  className="w-full min-w-[200px] border-b border-border-hover bg-transparent p-0 text-lg font-bold text-text-primary outline-none"
                 />
               ) : (
                 <h1
@@ -446,7 +446,7 @@ export default function WorkflowChatPage() {
           <div className="flex items-center gap-4">
             {/* User Badge - Relocated here */}
             {user && (
-              <div className="hidden items-center gap-2 rounded-full border border-black/5 bg-black/5 px-3 py-1.5 sm:flex dark:border-white/5 dark:bg-white/5">
+              <div className="hidden items-center gap-2 rounded-full border border-border bg-surface-secondary px-3 py-1.5 sm:flex">
                 <User size={14} className="text-text-tertiary" />
                 <span className="max-w-[100px] truncate text-xs font-medium text-text-secondary">
                   {user.name}
@@ -456,7 +456,7 @@ export default function WorkflowChatPage() {
 
             {/* Status & HITL Controls (Only for external users) */}
             {conversationData && (
-              <div className="mr-2 flex items-center gap-2 border-r border-black/5 pr-4 dark:border-white/5">
+              <div className="mr-2 flex items-center gap-2 border-r border-border pr-4">
                 {/* HITL Toggle */}
                 {!conversationData.userId && (
                   <PermissionGuard permissions="conversations:update">
@@ -470,8 +470,8 @@ export default function WorkflowChatPage() {
                       disabled={updateConversation.isPending}
                       className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                         conversationData.isHumanInTheLoop
-                          ? 'bg-orange-500/10 text-orange-600 hover:bg-orange-500/20 dark:text-orange-400'
-                          : 'bg-black/5 text-black/40 hover:bg-black/10 dark:bg-white/5 dark:text-white/40 dark:hover:bg-white/10'
+                          ? 'bg-warning-500/10 text-warning-600 hover:bg-warning-500/20'
+                          : 'bg-surface-secondary text-text-tertiary hover:bg-surface-elevated'
                       }`}
                       title={
                         conversationData.isHumanInTheLoop
@@ -498,8 +498,8 @@ export default function WorkflowChatPage() {
                     disabled={updateConversation.isPending}
                     className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm transition-all ${
                       conversationData.status === 'CLOSED'
-                        ? 'border-zinc-200 bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800'
-                        : 'border-emerald-100 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/10 dark:text-emerald-400 dark:hover:bg-emerald-900/20'
+                        ? 'border-border bg-surface-secondary text-text-secondary hover:bg-surface-elevated'
+                        : 'border-success-500/20 bg-success-500/10 text-success-600 hover:bg-success-500/20'
                     }`}
                   >
                     {conversationData.status === 'CLOSED' ? (
@@ -525,7 +525,7 @@ export default function WorkflowChatPage() {
                   <button
                     onClick={() => setIsDeleteOpen(true)}
                     disabled={deleteConversation.isPending}
-                    className="rounded-full p-2 text-black/40 transition-colors hover:bg-danger/10 hover:text-danger dark:text-white/40"
+                    className="rounded-full p-2 text-text-tertiary transition-colors hover:bg-danger-500/10 hover:text-danger"
                     title="Eliminar conversación"
                   >
                     {deleteConversation.isPending ? (
@@ -539,12 +539,12 @@ export default function WorkflowChatPage() {
             )}
 
             {isStreaming && !isExternalUser ? (
-              <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <div className="flex items-center gap-2 rounded-full bg-success-500/10 px-3 py-1.5 text-xs font-medium text-success-600">
                 <Loader2 size={12} className="animate-spin" />
                 Generando...
               </div>
             ) : (
-              <div className="flex items-center gap-2 rounded-full bg-black/5 px-3 py-1.5 text-xs font-medium text-black/40 dark:bg-white/5 dark:text-white/40">
+              <div className="flex items-center gap-2 rounded-full bg-surface-secondary px-3 py-1.5 text-xs font-medium text-text-tertiary">
                 <div className="h-1.5 w-1.5 rounded-full bg-current" />
                 Listo
               </div>
@@ -600,7 +600,7 @@ export default function WorkflowChatPage() {
                     <div
                       className={`mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
                         msg.role === 'user'
-                          ? 'bg-black text-white dark:bg-white dark:text-black'
+                          ? 'bg-accent text-text-inverse'
                           : 'bg-transparent'
                       }`}
                     >
@@ -629,14 +629,14 @@ export default function WorkflowChatPage() {
                       <div
                         className={`px-5 py-3.5 text-base leading-7 ${
                           msg.role === 'user'
-                            ? 'rounded-[2rem] bg-[#F4F4F4] text-black dark:bg-[#262626] dark:text-white'
+                            ? 'rounded-[2rem] bg-surface-message text-text-primary'
                             : 'bg-transparent px-0 py-0 text-text-primary'
                         }`}
                       >
                         {msg.role === 'user' ? (
                           <span className="whitespace-pre-wrap">{msg.content}</span>
                         ) : (
-                          <div className="prose prose-base max-w-none break-words text-black dark:prose-invert dark:text-white [&>code]:rounded-md [&>code]:bg-black/5 [&>code]:px-1.5 [&>code]:py-0.5 dark:[&>code]:bg-white/10 [&>p:last-child]:mb-0 [&>p]:mb-4 [&>pre]:rounded-xl [&>pre]:bg-black/5 [&>pre]:p-4 dark:[&>pre]:bg-white/5">
+                          <div className="prose prose-base max-w-none break-words text-text-primary dark:prose-invert [&>code]:rounded-md [&>code]:bg-surface-secondary [&>code]:px-1.5 [&>code]:py-0.5 [&>p:last-child]:mb-0 [&>p]:mb-4 [&>pre]:rounded-xl [&>pre]:bg-surface-secondary [&>pre]:p-4">
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
@@ -650,7 +650,7 @@ export default function WorkflowChatPage() {
                                 ),
                                 thead: ({ node, ...props }) => (
                                   <thead
-                                    className="border-b border-border bg-black/5 text-black  dark:bg-white/5 dark:text-white"
+                                    className="border-b border-border bg-surface-secondary text-text-primary"
                                     {...props}
                                   />
                                 ),
@@ -662,7 +662,7 @@ export default function WorkflowChatPage() {
                                 ),
                                 td: ({ node, ...props }) => (
                                   <td
-                                    className="border-b border-black/5 p-3 text-sm text-black last:border-0 dark:border-white/5 dark:text-white"
+                                    className="border-b border-border p-3 text-sm text-text-primary last:border-0"
                                     {...props}
                                   />
                                 ),
@@ -739,13 +739,13 @@ export default function WorkflowChatPage() {
 
         {/* Input Area */}
         <div className="pointer-events-none absolute bottom-0 left-0 z-20 w-full">
-          <div className="w-full bg-gradient-to-t from-white via-white to-transparent px-4 pb-6 pt-10 dark:from-[#0A0A0A] dark:via-[#0A0A0A] dark:to-transparent">
+          <div className="w-full bg-gradient-to-t from-surface via-surface to-transparent px-4 pb-6 pt-10">
             <div className="pointer-events-auto relative mx-auto max-w-4xl">
               {/* Error Alert */}
               {error && (
-                <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/10">
+                <div className="mb-4 flex items-start gap-3 rounded-xl border border-danger-500/20 bg-danger-500/10 p-3">
                   <AlertCircle className="mt-0.5 flex-shrink-0 text-danger" size={18} />
-                  <div className="text-sm text-red-600 dark:text-red-400">
+                  <div className="text-sm text-danger-600">
                     <p className="font-medium">No se pudo enviar el mensaje</p>
                     {/* Error de créditos insuficientes */}
                     {error?.statusCode === 403 ||
@@ -777,7 +777,7 @@ export default function WorkflowChatPage() {
               )}
 
               <div
-                className={`flex items-end gap-2 rounded-[26px] border border-black/5 bg-[#f4f4f4] p-2 pl-4 shadow-sm transition-shadow focus-within:shadow-md dark:border-white/5 dark:bg-[#212121] ${
+                className={`flex items-end gap-2 rounded-[26px] border border-border bg-surface-chat p-2 pl-4 shadow-sm transition-shadow focus-within:shadow-md ${
                   conversationData && !conversationData.userId && !conversationData.isHumanInTheLoop
                     ? 'cursor-not-allowed opacity-50'
                     : ''
@@ -795,7 +795,7 @@ export default function WorkflowChatPage() {
                         : 'Toma el control para responder manualmente...'
                       : `Envía un mensaje a ${workflow?.name}...`
                   }
-                  className="scrollbar-hide max-h-[200px] min-h-[44px] flex-1 resize-none overflow-y-auto bg-transparent py-3 text-[15px] leading-relaxed text-black outline-none placeholder:text-black/40 disabled:cursor-not-allowed dark:text-white dark:placeholder:text-white/40"
+                  className="scrollbar-hide max-h-[200px] min-h-[44px] flex-1 resize-none overflow-y-auto bg-transparent py-3 text-[15px] leading-relaxed text-text-primary outline-none placeholder:text-input-placeholder disabled:cursor-not-allowed"
                   autoFocus
                   disabled={
                     (conversationData &&
@@ -826,7 +826,7 @@ export default function WorkflowChatPage() {
                         error?.message?.includes('inactivo') ||
                         error?.message?.includes('Bad Request')))
                   }
-                  className="mb-1 mr-1 flex-shrink-0 rounded-full bg-black p-2 text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20 dark:bg-white dark:text-black"
+                  className="mb-1 mr-1 flex-shrink-0 rounded-full bg-accent p-2 text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20"
                 >
                   {isStreaming ? (
                     <Loader2 size={18} className="animate-spin" />
@@ -857,7 +857,7 @@ export default function WorkflowChatPage() {
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   onClick={() => setIsDeleteOpen(false)}
-                  className="rounded-full px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:bg-black/5 dark:text-white/60 dark:hover:bg-white/5"
+                  className="rounded-full px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-secondary"
                 >
                   Cancelar
                 </button>
@@ -871,7 +871,7 @@ export default function WorkflowChatPage() {
                     });
                   }}
                   disabled={deleteConversation.isPending}
-                  className="flex items-center gap-2 rounded-full bg-danger px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-600 disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-full bg-danger px-4 py-2 text-sm font-medium text-brand-white transition-all hover:bg-danger-600 disabled:opacity-50"
                 >
                   {deleteConversation.isPending && <Loader2 size={14} className="animate-spin" />}
                   Eliminar

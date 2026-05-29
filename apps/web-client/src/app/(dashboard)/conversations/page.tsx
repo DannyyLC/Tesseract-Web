@@ -201,7 +201,7 @@ export default function ConversationsPage() {
                   setDebouncedModalSearch('');
                 }
               }}
-              className="flex items-center gap-2 rounded-full bg-black px-6 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
+              className="flex items-center gap-2 rounded-full bg-accent px-6 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <MessageSquare size={16} />
               Nueva Conversación
@@ -224,7 +224,7 @@ export default function ConversationsPage() {
               <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {stats?.activeConversations ?? 0}
               </p>
-              <span className="text-xs font-medium text-emerald-500">En curso</span>
+              <span className="text-xs font-medium text-success-500">En curso</span>
             </div>
           </motion.div>
 
@@ -232,7 +232,7 @@ export default function ConversationsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="flex flex-col justify-between border-black/5 md:border-l md:pl-8 dark:border-white/5"
+            className="flex flex-col justify-between border-border md:border-l md:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Mensajes (Mes)
@@ -251,7 +251,7 @@ export default function ConversationsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="flex flex-col justify-between border-black/5 md:border-l md:pl-8 dark:border-white/5"
+            className="flex flex-col justify-between border-border md:border-l md:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Total Histórico
@@ -314,7 +314,7 @@ export default function ConversationsPage() {
         <div className="relative min-h-[200px] space-y-3">
           {/* Loading Overlay */}
           {isLoading && (
-            <div className="absolute inset-0 z-10 flex items-start justify-center rounded-2xl bg-white/50 pt-10 backdrop-blur-[1px] dark:bg-black/50">
+            <div className="absolute inset-0 z-10 flex items-start justify-center rounded-2xl bg-surface/50 pt-10 backdrop-blur-[1px]">
               <LogoLoader />
             </div>
           )}
@@ -346,11 +346,11 @@ export default function ConversationsPage() {
         </div>
 
         {/* Pagination Controls */}
-        <div className="flex items-center justify-between border-t border-black/5 pt-4 dark:border-white/5">
+        <div className="flex items-center justify-between border-t border-border pt-4">
           <button
             onClick={handlePrevPage}
             disabled={!prevCursor}
-            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-text-secondary dark:hover:text-white dark:disabled:hover:text-white/60"
+            className="px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-30"
           >
             Anterior
           </button>
@@ -360,7 +360,7 @@ export default function ConversationsPage() {
           <button
             onClick={handleNextPage}
             disabled={!nextPageAvailable}
-            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-text-secondary dark:hover:text-white dark:disabled:hover:text-white/60"
+            className="px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-30"
           >
             Siguiente
           </button>
@@ -390,12 +390,12 @@ export default function ConversationsPage() {
                     placeholder="Buscar workflow..."
                     value={modalSearchQuery}
                     onChange={(e) => setModalSearchQuery(e.target.value)}
-                    className="w-full rounded-xl border border-transparent bg-black/5 py-2 pl-9 pr-4 text-sm text-black transition-colors focus:border-black/10 focus:outline-none dark:bg-white/5 dark:text-white dark:focus:border-white/10"
+                    className="w-full rounded-xl border border-transparent bg-surface-secondary py-2 pl-9 pr-4 text-sm text-text-primary transition-colors focus:border-border-hover focus:outline-none"
                   />
                 </div>
 
                 {/* List */}
-                <div className="overflow-hidden rounded-xl border border-border bg-black/5  dark:bg-white/5">
+                <div className="overflow-hidden rounded-xl border border-border bg-surface-secondary">
                   {isLoadingModalWorkflows ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2
@@ -413,7 +413,7 @@ export default function ConversationsPage() {
                               ref={isLast ? lastModalWorkflowRef : null}
                               key={wf.id}
                               onClick={() => router.push(`/conversations/new?workflowId=${wf.id}`)}
-                              className="flex w-full items-center border-b border-black/5 bg-white p-3 text-left text-black/70 transition-colors last:border-0 hover:bg-black/5 dark:border-white/5 dark:bg-[#141414] dark:text-white/70 dark:hover:bg-white/5"
+                              className="flex w-full items-center border-b border-border bg-surface p-3 text-left text-text-secondary transition-colors last:border-0 hover:bg-surface-secondary"
                             >
                               <div className="flex-1 truncate pr-2">
                                 <div className="truncate text-sm font-medium text-text-primary">
@@ -453,7 +453,7 @@ export default function ConversationsPage() {
 
                 <button
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="w-full bg-transparent px-4 py-2 text-sm font-medium text-black/40 transition-colors hover:text-text-primary hover:text-text-primary"
+                  className="w-full bg-transparent px-4 py-2 text-sm font-medium text-text-tertiary transition-colors hover:text-text-primary"
                 >
                   Cancelar
                 </button>
