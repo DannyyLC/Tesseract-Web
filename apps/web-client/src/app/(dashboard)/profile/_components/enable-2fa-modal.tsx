@@ -85,7 +85,7 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
     <Modal isOpen={isOpen} onClose={handleClose} title="Activar Autenticación de Dos Factores">
       {step === 1 ? (
         <div className="space-y-4">
-          <div className="rounded-xl bg-info/10 p-4 text-blue-600 dark:bg-info/20 dark:text-blue-400">
+          <div className="rounded-xl bg-info-500/10 p-4 text-info-500">
             <div className="flex gap-3">
               <ShieldCheck className="h-5 w-5 flex-shrink-0" />
               <div>
@@ -114,14 +114,14 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
           <div className="flex gap-3 pt-4">
             <button
               onClick={handleClose}
-              className="flex-1 rounded-xl bg-black/5 px-4 py-3 font-medium text-black/70 transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
+              className="flex-1 rounded-xl bg-surface-secondary px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
             >
               Cancelar
             </button>
             <button
               onClick={handleSetup}
               disabled={setup2FA.isPending}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 font-medium text-text-inverse transition-opacity hover:opacity-90"
             >
               {setup2FA.isPending ? (
                 <>
@@ -161,16 +161,16 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
                 O ingresa este código manualmente:
               </p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 rounded-lg bg-black/5 px-3 py-2 font-mono text-sm text-black dark:bg-white/10 dark:text-white">
+                <code className="flex-1 rounded-lg bg-surface-secondary px-3 py-2 font-mono text-sm text-text-primary">
                   {secret}
                 </code>
                 <button
                   onClick={handleCopySecret}
-                  className="rounded-lg bg-black/5 p-2 transition-colors hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
+                  className="rounded-lg bg-surface-secondary p-2 transition-colors hover:bg-surface-elevated"
                   title="Copiar código"
                 >
                   {copiedSecret ? (
-                    <Check size={18} className="text-emerald-500" />
+                    <Check size={18} className="text-success-500" />
                   ) : (
                     <Copy size={18} className="text-text-secondary" />
                   )}
@@ -195,21 +195,21 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
                 }
               }}
               placeholder="000000"
-              className="w-full rounded-xl border border-border bg-white px-4 py-3 text-center font-mono text-lg tracking-widest text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5  dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+              className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
             />
           </div>
 
           <div className="flex gap-3 pt-4">
             <button
               onClick={handleClose}
-              className="flex-1 rounded-xl bg-black/5 px-4 py-3 font-medium text-black/70 transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
+              className="flex-1 rounded-xl bg-surface-secondary px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
             >
               Cancelar
             </button>
             <button
               onClick={handleVerify}
               disabled={enable2FA.isPending || verificationCode.length !== 6}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {enable2FA.isPending ? (
                 <>

@@ -26,7 +26,7 @@ export default function LogoutAllModal({ isOpen, onClose }: LogoutAllModalProps)
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Cerrar todas las sesiones">
       <div className="space-y-4">
-        <div className="rounded-xl bg-orange-500/10 p-4 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400">
+        <div className="rounded-xl bg-warning-500/10 p-4 text-warning-500">
           <div className="flex gap-3">
             <MonitorX className="h-5 w-5 flex-shrink-0" />
             <div>
@@ -42,14 +42,14 @@ export default function LogoutAllModal({ isOpen, onClose }: LogoutAllModalProps)
         <div className="flex gap-3 pt-4">
           <button
             onClick={onClose}
-            className="flex-1 rounded-xl bg-black/5 px-4 py-3 font-medium text-black/70 transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
+            className="flex-1 rounded-xl bg-surface-secondary px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
           >
             Cancelar
           </button>
           <button
             onClick={handleLogoutAll}
             disabled={logoutAll.isPending}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {logoutAll.isPending ? (
               <>

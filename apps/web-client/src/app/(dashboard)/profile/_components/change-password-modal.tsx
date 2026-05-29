@@ -105,7 +105,7 @@ export default function ChangePasswordModal({
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="Ingresa tu contraseña actual"
-                className="w-full rounded-xl border border-border bg-white px-4 py-3 pr-12 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5  dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+                className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 pr-12 text-sm text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
               />
               <button
                 type="button"
@@ -133,7 +133,7 @@ export default function ChangePasswordModal({
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Mínimo 8 caracteres"
-              className="w-full rounded-xl border border-border bg-white px-4 py-3 pr-12 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5  dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+              className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 pr-12 text-sm text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
             />
             <button
               type="button"
@@ -160,7 +160,7 @@ export default function ChangePasswordModal({
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Repite la nueva contraseña"
-              className="w-full rounded-xl border border-border bg-white px-4 py-3 pr-12 text-sm text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5  dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+              className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 pr-12 text-sm text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
             />
             <button
               type="button"
@@ -194,7 +194,7 @@ export default function ChangePasswordModal({
                 }
               }}
               placeholder="000000"
-              className="w-full rounded-xl border border-border bg-white px-4 py-3 text-center font-mono text-lg tracking-widest text-black outline-none focus:border-black/20 focus:ring-4 focus:ring-black/5  dark:bg-[#141414] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+              className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
             />
           </div>
         )}
@@ -202,14 +202,14 @@ export default function ChangePasswordModal({
         <div className="flex gap-3 pt-4">
           <button
             onClick={handleClose}
-            className="flex-1 rounded-xl bg-black/5 px-4 py-3 font-medium text-black/70 transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
+            className="flex-1 rounded-xl bg-surface-secondary px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
           >
             Cancelar
           </button>
           <button
             onClick={handleSubmit}
             disabled={changePassword.isPending}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {changePassword.isPending ? (
               <>

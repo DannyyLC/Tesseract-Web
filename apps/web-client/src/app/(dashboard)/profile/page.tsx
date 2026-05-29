@@ -73,9 +73,9 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="overflow-hidden rounded-2xl border border-black/5 bg-white dark:border-white/5 dark:bg-[#141414]"
+        className="overflow-hidden rounded-2xl border border-border bg-surface-panel"
       >
-        <div className="border-b border-black/5 p-6 dark:border-white/5">
+        <div className="border-b border-border p-6">
           <h2 className="text-lg font-semibold text-text-primary">Información Personal</h2>
           <p className="mt-1 text-sm text-text-secondary">
             Detalles de tu cuenta y organización
@@ -85,7 +85,7 @@ export default function ProfilePage() {
         <div className="space-y-4 p-6">
           {/* Name */}
           <div className="flex items-start gap-4">
-            <div className="rounded-lg bg-black/5 p-2.5 dark:bg-white/5">
+            <div className="rounded-lg bg-surface-secondary p-2.5">
               <UserIcon size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
@@ -98,7 +98,7 @@ export default function ProfilePage() {
 
           {/* Email */}
           <div className="flex items-start gap-4">
-            <div className="rounded-lg bg-black/5 p-2.5 dark:bg-white/5">
+            <div className="rounded-lg bg-surface-secondary p-2.5">
               <Mail size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
@@ -111,7 +111,7 @@ export default function ProfilePage() {
 
           {/* Role */}
           <div className="flex items-start gap-4">
-            <div className="rounded-lg bg-black/5 p-2.5 dark:bg-white/5">
+            <div className="rounded-lg bg-surface-secondary p-2.5">
               <Shield size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
@@ -126,7 +126,7 @@ export default function ProfilePage() {
 
           {/* Organization */}
           <div className="flex items-start gap-4">
-            <div className="rounded-lg bg-black/5 p-2.5 dark:bg-white/5">
+            <div className="rounded-lg bg-surface-secondary p-2.5">
               <Building2 size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
@@ -139,7 +139,7 @@ export default function ProfilePage() {
 
           {/* Member Since */}
           <div className="flex items-start gap-4">
-            <div className="rounded-lg bg-black/5 p-2.5 dark:bg-white/5">
+            <div className="rounded-lg bg-surface-secondary p-2.5">
               <Calendar size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
@@ -161,9 +161,9 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="overflow-hidden rounded-2xl border border-black/5 bg-white dark:border-white/5 dark:bg-[#141414]"
+        className="overflow-hidden rounded-2xl border border-border bg-surface-panel"
       >
-        <div className="border-b border-black/5 p-6 dark:border-white/5">
+        <div className="border-b border-border p-6">
           <h2 className="text-lg font-semibold text-text-primary">Seguridad</h2>
           <p className="mt-1 text-sm text-text-secondary">
             Gestiona tu contraseña y autenticación de dos factores
@@ -172,13 +172,13 @@ export default function ProfilePage() {
 
         <div className="space-y-4 p-6">
           {/* 2FA Status */}
-          <div className="flex items-center justify-between rounded-xl border border-black/5 p-4 dark:border-white/5">
+          <div className="flex items-center justify-between rounded-xl border border-border p-4">
             <div className="flex items-center gap-3">
               <div
                 className={`rounded-lg p-2.5 ${
                   twoFactorEnabled
-                    ? 'bg-emerald-500/10 text-emerald-500'
-                    : 'bg-black/5 text-black/40 dark:bg-white/5 dark:text-white/40'
+                    ? 'bg-success-500/10 text-success-500'
+                    : 'bg-surface-secondary text-text-secondary'
                 }`}
               >
                 <ShieldCheck size={20} />
@@ -200,8 +200,8 @@ export default function ProfilePage() {
               }
               className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${
                 twoFactorEnabled
-                  ? 'border border-red-500/20 text-red-600 hover:bg-danger/10 dark:text-red-400'
-                  : 'bg-black text-white hover:opacity-90 dark:bg-white dark:text-black'
+                  ? 'border border-danger-500/30 text-danger-500 hover:bg-danger-500/10'
+                  : 'bg-accent text-text-inverse hover:opacity-90'
               }`}
             >
               {twoFactorEnabled ? 'Desactivar' : 'Activar'}
@@ -209,9 +209,9 @@ export default function ProfilePage() {
           </div>
 
           {/* Change Password */}
-          <div className="flex items-center justify-between rounded-xl border border-black/5 p-4 dark:border-white/5">
+          <div className="flex items-center justify-between rounded-xl border border-border p-4">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-black/5 p-2.5 dark:bg-white/5">
+              <div className="rounded-lg bg-surface-secondary p-2.5">
                 <Key size={20} className="text-text-secondary" />
               </div>
               <div>
@@ -227,16 +227,16 @@ export default function ProfilePage() {
             </div>
             <button
               onClick={() => setIsChangePasswordModalOpen(true)}
-              className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+              className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90"
             >
               {hasPassword ? 'Cambiar' : 'Crear'}
             </button>
           </div>
 
           {/* Logout All Sessions */}
-          <div className="flex items-center justify-between rounded-xl border border-black/5 p-4 dark:border-white/5">
+          <div className="flex items-center justify-between rounded-xl border border-border p-4">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-black/5 p-2.5 dark:bg-white/5">
+              <div className="rounded-lg bg-surface-secondary p-2.5">
                 <MonitorX size={20} className="text-text-secondary" />
               </div>
               <div>
@@ -248,7 +248,7 @@ export default function ProfilePage() {
             </div>
             <button
               onClick={() => setIsLogoutAllModalOpen(true)}
-              className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-black transition-all hover:bg-black/5  dark:text-white dark:hover:bg-white/5"
+              className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-text-primary transition-all hover:bg-surface-secondary"
             >
               Cerrar todas
             </button>
@@ -261,19 +261,19 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="overflow-hidden rounded-2xl border border-red-500/20 bg-danger/5 dark:bg-danger/10"
+        className="overflow-hidden rounded-2xl border border-danger-500 bg-danger-500/5"
       >
-        <div className="border-b border-red-500/20 p-6">
-          <h2 className="text-lg font-semibold text-red-600 dark:text-red-400">Zona Peligrosa</h2>
-          <p className="mt-1 text-sm text-red-600/70 dark:text-red-400/70">
+        <div className="border-b border-danger-500 p-6">
+          <h2 className="text-lg font-semibold text-danger-500">Zona Peligrosa</h2>
+          <p className="mt-1 text-sm text-danger-500/80">
             Acciones irreversibles que afectan tu cuenta
           </p>
         </div>
 
         <div className="p-6">
-          <div className="flex items-center justify-between rounded-xl border border-red-500/20 bg-white p-4 dark:bg-[#141414]">
+          <div className="flex items-center justify-between rounded-xl border border-danger-500 bg-surface-panel p-4">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-danger/10 p-2.5 text-danger">
+              <div className="rounded-lg bg-danger-500/10 p-2.5 text-danger-500">
                 <LogOut size={20} />
               </div>
               <div>
@@ -287,7 +287,7 @@ export default function ProfilePage() {
             </div>
             <button
               onClick={() => setIsLeaveOrgModalOpen(true)}
-              className="rounded-xl border border-red-500/20 px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-danger/10 dark:text-red-400"
+              className="rounded-xl border border-danger-500 px-4 py-2 text-sm font-medium text-danger-500 transition-all hover:bg-danger-500/10"
             >
               Salir
             </button>
