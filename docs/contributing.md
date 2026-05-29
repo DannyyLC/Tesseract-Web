@@ -176,7 +176,36 @@ npx jest src/billing/billing.service.spec.ts
 
 ---
 
-## 7. Acceso a Credenciales
+## 7. Levantar la Documentación (Mintlify)
+
+Esta documentación se construye con **Mintlify**. La configuración vive en `docs/mint.json`. Para previsualizarla localmente con hot-reload (se actualiza al guardar los `.md`):
+
+```bash
+# 1. Instala el CLI de Mintlify (una sola vez, global)
+npm install -g mint
+
+# 2. Levántala desde la carpeta docs/ (donde está mint.json)
+cd docs
+mint dev --port 3333
+```
+
+Abre `http://localhost:3333` en el navegador.
+
+> **Importante:** Usa siempre el puerto `3333`. Por defecto `mint dev` arranca en el puerto `3000`, que es el mismo del Gateway (NestJS), y chocarían si tienes el backend corriendo. Por eso pasamos `--port 3333`.
+
+> **Nota:** Instala el CLI con `npm`, **no con `pnpm`**. Mintlify espera un `node_modules` aplanado al estilo npm; instalado con `pnpm add -g` falla con `Cannot find package 'openapi-types'` por la resolución estricta de dependencias de pnpm.
+
+> **Si la instalación falla en `puppeteer`** (`Failed to set up chrome-headless-shell`), es porque una dependencia de Mintlify intenta descargar Chrome y no es necesario para `mint dev`. Sáltatelo (sintaxis para **fish**; en bash/zsh omite el `env`):
+> ```fish
+> rm -rf ~/.cache/puppeteer/chrome-headless-shell/*   # limpia descargas corruptas
+> env PUPPETEER_SKIP_DOWNLOAD=true npm install -g mint
+> ```
+
+El comando actual del CLI es `mint dev` (el antiguo `mintlify dev` sigue funcionando como alias). Si Mintlify te pide migrar al esquema nuevo, usa `mint upgrade` para convertir `mint.json` → `docs.json`.
+
+---
+
+## 8. Acceso a Credenciales
 
 Para trabajar localmente necesitaras acceso a algunos servicios externos. Contacta al responsable del equipo para obtenerlos.
 
