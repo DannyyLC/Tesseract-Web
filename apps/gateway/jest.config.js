@@ -23,6 +23,7 @@ module.exports = {
   moduleNameMapper: {
     '^@tesseract/types$': '<rootDir>/../../packages/types/src',
     '^@tesseract/database$': '<rootDir>/../../packages/database/src',
+    '^@/(.*)$': '<rootDir>/src/$1',
   },
   // Configuración para tests e2e - evita que Jest se quede colgado
   detectOpenHandles: true,  // Detecta conexiones abiertas (útil para debugging)
