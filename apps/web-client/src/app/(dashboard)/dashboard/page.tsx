@@ -36,12 +36,12 @@ function SectionTitle({
   linkLabel?: string;
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-black/5 p-5 dark:border-white/5">
+    <div className="flex items-center justify-between border-b border-border p-5">
       <h2 className="text-lg font-semibold text-text-primary">{children}</h2>
       {href && (
         <Link
           href={href}
-          className="flex items-center gap-1 text-sm text-black/50 transition-colors hover:text-text-primary hover:text-text-primary"
+          className="flex items-center gap-1 text-sm text-black/50 transition-colors hover:text-text-primary"
         >
           {linkLabel ?? 'Ver todos'}
           <ArrowUpRight size={14} />
@@ -62,9 +62,9 @@ function ChartTooltip({ active, payload, label }: any) {
       })()
     : null;
   return (
-    <div className="rounded-xl border border-border bg-white px-3 py-2 shadow-lg  dark:bg-[#111]">
+    <div className="rounded-xl border border-border bg-surface-popover px-3 py-2 shadow-lg">
       {displayLabel && (
-        <p className="mb-1 text-xs text-black/50 dark:text-white/40">{displayLabel}</p>
+        <p className="mb-1 text-xs text-text-tertiary">{displayLabel}</p>
       )}
       {payload.map((p: any, i: number) => (
         <p key={i} className="text-sm font-semibold" style={{ color: p.color }}>
@@ -152,8 +152,8 @@ export default function DashboardPage() {
     const paused = Math.max(0, total - active);
 
     const data = [
-      { name: 'Activos', value: active, fill: '#22c55e' }, // emerald-500
-      { name: 'Pausados', value: paused, fill: '#f59e0b' }, // amber-500
+      { name: 'Activos', value: active, fill: 'var(--chart-active)' },
+      { name: 'Pausados', value: paused, fill: 'var(--chart-warning)' },
     ];
 
     // Filter out zero values (e.g. if no paused workflows, don't show segment)
@@ -189,7 +189,7 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-black md:text-3xl dark:text-white">
+            <h1 className="text-2xl font-bold text-text-primary md:text-3xl">
               {user?.name ? `Bienvenido, ${user.name.split(' ')[0]}` : 'Dashboard'}
             </h1>
           </div>
@@ -234,7 +234,7 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+          className="flex flex-col justify-between border-border lg:border-l lg:pl-8"
         >
           <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
             Ejecuciones Hoy
@@ -248,7 +248,7 @@ export default function DashboardPage() {
                   {(statsToday?.total ?? 0).toLocaleString()}
                 </p>
                 {(statsToday?.successful ?? 0) > 0 && (
-                  <span className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
+                  <span className="text-xs font-medium text-success">
                     {statsToday?.successful} exitosas
                   </span>
                 )}
@@ -263,7 +263,7 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+            className="flex flex-col justify-between border-border lg:border-l lg:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Créditos Disponibles
@@ -291,7 +291,7 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
-            className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+            className="flex flex-col justify-between border-border lg:border-l lg:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Miembros del Equipo
@@ -317,7 +317,7 @@ export default function DashboardPage() {
       {/* ── Charts Row ─────────────────────────────────────────────────────── */}
       <div className="grid gap-6 lg:grid-cols-1">
         {/* Area chart — executions 7 days */}
-        <div className="rounded-2xl border border-black/5 bg-white dark:border-white/5 dark:bg-[#0A0A0A]">
+        <div className="rounded-2xl border border-border bg-surface">
           <SectionTitle href="/executions" linkLabel="Ver ejecuciones">
             Ejecuciones — Últimos 7 días
           </SectionTitle>
@@ -338,8 +338,8 @@ export default function DashboardPage() {
                 <AreaChart data={areaData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="execGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                      <stop offset="5%" stopColor="var(--chart-execution)" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="var(--chart-execution)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.05} />
@@ -363,11 +363,11 @@ export default function DashboardPage() {
                   <Area
                     type="monotone"
                     dataKey="Ejecuciones"
-                    stroke="#6366f1"
+                    stroke="var(--chart-execution)"
                     strokeWidth={2}
                     fill="url(#execGrad)"
                     dot={false}
-                    activeDot={{ r: 5, fill: '#6366f1' }}
+                    activeDot={{ r: 5, fill: 'var(--chart-execution)' }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -379,7 +379,7 @@ export default function DashboardPage() {
       {/* ── Bar Chart + Activity Feed ───────────────────────────────────────── */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Horizontal bar — workflows breakdown */}
-        <div className="rounded-2xl border border-black/5 bg-white dark:border-white/5 dark:bg-[#0A0A0A]">
+        <div className="rounded-2xl border border-border bg-surface">
           <SectionTitle href="/workflows" linkLabel="Ver workflows">
             Estado de Workflows
           </SectionTitle>
@@ -434,11 +434,11 @@ export default function DashboardPage() {
 
         {/* Top Workflows (executions:read) */}
         <PermissionGuard permissions="executions:read">
-          <div className="rounded-2xl border border-black/5 bg-white dark:border-white/5 dark:bg-[#0A0A0A]">
+          <div className="rounded-2xl border border-border bg-surface">
             <SectionTitle href="/executions" linkLabel="Ver ejecuciones">
               Top Workflows (7 días)
             </SectionTitle>
-            <div className="divide-y divide-black/5 dark:divide-white/5">
+            <div className="divide-y divide-border">
               {loading7d ? (
                 <div className="p-5">
                   <ChartSkeleton height={160} />
@@ -448,10 +448,10 @@ export default function DashboardPage() {
                   const successPct = Math.round(wf.successRate ?? 0);
                   const barColor =
                     successPct >= 90
-                      ? 'bg-emerald-500'
+                      ? 'bg-success-500'
                       : successPct >= 70
-                        ? 'bg-amber-400'
-                        : 'bg-red-400';
+                        ? 'bg-warning-400'
+                        : 'bg-danger-500';
                   return (
                     <div key={wf.workflowId} className="flex items-center gap-4 px-5 py-4">
                       {/* Rank */}
@@ -509,7 +509,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Recent Executions Table ─────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-black/5 bg-white dark:border-white/5 dark:bg-[#0A0A0A]">
+      <div className="rounded-2xl border border-border bg-surface">
         <SectionTitle href="/executions" linkLabel="Ver todas">
           Últimas Ejecuciones
         </SectionTitle>
@@ -545,7 +545,7 @@ export default function DashboardPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/5 dark:divide-white/5">
+              <tbody className="divide-y divide-border">
                 {executions.slice(0, 5).map((exec: any, i: number) => {
                   const wfName = exec.workflow?.name ?? exec.workflowName ?? exec.workflowId ?? '—';
                   const credits = exec.credits ?? exec.creditsUsed ?? exec.tokensUsed ?? '—';
@@ -561,22 +561,22 @@ export default function DashboardPage() {
                   return (
                     <tr
                       key={exec.id ?? i}
-                      className="transition-colors hover:bg-black/[0.01] dark:hover:bg-white/[0.01]"
+                      className="transition-colors hover:bg-surface-secondary"
                     >
                       <td className="max-w-[200px] truncate px-5 py-3.5 font-medium text-text-primary">
                         {wfName}
                       </td>
                       <td className="px-5 py-3.5">
                         <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
+                          className={`inline-flex items-center gap-1.5 text-xs font-medium ${
                             exec.status === 'COMPLETED'
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                              ? 'text-badge-success-text'
                               : exec.status === 'FAILED'
-                                ? 'bg-danger/10 text-red-600 dark:text-red-400'
-                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                ? 'text-badge-danger-text'
+                                : 'text-badge-warning-text'
                           }`}
                         >
-                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                          <span className="h-2 w-2 rounded-full bg-current" />
                           {statusLabel(exec.status)}
                         </span>
                       </td>

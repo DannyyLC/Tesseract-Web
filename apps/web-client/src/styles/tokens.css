@@ -88,8 +88,15 @@
 
   /* Superficie */
   --surface: #ffffff;
+  --surface-primary: var(--surface);
   --surface-secondary: #f5f5f5;
   --surface-elevated: #ffffff;
+  --surface-panel: #ffffff;
+  --surface-popover: #ffffff;
+  --surface-muted: #f5f5f5;
+  --surface-chat: #f4f4f4;
+  --surface-message: #f4f4f4;
+  --dashboard-background: #fafafa;
 
   /* Texto */
   --text-primary: #171717;
@@ -131,9 +138,37 @@
   --gradient-mid: #0a0a0a;
   --gradient-end: #1a1a1a;
 
+  /* Charts */
+  --chart-active: #22c55e;
+  --chart-success: #10b981;
+  --chart-danger: #ef4444;
+  --chart-warning: #f59e0b;
+  --chart-execution: #6366f1;
+  --chart-axis: #888888;
+
+  /* Badges */
+  --badge-success-bg: color-mix(in srgb, var(--success-500) 25%, transparent);
+  --badge-success-text: var(--success-500);
+  --badge-danger-bg: color-mix(in srgb, var(--danger-500) 25%, transparent);
+  --badge-danger-text: var(--danger-500);
+  --badge-warning-bg: color-mix(in srgb, var(--warning-500) 25%, transparent);
+  --badge-warning-text: var(--warning-500);
+
   /* Marca (elementos decorativos) */
   --brand-white: #ffffff;
   --brand-black: #000000;
+  --brand-google: #4285f4;
+  --brand-whatsapp: #67c15e;
+
+  /* Avatares determinísticos */
+  --avatar-blue: #3b82f6;
+  --avatar-success: #10b981;
+  --avatar-purple: #a855f7;
+  --avatar-warning: #f59e0b;
+  --avatar-danger: #f43f5e;
+  --avatar-cyan: #06b6d4;
+  --avatar-indigo: #6366f1;
+  --avatar-pink: #ec4899;
 
   /* Scrollbar */
   --scrollbar-track: transparent;
@@ -151,8 +186,15 @@
 
     /* Superficie */
     --surface: #0a0a0a;
+    --surface-primary: var(--surface);
     --surface-secondary: #171717;
     --surface-elevated: #1a1a1a;
+    --surface-panel: #141414;
+    --surface-popover: #111111;
+    --surface-muted: #171717;
+    --surface-chat: #212121;
+    --surface-message: #262626;
+    --dashboard-background: #000000;
 
     /* Texto */
     --text-primary: #ededed;
@@ -183,6 +225,14 @@
     --shadow-md: rgba(0, 0, 0, 0.5);
     --shadow-lg: rgba(0, 0, 0, 0.7);
 
+    /* Badges */
+    --badge-success-bg: color-mix(in srgb, var(--success-500) 30%, transparent);
+    --badge-success-text: var(--success-500);
+    --badge-danger-bg: color-mix(in srgb, var(--danger-500) 30%, transparent);
+    --badge-danger-text: var(--danger-500);
+    --badge-warning-bg: color-mix(in srgb, var(--warning-500) 30%, transparent);
+    --badge-warning-text: var(--warning-500);
+
     /* Scrollbar */
     --scrollbar-track: #000000;
     --scrollbar-thumb: #262626;
@@ -196,8 +246,15 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
+  --color-surface-primary: var(--surface-primary);
   --color-surface-secondary: var(--surface-secondary);
   --color-surface-elevated: var(--surface-elevated);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-popover: var(--surface-popover);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-chat: var(--surface-chat);
+  --color-surface-message: var(--surface-message);
+  --color-dashboard-background: var(--dashboard-background);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-tertiary: var(--text-tertiary);
@@ -224,8 +281,30 @@
   --color-gradient-start: var(--gradient-start);
   --color-gradient-mid: var(--gradient-mid);
   --color-gradient-end: var(--gradient-end);
+  --color-chart-active: var(--chart-active);
+  --color-chart-success: var(--chart-success);
+  --color-chart-danger: var(--chart-danger);
+  --color-chart-warning: var(--chart-warning);
+  --color-chart-execution: var(--chart-execution);
+  --color-chart-axis: var(--chart-axis);
+  --color-badge-success-bg: var(--badge-success-bg);
+  --color-badge-success-text: var(--badge-success-text);
+  --color-badge-danger-bg: var(--badge-danger-bg);
+  --color-badge-danger-text: var(--badge-danger-text);
+  --color-badge-warning-bg: var(--badge-warning-bg);
+  --color-badge-warning-text: var(--badge-warning-text);
   --color-brand-white: var(--brand-white);
   --color-brand-black: var(--brand-black);
+  --color-brand-google: var(--brand-google);
+  --color-brand-whatsapp: var(--brand-whatsapp);
+  --color-avatar-blue: var(--avatar-blue);
+  --color-avatar-success: var(--avatar-success);
+  --color-avatar-purple: var(--avatar-purple);
+  --color-avatar-warning: var(--avatar-warning);
+  --color-avatar-danger: var(--avatar-danger);
+  --color-avatar-cyan: var(--avatar-cyan);
+  --color-avatar-indigo: var(--avatar-indigo);
+  --color-avatar-pink: var(--avatar-pink);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
 }

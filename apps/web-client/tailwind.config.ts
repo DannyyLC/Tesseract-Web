@@ -16,8 +16,17 @@ const config: Config = {
         foreground: 'var(--foreground)',
         surface: {
           DEFAULT: 'var(--surface)',
+          primary: 'var(--surface-primary)',
           secondary: 'var(--surface-secondary)',
           elevated: 'var(--surface-elevated)',
+          panel: 'var(--surface-panel)',
+          popover: 'var(--surface-popover)',
+          muted: 'var(--surface-muted)',
+          chat: 'var(--surface-chat)',
+          message: 'var(--surface-message)',
+        },
+        dashboard: {
+          background: 'var(--dashboard-background)',
         },
         text: {
           primary: 'var(--text-primary)',
@@ -45,6 +54,40 @@ const config: Config = {
         brand: {
           white: 'var(--brand-white)',
           black: 'var(--brand-black)',
+          google: 'var(--brand-google)',
+          whatsapp: 'var(--brand-whatsapp)',
+        },
+        avatar: {
+          blue: 'var(--avatar-blue)',
+          success: 'var(--avatar-success)',
+          purple: 'var(--avatar-purple)',
+          warning: 'var(--avatar-warning)',
+          danger: 'var(--avatar-danger)',
+          cyan: 'var(--avatar-cyan)',
+          indigo: 'var(--avatar-indigo)',
+          pink: 'var(--avatar-pink)',
+        },
+        chart: {
+          active: 'var(--chart-active)',
+          success: 'var(--chart-success)',
+          danger: 'var(--chart-danger)',
+          warning: 'var(--chart-warning)',
+          execution: 'var(--chart-execution)',
+          axis: 'var(--chart-axis)',
+        },
+        badge: {
+          success: {
+            bg: 'var(--badge-success-bg)',
+            text: 'var(--badge-success-text)',
+          },
+          danger: {
+            bg: 'var(--badge-danger-bg)',
+            text: 'var(--badge-danger-text)',
+          },
+          warning: {
+            bg: 'var(--badge-warning-bg)',
+            text: 'var(--badge-warning-text)',
+          },
         },
 
         // ---- Escalas semánticas (constantes; reemplazan a red/emerald/amber/blue/zinc) ----
