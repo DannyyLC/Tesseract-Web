@@ -74,9 +74,9 @@ export default function InfoSections() {
           {TIERS.map((tier) => (
             <div
               key={tier.id}
-              className="group rounded-2xl border border-black/5 bg-white p-6 transition-all hover:border-black/20 dark:border-white/5 dark:bg-[#0A0A0A] dark:hover:border-white/20"
+              className="group rounded-2xl border border-border bg-surface p-6 transition-all hover:border-border-hover"
             >
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-black/5 text-black/80 transition-all group-hover:scale-110 dark:bg-white/5 dark:text-white/80">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-surface-secondary text-text-secondary transition-all group-hover:scale-110">
                 {tier.icon}
               </div>
               <h3 className="flex items-center justify-between font-bold text-text-primary">
@@ -89,7 +89,7 @@ export default function InfoSections() {
                 {tier.cost}
               </p>
 
-              <div className="mt-4 space-y-2 border-t border-black/5 pt-4 text-sm dark:border-white/5">
+              <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
                 <p className="text-text-secondary">
                   <span className="font-bold text-text-primary">Modelos:</span>{' '}
                   {tier.models}
@@ -122,7 +122,7 @@ export default function InfoSections() {
           {SUPPORT.map((item) => (
             <div
               key={item.title}
-              className="rounded-2xl border border-transparent bg-[#F5F5F5] p-5 transition-all hover:border-black/5 dark:bg-[#111]"
+              className="rounded-2xl border border-transparent bg-surface-secondary p-5 transition-all hover:border-border"
             >
               <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg bg-surface-secondary">
                 {item.icon}

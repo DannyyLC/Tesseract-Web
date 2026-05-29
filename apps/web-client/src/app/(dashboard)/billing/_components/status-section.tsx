@@ -17,7 +17,7 @@ export default function StatusSection({ subscription, onCancel, isCanceling }: S
 
   return (
     <div className="w-full">
-      <div className="group relative overflow-hidden rounded-2xl border border-black/5 bg-white p-6 md:p-8 dark:border-white/5 dark:bg-[#0A0A0A]">
+      <div className="group relative overflow-hidden rounded-2xl border border-border bg-surface p-6 md:p-8">
         <div className="relative z-10 flex h-full flex-col">
           <div className="mb-6 flex items-center gap-2 text-sm font-medium text-info">
             <Zap size={16} />
@@ -48,7 +48,7 @@ export default function StatusSection({ subscription, onCancel, isCanceling }: S
                 animate={{ width: `${percentage}%` }}
                 transition={{ duration: 1, ease: 'easeOut' }}
                 className={`h-full rounded-full ${
-                  percentage > 90 ? 'bg-amber-500' : 'bg-info'
+                  percentage > 90 ? 'bg-warning-500' : 'bg-info'
                 }`}
               />
             </div>

@@ -111,7 +111,7 @@ export default function BillingPage() {
                     rel="noopener noreferrer"
                     onClick={handleOpenPortal}
                     onMouseEnter={() => fetchPortalUrl()}
-                    className="flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-2 text-sm font-medium text-black hover:bg-black/5  dark:bg-transparent dark:text-white dark:hover:bg-white/5"
+                    className="flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface-secondary"
                   >
                     {isOpeningPortal ? 'Cargando...' : 'Portal de Pagos'}
                   </a>
@@ -119,7 +119,7 @@ export default function BillingPage() {
               </PermissionGuard>
               <Link
                 href="/billing/plans"
-                className="flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+                className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90"
               >
                 Gestionar Plan
                 <ArrowUpRight size={16} />
@@ -179,8 +179,8 @@ export default function BillingPage() {
       {/* Success Modal after Checkout */}
       <Modal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} title="">
         <div className="flex flex-col items-center space-y-6 py-4">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10">
-            <PartyPopper size={40} className="text-emerald-500" />
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-success-500/10">
+            <PartyPopper size={40} className="text-success-500" />
           </div>
           <div className="space-y-2 text-center">
             <h3 className="text-2xl font-bold text-text-primary">
@@ -193,7 +193,7 @@ export default function BillingPage() {
           </div>
           <button
             onClick={() => setShowSuccessModal(false)}
-            className="rounded-xl bg-black px-6 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+            className="rounded-xl bg-accent px-6 py-3 text-sm font-bold text-text-inverse transition-opacity hover:opacity-90"
           >
             ¡Comenzar!
           </button>

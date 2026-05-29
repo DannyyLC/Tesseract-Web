@@ -230,7 +230,7 @@ export default function PlansPage() {
         <div>
           <button
             onClick={() => router.back()}
-            className="group flex items-center gap-2 text-sm font-medium text-black/50 transition-colors hover:text-text-primary hover:text-text-primary"
+            className="group flex items-center gap-2 text-sm font-medium text-text-tertiary transition-colors hover:text-text-primary"
           >
             <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
             Atrás
@@ -249,7 +249,7 @@ export default function PlansPage() {
 
         {/* Past Due / Failed Payment Banner */}
         {subscription.status?.toUpperCase() === 'PAST_DUE' && (
-          <div className="flex items-center justify-between gap-4 rounded-2xl border border-red-500/20 bg-danger/5 p-5">
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-danger-500/20 bg-danger/5 p-5">
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger/10">
                 <AlertCircle size={20} className="text-danger" />
@@ -267,7 +267,7 @@ export default function PlansPage() {
                 const { url } = await createPortalSession.mutateAsync();
                 goToStripe(url);
               }}
-              className="shrink-0 rounded-lg bg-danger/10 px-4 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-danger/20 dark:text-red-400"
+              className="shrink-0 rounded-lg bg-danger/10 px-4 py-2 text-sm font-bold text-danger-600 transition-colors hover:bg-danger/20"
             >
               Actualizar Pago
             </button>
@@ -276,7 +276,7 @@ export default function PlansPage() {
 
         {/* Pending Plan Change Banner */}
         {subscription.pendingPlanChange && (
-          <div className="flex items-center justify-between gap-4 rounded-2xl border border-blue-500/20 bg-info/5 p-5">
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-info-500/20 bg-info/5 p-5">
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-info/10">
                 <ArrowDownRight size={20} className="text-info" />
@@ -303,7 +303,7 @@ export default function PlansPage() {
             <button
               onClick={() => setShowCancelDowngradeModal(true)}
               disabled={isCancellingDowngrade}
-              className="shrink-0 rounded-lg bg-info/10 px-4 py-2 text-sm font-bold text-blue-600 transition-colors hover:bg-info/20 disabled:opacity-50 dark:text-blue-400"
+              className="shrink-0 rounded-lg bg-info/10 px-4 py-2 text-sm font-bold text-info-600 transition-colors hover:bg-info/20 disabled:opacity-50"
             >
               {isCancellingDowngrade ? (
                 <span className="flex items-center gap-2">
@@ -349,7 +349,7 @@ export default function PlansPage() {
                 <>
                   <button
                     onClick={() => setShowResumeModal(true)}
-                    className="group flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-6 py-3 text-sm font-bold text-emerald-500/70 shadow-sm transition-all hover:border-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500"
+                    className="group flex items-center gap-2 rounded-xl border border-success-500/20 bg-success-500/5 px-6 py-3 text-sm font-bold text-success-500/70 shadow-sm transition-all hover:border-success-500 hover:bg-success-500/10 hover:text-success-500"
                   >
                     Reactivar Suscripción
                   </button>
@@ -359,14 +359,14 @@ export default function PlansPage() {
                   </p>
                 </>
               ) : subscription.pendingPlanChange ? (
-                <p className="text-[10px] font-medium uppercase tracking-widest text-amber-500/70">
+                <p className="text-[10px] font-medium uppercase tracking-widest text-warning-500/70">
                   Cancela el cambio pendiente antes de cancelar la suscripción
                 </p>
               ) : (
                 <>
                   <button
                     onClick={handleCancelClick}
-                    className="group flex items-center gap-2 rounded-xl border border-red-500/20 bg-danger/5 px-6 py-3 text-sm font-bold text-danger/70 shadow-sm transition-all hover:border-red-500 hover:bg-danger/10 hover:text-danger"
+                    className="group flex items-center gap-2 rounded-xl border border-danger-500/20 bg-danger/5 px-6 py-3 text-sm font-bold text-danger/70 shadow-sm transition-all hover:border-danger-500 hover:bg-danger/10 hover:text-danger"
                   >
                     Cancelar suscripción actual
                   </button>
@@ -394,7 +394,7 @@ export default function PlansPage() {
               </p>
 
               {isUpgrade ? (
-                <div className="rounded-lg bg-info/10 p-4 text-sm text-blue-600 dark:text-blue-400">
+                <div className="rounded-lg bg-info/10 p-4 text-sm text-info-600">
                   <p>
                     <strong>Actualización Inmediata:</strong>
                   </p>
@@ -405,7 +405,7 @@ export default function PlansPage() {
                   </ul>
                 </div>
               ) : (
-                <div className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-600 dark:text-amber-400">
+                <div className="rounded-lg bg-warning-500/10 p-4 text-sm text-warning-600">
                   <p>
                     <strong>Cambio Programado:</strong>
                   </p>
@@ -420,14 +420,14 @@ export default function PlansPage() {
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   onClick={() => setSelectedPlan(null)}
-                  className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-text-primary/50 dark:hover:bg-white/5 dark:hover:text-white"
+                  className="rounded-xl px-4 py-2 text-sm font-bold text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={confirmChange}
                   disabled={!!upgradingPlan}
-                  className="flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50 dark:bg-white dark:text-black"
+                  className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-bold text-text-inverse hover:opacity-90 disabled:opacity-50"
                 >
                   {upgradingPlan && <Loader2 size={16} className="animate-spin" />}
                   {isUpgrade ? 'Confirmar y Pagar' : 'Confirmar Cambio'}
@@ -443,7 +443,7 @@ export default function PlansPage() {
           title="Sugerencia antes de contratar"
         >
           <div className="space-y-4">
-            <div className="rounded-lg bg-info/10 p-4 text-sm text-blue-600 dark:text-blue-400">
+            <div className="rounded-lg bg-info/10 p-4 text-sm text-info-600">
               <p>
                 Te sugerimos que antes de contratar el plan te comuniques con nosotros para crear
                 tus workflows, porque actualmente no podrías aprovechar todos los beneficios de la
@@ -454,13 +454,13 @@ export default function PlansPage() {
             <div className="flex justify-end gap-3 pt-4">
               <button
                 onClick={handleProceedWithAdvice}
-                className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-text-primary/50 dark:hover:bg-white/5 dark:hover:text-white"
+                className="rounded-xl px-4 py-2 text-sm font-bold text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
               >
                 Continuar de todos modos
               </button>
               <button
                 onClick={() => router.push('/support?reason=upgrade')}
-                className="flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-bold text-white hover:opacity-90 dark:bg-white dark:text-black"
+                className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-bold text-text-inverse hover:opacity-90"
               >
                 Contactar Soporte
               </button>
@@ -474,7 +474,7 @@ export default function PlansPage() {
           title="Cancelar Suscripción"
         >
           <div className="space-y-4">
-            <div className="rounded-lg bg-danger/10 p-4 text-sm text-red-600 dark:text-red-400">
+            <div className="rounded-lg bg-danger/10 p-4 text-sm text-danger-600">
               <p className="mb-2 font-bold">¿Estás seguro de que deseas cancelar?</p>
               <p>
                 Perderás acceso a tus beneficios premium al finalizar el periodo de facturación
@@ -498,14 +498,14 @@ export default function PlansPage() {
             <div className="flex justify-end gap-3 pt-4">
               <button
                 onClick={() => setShowCancelModal(false)}
-                className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-text-primary/50 dark:hover:bg-white/5 dark:hover:text-white"
+                className="rounded-xl px-4 py-2 text-sm font-bold text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
               >
                 Mantener Suscripción
               </button>
               <button
                 onClick={confirmCancel}
                 disabled={isCanceling}
-                className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2 text-sm font-bold text-brand-white hover:bg-danger-600 disabled:opacity-50"
               >
                 {isCanceling && <Loader2 size={16} className="animate-spin" />}
                 Cancelar Suscripción
@@ -520,7 +520,7 @@ export default function PlansPage() {
           title="Reactivar Suscripción"
         >
           <div className="space-y-4">
-            <div className="rounded-lg bg-emerald-500/10 p-4 text-sm text-emerald-600 dark:text-emerald-400">
+            <div className="rounded-lg bg-success-500/10 p-4 text-sm text-success-600">
               <p className="mb-2 font-bold">¿Deseas reactivar tu suscripción?</p>
               <p>
                 Tu suscripción continuará normalmente y se renovará automáticamente al finalizar el
@@ -531,14 +531,14 @@ export default function PlansPage() {
             <div className="flex justify-end gap-3 pt-4">
               <button
                 onClick={() => setShowResumeModal(false)}
-                className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-text-primary/50 dark:hover:bg-white/5 dark:hover:text-white"
+                className="rounded-xl px-4 py-2 text-sm font-bold text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
               >
                 Cancelar
               </button>
               <button
                 onClick={confirmResume}
                 disabled={isResuming}
-                className="flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-600 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-success-500 px-4 py-2 text-sm font-bold text-brand-white hover:bg-success-600 disabled:opacity-50"
               >
                 {isResuming && <Loader2 size={16} className="animate-spin" />}
                 Reactivar Suscripción
@@ -559,7 +559,7 @@ export default function PlansPage() {
               <span className="font-bold">{subscription.pendingPlanChange}</span>?
             </p>
 
-            <div className="rounded-xl border border-blue-500/20 bg-info/5 p-4 text-sm text-blue-600 dark:text-blue-400">
+            <div className="rounded-xl border border-info-500/20 bg-info/5 p-4 text-sm text-info-600">
               Mantendrás tu plan actual (<span className="font-bold">{subscription.plan}</span>) de
               forma continua y no habrá interrupciones en tu servicio.
             </div>
@@ -568,7 +568,7 @@ export default function PlansPage() {
               <button
                 onClick={() => setShowCancelDowngradeModal(false)}
                 disabled={isCancellingDowngrade}
-                className="rounded-xl px-4 py-2 text-sm font-bold text-black/50 hover:bg-black/5 hover:text-text-primary/50 dark:hover:bg-white/5 dark:hover:text-white"
+                className="rounded-xl px-4 py-2 text-sm font-bold text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
               >
                 Cerrar
               </button>
@@ -578,7 +578,7 @@ export default function PlansPage() {
                   setShowCancelDowngradeModal(false);
                 }}
                 disabled={isCancellingDowngrade}
-                className="flex items-center justify-center gap-2 rounded-xl bg-info px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+                className="flex items-center justify-center gap-2 rounded-xl bg-info px-4 py-2 text-sm font-bold text-brand-white transition-colors hover:bg-info-600 disabled:opacity-50"
               >
                 {isCancellingDowngrade && <Loader2 size={16} className="animate-spin" />}
                 Confirmar Cancelación
@@ -594,8 +594,8 @@ export default function PlansPage() {
           title=""
         >
           <div className="flex flex-col items-center space-y-6 py-4">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10">
-              <PartyPopper size={40} className="text-emerald-500" />
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-success-500/10">
+              <PartyPopper size={40} className="text-success-500" />
             </div>
             <div className="space-y-2 text-center">
               <h3 className="text-2xl font-bold text-text-primary">¡Plan actualizado!</h3>
@@ -606,7 +606,7 @@ export default function PlansPage() {
             </div>
             <button
               onClick={() => setShowPlanChangeSuccess(false)}
-              className="rounded-xl bg-black px-6 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+              className="rounded-xl bg-accent px-6 py-3 text-sm font-bold text-text-inverse transition-opacity hover:opacity-90"
             >
               ¡Entendido!
             </button>
@@ -616,8 +616,8 @@ export default function PlansPage() {
         {/* Resume Success Modal */}
         <Modal isOpen={showResumeSuccess} onClose={() => setShowResumeSuccess(false)} title="">
           <div className="flex flex-col items-center space-y-6 py-4">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10">
-              <RefreshCw size={40} className="text-emerald-500" />
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-success-500/10">
+              <RefreshCw size={40} className="text-success-500" />
             </div>
             <div className="space-y-2 text-center">
               <h3 className="text-2xl font-bold text-text-primary">
@@ -630,7 +630,7 @@ export default function PlansPage() {
             </div>
             <button
               onClick={() => setShowResumeSuccess(false)}
-              className="rounded-xl bg-black px-6 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+              className="rounded-xl bg-accent px-6 py-3 text-sm font-bold text-text-inverse transition-opacity hover:opacity-90"
             >
               ¡Continuar!
             </button>

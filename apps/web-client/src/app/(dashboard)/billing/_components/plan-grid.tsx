@@ -35,17 +35,17 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
       {sortedPlans.map((plan) => (
         <div
           key={plan.type}
-          className={`relative flex flex-grow basis-[calc(100%)] flex-col rounded-2xl border bg-white transition-all duration-300 hover:border-black/20 sm:basis-[calc(50%-12px)] lg:basis-[calc(33.33%-16px)] 2xl:basis-[calc(20%-20px)] dark:bg-[#0A0A0A] dark:hover:border-white/20 ${plan.popular ? 'border-black shadow-lg ring-1 ring-black dark:border-white dark:ring-white' : 'border-border'}`}
+          className={`relative flex flex-grow basis-[calc(100%)] flex-col rounded-2xl border bg-surface transition-all duration-300 hover:border-border-hover sm:basis-[calc(50%-12px)] lg:basis-[calc(33.33%-16px)] 2xl:basis-[calc(20%-20px)] ${plan.popular ? 'border-accent shadow-lg ring-1 ring-accent' : 'border-border'}`}
         >
           {plan.popular && (
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-black px-3 py-1 text-xs font-bold uppercase tracking-wide text-white dark:bg-white dark:text-black">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-3 py-1 text-xs font-bold uppercase tracking-wide text-text-inverse">
               Recomendado
             </div>
           )}
 
           <div className="flex-1 p-6">
             <div
-              className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-black/5 text-black/80 transition-colors group-hover:bg-black group-hover:text-white dark:bg-white/5 dark:text-white/80 dark:group-hover:bg-white dark:group-hover:text-black`}
+              className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-surface-secondary text-text-secondary transition-colors group-hover:bg-accent group-hover:text-text-inverse`}
             >
               {getPlanIcon(plan.type)}
             </div>
@@ -65,7 +65,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
             </div>
 
             {/* Limits */}
-            <div className="mt-6 space-y-3 border-t border-black/5 pt-6 dark:border-white/5">
+            <div className="mt-6 space-y-3 border-t border-border pt-6">
               {/* Credits */}
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium text-text-primary">
@@ -125,8 +125,8 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
               )}
               {(plan.features || []).map((feature, i) => (
                 <div key={i} className="flex items-start gap-2 text-sm">
-                  <div className="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/10">
-                    <Check size={10} className="text-emerald-500" />
+                  <div className="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-success-500/10">
+                    <Check size={10} className="text-success-500" />
                   </div>
                   <span className="text-text-primary">{feature}</span>
                 </div>
@@ -135,8 +135,8 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
               {/* Highlight Feature */}
               {plan.highlightFeature && (
                 <div className="flex items-center gap-2 text-sm">
-                  <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-amber-500/10">
-                    <Zap size={10} className="fill-amber-500 text-amber-500" />
+                  <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-warning-500/10">
+                    <Zap size={10} className="fill-warning-500 text-warning-500" />
                   </div>
                   <span className="font-semibold italic text-text-primary">
                     {plan.highlightFeature}
@@ -153,8 +153,8 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
                 disabled={upgradingPlan !== null || currentPlan === plan.type}
                 className={`flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold transition-all ${
                   currentPlan === plan.type
-                    ? 'cursor-not-allowed border-2 border-transparent bg-black/5 text-black/40 dark:bg-white/5 dark:text-white/40'
-                    : 'border-2 border-transparent bg-black text-white shadow-lg hover:opacity-90 dark:bg-white dark:text-black'
+                    ? 'cursor-not-allowed border-2 border-transparent bg-surface-secondary text-text-tertiary'
+                    : 'border-2 border-transparent bg-accent text-text-inverse shadow-lg hover:opacity-90'
                 }`}
               >
                 {upgradingPlan === plan.type ? (

@@ -45,32 +45,32 @@ export default function BillingHero({
       case 'ACTIVE':
         return {
           label: 'Activo',
-          color: 'bg-emerald-500',
-          text: 'text-emerald-300 dark:text-emerald-400',
-          bg: 'bg-emerald-500/20',
+          color: 'bg-success-500',
+          text: 'text-success-400',
+          bg: 'bg-success-500/20',
         };
       case 'PAST_DUE':
       case 'past_due':
         return {
           label: 'Pago Pendiente',
           color: 'bg-danger',
-          text: 'text-red-300 dark:text-red-400',
+          text: 'text-danger-400',
           bg: 'bg-danger/20',
         };
       case 'CANCELED':
       case 'canceled':
         return {
           label: 'Cancelado',
-          color: 'bg-gray-500',
-          text: 'text-gray-300 dark:text-gray-400',
-          bg: 'bg-gray-500/20',
+          color: 'bg-neutral-500',
+          text: 'text-neutral-400',
+          bg: 'bg-neutral-500/20',
         };
       default:
         return {
           label: s,
-          color: 'bg-gray-500',
-          text: 'text-gray-300 dark:text-gray-400',
-          bg: 'bg-gray-500/20',
+          color: 'bg-neutral-500',
+          text: 'text-neutral-400',
+          bg: 'bg-neutral-500/20',
         };
     }
   };
@@ -80,10 +80,10 @@ export default function BillingHero({
   const statusConfig = getStatusConfig(effectiveStatus);
 
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-black p-8 text-white shadow-2xl transition-all dark:bg-white dark:text-black">
+    <div className="relative overflow-hidden rounded-3xl bg-accent p-8 text-text-inverse shadow-2xl transition-all">
       {/* Background decoration */}
-      <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/5 blur-3xl dark:bg-black/5" />
-      <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-white/5 blur-3xl dark:bg-black/5" />
+      <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
+      <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
 
       <div className="relative z-10 flex flex-col justify-between gap-10 lg:flex-row lg:items-end">
         {/* Left Side: Credits */}
@@ -91,7 +91,7 @@ export default function BillingHero({
           <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-widest opacity-60">
             {isNegative ? (
               <>
-                <span className="text-red-600 dark:text-danger">Balance Negativo</span>
+                <span className="text-danger-500">Balance Negativo</span>
               </>
             ) : (
               <div className="flex items-center gap-2">
@@ -104,7 +104,7 @@ export default function BillingHero({
             <motion.span
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`font-geist-mono text-7xl font-light tracking-tighter ${isNegative ? 'text-red-600 dark:text-danger' : ''}`}
+              className={`font-geist-mono text-7xl font-light tracking-tighter ${isNegative ? 'text-danger-500' : ''}`}
             >
               {isNegative ? '-' : ''}
               {formattedBalance}
@@ -114,7 +114,7 @@ export default function BillingHero({
 
           {/* Negative Balance Helper Text */}
           {isNegative && (
-            <p className="max-w-md text-sm text-red-600/80 dark:text-danger/80">
+            <p className="max-w-md text-sm text-danger-500">
               Has excedido tu límite. El consumo extra (${OVERAGE_PRICE_PER_CREDIT}/crédito) se
               cargará en tu próxima factura.
             </p>
@@ -125,7 +125,7 @@ export default function BillingHero({
         <div className="flex flex-col gap-6 lg:items-end lg:text-right">
           {/* Plan Badge */}
           <div className="flex items-center gap-3 lg:flex-row-reverse">
-            <div className="rounded-xl bg-white/10 p-2.5 backdrop-blur-md dark:bg-black/10">
+            <div className="rounded-xl bg-white/10 p-2.5 backdrop-blur-md">
               <CreditCard size={24} className="opacity-80" />
             </div>
             <div>
@@ -139,12 +139,12 @@ export default function BillingHero({
           {/* Billing Info */}
           <div className="space-y-1">
             {cancelAtPeriodEnd ? (
-              <div className="inline-flex items-center gap-2 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-amber-300 dark:text-amber-400">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+              <div className="inline-flex items-center gap-2 rounded-full bg-warning-500/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-warning-400">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-warning-500" />
                 Cancelación Pendiente
               </div>
             ) : pendingPlanChange ? (
-              <div className="inline-flex items-center gap-2 rounded-full bg-info/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-blue-300 dark:text-blue-400">
+              <div className="inline-flex items-center gap-2 rounded-full bg-info/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-info-400">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-info" />
                 Cambio programado → {pendingPlanChange}
               </div>
@@ -158,7 +158,7 @@ export default function BillingHero({
             )}
 
             {(status === 'PAST_DUE' || status === 'past_due') && (
-              <p className="max-w-[200px] text-right text-xs text-red-400 dark:text-red-300">
+              <p className="max-w-[200px] text-right text-xs text-danger-400">
                 No pudimos procesar tu último pago. Usa el <strong>Portal de Pagos</strong> para
                 actualizar tu método de pago.
               </p>

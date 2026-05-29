@@ -13,10 +13,10 @@ export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDi
   const formattedBalance = Math.abs(balance).toLocaleString();
 
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-black p-8 text-white shadow-2xl dark:bg-white dark:text-black">
+    <div className="relative overflow-hidden rounded-3xl bg-accent p-8 text-text-inverse shadow-2xl">
       {/* Background decoration */}
-      <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/5 blur-3xl dark:bg-black/5" />
-      <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-white/5 blur-3xl dark:bg-black/5" />
+      <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
+      <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
 
       <div className="relative z-10 flex flex-col justify-between gap-8 md:flex-row md:items-end">
         <div className="space-y-2">
@@ -24,7 +24,7 @@ export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDi
             {isNegative ? (
               <>
                 <AlertCircle size={16} className="text-danger" />
-                <span className="text-red-400">Balance Negativo (Overdraft)</span>
+                <span className="text-danger-400">Balance Negativo (Overdraft)</span>
               </>
             ) : (
               <span>Créditos Disponibles</span>
@@ -35,7 +35,7 @@ export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDi
             <motion.span
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`font-geist-mono text-7xl font-light tracking-tighter ${isNegative ? 'text-red-400' : ''}`}
+              className={`font-geist-mono text-7xl font-light tracking-tighter ${isNegative ? 'text-danger-400' : ''}`}
             >
               {isNegative ? '-' : ''}
               {formattedBalance}
@@ -46,7 +46,7 @@ export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDi
 
         <div className="flex flex-col items-end gap-2">
           <div
-            className={`rounded-full px-4 py-1.5 text-sm font-medium backdrop-blur-md ${isNegative ? 'bg-danger/20 text-red-200 dark:text-red-800' : 'bg-white/10 text-white dark:bg-black/10 dark:text-black'}`}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium backdrop-blur-md ${isNegative ? 'bg-danger/20 text-danger-500' : 'bg-white/10 text-text-inverse'}`}
           >
             {isNegative ? 'Pago pendiente' : 'Activo'}
           </div>

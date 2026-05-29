@@ -14,10 +14,10 @@ export default function UsageCard({ title, icon, used, limit, unit }: UsageCardP
   const percentage = isUnlimited ? 0 : Math.min((used / limit) * 100, 100);
 
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-black/5 bg-white p-5 transition-shadow hover:shadow-sm dark:border-white/5 dark:bg-[#0A0A0A]">
+    <div className="flex flex-col justify-between rounded-2xl border border-border bg-surface p-5 transition-shadow hover:shadow-sm">
       <div className="mb-4 flex items-center justify-between">
         {/* Icon Wrapper - Monochrome */}
-        <div className="rounded-xl bg-black/5 p-2.5 text-black dark:bg-white/5 dark:text-white">
+        <div className="rounded-xl bg-surface-secondary p-2.5 text-text-primary">
           {React.isValidElement(icon)
             ? React.cloneElement(icon as React.ReactElement, { size: 20, className: '' })
             : icon}
@@ -25,7 +25,7 @@ export default function UsageCard({ title, icon, used, limit, unit }: UsageCardP
 
         {/* Unlimited Badge */}
         {isUnlimited && (
-          <span className="rounded-full bg-black/5 px-2.5 py-0.5 text-xs font-medium text-black/60 dark:bg-white/5 dark:text-white/60">
+          <span className="rounded-full bg-surface-secondary px-2.5 py-0.5 text-xs font-medium text-text-tertiary">
             Ilimitado
           </span>
         )}

@@ -10,10 +10,10 @@ export default function SpecializedCards() {
   return (
     <div className="grid gap-6 lg:grid-cols-5">
       {/* Consultancy */}
-      <div className="group relative overflow-hidden rounded-2xl border border-black/5 bg-white p-8 lg:col-span-3 dark:border-white/5 dark:bg-[#0A0A0A]">
+      <div className="group relative overflow-hidden rounded-2xl border border-border bg-surface p-8 lg:col-span-3">
         <div className="relative z-10">
           <div className="mb-6 flex items-center gap-3">
-            <div className="rounded-xl bg-black/5 p-2.5 text-black dark:bg-white/10 dark:text-white">
+            <div className="rounded-xl bg-surface-secondary p-2.5 text-text-primary">
               <Handshake size={24} />
             </div>
             <div>
@@ -33,7 +33,7 @@ export default function SpecializedCards() {
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
-              <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-black opacity-40 dark:text-white">
+              <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-text-tertiary">
                 FORMACIÓN
               </p>
               <p className="text-xs font-medium leading-relaxed text-text-secondary">
@@ -41,7 +41,7 @@ export default function SpecializedCards() {
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-black opacity-40 dark:text-white">
+              <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-text-tertiary">
                 EXPLORACIÓN
               </p>
               <p className="text-xs font-medium leading-relaxed text-text-secondary">
@@ -49,7 +49,7 @@ export default function SpecializedCards() {
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-black opacity-40 dark:text-white">
+              <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-text-tertiary">
                 REFINAMIENTO
               </p>
               <p className="text-xs font-medium leading-relaxed text-text-secondary">
@@ -57,7 +57,7 @@ export default function SpecializedCards() {
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-black opacity-40 dark:text-white">
+              <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-text-tertiary">
                 VIGILANCIA
               </p>
               <p className="text-xs font-medium leading-relaxed text-text-secondary">
@@ -69,7 +69,7 @@ export default function SpecializedCards() {
           <PermissionGuard permissions="billing:update_plan">
             <button
               onClick={() => router.push('/support?reason=consulting')}
-              className="mt-8 flex items-center gap-2 text-sm font-bold text-black transition-all hover:gap-3 dark:text-white"
+              className="mt-8 flex items-center gap-2 text-sm font-bold text-text-primary transition-all hover:gap-3"
             >
               Agendar Consultoría
               <ArrowRight size={16} />
@@ -78,35 +78,35 @@ export default function SpecializedCards() {
         </div>
 
         {/* Decor */}
-        <div className="absolute right-0 top-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-black/[0.02] blur-[80px] dark:bg-white/[0.02]" />
+        <div className="absolute right-0 top-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-surface-secondary blur-[80px]" />
       </div>
 
       {/* Enterprise */}
-      <div className="group relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-[#111] to-black p-8 text-white shadow-2xl lg:col-span-2 dark:from-[#111] dark:to-black">
+      <div className="group relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-surface-popover to-brand-black p-8 text-brand-white shadow-2xl lg:col-span-2">
         <div className="relative z-10 flex h-full flex-col">
           <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10">
             <Building2 size={24} />
           </div>
 
           <h3 className="text-2xl font-bold tracking-tight">Plan ENTERPRISE</h3>
-          <p className="mt-1 text-sm font-bold text-white/40">Comienza en $999 USD/mes</p>
+          <p className="mt-1 text-sm font-bold text-brand-white/40">Comienza en $999 USD/mes</p>
 
           <div className="mt-8 flex-1 space-y-3">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-white/30">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-brand-white/30">
               TU INFRAESTRUCTURA IDEAL
             </p>
-            <p className="flex items-center gap-2 text-xs font-medium text-white/70">
-              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Servidores Dedicados (Opcional)
+            <p className="flex items-center gap-2 text-xs font-medium text-brand-white/70">
+              <span className="h-1.5 w-1.5 rounded-full bg-brand-white" /> Servidores Dedicados (Opcional)
             </p>
-            <p className="flex items-center gap-2 text-xs font-medium text-white/70">
-              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Límite de Workflows
+            <p className="flex items-center gap-2 text-xs font-medium text-brand-white/70">
+              <span className="h-1.5 w-1.5 rounded-full bg-brand-white" /> Límite de Workflows
               Personalizable
             </p>
-            <p className="flex items-center gap-2 text-xs font-medium text-white/70">
-              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Personalización Completa del
+            <p className="flex items-center gap-2 text-xs font-medium text-brand-white/70">
+              <span className="h-1.5 w-1.5 rounded-full bg-brand-white" /> Personalización Completa del
               Entorno
             </p>
-            <p className="mt-2 text-[10px] italic text-white/30">
+            <p className="mt-2 text-[10px] italic text-brand-white/30">
               * Todo configurable según tus necesidades.
             </p>
           </div>
@@ -114,7 +114,7 @@ export default function SpecializedCards() {
           <PermissionGuard permissions="billing:update_plan">
             <button
               onClick={() => router.push('/support?reason=enterprise')}
-              className="mt-10 w-full rounded-xl bg-white py-3.5 font-bold text-black transition-all hover:opacity-80 active:scale-[0.98]"
+              className="mt-10 w-full rounded-xl bg-brand-white py-3.5 font-bold text-brand-black transition-all hover:opacity-80 active:scale-[0.98]"
             >
               Contactar para Negociar
             </button>

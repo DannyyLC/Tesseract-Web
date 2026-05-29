@@ -128,7 +128,7 @@ export default function OverageCard({
   const estimatedCost = (localLimit * OVERAGE_PRICE_PER_CREDIT).toFixed(2);
 
   return (
-    <div className="rounded-2xl border border-black/5 bg-white p-6 transition-shadow hover:shadow-sm dark:border-white/5 dark:bg-[#0A0A0A]">
+    <div className="rounded-2xl border border-border bg-surface p-6 transition-shadow hover:shadow-sm">
       {/* Header — toggle + label, always visible */}
       <div className="flex items-center justify-between">
         <div>
@@ -146,14 +146,14 @@ export default function OverageCard({
           disabled={isToggling}
           title={allowOverages ? 'Desactivar uso adicional' : 'Activar uso adicional'}
           aria-label={allowOverages ? 'Desactivar uso adicional' : 'Activar uso adicional'}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-black/20 focus:ring-offset-2 focus:ring-offset-white disabled:opacity-50 dark:focus:ring-white/20 dark:focus:ring-offset-[#0A0A0A] ${
-            allowOverages ? 'bg-accent' : 'bg-black/10 dark:bg-white/20'
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus/20 focus:ring-offset-2 focus:ring-offset-surface disabled:opacity-50 ${
+            allowOverages ? 'bg-accent' : 'bg-surface-secondary'
           }`}
         >
           <motion.span
             layout
             transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-            className="inline-block h-4 w-4 rounded-full bg-white shadow-sm dark:bg-[#0A0A0A]"
+            className="inline-block h-4 w-4 rounded-full bg-surface-elevated shadow-sm"
             style={{
               marginLeft: allowOverages ? '1.5rem' : '0.25rem',
             }}
@@ -170,7 +170,7 @@ export default function OverageCard({
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
           >
-            <div className="mt-5 border-t border-black/5 pt-5 dark:border-white/5">
+            <div className="mt-5 border-t border-border pt-5">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-text-primary">
@@ -186,7 +186,7 @@ export default function OverageCard({
                   <button
                     onClick={() => debouncedCommit(localLimit - STEP)}
                     disabled={isToggling || localLimit <= 0}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-border text-black/60 transition-colors hover:bg-black/5 disabled:opacity-30  dark:text-white/60 dark:hover:bg-white/5"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-border text-text-secondary transition-colors hover:bg-surface-secondary disabled:opacity-30"
                   >
                     <Minus size={14} />
                   </button>
@@ -200,13 +200,13 @@ export default function OverageCard({
                     onBlur={handleInputBlur}
                     onKeyDown={handleInputKeyDown}
                     disabled={isToggling}
-                    className="font-geist-mono h-9 w-24 rounded-xl border border-border bg-transparent px-3 text-center text-sm font-medium tabular-nums text-black focus:border-black/30 focus:outline-none disabled:opacity-50  dark:text-white dark:focus:border-white/30"
+                    className="font-geist-mono h-9 w-24 rounded-xl border border-border bg-transparent px-3 text-center text-sm font-medium tabular-nums text-text-primary focus:border-border-hover focus:outline-none disabled:opacity-50"
                   />
 
                   <button
                     onClick={() => debouncedCommit(localLimit + STEP)}
                     disabled={isToggling || localLimit >= maxOverageLimit}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-border text-black/60 transition-colors hover:bg-black/5 disabled:opacity-30  dark:text-white/60 dark:hover:bg-white/5"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-border text-text-secondary transition-colors hover:bg-surface-secondary disabled:opacity-30"
                   >
                     <Plus size={14} />
                   </button>
@@ -214,7 +214,7 @@ export default function OverageCard({
               </div>
 
               {/* Estimated cost */}
-              <div className="mt-3 flex items-center justify-between rounded-xl bg-black/[0.02] px-4 py-2.5 dark:bg-white/[0.02]">
+              <div className="mt-3 flex items-center justify-between rounded-xl bg-surface-muted px-4 py-2.5">
                 <span className="text-xs text-text-tertiary">
                   Costo máximo estimado
                 </span>
