@@ -110,7 +110,7 @@ function SupportContent() {
             horario que mejor te acomode para nuestra primera reunión técnica.
           </p>
         </div>
-        <div className="h-[650px] overflow-hidden rounded-2xl border border-black/5 shadow-sm dark:border-white/5">
+        <div className="h-[650px] overflow-hidden rounded-2xl border border-border shadow-sm">
           <Cal
             namespace={CAL_CONFIG.namespace}
             calLink={CAL_CONFIG.events.nuevoWorkflow}
@@ -150,7 +150,7 @@ function SupportContent() {
             </span>
           </div>
 
-          <div className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm md:p-8 dark:border-white/5 dark:bg-[#0A0A0A]">
+          <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm md:p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <label htmlFor="subject" className="text-sm font-medium text-text-primary">
@@ -160,9 +160,9 @@ function SupportContent() {
                   <button
                     type="button"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className={`flex w-full items-center justify-between rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm transition-all hover:bg-black/5 focus:border-black focus:ring-1 focus:ring-black  dark:hover:bg-white/5 dark:focus:border-white dark:focus:ring-white ${
+                    className={`flex w-full items-center justify-between rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm transition-all hover:bg-surface-secondary focus:border-border-focus focus:ring-1 focus:ring-border-focus ${
                       isDropdownOpen
-                        ? 'border-black ring-1 ring-black dark:border-white dark:ring-white'
+                        ? 'border-border-focus ring-1 ring-border-focus'
                         : ''
                     }`}
                   >
@@ -176,14 +176,14 @@ function SupportContent() {
                       {selectedSubject || 'Selecciona un asunto'}
                     </span>
                     <ChevronDown
-                      className={`h-4 w-4 text-black/30 transition-transform duration-200 dark:text-white/30 ${
+                      className={`h-4 w-4 text-text-tertiary transition-transform duration-200 ${
                         isDropdownOpen ? 'rotate-180' : ''
                       }`}
                     />
                   </button>
 
                   {isDropdownOpen && (
-                    <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-black/5 bg-white shadow-lg dark:border-white/5 dark:bg-[#141414]">
+                    <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-border bg-surface-panel shadow-lg">
                       <div className="p-1">
                         {SUBJECT_OPTIONS.map((option) => (
                           <button
@@ -192,8 +192,8 @@ function SupportContent() {
                             onClick={() => handleSubjectSelect(option)}
                             className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                               selectedSubject === option
-                                ? 'bg-black/5 font-medium text-black dark:bg-white/5 dark:text-white'
-                                : 'text-black/70 hover:bg-black/5 dark:text-white/70 dark:hover:bg-white/5'
+                                ? 'bg-surface-secondary font-medium text-text-primary'
+                                : 'text-text-secondary hover:bg-surface-secondary'
                             }`}
                           >
                             <span className="truncate pr-2">{option}</span>
@@ -223,7 +223,7 @@ function SupportContent() {
                     value={customSubject}
                     onChange={(e) => setCustomSubject(e.target.value)}
                     placeholder="Escribe el asunto..."
-                    className="w-full rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm outline-none transition-all placeholder:text-black/30 focus:border-black focus:ring-1 focus:ring-black  dark:placeholder:text-white/30 dark:focus:border-white dark:focus:ring-white"
+                    className="w-full rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm outline-none transition-all placeholder:text-input-placeholder focus:border-border-focus focus:ring-1 focus:ring-border-focus"
                   />
                 </div>
               )}
@@ -239,14 +239,14 @@ function SupportContent() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Describe tu consulta o problema..."
-                  className="w-full resize-none rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm outline-none transition-all placeholder:text-black/30 focus:border-black focus:ring-1 focus:ring-black  dark:placeholder:text-white/30 dark:focus:border-white dark:focus:ring-white"
+                  className="w-full resize-none rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm outline-none transition-all placeholder:text-input-placeholder focus:border-border-focus focus:ring-1 focus:ring-border-focus"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={requestServiceInfo.isPending || !isSubjectValid}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-3 text-sm font-bold text-white transition-all hover:bg-black/80 disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-white/90"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-bold text-text-inverse transition-all hover:bg-accent-hover disabled:opacity-50"
               >
                 {requestServiceInfo.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -269,7 +269,7 @@ function SupportContent() {
             </span>
           </div>
 
-          <div className="h-[650px] overflow-hidden rounded-2xl border border-black/5 shadow-sm dark:border-white/5">
+          <div className="h-[650px] overflow-hidden rounded-2xl border border-border shadow-sm">
             <Cal
               namespace={CAL_CONFIG.namespace}
               calLink={CAL_CONFIG.allEvents}
