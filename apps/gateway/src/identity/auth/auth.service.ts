@@ -764,28 +764,15 @@ export class AuthService {
       return StepOneErrors.EMAIL_ALREADY_EXISTS;
     }
 
-    const isVerificationInProgress = await this.prisma.userVerification.findFirst({
-      where: {
-        email: payload.email,
-        expiresAt: { gt: new Date() },
-      },
-    });
-
-    if (isVerificationInProgress) {
-      return StepOneErrors.ALREADY_IN_PROGRESS;
-    } else {
-      try {
-        await this.prisma.userVerification.deleteMany({
-          where: {
-            email: payload.email,
-          },
-        });
-      } catch (error: any) {
-        this.logger.error(
-          `signupStepOne >> Error eliminando filas de verificación antiguas para email ${payload.email}: ${error?.message ?? 'Unknown error'}`,
-        );
-        return StepOneErrors.SERVER_INTERNAL_ERROR;
-      }
+    try {
+      await this.prisma.userVerification.deleteMany({
+        where: { email: payload.email },
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `signupStepOne >> Error eliminando filas de verificación para email ${payload.email}: ${error?.message ?? 'Unknown error'}`,
+      );
+      return StepOneErrors.SERVER_INTERNAL_ERROR;
     }
 
     const { sentMessageInfo, verificationCode } =

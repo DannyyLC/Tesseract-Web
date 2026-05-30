@@ -567,16 +567,27 @@ describe('AuthService', () => {
         expect(result).toBe(StepOneErrors.EMAIL_ALREADY_EXISTS);
       });
 
-      it('should return ALREADY_IN_PROGRESS if verification exists', async () => {
+      it('should delete existing verification and resend when one is active', async () => {
         prisma.user.findUnique = jest.fn().mockResolvedValue(null);
-        prisma.userVerification.findFirst = jest.fn().mockResolvedValue({ id: 'v1' });
+        prisma.userVerification.deleteMany = jest.fn().mockResolvedValue({ count: 1 });
+        const mockSentInfo = { success: true, messageId: 'resend-123' };
+        mockEmailService.sendVerificationCodeByEmail.mockResolvedValue({
+          sentMessageInfo: mockSentInfo,
+          verificationCode: '654321',
+        });
+        prisma.userVerification.create = jest.fn().mockResolvedValue({ id: 'v2' });
+
         const result = await service.signupStepOne(payload);
-        expect(result).toBe(StepOneErrors.ALREADY_IN_PROGRESS);
+
+        expect(prisma.userVerification.deleteMany).toHaveBeenCalledWith({
+          where: { email: 'new@test.com' },
+        });
+        expect(result).toEqual(mockSentInfo);
       });
 
       it('should return TRANSPORTER_ERROR if email fails', async () => {
         prisma.user.findUnique = jest.fn().mockResolvedValue(null);
-        prisma.userVerification.findFirst = jest.fn().mockResolvedValue(null);
+        prisma.userVerification.deleteMany = jest.fn().mockResolvedValue({ count: 0 });
         mockEmailService.sendVerificationCodeByEmail.mockResolvedValue({
           sentMessageInfo: { success: false },
         });
@@ -587,8 +598,7 @@ describe('AuthService', () => {
 
       it('should create verification row and return sentMessageInfo', async () => {
         prisma.user.findUnique = jest.fn().mockResolvedValue(null);
-        prisma.userVerification.findFirst = jest.fn().mockResolvedValue(null);
-        prisma.userVerification.deleteMany = jest.fn().mockResolvedValue({ count: 1 });
+        prisma.userVerification.deleteMany = jest.fn().mockResolvedValue({ count: 0 });
         const mockSentInfo = { success: true, messageId: '123' };
         mockEmailService.sendVerificationCodeByEmail.mockResolvedValue({
           sentMessageInfo: mockSentInfo,

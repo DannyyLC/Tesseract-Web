@@ -34,6 +34,8 @@ interface SignupData {
   organizationName: string;
 }
 const STORAGE_KEY = 'signup_data';
+const RESEND_COOLDOWN_KEY = 'resend_cooldown_until';
+const RESEND_COOLDOWN_SECONDS = 120;
 
 /* ========================================= */
 /* COMPONENT */
@@ -80,6 +82,9 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
   const [verificationError, setVerificationError] = useState('');
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
+  const resendTurnstileRef = useRef<TurnstileInstance>(null);
+  // Cooldown para reenvío de código
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   /* ========================================= */
   /* EFFECTS */
@@ -104,11 +109,25 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
           console.error('Error al cargar datos del sessionStorage:', error);
         }
       }
+      const storedUntil = sessionStorage.getItem(RESEND_COOLDOWN_KEY);
+      if (storedUntil) {
+        const remaining = Math.ceil((parseInt(storedUntil) - Date.now()) / 1000);
+        if (remaining > 0) setResendCooldown(remaining);
+      }
       setIsInitialized(true);
     } else {
       setIsInitialized(true);
     }
   }, [isLogin]);
+  // Cronómetro de cooldown: un tick por segundo usando setTimeout en cadena
+  useEffect(() => {
+    if (resendCooldown <= 0) {
+      sessionStorage.removeItem(RESEND_COOLDOWN_KEY);
+      return;
+    }
+    const t = setTimeout(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
   // Guardar datos en sessionStorage cuando cambian
   useEffect(() => {
     if (!isLogin) {
@@ -162,6 +181,11 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
   /* ========================================= */
   /* EVENT HANDLERS */
   /* ========================================= */
+  const startResendCooldown = () => {
+    const until = Date.now() + RESEND_COOLDOWN_SECONDS * 1000;
+    sessionStorage.setItem(RESEND_COOLDOWN_KEY, String(until));
+    setResendCooldown(RESEND_COOLDOWN_SECONDS);
+  };
   // Manejar paso 1 del signup
   const handleSignupStep1 = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,8 +204,9 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
         setSignupStep(2);
         setVerificationAttempts(0);
         setVerificationError('');
-        // Limpiar estados locales
         setVerificationCode('');
+        setTurnstileToken(null); // el token del paso 1 ya fue consumido
+        startResendCooldown();
       }
     } catch (error: any) {
       console.error('Error en paso 1:', error);
@@ -218,6 +243,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
       if (newAttempts >= 3) {
         // Máximo de intentos alcanzado, resetear todo
         sessionStorage.removeItem(STORAGE_KEY);
+        sessionStorage.removeItem(RESEND_COOLDOWN_KEY);
         setSignupData({
           fullName: '',
           email: '',
@@ -230,6 +256,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
         setSignupStep(1);
         setVerificationAttempts(0);
         setVerificationError('');
+        setResendCooldown(0);
         toast.error('Has excedido el número máximo de intentos. Por favor, comienza de nuevo.');
       } else {
         setVerificationError(`Código incorrecto. Intentos restantes: ${3 - newAttempts}`);
@@ -435,7 +462,14 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                   // FORMULARIO DE LOGIN
                   <form onSubmit={handleLogin} className="space-y-5">
                     {loginMutationError && (
-                      <div className="rounded-xl border border-danger-200 bg-danger-50 p-4 text-sm text-danger-600">
+                      <div
+                        className="rounded-xl border p-4 text-sm"
+                        style={{
+                          background: 'var(--danger-banner-bg)',
+                          borderColor: 'var(--danger-banner-border)',
+                          color: 'var(--danger-text-adaptive)',
+                        }}
+                      >
                         {(loginMutationError as Error).message || 'Error al iniciar sesión'}
                       </div>
                     )}
@@ -775,22 +809,37 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                           )}
                         </button>
 
+                        <div className="flex justify-center">
+                          <Turnstile
+                            ref={resendTurnstileRef}
+                            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                            options={{ size: 'flexible' }}
+                            onSuccess={(token) => setTurnstileToken(token)}
+                            onExpire={() => setTurnstileToken(null)}
+                          />
+                        </div>
+
                         <button
                           type="button"
                           onClick={async () => {
                             const codeSent = await sendVerificationCode(signupData.email);
                             if (codeSent) {
+                              startResendCooldown();
+                              setTurnstileToken(null);
+                              resendTurnstileRef.current?.reset();
                               setVerificationError('');
                               setVerificationCode('');
                             }
                           }}
-                          disabled={signupStepOneMutation.isPending}
+                          disabled={signupStepOneMutation.isPending || resendCooldown > 0 || !turnstileToken}
                           className="w-full text-sm transition-colors hover:text-text-primary disabled:opacity-50"
                           style={{ color: 'var(--text-muted)' }}
                         >
                           {signupStepOneMutation.isPending
                             ? 'Reenviando...'
-                            : '¿No recibiste el código? Reenviar'}
+                            : resendCooldown > 0
+                              ? `Reenviar en ${Math.floor(resendCooldown / 60)}:${String(resendCooldown % 60).padStart(2, '0')}`
+                              : '¿No recibiste el código? Reenviar'}
                         </button>
                       </motion.form>
                     )}
