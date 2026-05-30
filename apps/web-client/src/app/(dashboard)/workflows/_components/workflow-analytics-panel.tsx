@@ -160,7 +160,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className={`${Object.keys(errors).length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} flex flex-col rounded-2xl border border-border bg-surface p-6-panel`}
+          className={`${Object.keys(errors).length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} flex flex-col rounded-2xl border border-border bg-surface p-6`}
         >
           <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <h3 className="flex items-center gap-2 font-semibold text-text-primary">
@@ -304,7 +304,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="rounded-2xl border border-border bg-surface p-6-panel"
+            className="rounded-2xl border border-border bg-surface p-6"
           >
             <h3 className="mb-6 flex items-center gap-2 font-semibold text-text-primary">
               Errores Frecuentes

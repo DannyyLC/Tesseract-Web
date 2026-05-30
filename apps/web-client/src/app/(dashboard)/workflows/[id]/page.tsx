@@ -216,8 +216,8 @@ export default function WorkflowDetailPage() {
                       <div
                         className={`flex items-center gap-1 rounded-full border px-2 py-0.5 ${
                           workflow.isActive
-                            ? 'border-success-500/20 bg-success-500/5'
-                            : 'border-neutral-500/20 bg-neutral-500/5'
+                            ? 'border-[var(--success-text-adaptive)] bg-success-500/5'
+                            : 'border-[var(--neutral-text-adaptive)] bg-neutral-500/5'
                         }`}
                       >
                         <div
@@ -398,13 +398,13 @@ export default function WorkflowDetailPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-danger-500/20 p-4" style={{ background: 'var(--danger-zone-bg)' }}>
+          <div className="rounded-2xl border border-danger-500 bg-danger-500/5 p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-[var(--badge-danger-text-strong)]">
+                <h3 className="text-sm font-semibold text-danger-500">
                   Zona de peligro
                 </h3>
-                <p className="mt-1 text-sm text-[var(--badge-danger-text-strong)]/80">
+                <p className="mt-1 text-sm text-danger-500/80">
                   Eliminar este workflow es una acción irreversible y removerá su historial.
                 </p>
               </div>
@@ -412,7 +412,7 @@ export default function WorkflowDetailPage() {
               <PermissionGuard permissions="workflows:delete">
                 <button
                   onClick={() => setIsDeleteOpen(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-full border border-danger-500/30 bg-transparent px-4 py-2.5 text-sm font-medium text-[var(--danger-text-adaptive)] transition-all hover:bg-danger/10 active:scale-95 lg:w-auto"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-danger-500 bg-transparent px-4 py-2.5 text-sm font-medium text-danger-500 transition-all hover:bg-danger-500 hover:text-brand-white active:scale-95 lg:w-auto"
                 >
                   <Trash2 size={16} />
                   Eliminar workflow
