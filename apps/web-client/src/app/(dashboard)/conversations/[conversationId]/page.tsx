@@ -381,8 +381,8 @@ export default function WorkflowChatPage() {
                 transition={{ duration: 0.2, ease: 'easeInOut' }}
                 className="overflow-hidden"
               >
-                <div className="flex items-center justify-between border-b border-border bg-surface px-6 py-4">
-          <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between border-b border-border bg-surface px-3 py-3 lg:px-6 lg:py-4">
+          <div className="flex min-w-0 items-center gap-2 lg:gap-4">
             <button
               onClick={() => router.back()}
               className="-ml-2 rounded-lg p-2 text-text-tertiary transition-colors hover:bg-surface-secondary"
@@ -435,13 +435,13 @@ export default function WorkflowChatPage() {
                       setIsEditing(true);
                     }
                   }}
-                  className={`flex items-center gap-2 text-lg font-bold text-text-primary ${canUpdate ? 'cursor-pointer transition-opacity hover:opacity-70' : ''}`}
+                  className={`flex items-center gap-2 truncate text-base font-bold text-text-primary lg:text-lg ${canUpdate ? 'cursor-pointer transition-opacity hover:opacity-70' : ''}`}
                   title={canUpdate ? 'Haz clic para editar el nombre' : undefined}
                 >
                   {isEmpty ? workflow?.name : conversationData?.title || 'Nueva Conversación'}
                 </h1>
               )}
-              <p className="max-w-md truncate text-xs text-text-tertiary">
+              <p className="max-w-[180px] truncate text-xs text-text-tertiary lg:max-w-md">
                 {isEmpty ? (
                   workflow?.description || 'Probador Interactivo'
                 ) : (
@@ -456,10 +456,10 @@ export default function WorkflowChatPage() {
           </div>
 
           {/* Status Indicator & Actions */}
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-1.5 lg:gap-3">
             {/* User Badge - Relocated here */}
             {user && (
-              <div className="hidden items-center gap-2 rounded-full border border-border bg-surface-secondary px-3 py-1.5 sm:flex">
+              <div className="hidden items-center gap-2 rounded-full border border-border bg-surface-secondary px-3 py-1.5 lg:flex">
                 <User size={14} className="text-text-tertiary" />
                 <span className="max-w-[100px] truncate text-xs font-medium text-text-secondary">
                   {user.name}
@@ -469,7 +469,7 @@ export default function WorkflowChatPage() {
 
             {/* Status & HITL Controls (Only for external users) */}
             {conversationData && (
-              <div className="mr-2 flex items-center gap-2 border-r border-border pr-4">
+              <div className="mr-1 flex items-center gap-1 border-r border-border pr-2 lg:mr-2 lg:gap-2 lg:pr-4">
                 {/* HITL Toggle */}
                 {!conversationData.userId && (
                   <PermissionGuard permissions="conversations:update">
@@ -481,7 +481,7 @@ export default function WorkflowChatPage() {
                         })
                       }
                       disabled={updateConversation.isPending}
-                      className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                      className={`flex items-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium transition-colors lg:px-3 ${
                         conversationData.isHumanInTheLoop
                           ? 'border border-warning-600 text-warning-600 hover:bg-[color-mix(in_srgb,var(--warning-500)_10%,transparent)]'
                           : 'bg-surface-secondary text-text-tertiary hover:bg-surface-elevated'
@@ -492,7 +492,10 @@ export default function WorkflowChatPage() {
                           : 'Tomar el control (Pausar IA y responder manualmente)'
                       }
                     >
-                      {conversationData.isHumanInTheLoop ? 'Modo manual' : 'Tomar el control'}
+                      <User size={13} className="shrink-0" />
+                      <span className="hidden lg:inline">
+                        {conversationData.isHumanInTheLoop ? 'Modo manual' : 'Tomar el control'}
+                      </span>
                     </button>
                   </PermissionGuard>
                 )}
@@ -509,7 +512,7 @@ export default function WorkflowChatPage() {
                       })
                     }
                     disabled={updateConversation.isPending}
-                    className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm transition-all ${
+                    className={`flex items-center gap-1.5 rounded-full border px-2 py-1.5 text-xs font-medium shadow-sm transition-all lg:px-3 ${
                       conversationData.status === 'CLOSED'
                         ? 'border-border bg-surface-secondary text-text-secondary hover:bg-surface-elevated'
                         : 'border-success-600 text-success-600 hover:bg-[color-mix(in_srgb,var(--success-500)_10%,transparent)]'
@@ -518,12 +521,12 @@ export default function WorkflowChatPage() {
                     {conversationData.status === 'CLOSED' ? (
                       <>
                         <RefreshCw size={14} />
-                        <span>Reabrir</span>
+                        <span className="hidden lg:inline">Reabrir</span>
                       </>
                     ) : (
                       <>
                         <Archive size={14} />
-                        <span>Cerrar</span>
+                        <span className="hidden lg:inline">Cerrar</span>
                       </>
                     )}
                   </button>
@@ -552,14 +555,14 @@ export default function WorkflowChatPage() {
             )}
 
             {isStreaming && !isExternalUser ? (
-              <div className="flex items-center gap-2 rounded-full bg-success-500/10 px-3 py-1.5 text-xs font-medium text-success-600">
+              <div className="flex items-center gap-1.5 rounded-full bg-success-500/10 px-2 py-1.5 text-xs font-medium text-success-600 lg:px-3">
                 <Loader2 size={12} className="animate-spin" />
-                Generando...
+                <span className="hidden lg:inline">Generando...</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 rounded-full bg-surface-secondary px-3 py-1.5 text-xs font-medium text-text-tertiary">
+              <div className="flex items-center gap-1.5 rounded-full bg-surface-secondary px-2 py-1.5 text-xs font-medium text-text-tertiary lg:px-3">
                 <div className="h-1.5 w-1.5 rounded-full bg-current" />
-                Listo
+                <span className="hidden lg:inline">Listo</span>
               </div>
             )}
 
