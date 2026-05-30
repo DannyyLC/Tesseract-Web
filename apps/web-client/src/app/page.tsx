@@ -136,7 +136,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'black' }}>
+    <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--brand-black)' }}>
       {/* Capa 3D — solo monta en cliente para evitar problemas de hidratación */}
       {mounted && (
         <div className="absolute inset-0 z-0">
@@ -149,7 +149,7 @@ export default function Home() {
       {/* Capa de UI (Texto y Botón) */}
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-4">
         {/* Título */}
-        <h1 className="animate-fade-in-slow mb-8 select-none text-center text-3xl font-bold tracking-[0.2em] text-white mix-blend-difference sm:text-5xl sm:tracking-[0.4em] md:text-6xl md:tracking-[0.5em]">
+        <h1 className="animate-fade-in-slow mb-8 select-none text-center text-3xl font-bold tracking-[0.2em] text-brand-white mix-blend-difference sm:text-5xl sm:tracking-[0.4em] md:text-6xl md:tracking-[0.5em]">
           TESSERACT
         </h1>
 
@@ -159,7 +159,7 @@ export default function Home() {
             href="/login"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
-            className={`relative inline-block border border-white px-8 py-4 text-lg uppercase tracking-widest text-white transition-all duration-500 ease-out ${hovered ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.8)]' : 'bg-black'} `}
+            className={`relative inline-block border border-brand-white px-8 py-4 text-lg uppercase tracking-widest text-brand-white transition-all duration-500 ease-out ${hovered ? 'bg-brand-white text-brand-black shadow-[0_0_20px_rgba(255,255,255,0.8)]' : 'bg-brand-black'} `}
           >
             Ingresar
           </Link>

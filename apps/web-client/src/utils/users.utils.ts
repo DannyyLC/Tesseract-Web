@@ -5,25 +5,25 @@ export const getRoleConfig = (role: string) => {
     case 'OWNER':
       return {
         label: 'Owner',
-        color: 'text-amber-600 dark:text-amber-400',
+        color: 'text-warning-600 dark:text-warning-400',
         icon: Crown,
       };
     case 'ADMIN':
       return {
         label: 'Admin',
-        color: 'text-rose-600 dark:text-rose-400',
+        color: 'text-danger-600 dark:text-danger-400',
         icon: ShieldAlert,
       };
     case 'VIEWER':
       return {
         label: 'Viewer',
-        color: 'text-blue-600 dark:text-blue-400',
+        color: 'text-info-600 dark:text-info-400',
         icon: Eye,
       };
     default:
       return {
         label: role,
-        color: 'text-zinc-600 dark:text-zinc-400',
+        color: 'text-neutral-600 dark:text-neutral-400',
         icon: Eye,
       };
   }
@@ -31,8 +31,8 @@ export const getRoleConfig = (role: string) => {
 
 export const getStatusConfig = (isActive: boolean) => {
   return isActive
-    ? { label: 'Activo', color: 'bg-emerald-500' }
-    : { label: 'Inactivo', color: 'bg-zinc-400' };
+    ? { label: 'Activo', color: 'bg-success' }
+    : { label: 'Inactivo', color: 'bg-neutral-400' };
 };
 
 export const formatTimeAgo = (dateInput: Date | string | null): string => {
@@ -62,14 +62,14 @@ export const getInitials = (name: string): string => {
 
 export const getAvatarColor = (name: string): string => {
   const colors = [
-    'bg-blue-500',
-    'bg-emerald-500',
-    'bg-purple-500',
-    'bg-amber-500',
-    'bg-rose-500',
-    'bg-cyan-500',
-    'bg-indigo-500',
-    'bg-pink-500',
+    'bg-avatar-blue',
+    'bg-avatar-success',
+    'bg-avatar-purple',
+    'bg-avatar-warning',
+    'bg-avatar-danger',
+    'bg-avatar-cyan',
+    'bg-avatar-indigo',
+    'bg-avatar-pink',
   ];
   const index = name.charCodeAt(0) % colors.length;
   return colors[index];

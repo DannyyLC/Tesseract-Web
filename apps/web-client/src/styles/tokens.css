@@ -181,6 +181,16 @@
   --scrollbar-thumb: #d4d4d4;
   --scrollbar-thumb-hover: #a3a3a3;
   --scrollbar-border: #ffffff;
+
+  /* Not-found page */
+  --not-found-grid-color: rgba(0, 0, 0, 0.06);
+  --not-found-grid-opacity: 0.2;
+  --not-found-glow-color: rgba(0, 0, 0, 0.03);
+  --not-found-floating-border: rgba(0, 0, 0, 0.05);
+  --not-found-logo-filter: invert(1) drop-shadow(0 0 20px rgba(0, 0, 0, 0.15));
+  --not-found-404-glow: drop-shadow(0 0 60px rgba(0, 0, 0, 0.08));
+  --not-found-404-blur-color: rgba(0, 0, 0, 0.03);
+  --not-found-desc-color: rgba(0, 0, 0, 0.6);
 }
 
 /* === Tokens de tema — OSCURO ============================================= */
@@ -250,6 +260,16 @@
     --scrollbar-thumb: #262626;
     --scrollbar-thumb-hover: #333333;
     --scrollbar-border: #000000;
+
+    /* Not-found page */
+    --not-found-grid-color: rgba(255, 255, 255, 0.02);
+    --not-found-grid-opacity: 0.3;
+    --not-found-glow-color: rgba(255, 255, 255, 0.06);
+    --not-found-floating-border: rgba(255, 255, 255, 0.05);
+    --not-found-logo-filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
+    --not-found-404-glow: drop-shadow(0 0 60px rgba(255, 255, 255, 0.15));
+    --not-found-404-blur-color: rgba(255, 255, 255, 0.03);
+    --not-found-desc-color: rgba(255, 255, 255, 0.6);
   }
 }
 
