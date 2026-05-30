@@ -44,37 +44,37 @@ const socialLinks = [
     name: 'Website',
     icon: <Globe size={24} />,
     href: 'https://fractal-hub.vercel.app/',
-    color: 'hover:text-emerald-500',
+    color: 'hover:text-success-500',
   },
   {
     name: 'WhatsApp',
     icon: <FaWhatsapp size={24} />,
     href: 'https://wa.me/524491292435',
-    color: 'hover:text-green-500',
+    color: 'hover:text-brand-whatsapp',
   },
   {
     name: 'LinkedIn',
     icon: <FaLinkedinIn size={24} />,
     href: 'https://www.linkedin.com/company/fractal-industries',
-    color: 'hover:text-blue-600',
+    color: 'hover:text-info-600',
   },
   {
     name: 'X (Twitter)',
     icon: <FaXTwitter size={24} />,
     href: 'https://x.com/Fractal74753861',
-    color: 'hover:text-sky-500 dark:hover:text-white',
+    color: 'hover:text-accent',
   },
   {
     name: 'GitHub',
     icon: <FaGithub size={24} />,
     href: 'https://github.com/FractalIndustries',
-    color: 'hover:text-gray-800 dark:hover:text-white',
+    color: 'hover:text-accent',
   },
   {
     name: 'YouTube',
     icon: <FaYoutube size={24} />,
     href: 'https://www.youtube.com/@Fractal-c1m',
-    color: 'hover:text-red-600',
+    color: 'hover:text-danger-600',
   },
   {
     name: 'Facebook',
@@ -86,13 +86,13 @@ const socialLinks = [
     name: 'TikTok',
     icon: <FaTiktok size={22} />,
     href: 'https://www.tiktok.com/@fractal366',
-    color: 'hover:text-black dark:hover:text-white',
+    color: 'hover:text-accent',
   },
   {
     name: 'Mail',
     icon: <Mail size={22} />,
     href: 'mailto:fractaliaindustries@gmail.com',
-    color: 'hover:text-black dark:hover:text-white',
+    color: 'hover:text-accent',
   },
 ];
 
@@ -128,7 +128,8 @@ export default function SupportScreen() {
                 src="/favicon.svg"
                 alt="Tesseract"
                 fill
-                className="object-contain brightness-0 dark:invert"
+                className="object-contain"
+                style={{ filter: 'var(--logo-filter)' }}
                 priority
               />
             </div>
@@ -161,7 +162,7 @@ export default function SupportScreen() {
                 href={link.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`flex flex-col items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-primary)] p-6 transition-all hover:-translate-y-1 hover:border-black/20 hover:shadow-lg dark:hover:border-white/20 ${link.color}`}
+                className={`flex flex-col items-center gap-3 rounded-2xl border border-[var(--border)] bg-surface-primary p-6 transition-all hover:-translate-y-1 hover:border-border-hover hover:shadow-lg ${link.color}`}
               >
                 <div className="inherit text-[var(--text-secondary)] transition-colors">
                   {link.icon}
@@ -185,7 +186,7 @@ export default function SupportScreen() {
               return (
                 <div
                   key={index}
-                  className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-primary)] transition-colors hover:border-black/20 dark:hover:border-white/20"
+                  className="overflow-hidden rounded-2xl border border-[var(--border)] bg-surface-primary transition-colors hover:border-border-hover"
                 >
                   <button
                     onClick={() => toggleFaq(index)}
