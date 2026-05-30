@@ -154,6 +154,9 @@
   --badge-warning-bg: color-mix(in srgb, var(--warning-500) 25%, transparent);
   --badge-warning-text: var(--warning-500);
 
+  /* Filtro genérico para logos/iconos SVG que deben invertirse según el tema */
+  --logo-filter: brightness(0);
+
   /* Loader de marca */
   --logo-loader-bg: color-mix(in srgb, var(--brand-white) 80%, transparent);
   --logo-loader-logo-filter: brightness(0);
@@ -248,6 +251,9 @@
     --badge-danger-text: var(--danger-500);
     --badge-warning-bg: color-mix(in srgb, var(--warning-500) 30%, transparent);
     --badge-warning-text: var(--warning-500);
+
+    /* Filtro genérico para logos/iconos SVG */
+    --logo-filter: brightness(0) invert(1);
 
     /* Loader de marca */
     --logo-loader-bg: color-mix(in srgb, var(--brand-black) 80%, transparent);

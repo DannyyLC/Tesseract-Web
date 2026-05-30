@@ -31,7 +31,8 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
                 src="/favicon.svg"
                 alt="Tesseract"
                 fill
-                className="object-contain brightness-0 dark:invert"
+                className="object-contain"
+                style={{ filter: 'var(--logo-filter)' }}
                 priority
               />
             </div>
