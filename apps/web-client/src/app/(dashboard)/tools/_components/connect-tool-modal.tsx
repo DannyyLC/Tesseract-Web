@@ -146,7 +146,7 @@ export function ConnectToolModal({
       <div className="space-y-6 py-2">
         {isSuccess ? (
           <div className="flex flex-col items-center justify-center space-y-3 py-8 text-center">
-            <CheckCircle2 size={48} className="text-emerald-500" />
+            <CheckCircle2 size={48} className="text-success-500" />
             <h3 className="text-lg font-semibold text-text-primary">¡Listo!</h3>
             <p className="text-sm text-text-secondary">
               La herramienta ha sido configurada correctamente.
@@ -165,7 +165,7 @@ export function ConnectToolModal({
                 placeholder="Nombre de la herramienta"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full rounded-xl border border-border bg-black/[0.03] px-4 py-2.5 text-sm text-black outline-none transition-all focus:border-black/20 focus:ring-2 focus:ring-black/5  dark:bg-white/[0.03] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+                className="w-full rounded-xl border border-border bg-[var(--surface-subtle)] px-4 py-2.5 text-sm text-text-primary outline-none transition-all focus:border-[var(--border-subtle)] focus:ring-2 focus:ring-[var(--border-subtle)]"
               />
             </div>
 
@@ -192,15 +192,15 @@ export function ConnectToolModal({
                       onClick={() => toggleFunction(fn.functionName)}
                       className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all ${
                         selectedFunctions.includes(fn.functionName)
-                          ? 'border-border-hover bg-black/5  dark:bg-white/5'
-                          : 'border-black/5 bg-black/[0.02] hover:bg-black/[0.04] dark:border-white/5 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]'
+                          ? 'border-border-hover bg-[var(--surface-tint)]'
+                          : 'border-[var(--border-subtle)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-tint)]'
                       }`}
                     >
                       <div
                         className={`flex h-5 w-5 items-center justify-center rounded-md border ${
                           selectedFunctions.includes(fn.functionName)
-                            ? 'border-black bg-black text-white dark:border-white dark:bg-white dark:text-black'
-                            : 'border-border-hover bg-white  dark:bg-white/5'
+                            ? 'border-accent bg-accent text-text-inverse'
+                            : 'border-border-hover bg-surface-elevated'
                         }`}
                       >
                         {selectedFunctions.includes(fn.functionName) && (
@@ -229,9 +229,9 @@ export function ConnectToolModal({
             )}
 
             {/* Step 3: Provider Connection */}
-            <div className="rounded-2xl border border-black/5 bg-black/[0.02] p-4 dark:border-white/5 dark:bg-white/[0.02]">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-4">
               <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-white/10">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-elevated shadow-sm">
                   {catalogTool ? (
                     <DynamicIcon name={catalogTool.icon} size={24} />
                   ) : (
@@ -254,8 +254,8 @@ export function ConnectToolModal({
                   disabled={createTenantTool.isPending}
                   className={`flex w-full items-center justify-center gap-3 rounded-xl py-3 text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50 ${
                     isGoogle
-                      ? 'bg-[#4285F4] text-white'
-                      : 'bg-black text-white dark:bg-white dark:text-black'
+                      ? 'bg-brand-google text-brand-white'
+                      : 'bg-accent text-text-inverse'
                   }`}
                 >
                   {createTenantTool.isPending ? (
@@ -272,7 +272,7 @@ export function ConnectToolModal({
                 <button
                   onClick={handleConnect}
                   disabled={createTenantTool.isPending}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-black py-3 text-sm font-semibold text-white transition-all hover:opacity-90 dark:bg-white dark:text-black"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-text-inverse transition-all hover:opacity-90"
                 >
                   {createTenantTool.isPending ? (
                     <Loader2 size={18} className="animate-spin" />

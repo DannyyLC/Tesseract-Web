@@ -49,7 +49,7 @@ export function RenameToolModal({ isOpen, onClose, toolId, currentName }: Rename
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             maxLength={80}
-            className="w-full rounded-xl border border-border bg-black/[0.03] px-4 py-2.5 text-sm text-black outline-none transition-all focus:border-black/20 focus:ring-2 focus:ring-black/5  dark:bg-white/[0.03] dark:text-white dark:focus:border-white/20 dark:focus:ring-white/5"
+            className="w-full rounded-xl border border-border bg-[var(--surface-subtle)] px-4 py-2.5 text-sm text-text-primary outline-none transition-all focus:border-[var(--border-subtle)] focus:ring-2 focus:ring-[var(--border-subtle)]"
           />
         </div>
 
@@ -57,14 +57,14 @@ export function RenameToolModal({ isOpen, onClose, toolId, currentName }: Rename
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-xl bg-black/5 px-4 py-2.5 text-sm font-medium text-black transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+            className="flex-1 rounded-xl bg-[var(--surface-tint)] px-4 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-[var(--surface-tint-md)]"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={updateTenantTool.isPending || !displayName.trim()}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:opacity-40 dark:bg-white dark:text-black"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-text-inverse transition-opacity hover:opacity-80 disabled:opacity-40"
           >
             {updateTenantTool.isPending && <Loader2 size={14} className="animate-spin" />}
             Guardar

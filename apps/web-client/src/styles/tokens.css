@@ -203,6 +203,20 @@
   --badge-warning-text-strong: var(--warning-700);
   --badge-neutral-text-strong: var(--neutral-700);
 
+  /* Badges sólidos (fondo de paleta, no transparencia) */
+  --badge-success-bg-solid: var(--success-50);
+  --badge-success-text-solid: var(--success-700);
+  --badge-danger-bg-solid: var(--danger-50);
+  --badge-danger-text-solid: var(--danger-700);
+  --badge-warning-bg-solid: var(--warning-50);
+  --badge-warning-text-solid: var(--warning-700);
+  --badge-orange-bg-solid: #fff7ed;
+  --badge-orange-text-solid: #c2410c;
+
+  /* Banner de peligro (delete/disconnect modals) */
+  --danger-banner-bg: var(--danger-50);
+  --danger-banner-border: var(--danger-200);
+
   /* Texto semántico adaptativo adicional */
   --success-text-adaptive: var(--success-600);
   --warning-text-adaptive: var(--warning-600);
@@ -334,6 +348,20 @@
     --badge-danger-text-strong: var(--danger-300);
     --badge-warning-text-strong: var(--warning-300);
     --badge-neutral-text-strong: var(--neutral-300);
+
+    /* Badges sólidos dark */
+    --badge-success-bg-solid: var(--success-950);
+    --badge-success-text-solid: var(--success-400);
+    --badge-danger-bg-solid: var(--danger-950);
+    --badge-danger-text-solid: var(--danger-400);
+    --badge-warning-bg-solid: var(--warning-950);
+    --badge-warning-text-solid: var(--warning-400);
+    --badge-orange-bg-solid: #431407;
+    --badge-orange-text-solid: #fb923c;
+
+    /* Banner de peligro dark */
+    --danger-banner-bg: rgba(69, 10, 10, 0.4);
+    --danger-banner-border: rgba(127, 29, 29, 0.5);
 
     /* Texto semántico adaptativo */
     --success-text-adaptive: var(--success-400);

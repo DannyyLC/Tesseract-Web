@@ -33,16 +33,16 @@ export function DeleteToolModal({
     <Modal isOpen={isOpen} onClose={isLoading ? () => {} : onClose} title="Desconectar herramienta">
       <div className="space-y-5">
         {/* Warning banner */}
-        <div className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/40">
+        <div className="flex gap-3 rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] p-4">
           <TriangleAlert
             size={18}
-            className="mt-0.5 flex-shrink-0 text-red-600 dark:text-red-400"
+            className="mt-0.5 flex-shrink-0 text-[var(--danger-text-adaptive)]"
           />
           <div className="space-y-1">
-            <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+            <p className="text-sm font-semibold text-[var(--badge-danger-text-solid)]">
               Acción irreversible con impacto en producción
             </p>
-            <p className="text-xs leading-relaxed text-red-600/80 dark:text-red-400/80">
+            <p className="text-xs leading-relaxed text-[var(--danger-text-adaptive)]">
               Al eliminar <span className="font-semibold">"{toolDisplayName}"</span>, cualquier
               agente o workflow que dependa de esta herramienta{' '}
               <span className="font-semibold">fallará inmediatamente</span> al intentar utilizarla.
@@ -72,12 +72,12 @@ export function DeleteToolModal({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 border-t border-black/5 pt-4 dark:border-white/5">
+        <div className="flex gap-3 border-t border-[var(--border-subtle)] pt-4">
           <button
             type="button"
             onClick={onClose}
             disabled={isLoading}
-            className="flex-1 rounded-xl bg-black/5 px-4 py-2.5 text-sm font-medium text-black transition-colors hover:bg-black/10 disabled:opacity-40 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+            className="flex-1 rounded-xl bg-[var(--surface-tint)] px-4 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-[var(--surface-tint-md)] disabled:opacity-40"
           >
             Cancelar
           </button>
@@ -85,7 +85,7 @@ export function DeleteToolModal({
             type="button"
             onClick={handleConfirm}
             disabled={isLoading}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-80 disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger-600 px-4 py-2.5 text-sm font-semibold text-brand-white transition-opacity hover:opacity-80 disabled:opacity-50"
           >
             {isLoading ?? <Loader2 size={14} className="animate-spin" />}
             Sí, desconectar

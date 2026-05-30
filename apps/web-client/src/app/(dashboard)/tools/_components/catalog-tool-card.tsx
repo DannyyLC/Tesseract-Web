@@ -19,7 +19,7 @@ interface CatalogToolCardProps {
   onConnect?: (tool: GetToolsDto) => void;
 }
 
-const CATEGORY_STYLE = 'bg-black/5 text-black/60 dark:bg-white/5 dark:text-white/60';
+const CATEGORY_STYLE = 'bg-[var(--surface-tint)] text-text-tertiary';
 
 export function CatalogToolCard({
   tool,
@@ -36,29 +36,29 @@ export function CatalogToolCard({
       transition={{ delay: index * 0.05 }}
       layout
       onClick={() => setIsExpanded(!isExpanded)}
-      className={`group flex cursor-pointer flex-col rounded-2xl border border-black/5 bg-white p-5 transition-all hover:shadow-md dark:border-white/5 dark:bg-white/[0.03] ${!tool.isActive ? 'opacity-50' : ''}`}
+      className={`group flex cursor-pointer flex-col rounded-2xl border border-[var(--border-subtle)] bg-surface-elevated p-5 transition-all hover:shadow-md ${!tool.isActive ? 'opacity-50' : ''}`}
     >
       {/* Header */}
       <div className="mb-4 flex items-start justify-between">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/[0.04] text-black dark:bg-white/[0.06] dark:text-white">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--surface-tint)] text-text-primary">
           <DynamicIcon name={tool.icon} size={24} />
         </div>
         <div className="flex gap-1.5">
           {/* "N connected" badge */}
           {connectedCount > 0 && (
-            <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span className="flex items-center gap-1 rounded-full bg-[var(--badge-success-bg-solid)] px-2 py-0.5 text-[10px] font-semibold text-[var(--badge-success-text-solid)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-success-500" />
               {connectedCount === 1 ? '1 conectada' : `${connectedCount} conectadas`}
             </span>
           )}
           {tool.isInBeta && (
-            <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:bg-amber-950 dark:text-amber-400">
+            <span className="flex items-center gap-1 rounded-full bg-[var(--badge-warning-bg-solid)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--warning-text-adaptive)]">
               <Zap size={9} />
               Beta
             </span>
           )}
           {!tool.isActive && (
-            <span className="rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-black/40 dark:bg-white/5 dark:text-white/40">
+            <span className="rounded-full bg-[var(--surface-tint)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
               Próximamente
             </span>
           )}
@@ -97,7 +97,7 @@ export function CatalogToolCard({
             transition={{ duration: 0.25, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="mt-4 space-y-3 border-t border-black/5 pt-4 dark:border-white/5">
+            <div className="mt-4 space-y-3 border-t border-[var(--border-subtle)] pt-4">
               <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
                 Funciones disponibles
               </p>
@@ -105,10 +105,10 @@ export function CatalogToolCard({
                 {tool.functions.map((fn) => (
                   <div
                     key={fn.id}
-                    className="group/fn rounded-lg border border-black/5 bg-black/[0.01] p-2 dark:border-white/5 dark:bg-white/[0.01]"
+                    className="group/fn rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-2"
                   >
                     <div className="flex items-center gap-2">
-                      <div className="flex h-5 w-5 items-center justify-center rounded bg-black/5 text-black/50 dark:bg-white/10 dark:text-white/50">
+                      <div className="flex h-5 w-5 items-center justify-center rounded bg-[var(--surface-tint)] text-text-tertiary">
                         <DynamicIcon name={fn.icon} size={12} />
                       </div>
                       <p className="text-xs font-semibold text-text-primary">
@@ -127,7 +127,7 @@ export function CatalogToolCard({
       </AnimatePresence>
 
       {/* Footer */}
-      <div className="mt-4 border-t border-black/5 pt-4 dark:border-white/5">
+      <div className="mt-4 border-t border-[var(--border-subtle)] pt-4">
         <PermissionGuard permissions="tenant_tools:create">
           <button
             onClick={(e) => {
@@ -135,7 +135,7 @@ export function CatalogToolCard({
               if (tool.isActive) onConnect?.(tool);
             }}
             disabled={!tool.isActive}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-black py-2 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-white dark:text-black"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-30"
           >
             <Plus size={14} />
             {connectedCount > 0 ? 'Conectar otra instancia' : 'Conectar'}

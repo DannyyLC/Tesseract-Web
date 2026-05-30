@@ -50,7 +50,7 @@ export default function ToolsPage() {
         </div>
 
         {/* ─── Tab switcher ───────────────────────────────────────────────── */}
-        <div className="flex gap-1 rounded-2xl bg-black/[0.04] p-1 sm:w-fit dark:bg-white/[0.04]">
+        <div className="flex gap-1 rounded-2xl bg-[var(--surface-tint)] p-1 sm:w-fit">
           {tabs.map((tab) => (
             <Link
               key={tab.id}
@@ -59,14 +59,14 @@ export default function ToolsPage() {
               scroll={false}
               className={`relative flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-medium transition-all ${
                 activeTab === tab.id
-                  ? 'bg-white text-black shadow-sm dark:bg-white/10 dark:text-white'
+                  ? 'bg-surface-elevated text-text-primary shadow-sm'
                   : 'text-text-secondary hover:text-text-primary'
               }`}
             >
               {tab.icon}
               {tab.label}
               {tab.badge !== undefined && tab.badge > 0 && (
-                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-black px-1.5 text-[10px] font-bold text-white dark:bg-white dark:text-black">
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-text-inverse">
                   {tab.badge}
                 </span>
               )}

@@ -152,7 +152,7 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
         <PermissionGuard permissions="tenant_tools:create">
           <button
             onClick={onAddTool}
-            className="flex items-center gap-2 rounded-full bg-black px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-80 dark:bg-white dark:text-black"
+            className="flex items-center gap-2 rounded-full bg-accent px-6 py-2.5 text-sm font-medium text-text-inverse transition-opacity hover:opacity-80"
           >
             <Plus size={15} />
             Explorar catálogo

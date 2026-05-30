@@ -19,23 +19,23 @@ interface ConnectedToolCardProps {
 
 const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }> = {
   CONNECTED: {
-    dot: 'bg-emerald-500',
-    label: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
+    dot: 'bg-success-500',
+    label: 'bg-[var(--badge-success-bg-solid)] text-[var(--badge-success-text-solid)]',
     text: 'Conectado',
   },
   ERROR: {
     dot: 'bg-danger',
-    label: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400',
+    label: 'bg-[var(--badge-danger-bg-solid)] text-[var(--badge-danger-text-solid)]',
     text: 'Error',
   },
   DISCONNECTED: {
-    dot: 'bg-amber-500',
-    label: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
+    dot: 'bg-warning-500',
+    label: 'bg-[var(--badge-warning-bg-solid)] text-[var(--badge-warning-text-solid)]',
     text: 'Desconectado',
   },
   EXPIRED_AUTH: {
-    dot: 'bg-orange-500',
-    label: 'bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-400',
+    dot: 'bg-[var(--chart-timeout)]',
+    label: 'bg-[var(--badge-orange-bg-solid)] text-[var(--badge-orange-text-solid)]',
     text: 'Auth expirado',
   },
 };
@@ -68,10 +68,10 @@ export function ConnectedToolCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
-      className="group relative flex items-center gap-4 rounded-2xl border border-black/5 bg-white p-4 transition-shadow hover:shadow-md dark:border-white/5 dark:bg-white/[0.03]"
+      className="group relative flex items-center gap-4 rounded-2xl border border-[var(--border-subtle)] bg-surface-elevated p-4 transition-shadow hover:shadow-md"
     >
       {/* Icon */}
-      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-black/[0.04] text-black dark:bg-white/[0.06] dark:text-white">
+      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--surface-tint)] text-text-primary">
         <DynamicIcon name={tool.toolCatalog.icon} size={24} />
       </div>
 
@@ -99,7 +99,7 @@ export function ConnectedToolCard({
         <div className="relative">
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-black/30 transition-colors hover:bg-black/5 hover:text-text-primary/30 dark:hover:bg-white/5 dark:hover:text-white"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
           >
             <MoreVertical size={16} />
           </button>
@@ -107,7 +107,7 @@ export function ConnectedToolCard({
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-black/5 bg-white shadow-xl dark:border-white/5 dark:bg-[#111]">
+              <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-surface-popover shadow-xl">
                 {(tool.status === 'DISCONNECTED' ||
                   tool.status === 'ERROR' ||
                   tool.status === 'EXPIRED_AUTH') &&
@@ -118,7 +118,7 @@ export function ConnectedToolCard({
                           setMenuOpen(false);
                           onConfigCredentials?.(tool.id);
                         }}
-                        className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-black/70 transition-colors hover:bg-black/5 hover:text-text-primary/70 dark:hover:bg-white/5 dark:hover:text-white"
+                        className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
                       >
                         <KeyRound size={14} />
                         Configurar credenciales
@@ -131,7 +131,7 @@ export function ConnectedToolCard({
                       setMenuOpen(false);
                       onRename?.(tool.id);
                     }}
-                    className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-black/70 transition-colors hover:bg-black/5 hover:text-text-primary/70 dark:hover:bg-white/5 dark:hover:text-white"
+                    className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
                   >
                     <Pencil size={14} />
                     Renombrar
@@ -145,7 +145,7 @@ export function ConnectedToolCard({
                         setMenuOpen(false);
                         onDisconnectCredentials?.(tool.id);
                       }}
-                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[var(--danger-text-adaptive)] transition-colors hover:bg-[var(--danger-tint-hover)]"
                     >
                       <Unplug size={14} />
                       Desconectar credenciales
@@ -158,7 +158,7 @@ export function ConnectedToolCard({
                       setMenuOpen(false);
                       onDelete?.(tool.id);
                     }}
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[var(--danger-text-adaptive)] transition-colors hover:bg-[var(--danger-tint-hover)]"
                   >
                     <Trash2 size={14} />
                     Eliminar
