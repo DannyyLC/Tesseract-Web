@@ -302,24 +302,25 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
   return (
     // Contenedor principal: bloquea el scroll global
-    <div className="flex h-screen overflow-hidden bg-black">
+    <div className="flex h-screen overflow-hidden bg-brand-black">
       {/* SECCIÓN IZQUIERDA - BRANDING */}
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-black via-[#0A0A0A] to-[#1A1A1A] lg:flex lg:w-1/2">
+      <div className="relative hidden overflow-hidden bg-gradient-to-br from-gradient-start via-gradient-mid to-gradient-end lg:flex lg:w-1/2">
         {/* Capa base para Dark Mode: Gradiente de izquierda a derecha para uniformidad vertical */}
         <div className="absolute inset-0 z-0 bg-gradient-to-r from-brand-black via-brand-black to-brand-black block" />
 
         {/* Seamless Overlay */}
         <div
-          className="pointer-events-none absolute inset-y-0 right-0 z-20 hidden dark:block"
+          className="pointer-events-none absolute inset-y-0 right-0 z-20"
           style={{
             width: '100%',
+            opacity: 'var(--auth-branding-seam-opacity)',
             background:
-              'linear-gradient(to right, transparent 0%, rgba(0,0,0,0) 50%, #000000 100%)',
+              'linear-gradient(to right, transparent 0%, transparent 50%, var(--gradient-start) 100%)',
           }}
         />
 
         {/* Animated Background Grid */}
-        <div className="z-5 absolute inset-0 opacity-30 dark:opacity-20">
+        <div className="z-5 absolute inset-0" style={{ opacity: 'var(--auth-branding-grid-opacity)' }}>
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,black,transparent)]" />
         </div>
 
@@ -338,23 +339,24 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                   src="/favicon.svg"
                   alt="Tesseract Logo"
                   fill
-                  className="object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-transform duration-500 group-hover:scale-110 [@media(prefers-color-scheme:light)]:invert"
+                  className="object-contain transition-transform duration-500 group-hover:scale-110"
+                  style={{ filter: 'var(--auth-branding-logo-filter)' }}
                 />
               </div>
             </div>
             <div>
-              <h1 className="text-5xl font-bold tracking-tight text-white">Tesseract</h1>
-              <p className="mt-1 text-sm uppercase tracking-widest text-white/40">
+              <h1 className="text-5xl font-bold tracking-tight text-brand-white">Tesseract</h1>
+              <p className="mt-1 text-sm uppercase tracking-widest text-brand-white/40">
                 Automation Platform
               </p>
             </div>
           </div>
 
           <div className="max-w-lg space-y-4 text-center">
-            <h2 className="text-3xl font-semibold leading-tight text-white">
+            <h2 className="text-3xl font-semibold leading-tight text-brand-white">
               Tu plataforma de automatización empresarial
             </h2>
-            <p className="text-lg leading-relaxed text-white/60">
+            <p className="text-lg leading-relaxed text-brand-white/60">
               Potencia tu negocio con automatización inteligente
             </p>
           </div>
@@ -389,7 +391,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
             <div className="w-full max-w-md space-y-8">
               {/* Mode Switcher */}
-              <div className="relative rounded-2xl bg-[#F5F5F5] p-1.5 shadow-inner dark:bg-[#171717]">
+              <div className="relative rounded-2xl bg-surface-secondary p-1.5 shadow-inner">
                 <div className="relative z-10 grid grid-cols-2 gap-0">
                   <Link
                     href="/login"
@@ -401,7 +403,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                     {isLogin && (
                       <motion.div
                         layoutId="activeTab"
-                        className="absolute inset-0 rounded-xl bg-black shadow-lg dark:bg-white"
+                        className="absolute inset-0 rounded-xl bg-accent shadow-lg"
                         transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                       />
                     )}
@@ -418,7 +420,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                     {!isLogin && (
                       <motion.div
                         layoutId="activeTab"
-                        className="absolute inset-0 rounded-xl bg-black shadow-lg dark:bg-white"
+                        className="absolute inset-0 rounded-xl bg-accent shadow-lg"
                         transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                       />
                     )}
@@ -446,7 +448,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                         value={loginData.email}
                         onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                         placeholder="ejemplo@empresa.com"
-                        className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+                        className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                         required
                       />
                     </div>
@@ -461,13 +463,13 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                           value={loginData.password}
                           onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                           placeholder="••••••••"
-                          className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+                          className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                           required
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-text-primary"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-text-tertiary transition-colors hover:text-text-primary"
                         >
                           {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                         </button>
@@ -482,7 +484,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                           onChange={(e) =>
                             setLoginData({ ...loginData, rememberMe: e.target.checked })
                           }
-                          className="h-5 w-5 cursor-pointer rounded border-2 border-border-hover text-black focus:ring-0  dark:text-white"
+                          className="h-5 w-5 cursor-pointer rounded border-2 border-border-hover text-accent focus:ring-0"
                         />
                         <span className="text-sm text-text-secondary group-hover:text-text-primary/70 ">
                           Recordarme
@@ -568,7 +570,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                               setSignupData({ ...signupData, fullName: e.target.value })
                             }
                             placeholder="Tu nombre y apellido"
-                            className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+                            className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                             required
                           />
                         </div>
@@ -584,7 +586,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                               setSignupData({ ...signupData, email: e.target.value })
                             }
                             placeholder="ejemplo@empresa.com"
-                            className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+                            className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                             required
                           />
                         </div>
@@ -604,7 +606,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                                 setSignupData({ ...signupData, organizationName: e.target.value })
                               }
                               placeholder="Ej: Mi Empresa S.A."
-                              className="w-full rounded-xl border-2 border-transparent bg-input-bg py-3.5 pl-12 pr-4 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+                              className="w-full rounded-xl border-2 border-transparent bg-input-bg py-3.5 pl-12 pr-4 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                               required
                             />
                           </div>
@@ -619,21 +621,21 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             type="checkbox"
                             checked={acceptTerms}
                             onChange={(e) => setAcceptTerms(e.target.checked)}
-                            className="mt-0.5 h-5 w-5 cursor-pointer rounded border-2 border-border-hover text-black focus:ring-0  dark:text-white"
+                            className="mt-0.5 h-5 w-5 cursor-pointer rounded border-2 border-border-hover text-accent focus:ring-0"
                             required
                           />
                           <span className="text-sm text-text-secondary group-hover:text-text-primary/70 ">
                             Acepto los{' '}
                             <Link
                               href="/terms"
-                              className="font-medium text-black underline dark:text-white"
+                              className="font-medium text-accent underline"
                             >
                               Términos
                             </Link>{' '}
                             y la{' '}
                             <Link
                               href="/privacy"
-                              className="font-medium text-black underline dark:text-white"
+                              className="font-medium text-accent underline"
                             >
                               Privacidad
                             </Link>
@@ -731,13 +733,13 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                               setVerificationError('');
                             }}
                             placeholder="000000"
-                            className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-center font-mono text-2xl tracking-widest text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+                            className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-center font-mono text-2xl tracking-widest outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                             required
                             maxLength={6}
                             autoFocus
                           />
                           {verificationError && (
-                            <p className="text-sm text-danger dark:text-red-400">
+                            <p className="text-sm" style={{ color: 'var(--danger-text-adaptive)' }}>
                               {verificationError}
                             </p>
                           )}
@@ -783,7 +785,8 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             }
                           }}
                           disabled={signupStepOneMutation.isPending}
-                          className="w-full text-sm text-black/60 transition-colors hover:text-black disabled:opacity-50 dark:text-white/60 dark:hover:text-white"
+                          className="w-full text-sm transition-colors hover:text-text-primary disabled:opacity-50"
+                          style={{ color: 'var(--text-muted)' }}
                         >
                           {signupStepOneMutation.isPending
                             ? 'Reenviando...'
@@ -847,7 +850,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                               value={password}
                               onChange={(e) => setPassword(e.target.value)}
                               placeholder="••••••••"
-                              className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+                              className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                               required
                               minLength={8}
                               autoComplete="new-password"
@@ -857,7 +860,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             <button
                               type="button"
                               onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-text-primary"
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-text-tertiary transition-colors hover:text-text-primary"
                             >
                               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                             </button>
@@ -874,7 +877,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                               value={confirmPassword}
                               onChange={(e) => setConfirmPassword(e.target.value)}
                               placeholder="••••••••"
-                              className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+                              className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                               required
                               autoComplete="new-password"
                               id="confirm-password"
@@ -883,7 +886,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             <button
                               type="button"
                               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-text-primary"
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-text-tertiary transition-colors hover:text-text-primary"
                             >
                               {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                             </button>
@@ -926,7 +929,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                     <div className="w-full border-t border-border" />
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="bg-white px-4 text-xs uppercase tracking-wider text-black/40 dark:bg-black dark:text-white/40">
+                    <span className="bg-background px-4 text-xs uppercase tracking-wider text-text-tertiary">
                       O continuar con
                     </span>
                   </div>
@@ -934,7 +937,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                 <button
                   onClick={handleGoogleAuth}
-                  className="flex w-full items-center justify-center gap-3 rounded-xl border-2 border-border bg-white px-4 py-3.5 transition-all hover:border-black/30  dark:bg-[#171717] dark:hover:border-white/30"
+                  className="flex w-full items-center justify-center gap-3 rounded-xl border-2 border-border bg-surface-elevated px-4 py-3.5 transition-all hover:border-border-hover"
                 >
                   <FcGoogle className="h-5 w-5" />
                   <span className="font-medium text-text-primary">Google</span>
@@ -945,14 +948,14 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                     Al continuar con Google, aceptas nuestros{' '}
                     <Link
                       href="/terms"
-                      className="font-medium text-black underline transition-colors hover:text-black/80 dark:text-white dark:hover:text-white/80"
+                      className="font-medium text-accent underline transition-colors hover:opacity-80"
                     >
                       Términos
                     </Link>{' '}
                     y la{' '}
                     <Link
                       href="/privacy"
-                      className="font-medium text-black underline transition-colors hover:text-black/80 dark:text-white dark:hover:text-white/80"
+                      className="font-medium text-accent underline transition-colors hover:opacity-80"
                     >
                       Privacidad
                     </Link>

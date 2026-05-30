@@ -46,19 +46,20 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-black">
+    <div className="flex h-screen overflow-hidden bg-brand-black">
       {/* SECCIÓN IZQUIERDA - BRANDING */}
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-black via-[#0A0A0A] to-[#1A1A1A] lg:flex lg:w-1/2">
-        <div className="absolute inset-0 z-0 hidden bg-gradient-to-r from-brand-black via-brand-black to-brand-black block" />
+      <div className="relative hidden overflow-hidden bg-gradient-to-br from-gradient-start via-gradient-mid to-gradient-end lg:flex lg:w-1/2">
+        <div className="absolute inset-0 z-0 bg-gradient-to-r from-brand-black via-brand-black to-brand-black" />
         <div
-          className="pointer-events-none absolute inset-y-0 right-0 z-20 hidden dark:block"
+          className="pointer-events-none absolute inset-y-0 right-0 z-20"
           style={{
             width: '100%',
+            opacity: 'var(--auth-branding-seam-opacity)',
             background:
-              'linear-gradient(to right, transparent 0%, rgba(0,0,0,0) 50%, #000000 100%)',
+              'linear-gradient(to right, transparent 0%, transparent 50%, var(--gradient-start) 100%)',
           }}
         />
-        <div className="z-5 absolute inset-0 opacity-30 dark:opacity-20">
+        <div className="z-5 absolute inset-0" style={{ opacity: 'var(--auth-branding-grid-opacity)' }}>
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,black,transparent)]" />
         </div>
 
@@ -75,20 +76,21 @@ export default function ResetPasswordScreen() {
                   src="/favicon.svg"
                   alt="Tesseract Logo"
                   fill
-                  className="object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-transform duration-500 group-hover:scale-110 [@media(prefers-color-scheme:light)]:invert"
+                  className="object-contain transition-transform duration-500 group-hover:scale-110"
+                  style={{ filter: 'var(--auth-branding-logo-filter)' }}
                 />
               </div>
             </div>
             <div>
-              <h1 className="text-5xl font-bold tracking-tight text-white">Tesseract</h1>
-              <p className="mt-1 text-sm uppercase tracking-widest text-white/40">
+              <h1 className="text-5xl font-bold tracking-tight text-brand-white">Tesseract</h1>
+              <p className="mt-1 text-sm uppercase tracking-widest text-brand-white/40">
                 Automation Platform
               </p>
             </div>
           </div>
           <div className="max-w-lg space-y-4 text-center">
-            <h2 className="text-3xl font-semibold leading-tight text-white">Nueva contraseña</h2>
-            <p className="text-lg leading-relaxed text-white/60">
+            <h2 className="text-3xl font-semibold leading-tight text-brand-white">Nueva contraseña</h2>
+            <p className="text-lg leading-relaxed text-brand-white/60">
               Asegúrate de guardar tu nueva contraseña
             </p>
           </div>
@@ -142,7 +144,7 @@ export default function ResetPasswordScreen() {
                       setVerificationCode(value);
                     }}
                     placeholder="000000"
-                    className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-center font-mono text-2xl tracking-widest text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+                    className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-center font-mono text-2xl tracking-widest outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                     required
                     maxLength={6}
                   />
@@ -158,13 +160,13 @@ export default function ResetPasswordScreen() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+                      className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-text-primary hover:text-text-primary"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-text-tertiary transition-colors hover:text-text-primary"
                     >
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
@@ -181,13 +183,13 @@ export default function ResetPasswordScreen() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 text-black outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+                      className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 transition-colors hover:text-text-primary hover:text-text-primary"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-text-tertiary transition-colors hover:text-text-primary"
                     >
                       {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>

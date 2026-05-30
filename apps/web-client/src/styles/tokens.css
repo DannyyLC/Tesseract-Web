@@ -185,6 +185,18 @@
   --scrollbar-thumb-hover: #a3a3a3;
   --scrollbar-border: #ffffff;
 
+  /* Texto con opacidad reducida (60%) — adaptativo al tema */
+  --text-muted: rgba(0, 0, 0, 0.6);
+
+  /* Auth branding panel (siempre oscuro, pero la superposición y el grid varían) */
+  --auth-branding-seam-opacity: 0;
+  --auth-branding-grid-opacity: 0.3;
+  --auth-branding-logo-filter: invert(1) drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
+
+  /* Danger adaptativo por tema */
+  --danger-surface: var(--danger-100);
+  --danger-text-adaptive: var(--danger-600);
+
   /* Not-found page */
   --not-found-grid-color: rgba(0, 0, 0, 0.06);
   --not-found-grid-opacity: 0.2;
@@ -266,6 +278,18 @@
     --scrollbar-thumb: #262626;
     --scrollbar-thumb-hover: #333333;
     --scrollbar-border: #000000;
+
+    /* Texto muted */
+    --text-muted: rgba(255, 255, 255, 0.6);
+
+    /* Auth branding panel */
+    --auth-branding-seam-opacity: 1;
+    --auth-branding-grid-opacity: 0.2;
+    --auth-branding-logo-filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
+
+    /* Danger adaptativo */
+    --danger-surface: rgba(127, 29, 29, 0.2);
+    --danger-text-adaptive: var(--danger-400);
 
     /* Not-found page */
     --not-found-grid-color: rgba(255, 255, 255, 0.02);
