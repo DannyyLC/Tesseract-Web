@@ -43,9 +43,9 @@ const getStatusConfig = (status: string) => {
     case 'COMPLETED':
       return {
         label: 'Completada',
-        color: 'text-emerald-500',
-        statusColor: 'bg-emerald-500',
-        bgColor: 'bg-emerald-500/10',
+        color: 'text-success-500',
+        statusColor: 'bg-success-500',
+        bgColor: 'bg-success-500/10',
       };
     case 'FAILED':
       return {
@@ -64,30 +64,30 @@ const getStatusConfig = (status: string) => {
     case 'CANCELLED':
       return {
         label: 'Cancelada',
-        color: 'text-gray-500',
-        statusColor: 'bg-gray-500',
-        bgColor: 'bg-gray-500/10',
+        color: 'text-neutral-500',
+        statusColor: 'bg-neutral-500',
+        bgColor: 'bg-neutral-500/10',
       };
     case 'PENDING':
       return {
         label: 'Pendiente',
-        color: 'text-slate-500',
-        statusColor: 'bg-slate-500',
-        bgColor: 'bg-slate-500/10',
+        color: 'text-neutral-400',
+        statusColor: 'bg-neutral-400',
+        bgColor: 'bg-neutral-400/10',
       };
     case 'TIMEOUT':
       return {
         label: 'Timeout',
-        color: 'text-orange-500',
-        statusColor: 'bg-orange-500',
-        bgColor: 'bg-orange-500/10',
+        color: 'text-[var(--chart-timeout)]',
+        statusColor: 'bg-[var(--chart-timeout)]',
+        bgColor: 'bg-[var(--chart-timeout)]/10',
       };
     default:
       return {
         label: status,
-        color: 'text-amber-500',
-        statusColor: 'bg-amber-500',
-        bgColor: 'bg-amber-500/10',
+        color: 'text-warning-500',
+        statusColor: 'bg-warning-500',
+        bgColor: 'bg-warning-500/10',
       };
   }
 };
@@ -139,8 +139,8 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
       exit={{ opacity: 0, scale: 0.98 }}
       className={`group overflow-hidden rounded-xl border transition-all duration-200 ${
         isExpanded
-          ? 'border-border-hover bg-white shadow-md  dark:bg-[#141414]'
-          : 'border-transparent bg-transparent hover:border-black/5 hover:bg-white hover:shadow-sm dark:hover:border-white/5 dark:hover:bg-[#141414]'
+          ? 'border-border-hover bg-surface-elevated shadow-md'
+          : 'border-transparent bg-transparent hover:border-border hover:bg-surface-panel hover:shadow-sm'
       }`}
     >
       {/* Main Row */}
@@ -213,7 +213,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
             <div className="flex justify-end md:col-span-1">
               <ChevronDown
                 size={16}
-                className={`text-black/20 transition-transform duration-200 dark:text-white/20 ${isExpanded ? 'rotate-180' : 'group-hover:text-black/40 dark:group-hover:text-white/40'}`}
+                className={`text-text-tertiary transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'group-hover:text-text-secondary'}`}
               />
             </div>
           </div>
@@ -239,7 +239,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 pt-0 md:pl-16">
-              <div className="border-t border-black/5 pt-4 dark:border-white/5">
+              <div className="border-t border-[var(--border-subtle)] pt-4">
                 {isLoading ? (
                   <div className="flex items-center justify-center py-6">
                     <Loader2 className="animate-spin text-text-tertiary" size={20} />
@@ -248,7 +248,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                   <div className="space-y-4">
                     {/* Metrics Grid */}
                     <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                      <div className="rounded-lg border border-black/5 bg-black/[0.02] p-3 dark:border-white/5 dark:bg-white/[0.02]">
+                      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3">
                         <div className="mb-1 flex items-center gap-2">
                           <Zap size={12} className="text-text-tertiary" />
                           <span className="text-xs font-medium text-text-secondary">
@@ -260,7 +260,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                         </p>
                       </div>
 
-                      <div className="rounded-lg border border-black/5 bg-black/[0.02] p-3 md:col-span-2 dark:border-white/5 dark:bg-white/[0.02]">
+                      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3 md:col-span-2">
                         <div className="mb-1 flex items-center gap-2">
                           <Clock size={12} className="text-text-tertiary" />
                           <span className="text-xs font-medium text-text-secondary">
@@ -289,7 +289,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
 
                       {(displayData.balanceBefore !== undefined ||
                         displayData.balanceAfter !== undefined) && (
-                        <div className="rounded-lg border border-black/5 bg-black/[0.02] p-3 dark:border-white/5 dark:bg-white/[0.02]">
+                        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3">
                           <div className="mb-2 flex items-center gap-2">
                             <Coins size={12} className="text-text-tertiary" />
                             <span className="text-xs font-medium text-text-secondary">
@@ -324,31 +324,31 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                     {(displayData.error || displayData.wasOverage) && (
                       <div className="space-y-2">
                         {displayData.error && (
-                          <div className="rounded-lg border border-red-500/20 bg-danger/5 p-3">
+                          <div className="rounded-lg border border-danger-500/20 bg-danger/5 p-3">
                             <div className="mb-1 flex items-center gap-2">
-                              <AlertCircle size={12} className="text-red-600 dark:text-red-400" />
-                              <span className="text-xs font-medium text-red-600 dark:text-red-400">
+                              <AlertCircle size={12} className="text-[var(--danger-text-adaptive)]" />
+                              <span className="text-xs font-medium text-[var(--danger-text-adaptive)]">
                                 Error Details
                               </span>
                             </div>
-                            <code className="block break-all font-mono text-xs text-red-600/90 dark:text-red-400/90">
+                            <code className="block break-all font-mono text-xs text-[var(--danger-text-adaptive)]">
                               {displayData.error}
                             </code>
                           </div>
                         )}
 
                         {displayData.wasOverage && (
-                          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+                          <div className="rounded-lg border border-warning-500/20 bg-warning-500/5 p-3">
                             <div className="mb-1 flex items-center gap-2">
                               <AlertCircle
                                 size={12}
-                                className="text-amber-600 dark:text-amber-400"
+                                className="text-[var(--warning-text-adaptive)]"
                               />
-                              <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                              <span className="text-xs font-medium text-[var(--warning-text-adaptive)]">
                                 Limit Exceeded
                               </span>
                             </div>
-                            <p className="text-xs text-amber-600/90 dark:text-amber-400/90">
+                            <p className="text-xs text-[var(--warning-text-adaptive)]">
                               This execution exceeded the credit limit.
                             </p>
                           </div>
@@ -359,7 +359,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                     {/* Footer Info */}
                     <div className="flex items-center justify-between pt-1">
                       {displayData.apiKeyName && (
-                        <div className="flex items-center gap-1.5 rounded border border-black/5 bg-black/[0.02] px-2 py-1 dark:border-white/5 dark:bg-white/[0.02]">
+                        <div className="flex items-center gap-1.5 rounded border border-[var(--border-subtle)] bg-[var(--surface-subtle)] px-2 py-1">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
                             API Key
                           </span>

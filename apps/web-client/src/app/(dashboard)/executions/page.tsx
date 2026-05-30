@@ -188,7 +188,7 @@ export default function ExecutionsPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+            className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Tasa de Éxito
@@ -197,7 +197,7 @@ export default function ExecutionsPage() {
               <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {stats?.successful ?? 0}
               </p>
-              <span className="px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-500">
+              <span className="px-2 py-0.5 text-xs font-medium text-[var(--success-text-adaptive)]">
                 {stats?.successRate?.toFixed(0) ?? 0}%
               </span>
             </div>
@@ -207,7 +207,7 @@ export default function ExecutionsPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+            className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Fallidas
@@ -217,7 +217,7 @@ export default function ExecutionsPage() {
                 {stats?.failed ?? 0}
               </p>
               {stats && stats.failed > 0 && (
-                <span className="px-2 py-0.5 text-xs font-medium text-red-600 dark:text-danger">
+                <span className="px-2 py-0.5 text-xs font-medium text-[var(--danger-text-adaptive)]">
                   {((stats.failed / stats.total) * 100).toFixed(0)}%
                 </span>
               )}
@@ -228,7 +228,7 @@ export default function ExecutionsPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
-            className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+            className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Duración Prom.
@@ -307,9 +307,9 @@ export default function ExecutionsPage() {
                   const input = document.getElementById('startDateInput') as HTMLInputElement;
                   input?.showPicker();
                 }}
-                className="group flex w-full cursor-pointer items-center gap-2 rounded-full bg-black/5 px-4 py-2 transition-all duration-200 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
+                className="group flex w-full cursor-pointer items-center gap-2 rounded-full bg-[var(--surface-tint)] px-4 py-2 transition-all duration-200 hover:bg-[var(--surface-tint-md)]"
               >
-                <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-black/40 transition-colors group-hover:text-black/60 dark:text-white/40 dark:group-hover:text-white/60">
+                <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-text-tertiary transition-colors group-hover:text-text-secondary">
                   Desde
                 </span>
                 <div className="mx-1 h-3 w-[1px] bg-surface-secondary" />
@@ -318,7 +318,7 @@ export default function ExecutionsPage() {
                   type="date"
                   value={startDateParam || ''}
                   onChange={(e) => handleDateChange('startDate', e.target.value)}
-                  className="w-full cursor-pointer appearance-none bg-transparent p-0 text-sm font-medium text-black outline-none dark:text-white dark:[color-scheme:dark]"
+                  className="w-full cursor-pointer appearance-none bg-transparent p-0 text-sm font-medium text-text-primary outline-none [color-scheme:var(--date-color-scheme)]"
                 />
               </div>
             </div>
@@ -328,9 +328,9 @@ export default function ExecutionsPage() {
                   const input = document.getElementById('endDateInput') as HTMLInputElement;
                   input?.showPicker();
                 }}
-                className="group flex w-full cursor-pointer items-center gap-2 rounded-full bg-black/5 px-4 py-2 transition-all duration-200 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
+                className="group flex w-full cursor-pointer items-center gap-2 rounded-full bg-[var(--surface-tint)] px-4 py-2 transition-all duration-200 hover:bg-[var(--surface-tint-md)]"
               >
-                <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-black/40 transition-colors group-hover:text-black/60 dark:text-white/40 dark:group-hover:text-white/60">
+                <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-text-tertiary transition-colors group-hover:text-text-secondary">
                   Hasta
                 </span>
                 <div className="mx-1 h-3 w-[1px] bg-surface-secondary" />
@@ -339,7 +339,7 @@ export default function ExecutionsPage() {
                   type="date"
                   value={endDateParam || ''}
                   onChange={(e) => handleDateChange('endDate', e.target.value)}
-                  className="w-full cursor-pointer appearance-none bg-transparent p-0 text-sm font-medium text-black outline-none dark:text-white dark:[color-scheme:dark]"
+                  className="w-full cursor-pointer appearance-none bg-transparent p-0 text-sm font-medium text-text-primary outline-none [color-scheme:var(--date-color-scheme)]"
                 />
               </div>
             </div>
@@ -350,7 +350,7 @@ export default function ExecutionsPage() {
         <div className="relative min-h-[200px] space-y-3">
           {/* Loading Overlay */}
           {isLoading && (
-            <div className="absolute inset-0 z-10 flex items-start justify-center rounded-2xl bg-white/50 pt-10 backdrop-blur-[1px] dark:bg-black/50">
+            <div className="absolute inset-0 z-10 flex items-start justify-center rounded-2xl bg-[var(--loading-overlay-bg)] pt-10 backdrop-blur-[1px]">
               <LogoLoader />
             </div>
           )}
@@ -382,11 +382,11 @@ export default function ExecutionsPage() {
         </div>
 
         {/* Pagination Controls */}
-        <div className="flex items-center justify-between border-t border-black/5 pt-4 dark:border-white/5">
+        <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-4">
           <button
             onClick={handlePrevPage}
             disabled={!prevCursor}
-            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-text-secondary dark:hover:text-white dark:disabled:hover:text-white/60"
+            className="px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-30 disabled:hover:text-text-secondary"
           >
             Anterior
           </button>
@@ -396,7 +396,7 @@ export default function ExecutionsPage() {
           <button
             onClick={handleNextPage}
             disabled={!nextPageAvailable}
-            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-text-secondary dark:hover:text-white dark:disabled:hover:text-white/60"
+            className="px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-30 disabled:hover:text-text-secondary"
           >
             Siguiente
           </button>

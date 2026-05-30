@@ -205,7 +205,14 @@
 
   /* Texto semántico adaptativo adicional */
   --success-text-adaptive: var(--success-600);
+  --warning-text-adaptive: var(--warning-600);
   --neutral-text-adaptive: var(--neutral-600);
+
+  /* Overlay de carga (claro en light, oscuro en dark) */
+  --loading-overlay-bg: rgba(255, 255, 255, 0.5);
+
+  /* Color-scheme para inputs de fecha nativos */
+  --date-color-scheme: light;
 
   /* Hover tints para estados interactivos danger/success */
   --danger-tint-hover: var(--danger-50);
@@ -330,7 +337,14 @@
 
     /* Texto semántico adaptativo */
     --success-text-adaptive: var(--success-400);
+    --warning-text-adaptive: var(--warning-400);
     --neutral-text-adaptive: var(--neutral-400);
+
+    /* Overlay de carga */
+    --loading-overlay-bg: rgba(0, 0, 0, 0.5);
+
+    /* Color-scheme para inputs de fecha nativos */
+    --date-color-scheme: dark;
 
     /* Hover tints */
     --danger-tint-hover: rgba(69, 10, 10, 0.5);
