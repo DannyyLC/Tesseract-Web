@@ -368,7 +368,7 @@ export default function WorkflowChatPage() {
     <PermissionGuard permissions="conversations:read" redirect={true} fallbackRoute="/dashboard">
       <div className="relative flex h-full flex-col bg-surface">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border bg-surface-panel px-6 py-4">
+        <div className="flex items-center justify-between border-b border-border bg-surface px-6 py-4">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.back()}
@@ -470,7 +470,7 @@ export default function WorkflowChatPage() {
                       disabled={updateConversation.isPending}
                       className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                         conversationData.isHumanInTheLoop
-                          ? 'bg-warning-500/10 text-warning-600 hover:bg-warning-500/20'
+                          ? 'border border-warning-600 text-warning-600 hover:bg-[color-mix(in_srgb,var(--warning-500)_10%,transparent)]'
                           : 'bg-surface-secondary text-text-tertiary hover:bg-surface-elevated'
                       }`}
                       title={
@@ -499,7 +499,7 @@ export default function WorkflowChatPage() {
                     className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm transition-all ${
                       conversationData.status === 'CLOSED'
                         ? 'border-border bg-surface-secondary text-text-secondary hover:bg-surface-elevated'
-                        : 'border-success-500/20 bg-success-500/10 text-success-600 hover:bg-success-500/20'
+                        : 'border-success-600 text-success-600 hover:bg-[color-mix(in_srgb,var(--success-500)_10%,transparent)]'
                     }`}
                   >
                     {conversationData.status === 'CLOSED' ? (
