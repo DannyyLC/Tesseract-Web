@@ -12,6 +12,7 @@ import {
   Archive,
   RefreshCw,
   AlertCircle,
+  ChevronDown,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useWorkflow, useExecuteStream } from '@/hooks/automation/use-workflows';
@@ -78,6 +79,7 @@ export default function WorkflowChatPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
 
   useEffect(() => {
     if (conversationData?.title) {
@@ -368,7 +370,18 @@ export default function WorkflowChatPage() {
     <PermissionGuard permissions="conversations:read" redirect={true} fallbackRoute="/dashboard">
       <div className="relative flex h-full flex-col bg-surface">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border bg-surface px-6 py-4">
+        <div>
+          <AnimatePresence initial={false}>
+            {!isHeaderCollapsed && (
+              <motion.div
+                key="header"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                <div className="flex items-center justify-between border-b border-border bg-surface px-6 py-4">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.back()}
@@ -549,7 +562,29 @@ export default function WorkflowChatPage() {
                 Listo
               </div>
             )}
+
+            <button
+              onClick={() => setIsHeaderCollapsed(true)}
+              className="rounded-lg p-1.5 text-text-tertiary transition-colors hover:bg-surface-secondary"
+              title="Ocultar encabezado"
+            >
+              <ChevronDown size={15} className="rotate-180" />
+            </button>
           </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {isHeaderCollapsed && (
+            <button
+              onClick={() => setIsHeaderCollapsed(false)}
+              className="flex w-full items-center justify-center border-b border-border bg-surface py-1 text-text-tertiary transition-colors hover:bg-surface-secondary hover:text-text-primary"
+              title="Mostrar encabezado"
+            >
+              <ChevronDown size={14} />
+            </button>
+          )}
         </div>
 
         {/* Chat Area */}
