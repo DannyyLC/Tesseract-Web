@@ -48,7 +48,7 @@ export default function PanelLayout({ children }: PanelLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] dark:bg-black">
+    <div className="min-h-screen bg-dashboard-background">
       <Suspense fallback={null}>
         <WelcomeOnboarding />
       </Suspense>
@@ -66,7 +66,7 @@ export default function PanelLayout({ children }: PanelLayoutProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-40 bg-overlay backdrop-blur-sm lg:hidden"
               onClick={() => setIsMobileSidebarOpen(false)}
             />
             <motion.div

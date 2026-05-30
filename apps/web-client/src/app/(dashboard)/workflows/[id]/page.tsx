@@ -201,7 +201,7 @@ export default function WorkflowDetailPage() {
               <div className="flex w-full items-start gap-4 md:w-auto">
                 <Link
                   href="/workflows"
-                  className="group -ml-2 mt-1 shrink-0 rounded-full p-2 text-black/40 transition-all hover:bg-black/5 dark:text-white/40 dark:hover:bg-white/5"
+                  className="group -ml-2 mt-1 shrink-0 rounded-full p-2 text-text-tertiary transition-all hover:bg-[var(--surface-tint)]"
                 >
                   <ArrowLeft
                     size={20}
@@ -216,21 +216,21 @@ export default function WorkflowDetailPage() {
                       <div
                         className={`flex items-center gap-1 rounded-full border px-2 py-0.5 ${
                           workflow.isActive
-                            ? 'border-emerald-500/20 bg-emerald-500/5'
-                            : 'border-zinc-500/20 bg-zinc-500/5'
+                            ? 'border-success-500/20 bg-success-500/5'
+                            : 'border-neutral-500/20 bg-neutral-500/5'
                         }`}
                       >
                         <div
-                          className={`h-1.5 w-1.5 rounded-full ${workflow.isActive ? 'bg-emerald-500' : 'bg-zinc-500'}`}
+                          className={`h-1.5 w-1.5 rounded-full ${workflow.isActive ? 'bg-success-500' : 'bg-neutral-500'}`}
                         />
                         <span
-                          className={`text-[10px] font-medium uppercase tracking-wide ${workflow.isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-600 dark:text-zinc-400'}`}
+                          className={`text-[10px] font-medium uppercase tracking-wide ${workflow.isActive ? 'text-[var(--success-text-adaptive)]' : 'text-[var(--neutral-text-adaptive)]'}`}
                         >
                           {workflow.isActive ? 'Activo' : 'Inactivo'}
                         </span>
                       </div>
                     </h1>
-                    <p className="mt-2 max-w-3xl break-words text-base leading-relaxed text-black/60 sm:text-lg dark:text-white/60">
+                    <p className="mt-2 max-w-3xl break-words text-base leading-relaxed text-[var(--text-muted)] sm:text-lg">
                       {workflow.description || 'Sin descripción'}
                     </p>
                   </div>
@@ -268,7 +268,7 @@ export default function WorkflowDetailPage() {
                 <PermissionGuard permissions="workflows:execute">
                   <Link
                     href={`/conversations/new?workflowId=${workflow.id}`}
-                    className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-black px-5 text-sm font-medium text-white shadow-sm transition-all hover:opacity-90 active:scale-95 xl:w-auto dark:bg-white dark:text-black"
+                    className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-accent px-5 text-sm font-medium text-text-inverse shadow-sm transition-all hover:opacity-90 active:scale-95 xl:w-auto"
                   >
                     <MessageSquare size={17} className="shrink-0" />
                     Probar Chat
@@ -277,9 +277,9 @@ export default function WorkflowDetailPage() {
 
                 <button
                   onClick={() => setIsWhatsappModalOpen(true)}
-                  className="group flex h-11 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-border bg-white px-5 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 xl:w-auto xl:min-w-[230px]  dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
+                  className="group flex h-11 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-border bg-surface-elevated px-5 text-sm font-medium text-text-primary transition-all hover:bg-[var(--surface-tint)] active:scale-95 xl:w-auto xl:min-w-[230px]"
                 >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 text-black/70 transition-colors group-hover:bg-surface-secondary dark:text-white/80 dark:group-hover:bg-white/15">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-tint)] text-text-secondary transition-colors group-hover:bg-surface-secondary">
                     <WhatsappIcon className="h-4 w-4" />
                   </span>
                   Vincular a WhatsApp
@@ -288,7 +288,7 @@ export default function WorkflowDetailPage() {
                 <PermissionGuard permissions="workflows:update">
                   <button
                     onClick={() => setIsEditOpen(true)}
-                    className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-border bg-white px-4 text-sm font-medium text-black transition-all hover:bg-black/5 active:scale-95 xl:w-auto  dark:bg-[#141414] dark:text-white dark:hover:bg-white/5"
+                    className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-border bg-surface-elevated px-4 text-sm font-medium text-text-primary transition-all hover:bg-[var(--surface-tint)] active:scale-95 xl:w-auto"
                   >
                     <Edit3 size={17} className="shrink-0" />
                     Editar
@@ -311,8 +311,8 @@ export default function WorkflowDetailPage() {
           <WorkflowAnalyticsPanel workflow={workflow} />
         </div>
 
-        <div className="border-t border-black/5 px-8 py-8 dark:border-white/5">
-          <div className="mb-8 rounded-2xl border border-border bg-black/[0.02] p-4  dark:bg-white/[0.03]">
+        <div className="border-t border-[var(--border-subtle)] px-8 py-8">
+          <div className="mb-8 rounded-2xl border border-border bg-[var(--surface-subtle)] p-4">
             <h3 className="ml-1 text-sm font-semibold text-text-primary">
               Herramientas Conectadas
             </h3>
@@ -321,7 +321,7 @@ export default function WorkflowDetailPage() {
                 workflow.tenantTools.map((tool: any) => (
                   <div
                     key={tool.id}
-                    className="flex min-w-[250px] flex-1 items-center gap-3 rounded-xl border border-border bg-white p-4 shadow-sm transition-all hover:border-black/20 hover:shadow-md  dark:bg-[#141414] dark:hover:border-white/20"
+                    className="flex min-w-[250px] flex-1 items-center gap-3 rounded-xl border border-border bg-surface-elevated p-4 shadow-sm transition-all hover:border-border-hover hover:shadow-md"
                   >
                     {tool.toolCatalog?.icon ? (
                       <DynamicIcon
@@ -349,20 +349,20 @@ export default function WorkflowDetailPage() {
                   </div>
                 ))
               ) : (
-                <p className="ml-1 text-sm text-black/65 dark:text-white/65">
+                <p className="ml-1 text-sm text-[var(--text-muted)]">
                   No hay herramientas o integraciones vinculadas a este workflow.
                 </p>
               )}
             </div>
           </div>
 
-          <div className="mb-8 rounded-2xl border border-border bg-black/[0.02] p-4  dark:bg-white/[0.03]">
+          <div className="mb-8 rounded-2xl border border-border bg-[var(--surface-subtle)] p-4">
             <h3 className="ml-1 text-sm font-semibold text-text-primary">
               Números de WhatsApp Business Asociados
             </h3>
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
               {isWhatsappNumbersLoading ? (
-                <div className="flex min-h-28 items-center justify-center rounded-2xl border border-border bg-white  dark:bg-[#141414]">
+                <div className="flex min-h-28 items-center justify-center rounded-2xl border border-border bg-surface-elevated">
                   <Loader2 size={20} className="animate-spin text-text-secondary" />
                 </div>
               ) : whatsappNumbers && whatsappNumbers.length > 0 ? (
@@ -390,7 +390,7 @@ export default function WorkflowDetailPage() {
                   </div>
                 ))
               ) : (
-                <p className="ml-1 text-sm text-black/65 dark:text-white/65">
+                <p className="ml-1 text-sm text-[var(--text-muted)]">
                   No hay números de WhatsApp asociados a este workflow. Vincula un número para
                   comenzar a recibir mensajes.
                 </p>
@@ -398,13 +398,13 @@ export default function WorkflowDetailPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-red-500/20 bg-danger/[0.04] p-4 dark:bg-danger/[0.08]">
+          <div className="rounded-2xl border border-danger-500/20 p-4" style={{ background: 'var(--danger-zone-bg)' }}>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-red-700 dark:text-red-400">
+                <h3 className="text-sm font-semibold text-[var(--badge-danger-text-strong)]">
                   Zona de peligro
                 </h3>
-                <p className="mt-1 text-sm text-red-700/80 dark:text-red-300/80">
+                <p className="mt-1 text-sm text-[var(--badge-danger-text-strong)]/80">
                   Eliminar este workflow es una acción irreversible y removerá su historial.
                 </p>
               </div>
@@ -412,7 +412,7 @@ export default function WorkflowDetailPage() {
               <PermissionGuard permissions="workflows:delete">
                 <button
                   onClick={() => setIsDeleteOpen(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-full border border-red-500/30 bg-white px-4 py-2.5 text-sm font-medium text-red-600 transition-all hover:bg-danger/10 active:scale-95 lg:w-auto dark:border-red-400/30 dark:bg-transparent dark:text-red-400 dark:hover:bg-danger/10"
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-danger-500/30 bg-transparent px-4 py-2.5 text-sm font-medium text-[var(--danger-text-adaptive)] transition-all hover:bg-danger/10 active:scale-95 lg:w-auto"
                 >
                   <Trash2 size={16} />
                   Eliminar workflow
@@ -432,7 +432,7 @@ export default function WorkflowDetailPage() {
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full rounded-xl border border-transparent bg-black/5 px-3 py-2 text-black outline-none transition-all focus:border-blue-500 focus:bg-white dark:bg-white/5 dark:text-white dark:focus:bg-black"
+              className="w-full rounded-xl border border-transparent bg-[var(--surface-tint)] px-3 py-2 text-text-primary outline-none transition-all focus:border-info-500 focus:bg-surface"
               placeholder="Nombre del workflow"
             />
           </div>
@@ -442,19 +442,19 @@ export default function WorkflowDetailPage() {
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="min-h-[100px] w-full rounded-xl border border-transparent bg-black/5 px-3 py-2 text-black outline-none transition-all focus:border-blue-500 focus:bg-white dark:bg-white/5 dark:text-white dark:focus:bg-black"
+              className="min-h-[100px] w-full rounded-xl border border-transparent bg-[var(--surface-tint)] px-3 py-2 text-text-primary outline-none transition-all focus:border-info-500 focus:bg-surface"
               placeholder="Descripción opcional"
             />
           </div>
 
-          <div className="flex items-center justify-between rounded-xl bg-black/5 p-3 dark:bg-white/5">
+          <div className="flex items-center justify-between rounded-xl bg-[var(--surface-tint)] p-3">
             <span className="text-sm font-medium text-text-primary">Estado Activo</span>
             <button
               onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-              className={`relative h-6 w-11 rounded-full transition-colors ${formData.isActive ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-700'}`}
+              className={`relative h-6 w-11 rounded-full transition-colors ${formData.isActive ? 'bg-success-500' : 'bg-[var(--toggle-off-bg)]'}`}
             >
               <span
-                className={`block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${formData.isActive ? 'translate-x-[22px]' : 'translate-x-1'}`}
+                className={`block h-4 w-4 rounded-full bg-brand-white shadow-sm transition-transform ${formData.isActive ? 'translate-x-[22px]' : 'translate-x-1'}`}
               />
             </button>
           </div>
@@ -462,14 +462,14 @@ export default function WorkflowDetailPage() {
           <div className="flex gap-3 pt-4">
             <button
               onClick={() => setIsEditOpen(false)}
-              className="flex-1 rounded-xl bg-black/5 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+              className="flex-1 rounded-xl bg-[var(--surface-tint)] px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-[var(--surface-tint-md)]"
             >
               Cancelar
             </button>
             <button
               onClick={handleUpdate}
               disabled={updateWorkflow.isPending}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90"
             >
               {updateWorkflow.isPending ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -491,7 +491,7 @@ export default function WorkflowDetailPage() {
         title="Eliminar Workflow"
       >
         <div className="space-y-4">
-          <div className="rounded-xl border border-red-500/20 bg-danger/10 p-4 text-sm text-red-600 dark:text-red-400">
+          <div className="rounded-xl border border-danger-500/20 bg-danger/10 p-4 text-sm text-[var(--danger-text-adaptive)]">
             <p className="mb-2 flex items-center gap-2 font-semibold">
               <Trash2 size={16} />
               ¿Estás absolutamente seguro?
@@ -514,7 +514,7 @@ export default function WorkflowDetailPage() {
               type="text"
               value={deleteConfirmation}
               onChange={(e) => setDeleteConfirmation(e.target.value)}
-              className="w-full rounded-xl border border-transparent bg-black/5 px-3 py-2 text-black outline-none transition-all focus:border-red-500 focus:bg-white dark:bg-white/5 dark:text-white dark:focus:bg-black"
+              className="w-full rounded-xl border border-transparent bg-[var(--surface-tint)] px-3 py-2 text-text-primary outline-none transition-all focus:border-danger-500 focus:bg-surface"
               placeholder={workflow.name}
             />
           </div>
@@ -525,14 +525,14 @@ export default function WorkflowDetailPage() {
                 setIsDeleteOpen(false);
                 setDeleteConfirmation('');
               }}
-              className="flex-1 rounded-xl bg-black/5 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+              className="flex-1 rounded-xl bg-[var(--surface-tint)] px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-[var(--surface-tint-md)]"
             >
               Cancelar
             </button>
             <button
               onClick={handleDelete}
               disabled={deleteWorkflow.isPending || deleteConfirmation !== workflow.name}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2 text-sm font-medium text-brand-white transition-all hover:bg-danger-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {deleteWorkflow.isPending ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -552,7 +552,7 @@ export default function WorkflowDetailPage() {
         <div className="space-y-4">
           <div className="space-y-2">
             <div className="flex items-center justify-start gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/5 text-black/70 dark:bg-white/10 dark:text-white/80">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-tint)] text-text-secondary">
                 <WhatsappIcon className="h-4 w-4" />
               </span>
               <label className="text-sm font-medium text-text-primary">
@@ -560,7 +560,7 @@ export default function WorkflowDetailPage() {
               </label>
             </div>
 
-            <p className="rounded-xl border border-black/5 bg-black/[0.02] p-3 text-xs leading-relaxed text-black/60 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/65">
+            <p className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3 text-xs leading-relaxed text-[var(--text-muted)]">
               Cuando envies esta solicitud, el equipo te ayudara a finalizar la integracion en
               Ycloud para habilitar eventos entrantes de WhatsApp. Si necesitas atencion inmediata,
               puedes contactarnos al +52 449 129 24 35.
@@ -580,11 +580,11 @@ export default function WorkflowDetailPage() {
               autoComplete="tel"
               pattern="^\+\d{8,15}$"
               maxLength={16}
-              className="w-full rounded-xl border border-transparent bg-black/5 px-3 py-2 text-black outline-none transition-all focus:border-blue-500 focus:bg-white dark:bg-white/5 dark:text-white dark:focus:bg-black"
+              className="w-full rounded-xl border border-transparent bg-[var(--surface-tint)] px-3 py-2 text-text-primary outline-none transition-all focus:border-info-500 focus:bg-surface"
               placeholder="Ej. +52234567890"
             />
             {whatsappNumber.length > 11 && !isWhatsappNumberValid && (
-              <p className="text-sm text-danger dark:text-red-400">
+              <p className="text-sm text-[var(--danger-text-adaptive)]">
                 Usa solo numeros con prefijo internacional, por ejemplo: +524961337305
               </p>
             )}
@@ -593,14 +593,14 @@ export default function WorkflowDetailPage() {
           <div className="flex gap-3 pt-4">
             <button
               onClick={() => setIsWhatsappModalOpen(false)}
-              className="flex-1 rounded-xl bg-black/5 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+              className="flex-1 rounded-xl bg-[var(--surface-tint)] px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-[var(--surface-tint-md)]"
             >
               Cancelar
             </button>
             <button
               onClick={handleWhatsappIntegration}
               disabled={addWhatsappConfiguration.isPending || !isWhatsappNumberValid}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90"
             >
               {addWhatsappConfiguration.isPending ? (
                 <Loader2 size={16} className="animate-spin" />

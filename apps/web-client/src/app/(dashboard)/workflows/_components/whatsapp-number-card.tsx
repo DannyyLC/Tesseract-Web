@@ -23,23 +23,23 @@ interface WhatsappNumberCardProps {
 
 const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }> = {
   CONNECTED: {
-    dot: 'bg-emerald-500',
-    label: 'border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+    dot: 'bg-success-500',
+    label: 'border border-success-500/25 bg-success-500/10 text-[var(--badge-success-text-strong)]',
     text: 'Configurado',
   },
   ERROR: {
     dot: 'bg-danger',
-    label: 'border border-red-500/25 bg-danger/10 text-red-700 dark:text-red-300',
+    label: 'border border-danger-500/25 bg-danger/10 text-[var(--badge-danger-text-strong)]',
     text: 'Error',
   },
   DISCONNECTED: {
-    dot: 'bg-amber-500',
-    label: 'border border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+    dot: 'bg-warning-500',
+    label: 'border border-warning-500/25 bg-warning-500/10 text-[var(--badge-warning-text-strong)]',
     text: 'No Configurado',
   },
   PENDING: {
-    dot: 'bg-zinc-400',
-    label: 'border border-zinc-500/20 bg-zinc-500/10 text-zinc-700 dark:text-zinc-300',
+    dot: 'bg-neutral-400',
+    label: 'border border-neutral-500/20 bg-neutral-500/10 text-[var(--badge-neutral-text-strong)]',
     text: 'Pendiente',
   },
 };
@@ -55,9 +55,9 @@ export function WhatsappNumberCard({
   const status =
     STATUS_STYLES[number.connectionStatus ?? 'DISCONNECTED'] ?? STATUS_STYLES.DISCONNECTED;
   const connectionLabel = isActive
-    ? 'border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-    : 'border border-red-500/25 bg-danger/10 text-red-700 dark:text-red-300';
-  const connectionDot = isActive ? 'bg-emerald-500' : 'bg-danger';
+    ? 'border border-success-500/25 bg-success-500/10 text-[var(--badge-success-text-strong)]'
+    : 'border border-danger-500/25 bg-danger/10 text-[var(--badge-danger-text-strong)]';
+  const connectionDot = isActive ? 'bg-success-500' : 'bg-danger';
   const connectionText = isActive ? 'Conectado' : 'Desconectado';
   const createdDate = new Date(number.createdAt).toLocaleDateString('es-MX', {
     month: 'short',
@@ -70,10 +70,10 @@ export function WhatsappNumberCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
-      className="group relative flex w-full items-start gap-3 rounded-2xl border border-border bg-white p-4 transition-shadow hover:shadow-md  dark:bg-[#141414]"
+      className="group relative flex w-full items-start gap-3 rounded-2xl border border-border bg-surface-elevated p-4 transition-shadow hover:shadow-md"
     >
       {/* Icon */}
-      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-black/[0.04] text-black dark:bg-white/[0.06] dark:text-white">
+      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--surface-tint)] text-text-primary">
         <WhatsappIcon className="h-6 w-6" />
       </div>
 
@@ -104,7 +104,7 @@ export function WhatsappNumberCard({
       <div className="relative">
         <button
           onClick={() => setMenuOpen((v) => !v)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-black/30 transition-colors hover:bg-black/5 hover:text-text-primary/30 dark:hover:bg-white/5 dark:hover:text-white"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-secondary"
         >
           <MoreVertical size={16} />
         </button>
@@ -112,14 +112,14 @@ export function WhatsappNumberCard({
         {menuOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-            <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-black/5 bg-white shadow-xl dark:border-white/5 dark:bg-[#111]">
+            <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-surface-popover shadow-xl">
               {/* <PermissionGuard permissions="workflows:update">
                 <button
                   onClick={() => {
                     setMenuOpen(false);
                     onEdit?.(number.id);
                   }}
-                  className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-black/70 transition-colors hover:bg-black/5 hover:text-text-primary/70 dark:hover:bg-white/5 dark:hover:text-white"
+                  className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
                 >
                   <Pencil size={14} />
                   Editar número
@@ -143,8 +143,8 @@ export function WhatsappNumberCard({
                   }}
                   className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
                     !isActive
-                      ? 'text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/50'
-                      : 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50'
+                      ? 'text-[var(--success-text-adaptive)] hover:bg-[var(--success-tint-hover)]'
+                      : 'text-[var(--danger-text-adaptive)] hover:bg-[var(--danger-tint-hover)]'
                   }`}
                 >
                   <Unplug size={14} />
@@ -158,7 +158,7 @@ export function WhatsappNumberCard({
                     setMenuOpen(false);
                     onDelete?.(number.id);
                   }}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[var(--danger-text-adaptive)] transition-colors hover:bg-[var(--danger-tint-hover)]"
                 >
                   <Trash2 size={14} />
                   Eliminar

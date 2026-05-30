@@ -82,8 +82,8 @@ export default function FilterDropdown({
     <div className={`relative ${className}`} ref={containerRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex w-full items-center justify-between rounded-full bg-black/5 px-4 py-2 text-sm transition-all duration-200 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 ${
-          isOpen ? 'ring-2 ring-black/5 dark:ring-white/5' : ''
+        className={`flex w-full items-center justify-between rounded-full bg-[var(--surface-tint)] px-4 py-2 text-sm transition-all duration-200 hover:bg-[var(--surface-tint-md)] ${
+          isOpen ? 'ring-2 ring-[var(--border-subtle)]' : ''
         }`}
       >
         <div className="flex items-center gap-2 truncate">
@@ -103,14 +103,14 @@ export default function FilterDropdown({
             <div
               role="button"
               onClick={clearSelection}
-              className="rounded-full p-0.5 text-black/40 transition-colors hover:bg-black/10 dark:text-white/40 dark:hover:bg-white/10"
+              className="rounded-full p-0.5 text-text-tertiary transition-colors hover:bg-[var(--surface-tint-md)]"
             >
               <X size={14} />
             </div>
           )}
           <ChevronDown
             size={14}
-            className={`text-black/30 transition-transform duration-200 dark:text-white/30 ${isOpen ? 'rotate-180' : ''}`}
+            className={`text-text-tertiary transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
           />
         </div>
       </button>
@@ -122,7 +122,7 @@ export default function FilterDropdown({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.1 }}
-            className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-black/5 bg-white shadow-lg dark:border-white/5 dark:bg-[#141414]"
+            className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-surface-elevated shadow-lg"
           >
             <div className="max-h-60 overflow-y-auto overflow-x-hidden p-1">
               {options.length > 0 ? (
@@ -135,8 +135,8 @@ export default function FilterDropdown({
                       onClick={() => handleSelect(option.value)}
                       className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                         value === option.value
-                          ? 'bg-black/5 font-medium text-black dark:bg-white/5 dark:text-white'
-                          : 'text-black/70 hover:bg-black/5 dark:text-white/70 dark:hover:bg-white/5'
+                          ? 'bg-[var(--surface-tint)] font-medium text-text-primary'
+                          : 'text-text-secondary hover:bg-[var(--surface-tint)]'
                       }`}
                     >
                       <span className="truncate pr-2">{option.label}</span>

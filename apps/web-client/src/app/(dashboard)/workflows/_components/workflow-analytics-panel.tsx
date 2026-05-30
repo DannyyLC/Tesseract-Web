@@ -95,7 +95,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+          className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
         >
           <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
             Tasa de Éxito
@@ -110,7 +110,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${kpis.successRate}%` }}
-                className="h-full rounded-full bg-emerald-500"
+                className="h-full rounded-full bg-success-500"
               />
             </div>
           </div>
@@ -120,7 +120,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+          className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
         >
           <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
             Tiempo Promedio
@@ -139,7 +139,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+          className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
         >
           <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
             Fallidas
@@ -160,7 +160,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className={`${Object.keys(errors).length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} flex flex-col rounded-2xl border border-black/5 bg-white p-6 dark:border-white/5 dark:bg-[#141414]`}
+          className={`${Object.keys(errors).length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} flex flex-col rounded-2xl border border-border bg-surface p-6-panel`}
         >
           <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <h3 className="flex items-center gap-2 font-semibold text-text-primary">
@@ -171,14 +171,14 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
                 </span>
               )}
             </h3>
-            <div className="flex items-center gap-1 rounded-lg bg-black/5 p-1 dark:bg-white/5">
+            <div className="flex items-center gap-1 rounded-lg bg-[var(--surface-tint)] p-1">
               {PERIODS.map((p) => (
                 <button
                   key={p.value}
                   onClick={() => setPeriod(p.value)}
                   className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
                     period === p.value
-                      ? 'bg-white text-black shadow-sm dark:bg-black dark:text-white'
+                      ? 'bg-surface text-text-primary shadow-sm'
                       : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
@@ -203,12 +203,12 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorSuccess" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      <stop offset="5%" stopColor="var(--chart-success)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="var(--chart-success)" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="colorFailed" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                      <stop offset="5%" stopColor="var(--chart-danger)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="var(--chart-danger)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
@@ -216,7 +216,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
                     dataKey="date"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 10, fill: '#888' }}
+                    tick={{ fontSize: 10, fill: 'var(--chart-axis)' }}
                     tickMargin={10}
                     minTickGap={30}
                     interval="preserveStartEnd"
@@ -225,7 +225,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 10, fill: '#888' }}
+                    tick={{ fontSize: 10, fill: 'var(--chart-axis)' }}
                     tickFormatter={formatCompactNumber}
                     allowDecimals={false}
                     width={45}
@@ -235,13 +235,13 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
                         return (
-                          <div className="rounded-lg border border-border bg-white px-3 py-2 text-xs text-black shadow-xl  dark:bg-[#141414] dark:text-white">
-                            <div className="mb-1 border-b border-black/5 pb-1 font-semibold dark:border-white/5">
+                          <div className="rounded-lg border border-border bg-surface-elevated px-3 py-2 text-xs text-text-primary shadow-xl">
+                            <div className="mb-1 border-b border-[var(--border-subtle)] pb-1 font-semibold">
                               {formatDateByGranularity(String(label || ''), metrics?.granularity)}
                             </div>
                             <div className="mt-1 flex flex-col gap-1">
                               <div className="flex items-center gap-2">
-                                <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                                <div className="h-2 w-2 rounded-full bg-success-500"></div>
                                 <span>
                                   Exitosas: <span className="font-medium">{data.success}</span>
                                 </span>
@@ -254,7 +254,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
                                   </span>
                                 </div>
                               )}
-                              <div className="mt-1 border-t border-black/5 pt-1 text-black/50 dark:border-white/5 dark:text-white/50">
+                              <div className="mt-1 border-t border-[var(--border-subtle)] pt-1 text-[var(--text-muted)]">
                                 Total: {data.count}
                               </div>
                             </div>
@@ -267,20 +267,30 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
                   <Area
                     type="monotone"
                     dataKey="success"
-                    stroke="#10b981"
+                    stroke="var(--chart-success)"
                     fill="url(#colorSuccess)"
                     fillOpacity={1}
                     animationDuration={1000}
-                    activeDot={{ r: 4, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }}
+                    activeDot={{
+                      r: 4,
+                      fill: 'var(--chart-success)',
+                      stroke: 'var(--brand-white)',
+                      strokeWidth: 2,
+                    }}
                   />
                   <Area
                     type="monotone"
                     dataKey="failed"
-                    stroke="#ef4444"
+                    stroke="var(--chart-danger)"
                     fill="url(#colorFailed)"
                     fillOpacity={1}
                     animationDuration={1000}
-                    activeDot={{ r: 4, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
+                    activeDot={{
+                      r: 4,
+                      fill: 'var(--chart-danger)',
+                      stroke: 'var(--brand-white)',
+                      strokeWidth: 2,
+                    }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -294,7 +304,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="rounded-2xl border border-black/5 bg-white p-6 dark:border-white/5 dark:bg-[#141414]"
+            className="rounded-2xl border border-border bg-surface p-6-panel"
           >
             <h3 className="mb-6 flex items-center gap-2 font-semibold text-text-primary">
               Errores Frecuentes
@@ -320,7 +330,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
                           <span className="font-medium text-text-primary">
                             {formattedName}
                           </span>
-                          <span className="rounded-md bg-black/5 px-1.5 py-0.5 font-mono text-[10px] text-black/50 dark:bg-white/5 dark:text-white/50">
+                          <span className="rounded-md bg-[var(--surface-tint)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">
                             {percentage.toFixed(0)}%
                           </span>
                         </div>
@@ -335,14 +345,14 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
                           transition={{ duration: 1, delay: 0.5 + idx * 0.1 }}
                           className={`h-full rounded-full ${
                             errorName === 'TIMEOUT'
-                              ? 'bg-orange-400'
+                              ? 'bg-[var(--chart-timeout)]'
                               : errorName === 'API_ERROR'
-                                ? 'bg-red-400'
+                                ? 'bg-danger-400'
                                 : errorName === 'RATE_LIMIT'
-                                  ? 'bg-yellow-400'
+                                  ? 'bg-[var(--chart-rate-limit)]'
                                   : errorName === 'HALLUCINATION'
-                                    ? 'bg-purple-400'
-                                    : 'bg-zinc-400'
+                                    ? 'bg-[var(--chart-hallucination)]'
+                                    : 'bg-neutral-400'
                           }`}
                         />
                       </div>

@@ -32,8 +32,8 @@ const formatTimeAgo = (dateInput: Date | string | null): string => {
 };
 
 const getStatusConfig = (isActive: boolean) => {
-  if (!isActive) return { label: 'Inactivo', color: 'bg-zinc-400', textColor: 'text-zinc-400' };
-  return { label: 'Activo', color: 'bg-emerald-500', textColor: 'text-emerald-500' };
+  if (!isActive) return { label: 'Inactivo', color: 'bg-neutral-400', textColor: 'text-neutral-400' };
+  return { label: 'Activo', color: 'bg-success-500', textColor: 'text-success-500' };
 };
 
 export default function DashboardWorkflowItem({ workflow }: DashboardWorkflowItemProps) {
@@ -48,13 +48,13 @@ export default function DashboardWorkflowItem({ workflow }: DashboardWorkflowIte
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       onClick={() => router.push(`/workflows/${workflow.id}`)}
-      className="group relative cursor-pointer overflow-hidden rounded-xl border border-transparent bg-transparent transition-all duration-200 hover:border-black/5 hover:bg-white hover:shadow-sm dark:hover:border-white/5 dark:hover:bg-[#141414]"
+      className="group relative cursor-pointer overflow-hidden rounded-xl border border-transparent bg-transparent transition-all duration-200 hover:border-border hover:bg-surface-panel hover:shadow-sm"
     >
       <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="mb-2 flex items-center gap-3">
-              <h3 className="truncate text-lg font-semibold text-black transition-colors dark:text-white">
+              <h3 className="truncate text-lg font-semibold text-text-primary transition-colors">
                 {workflow.name}
               </h3>
               {/* Minimal Status Dot */}
@@ -76,14 +76,14 @@ export default function DashboardWorkflowItem({ workflow }: DashboardWorkflowIte
 
           {/* Chat Action - Always visible but subtle */}
           <div className="flex items-center gap-2">
-            <span className="mr-2 hidden text-xs font-medium text-black/40 transition-all group-hover:inline-block dark:text-white/40">
+            <span className="mr-2 hidden text-xs font-medium text-text-tertiary transition-all group-hover:inline-block">
               Ver detalles
             </span>
             <PermissionGuard permissions="workflows:execute">
               <Link
                 href={`/conversations/new?workflowId=${workflow.id}`}
                 onClick={(e) => e.stopPropagation()}
-                className="rounded-full p-2 text-black/40 transition-colors hover:bg-black/5 hover:text-text-primary/40 dark:hover:bg-white/5 dark:hover:text-white"
+                className="rounded-full p-2 text-text-tertiary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-secondary"
                 title="Iniciar Chat"
               >
                 <MessageSquare size={18} />
@@ -93,7 +93,7 @@ export default function DashboardWorkflowItem({ workflow }: DashboardWorkflowIte
         </div>
 
         {/* Quick Info (Lightweight) */}
-        <div className="mt-4 flex items-center justify-between border-t border-black/5 pt-4 dark:border-white/5">
+        <div className="mt-4 flex items-center justify-between border-t border-[var(--border-subtle)] pt-4">
           <div className="flex items-center gap-2 text-sm">
             <span className="text-xs font-medium text-text-tertiary">
               {workflow.category || 'STANDARD'}

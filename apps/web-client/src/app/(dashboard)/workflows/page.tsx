@@ -168,7 +168,7 @@ export default function WorkflowsPage() {
           <PermissionGuard permissions="workflows:create">
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-2 rounded-full bg-black px-6 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
+              className="flex items-center gap-2 rounded-full bg-accent px-6 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Plus size={16} />
               Nuevo Workflow
@@ -191,7 +191,7 @@ export default function WorkflowsPage() {
               <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {globalStats?.activeWorkflows ?? 0}
               </p>
-              <span className="px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-500">
+              <span className="px-2 py-0.5 text-xs font-medium text-[var(--success-text-adaptive)]">
                 Total activos
               </span>
             </div>
@@ -201,7 +201,7 @@ export default function WorkflowsPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+            className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Ejecuciones (Mes)
@@ -210,7 +210,7 @@ export default function WorkflowsPage() {
               <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {formatNumber(globalStats?.totalExecutionsMonth ?? 0)}
               </p>
-              <span className="px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-info">
+              <span className="px-2 py-0.5 text-xs font-medium text-info">
                 Últimos 30 días
               </span>
             </div>
@@ -220,7 +220,7 @@ export default function WorkflowsPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+            className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Créditos (Mes)
@@ -239,7 +239,7 @@ export default function WorkflowsPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
-            className="flex flex-col justify-between border-black/5 lg:border-l lg:pl-8 dark:border-white/5"
+            className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               Workflows por Categoría
@@ -275,7 +275,7 @@ export default function WorkflowsPage() {
               placeholder="Buscar workflows..."
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
-              className="w-full rounded-full border-none bg-black/5 py-2 pl-10 pr-4 text-sm text-black transition-all placeholder:text-black/30 hover:bg-black/10 focus:outline-none focus:ring-2 focus:ring-black/5 dark:bg-white/5 dark:text-white dark:placeholder:text-white/30 dark:hover:bg-white/10 dark:focus:ring-white/5"
+              className="w-full rounded-full border-none bg-[var(--surface-tint)] py-2 pl-10 pr-4 text-sm text-text-primary transition-all placeholder:text-input-placeholder hover:bg-[var(--surface-tint-md)] focus:outline-none focus:ring-2 focus:ring-[var(--border-subtle)]"
             />
           </div>
 
@@ -305,7 +305,7 @@ export default function WorkflowsPage() {
         <div className="relative min-h-[200px] space-y-3">
           {/* Loading Overlay */}
           {isLoading && (
-            <div className="absolute inset-0 z-10 flex items-start justify-center rounded-2xl bg-white/50 pt-10 backdrop-blur-[1px] dark:bg-black/50">
+            <div className="absolute inset-0 z-10 flex items-start justify-center rounded-2xl bg-surface/50 pt-10 backdrop-blur-[1px]">
               <LogoLoader />
             </div>
           )}
@@ -337,11 +337,11 @@ export default function WorkflowsPage() {
         </div>
 
         {/* Pagination Controls */}
-        <div className="flex items-center justify-between border-t border-black/5 pt-4 dark:border-white/5">
+        <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-4">
           <button
             onClick={handlePrevPage}
             disabled={!prevCursor}
-            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-text-secondary dark:hover:text-white dark:disabled:hover:text-white/60"
+            className="px-4 py-2 text-sm font-medium text-[var(--text-muted)] transition-colors hover:text-text-primary disabled:opacity-30 disabled:hover:text-text-secondary"
           >
             Anterior
           </button>
@@ -351,7 +351,7 @@ export default function WorkflowsPage() {
           <button
             onClick={handleNextPage}
             disabled={!nextPageAvailable}
-            className="px-4 py-2 text-sm font-medium text-black/60 transition-colors hover:text-black disabled:opacity-30 disabled:hover:text-text-secondary dark:hover:text-white dark:disabled:hover:text-white/60"
+            className="px-4 py-2 text-sm font-medium text-[var(--text-muted)] transition-colors hover:text-text-primary disabled:opacity-30 disabled:hover:text-text-secondary"
           >
             Siguiente
           </button>
@@ -380,14 +380,14 @@ export default function WorkflowsPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setIsCreateModalOpen(false)}
-                    className="flex-1 rounded-xl bg-black/5 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-black/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                    className="flex-1 rounded-xl bg-[var(--surface-tint)] px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-[var(--surface-tint-md)]"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={handleRequestWorkflow}
                     disabled={requestServiceInfo.isPending}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-white dark:text-black"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-bold text-text-inverse transition-opacity hover:opacity-90 disabled:opacity-50"
                   >
                     {requestServiceInfo.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                     Solicitar Reunión

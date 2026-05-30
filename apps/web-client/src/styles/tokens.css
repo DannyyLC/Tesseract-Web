@@ -188,6 +188,37 @@
   /* Texto con opacidad reducida (60%) — adaptativo al tema */
   --text-muted: rgba(0, 0, 0, 0.6);
 
+  /* Tints de superficie y borde adaptativo (dark: elimina estas clases) */
+  --border-subtle: rgba(0, 0, 0, 0.05);
+  --surface-tint: rgba(0, 0, 0, 0.05);
+  --surface-tint-md: rgba(0, 0, 0, 0.1);
+  --surface-subtle: rgba(0, 0, 0, 0.02);
+
+  /* Zona de peligro */
+  --danger-zone-bg: rgba(239, 68, 68, 0.04);
+
+  /* Texto de badges con contraste ajustado por tema */
+  --badge-success-text-strong: var(--success-700);
+  --badge-danger-text-strong: var(--danger-700);
+  --badge-warning-text-strong: var(--warning-700);
+  --badge-neutral-text-strong: var(--neutral-700);
+
+  /* Texto semántico adaptativo adicional */
+  --success-text-adaptive: var(--success-600);
+  --neutral-text-adaptive: var(--neutral-600);
+
+  /* Hover tints para estados interactivos danger/success */
+  --danger-tint-hover: var(--danger-50);
+  --success-tint-hover: var(--success-50);
+
+  /* Toggle desactivado */
+  --toggle-off-bg: var(--neutral-300);
+
+  /* Colores fijos para barras de error en analytics (no varían por tema) */
+  --chart-timeout: #fb923c;
+  --chart-rate-limit: #facc15;
+  --chart-hallucination: #c084fc;
+
   /* Auth branding panel (siempre oscuro, pero la superposición y el grid varían) */
   --auth-branding-seam-opacity: 0;
   --auth-branding-grid-opacity: 0.3;
@@ -281,6 +312,32 @@
 
     /* Texto muted */
     --text-muted: rgba(255, 255, 255, 0.6);
+
+    /* Tints de superficie y borde */
+    --border-subtle: rgba(255, 255, 255, 0.05);
+    --surface-tint: rgba(255, 255, 255, 0.05);
+    --surface-tint-md: rgba(255, 255, 255, 0.1);
+    --surface-subtle: rgba(255, 255, 255, 0.03);
+
+    /* Zona de peligro */
+    --danger-zone-bg: rgba(239, 68, 68, 0.08);
+
+    /* Badge text con contraste para dark */
+    --badge-success-text-strong: var(--success-300);
+    --badge-danger-text-strong: var(--danger-300);
+    --badge-warning-text-strong: var(--warning-300);
+    --badge-neutral-text-strong: var(--neutral-300);
+
+    /* Texto semántico adaptativo */
+    --success-text-adaptive: var(--success-400);
+    --neutral-text-adaptive: var(--neutral-400);
+
+    /* Hover tints */
+    --danger-tint-hover: rgba(69, 10, 10, 0.5);
+    --success-tint-hover: rgba(2, 44, 34, 0.5);
+
+    /* Toggle desactivado */
+    --toggle-off-bg: var(--neutral-700);
 
     /* Auth branding panel */
     --auth-branding-seam-opacity: 1;
