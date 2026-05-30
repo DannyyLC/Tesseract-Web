@@ -568,7 +568,7 @@ export default function WorkflowChatPage() {
                     src="/favicon.svg"
                     alt="Tesseract"
                     fill
-                    className="object-contain brightness-0 dark:invert"
+                    className="object-contain [filter:var(--logo-filter)]"
                   />
                 </div>
                 <h3 className="max-w-sm text-center text-xl font-medium text-text-tertiary">
@@ -618,7 +618,7 @@ export default function WorkflowChatPage() {
                             src="/favicon.svg"
                             alt="AI"
                             fill
-                            className="object-contain brightness-0 dark:invert"
+                            className="object-contain [filter:var(--logo-filter)]"
                           />
                         </div>
                       )}
@@ -636,7 +636,7 @@ export default function WorkflowChatPage() {
                         {msg.role === 'user' ? (
                           <span className="whitespace-pre-wrap">{msg.content}</span>
                         ) : (
-                          <div className="prose prose-base max-w-none break-words text-text-primary dark:prose-invert [&>code]:rounded-md [&>code]:bg-surface-secondary [&>code]:px-1.5 [&>code]:py-0.5 [&>p:last-child]:mb-0 [&>p]:mb-4 [&>pre]:rounded-xl [&>pre]:bg-surface-secondary [&>pre]:p-4">
+                          <div className="prose prose-base max-w-none break-words text-text-primary [&>code]:rounded-md [&>code]:bg-surface-secondary [&>code]:px-1.5 [&>code]:py-0.5 [&>p:last-child]:mb-0 [&>p]:mb-4 [&>pre]:rounded-xl [&>pre]:bg-surface-secondary [&>pre]:p-4">
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
@@ -704,7 +704,7 @@ export default function WorkflowChatPage() {
                           src="/favicon.svg"
                           alt="AI"
                           fill
-                          className="object-contain brightness-0 dark:invert"
+                          className="object-contain [filter:var(--logo-filter)]"
                         />
                       </div>
                     </div>

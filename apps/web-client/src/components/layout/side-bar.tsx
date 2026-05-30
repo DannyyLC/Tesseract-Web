@@ -106,7 +106,7 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
               alt="Tesseract"
               fill
               loading="eager"
-              className="object-contain brightness-0 dark:invert"
+              className="object-contain [filter:var(--logo-filter)]"
             />
           </div>
           {!isCollapsed && (

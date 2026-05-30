@@ -220,6 +220,7 @@
   /* Texto semántico adaptativo adicional */
   --success-text-adaptive: var(--success-600);
   --warning-text-adaptive: var(--warning-600);
+  --info-text-adaptive: var(--info-600);
   --neutral-text-adaptive: var(--neutral-600);
 
   /* Overlay de carga (claro en light, oscuro en dark) */
@@ -366,6 +367,7 @@
     /* Texto semántico adaptativo */
     --success-text-adaptive: var(--success-400);
     --warning-text-adaptive: var(--warning-400);
+    --info-text-adaptive: var(--info-400);
     --neutral-text-adaptive: var(--neutral-400);
 
     /* Overlay de carga */
@@ -399,6 +401,28 @@
     --not-found-404-glow: drop-shadow(0 0 60px rgba(255, 255, 255, 0.15));
     --not-found-404-blur-color: rgba(255, 255, 255, 0.03);
     --not-found-desc-color: rgba(255, 255, 255, 0.6);
+  }
+
+  /* Equivalente a dark:prose-invert — invierte colores de tipografía en modo oscuro */
+  .prose {
+    --tw-prose-body: #d1d5db;
+    --tw-prose-headings: #ffffff;
+    --tw-prose-lead: #9ca3af;
+    --tw-prose-links: #ffffff;
+    --tw-prose-bold: #ffffff;
+    --tw-prose-counters: #9ca3af;
+    --tw-prose-bullets: #4b5563;
+    --tw-prose-hr: #374151;
+    --tw-prose-quotes: #f3f4f6;
+    --tw-prose-quote-borders: #374151;
+    --tw-prose-captions: #9ca3af;
+    --tw-prose-kbd: #ffffff;
+    --tw-prose-kbd-shadows: 255 255 255;
+    --tw-prose-code: #ffffff;
+    --tw-prose-pre-code: #d1d5db;
+    --tw-prose-pre-bg: rgb(0 0 0 / 50%);
+    --tw-prose-th-borders: #4b5563;
+    --tw-prose-td-borders: #374151;
   }
 }
 

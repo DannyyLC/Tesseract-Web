@@ -5,25 +5,25 @@ export const getRoleConfig = (role: string) => {
     case 'OWNER':
       return {
         label: 'Owner',
-        color: 'text-warning-600 dark:text-warning-400',
+        color: 'text-[var(--warning-text-adaptive)]',
         icon: Crown,
       };
     case 'ADMIN':
       return {
         label: 'Admin',
-        color: 'text-danger-600 dark:text-danger-400',
+        color: 'text-[var(--danger-text-adaptive)]',
         icon: ShieldAlert,
       };
     case 'VIEWER':
       return {
         label: 'Viewer',
-        color: 'text-info-600 dark:text-info-400',
+        color: 'text-[var(--info-text-adaptive)]',
         icon: Eye,
       };
     default:
       return {
         label: role,
-        color: 'text-neutral-600 dark:text-neutral-400',
+        color: 'text-[var(--neutral-text-adaptive)]',
         icon: Eye,
       };
   }
