@@ -12,7 +12,6 @@ import {
   Archive,
   RefreshCw,
   AlertCircle,
-  ChevronDown,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useWorkflow, useExecuteStream } from '@/hooks/automation/use-workflows';
@@ -49,7 +48,7 @@ export default function WorkflowChatPage() {
   // Obtener detalles de la conversación primero
   // Si conversationId es 'new', no intentamos cargar la conversación
   const isNewConversation = conversationId === 'new';
-  const { data: conversationData, isLoading: isLoadingConversation } = useConversation(
+  const { data: conversationData } = useConversation(
     isNewConversation ? '' : conversationId,
   );
 
@@ -64,7 +63,7 @@ export default function WorkflowChatPage() {
   );
 
   // Obtener detalles del usuario
-  const { data: user, isLoading: isLoadingUser } = useUser(conversationData?.userId || '');
+  const { data: user } = useUser(conversationData?.userId || '');
 
   // Hook de streaming
   const { execute, messages: streamContent, isStreaming, error, clear } = useExecuteStream();
@@ -94,6 +93,7 @@ export default function WorkflowChatPage() {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lastScrollTop = useRef(0);
   const wasStreamingRef = useRef(false);
   const [thinkingIndex, setThinkingIndex] = useState(0);
 
@@ -269,6 +269,27 @@ export default function WorkflowChatPage() {
     return () => clearInterval(interval);
   }, [isStreaming]);
 
+  const handleChatScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+
+    if (scrollTop === 0) {
+      setIsHeaderCollapsed(false);
+      lastScrollTop.current = 0;
+      return;
+    }
+
+    if (scrollTop + clientHeight >= scrollHeight - 4) {
+      setIsHeaderCollapsed(true);
+      lastScrollTop.current = scrollTop;
+      return;
+    }
+
+    const delta = scrollTop - lastScrollTop.current;
+    if (Math.abs(delta) < 8) return;
+    setIsHeaderCollapsed(delta > 0);
+    lastScrollTop.current = scrollTop;
+  };
+
   // Ajuste de altura del textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -378,7 +399,10 @@ export default function WorkflowChatPage() {
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                transition={{
+                  height: { duration: 0.45, ease: [0.4, 0, 0.2, 1] },
+                  opacity: { duration: 0.38, ease: 'easeInOut' },
+                }}
                 className="overflow-hidden"
               >
                 <div className="flex items-center justify-between border-b border-border bg-surface px-3 py-3 lg:px-6 lg:py-4">
@@ -566,32 +590,15 @@ export default function WorkflowChatPage() {
               </div>
             )}
 
-            <button
-              onClick={() => setIsHeaderCollapsed(true)}
-              className="rounded-lg p-1.5 text-text-tertiary transition-colors hover:bg-surface-secondary"
-              title="Ocultar encabezado"
-            >
-              <ChevronDown size={15} className="rotate-180" />
-            </button>
           </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
-
-          {isHeaderCollapsed && (
-            <button
-              onClick={() => setIsHeaderCollapsed(false)}
-              className="flex w-full items-center justify-center border-b border-border bg-surface py-1 text-text-tertiary transition-colors hover:bg-surface-secondary hover:text-text-primary"
-              title="Mostrar encabezado"
-            >
-              <ChevronDown size={14} />
-            </button>
-          )}
         </div>
 
         {/* Chat Area */}
-        <div className="relative flex-1 overflow-y-auto p-6 pb-36">
+        <div onScroll={handleChatScroll} className="relative flex-1 overflow-y-auto p-6 pb-36">
           {/* Empty State */}
           <AnimatePresence>
             {isEmpty && (
