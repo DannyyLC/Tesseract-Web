@@ -325,9 +325,9 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
         </div>
 
         {/* Floating Geometric Elements */}
-        <div className="absolute left-20 top-20 z-10 h-32 w-32 rotate-45 animate-[spin_20s_linear_infinite] rounded-lg border border-white/10" />
-        <div className="absolute bottom-32 right-32 z-10 h-24 w-24 -rotate-12 animate-[spin_15s_linear_infinite_reverse] rounded-lg border border-white/5" />
-        <div className="absolute left-1/4 top-1/2 z-10 h-16 w-16 rotate-[30deg] animate-pulse rounded-lg border border-white/10" />
+        <div className="absolute left-20 top-20 z-10 h-32 w-32 rotate-45 animate-[spin_20s_linear_infinite] rounded-lg border" style={{ borderColor: 'var(--auth-branding-float-border)' }} />
+        <div className="absolute bottom-32 right-32 z-10 h-24 w-24 -rotate-12 animate-[spin_15s_linear_infinite_reverse] rounded-lg border" style={{ borderColor: 'var(--auth-branding-float-border-faint)' }} />
+        <div className="absolute left-1/4 top-1/2 z-10 h-16 w-16 rotate-[30deg] animate-pulse rounded-lg border" style={{ borderColor: 'var(--auth-branding-float-border)' }} />
 
         {/* Main Content */}
         <div className="relative z-30 flex w-full flex-col items-center justify-center p-12">
@@ -346,7 +346,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
             </div>
             <div>
               <h1 className="text-5xl font-bold tracking-tight text-brand-white">Tesseract</h1>
-              <p className="mt-1 text-sm uppercase tracking-widest text-brand-white/40">
+              <p className="mt-1 text-sm uppercase tracking-widest" style={{ color: 'var(--auth-branding-text-label)' }}>
                 Automation Platform
               </p>
             </div>
@@ -356,7 +356,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
             <h2 className="text-3xl font-semibold leading-tight text-brand-white">
               Tu plataforma de automatización empresarial
             </h2>
-            <p className="text-lg leading-relaxed text-brand-white/60">
+            <p className="text-lg leading-relaxed" style={{ color: 'var(--auth-branding-text-desc)' }}>
               Potencia tu negocio con automatización inteligente
             </p>
           </div>
@@ -367,7 +367,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
       </div>
 
       {/* SECCIÓN DERECHA - FORMULARIO */}
-      <div className="h-full flex-1 overflow-y-auto bg-background transition-colors duration-300">
+      <div className="h-full flex-1 overflow-y-auto bg-auth-form-bg transition-colors duration-300">
         <div className="flex min-h-full flex-col items-center justify-center p-8 py-20">
           <motion.div
             className="w-full max-w-md space-y-8"
@@ -929,7 +929,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                     <div className="w-full border-t border-border" />
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="bg-background px-4 text-xs uppercase tracking-wider text-text-tertiary">
+                    <span className="bg-auth-form-bg px-4 text-xs uppercase tracking-wider text-text-tertiary">
                       O continuar con
                     </span>
                   </div>

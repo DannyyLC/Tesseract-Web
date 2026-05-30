@@ -162,6 +162,8 @@ const config: Config = {
         },
         // alias plano de compatibilidad (= danger). Migrar a `danger`.
         error: 'var(--error)',
+        // Auth: fondo del panel de formulario (adaptativo)
+        'auth-form-bg': 'var(--auth-form-bg)',
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

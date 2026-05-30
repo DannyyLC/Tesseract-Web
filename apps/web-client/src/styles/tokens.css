@@ -245,6 +245,14 @@
   --auth-branding-seam-opacity: 0;
   --auth-branding-grid-opacity: 0.3;
   --auth-branding-logo-filter: invert(1) drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
+  /* Texto y bordes de elementos decorativos del panel de branding (panel siempre oscuro) */
+  --auth-branding-text-label: rgba(255, 255, 255, 0.70);
+  --auth-branding-text-desc: rgba(255, 255, 255, 0.80);
+  --auth-branding-float-border: rgba(255, 255, 255, 0.25);
+  --auth-branding-float-border-faint: rgba(255, 255, 255, 0.15);
+
+  /* Auth: fondo del panel de formulario — blanco en claro, negro puro en oscuro */
+  --auth-form-bg: var(--background);
 
   /* Danger adaptativo por tema */
   --danger-surface: var(--danger-100);
@@ -387,6 +395,9 @@
     --auth-branding-seam-opacity: 1;
     --auth-branding-grid-opacity: 0.2;
     --auth-branding-logo-filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
+
+    /* Auth: fondo del panel de formulario */
+    --auth-form-bg: var(--brand-black);
 
     /* Danger adaptativo */
     --danger-surface: rgba(127, 29, 29, 0.2);
