@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import WhatsappNumberCard from '../_components/whatsapp-number-card';
 import WorkflowAnalyticsPanel from '../_components/workflow-analytics-panel';
+import WorkflowExecutionsTable from '../_components/workflow-executions-table';
 
 const WHATSAPP_PHONE_REGEX = /^\+\d{8,15}$/;
 
@@ -31,6 +32,7 @@ export default function WorkflowDetailPage() {
   const { updateWorkflow, deleteWorkflow } = useWorkflowMutations();
 
   // UI State
+  const [period, setPeriod] = useState('30d');
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
@@ -308,7 +310,14 @@ export default function WorkflowDetailPage() {
             <h2 className="text-xl font-bold">Análisis de Rendimiento</h2>
           </div>
 
-          <WorkflowAnalyticsPanel workflow={workflow} />
+          <WorkflowAnalyticsPanel workflow={workflow} period={period} onPeriodChange={setPeriod} />
+        </div>
+
+        <div className="space-y-4 px-8 pb-8">
+          <h3 className="flex items-center gap-2 font-semibold text-text-primary">
+            Ejecuciones del periodo
+          </h3>
+          <WorkflowExecutionsTable workflowId={id} period={period} />
         </div>
 
         <div className="border-t border-[var(--border-subtle)] px-8 py-8">

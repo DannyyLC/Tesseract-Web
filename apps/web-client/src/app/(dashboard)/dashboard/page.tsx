@@ -318,7 +318,7 @@ export default function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-1">
         {/* Area chart — executions 7 days */}
         <div className="rounded-2xl border border-border bg-surface">
-          <SectionTitle href="/executions" linkLabel="Ver ejecuciones">
+          <SectionTitle>
             Ejecuciones — Últimos 7 días
           </SectionTitle>
           <div className="p-5">
@@ -435,7 +435,7 @@ export default function DashboardPage() {
         {/* Top Workflows (executions:read) */}
         <PermissionGuard permissions="executions:read">
           <div className="rounded-2xl border border-border bg-surface">
-            <SectionTitle href="/executions" linkLabel="Ver ejecuciones">
+            <SectionTitle>
               Top Workflows (7 días)
             </SectionTitle>
             <div className="divide-y divide-border">
@@ -510,7 +510,7 @@ export default function DashboardPage() {
 
       {/* ── Recent Executions Table ─────────────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-surface">
-        <SectionTitle href="/executions" linkLabel="Ver todas">
+        <SectionTitle>
           Últimas Ejecuciones
         </SectionTitle>
         {loadingExecs ? (

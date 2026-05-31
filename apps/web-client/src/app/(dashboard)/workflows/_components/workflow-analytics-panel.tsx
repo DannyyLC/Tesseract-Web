@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useWorkflowMetrics } from '@/hooks/automation/use-workflows';
 import { DashboardWorkflowDto } from '@tesseract/types';
@@ -16,6 +16,8 @@ import { formatDateByGranularity, getGranularityLabel } from '@/utils/date-forma
 
 interface WorkflowAnalyticsPanelProps {
   workflow: DashboardWorkflowDto;
+  period: string;
+  onPeriodChange: (period: string) => void;
 }
 
 const PERIODS = [
@@ -33,8 +35,7 @@ const formatCompactNumber = (number: number) => {
   }).format(number);
 };
 
-export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPanelProps) {
-  const [period, setPeriod] = useState('30d');
+export default function WorkflowAnalyticsPanel({ workflow, period, onPeriodChange }: WorkflowAnalyticsPanelProps) {
 
   // Fetch detailed metrics in parallel
   const { data: metrics, isLoading } = useWorkflowMetrics(workflow.id, period);
@@ -175,7 +176,7 @@ export default function WorkflowAnalyticsPanel({ workflow }: WorkflowAnalyticsPa
               {PERIODS.map((p) => (
                 <button
                   key={p.value}
-                  onClick={() => setPeriod(p.value)}
+                  onClick={() => onPeriodChange(p.value)}
                   className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
                     period === p.value
                       ? 'bg-surface text-text-primary shadow-sm'

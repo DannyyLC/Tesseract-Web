@@ -12,7 +12,6 @@ import {
   Coins,
   Settings,
   Users,
-  Activity,
   HelpCircle,
   ChevronLeft,
   MessageSquare,
@@ -41,8 +40,7 @@ const navSections: NavSection[] = [
       { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard size={20} /> },
       { label: 'Workflows', href: '/workflows', icon: <Workflow size={20} /> },
       { label: 'Tools', href: '/tools', icon: <Wrench size={20} /> },
-      { label: 'Executions', href: '/executions', icon: <Activity size={20} /> },
-      { label: 'Conversations', href: '/conversations', icon: <MessageSquare size={20} /> },
+{ label: 'Conversations', href: '/conversations', icon: <MessageSquare size={20} /> },
     ],
   },
   {
