@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/hooks/identity/use-auth';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/routing';
 import { useEffect } from 'react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { AppPermission, ROLE_PERMISSIONS } from '@tesseract/types';
@@ -68,7 +68,10 @@ export default function PermissionGuard({
       // Redirect to fallback if authenticated but lacks permission
       router.push(fallbackRoute);
     }
-  }, [user, isLoading, router, redirect, fallbackRoute, allowed]);
+  // router se omite de deps intencionalmente: su identidad cambia en cada render
+  // con next-intl pero su comportamiento es estable. Incluirlo causaría un bucle.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isLoading, redirect, fallbackRoute, allowed]);
 
   // Handle loading state only if it's a route guard (redirect = true)
   if (isLoading && redirect) {

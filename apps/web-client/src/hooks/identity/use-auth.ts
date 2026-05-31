@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/routing';
 import { toast } from 'sonner';
 
 export interface User {
@@ -185,11 +185,7 @@ export function useLogout() {
       return await api.logout();
     },
     onSuccess: () => {
-      // Limpiar datos del usuario en cache
       queryClient.setQueryData(['auth', 'me'], null);
-      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-
-      // Redirigir al login
       router.push('/login');
     },
     onError: () => {
@@ -211,9 +207,7 @@ export function useLogoutAll() {
       return await api.logoutAll();
     },
     onSuccess: () => {
-      // Limpiar datos y redirigir
       queryClient.setQueryData(['auth', 'me'], null);
-      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
       router.push('/login');
     },
   });

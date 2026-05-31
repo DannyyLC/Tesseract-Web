@@ -1,8 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, Link } from '@/i18n/routing';
 import { useAuth } from '@/hooks/identity/use-auth';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
 import {

@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, Link } from '@/i18n/routing';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, Bell, ChevronRight, LogOut, User, CheckCheck, Loader2 } from 'lucide-react';
 import { useAuth, useLogout } from '@/hooks/identity/use-auth';

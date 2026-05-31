@@ -78,16 +78,17 @@ class ApiRequestManager {
           } catch (refreshError) {
             isRefreshing = false;
             processQueue(refreshError);
-            // Si falla el refresh (token expirado o inválido), redirigimos al login
-            // SOLO si no estamos ya en el login, signup, verify-2fa o forgot-password para evitar bucles
-            if (
-              typeof window !== 'undefined' &&
-              window.location.pathname !== '/login' &&
-              window.location.pathname !== '/signup' &&
-              window.location.pathname !== '/verify-2fa' &&
-              window.location.pathname !== '/forgot-password'
-            ) {
-              window.location.href = '/login';
+            // Si falla el refresh, redirigimos al login.
+            // Las rutas llevan prefijo de locale (/es/login, /en/login), usamos endsWith.
+            if (typeof window !== 'undefined') {
+              const pathname = window.location.pathname;
+              const authPaths = ['/login', '/signup', '/verify-2fa', '/forgot-password'];
+              const isAuthPage = authPaths.some((p) => pathname.endsWith(p));
+              if (!isAuthPage) {
+                const localeMatch = pathname.match(/^\/([a-z]{2})(\/|$)/);
+                const locale = localeMatch ? localeMatch[1] : 'es';
+                window.location.href = `/${locale}/login`;
+              }
             }
             return Promise.reject(refreshError);
           }
