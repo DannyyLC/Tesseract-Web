@@ -1252,9 +1252,26 @@ export class ExecutionsService {
     if (status) where.status = status;
     if (trigger) where.trigger = trigger;
 
-    if (startDate || endDate) {
+    // When filtering by a specific workflow, clamp startDate to the workflow's
+    // createdAt so executions inserted before the workflow record are excluded.
+    let effectiveStartDate = startDate;
+    if (workflowId) {
+      const wf = await this.prisma.workflow.findFirst({
+        where: { id: workflowId, organizationId },
+        select: { createdAt: true },
+      });
+      if (wf) {
+        const createdAt = new Date(wf.createdAt);
+        createdAt.setHours(0, 0, 0, 0);
+        if (!effectiveStartDate || createdAt > effectiveStartDate) {
+          effectiveStartDate = createdAt;
+        }
+      }
+    }
+
+    if (effectiveStartDate || endDate) {
       where.startedAt = {};
-      if (startDate) where.startedAt.gte = startDate;
+      if (effectiveStartDate) where.startedAt.gte = effectiveStartDate;
       if (endDate) where.startedAt.lte = endDate;
     }
 
