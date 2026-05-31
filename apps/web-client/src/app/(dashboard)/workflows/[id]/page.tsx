@@ -323,7 +323,7 @@ export default function WorkflowDetailPage() {
         <div className="border-t border-[var(--border-subtle)] px-8 py-8">
           <div className="mb-8 rounded-2xl border border-border bg-[var(--surface-subtle)] p-4">
             <h3 className="ml-1 text-sm font-semibold text-text-primary">
-              Herramientas Conectadas
+              Integraciones Conectadas
             </h3>
             <div className="mt-4 flex flex-wrap gap-4">
               {workflow.tenantTools && workflow.tenantTools.length > 0 ? (
@@ -352,14 +352,14 @@ export default function WorkflowDetailPage() {
                         {tool.displayName}
                       </span>
                       <span className="truncate text-xs text-text-secondary">
-                        {tool.toolCatalog?.displayName || 'Herramienta'}
+                        {tool.toolCatalog?.displayName || 'Integración'}
                       </span>
                     </div>
                   </div>
                 ))
               ) : (
                 <p className="ml-1 text-sm text-[var(--text-muted)]">
-                  No hay herramientas o integraciones vinculadas a este workflow.
+                  No hay integraciones vinculadas a este workflow.
                 </p>
               )}
             </div>

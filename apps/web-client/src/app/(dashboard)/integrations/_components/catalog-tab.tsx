@@ -5,8 +5,8 @@ import { Search, Loader2 } from 'lucide-react';
 import { useToolCatalog, flattenToolCatalog } from '@/hooks/automation/use-tool-catalog';
 import { useInfiniteTenantToolsDashboard, flattenTenantTools } from '@/hooks/automation/use-tenant-tools';
 import { GetToolsDto } from '@tesseract/types';
-import { CatalogToolCard } from './catalog-tool-card';
-import { ConnectToolModal } from './connect-tool-modal';
+import { CatalogIntegrationCard } from './catalog-integration-card';
+import { ConnectIntegrationModal } from './connect-integration-modal';
 
 interface CatalogTabProps {
   onConnect?: (tool: GetToolsDto) => void;
@@ -79,7 +79,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
             type="text"
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
-            placeholder="Buscar herramientas..."
+            placeholder="Buscar integraciones..."
             className="w-full rounded-full border-none bg-[var(--surface-tint)] py-2.5 pl-10 pr-4 text-sm text-text-primary transition-all placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-[var(--border-subtle)] hover:bg-[var(--surface-tint-md)]"
           />
         </div>
@@ -88,7 +88,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
       {/* Results count */}
       {!catalogLoading && (
         <p className="text-xs text-text-tertiary">
-          {allCatalogTools.length} herramienta{allCatalogTools.length !== 1 ? 's' : ''}
+          {allCatalogTools.length} integración{allCatalogTools.length !== 1 ? 'es' : ''}
         </p>
       )}
 
@@ -105,7 +105,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
       {!catalogLoading && allCatalogTools.length > 0 && (
         <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {allCatalogTools.map((tool, i) => (
-            <CatalogToolCard
+            <CatalogIntegrationCard
               key={tool.id}
               tool={tool}
               index={i}
@@ -139,7 +139,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
 
       {/* Connect Modal */}
       {connectTarget && (
-        <ConnectToolModal
+        <ConnectIntegrationModal
           isOpen={!!connectTarget}
           onClose={() => setConnectTarget(null)}
           catalogTool={connectTarget}

@@ -8,7 +8,7 @@ import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { useAuth } from '@/hooks/identity/use-auth';
 
-interface ConnectedToolCardProps {
+interface ConnectedIntegrationCardProps {
   tool: DashboardTenantToolDto;
   index: number;
   onRename?: (id: string) => void;
@@ -40,14 +40,14 @@ const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }
   },
 };
 
-export function ConnectedToolCard({
+export function ConnectedIntegrationCard({
   tool,
   index,
   onRename,
   onDisconnectCredentials,
   onConfigCredentials,
   onDelete,
-}: ConnectedToolCardProps) {
+}: ConnectedIntegrationCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { data: currentUser } = useAuth();
   const isOwnerRole = currentUser?.role === 'owner';

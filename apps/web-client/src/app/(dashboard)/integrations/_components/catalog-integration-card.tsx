@@ -7,7 +7,7 @@ import { GetToolsDto } from '@tesseract/types';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import PermissionGuard from '@/components/auth/permission-guard';
 
-interface CatalogToolCardProps {
+interface CatalogIntegrationCardProps {
   tool: GetToolsDto;
   index: number;
   /**
@@ -21,12 +21,12 @@ interface CatalogToolCardProps {
 
 const CATEGORY_STYLE = 'bg-[var(--surface-tint)] text-text-tertiary';
 
-export function CatalogToolCard({
+export function CatalogIntegrationCard({
   tool,
   index,
   connectedCount = 0,
   onConnect,
-}: CatalogToolCardProps) {
+}: CatalogIntegrationCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (

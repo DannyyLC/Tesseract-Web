@@ -8,7 +8,7 @@ import { ROLE_PERMISSIONS } from '@tesseract/types';
 import {
   LayoutDashboard,
   Workflow,
-  Wrench,
+  Blocks,
   Coins,
   Settings,
   Users,
@@ -39,7 +39,7 @@ const navSections: NavSection[] = [
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard size={20} /> },
       { label: 'Workflows', href: '/workflows', icon: <Workflow size={20} /> },
-      { label: 'Tools', href: '/tools', icon: <Wrench size={20} /> },
+      { label: 'Integraciones', href: '/integrations', icon: <Blocks size={20} /> },
 { label: 'Conversations', href: '/conversations', icon: <MessageSquare size={20} /> },
     ],
   },

@@ -6,14 +6,14 @@ import { Modal } from '@/components/ui/modal';
 import { useTenantToolMutations } from '@/hooks/automation/use-tenant-tools';
 import { toast } from 'sonner';
 
-interface RenameToolModalProps {
+interface RenameIntegrationModalProps {
   isOpen: boolean;
   onClose: () => void;
   toolId: string;
   currentName: string;
 }
 
-export function RenameToolModal({ isOpen, onClose, toolId, currentName }: RenameToolModalProps) {
+export function RenameIntegrationModal({ isOpen, onClose, toolId, currentName }: RenameIntegrationModalProps) {
   const [displayName, setDisplayName] = useState(currentName);
   const { updateTenantTool } = useTenantToolMutations();
 
@@ -39,7 +39,7 @@ export function RenameToolModal({ isOpen, onClose, toolId, currentName }: Rename
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Renombrar herramienta">
+    <Modal isOpen={isOpen} onClose={onClose} title="Renombrar integración">
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-text-secondary">Nombre</label>

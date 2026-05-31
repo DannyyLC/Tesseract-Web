@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Wrench, Plus, Loader2 } from 'lucide-react';
+import { Blocks, Plus, Loader2 } from 'lucide-react';
 import {
   useInfiniteTenantToolsDashboard,
   flattenTenantTools,
@@ -10,20 +10,20 @@ import {
 } from '@/hooks/automation/use-tenant-tools';
 import { DashboardTenantToolDto } from '@tesseract/types';
 import { toast } from 'sonner';
-import { ConnectedToolCard } from './connected-tool-card';
-import { RenameToolModal } from './rename-tool-modal';
-import { DisconnectCredentialsToolModal } from './disconnect-tool-modal';
-import { DeleteToolModal } from './delete-tool';
-import { ConnectToolModal } from './connect-tool-modal';
+import { ConnectedIntegrationCard } from './connected-integration-card';
+import { RenameIntegrationModal } from './rename-integration-modal';
+import { DisconnectIntegrationModal } from './disconnect-integration-modal';
+import { DeleteIntegrationModal } from './delete-integration-modal';
+import { ConnectIntegrationModal } from './connect-integration-modal';
 import PermissionGuard from '@/components/auth/permission-guard';
 
-interface MyToolsTabProps {
+interface MyIntegrationsTabProps {
   onAddTool?: () => void;
   /** Called whenever the total count of connected tools changes — used by the parent for the badge. */
   onCountChange?: (count: number) => void;
 }
 
-export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
+export function MyIntegrationsTab({ onAddTool, onCountChange }: MyIntegrationsTabProps) {
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useInfiniteTenantToolsDashboard({ pageSize: 12 });
 
@@ -103,9 +103,9 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
     if (!disconnectTarget) return;
     try {
       await disconnectTool.mutateAsync(disconnectTarget.id);
-      toast.success('Herramienta desconectada correctamente.');
+      toast.success('Integración desconectada correctamente.');
     } catch {
-      toast.error('No se pudo desconectar la herramienta. Intenta de nuevo.');
+      toast.error('No se pudo desconectar la integración. Intenta de nuevo.');
       throw new Error(); // keep modal open on error
     }
   };
@@ -114,9 +114,9 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
     if (!deleteTarget) return;
     try {
       await deleteTool.mutateAsync(deleteTarget.id);
-      toast.success('Herramienta eliminada correctamente.');
+      toast.success('Integración eliminada correctamente.');
     } catch {
-      toast.error('No se pudo eliminar la herramienta. Intenta de nuevo.');
+      toast.error('No se pudo eliminar la integración. Intenta de nuevo.');
       throw new Error(); // keep modal open on error
     }
   };
@@ -141,13 +141,13 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
         className="flex flex-col items-center justify-center py-24 text-center"
       >
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-secondary">
-          <Wrench size={28} className="text-text-tertiary" />
+          <Blocks size={28} className="text-text-tertiary" />
         </div>
         <h3 className="mb-1 text-lg font-semibold text-text-primary">
-          Sin herramientas conectadas
+          Sin integraciones conectadas
         </h3>
         <p className="mb-6 text-sm text-text-secondary">
-          Conecta tu primera herramienta desde el catálogo.
+          Conecta tu primera integración desde el catálogo.
         </p>
         <PermissionGuard permissions="tenant_tools:create">
           <button
@@ -167,7 +167,7 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
     <>
       <div className="space-y-3">
         {tools.map((tool, i) => (
-          <ConnectedToolCard
+          <ConnectedIntegrationCard
             key={tool.id}
             tool={tool}
             index={i}
@@ -190,7 +190,7 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
 
       {/* Rename modal */}
       {renameTarget && (
-        <RenameToolModal
+        <RenameIntegrationModal
           isOpen={!!renameTarget}
           onClose={() => setRenameTarget(null)}
           toolId={renameTarget.id}
@@ -200,7 +200,7 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
 
       {/* Disconnect confirmation modal */}
       {disconnectTarget && (
-        <DisconnectCredentialsToolModal
+        <DisconnectIntegrationModal
           isOpen={!!disconnectTarget}
           onClose={() => setDisconnectTarget(null)}
           toolDisplayName={disconnectTarget.displayName}
@@ -210,7 +210,7 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
 
       {/* Delete confirmation modal */}
       {deleteTarget && (
-        <DeleteToolModal
+        <DeleteIntegrationModal
           isOpen={!!deleteTarget}
           onClose={() => setDeleteTarget(null)}
           toolDisplayName={deleteTarget.displayName}
@@ -220,7 +220,7 @@ export function MyToolsTab({ onAddTool, onCountChange }: MyToolsTabProps) {
 
       {/* Config/Reconnect modal */}
       {configTarget && (
-        <ConnectToolModal
+        <ConnectIntegrationModal
           isOpen={!!configTarget}
           onClose={() => setConfigTarget(null)}
           existingToolId={configTarget.id}

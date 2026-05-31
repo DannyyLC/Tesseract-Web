@@ -4,19 +4,19 @@ import { useState } from 'react';
 import { Loader2, TriangleAlert } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 
-interface DisconnectCredentialsToolModalProps {
+interface DeleteIntegrationModalProps {
   isOpen: boolean;
   onClose: () => void;
   toolDisplayName: string;
   onConfirm: () => Promise<void>;
 }
 
-export function DisconnectCredentialsToolModal({
+export function DeleteIntegrationModal({
   isOpen,
   onClose,
   toolDisplayName,
   onConfirm,
-}: DisconnectCredentialsToolModalProps) {
+}: DeleteIntegrationModalProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -30,7 +30,7 @@ export function DisconnectCredentialsToolModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={isLoading ? () => {} : onClose} title="Desconectar herramienta">
+    <Modal isOpen={isOpen} onClose={isLoading ? () => {} : onClose} title="Eliminar integración">
       <div className="space-y-5">
         {/* Warning banner */}
         <div className="flex gap-3 rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] p-4">
@@ -43,9 +43,8 @@ export function DisconnectCredentialsToolModal({
               Acción irreversible con impacto en producción
             </p>
             <p className="text-xs leading-relaxed text-[var(--danger-text-adaptive)]">
-              Al desconectar <span className="font-semibold">"{toolDisplayName}"</span>, sus
-              credenciales serán eliminadas de forma permanente. Cualquier agente o workflow que
-              dependa de esta herramienta{' '}
+              Al eliminar <span className="font-semibold">"{toolDisplayName}"</span>, cualquier
+              agente o workflow que dependa de esta integración{' '}
               <span className="font-semibold">fallará inmediatamente</span> al intentar utilizarla.
             </p>
           </div>
@@ -54,7 +53,7 @@ export function DisconnectCredentialsToolModal({
         {/* Explanation */}
         <div className="space-y-3 text-sm text-text-secondary">
           <p>
-            Los agentes de Tesseract utilizan las herramientas conectadas como base para ejecutar
+            Los agentes de Tesseract utilizan las integracións conectadas como base para ejecutar
             sus tareas. Si un agente necesita{' '}
             <strong className="text-text-primary">"{toolDisplayName}"</strong> y esta
             no está disponible:
@@ -62,12 +61,12 @@ export function DisconnectCredentialsToolModal({
           <ul className="ml-4 list-disc space-y-1 text-xs leading-relaxed">
             <li>Las ejecuciones de workflows asociados terminarán en error.</li>
             <li>
-              Si la herramienta es central para el agente, este dejará de funcionar por completo.
+              Si la integración es central para el agente, este dejará de funcionar por completo.
             </li>
             <li>Los workflows afectados no se recuperarán solos; requerirán reconexión manual.</li>
           </ul>
           <p className="text-xs font-medium text-text-secondary">
-            Solo procede si estás seguro de que esta herramienta no está en uso, o si asumes
+            Solo procede si estás seguro de que esta integración no está en uso, o si asumes
             conscientemente que los workflows que la utilizan dejarán de funcionar.
           </p>
         </div>

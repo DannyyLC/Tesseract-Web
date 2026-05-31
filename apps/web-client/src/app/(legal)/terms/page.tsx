@@ -251,7 +251,7 @@ export default function TermsPage() {
                 ['Light — 1 crédito', 'Tareas simples y directas · hasta 20,000 tokens'],
                 [
                   'Standard — 5 créditos',
-                  'Workflows multi-paso con herramientas · hasta 100,000 tokens',
+                  'Workflows multi-paso con integraciones · hasta 100,000 tokens',
                 ],
                 [
                   'Advanced — 20 créditos',

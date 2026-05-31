@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import RootApi from '@/lib/api/endpoints/root-api';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 
-interface ConnectToolModalProps {
+interface ConnectIntegrationModalProps {
   isOpen: boolean;
   onClose: () => void;
   /** If provided, we are connecting a NEW tool from the catalog */
@@ -20,14 +20,14 @@ interface ConnectToolModalProps {
   existingToolProvider?: string | null;
 }
 
-export function ConnectToolModal({
+export function ConnectIntegrationModal({
   isOpen,
   onClose,
   catalogTool,
   existingToolId,
   existingToolDisplayName,
   existingToolProvider,
-}: ConnectToolModalProps) {
+}: ConnectIntegrationModalProps) {
   const [displayName, setDisplayName] = useState('');
   const [selectedFunctions, setSelectedFunctions] = useState<string[]>([]);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -62,7 +62,7 @@ export function ConnectToolModal({
   const handleConnect = async () => {
     const trimmed = displayName.trim();
     if (!trimmed) {
-      toast.error('Por favor ingresa un nombre para la herramienta.');
+      toast.error('Por favor ingresa un nombre para la integración.');
       return;
     }
 
@@ -110,7 +110,7 @@ export function ConnectToolModal({
       if (statusCode === 409) {
         toast.error(
           backendMessage ||
-            'Ya existe una herramienta activa con ese nombre. Intenta con otro nombre.',
+            'Ya existe una integración activa con ese nombre. Intenta con otro nombre.',
         );
         return;
       }
@@ -120,7 +120,7 @@ export function ConnectToolModal({
         return;
       }
 
-      toast.error('Ocurrió un error al intentar conectar la herramienta.');
+      toast.error('Ocurrió un error al intentar conectar la integración.');
     }
   };
 
@@ -140,7 +140,7 @@ export function ConnectToolModal({
       title={
         existingToolId
           ? 'Configurar credenciales'
-          : `Conectar ${catalogTool?.displayName || 'Herramienta'}`
+          : `Conectar ${catalogTool?.displayName || 'Integración'}`
       }
     >
       <div className="space-y-6 py-2">
@@ -149,7 +149,7 @@ export function ConnectToolModal({
             <CheckCircle2 size={48} className="text-success-500" />
             <h3 className="text-lg font-semibold text-text-primary">¡Listo!</h3>
             <p className="text-sm text-text-secondary">
-              La herramienta ha sido configurada correctamente.
+              La integración ha sido configurada correctamente.
             </p>
           </div>
         ) : (
@@ -162,7 +162,7 @@ export function ConnectToolModal({
               <input
                 autoFocus
                 type="text"
-                placeholder="Nombre de la herramienta"
+                placeholder="Nombre de la integración"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 className="w-full rounded-xl border border-border bg-[var(--surface-subtle)] px-4 py-2.5 text-sm text-text-primary outline-none transition-all focus:border-[var(--border-subtle)] focus:ring-2 focus:ring-[var(--border-subtle)]"
@@ -243,7 +243,7 @@ export function ConnectToolModal({
                     {catalogTool?.displayName || existingToolDisplayName}
                   </h4>
                   <p className="text-xs text-text-tertiary">
-                    Proveedor: {provider === 'none' ? 'Ninguno (Herramienta local)' : provider}
+                    Proveedor: {provider === 'none' ? 'Ninguno (Integración local)' : provider}
                   </p>
                 </div>
               </div>
@@ -286,7 +286,7 @@ export function ConnectToolModal({
             <p className="text-center text-[11px] leading-relaxed text-text-tertiary">
               {provider !== 'none'
                 ? 'Al conectar, autorizas a Tesseract para acceder a los datos necesarios para ejecutar los workflows configurados.'
-                : 'Esta herramienta no requiere credenciales externas para funcionar.'}
+                : 'Esta integración no requiere credenciales externas para funcionar.'}
             </p>
           </>
         )}
