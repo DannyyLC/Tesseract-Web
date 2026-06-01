@@ -60,14 +60,12 @@ export default function LeaveOrganizationModal({
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={t('title')}>
       <div className="space-y-4">
-        <div className="rounded-xl bg-danger-500/10 p-4 text-danger-500">
+        <div className="bg-danger-500/10 rounded-xl p-4 text-danger-500">
           <div className="flex gap-3">
             <AlertTriangle className="h-5 w-5 flex-shrink-0" />
             <div>
               <p className="text-sm font-medium">{t('warningHeading')}</p>
-              <p className="mt-1 text-sm opacity-90">
-                {t('warningText')}
-              </p>
+              <p className="mt-1 text-sm opacity-90">{t('warningText')}</p>
             </div>
           </div>
         </div>
@@ -81,7 +79,7 @@ export default function LeaveOrganizationModal({
             value={confirmationText}
             onChange={(e) => setConfirmationText(e.target.value)}
             placeholder={organizationName}
-            className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-sm text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
+            className="focus:ring-border-focus/5 w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-sm text-text-primary outline-none focus:border-input-border-focus focus:ring-4"
           />
         </div>
 
@@ -102,7 +100,7 @@ export default function LeaveOrganizationModal({
                 }
               }}
               placeholder={t('codePlaceholder')}
-              className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
+              className="focus:ring-border-focus/5 w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4"
             />
           </div>
         )}

@@ -48,6 +48,7 @@ gcloud auth application-default login
 ```
 
 Durante el flow del navegador, aceptar **ambos** permisos:
+
 - Ver, editar, configurar y borrar datos de Google Cloud
 - Ver y acceder a instancias de Cloud SQL
 
@@ -183,10 +184,10 @@ DATABASE_URL="postgresql://postgres:${ENCODED_PASS}@127.0.0.1:5433/tesseract" \
 
 **`migrate deploy` vs `migrate dev`:**
 
-| Comando | Uso | Comportamiento |
-|---|---|---|
-| `migrate deploy` | Producción | Solo aplica migraciones pendientes en orden |
-| `migrate dev` | Desarrollo local | Interactivo, puede resetear la DB — **nunca en producción** |
+| Comando          | Uso              | Comportamiento                                              |
+| ---------------- | ---------------- | ----------------------------------------------------------- |
+| `migrate deploy` | Producción       | Solo aplica migraciones pendientes en orden                 |
+| `migrate dev`    | Desarrollo local | Interactivo, puede resetear la DB — **nunca en producción** |
 
 ---
 

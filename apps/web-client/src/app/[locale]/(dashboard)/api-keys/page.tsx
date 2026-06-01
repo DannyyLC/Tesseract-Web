@@ -196,9 +196,7 @@ export default function ApiKeysPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">{t('heading')}</h1>
-          <p className="mt-1 text-text-secondary">
-            {t('description')}
-          </p>
+          <p className="mt-1 text-text-secondary">{t('description')}</p>
         </div>
         <PermissionGuard permissions="api_keys:create">
           <button
@@ -213,16 +211,13 @@ export default function ApiKeysPage() {
 
       {/* Search */}
       <div className="relative">
-        <Search
-          size={16}
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary"
-        />
+        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary" />
         <input
           type="text"
           placeholder={t('searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-full border-none bg-surface-secondary py-2 pl-10 pr-4 text-sm text-text-primary transition-all placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-border-focus/10"
+          className="focus:ring-border-focus/10 w-full rounded-full border-none bg-surface-secondary py-2 pl-10 pr-4 text-sm text-text-primary transition-all placeholder:text-input-placeholder focus:outline-none focus:ring-2"
         />
       </div>
 
@@ -267,9 +262,7 @@ export default function ApiKeysPage() {
                 </div>
 
                 {key.description && (
-                  <p className="mb-2 line-clamp-1 text-sm text-text-secondary">
-                    {key.description}
-                  </p>
+                  <p className="mb-2 line-clamp-1 text-sm text-text-secondary">{key.description}</p>
                 )}
 
                 <div className="mt-1 flex items-center gap-2 text-xs text-text-tertiary">
@@ -297,7 +290,7 @@ export default function ApiKeysPage() {
                       setSelectedKey(key);
                       setIsDeleteModalOpen(true);
                     }}
-                    className="rounded-full p-2 text-text-tertiary transition-colors hover:bg-danger/10 hover:text-danger"
+                    className="hover:bg-danger/10 rounded-full p-2 text-text-tertiary transition-colors hover:text-danger"
                     title={t('deleteTitle')}
                   >
                     <Trash2 size={16} />
@@ -317,9 +310,7 @@ export default function ApiKeysPage() {
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-secondary">
               <Key size={24} className="text-text-tertiary" />
             </div>
-            <h3 className="mb-2 text-lg font-semibold text-text-primary">
-              {t('noApiKeys')}
-            </h3>
+            <h3 className="mb-2 text-lg font-semibold text-text-primary">{t('noApiKeys')}</h3>
             <p className="text-text-secondary">{t('noApiKeysDesc')}</p>
           </motion.div>
         )}
@@ -367,10 +358,7 @@ export default function ApiKeysPage() {
                 <div className="overflow-hidden rounded-xl border border-border">
                   {isLoadingWorkflows ? (
                     <div className="flex items-center justify-center py-8">
-                      <Loader2
-                        className="animate-spin text-text-tertiary"
-                        size={20}
-                      />
+                      <Loader2 className="animate-spin text-text-tertiary" size={20} />
                     </div>
                   ) : (
                     <div className="max-h-48 overflow-y-auto overflow-x-hidden">
@@ -398,10 +386,7 @@ export default function ApiKeysPage() {
                       })}
                       {isFetchingNextPage && (
                         <div className="flex justify-center p-2">
-                          <Loader2
-                            className="animate-spin text-text-tertiary"
-                            size={16}
-                          />
+                          <Loader2 className="animate-spin text-text-tertiary" size={16} />
                         </div>
                       )}
                     </div>
@@ -445,11 +430,9 @@ export default function ApiKeysPage() {
             title={t('createdModalTitle')}
           >
             <div className="space-y-4">
-              <div className="flex items-start gap-3 rounded-xl bg-success-500/10 p-4 text-success-600">
+              <div className="bg-success-500/10 flex items-start gap-3 rounded-xl p-4 text-success-600">
                 <Check className="mt-0.5 shrink-0" size={18} />
-                <p className="text-sm">
-                  {t('createdWarning')}
-                </p>
+                <p className="text-sm">{t('createdWarning')}</p>
               </div>
 
               <div className="group/key relative">
@@ -510,7 +493,7 @@ export default function ApiKeysPage() {
               </div>
 
               <div className="py-2">
-                <div className="flex items-center justify-between rounded-xl border border-border p-3 ">
+                <div className="flex items-center justify-between rounded-xl border border-border p-3">
                   <div className="flex items-center gap-3">
                     <div
                       className={`rounded-lg p-2 ${formData.isActive ? 'bg-success-500/10 text-success-500' : 'bg-surface-secondary text-text-tertiary'}`}
@@ -572,15 +555,14 @@ export default function ApiKeysPage() {
             title={t('deleteModalTitle')}
           >
             <div className="space-y-4">
-              <div className="flex items-center gap-3 rounded-xl bg-danger/10 p-4 text-danger-600">
+              <div className="bg-danger/10 flex items-center gap-3 rounded-xl p-4 text-danger-600">
                 <AlertTriangle size={24} />
-                <p className="text-sm font-medium">
-                  {t('deleteWarning')}
-                </p>
+                <p className="text-sm font-medium">{t('deleteWarning')}</p>
               </div>
 
               <p className="text-center text-sm text-text-secondary">
-                {t('deleteConfirmBefore')} <strong>{selectedKey?.name}</strong>{t('deleteConfirmAfter')}
+                {t('deleteConfirmBefore')} <strong>{selectedKey?.name}</strong>
+                {t('deleteConfirmAfter')}
               </p>
 
               <div className="flex gap-3 pt-2">

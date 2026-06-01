@@ -107,9 +107,7 @@ function SupportContent() {
           <h1 className="text-3xl font-bold tracking-tight text-text-primary">
             {t('scheduleHeading')}
           </h1>
-          <p className="text-text-secondary">
-            {t('scheduleDesc')}
-          </p>
+          <p className="text-text-secondary">{t('scheduleDesc')}</p>
         </div>
         <div className="h-[650px] overflow-hidden rounded-2xl border border-border shadow-sm">
           <Cal
@@ -131,12 +129,8 @@ function SupportContent() {
     <div className="max-w-5xl p-6">
       {/* Page Header */}
       <div className="mb-8 space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-text-primary">
-          {t('heading')}
-        </h1>
-        <p className="text-text-secondary">
-          {t('description')}
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight text-text-primary">{t('heading')}</h1>
+        <p className="text-text-secondary">{t('description')}</p>
       </div>
 
       {/* Vertical layout: form top, calendar bottom */}
@@ -162,18 +156,10 @@ function SupportContent() {
                     type="button"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                     className={`flex w-full items-center justify-between rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm transition-all hover:bg-surface-secondary focus:border-border-focus focus:ring-1 focus:ring-border-focus ${
-                      isDropdownOpen
-                        ? 'border-border-focus ring-1 ring-border-focus'
-                        : ''
+                      isDropdownOpen ? 'border-border-focus ring-1 ring-border-focus' : ''
                     }`}
                   >
-                    <span
-                      className={
-                        selectedSubject
-                          ? 'text-text-primary'
-                          : 'text-text-tertiary'
-                      }
-                    >
+                    <span className={selectedSubject ? 'text-text-primary' : 'text-text-tertiary'}>
                       {selectedSubject || t('selectSubjectPlaceholder')}
                     </span>
                     <ChevronDown
@@ -211,10 +197,7 @@ function SupportContent() {
 
               {selectedSubject === t('subjectOther') && (
                 <div className="animate-in fade-in slide-in-from-top-2 space-y-2 duration-200">
-                  <label
-                    htmlFor="customSubject"
-                    className="text-sm font-medium text-text-primary"
-                  >
+                  <label htmlFor="customSubject" className="text-sm font-medium text-text-primary">
                     {t('customSubjectLabel')}
                   </label>
                   <input

@@ -53,17 +53,13 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
             </div>
 
             <h3 className="text-lg font-bold text-text-primary">{plan.name}</h3>
-            <p className="mt-1 min-h-[40px] text-sm text-text-secondary">
-              {plan.description}
-            </p>
+            <p className="mt-1 min-h-[40px] text-sm text-text-secondary">{plan.description}</p>
 
             <div className="mt-4 flex items-baseline gap-1">
               <span className="font-geist-mono text-3xl font-bold text-text-primary">
                 ${plan.price.monthly}
               </span>
-              <span className="text-sm font-medium text-text-tertiary">
-                /{plan.price.currency}
-              </span>
+              <span className="text-sm font-medium text-text-tertiary">/{plan.price.currency}</span>
             </div>
 
             {/* Limits */}
@@ -85,7 +81,8 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
                     t('unlimitedWorkflows')
                   ) : (
                     <>
-                      <span className="font-geist-mono">{plan.limits.maxWorkflows}</span>{t('workflows')}
+                      <span className="font-geist-mono">{plan.limits.maxWorkflows}</span>
+                      {t('workflows')}
                     </>
                   )}
                 </span>
@@ -98,7 +95,8 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
                     t('unlimitedApiKeys')
                   ) : (
                     <>
-                      <span className="font-geist-mono">{plan.limits.maxApiKeys}</span>{t('apiKeys')}
+                      <span className="font-geist-mono">{plan.limits.maxApiKeys}</span>
+                      {t('apiKeys')}
                     </>
                   )}
                 </span>
@@ -111,7 +109,8 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
                     t('unlimitedUsers')
                   ) : (
                     <>
-                      <span className="font-geist-mono">{plan.limits.maxUsers}</span>{t('users')}
+                      <span className="font-geist-mono">{plan.limits.maxUsers}</span>
+                      {t('users')}
                     </>
                   )}
                 </span>
@@ -127,7 +126,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
               )}
               {(plan.features || []).map((feature, i) => (
                 <div key={i} className="flex items-start gap-2 text-sm">
-                  <div className="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-success-500/10">
+                  <div className="bg-success-500/10 mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full">
                     <Check size={10} className="text-success-500" />
                   </div>
                   <span className="text-text-primary">{feature}</span>
@@ -137,7 +136,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
               {/* Highlight Feature */}
               {plan.highlightFeature && (
                 <div className="flex items-center gap-2 text-sm">
-                  <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-warning-500/10">
+                  <div className="bg-warning-500/10 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full">
                     <Zap size={10} className="fill-warning-500 text-warning-500" />
                   </div>
                   <span className="font-semibold italic text-text-primary">

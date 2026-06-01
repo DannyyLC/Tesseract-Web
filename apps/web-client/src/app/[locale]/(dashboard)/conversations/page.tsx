@@ -7,7 +7,10 @@ import { useSearchParams } from 'next/navigation';
 import { useRouter, usePathname } from '@/i18n/routing';
 import { MessageSquare, Search, Loader2 } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
-import { useConversationsDashboard, useConversationsStats } from '@/hooks/messaging/use-conversations';
+import {
+  useConversationsDashboard,
+  useConversationsStats,
+} from '@/hooks/messaging/use-conversations';
 import { useInfiniteDashboardWorkflows } from '@/hooks/automation/use-workflows';
 import { useInfiniteUsersDashboard } from '@/hooks/identity/use-users';
 import { LogoLoader } from '@/components/ui/logo-loader';
@@ -187,9 +190,7 @@ export default function ConversationsPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-text-primary">{t('heading')}</h1>
-            <p className="mt-1 text-text-secondary">
-              {t('description')}
-            </p>
+            <p className="mt-1 text-text-secondary">{t('description')}</p>
           </div>
 
           <PermissionGuard permissions="conversations:update">
@@ -244,9 +245,7 @@ export default function ConversationsPage() {
               <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {formatNumber(stats?.totalMessagesMonth ?? 0)}
               </p>
-              <span className="text-xs font-medium text-text-tertiary">
-                {t('monthlyTotal')}
-              </span>
+              <span className="text-xs font-medium text-text-tertiary">{t('monthlyTotal')}</span>
             </div>
           </motion.div>
 
@@ -317,7 +316,7 @@ export default function ConversationsPage() {
         <div className="relative min-h-[200px] space-y-3">
           {/* Loading Overlay */}
           {isLoading && (
-            <div className="absolute inset-0 z-10 flex items-start justify-center rounded-2xl bg-surface/50 pt-10 backdrop-blur-[1px]">
+            <div className="bg-surface/50 absolute inset-0 z-10 flex items-start justify-center rounded-2xl pt-10 backdrop-blur-[1px]">
               <LogoLoader />
             </div>
           )}
@@ -341,9 +340,7 @@ export default function ConversationsPage() {
               <h3 className="mb-2 text-lg font-semibold text-text-primary">
                 {t('noConversations')}
               </h3>
-              <p className="text-text-secondary">
-                {t('noConversationsDesc')}
-              </p>
+              <p className="text-text-secondary">{t('noConversationsDesc')}</p>
             </motion.div>
           )}
         </div>
@@ -378,9 +375,7 @@ export default function ConversationsPage() {
               title={t('newModalTitle')}
             >
               <div className="space-y-4">
-                <p className="text-sm text-text-secondary">
-                  {t('newModalDesc')}
-                </p>
+                <p className="text-sm text-text-secondary">{t('newModalDesc')}</p>
 
                 {/* Search */}
                 <div className="relative">
@@ -401,10 +396,7 @@ export default function ConversationsPage() {
                 <div className="overflow-hidden rounded-xl border border-border bg-surface-secondary">
                   {isLoadingModalWorkflows ? (
                     <div className="flex items-center justify-center py-8">
-                      <Loader2
-                        className="animate-spin text-text-tertiary"
-                        size={20}
-                      />
+                      <Loader2 className="animate-spin text-text-tertiary" size={20} />
                     </div>
                   ) : (
                     <div className="max-h-60 overflow-y-auto overflow-x-hidden">
@@ -429,10 +421,7 @@ export default function ConversationsPage() {
                                 )}
                               </div>
                               <div className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-secondary">
-                                <MessageSquare
-                                  size={12}
-                                  className="text-text-tertiary"
-                                />
+                                <MessageSquare size={12} className="text-text-tertiary" />
                               </div>
                             </button>
                           );
@@ -444,10 +433,7 @@ export default function ConversationsPage() {
                       )}
                       {isFetchingNextModalWorkflows && (
                         <div className="flex justify-center p-2">
-                          <Loader2
-                            className="animate-spin text-text-tertiary"
-                            size={16}
-                          />
+                          <Loader2 className="animate-spin text-text-tertiary" size={16} />
                         </div>
                       )}
                     </div>

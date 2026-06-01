@@ -145,12 +145,8 @@ export function MyIntegrationsTab({ onAddTool, onCountChange }: MyIntegrationsTa
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-secondary">
           <Blocks size={28} className="text-text-tertiary" />
         </div>
-        <h3 className="mb-1 text-lg font-semibold text-text-primary">
-          {t('noIntegrations')}
-        </h3>
-        <p className="mb-6 text-sm text-text-secondary">
-          {t('noIntegrationsDesc')}
-        </p>
+        <h3 className="mb-1 text-lg font-semibold text-text-primary">{t('noIntegrations')}</h3>
+        <p className="mb-6 text-sm text-text-secondary">{t('noIntegrationsDesc')}</p>
         <PermissionGuard permissions="tenant_tools:create">
           <button
             onClick={onAddTool}

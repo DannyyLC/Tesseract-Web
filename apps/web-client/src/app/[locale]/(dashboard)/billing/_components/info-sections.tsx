@@ -92,16 +92,13 @@ export default function InfoSections() {
 
               <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
                 <p className="text-text-secondary">
-                  <span className="font-bold text-text-primary">{t('models')}</span>{' '}
-                  {tier.models}
+                  <span className="font-bold text-text-primary">{t('models')}</span> {tier.models}
                 </p>
                 <p className="text-text-secondary">
                   <span className="font-bold text-text-primary">{t('context')}</span>{' '}
                   <span className="font-geist-mono">{tier.context}</span>
                 </p>
-                <p className="mt-3 text-xs italic text-text-tertiary">
-                  {tier.description}
-                </p>
+                <p className="mt-3 text-xs italic text-text-tertiary">{tier.description}</p>
               </div>
             </div>
           ))}
@@ -111,12 +108,8 @@ export default function InfoSections() {
       {/* Support levels */}
       <section className="space-y-8">
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-text-primary">
-            {t('supportHeading')}
-          </h2>
-          <p className="max-w-2xl leading-relaxed text-text-secondary">
-            {t('supportDesc')}
-          </p>
+          <h2 className="text-2xl font-bold text-text-primary">{t('supportHeading')}</h2>
+          <p className="max-w-2xl leading-relaxed text-text-secondary">{t('supportDesc')}</p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -129,9 +122,7 @@ export default function InfoSections() {
                 {item.icon}
               </div>
               <h4 className="text-sm font-bold text-text-primary">{item.title}</h4>
-              <p className="mt-1 text-xs leading-relaxed text-text-secondary">
-                {item.desc}
-              </p>
+              <p className="mt-1 text-xs leading-relaxed text-text-secondary">{item.desc}</p>
             </div>
           ))}
         </div>

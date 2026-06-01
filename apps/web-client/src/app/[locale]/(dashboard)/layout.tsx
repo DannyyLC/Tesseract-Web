@@ -66,7 +66,7 @@ export default function PanelLayout({ children }: PanelLayoutProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-overlay backdrop-blur-sm lg:hidden"
+              className="bg-overlay fixed inset-0 z-40 backdrop-blur-sm lg:hidden"
               onClick={() => setIsMobileSidebarOpen(false)}
             />
             <motion.div

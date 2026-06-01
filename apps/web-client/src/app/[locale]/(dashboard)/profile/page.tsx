@@ -50,9 +50,7 @@ export default function ProfilePage() {
   if (!authUser || !userDetails) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
-        <p className="text-text-secondary">
-          {t('loadError')}
-        </p>
+        <p className="text-text-secondary">{t('loadError')}</p>
       </div>
     );
   }
@@ -67,9 +65,7 @@ export default function ProfilePage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-text-primary">{t('heading')}</h1>
-        <p className="mt-1 text-text-secondary">
-          {t('description')}
-        </p>
+        <p className="mt-1 text-text-secondary">{t('description')}</p>
       </div>
 
       {/* Personal Information Section */}
@@ -81,9 +77,7 @@ export default function ProfilePage() {
       >
         <div className="border-b border-border p-6">
           <h2 className="text-lg font-semibold text-text-primary">{t('personalInfoTitle')}</h2>
-          <p className="mt-1 text-sm text-text-secondary">
-            {t('personalInfoDesc')}
-          </p>
+          <p className="mt-1 text-sm text-text-secondary">{t('personalInfoDesc')}</p>
         </div>
 
         <div className="space-y-4 p-6">
@@ -94,9 +88,7 @@ export default function ProfilePage() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-text-secondary">{t('nameLabel')}</p>
-              <p className="mt-0.5 text-base font-medium text-text-primary">
-                {userDetails.name}
-              </p>
+              <p className="mt-0.5 text-base font-medium text-text-primary">{userDetails.name}</p>
             </div>
           </div>
 
@@ -107,9 +99,7 @@ export default function ProfilePage() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-text-secondary">{t('emailLabel')}</p>
-              <p className="mt-0.5 text-base font-medium text-text-primary">
-                {userDetails.email}
-              </p>
+              <p className="mt-0.5 text-base font-medium text-text-primary">{userDetails.email}</p>
             </div>
           </div>
 
@@ -169,9 +159,7 @@ export default function ProfilePage() {
       >
         <div className="border-b border-border p-6">
           <h2 className="text-lg font-semibold text-text-primary">{t('preferencesTitle')}</h2>
-          <p className="mt-1 text-sm text-text-secondary">
-            {t('preferencesDesc')}
-          </p>
+          <p className="mt-1 text-sm text-text-secondary">{t('preferencesDesc')}</p>
         </div>
 
         <div className="space-y-4 p-6">
@@ -183,9 +171,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-text-primary">{t('languageLabel')}</p>
-                <p className="text-xs text-text-secondary">
-                  {t('languageHelper')}
-                </p>
+                <p className="text-xs text-text-secondary">{t('languageHelper')}</p>
               </div>
             </div>
             <LocaleSwitcher />
@@ -202,9 +188,7 @@ export default function ProfilePage() {
       >
         <div className="border-b border-border p-6">
           <h2 className="text-lg font-semibold text-text-primary">{t('securityTitle')}</h2>
-          <p className="mt-1 text-sm text-text-secondary">
-            {t('securityDesc')}
-          </p>
+          <p className="mt-1 text-sm text-text-secondary">{t('securityDesc')}</p>
         </div>
 
         <div className="space-y-4 p-6">
@@ -221,9 +205,7 @@ export default function ProfilePage() {
                 <ShieldCheck size={20} />
               </div>
               <div>
-                <p className="text-sm font-medium text-text-primary">
-                  {t('twoFALabel')}
-                </p>
+                <p className="text-sm font-medium text-text-primary">{t('twoFALabel')}</p>
                 <p className="text-xs text-text-secondary">
                   {twoFactorEnabled ? t('twoFAEnabled') : t('twoFADisabled')}
                 </p>
@@ -235,7 +217,7 @@ export default function ProfilePage() {
               }
               className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${
                 twoFactorEnabled
-                  ? 'border border-danger-500/30 text-danger-500 hover:bg-danger-500/10'
+                  ? 'border-danger-500/30 hover:bg-danger-500/10 border text-danger-500'
                   : 'bg-accent text-text-inverse hover:opacity-90'
               }`}
             >
@@ -274,9 +256,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-text-primary">{t('activeSessionsLabel')}</p>
-                <p className="text-xs text-text-secondary">
-                  {t('activeSessionsHelper')}
-                </p>
+                <p className="text-xs text-text-secondary">{t('activeSessionsHelper')}</p>
               </div>
             </div>
             <button
@@ -294,33 +274,27 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="overflow-hidden rounded-2xl border border-danger-500 bg-danger-500/5"
+        className="bg-danger-500/5 overflow-hidden rounded-2xl border border-danger-500"
       >
         <div className="border-b border-danger-500 p-6">
           <h2 className="text-lg font-semibold text-danger-500">{t('dangerZoneTitle')}</h2>
-          <p className="mt-1 text-sm text-danger-500/80">
-            {t('dangerZoneDesc')}
-          </p>
+          <p className="text-danger-500/80 mt-1 text-sm">{t('dangerZoneDesc')}</p>
         </div>
 
         <div className="p-6">
           <div className="flex items-center justify-between rounded-xl border border-danger-500 bg-surface-panel p-4">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-danger-500/10 p-2.5 text-danger-500">
+              <div className="bg-danger-500/10 rounded-lg p-2.5 text-danger-500">
                 <LogOut size={20} />
               </div>
               <div>
-                <p className="text-sm font-medium text-text-primary">
-                  {t('leaveOrgLabel')}
-                </p>
-                <p className="text-xs text-text-secondary">
-                  {t('leaveOrgHelper')}
-                </p>
+                <p className="text-sm font-medium text-text-primary">{t('leaveOrgLabel')}</p>
+                <p className="text-xs text-text-secondary">{t('leaveOrgHelper')}</p>
               </div>
             </div>
             <button
               onClick={() => setIsLeaveOrgModalOpen(true)}
-              className="rounded-xl border border-danger-500 px-4 py-2 text-sm font-medium text-danger-500 transition-all hover:bg-danger-500/10"
+              className="hover:bg-danger-500/10 rounded-xl border border-danger-500 px-4 py-2 text-sm font-medium text-danger-500 transition-all"
             >
               {t('leaveButton')}
             </button>

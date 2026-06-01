@@ -6,7 +6,10 @@ import { usePathname, Link } from '@/i18n/routing';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, Bell, ChevronRight, LogOut, User, CheckCheck, Loader2 } from 'lucide-react';
 import { useAuth, useLogout } from '@/hooks/identity/use-auth';
-import { useUnreadNotificationsCount, useNotificationMutations } from '@/hooks/messaging/use-notifications';
+import {
+  useUnreadNotificationsCount,
+  useNotificationMutations,
+} from '@/hooks/messaging/use-notifications';
 import NotificationList from '../notifications/notification-list';
 import { Modal } from '@/components/ui/modal';
 
@@ -14,7 +17,6 @@ interface TopBarProps {
   onMenuClick: () => void;
   isSidebarCollapsed: boolean;
 }
-
 
 export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps) {
   const t = useTranslations('DashboardNav');
@@ -114,7 +116,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
   return (
     <>
       <header
-        className={`fixed left-0 right-0 top-0 z-30 h-16 border-b border-border bg-surface/80 backdrop-blur-xl transition-all duration-300 ${
+        className={`bg-surface/80 fixed left-0 right-0 top-0 z-30 h-16 border-b border-border backdrop-blur-xl transition-all duration-300 ${
           isSidebarCollapsed ? 'lg:left-20' : 'lg:left-[260px]'
         }`}
       >
@@ -131,9 +133,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
             <nav className="hidden items-center gap-2 text-sm md:flex">
               {breadcrumbs.map((crumb, index) => (
                 <div key={crumb.href} className="flex items-center gap-2">
-                  {index > 0 && (
-                    <ChevronRight size={14} className="text-text-tertiary" />
-                  )}
+                  {index > 0 && <ChevronRight size={14} className="text-text-tertiary" />}
                   <Link
                     href={crumb.href}
                     className={`transition-colors ${
@@ -237,15 +237,10 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                           {user.role}
                         </span>
                       </div>
-                      <p
-                        className="truncate text-sm text-text-secondary"
-                        title={user.email}
-                      >
+                      <p className="truncate text-sm text-text-secondary" title={user.email}>
                         {user.email}
                       </p>
-                      <p className="mt-1 text-xs text-text-tertiary">
-                        {user.organization}
-                      </p>
+                      <p className="mt-1 text-xs text-text-tertiary">{user.organization}</p>
                     </div>
 
                     <div className="p-2">
@@ -276,9 +271,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                         disabled={logoutMutation.isPending}
                       >
                         <LogOut size={18} />
-                        <span>
-                          {logoutMutation.isPending ? t('loggingOut') : t('logout')}
-                        </span>
+                        <span>{logoutMutation.isPending ? t('loggingOut') : t('logout')}</span>
                       </button>
                     </div>
                   </motion.div>
@@ -298,9 +291,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
             title={t('markAllReadTitle')}
           >
             <div className="space-y-6">
-              <p className="text-sm text-text-secondary">
-                {t('markAllReadConfirm')}
-              </p>
+              <p className="text-sm text-text-secondary">{t('markAllReadConfirm')}</p>
 
               <div className="flex gap-3">
                 <button

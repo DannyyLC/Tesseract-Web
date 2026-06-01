@@ -40,7 +40,9 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             <span className="text-base font-bold tracking-tight text-[var(--text-primary)] transition-opacity group-hover:opacity-70">
               Tesseract
             </span>
-            <span className="hidden text-[var(--text-tertiary)] sm:inline">{t('legalSection')}</span>
+            <span className="hidden text-[var(--text-tertiary)] sm:inline">
+              {t('legalSection')}
+            </span>
           </button>
 
           {/* Legal section nav */}

@@ -147,9 +147,7 @@ export function ConnectIntegrationModal({
           <div className="flex flex-col items-center justify-center space-y-3 py-8 text-center">
             <CheckCircle2 size={48} className="text-success-500" />
             <h3 className="text-lg font-semibold text-text-primary">{t('readyHeading')}</h3>
-            <p className="text-sm text-text-secondary">
-              {t('readyDesc')}
-            </p>
+            <p className="text-sm text-text-secondary">{t('readyDesc')}</p>
           </div>
         ) : (
           <>
@@ -208,11 +206,7 @@ export function ConnectIntegrationModal({
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <DynamicIcon
-                            name={fn.icon}
-                            size={14}
-                            className="text-text-tertiary"
-                          />
+                          <DynamicIcon name={fn.icon} size={14} className="text-text-tertiary" />
                           <p className="truncate text-xs font-semibold text-text-primary">
                             {fn.displayName}
                           </p>
@@ -242,7 +236,9 @@ export function ConnectIntegrationModal({
                     {catalogTool?.displayName || existingToolDisplayName}
                   </h4>
                   <p className="text-xs text-text-tertiary">
-                    {t('providerLabel', { provider: provider === 'none' ? t('noCredentials') : provider })}
+                    {t('providerLabel', {
+                      provider: provider === 'none' ? t('noCredentials') : provider,
+                    })}
                   </p>
                 </div>
               </div>
@@ -252,9 +248,7 @@ export function ConnectIntegrationModal({
                   onClick={handleConnect}
                   disabled={createTenantTool.isPending}
                   className={`flex w-full items-center justify-center gap-3 rounded-xl py-3 text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50 ${
-                    isGoogle
-                      ? 'bg-brand-google text-brand-white'
-                      : 'bg-accent text-text-inverse'
+                    isGoogle ? 'bg-brand-google text-brand-white' : 'bg-accent text-text-inverse'
                   }`}
                 >
                   {createTenantTool.isPending ? (

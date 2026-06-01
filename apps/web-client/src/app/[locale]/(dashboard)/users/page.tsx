@@ -224,9 +224,7 @@ export default function UsersPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">{t('heading')}</h1>
-          <p className="mt-1 text-text-secondary">
-            {t('description')}
-          </p>
+          <p className="mt-1 text-text-secondary">{t('description')}</p>
         </div>
         <PermissionGuard permissions="organization:invite_user">
           <button
@@ -332,9 +330,7 @@ export default function UsersPage() {
                     {stats.pendingInvitations}
                   </p>
                 )}
-                <span className="text-xs font-medium text-warning-600">
-                  {t('pending')}
-                </span>
+                <span className="text-xs font-medium text-warning-600">{t('pending')}</span>
               </div>
             </motion.div>
           </>
@@ -358,7 +354,7 @@ export default function UsersPage() {
               placeholder={t('searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-full border-none bg-surface-secondary py-2 pl-10 pr-4 text-sm text-text-primary transition-all placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-border-focus/10"
+              className="focus:ring-border-focus/10 w-full rounded-full border-none bg-surface-secondary py-2 pl-10 pr-4 text-sm text-text-primary transition-all placeholder:text-input-placeholder focus:outline-none focus:ring-2"
             />
           </div>
         </div>
@@ -459,7 +455,9 @@ export default function UsersPage() {
                               </span>
                             </div>
                             <p className="truncate text-sm text-text-secondary">
-                              {t('sentTimeAgo', { time: formatTimeAgo(invitation.createdAt as any) })}
+                              {t('sentTimeAgo', {
+                                time: formatTimeAgo(invitation.createdAt as any),
+                              })}
                             </p>
                           </div>
 
@@ -467,9 +465,7 @@ export default function UsersPage() {
                             <p className="text-xs text-text-tertiary">{t('expires')}</p>
                             <p
                               className={`text-sm ${
-                                isExpired
-                                  ? 'text-danger-600'
-                                  : 'text-text-primary'
+                                isExpired ? 'text-danger-600' : 'text-text-primary'
                               }`}
                             >
                               {new Date(invitation.expiresAt).toLocaleString('es-ES')}
@@ -533,16 +529,12 @@ export default function UsersPage() {
                                 {roleConfig.label}
                               </span>
                             </div>
-                            <p className="truncate text-sm text-text-secondary">
-                              {user.email}
-                            </p>
+                            <p className="truncate text-sm text-text-secondary">{user.email}</p>
                           </div>
 
                           {/* Last Login */}
                           <div className="hidden text-right md:block">
-                            <p className="text-xs text-text-tertiary">
-                              {t('lastAccess')}
-                            </p>
+                            <p className="text-xs text-text-tertiary">{t('lastAccess')}</p>
                             <p className="text-sm text-text-primary">
                               {formatTimeAgo(user.lastLoginAt)}
                             </p>
@@ -571,7 +563,7 @@ export default function UsersPage() {
                                         e.stopPropagation();
                                         handleTransferOpen(user);
                                       }}
-                                      className="flex items-center gap-2 rounded-full border border-warning-600 px-4 py-2 text-sm font-medium text-warning-600 transition-all hover:bg-warning-500/10"
+                                      className="hover:bg-warning-500/10 flex items-center gap-2 rounded-full border border-warning-600 px-4 py-2 text-sm font-medium text-warning-600 transition-all"
                                     >
                                       <ArrowRightLeft size={16} />
                                       {t('transferOwnership')}
@@ -601,7 +593,7 @@ export default function UsersPage() {
                                           e.stopPropagation();
                                           handleDeleteOpen(user);
                                         }}
-                                        className="flex items-center gap-2 rounded-full border border-danger-600 px-4 py-2 text-sm font-medium text-danger-600 transition-all hover:bg-danger-500/10"
+                                        className="hover:bg-danger-500/10 flex items-center gap-2 rounded-full border border-danger-600 px-4 py-2 text-sm font-medium text-danger-600 transition-all"
                                       >
                                         <Trash2 size={16} />
                                         {t('deleteButton')}
@@ -641,7 +633,9 @@ export default function UsersPage() {
                   : searchQuery
                     ? t('noResultsForQuery', { query: searchQuery })
                     : filterRole !== 'all'
-                      ? t('noMembersWithRole', { role: roleFilters.find((f) => f.value === filterRole)?.label })
+                      ? t('noMembersWithRole', {
+                          role: roleFilters.find((f) => f.value === filterRole)?.label,
+                        })
                       : t('noMembers')}
               </h3>
               <p className="text-text-secondary">
@@ -694,13 +688,11 @@ export default function UsersPage() {
                     );
                   })}
                 </div>
-                <p className="mt-1 text-xs text-text-tertiary">
-                  {t('ownerNote')}
-                </p>
+                <p className="mt-1 text-xs text-text-tertiary">{t('ownerNote')}</p>
               </div>
 
               <div className="py-2">
-                <div className="flex items-center justify-between rounded-xl border border-border p-3 ">
+                <div className="flex items-center justify-between rounded-xl border border-border p-3">
                   <div className="flex items-center gap-3">
                     <div
                       className={`rounded-lg p-2 ${editFormData.isActive ? 'bg-success-500/10 text-success-500' : 'bg-surface-secondary text-text-tertiary'}`}
@@ -765,7 +757,8 @@ export default function UsersPage() {
           >
             <div className="space-y-4">
               <p className="text-text-primary">
-                {t('deleteConfirmBefore')} <strong>{modalUser.name}</strong>{t('deleteConfirmAfter')}
+                {t('deleteConfirmBefore')} <strong>{modalUser.name}</strong>
+                {t('deleteConfirmAfter')}
               </p>
               <div className="flex gap-3 pt-4">
                 <button
@@ -800,28 +793,28 @@ export default function UsersPage() {
             title={t('transferModalTitle')}
           >
             <div className="space-y-4">
-              <div className="rounded-xl bg-warning-500/10 p-4 text-warning-600">
+              <div className="bg-warning-500/10 rounded-xl p-4 text-warning-600">
                 <div className="flex gap-3">
                   <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-                  <p className="text-sm font-medium">
-                    {t('transferWarningHeading')}
-                  </p>
+                  <p className="text-sm font-medium">{t('transferWarningHeading')}</p>
                 </div>
                 <p className="mt-2 text-sm opacity-90">
-                  {t('transferWarningBefore')} <strong>{modalUser.name}</strong> {t('transferWarningAfter')}
+                  {t('transferWarningBefore')} <strong>{modalUser.name}</strong>{' '}
+                  {t('transferWarningAfter')}
                 </p>
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-text-primary">
-                  {t('transferConfirmBefore')} <strong>{t('transferConfirmKeyword')}</strong> {t('transferConfirmAfter')}
+                  {t('transferConfirmBefore')} <strong>{t('transferConfirmKeyword')}</strong>{' '}
+                  {t('transferConfirmAfter')}
                 </label>
                 <input
                   type="text"
                   value={confirmTransferName}
                   onChange={(e) => setConfirmTransferName(e.target.value)}
                   placeholder={t('transferConfirmPlaceholder')}
-                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary outline-none focus:border-border-hover focus:ring-4 focus:ring-border-focus/5"
+                  className="focus:ring-border-focus/5 w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary outline-none focus:border-border-hover focus:ring-4"
                 />
               </div>
 
@@ -834,7 +827,10 @@ export default function UsersPage() {
                 </button>
                 <button
                   onClick={handleTransferOwnership}
-                  disabled={transferOwnership.isPending || confirmTransferName !== t('transferConfirmKeyword')}
+                  disabled={
+                    transferOwnership.isPending ||
+                    confirmTransferName !== t('transferConfirmKeyword')
+                  }
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-warning-500 px-4 py-3 font-medium text-brand-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   title={
                     confirmTransferName !== t('transferConfirmKeyword') ? t('writeConfirmar') : ''

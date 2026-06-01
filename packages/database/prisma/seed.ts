@@ -444,8 +444,7 @@ const notifications: NotificationSeed[] = [
     code: '0000-0110',
     version: 1,
     titleTemplate: 'Aviso De Creditos Bajos.',
-    messageTemplate:
-      'Tu organizacion tiene pocos creditos disponibles. Te quedan %s creditos.',
+    messageTemplate: 'Tu organizacion tiene pocos creditos disponibles. Te quedan %s creditos.',
     targetRoles: ['OWNER', 'ADMIN'],
     isActive: true,
   },
@@ -480,8 +479,7 @@ const notifications: NotificationSeed[] = [
     code: '0000-0114',
     version: 1,
     titleTemplate: 'Intervencion Humana Requerida.',
-    messageTemplate:
-      'La conversacion %s del workflow %s requiere atencion humana. Motivo: %s.',
+    messageTemplate: 'La conversacion %s del workflow %s requiere atencion humana. Motivo: %s.',
     targetRoles: ['OWNER', 'ADMIN'],
     isActive: true,
   },

@@ -176,7 +176,10 @@ describe('TenantToolService', () => {
   describe('updateTenantTool', () => {
     it('returns updated tool on success', async () => {
       const updated = { id: 'u1', displayName: 'U' };
-      mockPrismaService.tenantTool.findFirst.mockResolvedValue({ id: 'u1', organizationId: 'org-1' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue({
+        id: 'u1',
+        organizationId: 'org-1',
+      });
       mockPrismaService.tenantTool.update.mockResolvedValue(updated);
       const res = await service.updateTenantTool('u1', 'org-1', 'user-1', 'owner', {
         displayName: 'U',
@@ -185,7 +188,10 @@ describe('TenantToolService', () => {
     });
 
     it('returns null and logs on error', async () => {
-      mockPrismaService.tenantTool.findFirst.mockResolvedValue({ id: 'u1', organizationId: 'org-1' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue({
+        id: 'u1',
+        organizationId: 'org-1',
+      });
       mockPrismaService.tenantTool.update.mockRejectedValue(new Error('bomb'));
       const res = await service.updateTenantTool('u1', 'org-1', 'user-1', 'owner', {
         displayName: 'U',
@@ -198,7 +204,10 @@ describe('TenantToolService', () => {
   describe('add/remove workflows', () => {
     it('adds workflows', async () => {
       const updated = { id: 't1' };
-      mockPrismaService.tenantTool.findFirst.mockResolvedValue({ id: 't1', organizationId: 'org-1' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue({
+        id: 't1',
+        organizationId: 'org-1',
+      });
       mockPrismaService.tenantTool.update.mockResolvedValue(updated);
       const res = await service.addWorkflowToTenantTool('t1', 'org-1', 'user-1', 'owner', ['w1']);
       expect(mockPrismaService.tenantTool.update).toHaveBeenCalledWith(
@@ -209,7 +218,10 @@ describe('TenantToolService', () => {
 
     it('removes workflows', async () => {
       const updated = { id: 't1' };
-      mockPrismaService.tenantTool.findFirst.mockResolvedValue({ id: 't1', organizationId: 'org-1' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue({
+        id: 't1',
+        organizationId: 'org-1',
+      });
       mockPrismaService.tenantTool.update.mockResolvedValue(updated);
       const res = await service.removeWorkflowFromTenantTool('t1', 'org-1', 'user-1', 'owner', [
         'w1',

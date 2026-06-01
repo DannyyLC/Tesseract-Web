@@ -231,19 +231,15 @@ export default function PlansPage() {
 
         {/* Header */}
         <div className="space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight text-text-primary">
-            {t('heading')}
-          </h1>
-          <p className="max-w-xl font-medium text-text-secondary">
-            {t('description')}
-          </p>
+          <h1 className="text-4xl font-bold tracking-tight text-text-primary">{t('heading')}</h1>
+          <p className="max-w-xl font-medium text-text-secondary">{t('description')}</p>
         </div>
 
         {/* Past Due / Failed Payment Banner */}
         {subscription.status?.toUpperCase() === 'PAST_DUE' && (
-          <div className="flex items-center justify-between gap-4 rounded-2xl border border-danger-500/20 bg-danger/5 p-5">
+          <div className="border-danger-500/20 bg-danger/5 flex items-center justify-between gap-4 rounded-2xl border p-5">
             <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger/10">
+              <div className="bg-danger/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
                 <AlertCircle size={20} className="text-danger" />
               </div>
               <div>
@@ -256,7 +252,7 @@ export default function PlansPage() {
                 const { url } = await createPortalSession.mutateAsync();
                 goToStripe(url);
               }}
-              className="shrink-0 rounded-lg bg-danger/10 px-4 py-2 text-sm font-bold text-danger-600 transition-colors hover:bg-danger/20"
+              className="bg-danger/10 hover:bg-danger/20 shrink-0 rounded-lg px-4 py-2 text-sm font-bold text-danger-600 transition-colors"
             >
               {t('updatePayment')}
             </button>
@@ -265,9 +261,9 @@ export default function PlansPage() {
 
         {/* Pending Plan Change Banner */}
         {subscription.pendingPlanChange && (
-          <div className="flex items-center justify-between gap-4 rounded-2xl border border-info-500/20 bg-info/5 p-5">
+          <div className="border-info-500/20 bg-info/5 flex items-center justify-between gap-4 rounded-2xl border p-5">
             <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-info/10">
+              <div className="bg-info/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
                 <ArrowDownRight size={20} className="text-info" />
               </div>
               <div>
@@ -292,7 +288,7 @@ export default function PlansPage() {
             <button
               onClick={() => setShowCancelDowngradeModal(true)}
               disabled={isCancellingDowngrade}
-              className="shrink-0 rounded-lg bg-info/10 px-4 py-2 text-sm font-bold text-info-600 transition-colors hover:bg-info/20 disabled:opacity-50"
+              className="bg-info/10 hover:bg-info/20 shrink-0 rounded-lg px-4 py-2 text-sm font-bold text-info-600 transition-colors disabled:opacity-50"
             >
               {isCancellingDowngrade ? (
                 <span className="flex items-center gap-2">
@@ -333,7 +329,7 @@ export default function PlansPage() {
                 <>
                   <button
                     onClick={() => setShowResumeModal(true)}
-                    className="group flex items-center gap-2 rounded-xl border border-success-500/20 bg-success-500/5 px-6 py-3 text-sm font-bold text-success-500/70 shadow-sm transition-all hover:border-success-500 hover:bg-success-500/10 hover:text-success-500"
+                    className="border-success-500/20 bg-success-500/5 text-success-500/70 hover:bg-success-500/10 group flex items-center gap-2 rounded-xl border px-6 py-3 text-sm font-bold shadow-sm transition-all hover:border-success-500 hover:text-success-500"
                   >
                     {t('reactivate')}
                   </button>
@@ -342,14 +338,14 @@ export default function PlansPage() {
                   </p>
                 </>
               ) : subscription.pendingPlanChange ? (
-                <p className="text-[10px] font-medium uppercase tracking-widest text-warning-500/70">
+                <p className="text-warning-500/70 text-[10px] font-medium uppercase tracking-widest">
                   {t('cancelPendingFirst')}
                 </p>
               ) : (
                 <>
                   <button
                     onClick={handleCancelClick}
-                    className="group flex items-center gap-2 rounded-xl border border-danger-500/20 bg-danger/5 px-6 py-3 text-sm font-bold text-danger/70 shadow-sm transition-all hover:border-danger-500 hover:bg-danger/10 hover:text-danger"
+                    className="border-danger-500/20 bg-danger/5 text-danger/70 hover:bg-danger/10 group flex items-center gap-2 rounded-xl border px-6 py-3 text-sm font-bold shadow-sm transition-all hover:border-danger-500 hover:text-danger"
                   >
                     {t('cancelSubscription')}
                   </button>
@@ -377,7 +373,7 @@ export default function PlansPage() {
               </p>
 
               {isUpgrade ? (
-                <div className="rounded-lg bg-info/10 p-4 text-sm text-info-600">
+                <div className="bg-info/10 rounded-lg p-4 text-sm text-info-600">
                   <p>
                     <strong>{t('immediateUpgrade')}</strong>
                   </p>
@@ -388,7 +384,7 @@ export default function PlansPage() {
                   </ul>
                 </div>
               ) : (
-                <div className="rounded-lg bg-warning-500/10 p-4 text-sm text-warning-600">
+                <div className="bg-warning-500/10 rounded-lg p-4 text-sm text-warning-600">
                   <p>
                     <strong>{t('scheduledChange')}</strong>
                   </p>
@@ -427,7 +423,7 @@ export default function PlansPage() {
           title={t('adviceTitle')}
         >
           <div className="space-y-4">
-            <div className="rounded-lg bg-info/10 p-4 text-sm text-info-600">
+            <div className="bg-info/10 rounded-lg p-4 text-sm text-info-600">
               <p>{t('adviceText')}</p>
             </div>
 
@@ -455,7 +451,7 @@ export default function PlansPage() {
           title={t('cancelModalTitle')}
         >
           <div className="space-y-4">
-            <div className="rounded-lg bg-danger/10 p-4 text-sm text-danger-600">
+            <div className="bg-danger/10 rounded-lg p-4 text-sm text-danger-600">
               <p className="mb-2 font-bold">{t('cancelConfirmHeading')}</p>
               <p>{t('cancelConfirmDesc')}</p>
             </div>
@@ -499,7 +495,7 @@ export default function PlansPage() {
           title={t('reactivateModalTitle')}
         >
           <div className="space-y-4">
-            <div className="rounded-lg bg-success-500/10 p-4 text-sm text-success-600">
+            <div className="bg-success-500/10 rounded-lg p-4 text-sm text-success-600">
               <p className="mb-2 font-bold">{t('reactivateConfirmHeading')}</p>
               <p>{t('reactivateConfirmDesc')}</p>
             </div>
@@ -535,7 +531,7 @@ export default function PlansPage() {
               <span className="font-bold">{subscription.pendingPlanChange}</span>?
             </p>
 
-            <div className="rounded-xl border border-info-500/20 bg-info/5 p-4 text-sm text-info-600">
+            <div className="border-info-500/20 bg-info/5 rounded-xl border p-4 text-sm text-info-600">
               {t('keepCurrentPlanBefore')} (<span className="font-bold">{subscription.plan}</span>){' '}
               {t('keepCurrentPlanAfter')}
             </div>
@@ -570,13 +566,14 @@ export default function PlansPage() {
           title=""
         >
           <div className="flex flex-col items-center space-y-6 py-4">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-success-500/10">
+            <div className="bg-success-500/10 flex h-20 w-20 items-center justify-center rounded-full">
               <PartyPopper size={40} className="text-success-500" />
             </div>
             <div className="space-y-2 text-center">
               <h3 className="text-2xl font-bold text-text-primary">{t('planUpdatedHeading')}</h3>
               <p className="max-w-sm text-sm text-text-secondary">
-                {t('planUpdatedTextBefore')} <strong>{changedPlanName}</strong>{t('planUpdatedTextAfter')}
+                {t('planUpdatedTextBefore')} <strong>{changedPlanName}</strong>
+                {t('planUpdatedTextAfter')}
               </p>
             </div>
             <button
@@ -591,7 +588,7 @@ export default function PlansPage() {
         {/* Resume Success Modal */}
         <Modal isOpen={showResumeSuccess} onClose={() => setShowResumeSuccess(false)} title="">
           <div className="flex flex-col items-center space-y-6 py-4">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-success-500/10">
+            <div className="bg-success-500/10 flex h-20 w-20 items-center justify-center rounded-full">
               <RefreshCw size={40} className="text-success-500" />
             </div>
             <div className="space-y-2 text-center">
@@ -613,9 +610,7 @@ export default function PlansPage() {
             <h2 className="text-3xl font-bold tracking-tight text-text-primary">
               {t('eliteServicesHeading')}
             </h2>
-            <p className="max-w-xl font-medium text-text-secondary">
-              {t('eliteServicesDesc')}
-            </p>
+            <p className="max-w-xl font-medium text-text-secondary">{t('eliteServicesDesc')}</p>
           </div>
           <SpecializedCards />
         </div>

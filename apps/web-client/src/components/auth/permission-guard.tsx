@@ -68,9 +68,9 @@ export default function PermissionGuard({
       // Redirect to fallback if authenticated but lacks permission
       router.push(fallbackRoute);
     }
-  // router se omite de deps intencionalmente: su identidad cambia en cada render
-  // con next-intl pero su comportamiento es estable. Incluirlo causaría un bucle.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // router se omite de deps intencionalmente: su identidad cambia en cada render
+    // con next-intl pero su comportamiento es estable. Incluirlo causaría un bucle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isLoading, redirect, fallbackRoute, allowed]);
 
   // Handle loading state only if it's a route guard (redirect = true)

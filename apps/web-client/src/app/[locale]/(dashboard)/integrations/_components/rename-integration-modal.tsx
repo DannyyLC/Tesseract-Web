@@ -14,7 +14,12 @@ interface RenameIntegrationModalProps {
   currentName: string;
 }
 
-export function RenameIntegrationModal({ isOpen, onClose, toolId, currentName }: RenameIntegrationModalProps) {
+export function RenameIntegrationModal({
+  isOpen,
+  onClose,
+  toolId,
+  currentName,
+}: RenameIntegrationModalProps) {
   const t = useTranslations('Integrations');
   const [displayName, setDisplayName] = useState(currentName);
   const { updateTenantTool } = useTenantToolMutations();

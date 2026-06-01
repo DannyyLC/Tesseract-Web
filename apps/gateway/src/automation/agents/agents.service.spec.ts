@@ -92,7 +92,9 @@ describe('AgentsService', () => {
       const error = { code: grpc.status.UNAVAILABLE, message: 'unavailable' };
       mockGrpcClient.execute.mockImplementation((_req, _meta, _opts, cb) => cb(error));
 
-      await expect(service.execute(mockRequest)).rejects.toBeInstanceOf(ServiceUnavailableException);
+      await expect(service.execute(mockRequest)).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
     });
 
     it('should throw InternalServerErrorException for non-retryable errors', async () => {

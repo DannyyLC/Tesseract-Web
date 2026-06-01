@@ -162,9 +162,7 @@ export default function WorkflowsPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-text-primary">{t('heading')}</h1>
-            <p className="mt-1 text-text-secondary">
-              {t('description')}
-            </p>
+            <p className="mt-1 text-text-secondary">{t('description')}</p>
           </div>
 
           <PermissionGuard permissions="workflows:create">
@@ -212,9 +210,7 @@ export default function WorkflowsPage() {
               <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {formatNumber(globalStats?.totalExecutionsMonth ?? 0)}
               </p>
-              <span className="px-2 py-0.5 text-xs font-medium text-info">
-                {t('last30Days')}
-              </span>
+              <span className="px-2 py-0.5 text-xs font-medium text-info">{t('last30Days')}</span>
             </div>
           </motion.div>
 
@@ -307,7 +303,7 @@ export default function WorkflowsPage() {
         <div className="relative min-h-[200px] space-y-3">
           {/* Loading Overlay */}
           {isLoading && (
-            <div className="absolute inset-0 z-10 flex items-start justify-center rounded-2xl bg-surface/50 pt-10 backdrop-blur-[1px]">
+            <div className="bg-surface/50 absolute inset-0 z-10 flex items-start justify-center rounded-2xl pt-10 backdrop-blur-[1px]">
               <LogoLoader />
             </div>
           )}
@@ -328,12 +324,8 @@ export default function WorkflowsPage() {
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-secondary">
                 <Search size={24} className="text-text-tertiary" />
               </div>
-              <h3 className="mb-2 text-lg font-semibold text-text-primary">
-                {t('noWorkflows')}
-              </h3>
-              <p className="text-text-secondary">
-                {t('noWorkflowsDesc')}
-              </p>
+              <h3 className="mb-2 text-lg font-semibold text-text-primary">{t('noWorkflows')}</h3>
+              <p className="text-text-secondary">{t('noWorkflowsDesc')}</p>
             </motion.div>
           )}
         </div>
@@ -369,12 +361,8 @@ export default function WorkflowsPage() {
             >
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <p className="text-sm text-text-secondary">
-                    {t('newModalText1')}
-                  </p>
-                  <p className="text-sm text-text-secondary">
-                    {t('newModalText2')}
-                  </p>
+                  <p className="text-sm text-text-secondary">{t('newModalText1')}</p>
+                  <p className="text-sm text-text-secondary">{t('newModalText2')}</p>
                 </div>
 
                 <div className="flex gap-3">

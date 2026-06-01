@@ -100,9 +100,7 @@ export default function BillingPage() {
               <h1 className="text-4xl font-bold tracking-tight text-text-primary">
                 {t('heading')}
               </h1>
-              <p className="max-w-sm font-medium text-text-secondary">
-                {t('description')}
-              </p>
+              <p className="max-w-sm font-medium text-text-secondary">{t('description')}</p>
             </div>
             <div className="flex gap-3">
               <PermissionGuard permissions="billing:checkout">
@@ -181,16 +179,12 @@ export default function BillingPage() {
       {/* Success Modal after Checkout */}
       <Modal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} title="">
         <div className="flex flex-col items-center space-y-6 py-4">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-success-500/10">
+          <div className="bg-success-500/10 flex h-20 w-20 items-center justify-center rounded-full">
             <PartyPopper size={40} className="text-success-500" />
           </div>
           <div className="space-y-2 text-center">
-            <h3 className="text-2xl font-bold text-text-primary">
-              {t('successHeading')}
-            </h3>
-            <p className="max-w-sm text-sm text-text-secondary">
-              {t('successText')}
-            </p>
+            <h3 className="text-2xl font-bold text-text-primary">{t('successHeading')}</h3>
+            <p className="max-w-sm text-sm text-text-secondary">{t('successText')}</p>
           </div>
           <button
             onClick={() => setShowSuccessModal(false)}

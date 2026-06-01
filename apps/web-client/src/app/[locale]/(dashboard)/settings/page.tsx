@@ -2,7 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { useOrganizationDashboard, useOrganizationMutations } from '@/hooks/identity/use-organizations';
+import {
+  useOrganizationDashboard,
+  useOrganizationMutations,
+} from '@/hooks/identity/use-organizations';
 import { toast } from 'sonner';
 import { Loader2, Trash2, AlertTriangle, Building2 } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
@@ -97,9 +100,7 @@ export default function SettingsPage() {
       <div className="max-w-5xl space-y-8 p-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t('heading')}</h1>
-          <p className="text-muted-foreground mt-2">
-            {t('description')}
-          </p>
+          <p className="text-muted-foreground mt-2">{t('description')}</p>
         </div>
 
         {/* General Settings Section */}
@@ -110,9 +111,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <h2 className="text-lg font-semibold">{t('generalTitle')}</h2>
-              <p className="text-muted-foreground text-sm">
-                {t('generalDesc')}
-              </p>
+              <p className="text-muted-foreground text-sm">{t('generalDesc')}</p>
             </div>
           </div>
 
@@ -157,29 +156,21 @@ export default function SettingsPage() {
 
         {/* Danger Zone Section */}
         <PermissionGuard permissions="organization:delete">
-          <section className="space-y-6 rounded-2xl border border-danger-500 bg-danger-500/5 p-6">
+          <section className="bg-danger-500/5 space-y-6 rounded-2xl border border-danger-500 p-6">
             <div className="flex items-center gap-3 border-b border-danger-500 pb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-danger-500/10 text-danger-500">
+              <div className="bg-danger-500/10 flex h-10 w-10 items-center justify-center rounded-lg text-danger-500">
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-danger-500">
-                  {t('dangerZoneTitle')}
-                </h2>
-                <p className="text-sm text-danger-500/80">
-                  {t('dangerZoneDesc')}
-                </p>
+                <h2 className="text-lg font-semibold text-danger-500">{t('dangerZoneTitle')}</h2>
+                <p className="text-danger-500/80 text-sm">{t('dangerZoneDesc')}</p>
               </div>
             </div>
 
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <h3 className="font-medium text-danger-500">
-                  {t('deleteOrgTitle')}
-                </h3>
-                <p className="text-sm text-danger-500/80">
-                  {t('deleteOrgDesc')}
-                </p>
+                <h3 className="font-medium text-danger-500">{t('deleteOrgTitle')}</h3>
+                <p className="text-danger-500/80 text-sm">{t('deleteOrgDesc')}</p>
               </div>
               <button
                 onClick={() => {
@@ -188,7 +179,7 @@ export default function SettingsPage() {
                   setCode2FA('');
                   setIsAgreed(false);
                 }}
-                className="focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md border border-danger-500 bg-transparent px-4 py-2 text-sm font-medium text-danger-500 ring-offset-background transition-colors hover:bg-danger-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                className="focus-visible:ring-ring hover:bg-danger-500/10 inline-flex h-10 items-center justify-center rounded-md border border-danger-500 bg-transparent px-4 py-2 text-sm font-medium text-danger-500 ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 {t('deleteButton')}
@@ -209,14 +200,14 @@ export default function SettingsPage() {
           title={t('deleteModalTitle')}
         >
           <div className="space-y-4">
-            <div className="rounded-lg bg-danger-500/10 p-4">
+            <div className="bg-danger-500/10 rounded-lg p-4">
               <div className="flex gap-3">
                 <AlertTriangle className="h-5 w-5 text-danger-500" />
                 <div className="text-sm text-danger-500">
                   <p className="font-semibold">{t('deleteWarningHeading')}</p>
                   <p className="mt-1">
-                    {t('deleteWarningBefore')}{' '}
-                    <strong>{orgData.name}</strong>{t('deleteWarningAfter')}
+                    {t('deleteWarningBefore')} <strong>{orgData.name}</strong>
+                    {t('deleteWarningAfter')}
                   </p>
                 </div>
               </div>
@@ -257,9 +248,7 @@ export default function SettingsPage() {
                 onChange={(e) => setIsAgreed(e.target.checked)}
                 className="mt-1 h-4 w-4 rounded border-gray-300 text-danger-600 focus:ring-danger-500"
               />
-              <span className="text-foreground/80 text-sm">
-                {t('agreeCheckboxLabel')}
-              </span>
+              <span className="text-foreground/80 text-sm">{t('agreeCheckboxLabel')}</span>
             </label>
 
             <div className="flex justify-end gap-3 pt-4">

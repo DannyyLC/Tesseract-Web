@@ -146,7 +146,7 @@ export default function OverageCard({
           disabled={isToggling}
           title={allowOverages ? t('deactivateTitle') : t('activateTitle')}
           aria-label={allowOverages ? t('deactivateTitle') : t('activateTitle')}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus/20 focus:ring-offset-2 focus:ring-offset-surface disabled:opacity-50 ${
+          className={`focus:ring-border-focus/20 relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface disabled:opacity-50 ${
             allowOverages ? 'bg-accent' : 'bg-border-hover'
           }`}
         >
@@ -173,9 +173,7 @@ export default function OverageCard({
             <div className="mt-5 border-t border-border pt-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-text-primary">
-                    {t('limitHeading')}
-                  </p>
+                  <p className="text-sm font-medium text-text-primary">{t('limitHeading')}</p>
                   <p className="text-xs text-text-tertiary">
                     {t('maxCredits', { max: maxOverageLimit.toLocaleString() })}
                   </p>
@@ -215,9 +213,7 @@ export default function OverageCard({
 
               {/* Estimated cost */}
               <div className="mt-3 flex items-center justify-between rounded-xl bg-surface-muted px-4 py-2.5">
-                <span className="text-xs text-text-tertiary">
-                  {t('estimatedCost')}
-                </span>
+                <span className="text-xs text-text-tertiary">{t('estimatedCost')}</span>
                 <span className="font-geist-mono text-sm font-medium text-text-primary">
                   ${estimatedCost} USD
                 </span>

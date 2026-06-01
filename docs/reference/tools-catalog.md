@@ -13,19 +13,19 @@ Las tools se conectan al sistema como `TenantTool` y se asignan a agentes dentro
 
 ### Credenciales requeridas
 
-| Campo | Descripcion |
-|---|---|
-| `accessToken` | Token de acceso OAuth (se renueva automaticamente) |
-| `refreshToken` | Token de renovacion |
-| `clientId` | Client ID de la app OAuth en Google Cloud Console |
-| `clientSecret` | Client Secret de la app OAuth |
+| Campo          | Descripcion                                        |
+| -------------- | -------------------------------------------------- |
+| `accessToken`  | Token de acceso OAuth (se renueva automaticamente) |
+| `refreshToken` | Token de renovacion                                |
+| `clientId`     | Client ID de la app OAuth en Google Cloud Console  |
+| `clientSecret` | Client Secret de la app OAuth                      |
 
 ### Configuracion del tenant (`TenantTool.config`)
 
-| Campo | Tipo | Default | Descripcion |
-|---|---|---|---|
+| Campo         | Tipo   | Default     | Descripcion                                                                                                     |
+| ------------- | ------ | ----------- | --------------------------------------------------------------------------------------------------------------- |
 | `calendar_id` | string | `"primary"` | ID del calendario. Usar `"primary"` para el calendario principal o el ID especifico de un calendario secundario |
-| `timezone` | string | `"UTC"` | Zona horaria para interpretar y mostrar fechas. Ej: `"America/Mexico_City"`, `"America/Bogota"` |
+| `timezone`    | string | `"UTC"`     | Zona horaria para interpretar y mostrar fechas. Ej: `"America/Mexico_City"`, `"America/Bogota"`                 |
 
 ```json
 {
@@ -36,14 +36,14 @@ Las tools se conectan al sistema como `TenantTool` y se asignan a agentes dentro
 
 ### Funciones disponibles
 
-| Nombre | Descripcion |
-|---|---|
-| `check_calendar_availability` | Verifica si un slot esta disponible (fecha, hora, duracion) |
-| `create_calendar_event` | Crea un nuevo evento (titulo, fecha, hora, asistentes, ubicacion) |
-| `list_calendar_events` | Lista eventos en un rango de fechas |
-| `update_calendar_event` | Actualiza titulo, horario, asistentes o ubicacion de un evento existente |
-| `delete_calendar_event` | Elimina un evento por ID |
-| `get_calendar_event_details` | Obtiene todos los detalles de un evento por ID |
+| Nombre                        | Descripcion                                                              |
+| ----------------------------- | ------------------------------------------------------------------------ |
+| `check_calendar_availability` | Verifica si un slot esta disponible (fecha, hora, duracion)              |
+| `create_calendar_event`       | Crea un nuevo evento (titulo, fecha, hora, asistentes, ubicacion)        |
+| `list_calendar_events`        | Lista eventos en un rango de fechas                                      |
+| `update_calendar_event`       | Actualiza titulo, horario, asistentes o ubicacion de un evento existente |
+| `delete_calendar_event`       | Elimina un evento por ID                                                 |
+| `get_calendar_event_details`  | Obtiene todos los detalles de un evento por ID                           |
 
 ### Ejemplo de config en workflow
 
@@ -89,11 +89,11 @@ Ninguna.
 
 ### Funciones disponibles
 
-| Nombre | Descripcion | Ejemplo |
-|---|---|---|
-| `calculator` | Evalua expresiones matematicas: `+`, `-`, `*`, `/`, `%`, `**`, parentesis | `"(10 + 5) * 2"` → `30.0` |
-| `percentage` | Calcula el porcentaje de un valor | `percentage(2350, 15)` → `352.5` |
-| `currency_convert` | Convierte entre monedas (mock) | `100 USD → 1700 MXN` |
+| Nombre             | Descripcion                                                               | Ejemplo                          |
+| ------------------ | ------------------------------------------------------------------------- | -------------------------------- |
+| `calculator`       | Evalua expresiones matematicas: `+`, `-`, `*`, `/`, `%`, `**`, parentesis | `"(10 + 5) * 2"` → `30.0`        |
+| `percentage`       | Calcula el porcentaje de un valor                                         | `percentage(2350, 15)` → `352.5` |
+| `currency_convert` | Convierte entre monedas (mock)                                            | `100 USD → 1700 MXN`             |
 
 > **Nota:** `currency_convert` usa tasas fijas de referencia. Para produccion con tasas reales, se debe integrar con una API de tipo exchangerate-api o fixer.io.
 
@@ -129,8 +129,8 @@ Ninguna.
 
 ### Funciones disponibles
 
-| Nombre | Descripcion |
-|---|---|
+| Nombre                  | Descripcion                                                       |
+| ----------------------- | ----------------------------------------------------------------- |
 | `request_human_handoff` | Solicita escalar la conversacion a un humano, con un motivo breve |
 
 **Payload que genera la tool:**
@@ -170,15 +170,16 @@ El Gateway detecta este payload en la respuesta del agente y activa la bandera d
 ### Credenciales requeridas
 
 Ninguna desde el punto de vista del agente. El Gateway inyecta en runtime:
+
 - `from_number` — número remitente (E.164), tomado del `WhatsAppConfig`
 - `api_key` — YCloud API key, tomado de `Y_CLOUD_API_KEY` en `.env`
 - `available_templates` — mapa de templates activos del `WhatsAppConfig`
 
 ### Configuracion del tenant (`TenantTool.config`)
 
-| Campo | Tipo | Requerido | Descripcion |
-|---|---|---|---|
-| `whatsapp_config_id` | string (UUID) | **Sí** | ID del `WhatsAppConfig` desde el que se enviaran los mensajes. Determina el número remitente y los templates disponibles. |
+| Campo                | Tipo          | Requerido | Descripcion                                                                                                               |
+| -------------------- | ------------- | --------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `whatsapp_config_id` | string (UUID) | **Sí**    | ID del `WhatsAppConfig` desde el que se enviaran los mensajes. Determina el número remitente y los templates disponibles. |
 
 ```json
 {
@@ -190,8 +191,8 @@ Ninguna desde el punto de vista del agente. El Gateway inyecta en runtime:
 
 ### Funciones disponibles
 
-| Nombre | Descripcion |
-|---|---|
+| Nombre               | Descripcion                                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `send_bulk_whatsapp` | Envia mensajes de plantilla a una lista de destinatarios. Requiere `to` (número E.164), `template_id` (UUID del `WhatsAppTemplate`), y `variables` (dict con claves `body`, `header`, `buttons`) |
 
 ### Ejemplo de config en workflow
@@ -209,6 +210,7 @@ Ninguna desde el punto de vista del agente. El Gateway inyecta en runtime:
 ```
 
 Con `TenantTool.config`:
+
 ```json
 {
   "whatsapp_config_id": "uuid-del-whatsapp-config-de-la-clinica"
@@ -218,6 +220,7 @@ Con `TenantTool.config`:
 ### Templates disponibles
 
 Los templates se administran en `WhatsAppConfig > Templates` (CRUD via `/whatsapp-config/:configId/templates`). Cada template tiene:
+
 - `id` — UUID que el agente usa como `template_id`
 - `name` — nombre registrado en Meta Business Manager
 - `language` — código de idioma (ej: `es_MX`, `en_US`)
@@ -274,6 +277,7 @@ Es posible conectar la misma tool dos veces con configuraciones distintas. Por e
 ```
 
 El sistema diferencia las funciones automaticamente agregando un sufijo con el `display_name`:
+
 - `check_calendar_availability_Calendario_Ventas`
 - `check_calendar_availability_Calendario_Soporte`
 

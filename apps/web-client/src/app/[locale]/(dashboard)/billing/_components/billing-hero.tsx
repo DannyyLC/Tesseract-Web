@@ -140,12 +140,12 @@ export default function BillingHero({
           {/* Billing Info */}
           <div className="space-y-1">
             {cancelAtPeriodEnd ? (
-              <div className="inline-flex items-center gap-2 rounded-full bg-warning-500/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-warning-400">
+              <div className="bg-warning-500/20 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest text-warning-400">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-warning-500" />
                 {t('pendingCancellation')}
               </div>
             ) : pendingPlanChange ? (
-              <div className="inline-flex items-center gap-2 rounded-full bg-info/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-info-400">
+              <div className="bg-info/20 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest text-info-400">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-info" />
                 {t('scheduledChange', { plan: pendingPlanChange })}
               </div>
@@ -161,7 +161,7 @@ export default function BillingHero({
             {(status === 'PAST_DUE' || status === 'past_due') && (
               <p className="max-w-[200px] text-right text-xs text-danger-400">
                 {t.rich('paymentFailedText', {
-                  bold: (chunks) => <strong>{chunks}</strong>
+                  bold: (chunks) => <strong>{chunks}</strong>,
                 })}
               </p>
             )}
@@ -176,7 +176,9 @@ export default function BillingHero({
                 ) : pendingPlanChange ? (
                   <>
                     <ArrowDownRight size={14} />
-                    <span>{t('changesTo', { plan: pendingPlanChange, date: nextDateFormatted })}</span>
+                    <span>
+                      {t('changesTo', { plan: pendingPlanChange, date: nextDateFormatted })}
+                    </span>
                   </>
                 ) : (
                   <>

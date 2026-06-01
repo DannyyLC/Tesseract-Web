@@ -9,10 +9,20 @@ export const metadata: Metadata = {
     'Políticas de cancelación, suspensión, niveles de servicio, soporte técnico y uso aceptable de Fractal.',
 };
 
-function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+function Section({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section id={id} className="scroll-mt-24">
-      <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
+      <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
+        {title}
+      </h2>
       <div className="space-y-3 leading-relaxed text-[var(--text-secondary)]">{children}</div>
     </section>
   );
@@ -46,7 +56,10 @@ function InfoTable({ rows }: { rows: [string, string][] }) {
       <table className="w-full text-sm">
         <tbody>
           {rows.map(([label, value], i) => (
-            <tr key={label} className={i % 2 === 0 ? 'bg-[var(--surface-secondary)]' : 'bg-[var(--surface)]'}>
+            <tr
+              key={label}
+              className={i % 2 === 0 ? 'bg-[var(--surface-secondary)]' : 'bg-[var(--surface)]'}
+            >
               <td className="w-1/3 px-4 py-3 font-medium text-[var(--text-primary)]">{label}</td>
               <td className="px-4 py-3 text-[var(--text-secondary)]">{value}</td>
             </tr>
@@ -120,28 +133,40 @@ export default async function PoliciesPage() {
               <BulletList items={[t('s3Bullet1'), t('s3Bullet2'), t('s3Bullet3')]} />
             </SubSection>
             <SubSection title={t('s3Sub2Title')}>
-              <InfoTable rows={[
-                [t('s3Row1Label'), t('s3Row1Value')],
-                [t('s3Row2Label'), t('s3Row2Value')],
-                [t('s3Row3Label'), t('s3Row3Value')],
-                [t('s3Row4Label'), t('s3Row4Value')],
-                [t('s3Row5Label'), t('s3Row5Value')],
-                [t('s3Row6Label'), t('s3Row6Value')],
-              ]} />
+              <InfoTable
+                rows={[
+                  [t('s3Row1Label'), t('s3Row1Value')],
+                  [t('s3Row2Label'), t('s3Row2Value')],
+                  [t('s3Row3Label'), t('s3Row3Value')],
+                  [t('s3Row4Label'), t('s3Row4Value')],
+                  [t('s3Row5Label'), t('s3Row5Value')],
+                  [t('s3Row6Label'), t('s3Row6Value')],
+                ]}
+              />
             </SubSection>
           </Section>
 
           <Section id={t('s4Id')} title={t('s4Title')}>
             <SubSection title={t('s4Sub1Title')}>
-              <BulletList items={[t('s4Bullet1'), t('s4Bullet2'), t('s4Bullet3'), t('s4Bullet4'), t('s4Bullet5')]} />
+              <BulletList
+                items={[
+                  t('s4Bullet1'),
+                  t('s4Bullet2'),
+                  t('s4Bullet3'),
+                  t('s4Bullet4'),
+                  t('s4Bullet5'),
+                ]}
+              />
             </SubSection>
             <SubSection title={t('s4Sub2Title')}>
-              <InfoTable rows={[
-                [t('s4Row1Label'), t('s4Row1Value')],
-                [t('s4Row2Label'), t('s4Row2Value')],
-                [t('s4Row3Label'), t('s4Row3Value')],
-                [t('s4Row4Label'), t('s4Row4Value')],
-              ]} />
+              <InfoTable
+                rows={[
+                  [t('s4Row1Label'), t('s4Row1Value')],
+                  [t('s4Row2Label'), t('s4Row2Value')],
+                  [t('s4Row3Label'), t('s4Row3Value')],
+                  [t('s4Row4Label'), t('s4Row4Value')],
+                ]}
+              />
             </SubSection>
           </Section>
 

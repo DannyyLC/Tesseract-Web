@@ -18,18 +18,17 @@ export interface BillingDashboardData {
   };
 
   usage: {
-    workflows: { 
-      used: number; 
-      limit: number 
+    workflows: {
+      used: number;
+      limit: number;
     };
-    apiKeys: { 
-      used: 
-      number; 
-      limit: number 
+    apiKeys: {
+      used: number;
+      limit: number;
     };
-    users: { 
-      used: number; 
-      limit: number 
+    users: {
+      used: number;
+      limit: number;
     };
   };
 }

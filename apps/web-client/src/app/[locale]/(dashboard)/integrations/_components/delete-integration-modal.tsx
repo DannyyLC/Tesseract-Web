@@ -52,17 +52,13 @@ export function DeleteIntegrationModal({
 
         {/* Explanation */}
         <div className="space-y-3 text-sm text-text-secondary">
-          <p>
-            {t('deleteImpactTitle', { name: toolDisplayName })}
-          </p>
+          <p>{t('deleteImpactTitle', { name: toolDisplayName })}</p>
           <ul className="ml-4 list-disc space-y-1 text-xs leading-relaxed">
             <li>{t('deleteBullet1')}</li>
             <li>{t('deleteBullet2')}</li>
             <li>{t('deleteBullet3')}</li>
           </ul>
-          <p className="text-xs font-medium text-text-secondary">
-            {t('deleteNote')}
-          </p>
+          <p className="text-xs font-medium text-text-secondary">{t('deleteNote')}</p>
         </div>
 
         {/* Actions */}

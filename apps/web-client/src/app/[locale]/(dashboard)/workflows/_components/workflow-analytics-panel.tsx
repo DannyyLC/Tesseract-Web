@@ -35,8 +35,11 @@ const formatCompactNumber = (number: number) => {
   }).format(number);
 };
 
-export default function WorkflowAnalyticsPanel({ workflow, period, onPeriodChange }: WorkflowAnalyticsPanelProps) {
-
+export default function WorkflowAnalyticsPanel({
+  workflow,
+  period,
+  onPeriodChange,
+}: WorkflowAnalyticsPanelProps) {
   // Fetch detailed metrics in parallel
   const { data: metrics, isLoading } = useWorkflowMetrics(workflow.id, period);
 
@@ -86,9 +89,7 @@ export default function WorkflowAnalyticsPanel({ workflow, period, onPeriodChang
             <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
               {kpis.total}
             </p>
-            <span className="text-xs font-medium text-text-tertiary">
-              En este periodo
-            </span>
+            <span className="text-xs font-medium text-text-tertiary">En este periodo</span>
           </div>
         </motion.div>
 
@@ -130,9 +131,7 @@ export default function WorkflowAnalyticsPanel({ workflow, period, onPeriodChang
             <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
               {kpis.avgDuration.toFixed(2)}s
             </p>
-            <span className="text-xs font-medium text-text-tertiary">
-              Por ejecución
-            </span>
+            <span className="text-xs font-medium text-text-tertiary">Por ejecución</span>
           </div>
         </motion.div>
 
@@ -328,16 +327,12 @@ export default function WorkflowAnalyticsPanel({ workflow, period, onPeriodChang
                     <div key={idx} className="group space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-text-primary">
-                            {formattedName}
-                          </span>
+                          <span className="font-medium text-text-primary">{formattedName}</span>
                           <span className="rounded-md bg-[var(--surface-tint)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">
                             {percentage.toFixed(0)}%
                           </span>
                         </div>
-                        <span className="font-mono text-xs text-text-secondary">
-                          {count}
-                        </span>
+                        <span className="font-mono text-xs text-text-secondary">{count}</span>
                       </div>
                       <div className="h-2 w-full overflow-hidden rounded-full bg-surface-secondary">
                         <motion.div

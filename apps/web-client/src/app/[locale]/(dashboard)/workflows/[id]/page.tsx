@@ -186,9 +186,7 @@ export default function WorkflowDetailPage() {
       }
 
       toast.error(
-        isDuplicatePhoneError
-          ? t('duplicatePhoneError')
-          : backendMessage || t('whatsappLinkError'),
+        isDuplicatePhoneError ? t('duplicatePhoneError') : backendMessage || t('whatsappLinkError'),
       );
       console.error(error);
     }
@@ -218,8 +216,8 @@ export default function WorkflowDetailPage() {
                       <div
                         className={`flex items-center gap-1 rounded-full border px-2 py-0.5 ${
                           workflow.isActive
-                            ? 'border-[var(--success-text-adaptive)] bg-success-500/5'
-                            : 'border-[var(--neutral-text-adaptive)] bg-neutral-500/5'
+                            ? 'bg-success-500/5 border-[var(--success-text-adaptive)]'
+                            : 'bg-neutral-500/5 border-[var(--neutral-text-adaptive)]'
                         }`}
                       >
                         <div
@@ -358,9 +356,7 @@ export default function WorkflowDetailPage() {
                   </div>
                 ))
               ) : (
-                <p className="ml-1 text-sm text-[var(--text-muted)]">
-                  {t('noIntegrations')}
-                </p>
+                <p className="ml-1 text-sm text-[var(--text-muted)]">{t('noIntegrations')}</p>
               )}
             </div>
           </div>
@@ -399,22 +395,16 @@ export default function WorkflowDetailPage() {
                   </div>
                 ))
               ) : (
-                <p className="ml-1 text-sm text-[var(--text-muted)]">
-                  {t('noWhatsappNumbers')}
-                </p>
+                <p className="ml-1 text-sm text-[var(--text-muted)]">{t('noWhatsappNumbers')}</p>
               )}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-danger-500 bg-danger-500/5 p-4">
+          <div className="bg-danger-500/5 rounded-2xl border border-danger-500 p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-danger-500">
-                  {t('dangerZone')}
-                </h3>
-                <p className="mt-1 text-sm text-danger-500/80">
-                  {t('deleteDesc')}
-                </p>
+                <h3 className="text-sm font-semibold text-danger-500">{t('dangerZone')}</h3>
+                <p className="text-danger-500/80 mt-1 text-sm">{t('deleteDesc')}</p>
               </div>
 
               <PermissionGuard permissions="workflows:delete">
@@ -499,7 +489,7 @@ export default function WorkflowDetailPage() {
         title={t('deleteModalTitle')}
       >
         <div className="space-y-4">
-          <div className="rounded-xl border border-danger-500/20 bg-danger/10 p-4 text-sm text-[var(--danger-text-adaptive)]">
+          <div className="border-danger-500/20 bg-danger/10 rounded-xl border p-4 text-sm text-[var(--danger-text-adaptive)]">
             <p className="mb-2 flex items-center gap-2 font-semibold">
               <Trash2 size={16} />
               {t('deleteConfirmHeading')}
@@ -512,9 +502,7 @@ export default function WorkflowDetailPage() {
           <div className="space-y-2">
             <label className="text-sm text-text-primary">
               {t('writeLabelPrefix')}{' '}
-              <span className="select-all font-bold text-text-primary">
-                {workflow.name}
-              </span>{' '}
+              <span className="select-all font-bold text-text-primary">{workflow.name}</span>{' '}
               {t('writeLabelSuffix')}
             </label>
             <input
@@ -563,9 +551,7 @@ export default function WorkflowDetailPage() {
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-tint)] text-text-secondary">
                 <WhatsappIcon className="h-4 w-4" />
               </span>
-              <label className="text-sm font-medium text-text-primary">
-                {t('whatsappLabel')}
-              </label>
+              <label className="text-sm font-medium text-text-primary">{t('whatsappLabel')}</label>
             </div>
 
             <p className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3 text-xs leading-relaxed text-[var(--text-muted)]">
@@ -590,9 +576,7 @@ export default function WorkflowDetailPage() {
               placeholder="Ej. +52234567890"
             />
             {whatsappNumber.length > 11 && !isWhatsappNumberValid && (
-              <p className="text-sm text-[var(--danger-text-adaptive)]">
-                {t('phoneFormatError')}
-              </p>
+              <p className="text-sm text-[var(--danger-text-adaptive)]">{t('phoneFormatError')}</p>
             )}
           </div>
 

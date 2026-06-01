@@ -834,9 +834,7 @@ export class AuthService {
     return true;
   }
 
-  async signupStepThree(
-    user: CreateUserDto,
-  ): Promise<
+  async signupStepThree(user: CreateUserDto): Promise<
     | StepThreeErrors
     | {
         user: { id: string; email: string; name: string; role: string; [key: string]: unknown };

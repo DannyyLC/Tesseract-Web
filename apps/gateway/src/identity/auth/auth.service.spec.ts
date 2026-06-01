@@ -646,14 +646,12 @@ describe('AuthService', () => {
       });
 
       it('should create organization, balance, and user via transaction', async () => {
-        prisma.userVerification.findFirst = jest
-          .fn()
-          .mockResolvedValue({
-            email: 'new@test.com',
-            isEmailVerified: true,
-            organizationName: 'Org',
-            userName: 'New',
-          });
+        prisma.userVerification.findFirst = jest.fn().mockResolvedValue({
+          email: 'new@test.com',
+          isEmailVerified: true,
+          organizationName: 'Org',
+          userName: 'New',
+        });
         mockUtilityService.hashPassword.mockResolvedValue('hashed');
 
         prisma.$transaction = jest.fn().mockImplementation(async (cb) => {
@@ -759,14 +757,12 @@ describe('AuthService', () => {
       });
 
       it('should reject if 2FA code is missing when 2fa enabled', async () => {
-        prisma.user.findUnique = jest
-          .fn()
-          .mockResolvedValue({
-            id: 'u1',
-            password: 'old',
-            twoFactorEnabled: true,
-            twoFactorSecret: 'abc',
-          });
+        prisma.user.findUnique = jest.fn().mockResolvedValue({
+          id: 'u1',
+          password: 'old',
+          twoFactorEnabled: true,
+          twoFactorSecret: 'abc',
+        });
         (bcrypt.compare as jest.Mock).mockResolvedValue(true);
         await expect(
           service.changePassword('u1', { currentPassword: 'old', newPassword: 'new' }),

@@ -158,14 +158,10 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
             {/* Name & User */}
             <div className="flex flex-col justify-center md:col-span-4">
               <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-medium text-text-primary">
-                  {workflowName}
-                </p>
+                <p className="truncate text-sm font-medium text-text-primary">{workflowName}</p>
               </div>
               <div className="mt-0.5 flex items-center gap-1.5">
-                <span className="truncate text-xs text-text-tertiary">
-                  by {userName}
-                </span>
+                <span className="truncate text-xs text-text-tertiary">by {userName}</span>
               </div>
             </div>
 
@@ -221,7 +217,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
         {/* Error Preview inline */}
         {execution.status === 'FAILED' && !isExpanded && (
           <div className="ml-12 mt-2 pl-1">
-            <p className="w-fit max-w-full truncate rounded bg-danger/5 px-2 py-1 font-mono text-xs text-danger/80">
+            <p className="bg-danger/5 text-danger/80 w-fit max-w-full truncate rounded px-2 py-1 font-mono text-xs">
               Error en la ejecución.
             </p>
           </div>
@@ -251,9 +247,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                       <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3">
                         <div className="mb-1 flex items-center gap-2">
                           <Zap size={12} className="text-text-tertiary" />
-                          <span className="text-xs font-medium text-text-secondary">
-                            Credits
-                          </span>
+                          <span className="text-xs font-medium text-text-secondary">Credits</span>
                         </div>
                         <p className="font-mono text-sm font-medium text-text-primary">
                           {displayData.credits !== null ? displayData.credits : '0'}
@@ -263,9 +257,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                       <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3 md:col-span-2">
                         <div className="mb-1 flex items-center gap-2">
                           <Clock size={12} className="text-text-tertiary" />
-                          <span className="text-xs font-medium text-text-secondary">
-                            Timing
-                          </span>
+                          <span className="text-xs font-medium text-text-secondary">Timing</span>
                         </div>
                         <div className="flex flex-col gap-x-6 gap-y-1 sm:flex-row">
                           <div className="text-xs text-text-primary">
@@ -292,9 +284,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                         <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3">
                           <div className="mb-2 flex items-center gap-2">
                             <Coins size={12} className="text-text-tertiary" />
-                            <span className="text-xs font-medium text-text-secondary">
-                              Balance
-                            </span>
+                            <span className="text-xs font-medium text-text-secondary">Balance</span>
                           </div>
                           <div className="flex flex-col gap-1">
                             {displayData.balanceBefore !== undefined &&
@@ -324,9 +314,12 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                     {(displayData.error || displayData.wasOverage) && (
                       <div className="space-y-2">
                         {displayData.error && (
-                          <div className="rounded-lg border border-danger-500/20 bg-danger/5 p-3">
+                          <div className="border-danger-500/20 bg-danger/5 rounded-lg border p-3">
                             <div className="mb-1 flex items-center gap-2">
-                              <AlertCircle size={12} className="text-[var(--danger-text-adaptive)]" />
+                              <AlertCircle
+                                size={12}
+                                className="text-[var(--danger-text-adaptive)]"
+                              />
                               <span className="text-xs font-medium text-[var(--danger-text-adaptive)]">
                                 Error Details
                               </span>
@@ -338,7 +331,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                         )}
 
                         {displayData.wasOverage && (
-                          <div className="rounded-lg border border-warning-500/20 bg-warning-500/5 p-3">
+                          <div className="border-warning-500/20 bg-warning-500/5 rounded-lg border p-3">
                             <div className="mb-1 flex items-center gap-2">
                               <AlertCircle
                                 size={12}

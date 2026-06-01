@@ -33,7 +33,6 @@ interface NavSection {
   items: NavItem[];
 }
 
-
 export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarProps) {
   const t = useTranslations('DashboardNav');
   const pathname = usePathname();
@@ -110,9 +109,7 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
             />
           </div>
           {!isCollapsed && (
-            <span className="whitespace-nowrap text-lg font-bold text-text-primary">
-              Tesseract
-            </span>
+            <span className="whitespace-nowrap text-lg font-bold text-text-primary">Tesseract</span>
           )}
         </Link>
       </div>

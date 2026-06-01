@@ -196,6 +196,7 @@ Abre `http://localhost:3333` en el navegador.
 > **Nota:** Instala el CLI con `npm`, **no con `pnpm`**. Mintlify espera un `node_modules` aplanado al estilo npm; instalado con `pnpm add -g` falla con `Cannot find package 'openapi-types'` por la resolución estricta de dependencias de pnpm.
 
 > **Si la instalación falla en `puppeteer`** (`Failed to set up chrome-headless-shell`), es porque una dependencia de Mintlify intenta descargar Chrome y no es necesario para `mint dev`. Sáltatelo (sintaxis para **fish**; en bash/zsh omite el `env`):
+>
 > ```fish
 > rm -rf ~/.cache/puppeteer/chrome-headless-shell/*   # limpia descargas corruptas
 > env PUPPETEER_SKIP_DOWNLOAD=true npm install -g mint

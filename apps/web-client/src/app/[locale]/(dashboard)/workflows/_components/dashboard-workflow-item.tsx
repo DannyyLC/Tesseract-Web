@@ -31,7 +31,8 @@ const formatTimeAgo = (dateInput: Date | string | null): string => {
 };
 
 const getStatusConfig = (isActive: boolean) => {
-  if (!isActive) return { label: 'Inactivo', color: 'bg-neutral-400', textColor: 'text-neutral-400' };
+  if (!isActive)
+    return { label: 'Inactivo', color: 'bg-neutral-400', textColor: 'text-neutral-400' };
   return { label: 'Activo', color: 'bg-success-500', textColor: 'text-success-500' };
 };
 

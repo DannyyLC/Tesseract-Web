@@ -40,9 +40,7 @@ export default function UsageCard({ title, icon, used, limit, unit }: UsageCardP
             {used.toLocaleString()}
           </span>
           {!isUnlimited && (
-            <span className="text-sm text-text-tertiary">
-              / {limit.toLocaleString()}
-            </span>
+            <span className="text-sm text-text-tertiary">/ {limit.toLocaleString()}</span>
           )}
         </div>
       </div>

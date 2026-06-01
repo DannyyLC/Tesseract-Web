@@ -61,7 +61,7 @@ export default function Verify2FAPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-brand-black">
       {/* LEFT SECTION - BRANDING */}
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-gradient-start via-gradient-mid to-gradient-end lg:flex lg:w-1/2">
+      <div className="from-gradient-start via-gradient-mid to-gradient-end relative hidden overflow-hidden bg-gradient-to-br lg:flex lg:w-1/2">
         {/* Dark Mode Base Layer */}
         <div className="absolute inset-0 z-0 bg-gradient-to-r from-brand-black via-brand-black to-brand-black" />
 
@@ -77,14 +77,26 @@ export default function Verify2FAPage() {
         />
 
         {/* Animated Background Grid */}
-        <div className="z-5 absolute inset-0" style={{ opacity: 'var(--auth-branding-grid-opacity)' }}>
+        <div
+          className="z-5 absolute inset-0"
+          style={{ opacity: 'var(--auth-branding-grid-opacity)' }}
+        >
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,black,transparent)]" />
         </div>
 
         {/* Floating Geometric Elements */}
-        <div className="absolute left-20 top-20 z-10 h-32 w-32 rotate-45 animate-[spin_20s_linear_infinite] rounded-lg border" style={{ borderColor: 'var(--auth-branding-float-border)' }} />
-        <div className="absolute bottom-32 right-32 z-10 h-24 w-24 -rotate-12 animate-[spin_15s_linear_infinite_reverse] rounded-lg border" style={{ borderColor: 'var(--auth-branding-float-border-faint)' }} />
-        <div className="absolute left-1/4 top-1/2 z-10 h-16 w-16 rotate-[30deg] animate-pulse rounded-lg border" style={{ borderColor: 'var(--auth-branding-float-border)' }} />
+        <div
+          className="absolute left-20 top-20 z-10 h-32 w-32 rotate-45 animate-[spin_20s_linear_infinite] rounded-lg border"
+          style={{ borderColor: 'var(--auth-branding-float-border)' }}
+        />
+        <div
+          className="absolute bottom-32 right-32 z-10 h-24 w-24 -rotate-12 animate-[spin_15s_linear_infinite_reverse] rounded-lg border"
+          style={{ borderColor: 'var(--auth-branding-float-border-faint)' }}
+        />
+        <div
+          className="absolute left-1/4 top-1/2 z-10 h-16 w-16 rotate-[30deg] animate-pulse rounded-lg border"
+          style={{ borderColor: 'var(--auth-branding-float-border)' }}
+        />
 
         {/* Main Content */}
         <div className="relative z-30 flex w-full flex-col items-center justify-center p-12">
@@ -103,7 +115,10 @@ export default function Verify2FAPage() {
             </div>
             <div>
               <h1 className="text-5xl font-bold tracking-tight text-brand-white">Tesseract</h1>
-              <p className="mt-1 text-sm uppercase tracking-widest" style={{ color: 'var(--auth-branding-text-label)' }}>
+              <p
+                className="mt-1 text-sm uppercase tracking-widest"
+                style={{ color: 'var(--auth-branding-text-label)' }}
+              >
                 {t('automationPlatform')}
               </p>
             </div>
@@ -113,7 +128,10 @@ export default function Verify2FAPage() {
             <h2 className="text-3xl font-semibold leading-tight text-brand-white">
               {t('brandingHeading')}
             </h2>
-            <p className="text-lg leading-relaxed" style={{ color: 'var(--auth-branding-text-desc)' }}>
+            <p
+              className="text-lg leading-relaxed"
+              style={{ color: 'var(--auth-branding-text-desc)' }}
+            >
               {t('brandingTagline')}
             </p>
           </div>
@@ -162,12 +180,8 @@ export default function Verify2FAPage() {
                 <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-surface-secondary">
                   <Shield className="h-10 w-10 text-text-primary" />
                 </div>
-                <h2 className="mb-2 text-2xl font-bold text-text-primary">
-                  {t('heading')}
-                </h2>
-                <p className="text-sm text-text-secondary">
-                  {t('description')}
-                </p>
+                <h2 className="mb-2 text-2xl font-bold text-text-primary">{t('heading')}</h2>
+                <p className="text-sm text-text-secondary">{t('description')}</p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
@@ -189,15 +203,13 @@ export default function Verify2FAPage() {
                       setCode(value);
                     }}
                     placeholder={t('codePlaceholder')}
-                    className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-center font-mono text-2xl tracking-widest outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+                    className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-center font-mono text-2xl tracking-widest text-text-primary outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover"
                     required
                     maxLength={6}
                     autoFocus
                     autoComplete="one-time-code"
                   />
-                  <p className="text-xs text-text-secondary">
-                    {t('codeHelper')}
-                  </p>
+                  <p className="text-xs text-text-secondary">{t('codeHelper')}</p>
                 </div>
 
                 <button
@@ -222,10 +234,7 @@ export default function Verify2FAPage() {
               <div className="text-center">
                 <p className="text-sm text-text-secondary">
                   {t('problemsText')}{' '}
-                  <Link
-                    href="/login"
-                    className="font-medium text-accent hover:underline"
-                  >
+                  <Link href="/login" className="font-medium text-accent hover:underline">
                     {t('retryLink')}
                   </Link>
                 </p>

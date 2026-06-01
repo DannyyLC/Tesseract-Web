@@ -1,12 +1,25 @@
-import { PrismaClient, SubscriptionPlan, SubscriptionStatus, TransactionType, InvoiceType, InvoiceStatus, WorkflowCategory, TriggerType, ExecutionStatus, ConversationStatus, ChatRole, ToolConnectionStatus } from '@prisma/client';
+import {
+  PrismaClient,
+  SubscriptionPlan,
+  SubscriptionStatus,
+  TransactionType,
+  InvoiceType,
+  InvoiceStatus,
+  WorkflowCategory,
+  TriggerType,
+  ExecutionStatus,
+  ConversationStatus,
+  ChatRole,
+  ToolConnectionStatus,
+} from '@prisma/client';
 import { prisma } from '../src/index';
 
 async function main() {
-  console.log("Starting mock data seeding version 2...");
+  console.log('Starting mock data seeding version 2...');
 
   // 1. Find or create Organization
   let org = await prisma.organization.findFirst({
-    where: { name: "Fractal" }
+    where: { name: 'Fractal' },
   });
 
   const uniqueId = Math.random().toString(36).substring(7);
@@ -14,23 +27,23 @@ async function main() {
   if (!org) {
     org = await prisma.organization.create({
       data: {
-        name: "Fractal",
-        slug: "fractal-" + uniqueId,
+        name: 'Fractal',
+        slug: 'fractal-' + uniqueId,
         plan: SubscriptionPlan.BUSINESS,
         allowOverages: true,
         overageLimit: 500,
         isActive: true,
-      }
+      },
     });
-    console.log("Created Organization: Fractal");
+    console.log('Created Organization: Fractal');
   }
 
   // 2. Create more users in the organization
   const userEmails = [
-    "admin1@example.com",
-    "manager1@example.com",
-    "member1@example.com",
-    "member2@example.com"
+    'admin1@example.com',
+    'manager1@example.com',
+    'member1@example.com',
+    'member2@example.com',
   ];
   const orgUsers = [];
 
@@ -41,15 +54,15 @@ async function main() {
         data: {
           email,
           name: email.split('@')[0],
-          password: "$2b$10$xyz", // Dummy password hash
+          password: '$2b$10$xyz', // Dummy password hash
           organizationId: org.id,
-          role: email.startsWith("admin") ? "ADMIN" : "VIEWER"
-        }
+          role: email.startsWith('admin') ? 'ADMIN' : 'VIEWER',
+        },
       });
     } else {
       await prisma.user.update({
         where: { id: u.id },
-        data: { organizationId: org.id, role: email.startsWith("admin") ? "ADMIN" : "VIEWER" }
+        data: { organizationId: org.id, role: email.startsWith('admin') ? 'ADMIN' : 'VIEWER' },
       });
     }
     orgUsers.push(u);
@@ -67,7 +80,7 @@ async function main() {
         status: SubscriptionStatus.ACTIVE,
         currentPeriodStart: new Date(),
         currentPeriodEnd: endPeriod,
-      }
+      },
     });
   }
 
@@ -80,8 +93,8 @@ async function main() {
         lifetimeEarned: 25000,
         lifetimeSpent: 10000,
         currentMonthSpent: 1250,
-        currentMonthCostUSD: 25.00
-      }
+        currentMonthCostUSD: 25.0,
+      },
     });
   } else {
     // Add more credits
@@ -89,8 +102,8 @@ async function main() {
       where: { id: cb.id },
       data: {
         balance: { increment: 5000 },
-        lifetimeEarned: { increment: 5000 }
-      }
+        lifetimeEarned: { increment: 5000 },
+      },
     });
   }
 
@@ -107,17 +120,17 @@ async function main() {
         balanceBefore: balanceBefore,
         balanceAfter: currentBalance,
         type: TransactionType.ONE_TIME_PURCHASE,
-        description: "Bulk credits purchase #" + i,
-        createdAt: new Date(Date.now() - (Math.random() * 30 * 24 * 60 * 60 * 1000))
+        description: 'Bulk credits purchase #' + i,
+        createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
       };
-    })
+    }),
   });
 
   // 4. Tools Catalogs
   const toolsData = [
-    { toolName: "google_calendar", displayName: "Google Calendar", provider: "google" },
-    { toolName: "hubspot_crm", displayName: "HubSpot CRM", provider: "hubspot" },
-    { toolName: "slack_notif", displayName: "Slack Notifications", provider: "slack" },
+    { toolName: 'google_calendar', displayName: 'Google Calendar', provider: 'google' },
+    { toolName: 'hubspot_crm', displayName: 'HubSpot CRM', provider: 'hubspot' },
+    { toolName: 'slack_notif', displayName: 'Slack Notifications', provider: 'slack' },
   ];
 
   const tenantTools = [];
@@ -130,49 +143,49 @@ async function main() {
           toolName: td.toolName,
           displayName: td.displayName,
           provider: td.provider,
-          isActive: true
-        }
+          isActive: true,
+        },
       });
     }
 
     // Ensure in tenant (organization)
     let tt = await prisma.tenantTool.findFirst({
-      where: { organizationId: org.id, toolCatalogId: catalogTool.id }
+      where: { organizationId: org.id, toolCatalogId: catalogTool.id },
     });
     if (!tt) {
       tt = await prisma.tenantTool.create({
         data: {
           organizationId: org.id,
           toolCatalogId: catalogTool.id,
-          displayName: "Prod " + td.displayName,
+          displayName: 'Prod ' + td.displayName,
           isConnected: true,
           status: ToolConnectionStatus.CONNECTED,
-          createdByUserId: orgUsers[0].id
-        }
+          createdByUserId: orgUsers[0].id,
+        },
       });
     }
     tenantTools.push(tt);
   }
 
   // 5. Workflows
-  console.log("Creating workflows...");
+  console.log('Creating workflows...');
   const workflowData = [
     {
-      name: "Calendar Assistant",
-      description: "Books meetings seamlessly",
+      name: 'Calendar Assistant',
+      description: 'Books meetings seamlessly',
       category: WorkflowCategory.STANDARD,
       isActive: true,
       maxTokensPerExecution: 100000,
-      tools: [tenantTools[0].id]
+      tools: [tenantTools[0].id],
     },
     {
-      name: "CRM Synchronizer",
-      description: "Updates Deals via NLP",
+      name: 'CRM Synchronizer',
+      description: 'Updates Deals via NLP',
       category: WorkflowCategory.ADVANCED,
       isActive: true,
       maxTokensPerExecution: 150000,
-      tools: [tenantTools[1].id, tenantTools[2].id]
-    }
+      tools: [tenantTools[1].id, tenantTools[2].id],
+    },
   ];
 
   const workflows = [];
@@ -187,11 +200,11 @@ async function main() {
           category: w.category,
           isActive: w.isActive,
           maxTokensPerExecution: w.maxTokensPerExecution,
-          config: { type: "agent", graph: { type: "react", config: {} } },
+          config: { type: 'agent', graph: { type: 'react', config: {} } },
           tenantTools: {
-            connect: w.tools.map(id => ({ id }))
-          }
-        }
+            connect: w.tools.map((id) => ({ id })),
+          },
+        },
       });
     } else {
       // Connect existing tools
@@ -199,49 +212,49 @@ async function main() {
         where: { id: wf.id },
         data: {
           tenantTools: {
-            connect: w.tools.map(id => ({ id }))
-          }
-        }
+            connect: w.tools.map((id) => ({ id })),
+          },
+        },
       });
     }
     workflows.push(wf);
   }
 
   // 6. Bulk Executions (in random dates across the last 30 days)
-  console.log("Generating executions...");
+  console.log('Generating executions...');
   const executionsData = [];
   for (const wf of workflows) {
     // Gen 20 executions per workflow
     for (let i = 0; i < 20; i++) {
-        // Random date in the last 30 days
-        const daysAgo = Math.random() * 30;
-        const startedAt = new Date(Date.now() - (daysAgo * 24 * 60 * 60 * 1000));
-        const finishedAt = new Date(startedAt.getTime() + Math.random() * 5000 + 1000); // 1-6 seconds later
-        
-        const isFailed = Math.random() < 0.15; // 15% failure rate
-        
-        executionsData.push({
-            workflowId: wf.id,
-            organizationId: org.id,
-            status: isFailed ? ExecutionStatus.FAILED : ExecutionStatus.COMPLETED,
-            trigger: TriggerType.MANUAL,
-            startedAt,
-            finishedAt,
-            duration: Math.floor((finishedAt.getTime() - startedAt.getTime()) / 1000),
-            tokensUsed: Math.floor(Math.random() * 2000) + 500,
-            cost: Math.random() * 0.1,
-            error: isFailed ? "API connection unstable" : null
-        });
+      // Random date in the last 30 days
+      const daysAgo = Math.random() * 30;
+      const startedAt = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+      const finishedAt = new Date(startedAt.getTime() + Math.random() * 5000 + 1000); // 1-6 seconds later
+
+      const isFailed = Math.random() < 0.15; // 15% failure rate
+
+      executionsData.push({
+        workflowId: wf.id,
+        organizationId: org.id,
+        status: isFailed ? ExecutionStatus.FAILED : ExecutionStatus.COMPLETED,
+        trigger: TriggerType.MANUAL,
+        startedAt,
+        finishedAt,
+        duration: Math.floor((finishedAt.getTime() - startedAt.getTime()) / 1000),
+        tokensUsed: Math.floor(Math.random() * 2000) + 500,
+        cost: Math.random() * 0.1,
+        error: isFailed ? 'API connection unstable' : null,
+      });
     }
   }
 
   await prisma.execution.createMany({
-      data: executionsData
+    data: executionsData,
   });
 
   console.log(`Created ${executionsData.length} executions with distributed dates.`);
 
-  console.log("Mock data seeding version 2 completed successfully!");
+  console.log('Mock data seeding version 2 completed successfully!');
 }
 
 main()

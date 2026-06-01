@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useInfiniteNotifications, useNotificationMutations } from '@/hooks/messaging/use-notifications';
+import {
+  useInfiniteNotifications,
+  useNotificationMutations,
+} from '@/hooks/messaging/use-notifications';
 import NotificationItem from './notification-item';
 import { Bell, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -112,9 +115,7 @@ export default function NotificationList() {
 
       {/* Loading sentinel */}
       <div ref={observerTarget} className="flex justify-center p-4">
-        {isFetchingNextPage && (
-          <Loader2 size={16} className="animate-spin text-text-tertiary" />
-        )}
+        {isFetchingNextPage && <Loader2 size={16} className="animate-spin text-text-tertiary" />}
       </div>
     </div>
   );

@@ -10,10 +10,20 @@ export const metadata: Metadata = {
     'Términos y Condiciones de Servicio de la Plataforma de Automatización de Workflows con IA de Fractal.',
 };
 
-function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+function Section({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section id={id} className="scroll-mt-24">
-      <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
+      <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
+        {title}
+      </h2>
       <div className="space-y-3 leading-relaxed text-[var(--text-secondary)]">{children}</div>
     </section>
   );
@@ -34,7 +44,10 @@ function InfoTable({ rows }: { rows: [string, string][] }) {
       <table className="w-full text-sm">
         <tbody>
           {rows.map(([label, value], i) => (
-            <tr key={label} className={i % 2 === 0 ? 'bg-[var(--surface-secondary)]' : 'bg-[var(--surface)]'}>
+            <tr
+              key={label}
+              className={i % 2 === 0 ? 'bg-[var(--surface-secondary)]' : 'bg-[var(--surface)]'}
+            >
               <td className="w-1/3 px-4 py-3 font-medium text-[var(--text-primary)]">{label}</td>
               <td className="px-4 py-3 text-[var(--text-secondary)]">{value}</td>
             </tr>
@@ -96,19 +109,29 @@ export default async function TermsPage() {
           </Section>
 
           <Section id={t('s2Id')} title={t('s2Title')}>
-            <InfoTable rows={[
-              [t('s2Row1Label'), t('s2Row1Value')],
-              [t('s2Row2Label'), t('s2Row2Value')],
-              [t('s2Row3Label'), t('s2Row3Value')],
-              [t('s2Row4Label'), t('s2Row4Value')],
-              [t('s2Row5Label'), t('s2Row5Value')],
-              [t('s2Row6Label'), t('s2Row6Value')],
-            ]} />
+            <InfoTable
+              rows={[
+                [t('s2Row1Label'), t('s2Row1Value')],
+                [t('s2Row2Label'), t('s2Row2Value')],
+                [t('s2Row3Label'), t('s2Row3Value')],
+                [t('s2Row4Label'), t('s2Row4Value')],
+                [t('s2Row5Label'), t('s2Row5Value')],
+                [t('s2Row6Label'), t('s2Row6Value')],
+              ]}
+            />
           </Section>
 
           <Section id={t('s3Id')} title={t('s3Title')}>
             <SubSection title={t('s3Sub1Title')}>
-              <BulletList items={[t('s3Bullet1'), t('s3Bullet2'), t('s3Bullet3'), t('s3Bullet4'), t('s3Bullet5')]} />
+              <BulletList
+                items={[
+                  t('s3Bullet1'),
+                  t('s3Bullet2'),
+                  t('s3Bullet3'),
+                  t('s3Bullet4'),
+                  t('s3Bullet5'),
+                ]}
+              />
             </SubSection>
             <SubSection title={t('s3Sub2Title')}>
               <BulletList items={[t('s3Bullet6'), t('s3Bullet7')]} />
@@ -137,39 +160,47 @@ export default async function TermsPage() {
                 </div>
                 <div>
                   <p className="font-medium text-[var(--text-primary)]">{t('s4Cost2Title')}</p>
-                  <p className="text-sm">{t.rich('s4Cost2Text', { bold, price: OVERAGE_PRICE_PER_CREDIT })}</p>
+                  <p className="text-sm">
+                    {t.rich('s4Cost2Text', { bold, price: OVERAGE_PRICE_PER_CREDIT })}
+                  </p>
                 </div>
               </div>
             </div>
             <SubSection title={t('s4Sub1Title')}>
-              <InfoTable rows={[
-                [t('s4Row1Label'), t('s4Row1Value')],
-                [t('s4Row2Label'), t('s4Row2Value')],
-                [t('s4Row3Label'), t('s4Row3Value')],
-                [t('s4Row4Label'), t('s4Row4Value')],
-                [t('s4Row5Label'), t('s4Row5Value')],
-                [t('s4Row6Label'), t('s4Row6Value')],
-              ]} />
+              <InfoTable
+                rows={[
+                  [t('s4Row1Label'), t('s4Row1Value')],
+                  [t('s4Row2Label'), t('s4Row2Value')],
+                  [t('s4Row3Label'), t('s4Row3Value')],
+                  [t('s4Row4Label'), t('s4Row4Value')],
+                  [t('s4Row5Label'), t('s4Row5Value')],
+                  [t('s4Row6Label'), t('s4Row6Value')],
+                ]}
+              />
             </SubSection>
             <SubSection title={t('s4Sub2Title')}>
-              <InfoTable rows={[
-                [t('s4Row1Label'), t('s4Cap1Value')],
-                [t('s4Row2Label'), t('s4Cap2Value')],
-                [t('s4Row3Label'), t('s4Cap3Value')],
-                [t('s4Row4Label'), t('s4Cap4Value')],
-                [t('s4Row5Label'), t('s4Cap5Value')],
-                [t('s4Row6Label'), t('s4Cap6Value')],
-              ]} />
+              <InfoTable
+                rows={[
+                  [t('s4Row1Label'), t('s4Cap1Value')],
+                  [t('s4Row2Label'), t('s4Cap2Value')],
+                  [t('s4Row3Label'), t('s4Cap3Value')],
+                  [t('s4Row4Label'), t('s4Cap4Value')],
+                  [t('s4Row5Label'), t('s4Cap5Value')],
+                  [t('s4Row6Label'), t('s4Cap6Value')],
+                ]}
+              />
             </SubSection>
           </Section>
 
           <Section id={t('s5Id')} title={t('s5Title')}>
             <p>{t.rich('s5Intro', { bold })}</p>
-            <InfoTable rows={[
-              [t('s5Row1Label'), t('s5Row1Value')],
-              [t('s5Row2Label'), t('s5Row2Value')],
-              [t('s5Row3Label'), t('s5Row3Value')],
-            ]} />
+            <InfoTable
+              rows={[
+                [t('s5Row1Label'), t('s5Row1Value')],
+                [t('s5Row2Label'), t('s5Row2Value')],
+                [t('s5Row3Label'), t('s5Row3Value')],
+              ]}
+            />
             <p>{t.rich('s5Outro', { bold })}</p>
           </Section>
 

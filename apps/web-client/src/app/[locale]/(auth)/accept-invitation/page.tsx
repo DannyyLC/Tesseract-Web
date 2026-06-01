@@ -66,13 +66,14 @@ function AcceptInvitationForm() {
   if (!code) {
     return (
       <div className="flex flex-col items-center justify-center space-y-4 text-center">
-        <div className="rounded-full p-3" style={{ background: 'var(--danger-surface)', color: 'var(--danger-text-adaptive)' }}>
+        <div
+          className="rounded-full p-3"
+          style={{ background: 'var(--danger-surface)', color: 'var(--danger-text-adaptive)' }}
+        >
           <Building2 className="h-8 w-8" />
         </div>
         <h2 className="text-xl font-semibold">{t('invalidHeading')}</h2>
-        <p className="text-text-secondary">
-          {t('invalidDescription')}
-        </p>
+        <p className="text-text-secondary">{t('invalidDescription')}</p>
       </div>
     );
   }
@@ -80,14 +81,10 @@ function AcceptInvitationForm() {
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6">
       <div className="space-y-2 text-center">
-        <h2 className="text-2xl font-bold tracking-tight text-text-primary">
-          {t('heading')}
-        </h2>
+        <h2 className="text-2xl font-bold tracking-tight text-text-primary">{t('heading')}</h2>
         <p className="text-sm text-text-secondary">
           {t('description')}
-          {email && (
-            <span className="mt-1 block font-medium text-text-primary">{email}</span>
-          )}
+          {email && <span className="mt-1 block font-medium text-text-primary">{email}</span>}
         </p>
       </div>
 
@@ -101,7 +98,7 @@ function AcceptInvitationForm() {
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             placeholder={t('fullNamePlaceholder')}
-            className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+            className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-text-primary outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover"
             required
           />
         </div>
@@ -116,7 +113,7 @@ function AcceptInvitationForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={t('passwordPlaceholder')}
-              className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+              className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 text-text-primary outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover"
               required
             />
             <button
@@ -139,7 +136,7 @@ function AcceptInvitationForm() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder={t('passwordPlaceholder')}
-              className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
+              className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 text-text-primary outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover"
               required
             />
             <button
@@ -180,7 +177,7 @@ export default function AcceptInvitationPage() {
     // Contenedor principal: bloquea el scroll global
     <div className="flex h-screen overflow-hidden bg-brand-black">
       {/* SECCIÓN IZQUIERDA - BRANDING (Reutilizado de AuthScreen) */}
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-gradient-start via-gradient-mid to-gradient-end lg:flex lg:w-1/2">
+      <div className="from-gradient-start via-gradient-mid to-gradient-end relative hidden overflow-hidden bg-gradient-to-br lg:flex lg:w-1/2">
         <div className="absolute inset-0 z-0 bg-gradient-to-r from-brand-black via-brand-black to-brand-black" />
         <div
           className="pointer-events-none absolute inset-y-0 right-0 z-20"
@@ -191,13 +188,25 @@ export default function AcceptInvitationPage() {
               'linear-gradient(to right, transparent 0%, transparent 50%, var(--gradient-start) 100%)',
           }}
         />
-        <div className="z-5 absolute inset-0" style={{ opacity: 'var(--auth-branding-grid-opacity)' }}>
+        <div
+          className="z-5 absolute inset-0"
+          style={{ opacity: 'var(--auth-branding-grid-opacity)' }}
+        >
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,black,transparent)]" />
         </div>
 
-        <div className="absolute left-20 top-20 z-10 h-32 w-32 rotate-45 animate-[spin_20s_linear_infinite] rounded-lg border" style={{ borderColor: 'var(--auth-branding-float-border)' }} />
-        <div className="absolute bottom-32 right-32 z-10 h-24 w-24 -rotate-12 animate-[spin_15s_linear_infinite_reverse] rounded-lg border" style={{ borderColor: 'var(--auth-branding-float-border-faint)' }} />
-        <div className="absolute left-1/4 top-1/2 z-10 h-16 w-16 rotate-[30deg] animate-pulse rounded-lg border" style={{ borderColor: 'var(--auth-branding-float-border)' }} />
+        <div
+          className="absolute left-20 top-20 z-10 h-32 w-32 rotate-45 animate-[spin_20s_linear_infinite] rounded-lg border"
+          style={{ borderColor: 'var(--auth-branding-float-border)' }}
+        />
+        <div
+          className="absolute bottom-32 right-32 z-10 h-24 w-24 -rotate-12 animate-[spin_15s_linear_infinite_reverse] rounded-lg border"
+          style={{ borderColor: 'var(--auth-branding-float-border-faint)' }}
+        />
+        <div
+          className="absolute left-1/4 top-1/2 z-10 h-16 w-16 rotate-[30deg] animate-pulse rounded-lg border"
+          style={{ borderColor: 'var(--auth-branding-float-border)' }}
+        />
 
         <div className="relative z-30 flex w-full flex-col items-center justify-center p-12">
           <div className="mb-16 flex items-center gap-4">
@@ -214,15 +223,23 @@ export default function AcceptInvitationPage() {
             </div>
             <div>
               <h1 className="text-5xl font-bold tracking-tight text-brand-white">Tesseract</h1>
-              <p className="mt-1 text-sm uppercase tracking-widest" style={{ color: 'var(--auth-branding-text-label)' }}>
+              <p
+                className="mt-1 text-sm uppercase tracking-widest"
+                style={{ color: 'var(--auth-branding-text-label)' }}
+              >
                 {t('automationPlatform')}
               </p>
             </div>
           </div>
 
           <div className="max-w-lg space-y-4 text-center">
-            <h2 className="text-3xl font-semibold leading-tight text-brand-white">{t('brandingHeading')}</h2>
-            <p className="text-lg leading-relaxed" style={{ color: 'var(--auth-branding-text-desc)' }}>
+            <h2 className="text-3xl font-semibold leading-tight text-brand-white">
+              {t('brandingHeading')}
+            </h2>
+            <p
+              className="text-lg leading-relaxed"
+              style={{ color: 'var(--auth-branding-text-desc)' }}
+            >
               {t('brandingTagline')}
             </p>
           </div>

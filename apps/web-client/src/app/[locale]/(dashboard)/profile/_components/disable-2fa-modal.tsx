@@ -45,22 +45,18 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={t('title')}>
       <div className="space-y-4">
-        <div className="rounded-xl bg-warning-500/10 p-4 text-warning-500">
+        <div className="bg-warning-500/10 rounded-xl p-4 text-warning-500">
           <div className="flex gap-3">
             <AlertTriangle className="h-5 w-5 flex-shrink-0" />
             <div>
               <p className="text-sm font-medium">{t('warningHeading')}</p>
-              <p className="mt-1 text-sm opacity-90">
-                {t('warningText')}
-              </p>
+              <p className="mt-1 text-sm opacity-90">{t('warningText')}</p>
             </div>
           </div>
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-text-primary">
-            {t('codeLabel')}
-          </label>
+          <label className="block text-sm font-medium text-text-primary">{t('codeLabel')}</label>
           <input
             type="text"
             inputMode="numeric"
@@ -73,7 +69,7 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
               }
             }}
             placeholder={t('codePlaceholder')}
-            className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
+            className="focus:ring-border-focus/5 w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4"
           />
         </div>
 

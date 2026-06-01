@@ -138,7 +138,14 @@ export default function Home() {
   }, []);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--brand-black)' }}>
+    <div
+      style={{
+        width: '100vw',
+        height: '100vh',
+        position: 'relative',
+        background: 'var(--brand-black)',
+      }}
+    >
       {/* Capa 3D — solo monta en cliente para evitar problemas de hidratación */}
       {mounted && (
         <div className="absolute inset-0 z-0">

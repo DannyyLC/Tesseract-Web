@@ -64,9 +64,7 @@ function ChartTooltip({ active, payload, label }: any) {
     : null;
   return (
     <div className="rounded-xl border border-border bg-surface-popover px-3 py-2 shadow-lg">
-      {displayLabel && (
-        <p className="mb-1 text-xs text-text-tertiary">{displayLabel}</p>
-      )}
+      {displayLabel && <p className="mb-1 text-xs text-text-tertiary">{displayLabel}</p>}
       {payload.map((p: any, i: number) => (
         <p key={i} className="text-sm font-semibold" style={{ color: p.color }}>
           {p.name}: {p.value?.toLocaleString()}
@@ -79,10 +77,7 @@ function ChartTooltip({ active, payload, label }: any) {
 // ─── Skeleton for charts ──────────────────────────────────────────────────────
 function ChartSkeleton({ height = 200 }: { height?: number }) {
   return (
-    <div
-      className="w-full animate-pulse rounded-xl bg-surface-secondary"
-      style={{ height }}
-    />
+    <div className="w-full animate-pulse rounded-xl bg-surface-secondary" style={{ height }} />
   );
 }
 
@@ -192,7 +187,9 @@ export default function DashboardPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-text-primary md:text-3xl">
-              {user?.name ? t('greeting', { name: user.name.split(' ')[0] }) : t('dashboardFallback')}
+              {user?.name
+                ? t('greeting', { name: user.name.split(' ')[0] })
+                : t('dashboardFallback')}
             </h1>
           </div>
           <p className="mt-1 text-sm text-text-secondary">
@@ -320,9 +317,7 @@ export default function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-1">
         {/* Area chart — executions 7 days */}
         <div className="rounded-2xl border border-border bg-surface">
-          <SectionTitle>
-            {t('executions7Days')}
-          </SectionTitle>
+          <SectionTitle>{t('executions7Days')}</SectionTitle>
           <div className="p-5">
             {loading7d ? (
               <ChartSkeleton height={220} />
@@ -415,9 +410,7 @@ export default function DashboardPage() {
                         formatter={(value, entry: any) => (
                           <span className="text-sm font-medium text-text-primary">
                             {value}{' '}
-                            <span className="text-text-tertiary">
-                              ({entry.payload.value})
-                            </span>
+                            <span className="text-text-tertiary">({entry.payload.value})</span>
                           </span>
                         )}
                       />
@@ -437,9 +430,7 @@ export default function DashboardPage() {
         {/* Top Workflows (executions:read) */}
         <PermissionGuard permissions="executions:read">
           <div className="rounded-2xl border border-border bg-surface">
-            <SectionTitle>
-              {t('topWorkflows7Days')}
-            </SectionTitle>
+            <SectionTitle>{t('topWorkflows7Days')}</SectionTitle>
             <div className="divide-y divide-border">
               {loading7d ? (
                 <div className="p-5">
@@ -458,9 +449,7 @@ export default function DashboardPage() {
                     <div key={wf.workflowId} className="flex items-center gap-4 px-5 py-4">
                       {/* Rank */}
                       <span className="w-6 flex-shrink-0 text-center text-lg leading-none">
-                        <span className="text-sm font-light text-text-tertiary">
-                          {i + 1}
-                        </span>
+                        <span className="text-sm font-light text-text-tertiary">{i + 1}</span>
                       </span>
 
                       {/* Name + bar */}
@@ -470,9 +459,7 @@ export default function DashboardPage() {
                         </p>
                         {/* Success rate bar */}
                         <div className="mt-1.5 flex items-center gap-2">
-                          <span className="text-xs text-text-tertiary">
-                            {t('successRate')}
-                          </span>
+                          <span className="text-xs text-text-tertiary">{t('successRate')}</span>
                           <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-secondary">
                             <div
                               className={`h-full rounded-full ${barColor} transition-all duration-500`}
@@ -512,9 +499,7 @@ export default function DashboardPage() {
 
       {/* ── Recent Executions Table ─────────────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-surface">
-        <SectionTitle>
-          {t('recentExecutions')}
-        </SectionTitle>
+        <SectionTitle>{t('recentExecutions')}</SectionTitle>
         {loadingExecs ? (
           <div className="p-5">
             <ChartSkeleton height={140} />
@@ -524,9 +509,7 @@ export default function DashboardPage() {
             <div className="flex h-16 w-16 items-center justify-center rounded-full">
               <Activity size={32} />
             </div>
-            <p className="mt-4 text-sm font-medium text-text-tertiary">
-              {t('noRecentExecutions')}
-            </p>
+            <p className="mt-4 text-sm font-medium text-text-tertiary">{t('noRecentExecutions')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -561,10 +544,7 @@ export default function DashboardPage() {
                       })
                     : '—';
                   return (
-                    <tr
-                      key={exec.id ?? i}
-                      className="transition-colors hover:bg-surface-secondary"
-                    >
+                    <tr key={exec.id ?? i} className="transition-colors hover:bg-surface-secondary">
                       <td className="max-w-[200px] truncate px-5 py-3.5 font-medium text-text-primary">
                         {wfName}
                       </td>

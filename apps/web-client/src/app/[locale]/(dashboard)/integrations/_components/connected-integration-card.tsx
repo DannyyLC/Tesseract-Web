@@ -18,7 +18,6 @@ interface ConnectedIntegrationCardProps {
   onDelete?: (id: string) => void;
 }
 
-
 export function ConnectedIntegrationCard({
   tool,
   index,

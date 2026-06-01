@@ -91,24 +91,23 @@ export default function SpecializedCards() {
           </div>
 
           <h3 className="text-2xl font-bold tracking-tight">{t('enterpriseTitle')}</h3>
-          <p className="mt-1 text-sm font-bold text-brand-white/40">{t('enterpriseStarting')}</p>
+          <p className="text-brand-white/40 mt-1 text-sm font-bold">{t('enterpriseStarting')}</p>
 
           <div className="mt-8 flex-1 space-y-3">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-brand-white/30">
+            <p className="text-brand-white/30 mb-2 text-[10px] font-bold uppercase tracking-widest">
               {t('infraLabel')}
             </p>
-            <p className="flex items-center gap-2 text-xs font-medium text-brand-white/70">
+            <p className="text-brand-white/70 flex items-center gap-2 text-xs font-medium">
               <span className="h-1.5 w-1.5 rounded-full bg-brand-white" /> {t('dedicatedServers')}
             </p>
-            <p className="flex items-center gap-2 text-xs font-medium text-brand-white/70">
-              <span className="h-1.5 w-1.5 rounded-full bg-brand-white" /> {t('customWorkflowLimit')}
+            <p className="text-brand-white/70 flex items-center gap-2 text-xs font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-brand-white" />{' '}
+              {t('customWorkflowLimit')}
             </p>
-            <p className="flex items-center gap-2 text-xs font-medium text-brand-white/70">
+            <p className="text-brand-white/70 flex items-center gap-2 text-xs font-medium">
               <span className="h-1.5 w-1.5 rounded-full bg-brand-white" /> {t('fullCustomization')}
             </p>
-            <p className="mt-2 text-[10px] italic text-brand-white/30">
-              {t('enterpriseNote')}
-            </p>
+            <p className="text-brand-white/30 mt-2 text-[10px] italic">{t('enterpriseNote')}</p>
           </div>
 
           <PermissionGuard permissions="billing:update_plan">

@@ -58,9 +58,7 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
     <Modal isOpen={isOpen} onClose={onClose} title={t('title')}>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-text-primary">
-            {t('emailLabel')}
-          </label>
+          <label className="block text-sm font-medium text-text-primary">{t('emailLabel')}</label>
           <div className="relative">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary">
               <Mail size={18} />
@@ -70,14 +68,12 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={t('emailPlaceholder')}
-              className="w-full rounded-xl border border-border bg-surface py-3 pl-11 pr-4 text-sm text-text-primary outline-none focus:border-border-hover focus:ring-4 focus:ring-border-focus/5"
+              className="focus:ring-border-focus/5 w-full rounded-xl border border-border bg-surface py-3 pl-11 pr-4 text-sm text-text-primary outline-none focus:border-border-hover focus:ring-4"
               autoFocus
               required
             />
           </div>
-          <p className="text-xs text-text-secondary">
-            {t('emailHelper')}
-          </p>
+          <p className="text-xs text-text-secondary">{t('emailHelper')}</p>
         </div>
 
         <div className="flex gap-3">

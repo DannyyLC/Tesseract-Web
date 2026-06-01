@@ -41,7 +41,7 @@ export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay p-4 backdrop-blur-sm"
+          className="bg-overlay fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-sm"
         >
           {/* Backdrop Click Handler */}
           <div className="absolute inset-0" onClick={onClose} />

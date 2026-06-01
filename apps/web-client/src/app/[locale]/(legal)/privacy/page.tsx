@@ -8,10 +8,20 @@ export const metadata: Metadata = {
   description: 'Política de privacidad y protección de datos de Fractal, conforme a la LFPDPPP.',
 };
 
-function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+function Section({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section id={id} className="scroll-mt-24">
-      <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
+      <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
+        {title}
+      </h2>
       <div className="space-y-3 leading-relaxed text-[var(--text-secondary)]">{children}</div>
     </section>
   );
@@ -36,7 +46,10 @@ function InfoTable({ rows }: { rows: [string, string][] }) {
       <table className="w-full text-sm">
         <tbody>
           {rows.map(([label, value], i) => (
-            <tr key={label} className={i % 2 === 0 ? 'bg-[var(--surface-secondary)]' : 'bg-[var(--surface)]'}>
+            <tr
+              key={label}
+              className={i % 2 === 0 ? 'bg-[var(--surface-secondary)]' : 'bg-[var(--surface)]'}
+            >
               <td className="w-1/3 px-4 py-3 font-medium text-[var(--text-primary)]">{label}</td>
               <td className="px-4 py-3 text-[var(--text-secondary)]">{value}</td>
             </tr>
@@ -91,12 +104,14 @@ export default async function PrivacyPage() {
 
           <Section id={t('s4Id')} title={t('s4Title')}>
             <p>{t.rich('s4Text', { bold })}</p>
-            <InfoTable rows={[
-              [t('s4Row1Label'), t('s4Row1Value')],
-              [t('s4Row2Label'), t('s4Row2Value')],
-              [t('s4Row3Label'), t('s4Row3Value')],
-              [t('s4Row4Label'), t('s4Row4Value')],
-            ]} />
+            <InfoTable
+              rows={[
+                [t('s4Row1Label'), t('s4Row1Value')],
+                [t('s4Row2Label'), t('s4Row2Value')],
+                [t('s4Row3Label'), t('s4Row3Value')],
+                [t('s4Row4Label'), t('s4Row4Value')],
+              ]}
+            />
           </Section>
 
           <Section id={t('s5Id')} title={t('s5Title')}>

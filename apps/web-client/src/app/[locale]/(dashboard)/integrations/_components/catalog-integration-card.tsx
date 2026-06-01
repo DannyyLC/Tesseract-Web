@@ -70,9 +70,7 @@ export function CatalogIntegrationCard({
       {/* Body */}
       <div className="flex-1">
         <h3 className="font-semibold text-text-primary">{tool.displayName}</h3>
-        <p className="mt-1 text-xs leading-relaxed text-text-secondary">
-          {tool.description}
-        </p>
+        <p className="mt-1 text-xs leading-relaxed text-text-secondary">{tool.description}</p>
 
         <div className="mt-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -113,9 +111,7 @@ export function CatalogIntegrationCard({
                       <div className="flex h-5 w-5 items-center justify-center rounded bg-[var(--surface-tint)] text-text-tertiary">
                         <DynamicIcon name={fn.icon} size={12} />
                       </div>
-                      <p className="text-xs font-semibold text-text-primary">
-                        {fn.displayName}
-                      </p>
+                      <p className="text-xs font-semibold text-text-primary">{fn.displayName}</p>
                     </div>
                     <p className="mt-1 text-[10px] leading-relaxed text-text-secondary">
                       {fn.description}

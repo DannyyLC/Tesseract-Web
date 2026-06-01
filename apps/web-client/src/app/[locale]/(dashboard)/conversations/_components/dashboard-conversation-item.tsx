@@ -246,11 +246,7 @@ export default function DashboardConversationItem({
         </motion.div>
       </Link>
 
-      <Modal
-        isOpen={isDeleteOpen}
-        onClose={() => setIsDeleteOpen(false)}
-        title={t('deleteTitle')}
-      >
+      <Modal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} title={t('deleteTitle')}>
         <div className="space-y-4">
           <p className="text-text-secondary">
             ¿Estás seguro de que deseas eliminar esta conversación? Esta acción no se puede

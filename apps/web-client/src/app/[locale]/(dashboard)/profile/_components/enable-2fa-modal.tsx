@@ -87,22 +87,18 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
     <Modal isOpen={isOpen} onClose={handleClose} title={t('title')}>
       {step === 1 ? (
         <div className="space-y-4">
-          <div className="rounded-xl bg-info-500/10 p-4 text-info-500">
+          <div className="bg-info-500/10 rounded-xl p-4 text-info-500">
             <div className="flex gap-3">
               <ShieldCheck className="h-5 w-5 flex-shrink-0" />
               <div>
                 <p className="text-sm font-medium">{t('infoHeading')}</p>
-                <p className="mt-1 text-sm opacity-90">
-                  {t('infoText')}
-                </p>
+                <p className="mt-1 text-sm opacity-90">{t('infoText')}</p>
               </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium text-text-primary">
-              {t('appInstallNote')}
-            </p>
+            <p className="text-sm font-medium text-text-primary">{t('appInstallNote')}</p>
             <ul className="list-inside list-disc space-y-1 text-sm text-text-secondary">
               <li>Google Authenticator</li>
               <li>Microsoft Authenticator</li>
@@ -137,9 +133,7 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
       ) : (
         <div className="space-y-4">
           <div className="space-y-3">
-            <p className="text-sm font-medium text-text-primary">
-              {t('step1Title')}
-            </p>
+            <p className="text-sm font-medium text-text-primary">{t('step1Title')}</p>
             {qrCode && (
               <div className="flex justify-center rounded-xl bg-white p-4">
                 <div className="relative h-48 w-48">
@@ -157,9 +151,7 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
 
           {secret && (
             <div className="space-y-2">
-              <p className="text-sm font-medium text-text-primary">
-                {t('manualCode')}
-              </p>
+              <p className="text-sm font-medium text-text-primary">{t('manualCode')}</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 rounded-lg bg-surface-secondary px-3 py-2 font-mono text-sm text-text-primary">
                   {secret}
@@ -180,9 +172,7 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
           )}
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-text-primary">
-              {t('step2Title')}
-            </label>
+            <label className="block text-sm font-medium text-text-primary">{t('step2Title')}</label>
             <input
               type="text"
               inputMode="numeric"
@@ -195,7 +185,7 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
                 }
               }}
               placeholder={t('codePlaceholder')}
-              className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
+              className="focus:ring-border-focus/5 w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4"
             />
           </div>
 

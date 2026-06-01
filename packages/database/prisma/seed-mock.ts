@@ -1,46 +1,59 @@
-import { PrismaClient, SubscriptionPlan, SubscriptionStatus, TransactionType, InvoiceType, InvoiceStatus, WorkflowCategory, TriggerType, ExecutionStatus, ConversationStatus, ChatRole, ToolConnectionStatus } from '@prisma/client';
+import {
+  PrismaClient,
+  SubscriptionPlan,
+  SubscriptionStatus,
+  TransactionType,
+  InvoiceType,
+  InvoiceStatus,
+  WorkflowCategory,
+  TriggerType,
+  ExecutionStatus,
+  ConversationStatus,
+  ChatRole,
+  ToolConnectionStatus,
+} from '@prisma/client';
 import { prisma } from '../src/index';
 
 async function main() {
-  console.log("Starting mock data seeding...");
+  console.log('Starting mock data seeding...');
 
   // 1. Get or create the User
-  const email = "cervantesdaniellimon50m@gmail.com";
+  const email = 'cervantesdaniellimon50m@gmail.com';
   let user = await prisma.user.findUnique({ where: { email } });
 
   // 2. Find or create Organization
   let org = await prisma.organization.findFirst({
-    where: { name: "Fractal" }
+    where: { name: 'Fractal' },
   });
 
   if (!org) {
     org = await prisma.organization.create({
       data: {
-        name: "Fractal",
-        slug: "fractal-" + Math.random().toString(36).substring(7),
+        name: 'Fractal',
+        slug: 'fractal-' + Math.random().toString(36).substring(7),
         plan: SubscriptionPlan.BUSINESS,
         allowOverages: true,
         overageLimit: 500,
         isActive: true,
-      }
+      },
     });
-    console.log("Created Organization: Fractal");
+    console.log('Created Organization: Fractal');
   } else {
     org = await prisma.organization.update({
       where: { id: org.id },
-      data: { plan: SubscriptionPlan.BUSINESS }
+      data: { plan: SubscriptionPlan.BUSINESS },
     });
-    console.log("Updated Organization to BUSINESS: Fractal");
+    console.log('Updated Organization to BUSINESS: Fractal');
   }
 
   // Assign user to org
   if (user) {
     await prisma.user.update({
       where: { id: user.id },
-      data: { organizationId: org.id, role: 'OWNER' }
+      data: { organizationId: org.id, role: 'OWNER' },
     });
   } else {
-    // We shouldn't create it with dummy password unless required. The user mentioned they tried to sign up. 
+    // We shouldn't create it with dummy password unless required. The user mentioned they tried to sign up.
     // They might already exist.
   }
 
@@ -56,7 +69,7 @@ async function main() {
         status: SubscriptionStatus.ACTIVE,
         currentPeriodStart: new Date(),
         currentPeriodEnd: endPeriod,
-      }
+      },
     });
   }
 
@@ -70,8 +83,8 @@ async function main() {
         lifetimeEarned: 5000,
         lifetimeSpent: 3500,
         currentMonthSpent: 250,
-        currentMonthCostUSD: 5.25
-      }
+        currentMonthCostUSD: 5.25,
+      },
     });
   }
 
@@ -82,30 +95,30 @@ async function main() {
       {
         organizationId: org.id,
         subscriptionId: sub.id,
-        subtotal: 99.00,
+        subtotal: 99.0,
         tax: 0,
         overageAmount: 0,
-        total: 99.00,
-        invoiceNumber: "INV-" + uniqueId + "-1",
+        total: 99.0,
+        invoiceNumber: 'INV-' + uniqueId + '-1',
         type: InvoiceType.SUBSCRIPTION,
         status: InvoiceStatus.PAID,
-        stripeInvoiceId: 'in_' + uniqueId + "1",
-        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        stripeInvoiceId: 'in_' + uniqueId + '1',
+        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
       },
       {
         organizationId: org.id,
         subscriptionId: sub.id,
-        subtotal: 99.00,
+        subtotal: 99.0,
         tax: 0,
         overageAmount: 0,
-        total: 99.00,
-        invoiceNumber: "INV-" + uniqueId + "-2",
+        total: 99.0,
+        invoiceNumber: 'INV-' + uniqueId + '-2',
         type: InvoiceType.SUBSCRIPTION,
         status: InvoiceStatus.PENDING,
-        stripeInvoiceId: 'in_' + uniqueId + "2",
-      }
+        stripeInvoiceId: 'in_' + uniqueId + '2',
+      },
     ],
-    skipDuplicates: true
+    skipDuplicates: true,
   });
 
   // 6. Tools Catalog & Tenant Tools
@@ -116,49 +129,51 @@ async function main() {
       data: {
         organizationId: org.id,
         toolCatalogId: tc.id,
-        displayName: "Connection to " + tc.displayName,
+        displayName: 'Connection to ' + tc.displayName,
         isConnected: true,
         status: ToolConnectionStatus.CONNECTED,
-        createdByUserId: user?.id
-      }
+        createdByUserId: user?.id,
+      },
     });
     tenantToolId = tt.id;
   }
 
   // 7. Workflows
-  console.log("Creating workflows...");
+  console.log('Creating workflows...');
   const workflowData = [
     {
-      name: "Customer Support Agent",
-      description: "Handles L1 support queries automatically.",
+      name: 'Customer Support Agent',
+      description: 'Handles L1 support queries automatically.',
       category: WorkflowCategory.STANDARD,
       isActive: true,
       maxExecutionsPerMonth: 1000,
       maxTokensPerExecution: 100000,
     },
     {
-      name: "Lead Qualifier",
-      description: "Qualifies leads via WhatsApp",
+      name: 'Lead Qualifier',
+      description: 'Qualifies leads via WhatsApp',
       category: WorkflowCategory.LIGHT,
       isActive: true,
       maxExecutionsPerMonth: 1000,
       maxTokensPerExecution: 100000,
     },
     {
-      name: "Data Processor",
-      description: "Background job to process CSV files",
+      name: 'Data Processor',
+      description: 'Background job to process CSV files',
       category: WorkflowCategory.ADVANCED,
       isActive: false,
       maxExecutionsPerMonth: 1000,
       maxTokensPerExecution: 100000,
-    }
+    },
   ];
 
   const workflows = [];
   for (const w of workflowData) {
-    const existing = await prisma.workflow.findFirst({ where: { organizationId: org.id, name: w.name } });
+    const existing = await prisma.workflow.findFirst({
+      where: { organizationId: org.id, name: w.name },
+    });
     if (!existing) {
-       const wf = await prisma.workflow.create({
+      const wf = await prisma.workflow.create({
         data: {
           organizationId: org.id,
           name: w.name,
@@ -166,8 +181,8 @@ async function main() {
           category: w.category,
           isActive: w.isActive,
           maxTokensPerExecution: w.maxTokensPerExecution,
-          config: { type: "agent", graph: { type: "react", config: {} } },
-        }
+          config: { type: 'agent', graph: { type: 'react', config: {} } },
+        },
       });
       workflows.push(wf);
     } else {
@@ -176,18 +191,20 @@ async function main() {
   }
 
   // 8. End Users
-  console.log("Creating end users...");
+  console.log('Creating end users...');
   const endUsers = [];
   for (let i = 1; i <= 5; i++) {
-    const existing = await prisma.endUser.findFirst({ where: { organizationId: org.id, email: `customer${i}@example.com` }});
+    const existing = await prisma.endUser.findFirst({
+      where: { organizationId: org.id, email: `customer${i}@example.com` },
+    });
     if (!existing) {
       const eu = await prisma.endUser.create({
         data: {
           organizationId: org.id,
-          externalId: "ext_" + i + "_" + uniqueId,
-          name: "Customer " + i,
+          externalId: 'ext_' + i + '_' + uniqueId,
+          name: 'Customer ' + i,
           email: `customer${i}@example.com`,
-        }
+        },
       });
       endUsers.push(eu);
     } else {
@@ -196,12 +213,12 @@ async function main() {
   }
 
   // 9. Conversations & Messages & Executions
-  console.log("Creating conversations and executions...");
+  console.log('Creating conversations and executions...');
   for (const wf of workflows) {
     for (let i = 0; i < 3; i++) {
       const isFailed = i === 2;
       const endUser = endUsers[i % endUsers.length];
-      
+
       // Executions
       await prisma.execution.create({
         data: {
@@ -214,8 +231,8 @@ async function main() {
           duration: Math.floor(Math.random() * 5000),
           tokensUsed: Math.floor(Math.random() * 5000),
           cost: 0.05,
-          error: isFailed ? "Timeout reaching API" : null
-        }
+          error: isFailed ? 'Timeout reaching API' : null,
+        },
       });
 
       // Conversation
@@ -225,9 +242,9 @@ async function main() {
           workflowId: wf.id,
           endUserId: endUser.id,
           status: i === 0 ? ConversationStatus.ACTIVE : ConversationStatus.CLOSED,
-          channel: "WEB",
+          channel: 'WEB',
           metadata: {},
-        }
+        },
       });
 
       // Messages in conversation
@@ -236,8 +253,8 @@ async function main() {
           conversationId: conv.id,
           organizationId: org.id,
           role: ChatRole.USER,
-          content: "Hello, I need help with my account.",
-        }
+          content: 'Hello, I need help with my account.',
+        },
       });
 
       await prisma.message.create({
@@ -245,16 +262,16 @@ async function main() {
           conversationId: conv.id,
           organizationId: org.id,
           role: ChatRole.ASSISTANT,
-          content: "Sure, please provide your account ID.",
-          model: "gpt-4o",
+          content: 'Sure, please provide your account ID.',
+          model: 'gpt-4o',
           tokens: 50,
           cost: 0.001,
-        }
+        },
       });
     }
   }
 
-  console.log("Mock data seeding completed successfully!");
+  console.log('Mock data seeding completed successfully!');
 }
 
 main()

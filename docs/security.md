@@ -73,11 +73,11 @@ flowchart TD
 
 ### Labels de GitHub para seguridad
 
-| Label | Cuando usarlo |
-|---|---|
-| `security` | Todo issue relacionado con seguridad |
+| Label                | Cuando usarlo                                 |
+| -------------------- | --------------------------------------------- |
+| `security`           | Todo issue relacionado con seguridad          |
 | `priority: critical` | Requiere atencion inmediata (datos en riesgo) |
-| `priority: high` | Importante pero no hay fuga activa |
+| `priority: high`     | Importante pero no hay fuga activa            |
 
 ---
 
@@ -98,14 +98,14 @@ Antes de abrir un Pull Request, verifica estos puntos de seguridad:
 
 Referencia rapida de las protecciones que ya estan implementadas en Tesseract:
 
-| Capa | Mecanismo | Detalle |
-|---|---|---|
-| Autenticacion | JWT + Refresh Tokens | Access token de corta duracion, refresh token rotado |
-| 2FA | TOTP | Opcional por usuario, verificado en login |
-| Anti-bot | Cloudflare Turnstile | En formularios publicos (login, signup) |
-| Passwords | bcrypt | Hash con salt, nunca almacenados en texto plano |
-| Credenciales OAuth | Google Cloud KMS | Tokens de integraciones cifrados en reposo |
-| API Keys | Hash SHA-256 | El valor original solo se muestra al momento de la creacion |
-| Control de acceso | RBAC | 3 roles: owner, admin, viewer |
-| Multi-tenancy | Filtro por organizationId | En todas las queries y guards |
-| Transporte | HTTPS | Obligatorio en produccion (Cloud Run) |
+| Capa               | Mecanismo                 | Detalle                                                     |
+| ------------------ | ------------------------- | ----------------------------------------------------------- |
+| Autenticacion      | JWT + Refresh Tokens      | Access token de corta duracion, refresh token rotado        |
+| 2FA                | TOTP                      | Opcional por usuario, verificado en login                   |
+| Anti-bot           | Cloudflare Turnstile      | En formularios publicos (login, signup)                     |
+| Passwords          | bcrypt                    | Hash con salt, nunca almacenados en texto plano             |
+| Credenciales OAuth | Google Cloud KMS          | Tokens de integraciones cifrados en reposo                  |
+| API Keys           | Hash SHA-256              | El valor original solo se muestra al momento de la creacion |
+| Control de acceso  | RBAC                      | 3 roles: owner, admin, viewer                               |
+| Multi-tenancy      | Filtro por organizationId | En todas las queries y guards                               |
+| Transporte         | HTTPS                     | Obligatorio en produccion (Cloud Run)                       |

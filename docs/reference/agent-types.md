@@ -36,14 +36,14 @@ El campo `config.graph.type` de un Workflow determina qué tipo de grafo ejecuta
 }
 ```
 
-| Campo | Tipo | Default | Descripción |
-|---|---|---|---|
-| `max_iterations` | int | 10 | Límite de ciclos LLM→tool para prevenir loops infinitos |
-| `allow_interrupts` | bool | false | Si `true`, pausa antes de ejecutar tools (human-in-the-loop) |
-| `agents.default.model` | string | — | Modelo a usar (cualquier modelo soportado por LiteLLM) |
-| `agents.default.temperature` | float | 0.7 | Temperatura del LLM |
-| `agents.default.system_prompt` | string | — | Instrucciones base del agente |
-| `agents.default.tools` | string[] | [] | UUIDs de TenantTools habilitadas para este agente |
+| Campo                          | Tipo     | Default | Descripción                                                  |
+| ------------------------------ | -------- | ------- | ------------------------------------------------------------ |
+| `max_iterations`               | int      | 10      | Límite de ciclos LLM→tool para prevenir loops infinitos      |
+| `allow_interrupts`             | bool     | false   | Si `true`, pausa antes de ejecutar tools (human-in-the-loop) |
+| `agents.default.model`         | string   | —       | Modelo a usar (cualquier modelo soportado por LiteLLM)       |
+| `agents.default.temperature`   | float    | 0.7     | Temperatura del LLM                                          |
+| `agents.default.system_prompt` | string   | —       | Instrucciones base del agente                                |
+| `agents.default.tools`         | string[] | []      | UUIDs de TenantTools habilitadas para este agente            |
 
 ### Ejemplo completo
 
@@ -90,11 +90,11 @@ Ejecuta el LLM una vez y avanza al siguiente nodo. Opcionalmente guarda la respu
 }
 ```
 
-| Campo | Requerido | Descripción |
-|---|---|---|
-| `id` | Sí | Identificador único del nodo en este grafo |
-| `agent` | Sí | Clave en `agents` de la config (ej: `"default"`, `"classifier"`) |
-| `output_variable` | No | Si se especifica, guarda el texto de la respuesta en `variables[output_variable]` |
+| Campo             | Requerido | Descripción                                                                       |
+| ----------------- | --------- | --------------------------------------------------------------------------------- |
+| `id`              | Sí        | Identificador único del nodo en este grafo                                        |
+| `agent`           | Sí        | Clave en `agents` de la config (ej: `"default"`, `"classifier"`)                  |
+| `output_variable` | No        | Si se especifica, guarda el texto de la respuesta en `variables[output_variable]` |
 
 ---
 
@@ -118,12 +118,12 @@ Llama a una función de una tool del tenant con los parámetros dados. Los pará
 }
 ```
 
-| Campo | Requerido | Descripción |
-|---|---|---|
-| `tool_instance` | Sí | UUID del TenantTool configurado en la organización |
-| `function` | Sí | Nombre de la función específica a ejecutar |
-| `params` | No | Parámetros de la función. Soporta templates `{{variables.x}}` |
-| `output_variable` | No | Si se especifica, guarda el resultado en `variables[output_variable]` |
+| Campo             | Requerido | Descripción                                                           |
+| ----------------- | --------- | --------------------------------------------------------------------- |
+| `tool_instance`   | Sí        | UUID del TenantTool configurado en la organización                    |
+| `function`        | Sí        | Nombre de la función específica a ejecutar                            |
+| `params`          | No        | Parámetros de la función. Soporta templates `{{variables.x}}`         |
+| `output_variable` | No        | Si se especifica, guarda el resultado en `variables[output_variable]` |
 
 **Templates de parámetros:**
 
@@ -153,10 +153,10 @@ No se ejecuta como nodo — LangGraph lo convierte en un conditional edge. Lee `
     "mode": "switch",
     "source": "variables.intent",
     "branches": {
-      "ventas":   "node_sales",
-      "soporte":  "node_support",
-      "factura":  "node_billing",
-      "default":  "node_generic"
+      "ventas": "node_sales",
+      "soporte": "node_support",
+      "factura": "node_billing",
+      "default": "node_generic"
     }
   }
 }
@@ -171,8 +171,11 @@ No se ejecuta como nodo — LangGraph lo convierte en un conditional edge. Lee `
   "config": {
     "mode": "rules",
     "rules": [
-      { "when": { "field": "variables.plan",  "op": "eq",  "value": "enterprise" }, "goto": "node_vip"      },
-      { "when": { "field": "variables.score", "op": "gte", "value": 0.8          }, "goto": "node_priority" }
+      {
+        "when": { "field": "variables.plan", "op": "eq", "value": "enterprise" },
+        "goto": "node_vip"
+      },
+      { "when": { "field": "variables.score", "op": "gte", "value": 0.8 }, "goto": "node_priority" }
     ],
     "default": "node_standard"
   }
@@ -181,16 +184,16 @@ No se ejecuta como nodo — LangGraph lo convierte en un conditional edge. Lee `
 
 Operadores disponibles para `rules`:
 
-| Operador | Descripción | Ejemplo |
-|---|---|---|
-| `eq` | Igual | `plan == "pro"` |
-| `neq` | Diferente | `status != "active"` |
-| `gt` | Mayor que | `score > 0.8` |
-| `gte` | Mayor o igual | `score >= 0.5` |
-| `lt` | Menor que | `age < 18` |
-| `lte` | Menor o igual | `retries <= 3` |
-| `contains` | Contiene substring | `"urgente" in message` |
-| `in` | Está en lista | `plan in ["pro", "enterprise"]` |
+| Operador   | Descripción        | Ejemplo                         |
+| ---------- | ------------------ | ------------------------------- |
+| `eq`       | Igual              | `plan == "pro"`                 |
+| `neq`      | Diferente          | `status != "active"`            |
+| `gt`       | Mayor que          | `score > 0.8`                   |
+| `gte`      | Mayor o igual      | `score >= 0.5`                  |
+| `lt`       | Menor que          | `age < 18`                      |
+| `lte`      | Menor o igual      | `retries <= 3`                  |
+| `contains` | Contiene substring | `"urgente" in message`          |
+| `in`       | Está en lista      | `plan in ["pro", "enterprise"]` |
 
 ---
 
@@ -243,22 +246,22 @@ El agente clasificador escribe la intención en `variables.intent`. El nodo cond
           "mode": "switch",
           "source": "variables.intent",
           "branches": {
-            "ventas":  "node_sales",
+            "ventas": "node_sales",
             "soporte": "node_support",
             "default": "node_generic"
           }
         }
       },
-      { "id": "node_sales",   "type": "agent", "agent": "sales"   },
+      { "id": "node_sales", "type": "agent", "agent": "sales" },
       { "id": "node_support", "type": "agent", "agent": "support" },
       { "id": "node_generic", "type": "agent", "agent": "default" }
     ],
     "edges": [
-      { "from": "START",       "to": "classify"     },
-      { "from": "classify",    "to": "route"        },
-      { "from": "node_sales",  "to": "END"          },
-      { "from": "node_support","to": "END"          },
-      { "from": "node_generic","to": "END"          }
+      { "from": "START", "to": "classify" },
+      { "from": "classify", "to": "route" },
+      { "from": "node_sales", "to": "END" },
+      { "from": "node_support", "to": "END" },
+      { "from": "node_generic", "to": "END" }
     ]
   },
   "agents": {
@@ -315,9 +318,9 @@ Primero busca el perfil del usuario en HubSpot, luego el agente responde con esa
       }
     ],
     "edges": [
-      { "from": "START",       "to": "get_profile" },
-      { "from": "get_profile", "to": "respond"     },
-      { "from": "respond",     "to": "END"         }
+      { "from": "START", "to": "get_profile" },
+      { "from": "get_profile", "to": "respond" },
+      { "from": "respond", "to": "END" }
     ]
   },
   "agents": {
@@ -348,8 +351,8 @@ Primero busca el perfil del usuario en HubSpot, luego el agente responde con esa
   "graph": {
     "type": "sequential",
     "steps": [
-      { "agent": "extractor",  "output_variable": "raw_data"  },
-      { "agent": "analyzer",   "output_variable": "analysis"  },
+      { "agent": "extractor", "output_variable": "raw_data" },
+      { "agent": "analyzer", "output_variable": "analysis" },
       { "agent": "responder" }
     ]
   },
@@ -373,11 +376,11 @@ Primero busca el perfil del usuario en HubSpot, luego el agente responde con esa
 }
 ```
 
-| Campo | Tipo | Requerido | Descripción |
-|---|---|---|---|
-| `steps` | array | Sí | Lista ordenada de pasos a ejecutar |
-| `steps[].agent` | string | Sí | Clave en `agents` de la config |
-| `steps[].output_variable` | string | No | Guarda el texto de la respuesta en `variables[output_variable]` para pasos posteriores |
+| Campo                     | Tipo   | Requerido | Descripción                                                                            |
+| ------------------------- | ------ | --------- | -------------------------------------------------------------------------------------- |
+| `steps`                   | array  | Sí        | Lista ordenada de pasos a ejecutar                                                     |
+| `steps[].agent`           | string | Sí        | Clave en `agents` de la config                                                         |
+| `steps[].output_variable` | string | No        | Guarda el texto de la respuesta en `variables[output_variable]` para pasos posteriores |
 
 ### Ejemplo completo
 
@@ -389,9 +392,9 @@ Pipeline de análisis de contratos: extrae cláusulas, evalúa riesgos legales y
   "graph": {
     "type": "sequential",
     "steps": [
-      { "agent": "extractor",  "output_variable": "clausulas"    },
-      { "agent": "legal",      "output_variable": "riesgos"      },
-      { "agent": "summarizer"                                      }
+      { "agent": "extractor", "output_variable": "clausulas" },
+      { "agent": "legal", "output_variable": "riesgos" },
+      { "agent": "summarizer" }
     ]
   },
   "agents": {
@@ -431,7 +434,7 @@ Pipeline de análisis de contratos: extrae cláusulas, evalúa riesgos legales y
     "type": "router",
     "classifier_agent": "classifier",
     "routes": {
-      "ventas":  "sales",
+      "ventas": "sales",
       "soporte": "support",
       "default": "default"
     },
@@ -464,11 +467,11 @@ Pipeline de análisis de contratos: extrae cláusulas, evalúa riesgos legales y
 }
 ```
 
-| Campo | Tipo | Requerido | Descripción |
-|---|---|---|---|
-| `classifier_agent` | string | Sí | Clave en `agents` del agente que clasifica la intención |
-| `routes` | object | Sí | Mapa `intent_label → agent_name`. Debe incluir `"default"` como fallback |
-| `max_iterations` | int | No (def: 10) | Límite del loop ReAct de los agentes destino |
+| Campo              | Tipo   | Requerido    | Descripción                                                              |
+| ------------------ | ------ | ------------ | ------------------------------------------------------------------------ |
+| `classifier_agent` | string | Sí           | Clave en `agents` del agente que clasifica la intención                  |
+| `routes`           | object | Sí           | Mapa `intent_label → agent_name`. Debe incluir `"default"` como fallback |
+| `max_iterations`   | int    | No (def: 10) | Límite del loop ReAct de los agentes destino                             |
 
 **Notas importantes:**
 
@@ -488,10 +491,10 @@ Bot omnicanal para WhatsApp con tres especialidades:
     "type": "router",
     "classifier_agent": "classifier",
     "routes": {
-      "ventas":    "sales",
-      "soporte":   "support",
-      "factura":   "billing",
-      "default":   "default"
+      "ventas": "sales",
+      "soporte": "support",
+      "factura": "billing",
+      "default": "default"
     },
     "max_iterations": 8
   },
@@ -568,11 +571,11 @@ Bot omnicanal para WhatsApp con tres especialidades:
 }
 ```
 
-| Campo | Tipo | Requerido | Descripción |
-|---|---|---|---|
-| `supervisor_agent` | string | Sí | Clave en `agents` del agente coordinador |
-| `worker_agents` | string[] | Sí | Lista de claves en `agents` de los workers disponibles |
-| `max_iterations` | int | No (def: 15) | Límite total de llamadas a workers para prevenir loops infinitos |
+| Campo              | Tipo     | Requerido    | Descripción                                                      |
+| ------------------ | -------- | ------------ | ---------------------------------------------------------------- |
+| `supervisor_agent` | string   | Sí           | Clave en `agents` del agente coordinador                         |
+| `worker_agents`    | string[] | Sí           | Lista de claves en `agents` de los workers disponibles           |
+| `max_iterations`   | int      | No (def: 15) | Límite total de llamadas a workers para prevenir loops infinitos |
 
 **Protocolo del supervisor:**
 
@@ -648,17 +651,17 @@ Todos los agentes, independientemente del tipo de grafo, usan LiteLLM para inici
 }
 ```
 
-| Campo | Tipo | Default | Descripción |
-|---|---|---|---|
-| `model` | string | — | Modelo a usar. LiteLLM detecta el provider por el nombre: `"gpt-4o"` → OpenAI, `"claude-3-5-sonnet-20241022"` → Anthropic, `"gemini-pro"` → Google |
-| `temperature` | float | 0.7 | Temperatura del LLM (0 = determinista, 1 = creativo) |
-| `system_prompt` | string | — | Instrucciones base del agente |
-| `tools` | string[] | [] | UUIDs de TenantTools habilitadas para este agente |
-| `max_tokens` | int | null | Límite de tokens en la respuesta |
-| `fallbacks` | string[] | [] | Lista de modelos alternativos si el principal falla o está caído. Se prueban en orden |
-| `max_retries` | int | 2 | Reintentos con exponential backoff ante errores transitorios (rate limits, timeouts) |
-| `timeout` | int | 60 | Timeout en segundos por request al LLM |
-| `api_base` | string | null | URL base personalizada. Útil para proxies o endpoints compatibles con OpenAI |
+| Campo           | Tipo     | Default | Descripción                                                                                                                                        |
+| --------------- | -------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `model`         | string   | —       | Modelo a usar. LiteLLM detecta el provider por el nombre: `"gpt-4o"` → OpenAI, `"claude-3-5-sonnet-20241022"` → Anthropic, `"gemini-pro"` → Google |
+| `temperature`   | float    | 0.7     | Temperatura del LLM (0 = determinista, 1 = creativo)                                                                                               |
+| `system_prompt` | string   | —       | Instrucciones base del agente                                                                                                                      |
+| `tools`         | string[] | []      | UUIDs de TenantTools habilitadas para este agente                                                                                                  |
+| `max_tokens`    | int      | null    | Límite de tokens en la respuesta                                                                                                                   |
+| `fallbacks`     | string[] | []      | Lista de modelos alternativos si el principal falla o está caído. Se prueban en orden                                                              |
+| `max_retries`   | int      | 2       | Reintentos con exponential backoff ante errores transitorios (rate limits, timeouts)                                                               |
+| `timeout`       | int      | 60      | Timeout en segundos por request al LLM                                                                                                             |
+| `api_base`      | string   | null    | URL base personalizada. Útil para proxies o endpoints compatibles con OpenAI                                                                       |
 
 **Sobre `fallbacks`:** LiteLLM gestiona la conmutación automáticamente. Si `gpt-4o` devuelve error 429 o 503, pasa al siguiente modelo de la lista sin que el agente lo note. Permite combinar providers distintos como fallback:
 
@@ -677,11 +680,11 @@ Todos los agentes, independientemente del tipo de grafo, usan LiteLLM para inici
 
 ## Comparativa de los cinco tipos
 
-| | `react` | `pipeline` | `sequential` | `router` | `supervisor` |
-|---|---|---|---|---|---|
-| **Flujo decidido por** | LLM (dinámico) | Config (estático) | Config (lineal) | LLM classifier + config | LLM supervisor (dinámico) |
-| **Número de agentes** | 1 | N (en nodos) | N (en secuencia) | 1 activo por sesión | N (todos disponibles) |
-| **Tools** | LLM decide cuándo | Nodos `tool` explícitos | No nativo | Cada agente destino tiene las suyas | Cada worker tiene las suyas |
-| **Orden de ejecución** | No determinista | Determinista | Determinista | Determinista tras clasificar | No determinista |
-| **Condiciones/bifurcaciones** | No | Sí (nodos `condition`) | No | Solo al inicio (routing) | El supervisor decide |
-| **Cuándo usar** | Agente con tools en loop libre | Orquestación compleja con control total | Etapas fijas con roles distintos | Un agente según la intención del usuario | Múltiples especialistas en orden dinámico |
+|                               | `react`                        | `pipeline`                              | `sequential`                     | `router`                                 | `supervisor`                              |
+| ----------------------------- | ------------------------------ | --------------------------------------- | -------------------------------- | ---------------------------------------- | ----------------------------------------- |
+| **Flujo decidido por**        | LLM (dinámico)                 | Config (estático)                       | Config (lineal)                  | LLM classifier + config                  | LLM supervisor (dinámico)                 |
+| **Número de agentes**         | 1                              | N (en nodos)                            | N (en secuencia)                 | 1 activo por sesión                      | N (todos disponibles)                     |
+| **Tools**                     | LLM decide cuándo              | Nodos `tool` explícitos                 | No nativo                        | Cada agente destino tiene las suyas      | Cada worker tiene las suyas               |
+| **Orden de ejecución**        | No determinista                | Determinista                            | Determinista                     | Determinista tras clasificar             | No determinista                           |
+| **Condiciones/bifurcaciones** | No                             | Sí (nodos `condition`)                  | No                               | Solo al inicio (routing)                 | El supervisor decide                      |
+| **Cuándo usar**               | Agente con tools en loop libre | Orquestación compleja con control total | Etapas fijas con roles distintos | Un agente según la intención del usuario | Múltiples especialistas en orden dinámico |

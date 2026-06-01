@@ -107,7 +107,7 @@ export default function ChangePasswordModal({
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder={t('currentPasswordPlaceholder')}
-                className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 pr-12 text-sm text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
+                className="focus:ring-border-focus/5 w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 pr-12 text-sm text-text-primary outline-none focus:border-input-border-focus focus:ring-4"
               />
               <button
                 type="button"
@@ -135,7 +135,7 @@ export default function ChangePasswordModal({
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder={t('newPasswordPlaceholder')}
-              className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 pr-12 text-sm text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
+              className="focus:ring-border-focus/5 w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 pr-12 text-sm text-text-primary outline-none focus:border-input-border-focus focus:ring-4"
             />
             <button
               type="button"
@@ -162,7 +162,7 @@ export default function ChangePasswordModal({
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder={t('confirmPasswordPlaceholder')}
-              className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 pr-12 text-sm text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
+              className="focus:ring-border-focus/5 w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 pr-12 text-sm text-text-primary outline-none focus:border-input-border-focus focus:ring-4"
             />
             <button
               type="button"
@@ -196,7 +196,7 @@ export default function ChangePasswordModal({
                 }
               }}
               placeholder={t('codePlaceholder')}
-              className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
+              className="focus:ring-border-focus/5 w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4"
             />
           </div>
         )}

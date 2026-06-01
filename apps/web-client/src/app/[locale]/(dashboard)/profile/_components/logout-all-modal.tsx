@@ -28,14 +28,12 @@ export default function LogoutAllModal({ isOpen, onClose }: LogoutAllModalProps)
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('title')}>
       <div className="space-y-4">
-        <div className="rounded-xl bg-warning-500/10 p-4 text-warning-500">
+        <div className="bg-warning-500/10 rounded-xl p-4 text-warning-500">
           <div className="flex gap-3">
             <MonitorX className="h-5 w-5 flex-shrink-0" />
             <div>
               <p className="text-sm font-medium">{t('confirmHeading')}</p>
-              <p className="mt-1 text-sm opacity-90">
-                {t('confirmText')}
-              </p>
+              <p className="mt-1 text-sm opacity-90">{t('confirmText')}</p>
             </div>
           </div>
         </div>

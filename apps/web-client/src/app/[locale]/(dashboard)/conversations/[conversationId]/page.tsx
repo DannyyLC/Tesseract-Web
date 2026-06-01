@@ -51,9 +51,7 @@ export default function WorkflowChatPage() {
   // Obtener detalles de la conversación primero
   // Si conversationId es 'new', no intentamos cargar la conversación
   const isNewConversation = conversationId === 'new';
-  const { data: conversationData } = useConversation(
-    isNewConversation ? '' : conversationId,
-  );
+  const { data: conversationData } = useConversation(isNewConversation ? '' : conversationId);
 
   // Gestión de URL y router (Moved up for early access)
   const searchParams = useSearchParams();
@@ -409,191 +407,195 @@ export default function WorkflowChatPage() {
                 className="overflow-hidden"
               >
                 <div className="flex items-center justify-between border-b border-border bg-surface px-3 py-3 lg:px-6 lg:py-4">
-          <div className="flex min-w-0 items-center gap-2 lg:gap-4">
-            <button
-              onClick={() => router.back()}
-              className="-ml-2 rounded-lg p-2 text-text-tertiary transition-colors hover:bg-surface-secondary"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div>
-              {isEditing ? (
-                <input
-                  value={renameValue}
-                  onChange={(e) => setRenameValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      if (renameValue.trim()) {
-                        updateConversation.mutate(
-                          { id: conversationId, data: { title: renameValue } },
-                          {
-                            onSuccess: () => setIsEditing(false),
-                          },
-                        );
-                      } else {
-                        setIsEditing(false);
-                      }
-                    } else if (e.key === 'Escape') {
-                      setRenameValue(conversationData?.title || '');
-                      setIsEditing(false);
-                    }
-                  }}
-                  onBlur={() => {
-                    if (renameValue.trim() && renameValue !== conversationData?.title) {
-                      updateConversation.mutate(
-                        { id: conversationId, data: { title: renameValue } },
-                        {
-                          onSuccess: () => setIsEditing(false),
-                        },
-                      );
-                    } else {
-                      setIsEditing(false);
-                    }
-                  }}
-                  autoFocus
-                  className="w-full min-w-[200px] border-b border-border-hover bg-transparent p-0 text-lg font-bold text-text-primary outline-none"
-                />
-              ) : (
-                <h1
-                  onClick={() => {
-                    if (canUpdate) {
-                      setRenameValue(conversationData?.title || '');
-                      setIsEditing(true);
-                    }
-                  }}
-                  className={`flex items-center gap-2 truncate text-base font-bold text-text-primary lg:text-lg ${canUpdate ? 'cursor-pointer transition-opacity hover:opacity-70' : ''}`}
-                  title={canUpdate ? 'Haz clic para editar el nombre' : undefined}
-                >
-                  {isEmpty ? workflow?.name : conversationData?.title || 'Nueva Conversación'}
-                </h1>
-              )}
-              <p className="max-w-[180px] truncate text-xs text-text-tertiary lg:max-w-md">
-                {isEmpty ? (
-                  workflow?.description || 'Probador Interactivo'
-                ) : (
-                  <span className="flex items-center gap-1">
-                    <span className="font-medium text-text-secondary">
-                      {workflow?.name}
-                    </span>
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-
-          {/* Status Indicator & Actions */}
-          <div className="flex shrink-0 items-center gap-1.5 lg:gap-3">
-            {/* User Badge - Relocated here */}
-            {user && (
-              <div className="hidden items-center gap-2 rounded-full border border-border bg-surface-secondary px-3 py-1.5 lg:flex">
-                <User size={14} className="text-text-tertiary" />
-                <span className="max-w-[100px] truncate text-xs font-medium text-text-secondary">
-                  {user.name}
-                </span>
-              </div>
-            )}
-
-            {/* Status & HITL Controls (Only for external users) */}
-            {conversationData && (
-              <div className="mr-1 flex items-center gap-1 border-r border-border pr-2 lg:mr-2 lg:gap-2 lg:pr-4">
-                {/* HITL Toggle */}
-                {!conversationData.userId && (
-                  <PermissionGuard permissions="conversations:update">
+                  <div className="flex min-w-0 items-center gap-2 lg:gap-4">
                     <button
-                      onClick={() =>
-                        updateConversation.mutate({
-                          id: conversationId,
-                          data: { isHumanInTheLoop: !conversationData.isHumanInTheLoop },
-                        })
-                      }
-                      disabled={updateConversation.isPending}
-                      className={`flex items-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium transition-colors lg:px-3 ${
-                        conversationData.isHumanInTheLoop
-                          ? 'border border-warning-600 text-warning-600 hover:bg-[color-mix(in_srgb,var(--warning-500)_10%,transparent)]'
-                          : 'bg-surface-secondary text-text-tertiary hover:bg-surface-elevated'
-                      }`}
-                      title={
-                        conversationData.isHumanInTheLoop
-                          ? 'Reactivar IA (El bot volverá a responder automáticamente)'
-                          : 'Tomar el control (Pausar IA y responder manualmente)'
-                      }
+                      onClick={() => router.back()}
+                      className="-ml-2 rounded-lg p-2 text-text-tertiary transition-colors hover:bg-surface-secondary"
                     >
-                      <User size={13} className="shrink-0" />
-                      <span className="hidden lg:inline">
-                        {conversationData.isHumanInTheLoop ? 'Modo manual' : 'Tomar el control'}
-                      </span>
+                      <ArrowLeft size={20} />
                     </button>
-                  </PermissionGuard>
-                )}
+                    <div>
+                      {isEditing ? (
+                        <input
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (renameValue.trim()) {
+                                updateConversation.mutate(
+                                  { id: conversationId, data: { title: renameValue } },
+                                  {
+                                    onSuccess: () => setIsEditing(false),
+                                  },
+                                );
+                              } else {
+                                setIsEditing(false);
+                              }
+                            } else if (e.key === 'Escape') {
+                              setRenameValue(conversationData?.title || '');
+                              setIsEditing(false);
+                            }
+                          }}
+                          onBlur={() => {
+                            if (renameValue.trim() && renameValue !== conversationData?.title) {
+                              updateConversation.mutate(
+                                { id: conversationId, data: { title: renameValue } },
+                                {
+                                  onSuccess: () => setIsEditing(false),
+                                },
+                              );
+                            } else {
+                              setIsEditing(false);
+                            }
+                          }}
+                          autoFocus
+                          className="w-full min-w-[200px] border-b border-border-hover bg-transparent p-0 text-lg font-bold text-text-primary outline-none"
+                        />
+                      ) : (
+                        <h1
+                          onClick={() => {
+                            if (canUpdate) {
+                              setRenameValue(conversationData?.title || '');
+                              setIsEditing(true);
+                            }
+                          }}
+                          className={`flex items-center gap-2 truncate text-base font-bold text-text-primary lg:text-lg ${canUpdate ? 'cursor-pointer transition-opacity hover:opacity-70' : ''}`}
+                          title={canUpdate ? 'Haz clic para editar el nombre' : undefined}
+                        >
+                          {isEmpty
+                            ? workflow?.name
+                            : conversationData?.title || 'Nueva Conversación'}
+                        </h1>
+                      )}
+                      <p className="max-w-[180px] truncate text-xs text-text-tertiary lg:max-w-md">
+                        {isEmpty ? (
+                          workflow?.description || 'Probador Interactivo'
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <span className="font-medium text-text-secondary">
+                              {workflow?.name}
+                            </span>
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
 
-                {/* Status Toggle (Simple Open/Close for now) */}
-                <PermissionGuard permissions="conversations:update">
-                  <button
-                    onClick={() =>
-                      updateConversation.mutate({
-                        id: conversationId,
-                        data: {
-                          status: conversationData.status === 'CLOSED' ? 'ACTIVE' : 'CLOSED',
-                        },
-                      })
-                    }
-                    disabled={updateConversation.isPending}
-                    className={`flex items-center gap-1.5 rounded-full border px-2 py-1.5 text-xs font-medium shadow-sm transition-all lg:px-3 ${
-                      conversationData.status === 'CLOSED'
-                        ? 'border-border bg-surface-secondary text-text-secondary hover:bg-surface-elevated'
-                        : 'border-success-600 text-success-600 hover:bg-[color-mix(in_srgb,var(--success-500)_10%,transparent)]'
-                    }`}
-                  >
-                    {conversationData.status === 'CLOSED' ? (
-                      <>
-                        <RefreshCw size={14} />
-                        <span className="hidden lg:inline">Reabrir</span>
-                      </>
-                    ) : (
-                      <>
-                        <Archive size={14} />
-                        <span className="hidden lg:inline">Cerrar</span>
-                      </>
+                  {/* Status Indicator & Actions */}
+                  <div className="flex shrink-0 items-center gap-1.5 lg:gap-3">
+                    {/* User Badge - Relocated here */}
+                    {user && (
+                      <div className="hidden items-center gap-2 rounded-full border border-border bg-surface-secondary px-3 py-1.5 lg:flex">
+                        <User size={14} className="text-text-tertiary" />
+                        <span className="max-w-[100px] truncate text-xs font-medium text-text-secondary">
+                          {user.name}
+                        </span>
+                      </div>
                     )}
-                  </button>
-                </PermissionGuard>
-              </div>
-            )}
 
-            {/* Additional Actions */}
-            {!isNewConversation && (
-              <div className="flex items-center gap-1">
-                <PermissionGuard permissions="conversations:delete">
-                  <button
-                    onClick={() => setIsDeleteOpen(true)}
-                    disabled={deleteConversation.isPending}
-                    className="rounded-full p-2 text-text-tertiary transition-colors hover:bg-danger-500/10 hover:text-danger"
-                    title={t('deleteTitle')}
-                  >
-                    {deleteConversation.isPending ? (
-                      <Loader2 size={18} className="animate-spin" />
-                    ) : (
-                      <Trash2 size={18} />
+                    {/* Status & HITL Controls (Only for external users) */}
+                    {conversationData && (
+                      <div className="mr-1 flex items-center gap-1 border-r border-border pr-2 lg:mr-2 lg:gap-2 lg:pr-4">
+                        {/* HITL Toggle */}
+                        {!conversationData.userId && (
+                          <PermissionGuard permissions="conversations:update">
+                            <button
+                              onClick={() =>
+                                updateConversation.mutate({
+                                  id: conversationId,
+                                  data: { isHumanInTheLoop: !conversationData.isHumanInTheLoop },
+                                })
+                              }
+                              disabled={updateConversation.isPending}
+                              className={`flex items-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium transition-colors lg:px-3 ${
+                                conversationData.isHumanInTheLoop
+                                  ? 'border border-warning-600 text-warning-600 hover:bg-[color-mix(in_srgb,var(--warning-500)_10%,transparent)]'
+                                  : 'bg-surface-secondary text-text-tertiary hover:bg-surface-elevated'
+                              }`}
+                              title={
+                                conversationData.isHumanInTheLoop
+                                  ? 'Reactivar IA (El bot volverá a responder automáticamente)'
+                                  : 'Tomar el control (Pausar IA y responder manualmente)'
+                              }
+                            >
+                              <User size={13} className="shrink-0" />
+                              <span className="hidden lg:inline">
+                                {conversationData.isHumanInTheLoop
+                                  ? 'Modo manual'
+                                  : 'Tomar el control'}
+                              </span>
+                            </button>
+                          </PermissionGuard>
+                        )}
+
+                        {/* Status Toggle (Simple Open/Close for now) */}
+                        <PermissionGuard permissions="conversations:update">
+                          <button
+                            onClick={() =>
+                              updateConversation.mutate({
+                                id: conversationId,
+                                data: {
+                                  status:
+                                    conversationData.status === 'CLOSED' ? 'ACTIVE' : 'CLOSED',
+                                },
+                              })
+                            }
+                            disabled={updateConversation.isPending}
+                            className={`flex items-center gap-1.5 rounded-full border px-2 py-1.5 text-xs font-medium shadow-sm transition-all lg:px-3 ${
+                              conversationData.status === 'CLOSED'
+                                ? 'border-border bg-surface-secondary text-text-secondary hover:bg-surface-elevated'
+                                : 'border-success-600 text-success-600 hover:bg-[color-mix(in_srgb,var(--success-500)_10%,transparent)]'
+                            }`}
+                          >
+                            {conversationData.status === 'CLOSED' ? (
+                              <>
+                                <RefreshCw size={14} />
+                                <span className="hidden lg:inline">Reabrir</span>
+                              </>
+                            ) : (
+                              <>
+                                <Archive size={14} />
+                                <span className="hidden lg:inline">Cerrar</span>
+                              </>
+                            )}
+                          </button>
+                        </PermissionGuard>
+                      </div>
                     )}
-                  </button>
-                </PermissionGuard>
-              </div>
-            )}
 
-            {isStreaming && !isExternalUser ? (
-              <div className="flex items-center gap-1.5 rounded-full bg-success-500/10 px-2 py-1.5 text-xs font-medium text-success-600 lg:px-3">
-                <Loader2 size={12} className="animate-spin" />
-                <span className="hidden lg:inline">Generando...</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 rounded-full bg-surface-secondary px-2 py-1.5 text-xs font-medium text-text-tertiary lg:px-3">
-                <div className="h-1.5 w-1.5 rounded-full bg-current" />
-                <span className="hidden lg:inline">Listo</span>
-              </div>
-            )}
+                    {/* Additional Actions */}
+                    {!isNewConversation && (
+                      <div className="flex items-center gap-1">
+                        <PermissionGuard permissions="conversations:delete">
+                          <button
+                            onClick={() => setIsDeleteOpen(true)}
+                            disabled={deleteConversation.isPending}
+                            className="hover:bg-danger-500/10 rounded-full p-2 text-text-tertiary transition-colors hover:text-danger"
+                            title={t('deleteTitle')}
+                          >
+                            {deleteConversation.isPending ? (
+                              <Loader2 size={18} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={18} />
+                            )}
+                          </button>
+                        </PermissionGuard>
+                      </div>
+                    )}
 
-          </div>
+                    {isStreaming && !isExternalUser ? (
+                      <div className="bg-success-500/10 flex items-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium text-success-600 lg:px-3">
+                        <Loader2 size={12} className="animate-spin" />
+                        <span className="hidden lg:inline">Generando...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 rounded-full bg-surface-secondary px-2 py-1.5 text-xs font-medium text-text-tertiary lg:px-3">
+                        <div className="h-1.5 w-1.5 rounded-full bg-current" />
+                        <span className="hidden lg:inline">Listo</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -621,9 +623,7 @@ export default function WorkflowChatPage() {
                 </div>
                 <h3 className="max-w-sm text-center text-xl font-medium text-text-tertiary">
                   Comienza una conversación con <br />
-                  <span className="font-bold text-text-secondary">
-                    {workflow?.name}
-                  </span>
+                  <span className="font-bold text-text-secondary">{workflow?.name}</span>
                 </h3>
               </motion.div>
             )}
@@ -647,9 +647,7 @@ export default function WorkflowChatPage() {
                     {/* Avatar */}
                     <div
                       className={`mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
-                        msg.role === 'user'
-                          ? 'bg-accent text-text-inverse'
-                          : 'bg-transparent'
+                        msg.role === 'user' ? 'bg-accent text-text-inverse' : 'bg-transparent'
                       }`}
                     >
                       {msg.role === 'user' ? (
@@ -791,7 +789,7 @@ export default function WorkflowChatPage() {
             <div className="pointer-events-auto relative mx-auto max-w-4xl">
               {/* Error Alert */}
               {error && (
-                <div className="mb-4 flex items-start gap-3 rounded-xl border border-danger-500/20 bg-danger-500/10 p-3">
+                <div className="border-danger-500/20 bg-danger-500/10 mb-4 flex items-start gap-3 rounded-xl border p-3">
                   <AlertCircle className="mt-0.5 flex-shrink-0 text-danger" size={18} />
                   <div className="text-sm text-danger-600">
                     <p className="font-medium">No se pudo enviar el mensaje</p>

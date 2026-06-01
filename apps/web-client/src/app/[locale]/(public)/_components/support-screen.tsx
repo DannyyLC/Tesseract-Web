@@ -16,7 +16,6 @@ import {
   FaWhatsapp,
 } from 'react-icons/fa6';
 
-
 const socialLinks = [
   {
     name: 'Website',
@@ -126,12 +125,8 @@ export default function SupportScreen() {
       <main className="mx-auto max-w-3xl px-6 py-12 md:py-20">
         {/* Encabezado */}
         <div className="mb-16 text-center">
-          <h1 className="mb-4 text-4xl font-bold tracking-tight sm:text-5xl">
-            {t('mainHeading')}
-          </h1>
-          <p className="text-lg text-[var(--text-secondary)]">
-            {t('mainDesc')}
-          </p>
+          <h1 className="mb-4 text-4xl font-bold tracking-tight sm:text-5xl">{t('mainHeading')}</h1>
+          <p className="text-lg text-[var(--text-secondary)]">{t('mainDesc')}</p>
         </div>
 
         {/* Canales de Contacto Directo */}
@@ -160,9 +155,7 @@ export default function SupportScreen() {
 
         {/* Preguntas Frecuentes (FAQ) */}
         <section>
-          <h2 className="mb-6 flex items-center gap-3 text-2xl font-semibold">
-            {t('faqSection')}
-          </h2>
+          <h2 className="mb-6 flex items-center gap-3 text-2xl font-semibold">{t('faqSection')}</h2>
 
           <div className="space-y-4">
             {faqs.map((faq, index) => {

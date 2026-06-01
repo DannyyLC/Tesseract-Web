@@ -24,7 +24,10 @@ function periodToDateRange(period: string): { startDate?: Date; endDate?: Date }
 
 const PAGE_SIZE = 10;
 
-export default function WorkflowExecutionsTable({ workflowId, period }: WorkflowExecutionsTableProps) {
+export default function WorkflowExecutionsTable({
+  workflowId,
+  period,
+}: WorkflowExecutionsTableProps) {
   const [cursor, setCursor] = useState<string | null>(null);
   const [action, setAction] = useState<'next' | 'prev' | null>(null);
 

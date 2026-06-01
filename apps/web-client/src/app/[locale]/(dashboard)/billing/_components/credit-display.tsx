@@ -53,9 +53,7 @@ export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDi
             {isNegative ? t('paymentPending') : t('active')}
           </div>
           {isNegative && (
-            <p className="max-w-[200px] text-right text-xs opacity-60">
-              {t('overdraftNote')}
-            </p>
+            <p className="max-w-[200px] text-right text-xs opacity-60">{t('overdraftNote')}</p>
           )}
         </div>
       </div>

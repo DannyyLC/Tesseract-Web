@@ -4,7 +4,10 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Search, Loader2 } from 'lucide-react';
 import { useToolCatalog, flattenToolCatalog } from '@/hooks/automation/use-tool-catalog';
-import { useInfiniteTenantToolsDashboard, flattenTenantTools } from '@/hooks/automation/use-tenant-tools';
+import {
+  useInfiniteTenantToolsDashboard,
+  flattenTenantTools,
+} from '@/hooks/automation/use-tenant-tools';
 import { GetToolsDto } from '@tesseract/types';
 import { CatalogIntegrationCard } from './catalog-integration-card';
 import { ConnectIntegrationModal } from './connect-integration-modal';
@@ -82,7 +85,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
             placeholder={t('searchPlaceholder')}
-            className="w-full rounded-full border-none bg-[var(--surface-tint)] py-2.5 pl-10 pr-4 text-sm text-text-primary transition-all placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-[var(--border-subtle)] hover:bg-[var(--surface-tint-md)]"
+            className="w-full rounded-full border-none bg-[var(--surface-tint)] py-2.5 pl-10 pr-4 text-sm text-text-primary transition-all placeholder:text-input-placeholder hover:bg-[var(--surface-tint-md)] focus:outline-none focus:ring-2 focus:ring-[var(--border-subtle)]"
           />
         </div>
       </div>
@@ -125,9 +128,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
             <Search size={24} className="text-text-tertiary" />
           </div>
           <p className="font-medium text-text-primary">{t('noResults')}</p>
-          <p className="mt-1 text-sm text-text-secondary">
-            {t('noResultsDesc')}
-          </p>
+          <p className="mt-1 text-sm text-text-secondary">{t('noResultsDesc')}</p>
         </div>
       )}
 

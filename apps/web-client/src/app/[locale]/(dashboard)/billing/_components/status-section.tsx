@@ -27,9 +27,7 @@ export default function StatusSection({ subscription, onCancel, isCanceling }: S
           </div>
 
           <div className="mb-8 flex items-end gap-3">
-            <h2 className="text-5xl font-bold tracking-tight text-text-primary">
-              {currentPlan}
-            </h2>
+            <h2 className="text-5xl font-bold tracking-tight text-text-primary">{currentPlan}</h2>
             <span className="mb-1.5 font-medium text-text-tertiary">
               {currentPlan === 'FREE' ? t('planFree') : t('planMonthly')}
             </span>
@@ -37,9 +35,7 @@ export default function StatusSection({ subscription, onCancel, isCanceling }: S
 
           <div className="w-full space-y-4">
             <div className="mb-1 flex justify-between text-sm">
-              <span className="font-medium text-text-secondary">
-                {t('creditBag')}
-              </span>
+              <span className="font-medium text-text-secondary">{t('creditBag')}</span>
               <span className="font-bold text-text-primary">
                 {creditsUsed.toLocaleString()} / {creditsTotal.toLocaleString()}
               </span>
@@ -49,16 +45,16 @@ export default function StatusSection({ subscription, onCancel, isCanceling }: S
                 initial={{ width: 0 }}
                 animate={{ width: `${percentage}%` }}
                 transition={{ duration: 1, ease: 'easeOut' }}
-                className={`h-full rounded-full ${
-                  percentage > 90 ? 'bg-warning-500' : 'bg-info'
-                }`}
+                className={`h-full rounded-full ${percentage > 90 ? 'bg-warning-500' : 'bg-info'}`}
               />
             </div>
             <div className="mt-6">
               <p className="flex items-center gap-1.5 text-xs font-medium text-text-tertiary">
                 <Shield size={12} />
                 {t('nextBillingDate', {
-                  date: new Date(subscription?.currentPeriodEnd).toLocaleDateString('es-MX', { timeZone: 'UTC' })
+                  date: new Date(subscription?.currentPeriodEnd).toLocaleDateString('es-MX', {
+                    timeZone: 'UTC',
+                  }),
                 })}
               </p>
             </div>
@@ -66,7 +62,7 @@ export default function StatusSection({ subscription, onCancel, isCanceling }: S
         </div>
 
         {/* Glow effect */}
-        <div className="absolute right-0 top-0 -mr-40 -mt-40 h-80 w-80 rounded-full bg-info/5 blur-[100px] transition-colors duration-700 group-hover:bg-info/10" />
+        <div className="bg-info/5 group-hover:bg-info/10 absolute right-0 top-0 -mr-40 -mt-40 h-80 w-80 rounded-full blur-[100px] transition-colors duration-700" />
       </div>
     </div>
   );

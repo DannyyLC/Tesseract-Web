@@ -89,9 +89,7 @@ export default function NotificationItem({
             <div className="flex items-start justify-between gap-2">
               <p
                 className={`text-sm font-medium ${
-                  !notification.isRead
-                    ? 'text-text-primary'
-                    : 'text-text-secondary'
+                  !notification.isRead ? 'text-text-primary' : 'text-text-secondary'
                 }`}
               >
                 {notification.title}
@@ -103,9 +101,7 @@ export default function NotificationItem({
 
             <p
               className={`mt-0.5 text-sm ${
-                !notification.isRead
-                  ? 'text-text-primary'
-                  : 'text-text-secondary'
+                !notification.isRead ? 'text-text-primary' : 'text-text-secondary'
               }`}
             >
               {displayDescription}
