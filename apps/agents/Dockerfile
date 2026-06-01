@@ -1,8 +1,10 @@
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
-    POETRY_VERSION=2.0.1 \
+    POETRY_VERSION=2.4.1 \
     POETRY_NO_INTERACTION=1 \
+    POETRY_REQUESTS_TIMEOUT=300 \
+    POETRY_INSTALLER_MAX_WORKERS=4 \
     POETRY_VIRTUALENVS_CREATE=false
 
 # Installer dependencias del sistema requeridas para compilar algunos paquetes Python
@@ -24,7 +26,6 @@ COPY src/ ./src/
 
 EXPOSE 50051
 
-ENV PYTHONPATH="/app/src:${PYTHONPATH}"
+ENV PYTHONPATH="/app/src"
 
 CMD ["python", "src/grpc_server.py"]
-

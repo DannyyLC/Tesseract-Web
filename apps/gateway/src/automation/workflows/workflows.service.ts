@@ -1406,7 +1406,7 @@ export class WorkflowsService {
         clientStream.write(`data: ${JSON.stringify(event.content)}\n\n`);
         assistantMessageBuilder += event.content ?? '';
       } else if (event.type === 'metadata') {
-        metadataEvent = event.metadata;
+        metadataEvent = event.metadata ? JSON.parse(event.metadata) : null;
       } else if (event.type === 'error') {
         this.logger.error(`[${execution.id}] Agent stream error: ${event.content}`);
       }
@@ -1426,6 +1426,11 @@ export class WorkflowsService {
     rawStream.on('end', () => {
       // Limpiar el heartbeat al finalizar
       clearInterval(keepAliveInterval);
+
+      // Cerrar el stream del cliente inmediatamente para que el front reciba
+      // el fin de la respuesta (reader done). El post-procesamiento (guardado en
+      // DB, cálculo de costos, créditos) continúa en background y no escribe al cliente.
+      clientStream.end();
 
       void (async () => {
         this.logger.log(`Stream finalizado para ejecución ${execution.id}`);

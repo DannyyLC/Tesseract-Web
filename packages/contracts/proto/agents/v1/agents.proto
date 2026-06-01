@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package tesseract.agents.v1;
 
-import "google/protobuf/struct.proto";
-
 service AgentsService {
   rpc Execute(AgentExecutionRequest) returns (AgentExecutionResponse);
   rpc ExecuteStream(AgentExecutionRequest) returns (stream AgentStreamEvent);
@@ -20,13 +18,13 @@ message AgentExecutionRequest {
   string channel        = 6;
   string user_message   = 7;
 
-  // Flexible: pipeline evoluciona frecuentemente, se serializa como JSON
-  google.protobuf.Struct graph_config = 8;
+  // Flexible: pipeline evoluciona frecuentemente, se serializa como JSON string
+  string graph_config = 8;
 
   map<string, AgentConfig>  agents_config        = 9;
   map<string, AgentToolMap> agent_tool_instances = 10;
   repeated Message          message_history      = 11;
-  google.protobuf.Struct    user_metadata        = 12;
+  string                    user_metadata        = 12;
   string                    timezone             = 13;
 }
 
@@ -48,9 +46,9 @@ message AgentToolMap {
 message ToolInstance {
   string                 tool_name         = 1;
   string                 display_name      = 2;
-  google.protobuf.Struct config            = 3;  // dinámico por herramienta
+  string                 config            = 3;  // JSON string, dinámico por herramienta
   repeated string        enabled_functions = 4;
-  google.protobuf.Struct credentials       = 5;  // dinámico por herramienta
+  string                 credentials       = 5;  // JSON string, dinámico por herramienta
 }
 
 message Message {
@@ -93,7 +91,7 @@ message HumanHandoff {
 
 message AgentStreamEvent {
   // token | tool_start | tool_end | metadata | end | error
-  string                 type     = 1;
-  string                 content  = 2;
-  google.protobuf.Struct metadata = 3;
+  string type     = 1;
+  string content  = 2;
+  string metadata = 3;  // JSON string
 }
