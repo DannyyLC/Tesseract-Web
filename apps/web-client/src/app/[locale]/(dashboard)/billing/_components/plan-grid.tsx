@@ -29,6 +29,16 @@ const getPlanIcon = (type: string) => {
 
 export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan }: PlanGridProps) {
   const t = useTranslations('BillingPlanGrid');
+
+  const planContent: Record<string, { desc: string; features: string[]; highlight?: string }> = {
+    [SubscriptionPlan.FREE]: { desc: t('freeDesc'), features: [] },
+    [SubscriptionPlan.STARTER]: { desc: t('starterDesc'), features: [t('starterFeature0')] },
+    [SubscriptionPlan.GROWTH]: { desc: t('growthDesc'), features: [t('growthFeature0')], highlight: t('growthHighlight') },
+    [SubscriptionPlan.BUSINESS]: { desc: t('businessDesc'), features: [t('businessFeature0')], highlight: t('businessHighlight') },
+    [SubscriptionPlan.PRO]: { desc: t('proDesc'), features: [t('proFeature0')], highlight: t('proHighlight') },
+    [SubscriptionPlan.ENTERPRISE]: { desc: t('enterpriseDesc'), features: [t('enterpriseFeature0'), t('enterpriseFeature1')] },
+  };
+
   // Sort plans by price to ensure order
   const sortedPlans = [...(plans || [])].sort((a, b) => a.price.monthly - b.price.monthly);
 
@@ -53,7 +63,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
             </div>
 
             <h3 className="text-lg font-bold text-text-primary">{plan.name}</h3>
-            <p className="mt-1 min-h-[40px] text-sm text-text-secondary">{plan.description}</p>
+            <p className="mt-1 min-h-[40px] text-sm text-text-secondary">{planContent[plan.type]?.desc ?? plan.description}</p>
 
             <div className="mt-4 flex items-baseline gap-1">
               <span className="font-geist-mono text-3xl font-bold text-text-primary">
@@ -119,12 +129,12 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
 
             {/* Features */}
             <div className="mt-6 space-y-3">
-              {plan.features.length > 0 && (
+              {(planContent[plan.type]?.features ?? plan.features).length > 0 && (
                 <p className="text-xs font-bold uppercase tracking-wider text-text-tertiary">
                   {t('includes')}
                 </p>
               )}
-              {(plan.features || []).map((feature, i) => (
+              {(planContent[plan.type]?.features ?? plan.features).map((feature, i) => (
                 <div key={i} className="flex items-start gap-2 text-sm">
                   <div className="bg-success-500/10 mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full">
                     <Check size={10} className="text-success-500" />
@@ -134,13 +144,13 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
               ))}
 
               {/* Highlight Feature */}
-              {plan.highlightFeature && (
+              {(planContent[plan.type]?.highlight ?? plan.highlightFeature) && (
                 <div className="flex items-center gap-2 text-sm">
                   <div className="bg-warning-500/10 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full">
                     <Zap size={10} className="fill-warning-500 text-warning-500" />
                   </div>
                   <span className="font-semibold italic text-text-primary">
-                    {plan.highlightFeature}
+                    {planContent[plan.type]?.highlight ?? plan.highlightFeature}
                   </span>
                 </div>
               )}

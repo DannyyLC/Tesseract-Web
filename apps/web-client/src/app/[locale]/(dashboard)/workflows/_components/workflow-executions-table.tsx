@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Activity, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useDashboardExecutions } from '@/hooks/automation/use-executions';
 import DashboardExecutionItem from './dashboard-execution-item';
+import { useTranslations } from 'next-intl';
 
 interface WorkflowExecutionsTableProps {
   workflowId: string;
@@ -28,6 +29,7 @@ export default function WorkflowExecutionsTable({
   workflowId,
   period,
 }: WorkflowExecutionsTableProps) {
+  const t = useTranslations('WorkflowDetail');
   const [cursor, setCursor] = useState<string | null>(null);
   const [action, setAction] = useState<'next' | 'prev' | null>(null);
 
@@ -79,7 +81,7 @@ export default function WorkflowExecutionsTable({
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] py-12 text-text-tertiary">
         <Activity size={28} className="mb-3 opacity-40" />
-        <p className="text-sm font-medium">Sin ejecuciones en este periodo</p>
+        <p className="text-sm font-medium">{t('chartNoExecutions')}</p>
       </div>
     );
   }
@@ -98,14 +100,14 @@ export default function WorkflowExecutionsTable({
             className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary transition-all hover:bg-[var(--surface-tint)] hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ChevronLeft size={14} />
-            Anterior
+            {t('executionsPrev')}
           </button>
           <button
             onClick={handleNext}
             disabled={!data?.nextPageAvailable}
             className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary transition-all hover:bg-[var(--surface-tint)] hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Siguiente
+            {t('executionsNext')}
             <ChevronRight size={14} />
           </button>
         </div>

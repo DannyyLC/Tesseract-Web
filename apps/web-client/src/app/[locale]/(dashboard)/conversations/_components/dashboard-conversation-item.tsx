@@ -25,25 +25,6 @@ interface DashboardConversationItemProps {
   conversation: DashboardConversationDto;
 }
 
-const formatTimeAgo = (date: Date | string | null): string => {
-  if (!date) return 'Desconocido';
-  try {
-    const d = new Date(date);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Hace un momento';
-    if (diffMins < 60) return `Hace ${diffMins} min`;
-    if (diffHours < 24) return `Hace ${diffHours}h`;
-    return `Hace ${diffDays}d`;
-  } catch (e) {
-    return 'Fecha inválida';
-  }
-};
-
 const getChannelIcon = (channel: string) => {
   if (!channel) return <Terminal size={12} />;
 
@@ -58,45 +39,65 @@ const getChannelIcon = (channel: string) => {
   }
 };
 
-const getStatusConfig = (status: string, isHITL: boolean) => {
-  if (isHITL)
-    return {
-      label: 'Intervenido',
-      color: 'bg-warning-500',
-      textColor: 'text-warning-500',
-      bg: 'bg-warning-500/10',
-    };
-
-  switch (status.toUpperCase()) {
-    case 'CLOSED':
-      return {
-        label: 'Cerrado',
-        color: 'bg-neutral-400',
-        textColor: 'text-neutral-400',
-        bg: 'bg-neutral-400/10',
-      };
-    case 'ACTIVE':
-    case 'OPEN':
-      return {
-        label: 'Activo',
-        color: 'bg-success-500',
-        textColor: 'text-success-500',
-        bg: 'bg-success-500/10',
-      };
-    default:
-      return {
-        label: status,
-        color: 'bg-info',
-        textColor: 'text-info',
-        bg: 'bg-info/10',
-      };
-  }
-};
-
 export default function DashboardConversationItem({
   conversation,
 }: DashboardConversationItemProps) {
   const t = useTranslations('Conversations');
+
+  const formatTimeAgo = (date: Date | string | null): string => {
+    if (!date) return t('timeUnknown');
+    try {
+      const d = new Date(date);
+      const now = new Date();
+      const diffMs = now.getTime() - d.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return t('timeJustNow');
+      if (diffMins < 60) return t('timeMinutes', { mins: diffMins });
+      if (diffHours < 24) return t('timeHours', { hours: diffHours });
+      return t('timeDays', { days: diffDays });
+    } catch {
+      return t('invalidDate');
+    }
+  };
+
+  const getStatusConfig = (status: string, isHITL: boolean) => {
+    if (isHITL)
+      return {
+        label: t('statusIntervened'),
+        color: 'bg-warning-500',
+        textColor: 'text-warning-500',
+        bg: 'bg-warning-500/10',
+      };
+
+    switch (status.toUpperCase()) {
+      case 'CLOSED':
+        return {
+          label: t('statusClosedLabel'),
+          color: 'bg-neutral-400',
+          textColor: 'text-neutral-400',
+          bg: 'bg-neutral-400/10',
+        };
+      case 'ACTIVE':
+      case 'OPEN':
+        return {
+          label: t('statusActiveLabel'),
+          color: 'bg-success-500',
+          textColor: 'text-success-500',
+          bg: 'bg-success-500/10',
+        };
+      default:
+        return {
+          label: status,
+          color: 'bg-info',
+          textColor: 'text-info',
+          bg: 'bg-info/10',
+        };
+    }
+  };
+
   const { data: user } = useAuth();
   const userPermissions = user ? ROLE_PERMISSIONS[user.role] || [] : [];
   const canUpdate = userPermissions.includes('conversations:update');
@@ -174,9 +175,9 @@ export default function DashboardConversationItem({
                         }
                       }}
                       className={`truncate text-base font-semibold text-text-primary ${canUpdate ? 'cursor-pointer transition-colors hover:opacity-70' : ''}`}
-                      title={canUpdate ? 'Click para editar nombre' : undefined}
+                      title={canUpdate ? t('clickToEditName') : undefined}
                     >
-                      {conversation.title || 'Conversación sin título'}
+                      {conversation.title || t('untitledConversation')}
                     </h3>
                   )}
 
@@ -239,7 +240,7 @@ export default function DashboardConversationItem({
             <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
               <div className="flex items-center gap-1 text-xs text-text-tertiary">
                 <MessageSquare size={12} />
-                <span>{conversation.messageCount} mensajes</span>
+                <span>{t('messagesCount', { count: conversation.messageCount })}</span>
               </div>
             </div>
           </div>
@@ -248,16 +249,13 @@ export default function DashboardConversationItem({
 
       <Modal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} title={t('deleteTitle')}>
         <div className="space-y-4">
-          <p className="text-text-secondary">
-            ¿Estás seguro de que deseas eliminar esta conversación? Esta acción no se puede
-            deshacer.
-          </p>
+          <p className="text-text-secondary">{t('deleteConfirmDesc')}</p>
           <div className="flex justify-end gap-2 pt-2">
             <button
               onClick={() => setIsDeleteOpen(false)}
               className="rounded-xl px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-secondary"
             >
-              Cancelar
+              {t('cancelButton')}
             </button>
             <button
               onClick={() => {
@@ -269,7 +267,7 @@ export default function DashboardConversationItem({
               className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2 text-sm font-medium text-brand-white transition-all hover:bg-danger-600 disabled:opacity-50"
             >
               {deleteConversation.isPending && <Loader2 size={14} className="animate-spin" />}
-              Eliminar
+              {t('deleteButton')}
             </button>
           </div>
         </div>

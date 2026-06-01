@@ -34,17 +34,17 @@ interface Message {
   timestamp: string;
 }
 
-const THINKING_WORDS = [
-  'Pensando',
-  'Procesando',
-  'Analizando',
-  'Generando respuesta',
-  'Un momento',
-  'Revisando contexto',
-];
-
 export default function WorkflowChatPage() {
   const t = useTranslations('Conversations');
+
+  const THINKING_WORDS = [
+    t('thinkingWord1'),
+    t('thinkingWord2'),
+    t('thinkingWord3'),
+    t('thinkingWord4'),
+    t('thinkingWord5'),
+    t('thinkingWord6'),
+  ];
   const params = useParams();
   const conversationId = params.conversationId as string;
 
@@ -461,16 +461,16 @@ export default function WorkflowChatPage() {
                             }
                           }}
                           className={`flex items-center gap-2 truncate text-base font-bold text-text-primary lg:text-lg ${canUpdate ? 'cursor-pointer transition-opacity hover:opacity-70' : ''}`}
-                          title={canUpdate ? 'Haz clic para editar el nombre' : undefined}
+                          title={canUpdate ? t('editNameTitle') : undefined}
                         >
                           {isEmpty
                             ? workflow?.name
-                            : conversationData?.title || 'Nueva Conversación'}
+                            : conversationData?.title || t('newConversation')}
                         </h1>
                       )}
                       <p className="max-w-[180px] truncate text-xs text-text-tertiary lg:max-w-md">
                         {isEmpty ? (
-                          workflow?.description || 'Probador Interactivo'
+                          workflow?.description || t('interactiveTester')
                         ) : (
                           <span className="flex items-center gap-1">
                             <span className="font-medium text-text-secondary">
@@ -515,15 +515,15 @@ export default function WorkflowChatPage() {
                               }`}
                               title={
                                 conversationData.isHumanInTheLoop
-                                  ? 'Reactivar IA (El bot volverá a responder automáticamente)'
-                                  : 'Tomar el control (Pausar IA y responder manualmente)'
+                                  ? t('reactivateAITitle')
+                                  : t('takeControlTitle')
                               }
                             >
                               <User size={13} className="shrink-0" />
                               <span className="hidden lg:inline">
                                 {conversationData.isHumanInTheLoop
-                                  ? 'Modo manual'
-                                  : 'Tomar el control'}
+                                  ? t('manualMode')
+                                  : t('takeControl')}
                               </span>
                             </button>
                           </PermissionGuard>
@@ -551,12 +551,12 @@ export default function WorkflowChatPage() {
                             {conversationData.status === 'CLOSED' ? (
                               <>
                                 <RefreshCw size={14} />
-                                <span className="hidden lg:inline">Reabrir</span>
+                                <span className="hidden lg:inline">{t('reopen')}</span>
                               </>
                             ) : (
                               <>
                                 <Archive size={14} />
-                                <span className="hidden lg:inline">Cerrar</span>
+                                <span className="hidden lg:inline">{t('close')}</span>
                               </>
                             )}
                           </button>
@@ -587,12 +587,12 @@ export default function WorkflowChatPage() {
                     {isStreaming && !isExternalUser ? (
                       <div className="bg-success-500/10 flex items-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium text-success-600 lg:px-3">
                         <Loader2 size={12} className="animate-spin" />
-                        <span className="hidden lg:inline">Generando...</span>
+                        <span className="hidden lg:inline">{t('generating')}</span>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5 rounded-full bg-surface-secondary px-2 py-1.5 text-xs font-medium text-text-tertiary lg:px-3">
                         <div className="h-1.5 w-1.5 rounded-full bg-current" />
-                        <span className="hidden lg:inline">Listo</span>
+                        <span className="hidden lg:inline">{t('ready')}</span>
                       </div>
                     )}
                   </div>
@@ -622,7 +622,7 @@ export default function WorkflowChatPage() {
                   />
                 </div>
                 <h3 className="max-w-sm text-center text-xl font-medium text-text-tertiary">
-                  Comienza una conversación con <br />
+                  {t('startConversationWith')} <br />
                   <span className="font-bold text-text-secondary">{workflow?.name}</span>
                 </h3>
               </motion.div>
@@ -792,17 +792,17 @@ export default function WorkflowChatPage() {
                 <div className="border-danger-500/20 bg-danger-500/10 mb-4 flex items-start gap-3 rounded-xl border p-3">
                   <AlertCircle className="mt-0.5 flex-shrink-0 text-danger" size={18} />
                   <div className="text-sm text-danger-600">
-                    <p className="font-medium">No se pudo enviar el mensaje</p>
+                    <p className="font-medium">{t('sendError')}</p>
                     {/* Error de créditos insuficientes */}
                     {error?.statusCode === 403 ||
                     error?.message?.includes('Insufficient credits') ? (
                       <p className="opacity-90">
-                        No tienes créditos suficientes para ejecutar este workflow.{' '}
+                        {t('insufficientCredits')}{' '}
                         <a
                           href="/billing"
                           className="font-semibold underline underline-offset-2 hover:opacity-75"
                         >
-                          Comprar créditos →
+                          {t('buyCredits')}
                         </a>
                       </p>
                     ) : (
@@ -814,8 +814,8 @@ export default function WorkflowChatPage() {
                         error?.errorCode === 'WORKFLOW_2003' ||
                         error?.message?.includes('inactivo') ||
                         error?.message?.includes('Bad Request')
-                          ? 'Este workflow ha sido desactivado o pausado y no puede procesar mensajes.'
-                          : error?.message || 'Ocurrió un error inesperado.'}
+                          ? t('workflowPaused')
+                          : error?.message || t('unexpectedError')}
                       </p>
                     )}
                   </div>
@@ -837,9 +837,9 @@ export default function WorkflowChatPage() {
                   placeholder={
                     conversationData && !conversationData.userId
                       ? conversationData.isHumanInTheLoop
-                        ? 'Escribe tu respuesta...'
-                        : 'Toma el control para responder manualmente...'
-                      : `Envía un mensaje a ${workflow?.name}...`
+                        ? t('writeResponse')
+                        : t('takeControlToRespond')
+                      : t('sendMessagePlaceholder', { name: workflow?.name ?? '' })
                   }
                   className="scrollbar-hide max-h-[200px] min-h-[44px] flex-1 resize-none overflow-y-auto bg-transparent py-3 text-[15px] leading-relaxed text-text-primary outline-none placeholder:text-input-placeholder disabled:cursor-not-allowed"
                   autoFocus
@@ -883,7 +883,7 @@ export default function WorkflowChatPage() {
               </div>
               <div className="mt-2 text-center">
                 <p className="text-[10px] text-text-tertiary">
-                  La IA puede cometer errores. Considera verificar la información importante.
+                  {t('aiDisclaimer')}
                 </p>
               </div>
             </div>
@@ -896,22 +896,19 @@ export default function WorkflowChatPage() {
             title={t('deleteTitle')}
           >
             <div className="space-y-4">
-              <p className="text-text-secondary">
-                ¿Estás seguro de que deseas eliminar esta conversación? Esta acción no se puede
-                deshacer.
-              </p>
+              <p className="text-text-secondary">{t('deleteConfirmDesc')}</p>
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   onClick={() => setIsDeleteOpen(false)}
                   className="rounded-full px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-secondary"
                 >
-                  Cancelar
+                  {t('cancelButton')}
                 </button>
                 <button
                   onClick={() => {
                     deleteConversation.mutate(conversationId, {
                       onSuccess: () => {
-                        setIsDeleteOpen(false); // probably unnecessary due to redirect but good practice
+                        setIsDeleteOpen(false);
                         router.push('/conversations');
                       },
                     });
@@ -920,7 +917,7 @@ export default function WorkflowChatPage() {
                   className="flex items-center gap-2 rounded-full bg-danger px-4 py-2 text-sm font-medium text-brand-white transition-all hover:bg-danger-600 disabled:opacity-50"
                 >
                   {deleteConversation.isPending && <Loader2 size={14} className="animate-spin" />}
-                  Eliminar
+                  {t('deleteButton')}
                 </button>
               </div>
             </div>

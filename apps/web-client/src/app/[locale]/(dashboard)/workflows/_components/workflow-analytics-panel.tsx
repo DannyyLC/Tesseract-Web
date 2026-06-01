@@ -12,7 +12,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Activity } from 'lucide-react';
-import { formatDateByGranularity, getGranularityLabel } from '@/utils/date-formatters';
+import { formatDateByGranularity } from '@/utils/date-formatters';
+import { useTranslations } from 'next-intl';
 
 interface WorkflowAnalyticsPanelProps {
   workflow: DashboardWorkflowDto;
@@ -40,6 +41,15 @@ export default function WorkflowAnalyticsPanel({
   period,
   onPeriodChange,
 }: WorkflowAnalyticsPanelProps) {
+  const t = useTranslations('WorkflowDetail');
+
+  const granularityLabels: Record<string, string> = {
+    hour: t('granularityHour'),
+    day: t('granularityDay'),
+    week: t('granularityWeek'),
+    month: t('granularityMonth'),
+  };
+
   // Fetch detailed metrics in parallel
   const { data: metrics, isLoading } = useWorkflowMetrics(workflow.id, period);
 
@@ -83,13 +93,13 @@ export default function WorkflowAnalyticsPanel({
           className="flex flex-col justify-between"
         >
           <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-            Ejecuciones
+            {t('kpiExecutions')}
           </span>
           <div className="mt-1 flex items-baseline gap-1">
             <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
               {kpis.total}
             </p>
-            <span className="text-xs font-medium text-text-tertiary">En este periodo</span>
+            <span className="text-xs font-medium text-text-tertiary">{t('kpiThisPeriod')}</span>
           </div>
         </motion.div>
 
@@ -100,7 +110,7 @@ export default function WorkflowAnalyticsPanel({
           className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
         >
           <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-            Tasa de Éxito
+            {t('kpiSuccessRate')}
           </span>
           <div className="mt-1 flex w-full flex-col gap-2">
             <div className="flex items-baseline gap-1">
@@ -125,13 +135,13 @@ export default function WorkflowAnalyticsPanel({
           className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
         >
           <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-            Tiempo Promedio
+            {t('kpiAvgDuration')}
           </span>
           <div className="mt-1 flex items-baseline gap-1">
             <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
               {kpis.avgDuration.toFixed(2)}s
             </p>
-            <span className="text-xs font-medium text-text-tertiary">Por ejecución</span>
+            <span className="text-xs font-medium text-text-tertiary">{t('kpiPerExecution')}</span>
           </div>
         </motion.div>
 
@@ -142,7 +152,7 @@ export default function WorkflowAnalyticsPanel({
           className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
         >
           <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-            Fallidas
+            {t('kpiFailed')}
           </span>
           <div className="mt-1 flex items-baseline gap-1">
             <p
@@ -164,10 +174,10 @@ export default function WorkflowAnalyticsPanel({
         >
           <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <h3 className="flex items-center gap-2 font-semibold text-text-primary">
-              Actividad
+              {t('chartActivity')}
               {metrics?.granularity && (
                 <span className="text-xs font-normal text-text-tertiary">
-                  ({getGranularityLabel(metrics.granularity)})
+                  ({granularityLabels[metrics.granularity]})
                 </span>
               )}
             </h3>
@@ -195,7 +205,7 @@ export default function WorkflowAnalyticsPanel({
                   <Activity size={32} />
                 </div>
                 <p className="mt-4 text-sm font-medium text-text-tertiary">
-                  Sin ejecuciones en este período
+                  {t('chartNoExecutions')}
                 </p>
               </div>
             ) : (
@@ -243,19 +253,19 @@ export default function WorkflowAnalyticsPanel({
                               <div className="flex items-center gap-2">
                                 <div className="h-2 w-2 rounded-full bg-success-500"></div>
                                 <span>
-                                  Exitosas: <span className="font-medium">{data.success}</span>
+                                  {t('chartSuccessful')}: <span className="font-medium">{data.success}</span>
                                 </span>
                               </div>
                               {data.failed > 0 && (
                                 <div className="flex items-center gap-2">
                                   <div className="h-2 w-2 rounded-full bg-danger"></div>
                                   <span className="text-danger">
-                                    Fallidas: <span className="font-medium">{data.failed}</span>
+                                    {t('kpiFailed')}: <span className="font-medium">{data.failed}</span>
                                   </span>
                                 </div>
                               )}
                               <div className="mt-1 border-t border-[var(--border-subtle)] pt-1 text-[var(--text-muted)]">
-                                Total: {data.count}
+                                {t('chartTotal')}: {data.count}
                               </div>
                             </div>
                           </div>
@@ -307,7 +317,7 @@ export default function WorkflowAnalyticsPanel({
             className="rounded-2xl border border-border bg-surface p-6"
           >
             <h3 className="mb-6 flex items-center gap-2 font-semibold text-text-primary">
-              Errores Frecuentes
+              {t('frequentErrors')}
             </h3>
 
             <div className="space-y-5">
