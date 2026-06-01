@@ -5,6 +5,7 @@ import { useRef, useState, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Line, OrbitControls } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import * as THREE from 'three';
 
@@ -121,6 +122,7 @@ function Scene() {
 
 // --- Página Principal (Next.js) ---
 export default function Home() {
+  const t = useTranslations('Home');
   const [hovered, setHovered] = useState(false);
   const [cameraZ, setCameraZ] = useState(7);
   const [mounted, setMounted] = useState(false);
@@ -161,7 +163,7 @@ export default function Home() {
             onMouseLeave={() => setHovered(false)}
             className={`relative inline-block border border-brand-white px-8 py-4 text-lg uppercase tracking-widest text-brand-white transition-all duration-500 ease-out ${hovered ? 'bg-brand-white text-brand-black shadow-[0_0_20px_rgba(255,255,255,0.8)]' : 'bg-brand-black'} `}
           >
-            Ingresar
+            {t('enterButton')}
           </Link>
         </div>
       </div>

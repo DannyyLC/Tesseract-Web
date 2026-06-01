@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,29 +16,6 @@ import {
   FaWhatsapp,
 } from 'react-icons/fa6';
 
-// Define the FAQs
-const faqs = [
-  {
-    question: '¿Qué es Tesseract?',
-    answer:
-      'Tesseract es una plataforma de automatización diseñada para potenciar tu negocio. Te permite crear, monitorear y gestionar workflows y ejecuciones automatizadas, administrar accesos internos de tu equipo de trabajo y gestionar el consumo de recursos (créditos) de tus integraciones, todo en un solo lugar.',
-  },
-  {
-    question: '¿Cómo solicito un nuevo Workflow?',
-    answer:
-      'Desde tu panel, en la sección de "Workflows", puedes dar clic en "Nuevo Workflow". Esto enviará una solicitud directa a nuestro equipo para agendar una reunión y definir los detalles técnicos de tu nueva automatización a medida.',
-  },
-  {
-    question: '¿Qué son los Créditos y cómo se consumen?',
-    answer:
-      'Los créditos son la unidad de medida para las ejecuciones de tus workflows. Cada ejecución exitosa o fallida de un flujo automatizado consume créditos según su nivel de complejidad (Light, Standard o Advanced). Puedes monitorear este consumo en la pestaña "Billing" o en tu Dashboard principal.',
-  },
-  {
-    question: '¿Puedo integrar Tesseract con mis propios sistemas?',
-    answer:
-      'Sí. Tesseract te permite generar "API Keys" de manera segura desde la pestaña correspondiente. Estas llaves te permiten ejecutar tus workflows desde tus propias aplicaciones web, sistemas internos o mediante peticiones API externas.',
-  },
-];
 
 const socialLinks = [
   {
@@ -97,8 +75,16 @@ const socialLinks = [
 ];
 
 export default function SupportScreen() {
+  const t = useTranslations('SupportScreen');
   const router = useRouter();
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+
+  const faqs = [
+    { question: t('faq1Question'), answer: t('faq1Answer') },
+    { question: t('faq2Question'), answer: t('faq2Answer') },
+    { question: t('faq3Question'), answer: t('faq3Answer') },
+    { question: t('faq4Question'), answer: t('faq4Answer') },
+  ];
 
   const toggleFaq = (index: number) => {
     setOpenFaqIndex(openFaqIndex === index ? null : index);
@@ -114,13 +100,13 @@ export default function SupportScreen() {
             className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
           >
             <ArrowLeft size={16} />
-            Volver
+            {t('back')}
           </button>
           <div className="group flex items-center gap-2.5">
             <span className="text-base font-bold tracking-tight text-[var(--text-primary)]">
               Tesseract{' '}
               <span className="hidden text-[var(--text-tertiary)] sm:inline">
-                / Centro de Ayuda
+                / {t('helpCenter')}
               </span>
             </span>
             <div className="relative h-8 w-8 flex-shrink-0">
@@ -141,18 +127,17 @@ export default function SupportScreen() {
         {/* Encabezado */}
         <div className="mb-16 text-center">
           <h1 className="mb-4 text-4xl font-bold tracking-tight sm:text-5xl">
-            ¿Cómo podemos ayudarte?
+            {t('mainHeading')}
           </h1>
           <p className="text-lg text-[var(--text-secondary)]">
-            Encuentra respuestas a preguntas frecuentes o contáctanos directamente a través de
-            nuestros canales oficiales.
+            {t('mainDesc')}
           </p>
         </div>
 
         {/* Canales de Contacto Directo */}
         <section className="mb-20">
           <h2 className="mb-6 flex items-center gap-3 text-2xl font-semibold">
-            Contáctanos directo
+            {t('contactSection')}
           </h2>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -176,7 +161,7 @@ export default function SupportScreen() {
         {/* Preguntas Frecuentes (FAQ) */}
         <section>
           <h2 className="mb-6 flex items-center gap-3 text-2xl font-semibold">
-            Preguntas Frecuentes
+            {t('faqSection')}
           </h2>
 
           <div className="space-y-4">
@@ -222,7 +207,7 @@ export default function SupportScreen() {
       </main>
 
       <footer className="border-t border-[var(--border)] py-8 text-center text-sm text-[var(--text-tertiary)]">
-        <p>© {new Date().getFullYear()} Fractal. Todos los derechos reservados.</p>
+        <p>{t('footer', { year: new Date().getFullYear() })}</p>
       </footer>
     </div>
   );

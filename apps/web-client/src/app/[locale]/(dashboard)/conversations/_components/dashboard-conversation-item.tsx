@@ -19,6 +19,7 @@ import { Modal } from '@/components/ui/modal';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { useAuth } from '@/hooks/identity/use-auth';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
+import { useTranslations } from 'next-intl';
 
 interface DashboardConversationItemProps {
   conversation: DashboardConversationDto;
@@ -95,6 +96,7 @@ const getStatusConfig = (status: string, isHITL: boolean) => {
 export default function DashboardConversationItem({
   conversation,
 }: DashboardConversationItemProps) {
+  const t = useTranslations('Conversations');
   const { data: user } = useAuth();
   const userPermissions = user ? ROLE_PERMISSIONS[user.role] || [] : [];
   const canUpdate = userPermissions.includes('conversations:update');
@@ -247,7 +249,7 @@ export default function DashboardConversationItem({
       <Modal
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
-        title="Eliminar conversación"
+        title={t('deleteTitle')}
       >
         <div className="space-y-4">
           <p className="text-text-secondary">

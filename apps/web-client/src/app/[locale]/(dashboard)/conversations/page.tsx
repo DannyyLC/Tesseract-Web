@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { useRouter, usePathname } from '@/i18n/routing';
@@ -21,6 +22,7 @@ const formatNumber = (num: number): string => {
 };
 
 export default function ConversationsPage() {
+  const t = useTranslations('Conversations');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -105,13 +107,13 @@ export default function ConversationsPage() {
   });
 
   const statusOptions = [
-    { label: 'Activas', value: 'ACTIVE' },
-    { label: 'Cerradas', value: 'CLOSED' },
+    { label: t('statusActive'), value: 'ACTIVE' },
+    { label: t('statusClosed'), value: 'CLOSED' },
   ];
 
   const interventionOptions = [
-    { label: 'Intervenidas', value: 'true' },
-    { label: 'No intervenidas', value: 'false' },
+    { label: t('interventionYes'), value: 'true' },
+    { label: t('interventionNo'), value: 'false' },
   ];
 
   // Cargar listas para filtros
@@ -184,9 +186,9 @@ export default function ConversationsPage() {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-text-primary">Conversaciones</h1>
+            <h1 className="text-2xl font-bold text-text-primary">{t('heading')}</h1>
             <p className="mt-1 text-text-secondary">
-              Gestiona y monitorea las interacciones con tus usuarios
+              {t('description')}
             </p>
           </div>
 
@@ -205,7 +207,7 @@ export default function ConversationsPage() {
               className="flex items-center gap-2 rounded-full bg-accent px-6 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <MessageSquare size={16} />
-              Nueva Conversación
+              {t('newButton')}
             </button>
           </PermissionGuard>
         </div>
@@ -219,13 +221,13 @@ export default function ConversationsPage() {
             className="flex flex-col justify-between"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-              Conversaciones Activas
+              {t('activeConversations')}
             </span>
             <div className="mt-1 flex items-baseline gap-1">
               <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {stats?.activeConversations ?? 0}
               </p>
-              <span className="text-xs font-medium text-success-500">En curso</span>
+              <span className="text-xs font-medium text-success-500">{t('inProgress')}</span>
             </div>
           </motion.div>
 
@@ -236,14 +238,14 @@ export default function ConversationsPage() {
             className="flex flex-col justify-between border-border md:border-l md:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-              Mensajes (Mes)
+              {t('messagesMonth')}
             </span>
             <div className="mt-1 flex items-baseline gap-1">
               <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {formatNumber(stats?.totalMessagesMonth ?? 0)}
               </p>
               <span className="text-xs font-medium text-text-tertiary">
-                Total mensual
+                {t('monthlyTotal')}
               </span>
             </div>
           </motion.div>
@@ -255,14 +257,14 @@ export default function ConversationsPage() {
             className="flex flex-col justify-between border-border md:border-l md:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-              Total Histórico
+              {t('historicTotal')}
             </span>
             <div className="mt-1 flex items-baseline gap-1">
               <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {formatNumber(stats?.totalConversations ?? 0)}
               </p>
               <span className="text-xs font-medium text-text-tertiary">
-                Conversaciones
+                {t('conversationsBadge')}
               </span>
             </div>
           </motion.div>
@@ -272,38 +274,38 @@ export default function ConversationsPage() {
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
             <FilterDropdown
-              label="Estado"
+              label={t('statusLabel')}
               options={statusOptions}
               value={selectedStatus}
               onChange={handleStatusChange}
-              placeholder="Todos los estados"
+              placeholder={t('allStatuses')}
             />
 
             <FilterDropdown
-              label="Intervencion"
+              label={t('interventionLabel')}
               options={interventionOptions}
               value={selectedIntervened}
               onChange={handleIntervenedChange}
-              placeholder="Todas"
+              placeholder={t('allInterventions')}
             />
 
             <FilterDropdown
-              label="Workflow"
+              label={t('workflowLabel')}
               options={workflows}
               value={selectedWorkflow}
               onChange={handleWorkflowChange}
-              placeholder="Todos los Workflows"
+              placeholder={t('allWorkflows')}
               onReachEnd={() => hasNextWorkflows && fetchNextWorkflows()}
               hasMore={hasNextWorkflows}
               isLoadingMore={isFetchingNextWorkflows}
             />
 
             <FilterDropdown
-              label="Usuario"
+              label={t('userLabel')}
               options={users}
               value={selectedUser}
               onChange={handleUserChange}
-              placeholder="Todos los Usuarios"
+              placeholder={t('allUsers')}
               onReachEnd={() => hasNextUsers && fetchNextUsers()}
               hasMore={hasNextUsers}
               isLoadingMore={isFetchingNextUsers}
@@ -337,10 +339,10 @@ export default function ConversationsPage() {
                 <MessageSquare size={24} className="text-text-tertiary" />
               </div>
               <h3 className="mb-2 text-lg font-semibold text-text-primary">
-                No se encontraron conversaciones
+                {t('noConversations')}
               </h3>
               <p className="text-text-secondary">
-                Aún no hay conversaciones registradas o activa un workflow para comenzar.
+                {t('noConversationsDesc')}
               </p>
             </motion.div>
           )}
@@ -353,17 +355,17 @@ export default function ConversationsPage() {
             disabled={!prevCursor}
             className="px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-30"
           >
-            Anterior
+            {t('previous')}
           </button>
           <span className="text-xs text-text-tertiary">
-            Showing {conversations.length} items
+            {t('showingItems', { count: conversations.length })}
           </span>
           <button
             onClick={handleNextPage}
             disabled={!nextPageAvailable}
             className="px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-30"
           >
-            Siguiente
+            {t('next')}
           </button>
         </div>
 
@@ -373,11 +375,11 @@ export default function ConversationsPage() {
             <Modal
               isOpen={isCreateModalOpen}
               onClose={() => setIsCreateModalOpen(false)}
-              title="Nueva Conversación"
+              title={t('newModalTitle')}
             >
               <div className="space-y-4">
                 <p className="text-sm text-text-secondary">
-                  Selecciona un Workflow para iniciar la conversación
+                  {t('newModalDesc')}
                 </p>
 
                 {/* Search */}
@@ -388,7 +390,7 @@ export default function ConversationsPage() {
                   />
                   <input
                     type="text"
-                    placeholder="Buscar workflow..."
+                    placeholder={t('searchWorkflowPlaceholder')}
                     value={modalSearchQuery}
                     onChange={(e) => setModalSearchQuery(e.target.value)}
                     className="w-full rounded-xl border border-transparent bg-surface-secondary py-2 pl-9 pr-4 text-sm text-text-primary transition-colors focus:border-border-hover focus:outline-none"
@@ -437,7 +439,7 @@ export default function ConversationsPage() {
                         })
                       ) : (
                         <div className="p-4 text-center text-sm text-text-tertiary">
-                          No se encontraron workflows
+                          {t('noWorkflowsInModal')}
                         </div>
                       )}
                       {isFetchingNextModalWorkflows && (
@@ -456,7 +458,7 @@ export default function ConversationsPage() {
                   onClick={() => setIsCreateModalOpen(false)}
                   className="w-full bg-transparent px-4 py-2 text-sm font-medium text-text-tertiary transition-colors hover:text-text-primary"
                 >
-                  Cancelar
+                  {t('cancelButton')}
                 </button>
               </div>
             </Modal>

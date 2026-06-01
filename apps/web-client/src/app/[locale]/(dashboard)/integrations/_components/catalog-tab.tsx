@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Search, Loader2 } from 'lucide-react';
 import { useToolCatalog, flattenToolCatalog } from '@/hooks/automation/use-tool-catalog';
 import { useInfiniteTenantToolsDashboard, flattenTenantTools } from '@/hooks/automation/use-tenant-tools';
@@ -13,6 +14,7 @@ interface CatalogTabProps {
 }
 
 export function CatalogTab({ onConnect }: CatalogTabProps) {
+  const t = useTranslations('Integrations');
   const [localSearch, setLocalSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [connectTarget, setConnectTarget] = useState<GetToolsDto | null>(null);
@@ -79,7 +81,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
             type="text"
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
-            placeholder="Buscar integraciones..."
+            placeholder={t('searchPlaceholder')}
             className="w-full rounded-full border-none bg-[var(--surface-tint)] py-2.5 pl-10 pr-4 text-sm text-text-primary transition-all placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-[var(--border-subtle)] hover:bg-[var(--surface-tint-md)]"
           />
         </div>
@@ -88,7 +90,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
       {/* Results count */}
       {!catalogLoading && (
         <p className="text-xs text-text-tertiary">
-          {allCatalogTools.length} integración{allCatalogTools.length !== 1 ? 'es' : ''}
+          {t('integrationCount', { count: allCatalogTools.length })}
         </p>
       )}
 
@@ -122,9 +124,9 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
           <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-secondary">
             <Search size={24} className="text-text-tertiary" />
           </div>
-          <p className="font-medium text-text-primary">Sin resultados</p>
+          <p className="font-medium text-text-primary">{t('noResults')}</p>
           <p className="mt-1 text-sm text-text-secondary">
-            Intenta con otra búsqueda.
+            {t('noResultsDesc')}
           </p>
         </div>
       )}

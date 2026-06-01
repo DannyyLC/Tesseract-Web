@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Modal } from '@/components/ui/modal';
 import { useUserMutations } from '@/hooks/identity/use-users';
 import { useRouter } from '@/i18n/routing';
@@ -20,6 +21,7 @@ export default function LeaveOrganizationModal({
   twoFactorEnabled,
   organizationName,
 }: LeaveOrganizationModalProps) {
+  const t = useTranslations('LeaveOrganizationModal');
   const [confirmationText, setConfirmationText] = useState('');
   const [code2FA, setCode2FA] = useState('');
   const router = useRouter();
@@ -27,12 +29,12 @@ export default function LeaveOrganizationModal({
 
   const handleLeave = async () => {
     if (confirmationText !== organizationName) {
-      toast.error(`Por favor escribe exactamente "${organizationName}" para confirmar`);
+      toast.error(t('confirmExactly', { name: organizationName }));
       return;
     }
 
     if (twoFactorEnabled && (!code2FA || code2FA.length !== 6)) {
-      toast.error('Por favor ingresa el código 2FA de 6 dígitos');
+      toast.error(t('code2FARequired'));
       return;
     }
 
@@ -41,11 +43,11 @@ export default function LeaveOrganizationModal({
         confirmationText,
         code2FA: twoFactorEnabled ? code2FA : undefined,
       });
-      toast.success('Has salido de la organización');
+      toast.success(t('successToast'));
       // Redirect to login after leaving
       router.push('/login');
     } catch (error: any) {
-      toast.error(error.message || 'Error al salir de la organización');
+      toast.error(error.message || t('errorToast'));
     }
   };
 
@@ -56,16 +58,15 @@ export default function LeaveOrganizationModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Salir de la Organización">
+    <Modal isOpen={isOpen} onClose={handleClose} title={t('title')}>
       <div className="space-y-4">
         <div className="rounded-xl bg-danger-500/10 p-4 text-danger-500">
           <div className="flex gap-3">
             <AlertTriangle className="h-5 w-5 flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium">Advertencia: Esta acción es irreversible</p>
+              <p className="text-sm font-medium">{t('warningHeading')}</p>
               <p className="mt-1 text-sm opacity-90">
-                Al salir de la organización perderás acceso inmediato a todos los recursos,
-                workflows, conversaciones y datos. Esta acción no se puede deshacer.
+                {t('warningText')}
               </p>
             </div>
           </div>
@@ -73,7 +74,7 @@ export default function LeaveOrganizationModal({
 
         <div className="space-y-2">
           <label className="block text-sm font-medium text-text-primary">
-            Escribe <strong>{organizationName}</strong> para confirmar
+            {t('confirmLabelPrefix')} <strong>{organizationName}</strong> {t('confirmLabelSuffix')}
           </label>
           <input
             type="text"
@@ -87,7 +88,7 @@ export default function LeaveOrganizationModal({
         {twoFactorEnabled && (
           <div className="space-y-2">
             <label className="block text-sm font-medium text-text-primary">
-              Código 2FA
+              {t('code2FALabel')}
             </label>
             <input
               type="text"
@@ -100,7 +101,7 @@ export default function LeaveOrganizationModal({
                   handleLeave();
                 }
               }}
-              placeholder="000000"
+              placeholder={t('codePlaceholder')}
               className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
             />
           </div>
@@ -111,7 +112,7 @@ export default function LeaveOrganizationModal({
             onClick={handleClose}
             className="flex-1 rounded-2xl bg-surface-secondary px-4 py-1 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
           >
-            Cancelar
+            {t('cancelButton')}
           </button>
           <button
             onClick={handleLeave}
@@ -123,19 +124,19 @@ export default function LeaveOrganizationModal({
             className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-danger px-4 py-1 font-medium text-brand-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             title={
               confirmationText !== organizationName
-                ? `Escribe "${organizationName}" para habilitar`
+                ? t('enableButtonHint', { name: organizationName })
                 : twoFactorEnabled && code2FA.length !== 6
-                  ? 'Ingresa el código 2FA'
+                  ? t('enter2FACode')
                   : ''
             }
           >
             {leaveOrganization.isPending ? (
               <>
                 <Loader2 className="animate-spin" size={18} />
-                Saliendo...
+                {t('leaving')}
               </>
             ) : (
-              'Salir de la Organización'
+              t('leaveButton')
             )}
           </button>
         </div>

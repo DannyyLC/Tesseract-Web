@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useOrganizationMutations } from '@/hooks/identity/use-organizations';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
@@ -12,6 +13,7 @@ interface InviteUserModalProps {
 }
 
 export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
+  const t = useTranslations('InviteUserModal');
   const [email, setEmail] = useState('');
   const { inviteUser } = useOrganizationMutations();
 
@@ -20,32 +22,31 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
       error?.response?.data?.errors?.[0] || error?.response?.data?.message || error?.message || '';
 
     const messages: Record<string, string> = {
-      USER_ALREADY_REGISTERED: 'Este usuario ya es miembro de la organización.',
-      USER_ALREADY_INVITED:
-        'Ya se envió una invitación a este correo. Puedes reenviarla si es necesario.',
-      EMAIL_IN_SINUP_PROGRESS: 'Este correo ya tiene un registro en proceso.',
-      INVITE_LIMIT_EXCEEDED: 'Se alcanzó el límite de invitaciones pendientes.',
-      ORGANIZATION_NOT_FOUND: 'No se encontró la organización.',
-      ORGANIZATION_NOT_VALID: 'La organización no es válida.',
-      ERROR_SENDING_EMAIL: 'No se pudo enviar el correo de invitación. Intenta de nuevo.',
-      ERROR_CREATING_RECORD: 'Error interno al crear la invitación. Intenta de nuevo.',
-      'Formato de correo electrónico inválido': 'El formato del correo electrónico no es válido.',
+      USER_ALREADY_REGISTERED: t('errorAlreadyMember'),
+      USER_ALREADY_INVITED: t('errorAlreadyInvited'),
+      EMAIL_IN_SINUP_PROGRESS: t('errorSignupInProgress'),
+      INVITE_LIMIT_EXCEEDED: t('errorInviteLimit'),
+      ORGANIZATION_NOT_FOUND: t('errorOrgNotFound'),
+      ORGANIZATION_NOT_VALID: t('errorOrgNotValid'),
+      ERROR_SENDING_EMAIL: t('errorSendingEmail'),
+      ERROR_CREATING_RECORD: t('errorCreatingRecord'),
+      'Formato de correo electrónico inválido': t('errorInvalidEmail'),
     };
 
-    return messages[raw] ?? (raw || 'Error al enviar la invitación. Intenta de nuevo.');
+    return messages[raw] ?? (raw || t('defaultError'));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!email.trim()) {
-      toast.error('Por favor ingresa un correo electrónico');
+      toast.error(t('emailRequired'));
       return;
     }
 
     try {
       await inviteUser.mutateAsync({ email });
-      toast.success('Invitación enviada correctamente');
+      toast.success(t('successToast'));
       setEmail('');
       onClose();
     } catch (error: any) {
@@ -54,11 +55,11 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Invitar Usuario">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('title')}>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
           <label className="block text-sm font-medium text-text-primary">
-            Correo Electrónico
+            {t('emailLabel')}
           </label>
           <div className="relative">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary">
@@ -68,14 +69,14 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="ejemplo@empresa.com"
+              placeholder={t('emailPlaceholder')}
               className="w-full rounded-xl border border-border bg-surface py-3 pl-11 pr-4 text-sm text-text-primary outline-none focus:border-border-hover focus:ring-4 focus:ring-border-focus/5"
               autoFocus
               required
             />
           </div>
           <p className="text-xs text-text-secondary">
-            Se enviará un correo con las instrucciones para unirse a la organización.
+            {t('emailHelper')}
           </p>
         </div>
 
@@ -85,7 +86,7 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
             onClick={onClose}
             className="flex-1 rounded-xl bg-surface-secondary px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
           >
-            Cancelar
+            {t('cancelButton')}
           </button>
           <button
             type="submit"
@@ -95,12 +96,12 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
             {inviteUser.isPending ? (
               <>
                 <Loader2 className="animate-spin" size={18} />
-                Enviando...
+                {t('sending')}
               </>
             ) : (
               <>
                 <Send size={18} />
-                Enviar Invitación
+                {t('sendButton')}
               </>
             )}
           </button>

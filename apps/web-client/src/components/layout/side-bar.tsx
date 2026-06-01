@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { usePathname, Link } from '@/i18n/routing';
 import { useAuth } from '@/hooks/identity/use-auth';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
@@ -32,29 +33,31 @@ interface NavSection {
   items: NavItem[];
 }
 
-const navSections: NavSection[] = [
-  {
-    title: 'PLATAFORMA',
-    items: [
-      { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard size={20} /> },
-      { label: 'Workflows', href: '/workflows', icon: <Workflow size={20} /> },
-      { label: 'Integraciones', href: '/integrations', icon: <Blocks size={20} /> },
-{ label: 'Conversations', href: '/conversations', icon: <MessageSquare size={20} /> },
-    ],
-  },
-  {
-    title: 'ADMINISTRACIÓN',
-    items: [
-      { label: 'Miembros', href: '/users', icon: <Users size={20} /> },
-      { label: 'API Keys', href: '/api-keys', icon: <Key size={20} /> },
-      { label: 'Facturación', href: '/billing', icon: <Coins size={20} /> },
-      { label: 'Configuración', href: '/settings', icon: <Settings size={20} /> },
-    ],
-  },
-];
 
 export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarProps) {
+  const t = useTranslations('DashboardNav');
   const pathname = usePathname();
+
+  const navSections: NavSection[] = [
+    {
+      title: t('sectionPlatform'),
+      items: [
+        { label: t('navDashboard'), href: '/dashboard', icon: <LayoutDashboard size={20} /> },
+        { label: t('navWorkflows'), href: '/workflows', icon: <Workflow size={20} /> },
+        { label: t('navIntegrations'), href: '/integrations', icon: <Blocks size={20} /> },
+        { label: t('navConversations'), href: '/conversations', icon: <MessageSquare size={20} /> },
+      ],
+    },
+    {
+      title: t('sectionAdmin'),
+      items: [
+        { label: t('navMembers'), href: '/users', icon: <Users size={20} /> },
+        { label: t('navApiKeys'), href: '/api-keys', icon: <Key size={20} /> },
+        { label: t('navBilling'), href: '/billing', icon: <Coins size={20} /> },
+        { label: t('navSettings'), href: '/settings', icon: <Settings size={20} /> },
+      ],
+    },
+  ];
 
   const { data: user } = useAuth();
   const role = user?.role || 'VIEWER';
@@ -162,10 +165,10 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
           className={`flex items-center gap-3 rounded-xl px-3 py-2 text-text-secondary transition-all hover:bg-surface-secondary hover:text-text-primary ${
             isCollapsed ? 'justify-center' : ''
           }`}
-          title={isCollapsed ? 'Soporte' : undefined}
+          title={isCollapsed ? t('navSupport') : undefined}
         >
           <HelpCircle size={20} />
-          {!isCollapsed && <span className="font-medium">Soporte</span>}
+          {!isCollapsed && <span className="font-medium">{t('navSupport')}</span>}
         </Link>
 
         <button
@@ -173,13 +176,13 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
           className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-text-secondary transition-all hover:bg-surface-secondary hover:text-text-primary ${
             isCollapsed ? 'justify-center' : ''
           }`}
-          title={isCollapsed ? 'Expandir' : 'Colapsar'}
+          title={isCollapsed ? t('expand') : t('collapse')}
         >
           <ChevronLeft
             size={20}
             className={`transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`}
           />
-          {!isCollapsed && <span className="font-medium">Colapsar</span>}
+          {!isCollapsed && <span className="font-medium">{t('collapse')}</span>}
         </button>
       </div>
     </aside>

@@ -2,71 +2,72 @@
 
 import { OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
 import { Headphones, Mail, Cpu, Sparkles, MessageSquare, Zap } from 'lucide-react';
-
-const TIERS = [
-  {
-    id: 'T1',
-    name: 'Ligero',
-    cost: '1 Crédito',
-    models: 'Gemini 1.5 Flash',
-    context: '20,000 tokens',
-    description: 'Para tareas directas y disparadores simples.',
-    icon: <Zap size={18} />,
-  },
-  {
-    id: 'T2',
-    name: 'Operativo',
-    cost: '5 Créditos',
-    models: 'GPT-4o, Gemini 2.5 Pro',
-    context: '50,000 tokens',
-    description: 'Análisis de datos y lógica de negocio multi-paso.',
-    icon: <Cpu size={18} />,
-  },
-  {
-    id: 'T3',
-    name: 'Estratégico',
-    cost: '25 Créditos',
-    models: 'Claude 4.5 Opus, GPT-5.1',
-    context: '128,000 tokens',
-    description: 'Máxima precisión y manejo de documentos extensos.',
-    icon: <Sparkles size={18} />,
-  },
-];
-
-const SUPPORT = [
-  {
-    title: 'Email (48h)',
-    desc: 'Consultas no urgentes con respuesta garantizada.',
-    icon: <Mail size={18} />,
-  },
-  {
-    title: 'Prioritario (24h)',
-    desc: 'Tu ticket se eleva en la cola para resolución acelerada.',
-    icon: <MessageSquare size={18} />,
-  },
-  {
-    title: 'Respuesta (12h)',
-    desc: 'Tiempos de resolución ultra-rápidos para tu operación.',
-    icon: <Zap size={18} />,
-  },
-  {
-    title: 'Account Manager',
-    desc: 'Atención vía Slack/WhatsApp con prioridad máxima.',
-    icon: <Headphones size={18} />,
-  },
-];
+import { useTranslations } from 'next-intl';
 
 export default function InfoSections() {
+  const t = useTranslations('BillingInfoSections');
+
+  const TIERS = [
+    {
+      id: 'T1',
+      name: t('t1Name'),
+      cost: t('t1Cost'),
+      models: 'Gemini 1.5 Flash',
+      context: t('t1Context'),
+      description: t('t1Desc'),
+      icon: <Zap size={18} />,
+    },
+    {
+      id: 'T2',
+      name: t('t2Name'),
+      cost: t('t2Cost'),
+      models: 'GPT-4o, Gemini 2.5 Pro',
+      context: t('t2Context'),
+      description: t('t2Desc'),
+      icon: <Cpu size={18} />,
+    },
+    {
+      id: 'T3',
+      name: t('t3Name'),
+      cost: t('t3Cost'),
+      models: 'Claude 4.5 Opus, GPT-5.1',
+      context: t('t3Context'),
+      description: t('t3Desc'),
+      icon: <Sparkles size={18} />,
+    },
+  ];
+
+  const SUPPORT = [
+    {
+      title: t('support1Title'),
+      desc: t('support1Desc'),
+      icon: <Mail size={18} />,
+    },
+    {
+      title: t('support2Title'),
+      desc: t('support2Desc'),
+      icon: <MessageSquare size={18} />,
+    },
+    {
+      title: t('support3Title'),
+      desc: t('support3Desc'),
+      icon: <Zap size={18} />,
+    },
+    {
+      title: t('support4Title'),
+      desc: t('support4Desc'),
+      icon: <Headphones size={18} />,
+    },
+  ];
+
   return (
     <div className="space-y-16 py-8">
       {/* Credits Definition */}
       <section className="space-y-8">
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-text-primary">¿Qué es un Crédito?</h2>
+          <h2 className="text-2xl font-bold text-text-primary">{t('creditHeading')}</h2>
           <p className="max-w-2xl leading-relaxed text-text-secondary">
-            Es nuestra unidad de medida. No cobramos por ejecución, sino por la complejidad del
-            razonamiento requerido. El precio por crédito de overage es de $
-            {OVERAGE_PRICE_PER_CREDIT} USD.
+            {t('creditDesc', { price: OVERAGE_PRICE_PER_CREDIT })}
           </p>
         </div>
 
@@ -91,11 +92,11 @@ export default function InfoSections() {
 
               <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
                 <p className="text-text-secondary">
-                  <span className="font-bold text-text-primary">Modelos:</span>{' '}
+                  <span className="font-bold text-text-primary">{t('models')}</span>{' '}
                   {tier.models}
                 </p>
                 <p className="text-text-secondary">
-                  <span className="font-bold text-text-primary">Contexto:</span>{' '}
+                  <span className="font-bold text-text-primary">{t('context')}</span>{' '}
                   <span className="font-geist-mono">{tier.context}</span>
                 </p>
                 <p className="mt-3 text-xs italic text-text-tertiary">
@@ -111,10 +112,10 @@ export default function InfoSections() {
       <section className="space-y-8">
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-text-primary">
-            Capas de Soporte Técnico
+            {t('supportHeading')}
           </h2>
           <p className="max-w-2xl leading-relaxed text-text-secondary">
-            Atención diseñada para garantizar que tu operación fluya sin interrupciones.
+            {t('supportDesc')}
           </p>
         </div>
 

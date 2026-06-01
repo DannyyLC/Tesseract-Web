@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Modal } from '@/components/ui/modal';
 import { useLogoutAll } from '@/hooks/identity/use-auth';
 import { Loader2, MonitorX } from 'lucide-react';
@@ -11,29 +12,29 @@ interface LogoutAllModalProps {
 }
 
 export default function LogoutAllModal({ isOpen, onClose }: LogoutAllModalProps) {
+  const t = useTranslations('LogoutAllModal');
   const logoutAll = useLogoutAll();
 
   const handleLogoutAll = async () => {
     try {
       await logoutAll.mutateAsync();
-      toast.success('Se han cerrado todas las sesiones correctamente');
+      toast.success(t('successToast'));
       onClose();
     } catch (error: any) {
-      toast.error(error.message || 'Error al cerrar las sesiones');
+      toast.error(error.message || t('errorToast'));
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Cerrar todas las sesiones">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('title')}>
       <div className="space-y-4">
         <div className="rounded-xl bg-warning-500/10 p-4 text-warning-500">
           <div className="flex gap-3">
             <MonitorX className="h-5 w-5 flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium">¿Estás seguro?</p>
+              <p className="text-sm font-medium">{t('confirmHeading')}</p>
               <p className="mt-1 text-sm opacity-90">
-                Esta acción cerrará tu sesión actual y todas las sesiones activas en otros
-                dispositivos. Tendrás que volver a iniciar sesión.
+                {t('confirmText')}
               </p>
             </div>
           </div>
@@ -44,7 +45,7 @@ export default function LogoutAllModal({ isOpen, onClose }: LogoutAllModalProps)
             onClick={onClose}
             className="flex-1 rounded-xl bg-surface-secondary px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
           >
-            Cancelar
+            {t('cancelButton')}
           </button>
           <button
             onClick={handleLogoutAll}
@@ -54,10 +55,10 @@ export default function LogoutAllModal({ isOpen, onClose }: LogoutAllModalProps)
             {logoutAll.isPending ? (
               <>
                 <Loader2 className="animate-spin" size={18} />
-                Cerrando...
+                {t('closing')}
               </>
             ) : (
-              'Cerrar sesiones'
+              t('closeButton')
             )}
           </button>
         </div>

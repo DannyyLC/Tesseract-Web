@@ -4,31 +4,33 @@ import { useState, Suspense, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, Send, ChevronDown, Check, CalendarDays, Mail } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useSupportMutations } from '@/hooks/platform/use-support';
 import { useAuth } from '@/hooks/identity/use-auth';
 import Cal, { getCalApi } from '@calcom/embed-react';
 import { CAL_CONFIG } from '@/config/cal';
 
-const SUBJECT_OPTIONS = [
-  'Consultoría y Estrategia',
-  'Implementación de nuevo Workflow',
-  'Asistencia para contratación de plan',
-  'Dudas Generales',
-  'Problemas con mi cuenta o acceso',
-  'Facturación y Pagos',
-  'Reporte de fallos (Bug)',
-  'Otro',
-];
-
 function SupportContent() {
+  const t = useTranslations('Support');
   const searchParams = useSearchParams();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { data: user } = useAuth();
 
   const { requestServiceInfo } = useSupportMutations();
 
+  const SUBJECT_OPTIONS = [
+    t('subjectConsultancy'),
+    t('subjectNewWorkflow'),
+    t('subjectPlanAssistance'),
+    t('subjectGeneralQuestions'),
+    t('subjectAccountIssues'),
+    t('subjectBillingPayments'),
+    t('subjectBugReport'),
+    t('subjectOther'),
+  ];
+
   const reason = searchParams.get('reason');
-  const initialSubject = reason === 'upgrade' ? 'Asistencia para contratación de plan' : '';
+  const initialSubject = reason === 'upgrade' ? t('subjectPlanAssistance') : '';
 
   const [selectedSubject, setSelectedSubject] = useState(initialSubject);
   const [customSubject, setCustomSubject] = useState('');
@@ -37,9 +39,9 @@ function SupportContent() {
 
   useEffect(() => {
     if (reason === 'upgrade') {
-      setSelectedSubject('Asistencia para contratación de plan');
+      setSelectedSubject(t('subjectPlanAssistance'));
     }
-  }, [reason]);
+  }, [reason, t]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -56,10 +58,10 @@ function SupportContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const finalSubject = selectedSubject === 'Otro' ? customSubject : selectedSubject;
+    const finalSubject = selectedSubject === t('subjectOther') ? customSubject : selectedSubject;
 
     if (!finalSubject) {
-      toast.error('Por favor selecciona un asunto.');
+      toast.error(t('selectSubjectError'));
       return;
     }
 
@@ -68,12 +70,12 @@ function SupportContent() {
         subject: finalSubject,
         userMsg: message || undefined,
       });
-      toast.success('Mensaje enviado correctamente. Nos pondremos en contacto contigo pronto.');
+      toast.success(t('messageSentSuccess'));
       setSelectedSubject('');
       setCustomSubject('');
       setMessage('');
     } catch (error) {
-      toast.error('Espera un poco e intenta de nuevo.');
+      toast.error(t('rateLimitError'));
     }
   };
 
@@ -83,7 +85,7 @@ function SupportContent() {
   };
 
   const isSubjectValid =
-    selectedSubject && (selectedSubject !== 'Otro' || customSubject.trim().length > 0);
+    selectedSubject && (selectedSubject !== t('subjectOther') || customSubject.trim().length > 0);
 
   // Initialize Cal.com embed
   useEffect(() => {
@@ -103,11 +105,10 @@ function SupportContent() {
       <div className="p-6">
         <div className="mb-8 space-y-2 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-text-primary">
-            Agenda tu Reunión
+            {t('scheduleHeading')}
           </h1>
           <p className="text-text-secondary">
-            ¡Solicitud enviada! Para comenzar a diseñar tu automatización, por favor selecciona el
-            horario que mejor te acomode para nuestra primera reunión técnica.
+            {t('scheduleDesc')}
           </p>
         </div>
         <div className="h-[650px] overflow-hidden rounded-2xl border border-border shadow-sm">
@@ -131,10 +132,10 @@ function SupportContent() {
       {/* Page Header */}
       <div className="mb-8 space-y-2">
         <h1 className="text-3xl font-bold tracking-tight text-text-primary">
-          Centro de Soporte
+          {t('heading')}
         </h1>
         <p className="text-text-secondary">
-          Contáctanos por mensaje o agenda una sesión directamente en tu horario preferido.
+          {t('description')}
         </p>
       </div>
 
@@ -146,7 +147,7 @@ function SupportContent() {
           <div className="flex items-center gap-2">
             <Mail className="h-4 w-4 text-text-tertiary" />
             <span className="text-sm font-semibold uppercase tracking-widest text-text-tertiary">
-              Enviar Mensaje
+              {t('sendMessageSection')}
             </span>
           </div>
 
@@ -154,7 +155,7 @@ function SupportContent() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <label htmlFor="subject" className="text-sm font-medium text-text-primary">
-                  Asunto
+                  {t('subjectLabel')}
                 </label>
                 <div className="relative" ref={dropdownRef}>
                   <button
@@ -173,7 +174,7 @@ function SupportContent() {
                           : 'text-text-tertiary'
                       }
                     >
-                      {selectedSubject || 'Selecciona un asunto'}
+                      {selectedSubject || t('selectSubjectPlaceholder')}
                     </span>
                     <ChevronDown
                       className={`h-4 w-4 text-text-tertiary transition-transform duration-200 ${
@@ -208,13 +209,13 @@ function SupportContent() {
                 </div>
               </div>
 
-              {selectedSubject === 'Otro' && (
+              {selectedSubject === t('subjectOther') && (
                 <div className="animate-in fade-in slide-in-from-top-2 space-y-2 duration-200">
                   <label
                     htmlFor="customSubject"
                     className="text-sm font-medium text-text-primary"
                   >
-                    Especificar Asunto
+                    {t('customSubjectLabel')}
                   </label>
                   <input
                     id="customSubject"
@@ -222,7 +223,7 @@ function SupportContent() {
                     required
                     value={customSubject}
                     onChange={(e) => setCustomSubject(e.target.value)}
-                    placeholder="Escribe el asunto..."
+                    placeholder={t('customSubjectPlaceholder')}
                     className="w-full rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm outline-none transition-all placeholder:text-input-placeholder focus:border-border-focus focus:ring-1 focus:ring-border-focus"
                   />
                 </div>
@@ -230,15 +231,15 @@ function SupportContent() {
 
               <div className="space-y-2">
                 <label htmlFor="message" className="text-sm font-medium text-text-primary">
-                  Mensaje{' '}
-                  <span className="font-normal text-text-tertiary">(Opcional)</span>
+                  {t('messageLabel')}{' '}
+                  <span className="font-normal text-text-tertiary">{t('optional')}</span>
                 </label>
                 <textarea
                   id="message"
                   rows={6}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Describe tu consulta o problema..."
+                  placeholder={t('messagePlaceholder')}
                   className="w-full resize-none rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm outline-none transition-all placeholder:text-input-placeholder focus:border-border-focus focus:ring-1 focus:ring-border-focus"
                 />
               </div>
@@ -253,7 +254,7 @@ function SupportContent() {
                 ) : (
                   <Send className="h-4 w-4" />
                 )}
-                Enviar Mensaje
+                {t('sendButton')}
               </button>
             </form>
           </div>
@@ -265,7 +266,7 @@ function SupportContent() {
           <div className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-text-tertiary" />
             <span className="text-sm font-semibold uppercase tracking-widest text-text-tertiary">
-              Agendar una Cita
+              {t('scheduleSection')}
             </span>
           </div>
 

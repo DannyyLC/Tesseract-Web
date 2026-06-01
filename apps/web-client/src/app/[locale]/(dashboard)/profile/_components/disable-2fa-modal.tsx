@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Modal } from '@/components/ui/modal';
 import { useDisable2FA } from '@/hooks/identity/use-auth';
 import { Loader2, AlertTriangle } from 'lucide-react';
@@ -13,13 +14,14 @@ interface Disable2FAModalProps {
 }
 
 export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProps) {
+  const t = useTranslations('Disable2FAModal');
   const [verificationCode, setVerificationCode] = useState('');
   const queryClient = useQueryClient();
   const disable2FA = useDisable2FA();
 
   const handleDisable = async () => {
     if (!verificationCode || verificationCode.length !== 6) {
-      toast.error('Por favor ingresa un código de 6 dígitos');
+      toast.error(t('codeRequired'));
       return;
     }
 
@@ -28,10 +30,10 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
       // Invalidate user queries to refresh 2FA status
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-      toast.success('2FA desactivado correctamente');
+      toast.success(t('deactivated'));
       handleClose();
     } catch (error: any) {
-      toast.error(error.message || 'Código inválido. Intenta nuevamente');
+      toast.error(error.message || t('invalidCode'));
     }
   };
 
@@ -41,16 +43,15 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Desactivar Autenticación de Dos Factores">
+    <Modal isOpen={isOpen} onClose={handleClose} title={t('title')}>
       <div className="space-y-4">
         <div className="rounded-xl bg-warning-500/10 p-4 text-warning-500">
           <div className="flex gap-3">
             <AlertTriangle className="h-5 w-5 flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium">Advertencia de Seguridad</p>
+              <p className="text-sm font-medium">{t('warningHeading')}</p>
               <p className="mt-1 text-sm opacity-90">
-                Al desactivar 2FA, tu cuenta será menos segura. Solo necesitarás tu contraseña para
-                iniciar sesión.
+                {t('warningText')}
               </p>
             </div>
           </div>
@@ -58,7 +59,7 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
 
         <div className="space-y-2">
           <label className="block text-sm font-medium text-text-primary">
-            Ingresa el código de 6 dígitos de tu aplicación de autenticación
+            {t('codeLabel')}
           </label>
           <input
             type="text"
@@ -71,7 +72,7 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
                 handleDisable();
               }
             }}
-            placeholder="000000"
+            placeholder={t('codePlaceholder')}
             className="w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4 focus:ring-border-focus/5"
           />
         </div>
@@ -81,7 +82,7 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
             onClick={handleClose}
             className="flex-1 rounded-xl bg-surface-secondary px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
           >
-            Cancelar
+            {t('cancelButton')}
           </button>
           <button
             onClick={handleDisable}
@@ -91,10 +92,10 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
             {disable2FA.isPending ? (
               <>
                 <Loader2 className="animate-spin" size={18} />
-                Desactivando...
+                {t('disabling')}
               </>
             ) : (
-              'Desactivar 2FA'
+              t('disableButton')
             )}
           </button>
         </div>

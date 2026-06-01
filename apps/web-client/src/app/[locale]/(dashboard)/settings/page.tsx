@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { useOrganizationDashboard, useOrganizationMutations } from '@/hooks/identity/use-organizations';
 import { toast } from 'sonner';
 import { Loader2, Trash2, AlertTriangle, Building2 } from 'lucide-react';
@@ -10,6 +11,7 @@ import { useAuth } from '@/hooks/identity/use-auth';
 import PermissionGuard from '@/components/auth/permission-guard';
 
 export default function SettingsPage() {
+  const t = useTranslations('Settings');
   const { data: orgData, isLoading, refetch } = useOrganizationDashboard();
   const { data: authUser, isLoading: isLoadingAuth } = useAuth();
   const { updateOrganization, deleteOrganization } = useOrganizationMutations();
@@ -30,34 +32,34 @@ export default function SettingsPage() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error('El nombre de la organización no puede estar vacío');
+      toast.error(t('emptyNameError'));
       return;
     }
 
     try {
       await updateOrganization.mutateAsync({ name });
-      toast.success('Organización actualizada correctamente');
+      toast.success(t('updateSuccess'));
       refetch();
     } catch (error: any) {
       console.error('Error updating organization:', error);
-      toast.error('Error al actualizar la organización');
+      toast.error(t('updateError'));
     }
   };
 
   const handleDelete = async () => {
     const expectedConfirmation = `${orgData?.name}`;
     if (deleteConfirmation !== expectedConfirmation) {
-      toast.error(`Debes escribir exactamente "${expectedConfirmation}"`);
+      toast.error(t('writeExactly', { name: expectedConfirmation }));
       return;
     }
 
     if (!isAgreed) {
-      toast.error('Debes aceptar que esta acción es irreversible');
+      toast.error(t('mustAgreedError'));
       return;
     }
 
     if (authUser?.twoFactorEnabled && (!code2FA || code2FA.length !== 6)) {
-      toast.error('Por favor ingresa el código 2FA de 6 dígitos');
+      toast.error(t('code2FARequired'));
       return;
     }
 
@@ -66,13 +68,13 @@ export default function SettingsPage() {
         confirmationText: deleteConfirmation,
         code2FA: authUser?.twoFactorEnabled ? code2FA : undefined,
       });
-      toast.success('Organización eliminada correctamente');
+      toast.success(t('deleteSuccess'));
       setIsDeleteModalOpen(false);
       // Force reload or redirect to login/signup
       window.location.href = '/login';
     } catch (error: any) {
       console.error('Error deleting organization:', error);
-      toast.error(error.message || 'Error al eliminar la organización');
+      toast.error(error.message || t('deleteError'));
     }
   };
 
@@ -85,7 +87,7 @@ export default function SettingsPage() {
   if (!orgData) {
     return (
       <div className="p-8">
-        <p className="text-danger">Error al cargar la información de la organización.</p>
+        <p className="text-danger">{t('loadError')}</p>
       </div>
     );
   }
@@ -94,9 +96,9 @@ export default function SettingsPage() {
     <PermissionGuard permissions="organization:delete" redirect={true} fallbackRoute="/dashboard">
       <div className="max-w-5xl space-y-8 p-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Configuración</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('heading')}</h1>
           <p className="text-muted-foreground mt-2">
-            Gestiona los detalles y preferencias de tu organización.
+            {t('description')}
           </p>
         </div>
 
@@ -107,9 +109,9 @@ export default function SettingsPage() {
               <Building2 className="text-primary h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">General</h2>
+              <h2 className="text-lg font-semibold">{t('generalTitle')}</h2>
               <p className="text-muted-foreground text-sm">
-                Información básica de tu organización.
+                {t('generalDesc')}
               </p>
             </div>
           </div>
@@ -120,7 +122,7 @@ export default function SettingsPage() {
                 htmlFor="orgName"
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                Nombre de la Organización
+                {t('orgNameLabel')}
               </label>
               <input
                 id="orgName"
@@ -128,7 +130,7 @@ export default function SettingsPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="Ej. Acme Inc."
+                placeholder={t('orgNamePlaceholder')}
               />
             </div>
 
@@ -142,10 +144,10 @@ export default function SettingsPage() {
                   {updateOrganization.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Guardando...
+                      {t('saving')}
                     </>
                   ) : (
-                    'Guardar Cambios'
+                    t('saveButton')
                   )}
                 </button>
               </PermissionGuard>
@@ -162,10 +164,10 @@ export default function SettingsPage() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-danger-500">
-                  Zona de Peligro
+                  {t('dangerZoneTitle')}
                 </h2>
                 <p className="text-sm text-danger-500/80">
-                  Acciones irreversibles para tu organización.
+                  {t('dangerZoneDesc')}
                 </p>
               </div>
             </div>
@@ -173,10 +175,10 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <h3 className="font-medium text-danger-500">
-                  Eliminar Organización
+                  {t('deleteOrgTitle')}
                 </h3>
                 <p className="text-sm text-danger-500/80">
-                  Esta acción eliminará permanentemente tu organización y todos sus datos.
+                  {t('deleteOrgDesc')}
                 </p>
               </div>
               <button
@@ -189,7 +191,7 @@ export default function SettingsPage() {
                 className="focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md border border-danger-500 bg-transparent px-4 py-2 text-sm font-medium text-danger-500 ring-offset-background transition-colors hover:bg-danger-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
+                {t('deleteButton')}
               </button>
             </div>
           </section>
@@ -204,18 +206,17 @@ export default function SettingsPage() {
             setCode2FA('');
             setIsAgreed(false);
           }}
-          title="¿Estás absolutamente seguro?"
+          title={t('deleteModalTitle')}
         >
           <div className="space-y-4">
             <div className="rounded-lg bg-danger-500/10 p-4">
               <div className="flex gap-3">
                 <AlertTriangle className="h-5 w-5 text-danger-500" />
                 <div className="text-sm text-danger-500">
-                  <p className="font-semibold">Esta acción es destructiva e irreversible.</p>
+                  <p className="font-semibold">{t('deleteWarningHeading')}</p>
                   <p className="mt-1">
-                    Se eliminarán permanentemente todos los datos asociados a{' '}
-                    <strong>{orgData.name}</strong>, incluyendo workflows, usuarios y
-                    configuraciones.
+                    {t('deleteWarningBefore')}{' '}
+                    <strong>{orgData.name}</strong>{t('deleteWarningAfter')}
                   </p>
                 </div>
               </div>
@@ -223,7 +224,7 @@ export default function SettingsPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">
-                Para confirmar, escribe <strong>{orgData.name}</strong> a continuación:
+                {t('confirmLabelBefore')} <strong>{orgData.name}</strong> {t('confirmLabelAfter')}
               </label>
               <input
                 type="text"
@@ -236,7 +237,7 @@ export default function SettingsPage() {
 
             {authUser?.twoFactorEnabled && (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Código 2FA</label>
+                <label className="text-sm font-medium text-foreground">{t('code2FALabel')}</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -244,7 +245,7 @@ export default function SettingsPage() {
                   value={code2FA}
                   onChange={(e) => setCode2FA(e.target.value.replace(/\D/g, ''))}
                   className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-center font-mono text-sm tracking-widest ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  placeholder="000000"
+                  placeholder={t('codePlaceholder')}
                 />
               </div>
             )}
@@ -257,8 +258,7 @@ export default function SettingsPage() {
                 className="mt-1 h-4 w-4 rounded border-gray-300 text-danger-600 focus:ring-danger-500"
               />
               <span className="text-foreground/80 text-sm">
-                Entiendo que esta acción es irreversible y eliminará todos los datos de mi
-                organización.
+                {t('agreeCheckboxLabel')}
               </span>
             </label>
 
@@ -272,7 +272,7 @@ export default function SettingsPage() {
                 }}
                 className="focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface-secondary px-4 py-2 text-sm font-medium text-text-secondary ring-offset-background transition-colors hover:border-border-hover hover:bg-surface-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
               >
-                Cancelar
+                {t('cancelButton')}
               </button>
               <button
                 onClick={handleDelete}
@@ -287,10 +287,10 @@ export default function SettingsPage() {
                 {deleteOrganization.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Eliminando...
+                    {t('deleting')}
                   </>
                 ) : (
-                  'Confirmar Eliminación'
+                  t('confirmDeleteButton')
                 )}
               </button>
             </div>

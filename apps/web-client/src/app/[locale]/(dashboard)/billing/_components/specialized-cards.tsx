@@ -3,9 +3,11 @@
 import { Building2, ArrowRight, Handshake } from 'lucide-react';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 export default function SpecializedCards() {
   const router = useRouter();
+  const t = useTranslations('BillingSpecialized');
 
   return (
     <div className="grid gap-6 lg:grid-cols-5">
@@ -18,14 +20,14 @@ export default function SpecializedCards() {
             </div>
             <div>
               <h3 className="text-xl font-bold tracking-tight text-text-primary">
-                Socio Estratégico
+                {t('consultancyTitle')}
               </h3>
               <div className="flex flex-col">
                 <span className="font-geist-mono font-bold text-text-primary">
-                  $600 MXN / sesión
+                  {t('consultancyPrice')}
                 </span>
                 <span className="text-[10px] uppercase tracking-wide text-text-tertiary">
-                  * Primer diagnóstico GRATIS
+                  {t('firstDiagnosticFree')}
                 </span>
               </div>
             </div>
@@ -34,34 +36,34 @@ export default function SpecializedCards() {
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
               <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-text-tertiary">
-                FORMACIÓN
+                {t('formationLabel')}
               </p>
               <p className="text-xs font-medium leading-relaxed text-text-secondary">
-                Capacitación del equipo para maximizar productividad.
+                {t('formationDesc')}
               </p>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-text-tertiary">
-                EXPLORACIÓN
+                {t('explorationLabel')}
               </p>
               <p className="text-xs font-medium leading-relaxed text-text-secondary">
-                Análisis de procesos para descubrir automatizaciones.
+                {t('explorationDesc')}
               </p>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-text-tertiary">
-                REFINAMIENTO
+                {t('refinementLabel')}
               </p>
               <p className="text-xs font-medium leading-relaxed text-text-secondary">
-                Optimización de créditos y mejor rendimiento mensual.
+                {t('refinementDesc')}
               </p>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] text-sm font-bold uppercase tracking-widest text-text-tertiary">
-                VIGILANCIA
+                {t('vigilanceLabel')}
               </p>
               <p className="text-xs font-medium leading-relaxed text-text-secondary">
-                Roadmap estratégico para escalado eficiente.
+                {t('vigilanceDesc')}
               </p>
             </div>
           </div>
@@ -71,7 +73,7 @@ export default function SpecializedCards() {
               onClick={() => router.push('/support?reason=consulting')}
               className="mt-8 flex items-center gap-2 text-sm font-bold text-text-primary transition-all hover:gap-3"
             >
-              Agendar Consultoría
+              {t('scheduleConsultancy')}
               <ArrowRight size={16} />
             </button>
           </PermissionGuard>
@@ -88,26 +90,24 @@ export default function SpecializedCards() {
             <Building2 size={24} />
           </div>
 
-          <h3 className="text-2xl font-bold tracking-tight">Plan ENTERPRISE</h3>
-          <p className="mt-1 text-sm font-bold text-brand-white/40">Comienza en $999 USD/mes</p>
+          <h3 className="text-2xl font-bold tracking-tight">{t('enterpriseTitle')}</h3>
+          <p className="mt-1 text-sm font-bold text-brand-white/40">{t('enterpriseStarting')}</p>
 
           <div className="mt-8 flex-1 space-y-3">
             <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-brand-white/30">
-              TU INFRAESTRUCTURA IDEAL
+              {t('infraLabel')}
             </p>
             <p className="flex items-center gap-2 text-xs font-medium text-brand-white/70">
-              <span className="h-1.5 w-1.5 rounded-full bg-brand-white" /> Servidores Dedicados (Opcional)
+              <span className="h-1.5 w-1.5 rounded-full bg-brand-white" /> {t('dedicatedServers')}
             </p>
             <p className="flex items-center gap-2 text-xs font-medium text-brand-white/70">
-              <span className="h-1.5 w-1.5 rounded-full bg-brand-white" /> Límite de Workflows
-              Personalizable
+              <span className="h-1.5 w-1.5 rounded-full bg-brand-white" /> {t('customWorkflowLimit')}
             </p>
             <p className="flex items-center gap-2 text-xs font-medium text-brand-white/70">
-              <span className="h-1.5 w-1.5 rounded-full bg-brand-white" /> Personalización Completa del
-              Entorno
+              <span className="h-1.5 w-1.5 rounded-full bg-brand-white" /> {t('fullCustomization')}
             </p>
             <p className="mt-2 text-[10px] italic text-brand-white/30">
-              * Todo configurable según tus necesidades.
+              {t('enterpriseNote')}
             </p>
           </div>
 
@@ -116,7 +116,7 @@ export default function SpecializedCards() {
               onClick={() => router.push('/support?reason=enterprise')}
               className="mt-10 w-full rounded-xl bg-brand-white py-3.5 font-bold text-brand-black transition-all hover:opacity-80 active:scale-[0.98]"
             >
-              Contactar para Negociar
+              {t('contactButton')}
             </button>
           </PermissionGuard>
         </div>

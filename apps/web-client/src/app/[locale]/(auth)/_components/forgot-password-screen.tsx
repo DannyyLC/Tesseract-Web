@@ -5,11 +5,13 @@ import { ArrowRight, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { useRouter, Link } from '@/i18n/routing';
 import { useResetPasswordStepOne } from '@/hooks/identity/use-auth';
 import { Turnstile } from '@marsidev/react-turnstile';
 
 export default function ForgotPasswordScreen() {
+  const t = useTranslations('ForgotPasswordScreen');
   const router = useRouter();
   const { mutateAsync: sendResetCode, isPending } = useResetPasswordStepOne();
 
@@ -22,10 +24,10 @@ export default function ForgotPasswordScreen() {
 
     try {
       await sendResetCode({ email, turnstileToken });
-      toast.success('Si el correo existe, se ha enviado un código de verificación.');
+      toast.success(t('successToast'));
       router.push('/reset-password');
     } catch (error: any) {
-      toast.error(error.message || 'Error al enviar el correo. Por favor, intenta de nuevo.');
+      toast.error(error.message || t('errorToast'));
     }
   };
 
@@ -68,14 +70,14 @@ export default function ForgotPasswordScreen() {
             <div>
               <h1 className="text-5xl font-bold tracking-tight text-brand-white">Tesseract</h1>
               <p className="mt-1 text-sm uppercase tracking-widest" style={{ color: 'var(--auth-branding-text-label)' }}>
-                Automation Platform
+                {t('automationPlatform')}
               </p>
             </div>
           </div>
           <div className="max-w-lg space-y-4 text-center">
-            <h2 className="text-3xl font-semibold leading-tight text-brand-white">Recupera tu acceso</h2>
+            <h2 className="text-3xl font-semibold leading-tight text-brand-white">{t('brandingHeading')}</h2>
             <p className="text-lg leading-relaxed" style={{ color: 'var(--auth-branding-text-desc)' }}>
-              Te enviaremos un código para restablecer tu contraseña
+              {t('brandingTagline')}
             </p>
           </div>
         </div>
@@ -108,23 +110,23 @@ export default function ForgotPasswordScreen() {
             <div className="w-full max-w-md space-y-8">
               <div className="space-y-2 text-center">
                 <h2 className="text-3xl font-bold text-text-primary">
-                  ¿Olvidaste tu contraseña?
+                  {t('heading')}
                 </h2>
                 <p className="text-text-secondary">
-                  Ingresa tu correo electrónico y te enviaremos un código de verificación.
+                  {t('description')}
                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-text-primary">
-                    Email
+                    {t('emailLabel')}
                   </label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="ejemplo@empresa.com"
+                    placeholder={t('emailPlaceholder')}
                     className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                     required
                   />
@@ -147,11 +149,11 @@ export default function ForgotPasswordScreen() {
                   {isPending ? (
                     <>
                       <Loader2 size={20} className="animate-spin" />
-                      Enviando...
+                      {t('sending')}
                     </>
                   ) : (
                     <>
-                      Enviar código
+                      {t('sendButton')}
                       <ArrowRight
                         size={20}
                         className="transition-transform group-hover:translate-x-1"
@@ -167,7 +169,7 @@ export default function ForgotPasswordScreen() {
                     style={{ color: 'var(--text-muted)' }}
                   >
                     <ArrowLeft size={16} />
-                    Volver al login
+                    {t('backToLogin')}
                   </Link>
                 </div>
               </form>

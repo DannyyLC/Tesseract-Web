@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { useAcceptInvitation } from '@/hooks/identity/use-organizations';
 import { toast } from 'sonner';
@@ -10,6 +11,7 @@ import Image from 'next/image';
 import { LogoLoader } from '@/components/ui/logo-loader';
 
 function AcceptInvitationForm() {
+  const t = useTranslations('AcceptInvitation');
   const searchParams = useSearchParams();
   const router = useRouter();
   const acceptInvitation = useAcceptInvitation();
@@ -25,7 +27,7 @@ function AcceptInvitationForm() {
 
   useEffect(() => {
     if (!code) {
-      toast.error('Código de invitación inválido o faltante');
+      toast.error(t('invalidCodeToast'));
       // Redirigir o mostrar estado de error
     }
   }, [code]);
@@ -34,17 +36,17 @@ function AcceptInvitationForm() {
     e.preventDefault();
 
     if (!code) {
-      toast.error('No se ha proporcionado un código de invitación válido');
+      toast.error(t('noCodeToast'));
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error('Las contraseñas no coinciden');
+      toast.error(t('passwordsMismatch'));
       return;
     }
 
     if (password.length < 8) {
-      toast.error('La contraseña debe tener al menos 8 caracteres');
+      toast.error(t('passwordTooShort'));
       return;
     }
 
@@ -54,10 +56,10 @@ function AcceptInvitationForm() {
         password,
         verificationCode: code,
       });
-      toast.success('Invitación aceptada exitosamente. Por favor, inicia sesión.');
+      toast.success(t('successToast'));
       router.push('/login?welcome=true');
     } catch (error: any) {
-      toast.error(error.message || 'Error al aceptar la invitación');
+      toast.error(error.message || t('errorToast'));
     }
   };
 
@@ -67,9 +69,9 @@ function AcceptInvitationForm() {
         <div className="rounded-full p-3" style={{ background: 'var(--danger-surface)', color: 'var(--danger-text-adaptive)' }}>
           <Building2 className="h-8 w-8" />
         </div>
-        <h2 className="text-xl font-semibold">Invitación inválida</h2>
+        <h2 className="text-xl font-semibold">{t('invalidHeading')}</h2>
         <p className="text-text-secondary">
-          El enlace de invitación no es válido o ha expirado.
+          {t('invalidDescription')}
         </p>
       </div>
     );
@@ -79,10 +81,10 @@ function AcceptInvitationForm() {
     <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6">
       <div className="space-y-2 text-center">
         <h2 className="text-2xl font-bold tracking-tight text-text-primary">
-          Aceptar Invitación
+          {t('heading')}
         </h2>
         <p className="text-sm text-text-secondary">
-          Completa tus datos para unirte a la organización
+          {t('description')}
           {email && (
             <span className="mt-1 block font-medium text-text-primary">{email}</span>
           )}
@@ -92,13 +94,13 @@ function AcceptInvitationForm() {
       <div className="space-y-4">
         <div className="space-y-2">
           <label className="block text-sm font-medium text-text-primary">
-            Nombre Completo
+            {t('fullNameLabel')}
           </label>
           <input
             type="text"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            placeholder="Tu nombre"
+            placeholder={t('fullNamePlaceholder')}
             className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
             required
           />
@@ -106,14 +108,14 @@ function AcceptInvitationForm() {
 
         <div className="space-y-2">
           <label className="block text-sm font-medium text-text-primary">
-            Contraseña
+            {t('passwordLabel')}
           </label>
           <div className="relative">
             <input
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder={t('passwordPlaceholder')}
               className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
               required
             />
@@ -129,14 +131,14 @@ function AcceptInvitationForm() {
 
         <div className="space-y-2">
           <label className="block text-sm font-medium text-text-primary">
-            Confirmar Contraseña
+            {t('confirmPasswordLabel')}
           </label>
           <div className="relative">
             <input
               type={showConfirmPassword ? 'text' : 'password'}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder={t('passwordPlaceholder')}
               className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
               required
             />
@@ -159,11 +161,11 @@ function AcceptInvitationForm() {
         {acceptInvitation.isPending ? (
           <>
             <Loader2 size={20} className="animate-spin" />
-            Procesando...
+            {t('processing')}
           </>
         ) : (
           <>
-            Aceptar Invitación
+            {t('submitButton')}
             <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
           </>
         )}
@@ -173,6 +175,7 @@ function AcceptInvitationForm() {
 }
 
 export default function AcceptInvitationPage() {
+  const t = useTranslations('AcceptInvitation');
   return (
     // Contenedor principal: bloquea el scroll global
     <div className="flex h-screen overflow-hidden bg-brand-black">
@@ -212,15 +215,15 @@ export default function AcceptInvitationPage() {
             <div>
               <h1 className="text-5xl font-bold tracking-tight text-brand-white">Tesseract</h1>
               <p className="mt-1 text-sm uppercase tracking-widest" style={{ color: 'var(--auth-branding-text-label)' }}>
-                Automation Platform
+                {t('automationPlatform')}
               </p>
             </div>
           </div>
 
           <div className="max-w-lg space-y-4 text-center">
-            <h2 className="text-3xl font-semibold leading-tight text-brand-white">Únete a tu equipo</h2>
+            <h2 className="text-3xl font-semibold leading-tight text-brand-white">{t('brandingHeading')}</h2>
             <p className="text-lg leading-relaxed" style={{ color: 'var(--auth-branding-text-desc)' }}>
-              Colabora y automatiza flujos de trabajo en conjunto
+              {t('brandingTagline')}
             </p>
           </div>
         </div>
@@ -244,7 +247,7 @@ export default function AcceptInvitationPage() {
             <span className="text-xl font-bold text-text-primary">Tesseract</span>
           </div>
 
-          <Suspense fallback={<LogoLoader text="Cargando..." />}>
+          <Suspense fallback={<LogoLoader text={t('loading')} />}>
             <AcceptInvitationForm />
           </Suspense>
         </div>

@@ -15,6 +15,7 @@ import OverageCard from './_components/overage-card';
 import UsageCard from './_components/usage-card';
 import Loading from '@/app/[locale]/(dashboard)/loading';
 import { Workflow, Key, Users, ArrowUpRight, PartyPopper } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { Modal } from '@/components/ui/modal';
@@ -22,6 +23,7 @@ import { toast } from 'sonner';
 import { triggerWowConfetti } from '@/lib/confetti';
 
 export default function BillingPage() {
+  const t = useTranslations('Billing');
   const { isLoading: isLoadingAuth } = useAuth();
   const { data: dashboardData, isLoading } = useBillingDashboard();
   const { data: plans } = usePlans();
@@ -40,7 +42,7 @@ export default function BillingPage() {
       triggerWowConfetti();
       window.history.replaceState(null, '', '/billing');
     } else if (searchParams.get('canceled') === 'true') {
-      toast.error('El proceso de pago fue cancelado.');
+      toast.error(t('cancelledPayment'));
       window.history.replaceState(null, '', '/billing');
     }
   }, [searchParams]);
@@ -96,10 +98,10 @@ export default function BillingPage() {
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div className="space-y-2">
               <h1 className="text-4xl font-bold tracking-tight text-text-primary">
-                Resumen de Facturación
+                {t('heading')}
               </h1>
               <p className="max-w-sm font-medium text-text-secondary">
-                Monitorea tu consumo y el estado de tu suscripción.
+                {t('description')}
               </p>
             </div>
             <div className="flex gap-3">
@@ -113,7 +115,7 @@ export default function BillingPage() {
                     onMouseEnter={() => fetchPortalUrl()}
                     className="flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface-secondary"
                   >
-                    {isOpeningPortal ? 'Cargando...' : 'Portal de Pagos'}
+                    {isOpeningPortal ? t('loading') : t('paymentPortal')}
                   </a>
                 )}
               </PermissionGuard>
@@ -121,7 +123,7 @@ export default function BillingPage() {
                 href="/billing/plans"
                 className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90"
               >
-                Gestionar Plan
+                {t('managePlan')}
                 <ArrowUpRight size={16} />
               </Link>
             </div>
@@ -148,28 +150,28 @@ export default function BillingPage() {
 
           {/* Resource Usage Grid */}
           <div>
-            <h2 className="mb-6 text-xl font-bold text-text-primary">Uso de Recursos</h2>
+            <h2 className="mb-6 text-xl font-bold text-text-primary">{t('resourceUsage')}</h2>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <UsageCard
-                title="Workflows Activos"
+                title={t('workflowsTitle')}
                 icon={<Workflow />}
                 used={usage.workflows.used}
                 limit={usage.workflows.limit}
-                unit="workflows"
+                unit={t('workflowsUnit')}
               />
               <UsageCard
-                title="API Keys"
+                title={t('apiKeysTitle')}
                 icon={<Key />}
                 used={usage.apiKeys.used}
                 limit={usage.apiKeys.limit}
-                unit="keys"
+                unit={t('keysUnit')}
               />
               <UsageCard
-                title="Usuarios"
+                title={t('usersTitle')}
                 icon={<Users />}
                 used={usage.users.used}
                 limit={usage.users.limit}
-                unit="usuarios"
+                unit={t('usersUnit')}
               />
             </div>
           </div>
@@ -184,18 +186,17 @@ export default function BillingPage() {
           </div>
           <div className="space-y-2 text-center">
             <h3 className="text-2xl font-bold text-text-primary">
-              ¡Gracias por tu confianza!
+              {t('successHeading')}
             </h3>
             <p className="max-w-sm text-sm text-text-secondary">
-              Tu suscripción ha sido activada exitosamente. Ya puedes disfrutar de todos los
-              beneficios de tu nuevo plan.
+              {t('successText')}
             </p>
           </div>
           <button
             onClick={() => setShowSuccessModal(false)}
             className="rounded-xl bg-accent px-6 py-3 text-sm font-bold text-text-inverse transition-opacity hover:opacity-90"
           >
-            ¡Comenzar!
+            {t('startButton')}
           </button>
         </div>
       </Modal>

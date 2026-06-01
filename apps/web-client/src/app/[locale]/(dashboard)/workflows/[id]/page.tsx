@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import WhatsappNumberCard from '../_components/whatsapp-number-card';
 import WorkflowAnalyticsPanel from '../_components/workflow-analytics-panel';
 import WorkflowExecutionsTable from '../_components/workflow-executions-table';
+import { useTranslations } from 'next-intl';
 
 const WHATSAPP_PHONE_REGEX = /^\+\d{8,15}$/;
 
@@ -26,6 +27,7 @@ export default function WorkflowDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const t = useTranslations('WorkflowDetail');
 
   // Queries
   const { data: workflow, isLoading } = useWorkflow(id);
@@ -67,7 +69,7 @@ export default function WorkflowDetailPage() {
   // Handlers
   const handleUpdate = async () => {
     if (!formData.name.trim()) {
-      toast.error('El nombre no puede estar vacío');
+      toast.error(t('emptyNameError'));
       return;
     }
 
@@ -80,10 +82,10 @@ export default function WorkflowDetailPage() {
           isActive: formData.isActive,
         },
       });
-      toast.success('Workflow actualizado correctamente');
+      toast.success(t('updateSuccess'));
       setIsEditOpen(false);
     } catch (error) {
-      toast.error('Error al actualizar el workflow');
+      toast.error(t('updateError'));
       console.error(error);
     }
   };
@@ -91,10 +93,10 @@ export default function WorkflowDetailPage() {
   const handleDelete = async () => {
     try {
       await deleteWorkflow.mutateAsync(id);
-      toast.success('Workflow eliminado');
+      toast.success(t('deleteSuccess'));
       router.push('/workflows');
     } catch (error) {
-      toast.error('Error al eliminar el workflow');
+      toast.error(t('deleteError'));
       console.error(error);
     }
   };
@@ -103,12 +105,12 @@ export default function WorkflowDetailPage() {
     try {
       const success = await deleteWhatsappConfig.mutateAsync(id);
       if (success) {
-        toast.success('Número de WhatsApp eliminado correctamente');
+        toast.success(t('whatsappDeleteSuccess'));
       } else {
-        toast.error('Error al eliminar el número de WhatsApp');
+        toast.error(t('whatsappDeleteError'));
       }
     } catch (error) {
-      toast.error('Error al eliminar el número de WhatsApp');
+      toast.error(t('whatsappDeleteError'));
       console.error(error);
     }
   };
@@ -117,12 +119,12 @@ export default function WorkflowDetailPage() {
     try {
       const success = await setisActiveStatus.mutateAsync({ id, data: isActive });
       if (success) {
-        toast.success(`Número de WhatsApp ${isActive ? 'activado' : 'desactivado'} correctamente`);
+        toast.success(isActive ? t('whatsappActivated') : t('whatsappDeactivated'));
       } else {
-        toast.error(`Error al ${isActive ? 'activar' : 'desactivar'} el número de WhatsApp`);
+        toast.error(isActive ? t('whatsappActivateError') : t('whatsappDeactivateError'));
       }
     } catch (error) {
-      toast.error(`Error al ${isActive ? 'activar' : 'desactivar'} el número de WhatsApp`);
+      toast.error(isActive ? t('whatsappActivateError') : t('whatsappDeactivateError'));
       console.error(error);
     }
   };
@@ -138,9 +140,9 @@ export default function WorkflowDetailPage() {
   if (!workflow) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-text-secondary">
-        <p>Workflow no encontrado</p>
+        <p>{t('notFound')}</p>
         <Link href="/workflows" className="mt-4 text-info hover:underline">
-          Volver al Dashboard
+          {t('backToDashboard')}
         </Link>
       </div>
     );
@@ -148,7 +150,7 @@ export default function WorkflowDetailPage() {
 
   const handleWhatsappIntegration = async () => {
     if (!isWhatsappNumberValid) {
-      toast.error('Ingresa un número válido en formato internacional. Ej: +524961337305');
+      toast.error(t('invalidNumberError'));
       return;
     }
 
@@ -157,7 +159,7 @@ export default function WorkflowDetailPage() {
         workflowId: id,
         phoneNumber: whatsappNumber,
       });
-      toast.success('Workflow vinculado a WhatsApp correctamente');
+      toast.success(t('whatsappLinkSuccess'));
       setIsWhatsappModalOpen(false);
       setWhatsappNumber('');
     } catch (error: any) {
@@ -176,9 +178,8 @@ export default function WorkflowDetailPage() {
       if (statusCode === 409) {
         toast.error(
           isDuplicatePhoneError
-            ? 'Ese número ya está registrado en WhatsApp. Usa otro número o elimina la configuración existente.'
-            : backendMessage ||
-                'Ese número ya está registrado en WhatsApp. Usa otro número o elimina la configuración existente.',
+            ? t('duplicatePhoneError')
+            : backendMessage || t('duplicatePhoneError'),
         );
         console.error(error);
         return;
@@ -186,8 +187,8 @@ export default function WorkflowDetailPage() {
 
       toast.error(
         isDuplicatePhoneError
-          ? 'Ese número ya está registrado en WhatsApp. Usa otro número o elimina la configuración existente.'
-          : backendMessage || 'No se pudo vincular el workflow a WhatsApp. Intenta nuevamente.',
+          ? t('duplicatePhoneError')
+          : backendMessage || t('whatsappLinkError'),
       );
       console.error(error);
     }
@@ -214,7 +215,6 @@ export default function WorkflowDetailPage() {
                   <div>
                     <h1 className="flex flex-wrap items-center gap-3 break-words text-3xl font-bold tracking-tight text-text-primary">
                       {workflow.name}
-                      {/* Minimal Status Dot */}
                       <div
                         className={`flex items-center gap-1 rounded-full border px-2 py-0.5 ${
                           workflow.isActive
@@ -228,19 +228,19 @@ export default function WorkflowDetailPage() {
                         <span
                           className={`text-[10px] font-medium uppercase tracking-wide ${workflow.isActive ? 'text-[var(--success-text-adaptive)]' : 'text-[var(--neutral-text-adaptive)]'}`}
                         >
-                          {workflow.isActive ? 'Activo' : 'Inactivo'}
+                          {workflow.isActive ? t('statusActive') : t('statusInactive')}
                         </span>
                       </div>
                     </h1>
                     <p className="mt-2 max-w-3xl break-words text-base leading-relaxed text-[var(--text-muted)] sm:text-lg">
-                      {workflow.description || 'Sin descripción'}
+                      {workflow.description || t('noDescription')}
                     </p>
                   </div>
 
                   <div className="mt-2 flex flex-wrap items-center gap-8">
                     <div className="flex flex-col">
                       <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
-                        Categoría
+                        {t('categoryLabel')}
                       </span>
                       <span className="text-sm font-medium capitalize text-text-primary">
                         {workflow.category || 'Standard'}
@@ -248,7 +248,7 @@ export default function WorkflowDetailPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
-                        Versión
+                        {t('versionLabel')}
                       </span>
                       <span className="font-mono text-sm font-medium text-text-primary">
                         v{workflow.version || 1}
@@ -256,7 +256,7 @@ export default function WorkflowDetailPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
-                        Creado
+                        {t('createdLabel')}
                       </span>
                       <span className="text-sm font-medium text-text-primary">
                         {new Date(workflow.createdAt).toLocaleDateString()}
@@ -273,7 +273,7 @@ export default function WorkflowDetailPage() {
                     className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-accent px-5 text-sm font-medium text-text-inverse shadow-sm transition-all hover:opacity-90 active:scale-95 xl:w-auto"
                   >
                     <MessageSquare size={17} className="shrink-0" />
-                    Probar Chat
+                    {t('testChat')}
                   </Link>
                 </PermissionGuard>
 
@@ -284,7 +284,7 @@ export default function WorkflowDetailPage() {
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-tint)] text-text-secondary transition-colors group-hover:bg-surface-secondary">
                     <WhatsappIcon className="h-4 w-4" />
                   </span>
-                  Vincular a WhatsApp
+                  {t('linkWhatsapp')}
                 </button>
 
                 <PermissionGuard permissions="workflows:update">
@@ -293,7 +293,7 @@ export default function WorkflowDetailPage() {
                     className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-border bg-surface-elevated px-4 text-sm font-medium text-text-primary transition-all hover:bg-[var(--surface-tint)] active:scale-95 xl:w-auto"
                   >
                     <Edit3 size={17} className="shrink-0" />
-                    Editar
+                    {t('editButton')}
                   </button>
                 </PermissionGuard>
               </div>
@@ -307,7 +307,7 @@ export default function WorkflowDetailPage() {
         <div className="space-y-8 px-8 py-8">
           <div className="flex items-center gap-2 text-text-primary">
             <BarChart2 size={24} />
-            <h2 className="text-xl font-bold">Análisis de Rendimiento</h2>
+            <h2 className="text-xl font-bold">{t('performanceAnalysis')}</h2>
           </div>
 
           <WorkflowAnalyticsPanel workflow={workflow} period={period} onPeriodChange={setPeriod} />
@@ -315,7 +315,7 @@ export default function WorkflowDetailPage() {
 
         <div className="space-y-4 px-8 pb-8">
           <h3 className="flex items-center gap-2 font-semibold text-text-primary">
-            Ejecuciones del periodo
+            {t('periodExecutions')}
           </h3>
           <WorkflowExecutionsTable workflowId={id} period={period} />
         </div>
@@ -323,7 +323,7 @@ export default function WorkflowDetailPage() {
         <div className="border-t border-[var(--border-subtle)] px-8 py-8">
           <div className="mb-8 rounded-2xl border border-border bg-[var(--surface-subtle)] p-4">
             <h3 className="ml-1 text-sm font-semibold text-text-primary">
-              Integraciones Conectadas
+              {t('connectedIntegrations')}
             </h3>
             <div className="mt-4 flex flex-wrap gap-4">
               {workflow.tenantTools && workflow.tenantTools.length > 0 ? (
@@ -359,7 +359,7 @@ export default function WorkflowDetailPage() {
                 ))
               ) : (
                 <p className="ml-1 text-sm text-[var(--text-muted)]">
-                  No hay integraciones vinculadas a este workflow.
+                  {t('noIntegrations')}
                 </p>
               )}
             </div>
@@ -367,7 +367,7 @@ export default function WorkflowDetailPage() {
 
           <div className="mb-8 rounded-2xl border border-border bg-[var(--surface-subtle)] p-4">
             <h3 className="ml-1 text-sm font-semibold text-text-primary">
-              Números de WhatsApp Business Asociados
+              {t('whatsappNumbersTitle')}
             </h3>
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
               {isWhatsappNumbersLoading ? (
@@ -400,8 +400,7 @@ export default function WorkflowDetailPage() {
                 ))
               ) : (
                 <p className="ml-1 text-sm text-[var(--text-muted)]">
-                  No hay números de WhatsApp asociados a este workflow. Vincula un número para
-                  comenzar a recibir mensajes.
+                  {t('noWhatsappNumbers')}
                 </p>
               )}
             </div>
@@ -411,10 +410,10 @@ export default function WorkflowDetailPage() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-danger-500">
-                  Zona de peligro
+                  {t('dangerZone')}
                 </h3>
                 <p className="mt-1 text-sm text-danger-500/80">
-                  Eliminar este workflow es una acción irreversible y removerá su historial.
+                  {t('deleteDesc')}
                 </p>
               </div>
 
@@ -424,7 +423,7 @@ export default function WorkflowDetailPage() {
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-danger-500 bg-transparent px-4 py-2.5 text-sm font-medium text-danger-500 transition-all hover:bg-danger-500 hover:text-brand-white active:scale-95 lg:w-auto"
                 >
                   <Trash2 size={16} />
-                  Eliminar workflow
+                  {t('deleteWorkflowButton')}
                 </button>
               </PermissionGuard>
             </div>
@@ -433,31 +432,31 @@ export default function WorkflowDetailPage() {
       </div>
 
       {/* Edit Modal */}
-      <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Editar Workflow">
+      <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title={t('editModalTitle')}>
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-text-primary">Nombre</label>
+            <label className="text-sm font-medium text-text-primary">{t('nameLabel')}</label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full rounded-xl border border-transparent bg-[var(--surface-tint)] px-3 py-2 text-text-primary outline-none transition-all focus:border-info-500 focus:bg-surface"
-              placeholder="Nombre del workflow"
+              placeholder={t('namePlaceholder')}
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-text-primary">Descripción</label>
+            <label className="text-sm font-medium text-text-primary">{t('descriptionLabel')}</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="min-h-[100px] w-full rounded-xl border border-transparent bg-[var(--surface-tint)] px-3 py-2 text-text-primary outline-none transition-all focus:border-info-500 focus:bg-surface"
-              placeholder="Descripción opcional"
+              placeholder={t('descriptionPlaceholder')}
             />
           </div>
 
           <div className="flex items-center justify-between rounded-xl bg-[var(--surface-tint)] p-3">
-            <span className="text-sm font-medium text-text-primary">Estado Activo</span>
+            <span className="text-sm font-medium text-text-primary">{t('activeStatus')}</span>
             <button
               onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
               className={`relative h-6 w-11 rounded-full transition-colors ${formData.isActive ? 'bg-success-500' : 'bg-[var(--toggle-off-bg)]'}`}
@@ -473,7 +472,7 @@ export default function WorkflowDetailPage() {
               onClick={() => setIsEditOpen(false)}
               className="flex-1 rounded-xl bg-[var(--surface-tint)] px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-[var(--surface-tint-md)]"
             >
-              Cancelar
+              {t('cancelButton')}
             </button>
             <button
               onClick={handleUpdate}
@@ -483,7 +482,7 @@ export default function WorkflowDetailPage() {
               {updateWorkflow.isPending ? (
                 <Loader2 size={16} className="animate-spin" />
               ) : (
-                'Guardar Cambios'
+                t('saveButton')
               )}
             </button>
           </div>
@@ -497,27 +496,26 @@ export default function WorkflowDetailPage() {
           setIsDeleteOpen(false);
           setDeleteConfirmation('');
         }}
-        title="Eliminar Workflow"
+        title={t('deleteModalTitle')}
       >
         <div className="space-y-4">
           <div className="rounded-xl border border-danger-500/20 bg-danger/10 p-4 text-sm text-[var(--danger-text-adaptive)]">
             <p className="mb-2 flex items-center gap-2 font-semibold">
               <Trash2 size={16} />
-              ¿Estás absolutamente seguro?
+              {t('deleteConfirmHeading')}
             </p>
             <p className="opacity-90">
-              Esta acción eliminará permanentemente el workflow <strong>{workflow.name}</strong> y
-              todo su historial.
+              {t('deleteConfirmBefore')} <strong>{workflow.name}</strong> {t('deleteConfirmAfter')}
             </p>
           </div>
 
           <div className="space-y-2">
             <label className="text-sm text-text-primary">
-              Escribe{' '}
+              {t('writeLabelPrefix')}{' '}
               <span className="select-all font-bold text-text-primary">
                 {workflow.name}
               </span>{' '}
-              para confirmar:
+              {t('writeLabelSuffix')}
             </label>
             <input
               type="text"
@@ -536,7 +534,7 @@ export default function WorkflowDetailPage() {
               }}
               className="flex-1 rounded-xl bg-[var(--surface-tint)] px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-[var(--surface-tint-md)]"
             >
-              Cancelar
+              {t('cancelButton')}
             </button>
             <button
               onClick={handleDelete}
@@ -546,17 +544,18 @@ export default function WorkflowDetailPage() {
               {deleteWorkflow.isPending ? (
                 <Loader2 size={16} className="animate-spin" />
               ) : (
-                'Sí, Eliminar'
+                t('confirmDeleteButton')
               )}
             </button>
           </div>
         </div>
       </Modal>
 
+      {/* WhatsApp Modal */}
       <Modal
         isOpen={isWhatsappModalOpen}
         onClose={() => setIsWhatsappModalOpen(false)}
-        title="Vincular workflow a WhatsApp"
+        title={t('whatsappModalTitle')}
       >
         <div className="space-y-4">
           <div className="space-y-2">
@@ -565,14 +564,12 @@ export default function WorkflowDetailPage() {
                 <WhatsappIcon className="h-4 w-4" />
               </span>
               <label className="text-sm font-medium text-text-primary">
-                Numero de WhatsApp
+                {t('whatsappLabel')}
               </label>
             </div>
 
             <p className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3 text-xs leading-relaxed text-[var(--text-muted)]">
-              Cuando envies esta solicitud, el equipo te ayudara a finalizar la integracion en
-              Ycloud para habilitar eventos entrantes de WhatsApp. Si necesitas atencion inmediata,
-              puedes contactarnos al +52 449 129 24 35.
+              {t('whatsappInstruction')}
             </p>
 
             <input
@@ -594,7 +591,7 @@ export default function WorkflowDetailPage() {
             />
             {whatsappNumber.length > 11 && !isWhatsappNumberValid && (
               <p className="text-sm text-[var(--danger-text-adaptive)]">
-                Usa solo numeros con prefijo internacional, por ejemplo: +524961337305
+                {t('phoneFormatError')}
               </p>
             )}
           </div>
@@ -604,7 +601,7 @@ export default function WorkflowDetailPage() {
               onClick={() => setIsWhatsappModalOpen(false)}
               className="flex-1 rounded-xl bg-[var(--surface-tint)] px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-[var(--surface-tint-md)]"
             >
-              Cancelar
+              {t('cancelButton')}
             </button>
             <button
               onClick={handleWhatsappIntegration}
@@ -614,7 +611,7 @@ export default function WorkflowDetailPage() {
               {addWhatsappConfiguration.isPending ? (
                 <Loader2 size={16} className="animate-spin" />
               ) : (
-                'Enviar Solicitud'
+                t('sendRequest')
               )}
             </button>
           </div>

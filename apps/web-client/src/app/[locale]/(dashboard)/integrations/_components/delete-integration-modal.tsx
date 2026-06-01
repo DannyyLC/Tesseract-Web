@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Loader2, TriangleAlert } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 
@@ -17,6 +18,7 @@ export function DeleteIntegrationModal({
   toolDisplayName,
   onConfirm,
 }: DeleteIntegrationModalProps) {
+  const t = useTranslations('Integrations');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -30,7 +32,7 @@ export function DeleteIntegrationModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={isLoading ? () => {} : onClose} title="Eliminar integración">
+    <Modal isOpen={isOpen} onClose={isLoading ? () => {} : onClose} title={t('deleteModalTitle')}>
       <div className="space-y-5">
         {/* Warning banner */}
         <div className="flex gap-3 rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] p-4">
@@ -40,12 +42,10 @@ export function DeleteIntegrationModal({
           />
           <div className="space-y-1">
             <p className="text-sm font-semibold text-[var(--badge-danger-text-solid)]">
-              Acción irreversible con impacto en producción
+              {t('deleteIrreversibleWarning')}
             </p>
             <p className="text-xs leading-relaxed text-[var(--danger-text-adaptive)]">
-              Al eliminar <span className="font-semibold">"{toolDisplayName}"</span>, cualquier
-              agente o workflow que dependa de esta integración{' '}
-              <span className="font-semibold">fallará inmediatamente</span> al intentar utilizarla.
+              {t('deleteWarning1', { name: toolDisplayName })}
             </p>
           </div>
         </div>
@@ -53,21 +53,15 @@ export function DeleteIntegrationModal({
         {/* Explanation */}
         <div className="space-y-3 text-sm text-text-secondary">
           <p>
-            Los agentes de Tesseract utilizan las integracións conectadas como base para ejecutar
-            sus tareas. Si un agente necesita{' '}
-            <strong className="text-text-primary">"{toolDisplayName}"</strong> y esta
-            no está disponible:
+            {t('deleteImpactTitle', { name: toolDisplayName })}
           </p>
           <ul className="ml-4 list-disc space-y-1 text-xs leading-relaxed">
-            <li>Las ejecuciones de workflows asociados terminarán en error.</li>
-            <li>
-              Si la integración es central para el agente, este dejará de funcionar por completo.
-            </li>
-            <li>Los workflows afectados no se recuperarán solos; requerirán reconexión manual.</li>
+            <li>{t('deleteBullet1')}</li>
+            <li>{t('deleteBullet2')}</li>
+            <li>{t('deleteBullet3')}</li>
           </ul>
           <p className="text-xs font-medium text-text-secondary">
-            Solo procede si estás seguro de que esta integración no está en uso, o si asumes
-            conscientemente que los workflows que la utilizan dejarán de funcionar.
+            {t('deleteNote')}
           </p>
         </div>
 
@@ -79,7 +73,7 @@ export function DeleteIntegrationModal({
             disabled={isLoading}
             className="flex-1 rounded-xl bg-[var(--surface-tint)] px-4 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-[var(--surface-tint-md)] disabled:opacity-40"
           >
-            Cancelar
+            {t('cancelButton')}
           </button>
           <button
             type="button"
@@ -88,7 +82,7 @@ export function DeleteIntegrationModal({
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger-600 px-4 py-2.5 text-sm font-semibold text-brand-white transition-opacity hover:opacity-80 disabled:opacity-50"
           >
             {isLoading ?? <Loader2 size={14} className="animate-spin" />}
-            Sí, desconectar
+            {t('confirmDisconnect')}
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface TocItem {
   id: string;
@@ -12,6 +13,7 @@ interface LegalTocProps {
 }
 
 export default function LegalToc({ sections }: LegalTocProps) {
+  const t = useTranslations('LegalToc');
   const [activeId, setActiveId] = useState<string>('');
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export default function LegalToc({ sections }: LegalTocProps) {
     <aside className="lg:w-56 lg:flex-shrink-0">
       <div className="sticky top-24">
         <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">
-          Contenido
+          {t('content')}
         </p>
         <nav className="space-y-0.5">
           {sections.map(({ id, label }) => {

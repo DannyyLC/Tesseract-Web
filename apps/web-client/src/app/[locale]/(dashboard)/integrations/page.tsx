@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Blocks, LayoutGrid } from 'lucide-react';
@@ -12,6 +13,7 @@ import PermissionGuard from '@/components/auth/permission-guard';
 type Tab = 'my-integrations' | 'catalog';
 
 export default function IntegrationsPage() {
+  const t = useTranslations('Integrations');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -27,13 +29,13 @@ export default function IntegrationsPage() {
   const tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     {
       id: 'my-integrations',
-      label: 'Mis Integraciones',
+      label: t('myIntegrationsTab'),
       icon: <Blocks size={16} />,
       badge: connectedCount,
     },
     {
       id: 'catalog',
-      label: 'Catálogo',
+      label: t('catalogTab'),
       icon: <LayoutGrid size={16} />,
     },
   ];
@@ -43,9 +45,9 @@ export default function IntegrationsPage() {
       <div className="space-y-8">
         {/* ─── Header ─────────────────────────────────────────────────────── */}
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Integraciones</h1>
+          <h1 className="text-2xl font-bold text-text-primary">{t('heading')}</h1>
           <p className="mt-1 text-sm text-text-secondary">
-            Gestiona las integraciones conectadas a tu organización y explora el catálogo disponible.
+            {t('description')}
           </p>
         </div>
 

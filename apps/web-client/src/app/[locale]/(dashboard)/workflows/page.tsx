@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { useRouter, usePathname } from '@/i18n/routing';
@@ -28,6 +29,7 @@ const toTitleCase = (str: string) => {
 };
 
 export default function WorkflowsPage() {
+  const t = useTranslations('Workflows');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -130,22 +132,21 @@ export default function WorkflowsPage() {
   const handleRequestWorkflow = async () => {
     try {
       await requestServiceInfo.mutateAsync({
-        subject: 'Implementación de nuevo Workflow',
-        userMsg:
-          'El usuario solicita una reunión para definir requerimientos de un nuevo workflow.',
+        subject: t('newWorkflowSubject'),
+        userMsg: t('newWorkflowUserMsg'),
       });
-      toast.success('Solicitud enviada. Por favor, selecciona un horario para nuestra reunión.');
+      toast.success(t('requestSentToast'));
       setIsCreateModalOpen(false);
       router.push('/support?reason=nuevo-workflow');
     } catch (error) {
-      toast.error('Espera un poco e intenta de nuevo. Tenemos un límite de envío de mensajes.');
+      toast.error(t('rateLimitError'));
     }
   };
 
   const statusOptions = [
-    { value: 'all', label: 'Todos' },
-    { value: 'active', label: 'Activos' },
-    { value: 'inactive', label: 'Inactivos' },
+    { value: 'all', label: t('statusAll') },
+    { value: 'active', label: t('filterActive') },
+    { value: 'inactive', label: t('filterInactive') },
   ];
 
   const categoryOptions = [
@@ -160,9 +161,9 @@ export default function WorkflowsPage() {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-text-primary">Mis Workflows</h1>
+            <h1 className="text-2xl font-bold text-text-primary">{t('heading')}</h1>
             <p className="mt-1 text-text-secondary">
-              Gestiona y monitorea tus automatizaciones
+              {t('description')}
             </p>
           </div>
 
@@ -172,7 +173,7 @@ export default function WorkflowsPage() {
               className="flex items-center gap-2 rounded-full bg-accent px-6 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Plus size={16} />
-              Nuevo Workflow
+              {t('newButton')}
             </button>
           </PermissionGuard>
         </div>
@@ -186,14 +187,14 @@ export default function WorkflowsPage() {
             className="flex flex-col justify-between"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-              Workflows Activos
+              {t('activeWorkflows')}
             </span>
             <div className="mt-1 flex items-baseline gap-1">
               <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {globalStats?.activeWorkflows ?? 0}
               </p>
               <span className="px-2 py-0.5 text-xs font-medium text-[var(--success-text-adaptive)]">
-                Total activos
+                {t('totalActive')}
               </span>
             </div>
           </motion.div>
@@ -205,14 +206,14 @@ export default function WorkflowsPage() {
             className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-              Ejecuciones (Mes)
+              {t('executionsMonth')}
             </span>
             <div className="mt-1 flex items-baseline gap-1">
               <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {formatNumber(globalStats?.totalExecutionsMonth ?? 0)}
               </p>
               <span className="px-2 py-0.5 text-xs font-medium text-info">
-                Últimos 30 días
+                {t('last30Days')}
               </span>
             </div>
           </motion.div>
@@ -224,14 +225,14 @@ export default function WorkflowsPage() {
             className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-              Créditos (Mes)
+              {t('creditsMonth')}
             </span>
             <div className="mt-1 flex items-baseline gap-1">
               <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                 {formatNumber(globalStats?.creditsConsumedMonth ?? 0)}
               </p>
               <span className="text-xs font-medium text-text-tertiary">
-                Consumo mensual
+                {t('monthlyConsumption')}
               </span>
             </div>
           </motion.div>
@@ -243,7 +244,7 @@ export default function WorkflowsPage() {
             className="flex flex-col justify-between border-[var(--border-subtle)] lg:border-l lg:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-              Workflows por Categoría
+              {t('workflowsByCategory')}
             </span>
             <div className="flex flex-col justify-end gap-1">
               {[WorkflowCategory.LIGHT, WorkflowCategory.STANDARD, WorkflowCategory.ADVANCED].map(
@@ -273,7 +274,7 @@ export default function WorkflowsPage() {
             />
             <input
               type="text"
-              placeholder="Buscar workflows..."
+              placeholder={t('searchPlaceholder')}
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
               className="w-full rounded-full border-none bg-[var(--surface-tint)] py-2 pl-10 pr-4 text-sm text-text-primary transition-all placeholder:text-input-placeholder hover:bg-[var(--surface-tint-md)] focus:outline-none focus:ring-2 focus:ring-[var(--border-subtle)]"
@@ -283,20 +284,20 @@ export default function WorkflowsPage() {
           {/* Filters Row */}
           <div className="flex min-w-[300px] gap-2">
             <FilterDropdown
-              label="Estado"
+              label={t('statusLabel')}
               options={statusOptions}
               value={filterStatus === 'all' ? '' : filterStatus}
               onChange={handleFilterChange}
-              placeholder="Todos"
+              placeholder={t('statusAll')}
               className="flex-1"
             />
 
             <FilterDropdown
-              label="Categoría"
+              label={t('categoryLabel')}
               options={categoryOptions}
               value={selectedCategory || ''}
               onChange={handleCategoryChange}
-              placeholder="Todas"
+              placeholder={t('categoryAll')}
               className="flex-1"
             />
           </div>
@@ -328,10 +329,10 @@ export default function WorkflowsPage() {
                 <Search size={24} className="text-text-tertiary" />
               </div>
               <h3 className="mb-2 text-lg font-semibold text-text-primary">
-                No se encontraron workflows
+                {t('noWorkflows')}
               </h3>
               <p className="text-text-secondary">
-                No hay workflows que coincidan con tus filtros.
+                {t('noWorkflowsDesc')}
               </p>
             </motion.div>
           )}
@@ -344,17 +345,17 @@ export default function WorkflowsPage() {
             disabled={!prevCursor}
             className="px-4 py-2 text-sm font-medium text-[var(--text-muted)] transition-colors hover:text-text-primary disabled:opacity-30 disabled:hover:text-text-secondary"
           >
-            Anterior
+            {t('previous')}
           </button>
           <span className="text-xs text-text-tertiary">
-            Showing {workflows.length} items
+            {t('showingItems', { count: workflows.length })}
           </span>
           <button
             onClick={handleNextPage}
             disabled={!nextPageAvailable}
             className="px-4 py-2 text-sm font-medium text-[var(--text-muted)] transition-colors hover:text-text-primary disabled:opacity-30 disabled:hover:text-text-secondary"
           >
-            Siguiente
+            {t('next')}
           </button>
         </div>
 
@@ -364,17 +365,15 @@ export default function WorkflowsPage() {
             <Modal
               isOpen={isCreateModalOpen}
               onClose={() => setIsCreateModalOpen(false)}
-              title="Nuevo Workflow"
+              title={t('newModalTitle')}
             >
               <div className="space-y-6">
                 <div className="space-y-2">
                   <p className="text-sm text-text-secondary">
-                    Para crear un nuevo workflow, necesitamos entender tus requerimientos
-                    específicos.
+                    {t('newModalText1')}
                   </p>
                   <p className="text-sm text-text-secondary">
-                    Al confirmar, enviaremos una solicitud a nuestro equipo para agendar una reunión
-                    y definir los detalles de tu nueva automatización.
+                    {t('newModalText2')}
                   </p>
                 </div>
 
@@ -383,7 +382,7 @@ export default function WorkflowsPage() {
                     onClick={() => setIsCreateModalOpen(false)}
                     className="flex-1 rounded-xl bg-[var(--surface-tint)] px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-[var(--surface-tint-md)]"
                   >
-                    Cancelar
+                    {t('cancelButton')}
                   </button>
                   <button
                     onClick={handleRequestWorkflow}
@@ -391,7 +390,7 @@ export default function WorkflowsPage() {
                     className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-bold text-text-inverse transition-opacity hover:opacity-90 disabled:opacity-50"
                   >
                     {requestServiceInfo.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Solicitar Reunión
+                    {t('requestMeetingButton')}
                   </button>
                 </div>
               </div>

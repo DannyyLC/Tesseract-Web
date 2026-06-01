@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -44,6 +45,7 @@ interface PendingInvitationItem {
 }
 
 export default function UsersPage() {
+  const t = useTranslations('Users');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterRole, setFilterRole] = useState<FilterRole>('all');
@@ -111,14 +113,14 @@ export default function UsersPage() {
   }, [statsData, pendingInvitations]);
 
   const roleFilters: { value: FilterRole; label: string }[] = [
-    { value: 'all', label: 'Todos' },
+    { value: 'all', label: t('filterAll') },
     { value: 'OWNER', label: 'Owner' },
     { value: 'ADMIN', label: 'Admin' },
     { value: 'VIEWER', label: 'Viewer' },
   ];
 
   const extraDataSections: { label: string; value: ExtraDataSection }[] = [
-    { value: 'PENDING_INVITATIONS', label: 'Invitaciones' },
+    { value: 'PENDING_INVITATIONS', label: t('invitationsSection') },
   ];
 
   // Actions
@@ -153,9 +155,9 @@ export default function UsersPage() {
       });
       setIsEditModalOpen(false);
       setModalUser(null);
-      toast.success('Usuario actualizado correctamente');
+      toast.success(t('userUpdated'));
     } catch (error) {
-      toast.error('Error al actualizar el usuario');
+      toast.error(t('updateUserError'));
     }
   };
 
@@ -170,9 +172,9 @@ export default function UsersPage() {
       await deleteUser.mutateAsync(modalUser.id);
       setIsDeleteModalOpen(false);
       setModalUser(null);
-      toast.success('Usuario eliminado correctamente');
+      toast.success(t('userDeleted'));
     } catch (error) {
-      toast.error('Error al eliminar el usuario');
+      toast.error(t('deleteUserError'));
     }
   };
 
@@ -188,9 +190,9 @@ export default function UsersPage() {
       await transferOwnership.mutateAsync(modalUser.id);
       setIsTransferModalOpen(false);
       setModalUser(null);
-      toast.success('Propiedad transferida correctamente');
+      toast.success(t('transferSuccess'));
     } catch (error) {
-      toast.error('Error al transferir la propiedad');
+      toast.error(t('transferError'));
     }
   };
 
@@ -202,9 +204,9 @@ export default function UsersPage() {
         id: user.id,
         data: { isActive: !user.isActive },
       });
-      toast.success(`Usuario ${user.isActive ? 'desactivado' : 'activado'} correctamente`);
+      toast.success(user.isActive ? t('userDeactivated') : t('userActivated'));
     } catch (error) {
-      toast.error('Error al cambiar el estado del usuario');
+      toast.error(t('toggleStatusError'));
     }
   };
 
@@ -221,9 +223,9 @@ export default function UsersPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Miembros</h1>
+          <h1 className="text-2xl font-bold text-text-primary">{t('heading')}</h1>
           <p className="mt-1 text-text-secondary">
-            Gestión de miembros de tu organización
+            {t('description')}
           </p>
         </div>
         <PermissionGuard permissions="organization:invite_user">
@@ -232,7 +234,7 @@ export default function UsersPage() {
             className="flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 font-medium text-text-inverse transition-opacity hover:opacity-90"
           >
             <UserPlus size={18} />
-            Invitar Usuario
+            {t('inviteButton')}
           </button>
         </PermissionGuard>
       </div>
@@ -252,14 +254,14 @@ export default function UsersPage() {
               className="flex flex-col justify-between"
             >
               <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                Total Miembros
+                {t('totalMembers')}
               </span>
               <div className="mt-1 flex items-baseline gap-1">
                 <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                   {stats.total}
                 </p>
                 <span className="px-2 py-0.5 text-xs font-medium text-info-600">
-                  Registrados
+                  {t('registered')}
                 </span>
               </div>
             </motion.div>
@@ -271,7 +273,7 @@ export default function UsersPage() {
               className="flex flex-col justify-between border-border lg:border-l lg:pl-8"
             >
               <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                Activos
+                {t('active')}
               </span>
               <div className="mt-1 flex items-baseline gap-1">
                 <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
@@ -287,13 +289,13 @@ export default function UsersPage() {
               className="flex flex-col justify-between border-border lg:border-l lg:pl-8"
             >
               <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                Inactivos
+                {t('inactive')}
               </span>
               <div className="mt-1 flex items-baseline gap-1">
                 <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
                   {stats.inactive}
                 </p>
-                <span className="text-xs font-medium text-neutral-500">Sin acceso</span>
+                <span className="text-xs font-medium text-neutral-500">{t('noAccess')}</span>
               </div>
             </motion.div>
 
@@ -304,7 +306,7 @@ export default function UsersPage() {
               className="flex flex-col justify-between border-border lg:border-l lg:pl-8"
             >
               <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                Verificados
+                {t('verified')}
               </span>
               <div className="mt-1 flex items-baseline gap-1">
                 <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
@@ -320,7 +322,7 @@ export default function UsersPage() {
               className="flex flex-col justify-between border-border lg:border-l lg:pl-8"
             >
               <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                Invitaciones
+                {t('invitations')}
               </span>
               <div className="mt-1 flex items-baseline gap-1">
                 {isLoadingPendingInvitations ? (
@@ -331,7 +333,7 @@ export default function UsersPage() {
                   </p>
                 )}
                 <span className="text-xs font-medium text-warning-600">
-                  Pendientes
+                  {t('pending')}
                 </span>
               </div>
             </motion.div>
@@ -344,7 +346,7 @@ export default function UsersPage() {
         {/* Search */}
         <div className="flex-1 space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
-            Buscar miembros
+            {t('searchLabel')}
           </p>
           <div className="relative">
             <Search
@@ -353,7 +355,7 @@ export default function UsersPage() {
             />
             <input
               type="text"
-              placeholder="Buscar por nombre o email..."
+              placeholder={t('searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-full border-none bg-surface-secondary py-2 pl-10 pr-4 text-sm text-text-primary transition-all placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-border-focus/10"
@@ -365,7 +367,7 @@ export default function UsersPage() {
         <div className="flex flex-wrap items-start gap-4 pb-1">
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
-              Filtrar por rol
+              {t('filterByRole')}
             </p>
             <div className="flex gap-2 overflow-x-auto">
               {roleFilters.map((filter) => (
@@ -389,7 +391,7 @@ export default function UsersPage() {
 
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
-              Consultas adicionales
+              {t('extraQueryLabel')}
             </p>
             <div className="flex gap-2 overflow-x-auto">
               {extraDataSections.map((section) => (
@@ -453,16 +455,16 @@ export default function UsersPage() {
                                 {invitation.email}
                               </h3>
                               <span className="text-[10px] font-bold uppercase tracking-wide text-warning-600">
-                                Pendiente
+                                {t('pendingBadge')}
                               </span>
                             </div>
                             <p className="truncate text-sm text-text-secondary">
-                              Enviada {formatTimeAgo(invitation.createdAt as any)}
+                              {t('sentTimeAgo', { time: formatTimeAgo(invitation.createdAt as any) })}
                             </p>
                           </div>
 
                           <div className="hidden text-right md:block">
-                            <p className="text-xs text-text-tertiary">Expira</p>
+                            <p className="text-xs text-text-tertiary">{t('expires')}</p>
                             <p
                               className={`text-sm ${
                                 isExpired
@@ -539,7 +541,7 @@ export default function UsersPage() {
                           {/* Last Login */}
                           <div className="hidden text-right md:block">
                             <p className="text-xs text-text-tertiary">
-                              Último acceso
+                              {t('lastAccess')}
                             </p>
                             <p className="text-sm text-text-primary">
                               {formatTimeAgo(user.lastLoginAt)}
@@ -572,7 +574,7 @@ export default function UsersPage() {
                                       className="flex items-center gap-2 rounded-full border border-warning-600 px-4 py-2 text-sm font-medium text-warning-600 transition-all hover:bg-warning-500/10"
                                     >
                                       <ArrowRightLeft size={16} />
-                                      Transferir Propiedad
+                                      {t('transferOwnership')}
                                     </button>
                                   </PermissionGuard>
                                 )}
@@ -589,7 +591,7 @@ export default function UsersPage() {
                                         className="flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90"
                                       >
                                         <Edit3 size={16} />
-                                        Editar
+                                        {t('editButton')}
                                       </button>
                                     </PermissionGuard>
 
@@ -602,7 +604,7 @@ export default function UsersPage() {
                                         className="flex items-center gap-2 rounded-full border border-danger-600 px-4 py-2 text-sm font-medium text-danger-600 transition-all hover:bg-danger-500/10"
                                       >
                                         <Trash2 size={16} />
-                                        Eliminar
+                                        {t('deleteButton')}
                                       </button>
                                     </PermissionGuard>
                                   </>
@@ -634,20 +636,20 @@ export default function UsersPage() {
               <h3 className="mb-2 text-lg font-semibold text-text-primary">
                 {isPendingInvitationsView
                   ? searchQuery
-                    ? `No se encontraron invitaciones para "${searchQuery}"`
-                    : 'No hay invitaciones pendientes'
+                    ? t('noInvitationsForQuery', { query: searchQuery })
+                    : t('noPendingInvitations')
                   : searchQuery
-                    ? `No se encontraron resultados para "${searchQuery}"`
+                    ? t('noResultsForQuery', { query: searchQuery })
                     : filterRole !== 'all'
-                      ? `No hay miembros con el rol ${roleFilters.find((f) => f.value === filterRole)?.label}`
-                      : 'No se encontraron miembros'}
+                      ? t('noMembersWithRole', { role: roleFilters.find((f) => f.value === filterRole)?.label })
+                      : t('noMembers')}
               </h3>
               <p className="text-text-secondary">
                 {isPendingInvitationsView
-                  ? 'Cuando envíes invitaciones aparecerán aquí'
+                  ? t('invitationsWillAppear')
                   : searchQuery || filterRole !== 'all'
-                    ? 'Intenta con otros términos de búsqueda o filtros'
-                    : 'Comienza invitando miembros a tu organización'}
+                    ? t('tryOtherSearch')
+                    : t('startInviting')}
               </p>
             </motion.div>
           )}
@@ -662,12 +664,12 @@ export default function UsersPage() {
           <Modal
             isOpen={isEditModalOpen}
             onClose={() => setIsEditModalOpen(false)}
-            title="Editar Usuario"
+            title={t('editModalTitle')}
           >
             <div className="space-y-4">
               <div>
                 <label className="mb-2 block text-sm font-medium text-text-primary">
-                  Rol
+                  {t('roleLabel')}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {/* OWNER cannot be assigned here — use Transfer Ownership flow */}
@@ -693,8 +695,7 @@ export default function UsersPage() {
                   })}
                 </div>
                 <p className="mt-1 text-xs text-text-tertiary">
-                  Para transferir la propiedad (OWNER) usa el botón dedicado en el perfil del
-                  usuario.
+                  {t('ownerNote')}
                 </p>
               </div>
 
@@ -707,11 +708,9 @@ export default function UsersPage() {
                       <Power size={18} />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-text-primary">Estado</p>
+                      <p className="text-sm font-medium text-text-primary">{t('statusLabel')}</p>
                       <p className="text-xs text-text-secondary">
-                        {editFormData.isActive
-                          ? 'El usuario está activo'
-                          : 'El usuario está deshabilitado'}
+                        {editFormData.isActive ? t('userActive') : t('userInactive')}
                       </p>
                     </div>
                   </div>
@@ -737,7 +736,7 @@ export default function UsersPage() {
                   onClick={() => setIsEditModalOpen(false)}
                   className="flex-1 rounded-xl bg-surface-secondary px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
                 >
-                  Cancelar
+                  {t('cancelButton')}
                 </button>
                 <button
                   onClick={handleUpdate}
@@ -747,7 +746,7 @@ export default function UsersPage() {
                   {updateUser.isPending ? (
                     <Loader2 className="animate-spin" size={18} />
                   ) : (
-                    'Guardar Cambios'
+                    t('saveButton')
                   )}
                 </button>
               </div>
@@ -762,19 +761,18 @@ export default function UsersPage() {
           <Modal
             isOpen={isDeleteModalOpen}
             onClose={() => setIsDeleteModalOpen(false)}
-            title="Eliminar Usuario"
+            title={t('deleteModalTitle')}
           >
             <div className="space-y-4">
               <p className="text-text-primary">
-                ¿Estás seguro de que quieres eliminar a <strong>{modalUser.name}</strong>? Esta
-                acción no se puede deshacer.
+                {t('deleteConfirmBefore')} <strong>{modalUser.name}</strong>{t('deleteConfirmAfter')}
               </p>
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setIsDeleteModalOpen(false)}
                   className="flex-1 rounded-xl bg-surface-secondary px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
                 >
-                  Cancelar
+                  {t('cancelButton')}
                 </button>
                 <button
                   onClick={handleDelete}
@@ -784,7 +782,7 @@ export default function UsersPage() {
                   {deleteUser.isPending ? (
                     <Loader2 className="animate-spin" size={18} />
                   ) : (
-                    'Eliminar'
+                    t('confirmDeleteButton')
                   )}
                 </button>
               </div>
@@ -799,32 +797,30 @@ export default function UsersPage() {
           <Modal
             isOpen={isTransferModalOpen}
             onClose={() => setIsTransferModalOpen(false)}
-            title="Transferir Propiedad"
+            title={t('transferModalTitle')}
           >
             <div className="space-y-4">
               <div className="rounded-xl bg-warning-500/10 p-4 text-warning-600">
                 <div className="flex gap-3">
                   <AlertTriangle className="h-5 w-5 flex-shrink-0" />
                   <p className="text-sm font-medium">
-                    Advertencia de Seguridad: Esta acción es irreversible.
+                    {t('transferWarningHeading')}
                   </p>
                 </div>
                 <p className="mt-2 text-sm opacity-90">
-                  Al transferir la propiedad, perderás tu estatus de Owner y te convertirás en
-                  Admin. El usuario <strong>{modalUser.name}</strong> tendrá control total sobre la
-                  organización.
+                  {t('transferWarningBefore')} <strong>{modalUser.name}</strong> {t('transferWarningAfter')}
                 </p>
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-text-primary">
-                  Escribe <strong>confirmar</strong> para continuar
+                  {t('transferConfirmBefore')} <strong>{t('transferConfirmKeyword')}</strong> {t('transferConfirmAfter')}
                 </label>
                 <input
                   type="text"
                   value={confirmTransferName}
                   onChange={(e) => setConfirmTransferName(e.target.value)}
-                  placeholder="confirmar"
+                  placeholder={t('transferConfirmPlaceholder')}
                   className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary outline-none focus:border-border-hover focus:ring-4 focus:ring-border-focus/5"
                 />
               </div>
@@ -834,20 +830,20 @@ export default function UsersPage() {
                   onClick={() => setIsTransferModalOpen(false)}
                   className="flex-1 rounded-xl bg-surface-secondary px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-surface-elevated"
                 >
-                  Cancelar
+                  {t('cancelButton')}
                 </button>
                 <button
                   onClick={handleTransferOwnership}
-                  disabled={transferOwnership.isPending || confirmTransferName !== 'confirmar'}
+                  disabled={transferOwnership.isPending || confirmTransferName !== t('transferConfirmKeyword')}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-warning-500 px-4 py-3 font-medium text-brand-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   title={
-                    confirmTransferName !== 'confirmar' ? 'Escribe "confirmar" para habilitar' : ''
+                    confirmTransferName !== t('transferConfirmKeyword') ? t('writeConfirmar') : ''
                   }
                 >
                   {transferOwnership.isPending ? (
                     <Loader2 className="animate-spin" size={18} />
                   ) : (
-                    'Transferir'
+                    t('transferButton')
                   )}
                 </button>
               </div>

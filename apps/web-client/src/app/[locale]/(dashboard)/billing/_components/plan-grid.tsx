@@ -3,6 +3,7 @@
 import { Check, Loader2, Zap, TrendingUp, Crown, Rocket, Building2 } from 'lucide-react';
 import { BillingPlan, SubscriptionPlan } from '@tesseract/types';
 import PermissionGuard from '@/components/auth/permission-guard';
+import { useTranslations } from 'next-intl';
 
 interface PlanGridProps {
   plans: BillingPlan[];
@@ -27,6 +28,7 @@ const getPlanIcon = (type: string) => {
 };
 
 export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan }: PlanGridProps) {
+  const t = useTranslations('BillingPlanGrid');
   // Sort plans by price to ensure order
   const sortedPlans = [...(plans || [])].sort((a, b) => a.price.monthly - b.price.monthly);
 
@@ -39,7 +41,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
         >
           {plan.popular && (
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-3 py-1 text-xs font-bold uppercase tracking-wide text-text-inverse">
-              Recomendado
+              {t('recommended')}
             </div>
           )}
 
@@ -72,7 +74,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
                   <strong className="font-geist-mono text-text-primary">
                     {plan.limits.monthlyCredits.toLocaleString()}
                   </strong>{' '}
-                  créditos/mes
+                  {t('creditsPerMonth')}
                 </span>
               </div>
 
@@ -80,10 +82,10 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
               <div className="flex items-center gap-2 text-sm text-text-primary">
                 <span>
                   {plan.limits.maxWorkflows === -1 ? (
-                    'Workflows ilimitados'
+                    t('unlimitedWorkflows')
                   ) : (
                     <>
-                      <span className="font-geist-mono">{plan.limits.maxWorkflows}</span> Workflows
+                      <span className="font-geist-mono">{plan.limits.maxWorkflows}</span>{t('workflows')}
                     </>
                   )}
                 </span>
@@ -93,10 +95,10 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
               <div className="flex items-center gap-2 text-sm text-text-primary">
                 <span>
                   {plan.limits.maxApiKeys === -1 ? (
-                    'API Keys ilimitadas'
+                    t('unlimitedApiKeys')
                   ) : (
                     <>
-                      <span className="font-geist-mono">{plan.limits.maxApiKeys}</span> API Keys
+                      <span className="font-geist-mono">{plan.limits.maxApiKeys}</span>{t('apiKeys')}
                     </>
                   )}
                 </span>
@@ -106,10 +108,10 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
               <div className="flex items-center gap-2 text-sm text-text-primary">
                 <span>
                   {plan.limits.maxUsers === -1 ? (
-                    'Usuarios ilimitados'
+                    t('unlimitedUsers')
                   ) : (
                     <>
-                      <span className="font-geist-mono">{plan.limits.maxUsers}</span> Usuarios
+                      <span className="font-geist-mono">{plan.limits.maxUsers}</span>{t('users')}
                     </>
                   )}
                 </span>
@@ -120,7 +122,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
             <div className="mt-6 space-y-3">
               {plan.features.length > 0 && (
                 <p className="text-xs font-bold uppercase tracking-wider text-text-tertiary">
-                  INCLUYE
+                  {t('includes')}
                 </p>
               )}
               {(plan.features || []).map((feature, i) => (
@@ -160,9 +162,9 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
                 {upgradingPlan === plan.type ? (
                   <Loader2 size={18} className="animate-spin" />
                 ) : currentPlan === plan.type ? (
-                  'Plan Actual'
+                  t('currentPlan')
                 ) : (
-                  'Seleccionar'
+                  t('selectButton')
                 )}
               </button>
             </PermissionGuard>

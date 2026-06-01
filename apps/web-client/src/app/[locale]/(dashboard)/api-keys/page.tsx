@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -25,21 +26,22 @@ import { LogoLoader } from '@/components/ui/logo-loader';
 
 // --- Helper Components ---
 const CopyButton = ({ text, className = '' }: { text: string; className?: string }) => {
+  const t = useTranslations('ApiKeys');
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(text);
     setCopied(true);
-    toast.success('Copiado al portapapeles');
+    toast.success(t('copiedToast'));
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <button onClick={handleCopy} className={className} title="Copiar">
+    <button onClick={handleCopy} className={className} title={t('copyTitle')}>
       {copied ? (
         <div className="flex items-center gap-1.5 text-success-500">
           <Check size={14} />
-          <span className="text-xs font-medium">Copiado</span>
+          <span className="text-xs font-medium">{t('copied')}</span>
         </div>
       ) : (
         <Copy size={14} />
@@ -49,6 +51,7 @@ const CopyButton = ({ text, className = '' }: { text: string; className?: string
 };
 
 export default function ApiKeysPage() {
+  const t = useTranslations('ApiKeys');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modal States
@@ -140,9 +143,9 @@ export default function ApiKeysPage() {
 
       setIsCreateModalOpen(false);
       setIsSuccessModalOpen(true);
-      toast.success('API Key creada correctamente');
+      toast.success(t('createSuccess'));
     } catch (error) {
-      toast.error('Error al crear la API Key');
+      toast.error(t('createError'));
     }
   };
 
@@ -160,9 +163,9 @@ export default function ApiKeysPage() {
       });
       setIsEditModalOpen(false);
       setSelectedKey(null);
-      toast.success('API Key actualizada');
+      toast.success(t('updateSuccess'));
     } catch (error) {
-      toast.error('Error al actualizar la API Key');
+      toast.error(t('updateError'));
     }
   };
 
@@ -173,9 +176,9 @@ export default function ApiKeysPage() {
       await deleteApiKey.mutateAsync(selectedKey.id);
       setIsDeleteModalOpen(false);
       setSelectedKey(null);
-      toast.success('API Key eliminada correctamente');
+      toast.success(t('deleteSuccess'));
     } catch (error) {
-      toast.error('Error al eliminar la API Key');
+      toast.error(t('deleteError'));
     }
   };
 
@@ -192,9 +195,9 @@ export default function ApiKeysPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">API Keys</h1>
+          <h1 className="text-2xl font-bold text-text-primary">{t('heading')}</h1>
           <p className="mt-1 text-text-secondary">
-            Gestiona las llaves de acceso para ejecutar tus workflows externamente
+            {t('description')}
           </p>
         </div>
         <PermissionGuard permissions="api_keys:create">
@@ -203,7 +206,7 @@ export default function ApiKeysPage() {
             className="flex items-center gap-2 self-start rounded-full bg-accent px-6 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90 sm:self-auto"
           >
             <Plus size={16} />
-            Nueva Key
+            {t('newButton')}
           </button>
         </PermissionGuard>
       </div>
@@ -216,7 +219,7 @@ export default function ApiKeysPage() {
         />
         <input
           type="text"
-          placeholder="Buscar API Keys..."
+          placeholder={t('searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full rounded-full border-none bg-surface-secondary py-2 pl-10 pr-4 text-sm text-text-primary transition-all placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-border-focus/10"
@@ -258,7 +261,7 @@ export default function ApiKeysPage() {
                     <span
                       className={`text-[10px] font-medium uppercase tracking-wide ${key.isActive ? 'text-success-600' : 'text-neutral-500'}`}
                     >
-                      {key.isActive ? 'Activa' : 'Inactiva'}
+                      {key.isActive ? t('statusActive') : t('statusInactive')}
                     </span>
                   </div>
                 </div>
@@ -272,7 +275,7 @@ export default function ApiKeysPage() {
                 <div className="mt-1 flex items-center gap-2 text-xs text-text-tertiary">
                   <Workflow size={12} />
                   <span className="truncate font-medium">
-                    {workflows.find((w) => w.id === key.workflowId)?.name || 'Workflow desconocido'}
+                    {workflows.find((w) => w.id === key.workflowId)?.name || t('unknownWorkflow')}
                   </span>
                 </div>
               </div>
@@ -282,7 +285,7 @@ export default function ApiKeysPage() {
                   <button
                     onClick={() => openEditModal(key)}
                     className="rounded-full p-2 text-text-tertiary transition-colors hover:bg-surface-secondary hover:text-text-primary"
-                    title="Editar"
+                    title={t('editTitle')}
                   >
                     <Edit2 size={16} />
                   </button>
@@ -295,7 +298,7 @@ export default function ApiKeysPage() {
                       setIsDeleteModalOpen(true);
                     }}
                     className="rounded-full p-2 text-text-tertiary transition-colors hover:bg-danger/10 hover:text-danger"
-                    title="Eliminar"
+                    title={t('deleteTitle')}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -315,9 +318,9 @@ export default function ApiKeysPage() {
               <Key size={24} className="text-text-tertiary" />
             </div>
             <h3 className="mb-2 text-lg font-semibold text-text-primary">
-              No se encontraron API Keys
+              {t('noApiKeys')}
             </h3>
-            <p className="text-text-secondary">Crea una nueva llave para comenzar.</p>
+            <p className="text-text-secondary">{t('noApiKeysDesc')}</p>
           </motion.div>
         )}
       </div>
@@ -328,30 +331,30 @@ export default function ApiKeysPage() {
           <Modal
             isOpen={isCreateModalOpen}
             onClose={() => setIsCreateModalOpen(false)}
-            title="Nueva API Key"
+            title={t('newModalTitle')}
           >
             <div className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-text-primary">
-                  Nombre
+                  {t('nameLabel')}
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Ej: Producción Web"
+                  placeholder={t('namePlaceholder')}
                   className="w-full rounded-xl border border-border bg-surface-secondary px-4 py-2 text-text-primary transition-colors focus:border-border-hover focus:outline-none"
                 />
               </div>
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-text-primary">
-                  Descripción (Opcional)
+                  {t('descriptionLabel')}
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Para qué se usa esta llave..."
+                  placeholder={t('descriptionPlaceholder')}
                   rows={2}
                   className="w-full resize-none rounded-xl border border-border bg-surface-secondary px-4 py-2 text-text-primary transition-colors focus:border-border-hover focus:outline-none"
                 />
@@ -359,7 +362,7 @@ export default function ApiKeysPage() {
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-text-primary">
-                  Workflow Asociado
+                  {t('workflowLabel')}
                 </label>
                 <div className="overflow-hidden rounded-xl border border-border">
                   {isLoadingWorkflows ? (
@@ -411,7 +414,7 @@ export default function ApiKeysPage() {
                   onClick={() => setIsCreateModalOpen(false)}
                   className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
                 >
-                  Cancelar
+                  {t('cancelButton')}
                 </button>
                 <button
                   onClick={handleCreate}
@@ -421,7 +424,7 @@ export default function ApiKeysPage() {
                   {createApiKey.isPending ? (
                     <Loader2 className="animate-spin" size={18} />
                   ) : (
-                    'Crear API Key'
+                    t('createButton')
                   )}
                 </button>
               </div>
@@ -439,14 +442,13 @@ export default function ApiKeysPage() {
               setIsSuccessModalOpen(false);
               setCreatedKeyToken('');
             }}
-            title="API Key Creada"
+            title={t('createdModalTitle')}
           >
             <div className="space-y-4">
               <div className="flex items-start gap-3 rounded-xl bg-success-500/10 p-4 text-success-600">
                 <Check className="mt-0.5 shrink-0" size={18} />
                 <p className="text-sm">
-                  Esta es la única vez que podrás ver la llave completa. Por favor cópiala y
-                  guárdala en un lugar seguro.
+                  {t('createdWarning')}
                 </p>
               </div>
 
@@ -467,7 +469,7 @@ export default function ApiKeysPage() {
                 }}
                 className="w-full rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90"
               >
-                Entendido
+                {t('acknowledgeButton')}
               </button>
             </div>
           </Modal>
@@ -480,12 +482,12 @@ export default function ApiKeysPage() {
           <Modal
             isOpen={isEditModalOpen}
             onClose={() => setIsEditModalOpen(false)}
-            title="Editar API Key"
+            title={t('editModalTitle')}
           >
             <div className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-text-primary">
-                  Nombre
+                  {t('nameLabel')}
                 </label>
                 <input
                   type="text"
@@ -497,7 +499,7 @@ export default function ApiKeysPage() {
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-text-primary">
-                  Descripción
+                  {t('descriptionEditLabel')}
                 </label>
                 <textarea
                   value={formData.description}
@@ -516,11 +518,9 @@ export default function ApiKeysPage() {
                       <Power size={18} />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-text-primary">Estado</p>
+                      <p className="text-sm font-medium text-text-primary">{t('statusLabel')}</p>
                       <p className="text-xs text-text-secondary">
-                        {formData.isActive
-                          ? 'La llave está activa y funcionando'
-                          : 'La llave está deshabilitada'}
+                        {formData.isActive ? t('keyActive') : t('keyInactive')}
                       </p>
                     </div>
                   </div>
@@ -544,7 +544,7 @@ export default function ApiKeysPage() {
                   onClick={() => setIsEditModalOpen(false)}
                   className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
                 >
-                  Cancelar
+                  {t('cancelButton')}
                 </button>
                 <button
                   onClick={handleUpdate}
@@ -554,7 +554,7 @@ export default function ApiKeysPage() {
                   {updateApiKey.isPending ? (
                     <Loader2 className="animate-spin" size={18} />
                   ) : (
-                    'Guardar Cambios'
+                    t('saveButton')
                   )}
                 </button>
               </div>
@@ -569,18 +569,18 @@ export default function ApiKeysPage() {
           <Modal
             isOpen={isDeleteModalOpen}
             onClose={() => setIsDeleteModalOpen(false)}
-            title="Eliminar API Key"
+            title={t('deleteModalTitle')}
           >
             <div className="space-y-4">
               <div className="flex items-center gap-3 rounded-xl bg-danger/10 p-4 text-danger-600">
                 <AlertTriangle size={24} />
                 <p className="text-sm font-medium">
-                  Esta acción es irreversible. La API Key dejará de funcionar inmediatamente.
+                  {t('deleteWarning')}
                 </p>
               </div>
 
               <p className="text-center text-sm text-text-secondary">
-                ¿Estás seguro de que deseas eliminar <strong>{selectedKey?.name}</strong>?
+                {t('deleteConfirmBefore')} <strong>{selectedKey?.name}</strong>{t('deleteConfirmAfter')}
               </p>
 
               <div className="flex gap-3 pt-2">
@@ -588,7 +588,7 @@ export default function ApiKeysPage() {
                   onClick={() => setIsDeleteModalOpen(false)}
                   className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
                 >
-                  Cancelar
+                  {t('cancelButton')}
                 </button>
                 <button
                   onClick={handleDelete}
@@ -598,7 +598,7 @@ export default function ApiKeysPage() {
                   {deleteApiKey.isPending ? (
                     <Loader2 className="animate-spin" size={18} />
                   ) : (
-                    'Sí, eliminar'
+                    t('confirmDeleteButton')
                   )}
                 </button>
               </div>

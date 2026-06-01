@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 
 export default function NotFound() {
+  const t = useTranslations('NotFound');
   const [animKey, setAnimKey] = useState(0);
 
   // Dispara animaciones en cada mount (navegación cliente) y en restauración bfcache
@@ -93,13 +95,13 @@ export default function NotFound() {
           className="mb-10 max-w-md space-y-3"
         >
           <p className="text-xs uppercase tracking-widest text-text-tertiary">
-            Error · Página no encontrada
+            {t('label')}
           </p>
           <h1 className="text-2xl font-semibold leading-tight tracking-tight text-accent sm:text-3xl">
-            Esta página no existe
+            {t('heading')}
           </h1>
           <p className="text-base leading-relaxed sm:text-lg" style={{ color: 'var(--not-found-desc-color)' }}>
-            Puede que haya sido movida, eliminada o que la URL esté mal escrita.
+            {t('description')}
           </p>
         </motion.div>
 
@@ -113,7 +115,7 @@ export default function NotFound() {
             href="/dashboard"
             className="group flex items-center gap-2 rounded-xl bg-accent px-8 py-4 font-semibold text-text-inverse transition-all hover:bg-accent-hover"
           >
-            Volver al inicio
+            {t('backButton')}
             <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
           </Link>
         </motion.div>

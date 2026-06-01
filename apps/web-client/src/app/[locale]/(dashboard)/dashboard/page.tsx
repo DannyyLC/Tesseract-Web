@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import {
   AreaChart,
@@ -43,7 +44,7 @@ function SectionTitle({
           href={href}
           className="flex items-center gap-1 text-sm text-black/50 transition-colors hover:text-text-primary"
         >
-          {linkLabel ?? 'Ver todos'}
+          {linkLabel}
           <ArrowUpRight size={14} />
         </Link>
       )}
@@ -97,6 +98,7 @@ function getLast7DaysLabels() {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function DashboardPage() {
+  const t = useTranslations('Dashboard');
   const { data: user } = useAuth();
   const userPermissions = user ? ROLE_PERMISSIONS[user.role] || [] : [];
 
@@ -152,8 +154,8 @@ export default function DashboardPage() {
     const paused = Math.max(0, total - active);
 
     const data = [
-      { name: 'Activos', value: active, fill: 'var(--chart-active)' },
-      { name: 'Pausados', value: paused, fill: 'var(--chart-warning)' },
+      { name: t('pieActive'), value: active, fill: 'var(--chart-active)' },
+      { name: t('piePaused'), value: paused, fill: 'var(--chart-warning)' },
     ];
 
     // Filter out zero values (e.g. if no paused workflows, don't show segment)
@@ -174,12 +176,12 @@ export default function DashboardPage() {
   const executions = recentExecs?.items ?? [];
 
   function statusLabel(s: string) {
-    if (s === 'COMPLETED') return 'Completada';
-    if (s === 'FAILED') return 'Fallida';
-    if (s === 'RUNNING') return 'En proceso';
-    if (s === 'PENDING') return 'Pendiente';
-    if (s === 'CANCELLED') return 'Cancelada';
-    if (s === 'TIMEOUT') return 'Timeout';
+    if (s === 'COMPLETED') return t('statusCompleted');
+    if (s === 'FAILED') return t('statusFailed');
+    if (s === 'RUNNING') return t('statusRunning');
+    if (s === 'PENDING') return t('statusPending');
+    if (s === 'CANCELLED') return t('statusCancelled');
+    if (s === 'TIMEOUT') return t('statusTimeout');
     return s;
   }
 
@@ -190,11 +192,11 @@ export default function DashboardPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-text-primary md:text-3xl">
-              {user?.name ? `Bienvenido, ${user.name.split(' ')[0]}` : 'Dashboard'}
+              {user?.name ? t('greeting', { name: user.name.split(' ')[0] }) : t('dashboardFallback')}
             </h1>
           </div>
           <p className="mt-1 text-sm text-text-secondary">
-            {user?.organizationName ?? 'Tu organización'} · Resumen de actividad
+            {user?.organizationName ?? t('orgFallback')} · {t('activitySummary')}
           </p>
         </div>
       </div>
@@ -211,7 +213,7 @@ export default function DashboardPage() {
           className="flex flex-col justify-between"
         >
           <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-            Workflows Activos
+            {t('activeWorkflows')}
           </span>
           <div className="mt-1 flex items-baseline gap-1">
             {loadingWf ? (
@@ -222,7 +224,7 @@ export default function DashboardPage() {
                   {workflowStats?.activeWorkflows ?? 0}
                 </p>
                 <span className="text-xs font-medium text-text-tertiary">
-                  de {workflowStats?.totalWorkflows ?? 0}
+                  {t('of')} {workflowStats?.totalWorkflows ?? 0}
                 </span>
               </>
             )}
@@ -237,7 +239,7 @@ export default function DashboardPage() {
           className="flex flex-col justify-between border-border lg:border-l lg:pl-8"
         >
           <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-            Ejecuciones Hoy
+            {t('executionsToday')}
           </span>
           <div className="mt-1 flex items-baseline gap-2">
             {loadingToday ? (
@@ -249,7 +251,7 @@ export default function DashboardPage() {
                 </p>
                 {(statsToday?.successful ?? 0) > 0 && (
                   <span className="text-xs font-medium text-success">
-                    {statsToday?.successful} exitosas
+                    {statsToday?.successful} {t('successful')}
                   </span>
                 )}
               </>
@@ -266,7 +268,7 @@ export default function DashboardPage() {
             className="flex flex-col justify-between border-border lg:border-l lg:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-              Créditos Disponibles
+              {t('availableCredits')}
             </span>
             <div className="mt-1 flex items-baseline gap-2">
               {loadingBilling ? (
@@ -277,7 +279,7 @@ export default function DashboardPage() {
                     {creditData.available.toLocaleString()}
                   </p>
                   <span className="text-xs font-medium text-text-tertiary">
-                    {creditData.used.toLocaleString()} usados este mes
+                    {creditData.used.toLocaleString()} {t('usedThisMonth')}
                   </span>
                 </>
               )}
@@ -294,7 +296,7 @@ export default function DashboardPage() {
             className="flex flex-col justify-between border-border lg:border-l lg:pl-8"
           >
             <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-              Miembros del Equipo
+              {t('teamMembers')}
             </span>
             <div className="mt-1 flex items-baseline gap-2">
               {loadingUsers ? (
@@ -305,7 +307,7 @@ export default function DashboardPage() {
                     {userStats?.total ?? 0}
                   </p>
                   <span className="text-xs font-medium text-text-tertiary">
-                    {userStats?.active ?? 0} activos
+                    {userStats?.active ?? 0} {t('activeCount')}
                   </span>
                 </>
               )}
@@ -319,7 +321,7 @@ export default function DashboardPage() {
         {/* Area chart — executions 7 days */}
         <div className="rounded-2xl border border-border bg-surface">
           <SectionTitle>
-            Ejecuciones — Últimos 7 días
+            {t('executions7Days')}
           </SectionTitle>
           <div className="p-5">
             {loading7d ? (
@@ -330,7 +332,7 @@ export default function DashboardPage() {
                   <Activity size={32} />
                 </div>
                 <p className="mt-4 text-sm font-medium text-text-tertiary">
-                  Sin ejecuciones en los últimos 7 días
+                  {t('noExecutions7Days')}
                 </p>
               </div>
             ) : (
@@ -380,8 +382,8 @@ export default function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Horizontal bar — workflows breakdown */}
         <div className="rounded-2xl border border-border bg-surface">
-          <SectionTitle href="/workflows" linkLabel="Ver workflows">
-            Estado de Workflows
+          <SectionTitle href="/workflows" linkLabel={t('viewWorkflows')}>
+            {t('workflowStatus')}
           </SectionTitle>
           <div className="p-5">
             {loadingWf ? (
@@ -424,7 +426,7 @@ export default function DashboardPage() {
                 ) : (
                   <div className="flex h-[220px] w-full flex-col items-center justify-center gap-3 text-text-tertiary">
                     <div className="relative flex h-32 w-32 items-center justify-center rounded-full border-[16px] border-current opacity-20"></div>
-                    <p className="text-sm font-medium">Sin workflows creados</p>
+                    <p className="text-sm font-medium">{t('noWorkflows')}</p>
                   </div>
                 )}
               </div>
@@ -436,7 +438,7 @@ export default function DashboardPage() {
         <PermissionGuard permissions="executions:read">
           <div className="rounded-2xl border border-border bg-surface">
             <SectionTitle>
-              Top Workflows (7 días)
+              {t('topWorkflows7Days')}
             </SectionTitle>
             <div className="divide-y divide-border">
               {loading7d ? (
@@ -469,7 +471,7 @@ export default function DashboardPage() {
                         {/* Success rate bar */}
                         <div className="mt-1.5 flex items-center gap-2">
                           <span className="text-xs text-text-tertiary">
-                            Tasa de éxito
+                            {t('successRate')}
                           </span>
                           <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-secondary">
                             <div
@@ -488,7 +490,7 @@ export default function DashboardPage() {
                         <p className="font-geist-mono text-sm font-light text-text-primary">
                           {wf.executions.toLocaleString()}
                         </p>
-                        <p className="text-xs text-text-tertiary">ejecuciones</p>
+                        <p className="text-xs text-text-tertiary">{t('executions')}</p>
                       </div>
                     </div>
                   );
@@ -499,7 +501,7 @@ export default function DashboardPage() {
                     <Activity size={32} />
                   </div>
                   <p className="mt-4 text-sm font-medium text-text-tertiary">
-                    Sin datos del período actual
+                    {t('noDataCurrentPeriod')}
                   </p>
                 </div>
               )}
@@ -511,7 +513,7 @@ export default function DashboardPage() {
       {/* ── Recent Executions Table ─────────────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-surface">
         <SectionTitle>
-          Últimas Ejecuciones
+          {t('recentExecutions')}
         </SectionTitle>
         {loadingExecs ? (
           <div className="p-5">
@@ -523,7 +525,7 @@ export default function DashboardPage() {
               <Activity size={32} />
             </div>
             <p className="mt-4 text-sm font-medium text-text-tertiary">
-              No hay ejecuciones recientes
+              {t('noRecentExecutions')}
             </p>
           </div>
         ) : (
@@ -532,16 +534,16 @@ export default function DashboardPage() {
               <thead>
                 <tr className="border-b border-border">
                   <th className="px-5 py-3 text-left font-medium text-text-tertiary">
-                    Workflow
+                    {t('colWorkflow')}
                   </th>
                   <th className="px-5 py-3 text-left font-medium text-text-tertiary">
-                    Estado
+                    {t('colStatus')}
                   </th>
                   <th className="px-5 py-3 text-left font-medium text-text-tertiary">
-                    Créditos
+                    {t('colCredits')}
                   </th>
                   <th className="px-5 py-3 text-left font-medium text-text-tertiary">
-                    Fecha
+                    {t('colDate')}
                   </th>
                 </tr>
               </thead>

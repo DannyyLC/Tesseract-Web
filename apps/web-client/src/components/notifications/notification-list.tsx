@@ -4,8 +4,10 @@ import NotificationItem from './notification-item';
 import { Bell, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { NotificationEventDto } from '@tesseract/types';
+import { useTranslations } from 'next-intl';
 
 export default function NotificationList() {
+  const t = useTranslations('Notifications');
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useInfiniteNotifications();
 
@@ -18,10 +20,10 @@ export default function NotificationList() {
   const handleDelete = (id: string) => {
     deleteNotification.mutate(id, {
       onSuccess: () => {
-        toast.success('Notificación eliminada');
+        toast.success(t('deleted'));
       },
       onError: () => {
-        toast.error('Error al eliminar la notificación');
+        toast.error(t('deleteError'));
       },
     });
   };

@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { useRouter, Link } from '@/i18n/routing';
 import Image from 'next/image';
 import { useVerify2FA, useAuth } from '@/hooks/identity/use-auth';
 import { LogoLoader } from '@/components/ui/logo-loader';
 
 export default function Verify2FAPage() {
+  const t = useTranslations('Verify2FA');
   const router = useRouter();
   const [code, setCode] = useState('');
   const { mutate: verify2FA, isPending, error } = useVerify2FA();
@@ -26,17 +28,17 @@ export default function Verify2FAPage() {
     e.preventDefault();
 
     if (code.length !== 6) {
-      toast.error('El código debe tener 6 dígitos');
+      toast.error(t('codeLengthError'));
       return;
     }
 
     verify2FA(code, {
       onSuccess: () => {
-        toast.success('Verificación exitosa');
+        toast.success(t('successToast'));
         router.push('/dashboard');
       },
       onError: (error: any) => {
-        toast.error(error?.message || 'Código inválido. Por favor, intenta nuevamente.');
+        toast.error(error?.message || t('invalidCode'));
         setCode('');
       },
     });
@@ -46,7 +48,7 @@ export default function Verify2FAPage() {
   if (isLoadingUser) {
     return (
       <div className="flex h-screen items-center justify-center bg-surface">
-        <LogoLoader text="Verificando" />
+        <LogoLoader text={t('verifyingAuth')} />
       </div>
     );
   }
@@ -102,17 +104,17 @@ export default function Verify2FAPage() {
             <div>
               <h1 className="text-5xl font-bold tracking-tight text-brand-white">Tesseract</h1>
               <p className="mt-1 text-sm uppercase tracking-widest" style={{ color: 'var(--auth-branding-text-label)' }}>
-                Automation Platform
+                {t('automationPlatform')}
               </p>
             </div>
           </div>
 
           <div className="max-w-lg space-y-4 text-center">
             <h2 className="text-3xl font-semibold leading-tight text-brand-white">
-              Seguridad de dos factores
+              {t('brandingHeading')}
             </h2>
             <p className="text-lg leading-relaxed" style={{ color: 'var(--auth-branding-text-desc)' }}>
-              Protege tu cuenta con una capa adicional de seguridad
+              {t('brandingTagline')}
             </p>
           </div>
         </div>
@@ -151,7 +153,7 @@ export default function Verify2FAPage() {
               style={{ color: 'var(--text-muted)' }}
             >
               <ArrowLeft size={16} />
-              Volver al login
+              {t('backToLogin')}
             </Link>
 
             {/* Form Container */}
@@ -161,10 +163,10 @@ export default function Verify2FAPage() {
                   <Shield className="h-10 w-10 text-text-primary" />
                 </div>
                 <h2 className="mb-2 text-2xl font-bold text-text-primary">
-                  Verificación de dos factores
+                  {t('heading')}
                 </h2>
                 <p className="text-sm text-text-secondary">
-                  Ingresa el código de 6 dígitos de tu aplicación de autenticación
+                  {t('description')}
                 </p>
               </div>
 
@@ -177,7 +179,7 @@ export default function Verify2FAPage() {
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-text-primary">
-                    Código de autenticación
+                    {t('codeLabel')}
                   </label>
                   <input
                     type="text"
@@ -186,7 +188,7 @@ export default function Verify2FAPage() {
                       const value = e.target.value.replace(/\D/g, '').slice(0, 6);
                       setCode(value);
                     }}
-                    placeholder="000000"
+                    placeholder={t('codePlaceholder')}
                     className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-center font-mono text-2xl tracking-widest outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                     required
                     maxLength={6}
@@ -194,7 +196,7 @@ export default function Verify2FAPage() {
                     autoComplete="one-time-code"
                   />
                   <p className="text-xs text-text-secondary">
-                    Abre tu aplicación de autenticación (Google Authenticator, Authy, etc.)
+                    {t('codeHelper')}
                   </p>
                 </div>
 
@@ -206,12 +208,12 @@ export default function Verify2FAPage() {
                   {isPending ? (
                     <>
                       <Loader2 size={20} className="animate-spin" />
-                      Verificando...
+                      {t('verifying')}
                     </>
                   ) : (
                     <>
                       <Shield size={20} />
-                      Verificar código
+                      {t('verifyButton')}
                     </>
                   )}
                 </button>
@@ -219,12 +221,12 @@ export default function Verify2FAPage() {
 
               <div className="text-center">
                 <p className="text-sm text-text-secondary">
-                  ¿Problemas para acceder?{' '}
+                  {t('problemsText')}{' '}
                   <Link
                     href="/login"
                     className="font-medium text-accent hover:underline"
                   >
-                    Volver a intentar
+                    {t('retryLink')}
                   </Link>
                 </p>
               </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Blocks, Plus, Loader2 } from 'lucide-react';
 import {
@@ -24,6 +25,7 @@ interface MyIntegrationsTabProps {
 }
 
 export function MyIntegrationsTab({ onAddTool, onCountChange }: MyIntegrationsTabProps) {
+  const t = useTranslations('Integrations');
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useInfiniteTenantToolsDashboard({ pageSize: 12 });
 
@@ -103,9 +105,9 @@ export function MyIntegrationsTab({ onAddTool, onCountChange }: MyIntegrationsTa
     if (!disconnectTarget) return;
     try {
       await disconnectTool.mutateAsync(disconnectTarget.id);
-      toast.success('Integración desconectada correctamente.');
+      toast.success(t('disconnectedSuccess'));
     } catch {
-      toast.error('No se pudo desconectar la integración. Intenta de nuevo.');
+      toast.error(t('disconnectedError'));
       throw new Error(); // keep modal open on error
     }
   };
@@ -114,9 +116,9 @@ export function MyIntegrationsTab({ onAddTool, onCountChange }: MyIntegrationsTa
     if (!deleteTarget) return;
     try {
       await deleteTool.mutateAsync(deleteTarget.id);
-      toast.success('Integración eliminada correctamente.');
+      toast.success(t('deletedSuccess'));
     } catch {
-      toast.error('No se pudo eliminar la integración. Intenta de nuevo.');
+      toast.error(t('deletedError'));
       throw new Error(); // keep modal open on error
     }
   };
@@ -144,10 +146,10 @@ export function MyIntegrationsTab({ onAddTool, onCountChange }: MyIntegrationsTa
           <Blocks size={28} className="text-text-tertiary" />
         </div>
         <h3 className="mb-1 text-lg font-semibold text-text-primary">
-          Sin integraciones conectadas
+          {t('noIntegrations')}
         </h3>
         <p className="mb-6 text-sm text-text-secondary">
-          Conecta tu primera integración desde el catálogo.
+          {t('noIntegrationsDesc')}
         </p>
         <PermissionGuard permissions="tenant_tools:create">
           <button
@@ -155,7 +157,7 @@ export function MyIntegrationsTab({ onAddTool, onCountChange }: MyIntegrationsTa
             className="flex items-center gap-2 rounded-full bg-accent px-6 py-2.5 text-sm font-medium text-text-inverse transition-opacity hover:opacity-80"
           >
             <Plus size={15} />
-            Explorar catálogo
+            {t('exploreCatalog')}
           </button>
         </PermissionGuard>
       </motion.div>

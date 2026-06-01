@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import LegalToc from '../_components/legal-toc';
 
 export const metadata: Metadata = {
@@ -8,22 +9,10 @@ export const metadata: Metadata = {
     'Políticas de cancelación, suspensión, niveles de servicio, soporte técnico y uso aceptable de Fractal.',
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function Section({
-  id,
-  title,
-  children,
-}: {
-  id: string;
-  title: string;
-  children: React.ReactNode;
-}) {
+function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
     <section id={id} className="scroll-mt-24">
-      <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
-        {title}
-      </h2>
+      <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
       <div className="space-y-3 leading-relaxed text-[var(--text-secondary)]">{children}</div>
     </section>
   );
@@ -57,10 +46,7 @@ function InfoTable({ rows }: { rows: [string, string][] }) {
       <table className="w-full text-sm">
         <tbody>
           {rows.map(([label, value], i) => (
-            <tr
-              key={label}
-              className={i % 2 === 0 ? 'bg-[var(--surface-secondary)]' : 'bg-[var(--surface)]'}
-            >
+            <tr key={label} className={i % 2 === 0 ? 'bg-[var(--surface-secondary)]' : 'bg-[var(--surface)]'}>
               <td className="w-1/3 px-4 py-3 font-medium text-[var(--text-primary)]">{label}</td>
               <td className="px-4 py-3 text-[var(--text-secondary)]">{value}</td>
             </tr>
@@ -71,77 +57,48 @@ function InfoTable({ rows }: { rows: [string, string][] }) {
   );
 }
 
-// ─── TOC ─────────────────────────────────────────────────────────────────────
+const bold = (chunks: React.ReactNode) => (
+  <strong className="text-[var(--text-primary)]">{chunks}</strong>
+);
 
-const sections = [
-  { id: 'cancelacion', label: 'Política de Cancelación' },
-  { id: 'suspension', label: 'Cancelación y Downgrade' },
-  { id: 'soporte', label: 'Soporte Técnico' },
-  { id: 'uso-aceptable', label: 'Uso Aceptable' },
-];
+export default async function PoliciesPage() {
+  const t = await getTranslations('Policies');
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+  const sections = [
+    { id: t('s1Id'), label: t('s1Label') },
+    { id: t('s2Id'), label: t('s2Label') },
+    { id: t('s3Id'), label: t('s3Label') },
+    { id: t('s4Id'), label: t('s4Label') },
+  ];
 
-export default function PoliciesPage() {
+  const statusItems = [
+    { label: t('s2Status1Label'), desc: t('s2Status1Desc') },
+    { label: t('s2Status2Label'), desc: t('s2Status2Desc') },
+    { label: t('s2Status3Label'), desc: t('s2Status3Desc') },
+  ];
+
   return (
     <div className="mx-auto max-w-5xl px-6 py-12">
-      {/* Header */}
       <div className="mb-12 border-b border-[var(--border)] pb-10">
         <h1 className="mb-4 text-4xl font-bold tracking-tight text-[var(--text-primary)] sm:text-5xl">
-          Políticas
+          {t('heading')}
         </h1>
-        <p className="max-w-2xl text-[var(--text-secondary)]">
-          Política de cancelación, suspensión por falta de pago, niveles de servicio, soporte
-          técnico y uso aceptable de la Plataforma Fractal.
-        </p>
+        <p className="max-w-2xl text-[var(--text-secondary)]">{t('description')}</p>
       </div>
 
       <div className="flex flex-col gap-12 lg:flex-row lg:gap-16">
         <LegalToc sections={sections} />
 
-        {/* Body */}
         <article className="min-w-0 flex-1 space-y-12">
-          {/* Cancelación */}
-          <Section id="cancelacion" title="Política de Cancelación">
-            <p>
-              El Cliente puede cancelar su suscripción en cualquier momento, sin aviso previo ni
-              penalidades, siempre que esté al corriente en sus pagos. Al cancelar, el acceso a la
-              Plataforma se pierde de forma{' '}
-              <strong className="text-[var(--text-primary)]">inmediata</strong>.
-            </p>
-            <p>
-              Los pagos realizados, incluyendo suscripciones mensuales y el Setup Fee,{' '}
-              <strong className="text-[var(--text-primary)]">
-                no son reembolsables bajo ninguna circunstancia
-              </strong>
-              .
-            </p>
+          <Section id={t('s1Id')} title={t('s1Title')}>
+            <p>{t.rich('s1Text1', { bold })}</p>
+            <p>{t.rich('s1Text2', { bold })}</p>
           </Section>
 
-          {/* Cancelación y Downgrade */}
-          <Section id="suspension" title="Cancelación y Downgrade">
-            <p>
-              Al cancelar su suscripción de pago, el Cliente es degradado automáticamente al{' '}
-              <strong className="text-[var(--text-primary)]">Plan Free</strong>. El saldo de
-              créditos acumulados se conserva y puede seguir siendo utilizado para ejecutar
-              workflows hasta agotarse.
-            </p>
-
+          <Section id={t('s2Id')} title={t('s2Title')}>
+            <p>{t.rich('s2Text', { bold })}</p>
             <div className="space-y-3">
-              {[
-                {
-                  label: 'Plan Free activo con créditos',
-                  desc: 'Acceso completo a la Plataforma. Se pueden ejecutar workflows con el saldo acumulado disponible.',
-                },
-                {
-                  label: 'Plan Free sin créditos',
-                  desc: 'Acceso de lectura. El Cliente puede ver sus datos, historial y configuración, pero no ejecutar workflows hasta recargar o contratar un plan.',
-                },
-                {
-                  label: 'Eliminación de datos',
-                  desc: 'Los datos se conservan por un período prolongado. Fractal notificará al Cliente con suficiente anticipación antes de proceder con cualquier eliminación definitiva.',
-                },
-              ].map(({ label, desc }) => (
+              {statusItems.map(({ label, desc }) => (
                 <div
                   key={label}
                   className="flex items-start gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)] px-5 py-4"
@@ -153,71 +110,43 @@ export default function PoliciesPage() {
                 </div>
               ))}
             </div>
-
-            <SubSection title="Reactivación">
-              <p>
-                El Cliente puede contratar o reactivar un plan de pago en cualquier momento. Sus
-                datos, workflows e historial se conservan íntegramente.
-              </p>
+            <SubSection title={t('s2SubTitle')}>
+              <p>{t('s2SubText')}</p>
             </SubSection>
           </Section>
 
-          {/* Soporte */}
-          <Section id="soporte" title="Política de Soporte Técnico">
-            <SubSection title="Disponibilidad">
-              <BulletList
-                items={[
-                  'Soporte con IA: disponible 24/7.',
-                  'Soporte humano: horario laboral 9 am–6 pm (hora de México).',
-                  'Idiomas: español e inglés en todos los planes.',
-                ]}
-              />
+          <Section id={t('s3Id')} title={t('s3Title')}>
+            <SubSection title={t('s3Sub1Title')}>
+              <BulletList items={[t('s3Bullet1'), t('s3Bullet2'), t('s3Bullet3')]} />
             </SubSection>
-            <SubSection title="Tiempos de respuesta por plan">
-              <InfoTable
-                rows={[
-                  ['Free', 'Solo documentación y FAQs'],
-                  ['Starter', 'Email · respuesta en 24 horas'],
-                  ['Growth', 'Email prioritario · respuesta en 24 horas'],
-                  ['Business', 'Email y WhatsApp · respuesta en 12 horas'],
-                  ['Pro', 'Email, WhatsApp y Account Manager · respuesta en 12 horas'],
-                  ['Enterprise', 'Email, WhatsApp y Account Manager dedicado · 4–8 horas'],
-                ]}
-              />
+            <SubSection title={t('s3Sub2Title')}>
+              <InfoTable rows={[
+                [t('s3Row1Label'), t('s3Row1Value')],
+                [t('s3Row2Label'), t('s3Row2Value')],
+                [t('s3Row3Label'), t('s3Row3Value')],
+                [t('s3Row4Label'), t('s3Row4Value')],
+                [t('s3Row5Label'), t('s3Row5Value')],
+                [t('s3Row6Label'), t('s3Row6Value')],
+              ]} />
             </SubSection>
           </Section>
 
-          {/* Uso Aceptable */}
-          <Section id="uso-aceptable" title="Política de Uso Aceptable">
-            <SubSection title="Usos prohibidos">
-              <BulletList
-                items={[
-                  'Actividad ilegal, incluyendo spam, phishing, fraude y violación de propiedad intelectual.',
-                  'Abuso de recursos: evasión de rate limits o compartir API Keys con terceros.',
-                  'Inclusión de contenido nocivo o ilegal en workflows.',
-                  'Uso para desinformación masiva o generación de deep fakes sin consentimiento.',
-                  'Reventa no autorizada del servicio (white label no permitido).',
-                ]}
-              />
+          <Section id={t('s4Id')} title={t('s4Title')}>
+            <SubSection title={t('s4Sub1Title')}>
+              <BulletList items={[t('s4Bullet1'), t('s4Bullet2'), t('s4Bullet3'), t('s4Bullet4'), t('s4Bullet5')]} />
             </SubSection>
-            <SubSection title="Consecuencias por infracción">
-              <InfoTable
-                rows={[
-                  ['Primera infracción', 'Advertencia con 7 días para corregir.'],
-                  ['Segunda infracción', 'Suspensión de 30 días.'],
-                  ['Tercera infracción', 'Terminación del servicio sin reembolso.'],
-                  ['Infracciones graves', 'Terminación inmediata sin previo aviso.'],
-                ]}
-              />
+            <SubSection title={t('s4Sub2Title')}>
+              <InfoTable rows={[
+                [t('s4Row1Label'), t('s4Row1Value')],
+                [t('s4Row2Label'), t('s4Row2Value')],
+                [t('s4Row3Label'), t('s4Row3Value')],
+                [t('s4Row4Label'), t('s4Row4Value')],
+              ]} />
             </SubSection>
           </Section>
 
-          {/* Nota */}
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)] px-6 py-5 text-sm text-[var(--text-secondary)]">
-            <p>
-              Para reportar una infracción o consultar sobre estas políticas, contáctanos a través
-              del panel de soporte.
-            </p>
+            <p>{t('finalNote')}</p>
           </div>
         </article>
       </div>

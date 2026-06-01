@@ -4,6 +4,7 @@ import { Minus, Plus } from 'lucide-react';
 import { useBillingMutations } from '@/hooks/billing/use-billing';
 import { toast } from 'sonner';
 import { OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
+import { useTranslations } from 'next-intl';
 
 interface OverageCardProps {
   allowOverages: boolean;
@@ -19,6 +20,7 @@ export default function OverageCard({
   maxOverageLimit,
   currentOverageLimit,
 }: OverageCardProps) {
+  const t = useTranslations('BillingOverage');
   const { toggleOverages } = useBillingMutations();
   const [isToggling, setIsToggling] = useState(false);
   const [localLimit, setLocalLimit] = useState(currentOverageLimit);
@@ -61,10 +63,10 @@ export default function OverageCard({
           setIsToggling(true);
           await toggleOverages.mutateAsync({ allowOverages: true, overageLimit: clamped });
           lastCommittedRef.current = clamped;
-          toast.success('Límite de excedentes actualizado');
+          toast.success(t('limitUpdated'));
         } catch (error: any) {
           if (!error.toastHandled) {
-            toast.error('Error al actualizar límite', { description: error.message });
+            toast.error(t('limitUpdateError'), { description: error.message });
           }
           setLocalLimit(lastCommittedRef.current);
         } finally {
@@ -80,9 +82,7 @@ export default function OverageCard({
       if (debounceRef.current) clearTimeout(debounceRef.current);
       setIsToggling(true);
       await toggleOverages.mutateAsync({ allowOverages: !allowOverages, overageLimit: localLimit });
-      toast.success(
-        `Excedentes ${!allowOverages ? 'habilitados' : 'deshabilitados'} correctamente`,
-      );
+      toast.success(!allowOverages ? t('overagesEnabled') : t('overagesDisabled'));
     } catch (error: any) {
       if (!error.toastHandled) {
         const message =
@@ -91,11 +91,11 @@ export default function OverageCard({
           (typeof error === 'string' ? error : 'Error desconocido');
 
         if (message.includes('No active subscription found') || error?.errorCode === 'HTTP_ERROR') {
-          toast.error('No tienes una suscripción activa', {
-            description: 'Debes tener un plan activo para habilitar excedentes.',
+          toast.error(t('noSubscription'), {
+            description: t('noSubscriptionDesc'),
           });
         } else {
-          toast.error('Error al cambiar configuración', { description: message });
+          toast.error(t('toggleError'), { description: message });
         }
       }
     } finally {
@@ -132,11 +132,11 @@ export default function OverageCard({
       {/* Header — toggle + label, always visible */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-bold text-text-primary">Excedentes de Créditos</h3>
+          <h3 className="text-sm font-bold text-text-primary">{t('heading')}</h3>
           <p className="text-xs text-text-secondary">
             {allowOverages
-              ? `El consumo extra se cobrará a ${OVERAGE_PRICE_PER_CREDIT}/crédito.`
-              : 'Los workflows se detendrán al agotar créditos.'}
+              ? t('enabledDesc', { price: OVERAGE_PRICE_PER_CREDIT })
+              : t('disabledDesc')}
           </p>
         </div>
 
@@ -144,8 +144,8 @@ export default function OverageCard({
         <button
           onClick={handleToggle}
           disabled={isToggling}
-          title={allowOverages ? 'Desactivar uso adicional' : 'Activar uso adicional'}
-          aria-label={allowOverages ? 'Desactivar uso adicional' : 'Activar uso adicional'}
+          title={allowOverages ? t('deactivateTitle') : t('activateTitle')}
+          aria-label={allowOverages ? t('deactivateTitle') : t('activateTitle')}
           className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus/20 focus:ring-offset-2 focus:ring-offset-surface disabled:opacity-50 ${
             allowOverages ? 'bg-accent' : 'bg-border-hover'
           }`}
@@ -174,10 +174,10 @@ export default function OverageCard({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-text-primary">
-                    Límite de Gasto Extra
+                    {t('limitHeading')}
                   </p>
                   <p className="text-xs text-text-tertiary">
-                    Máximo: {maxOverageLimit.toLocaleString()} créditos
+                    {t('maxCredits', { max: maxOverageLimit.toLocaleString() })}
                   </p>
                 </div>
 
@@ -216,7 +216,7 @@ export default function OverageCard({
               {/* Estimated cost */}
               <div className="mt-3 flex items-center justify-between rounded-xl bg-surface-muted px-4 py-2.5">
                 <span className="text-xs text-text-tertiary">
-                  Costo máximo estimado
+                  {t('estimatedCost')}
                 </span>
                 <span className="font-geist-mono text-sm font-medium text-text-primary">
                   ${estimatedCost} USD

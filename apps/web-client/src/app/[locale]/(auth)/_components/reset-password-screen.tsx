@@ -5,10 +5,12 @@ import { Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { useResetPasswordStepTwo } from '@/hooks/identity/use-auth';
 
 export default function ResetPasswordScreen() {
+  const t = useTranslations('ResetPasswordScreen');
   const router = useRouter();
   const { mutateAsync: resetPassword, isPending } = useResetPasswordStepTwo();
 
@@ -21,27 +23,24 @@ export default function ResetPasswordScreen() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      toast.error('Las contraseñas no coinciden');
+      toast.error(t('passwordsMismatch'));
       return;
     }
     if (newPassword.length < 8) {
-      toast.error('La contraseña debe tener al menos 8 caracteres');
+      toast.error(t('passwordTooShort'));
       return;
     }
     if (verificationCode.length !== 6) {
-      toast.error('El código debe ser de 6 dígitos');
+      toast.error(t('codeLengthError'));
       return;
     }
 
     try {
       await resetPassword({ verificationCode, newPassword });
-      toast.success('Contraseña actualizada exitosamente. Por favor, inicia sesión.');
+      toast.success(t('successToast'));
       router.push('/login');
     } catch (error: any) {
-      toast.error(
-        error.message ||
-          'Error al restablecer la contraseña. El código puede ser inválido o haber expirado.',
-      );
+      toast.error(error.message || t('errorToast'));
     }
   };
 
@@ -84,14 +83,14 @@ export default function ResetPasswordScreen() {
             <div>
               <h1 className="text-5xl font-bold tracking-tight text-brand-white">Tesseract</h1>
               <p className="mt-1 text-sm uppercase tracking-widest" style={{ color: 'var(--auth-branding-text-label)' }}>
-                Automation Platform
+                {t('automationPlatform')}
               </p>
             </div>
           </div>
           <div className="max-w-lg space-y-4 text-center">
-            <h2 className="text-3xl font-semibold leading-tight text-brand-white">Nueva contraseña</h2>
+            <h2 className="text-3xl font-semibold leading-tight text-brand-white">{t('brandingHeading')}</h2>
             <p className="text-lg leading-relaxed" style={{ color: 'var(--auth-branding-text-desc)' }}>
-              Asegúrate de guardar tu nueva contraseña
+              {t('brandingTagline')}
             </p>
           </div>
         </div>
@@ -124,17 +123,17 @@ export default function ResetPasswordScreen() {
             <div className="w-full max-w-md space-y-8">
               <div className="space-y-2 text-center">
                 <h2 className="text-3xl font-bold text-text-primary">
-                  Restablecer contraseña
+                  {t('heading')}
                 </h2>
                 <p className="text-text-secondary">
-                  Ingresa el código que hemos enviado a tu correo junto con tu nueva contraseña.
+                  {t('description')}
                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-text-primary">
-                    Código de verificación
+                    {t('verificationCodeLabel')}
                   </label>
                   <input
                     type="text"
@@ -143,7 +142,7 @@ export default function ResetPasswordScreen() {
                       const value = e.target.value.replace(/\D/g, '').slice(0, 6);
                       setVerificationCode(value);
                     }}
-                    placeholder="000000"
+                    placeholder={t('codePlaceholder')}
                     className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-center font-mono text-2xl tracking-widest outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                     required
                     maxLength={6}
@@ -152,14 +151,14 @@ export default function ResetPasswordScreen() {
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-text-primary">
-                    Nueva Contraseña
+                    {t('newPasswordLabel')}
                   </label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="••••••••"
+                      placeholder={t('passwordPlaceholder')}
                       className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                       required
                     />
@@ -175,14 +174,14 @@ export default function ResetPasswordScreen() {
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-text-primary">
-                    Confirmar Contraseña
+                    {t('confirmPasswordLabel')}
                   </label>
                   <div className="relative">
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="••••••••"
+                      placeholder={t('passwordPlaceholder')}
                       className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                       required
                     />
@@ -204,11 +203,11 @@ export default function ResetPasswordScreen() {
                   {isPending ? (
                     <>
                       <Loader2 size={20} className="animate-spin" />
-                      Restableciendo...
+                      {t('resetting')}
                     </>
                   ) : (
                     <>
-                      Actualizar contraseña
+                      {t('updateButton')}
                       <ArrowRight
                         size={20}
                         className="transition-transform group-hover:translate-x-1"

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { useTenantToolMutations } from '@/hooks/automation/use-tenant-tools';
@@ -14,6 +15,7 @@ interface RenameIntegrationModalProps {
 }
 
 export function RenameIntegrationModal({ isOpen, onClose, toolId, currentName }: RenameIntegrationModalProps) {
+  const t = useTranslations('Integrations');
   const [displayName, setDisplayName] = useState(currentName);
   const { updateTenantTool } = useTenantToolMutations();
 
@@ -31,18 +33,18 @@ export function RenameIntegrationModal({ isOpen, onClose, toolId, currentName }:
     }
     try {
       await updateTenantTool.mutateAsync({ id: toolId, data: { displayName: trimmed } });
-      toast.success('Nombre actualizado correctamente.');
+      toast.success(t('renameSuccess'));
       onClose();
     } catch {
-      toast.error('No se pudo actualizar el nombre. Intenta de nuevo.');
+      toast.error(t('renameError'));
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Renombrar integración">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('renameModalTitle')}>
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-text-secondary">Nombre</label>
+          <label className="text-xs font-medium text-text-secondary">{t('renameNameLabel')}</label>
           <input
             autoFocus
             type="text"
@@ -59,7 +61,7 @@ export function RenameIntegrationModal({ isOpen, onClose, toolId, currentName }:
             onClick={onClose}
             className="flex-1 rounded-xl bg-[var(--surface-tint)] px-4 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-[var(--surface-tint-md)]"
           >
-            Cancelar
+            {t('cancelButton')}
           </button>
           <button
             type="submit"
@@ -67,7 +69,7 @@ export function RenameIntegrationModal({ isOpen, onClose, toolId, currentName }:
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-text-inverse transition-opacity hover:opacity-80 disabled:opacity-40"
           >
             {updateTenantTool.isPending && <Loader2 size={14} className="animate-spin" />}
-            Guardar
+            {t('saveButton')}
           </button>
         </div>
       </form>

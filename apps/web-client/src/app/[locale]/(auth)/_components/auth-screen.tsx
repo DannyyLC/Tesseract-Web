@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FcGoogle } from 'react-icons/fc';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { useRouter, Link } from '@/i18n/routing';
 import {
   useAuth,
@@ -40,6 +41,7 @@ const RESEND_COOLDOWN_SECONDS = 120;
 /* COMPONENT */
 /* ========================================= */
 export default function AuthScreen({ mode }: AuthScreenProps) {
+  const t = useTranslations('AuthScreen');
   const isLogin = mode === 'login';
   const router = useRouter();
 
@@ -212,12 +214,9 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
       console.error('Error en paso 1:', error);
       // Verificamos si es el error específico de email ya existente
       if (error?.errors?.includes('EMAIL_ALREADY_EXISTS')) {
-        toast.error('Este correo electrónico ya está registrado.');
+        toast.error(t('emailAlreadyRegistered'));
       } else {
-        toast.error(
-          error.message ||
-            'Error al enviar el código de verificación. Por favor, intenta nuevamente.',
-        );
+        toast.error(error.message || t('sendVerificationError'));
       }
     }
   };
@@ -257,9 +256,9 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
         setVerificationAttempts(0);
         setVerificationError('');
         setResendCooldown(0);
-        toast.error('Has excedido el número máximo de intentos. Por favor, comienza de nuevo.');
+        toast.error(t('maxAttemptsExceeded'));
       } else {
-        setVerificationError(`Código incorrecto. Intentos restantes: ${3 - newAttempts}`);
+        setVerificationError(t('incorrectCode', { remaining: 3 - newAttempts }));
         setVerificationCode('');
       }
     }
@@ -268,11 +267,11 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
   const handleSignupStep3 = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      toast.error('Las contraseñas no coinciden');
+      toast.error(t('passwordsMismatch'));
       return;
     }
     if (password.length < 8) {
-      toast.error('La contraseña debe tener al menos 8 caracteres');
+      toast.error(t('passwordTooShort'));
       return;
     }
 
@@ -280,11 +279,10 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
       await submitSignup(signupData.email, password);
       // Redirigir al dashboard o onboarding con flag de bienvenida
       router.push('/billing/plans?welcome=true');
-      toast.success('Cuenta creada exitosamente');
+      toast.success(t('accountCreated'));
     } catch (error: any) {
       console.error('Error al registrar usuario:', error);
-      // Mostrar el mensaje de error específico (ej: requisitos de contraseña)
-      toast.error(error.message || 'Error al crear la cuenta. Por favor, intenta nuevamente.');
+      toast.error(error.message || t('createAccountError'));
     }
   };
   // Manejar login
@@ -318,7 +316,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
   if (isLoadingUser) {
     return (
       <div className="flex h-screen items-center justify-center bg-surface">
-        <LogoLoader text="Verificando" />
+        <LogoLoader text={t('verifyingAuth')} />
       </div>
     );
   }
@@ -374,17 +372,17 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
             <div>
               <h1 className="text-5xl font-bold tracking-tight text-brand-white">Tesseract</h1>
               <p className="mt-1 text-sm uppercase tracking-widest" style={{ color: 'var(--auth-branding-text-label)' }}>
-                Automation Platform
+                {t('automationPlatform')}
               </p>
             </div>
           </div>
 
           <div className="max-w-lg space-y-4 text-center">
             <h2 className="text-3xl font-semibold leading-tight text-brand-white">
-              Tu plataforma de automatización empresarial
+              {t('brandingHeading')}
             </h2>
             <p className="text-lg leading-relaxed" style={{ color: 'var(--auth-branding-text-desc)' }}>
-              Potencia tu negocio con automatización inteligente
+              {t('brandingTagline')}
             </p>
           </div>
         </div>
@@ -434,7 +432,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                         transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                       />
                     )}
-                    <span className="relative z-20">Login</span>
+                    <span className="relative z-20">{t('loginTab')}</span>
                   </Link>
 
                   <Link
@@ -451,7 +449,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                         transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                       />
                     )}
-                    <span className="relative z-20">Sign Up</span>
+                    <span className="relative z-20">{t('signupTab')}</span>
                   </Link>
                 </div>
               </div>
@@ -470,18 +468,18 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                           color: 'var(--danger-text-adaptive)',
                         }}
                       >
-                        {(loginMutationError as Error).message || 'Error al iniciar sesión'}
+                        {(loginMutationError as Error).message || t('loginError')}
                       </div>
                     )}
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-text-primary">
-                        Email
+                        {t('emailLabel')}
                       </label>
                       <input
                         type="email"
                         value={loginData.email}
                         onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                        placeholder="ejemplo@empresa.com"
+                        placeholder={t('emailPlaceholder')}
                         className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                         required
                       />
@@ -489,14 +487,14 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-text-primary">
-                        Contraseña
+                        {t('passwordLabel')}
                       </label>
                       <div className="relative">
                         <input
                           type={showPassword ? 'text' : 'password'}
                           value={loginData.password}
                           onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                          placeholder="••••••••"
+                          placeholder={t('passwordPlaceholder')}
                           className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                           required
                         />
@@ -521,14 +519,14 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                           className="h-5 w-5 cursor-pointer rounded border-2 border-border-hover text-accent focus:ring-0"
                         />
                         <span className="text-sm text-text-secondary group-hover:text-text-primary/70 ">
-                          Recordarme
+                          {t('rememberMe')}
                         </span>
                       </label>
                       <Link
                         href="/forgot-password"
                         className="text-sm font-medium text-text-secondary hover:text-text-primary"
                       >
-                        ¿Olvidaste tu contraseña?
+                        {t('forgotPassword')}
                       </Link>
                     </div>
 
@@ -550,11 +548,11 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                       {isLoggingIn ? (
                         <>
                           <Loader2 size={20} className="animate-spin" />
-                          Iniciando sesión...
+                          {t('loggingIn')}
                         </>
                       ) : (
                         <>
-                          Iniciar Sesión
+                          {t('loginButton')}
                           <ArrowRight
                             size={20}
                             className="transition-transform group-hover:translate-x-1"
@@ -595,7 +593,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                         <div className="space-y-2">
                           <label className="block text-sm font-medium text-text-primary">
-                            Nombre completo
+                            {t('fullNameLabel')}
                           </label>
                           <input
                             type="text"
@@ -603,7 +601,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             onChange={(e) =>
                               setSignupData({ ...signupData, fullName: e.target.value })
                             }
-                            placeholder="Tu nombre y apellido"
+                            placeholder={t('fullNamePlaceholder')}
                             className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                             required
                           />
@@ -611,7 +609,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                         <div className="space-y-2">
                           <label className="block text-sm font-medium text-text-primary">
-                            Email corporativo
+                            {t('corporateEmailLabel')}
                           </label>
                           <input
                             type="email"
@@ -619,7 +617,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             onChange={(e) =>
                               setSignupData({ ...signupData, email: e.target.value })
                             }
-                            placeholder="ejemplo@empresa.com"
+                            placeholder={t('emailPlaceholder')}
                             className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                             required
                           />
@@ -627,7 +625,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                         <div className="space-y-2">
                           <label className="block text-sm font-medium text-text-primary">
-                            Nombre de la organización
+                            {t('orgNameLabel')}
                           </label>
                           <div className="relative">
                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary">
@@ -639,14 +637,13 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                               onChange={(e) =>
                                 setSignupData({ ...signupData, organizationName: e.target.value })
                               }
-                              placeholder="Ej: Mi Empresa S.A."
+                              placeholder={t('orgNamePlaceholder')}
                               className="w-full rounded-xl border-2 border-transparent bg-input-bg py-3.5 pl-12 pr-4 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                               required
                             />
                           </div>
                           <p className="mt-1 text-xs text-text-secondary">
-                            Este será el espacio de trabajo para tu equipo. Podrás invitar miembros
-                            y configurar permisos después.
+                            {t('orgNameHelper')}
                           </p>
                         </div>
 
@@ -659,20 +656,18 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             required
                           />
                           <span className="text-sm text-text-secondary group-hover:text-text-primary/70 ">
-                            Acepto los{' '}
-                            <Link
-                              href="/terms"
-                              className="font-medium text-accent underline"
-                            >
-                              Términos
-                            </Link>{' '}
-                            y la{' '}
-                            <Link
-                              href="/privacy"
-                              className="font-medium text-accent underline"
-                            >
-                              Privacidad
-                            </Link>
+                            {t.rich('acceptTermsText', {
+                              terms: (chunks) => (
+                                <Link href="/terms" className="font-medium text-accent underline">
+                                  {chunks}
+                                </Link>
+                              ),
+                              privacy: (chunks) => (
+                                <Link href="/privacy" className="font-medium text-accent underline">
+                                  {chunks}
+                                </Link>
+                              ),
+                            })}
                           </span>
                         </label>
 
@@ -700,11 +695,11 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                           {signupStepOneMutation.isPending ? (
                             <>
                               <Loader2 size={20} className="animate-spin" />
-                              Enviando código...
+                              {t('sendingCode')}
                             </>
                           ) : (
                             <>
-                              Continuar
+                              {t('continueButton')}
                               <ArrowRight
                                 size={20}
                                 className="transition-transform group-hover:translate-x-1"
@@ -744,10 +739,10 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             <Mail className="h-8 w-8 text-text-primary" />
                           </div>
                           <h3 className="mb-2 text-lg font-semibold text-text-primary">
-                            Verifica tu email
+                            {t('verifyEmailHeading')}
                           </h3>
                           <p className="text-sm text-text-secondary">
-                            Hemos enviado un código de verificación a
+                            {t('verifyEmailDesc')}
                           </p>
                           <p className="mt-1 text-sm font-medium text-text-primary">
                             {signupData.email}
@@ -756,7 +751,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                         <div className="space-y-2">
                           <label className="block text-sm font-medium text-text-primary">
-                            Código de verificación
+                            {t('verificationCodeLabel')}
                           </label>
                           <input
                             type="text"
@@ -766,7 +761,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                               setVerificationCode(value);
                               setVerificationError('');
                             }}
-                            placeholder="000000"
+                            placeholder={t('verificationCodePlaceholder')}
                             className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-center font-mono text-2xl tracking-widest outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                             required
                             maxLength={6}
@@ -779,7 +774,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                           )}
                           {verificationAttempts > 0 && verificationAttempts < 3 && (
                             <p className="text-xs text-text-secondary">
-                              Intentos restantes: {3 - verificationAttempts}
+                              {t('attemptsRemaining', { count: 3 - verificationAttempts })}
                             </p>
                           )}
                         </div>
@@ -796,11 +791,11 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                           {signupStepTwoMutation.isPending ? (
                             <>
                               <Loader2 size={20} className="animate-spin" />
-                              Verificando...
+                              {t('verifying')}
                             </>
                           ) : (
                             <>
-                              Verificar código
+                              {t('verifyButton')}
                               <ArrowRight
                                 size={20}
                                 className="transition-transform group-hover:translate-x-1"
@@ -836,10 +831,10 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                           style={{ color: 'var(--text-muted)' }}
                         >
                           {signupStepOneMutation.isPending
-                            ? 'Reenviando...'
+                            ? t('resending')
                             : resendCooldown > 0
-                              ? `Reenviar en ${Math.floor(resendCooldown / 60)}:${String(resendCooldown % 60).padStart(2, '0')}`
-                              : '¿No recibiste el código? Reenviar'}
+                              ? t('resendIn', { time: `${Math.floor(resendCooldown / 60)}:${String(resendCooldown % 60).padStart(2, '0')}` })
+                              : t('resendButton')}
                         </button>
                       </motion.form>
                     )}
@@ -882,23 +877,23 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                             <Lock className="h-8 w-8 text-text-primary" />
                           </div>
                           <h3 className="mb-2 text-lg font-semibold text-text-primary">
-                            Crea tu contraseña
+                            {t('createPasswordHeading')}
                           </h3>
                           <p className="text-sm text-text-secondary">
-                            Tu contraseña debe tener al menos 8 caracteres
+                            {t('passwordMinLengthHint')}
                           </p>
                         </div>
 
                         <div className="space-y-2">
                           <label className="block text-sm font-medium text-text-primary">
-                            Contraseña
+                            {t('passwordLabel')}
                           </label>
                           <div className="relative">
                             <input
                               type={showPassword ? 'text' : 'password'}
                               value={password}
                               onChange={(e) => setPassword(e.target.value)}
-                              placeholder="••••••••"
+                              placeholder={t('passwordPlaceholder')}
                               className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                               required
                               minLength={8}
@@ -918,14 +913,14 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                         <div className="space-y-2">
                           <label className="block text-sm font-medium text-text-primary">
-                            Confirmar contraseña
+                            {t('confirmPasswordLabel')}
                           </label>
                           <div className="relative">
                             <input
                               type={showConfirmPassword ? 'text' : 'password'}
                               value={confirmPassword}
                               onChange={(e) => setConfirmPassword(e.target.value)}
-                              placeholder="••••••••"
+                              placeholder={t('passwordPlaceholder')}
                               className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 pr-12 outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover text-text-primary"
                               required
                               autoComplete="new-password"
@@ -956,11 +951,11 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                           {signupStepThreeMutation.isPending ? (
                             <>
                               <Loader2 size={20} className="animate-spin" />
-                              Creando cuenta...
+                              {t('creatingAccount')}
                             </>
                           ) : (
                             <>
-                              Crear Cuenta
+                              {t('createAccountButton')}
                               <ArrowRight
                                 size={20}
                                 className="transition-transform group-hover:translate-x-1"
@@ -979,7 +974,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                   </div>
                   <div className="relative flex justify-center text-sm">
                     <span className="bg-auth-form-bg px-4 text-xs uppercase tracking-wider text-text-tertiary">
-                      O continuar con
+                      {t('orContinueWith')}
                     </span>
                   </div>
                 </div>
@@ -989,25 +984,23 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                   className="flex w-full items-center justify-center gap-3 rounded-xl border-2 border-border bg-surface-elevated px-4 py-3.5 transition-all hover:border-border-hover"
                 >
                   <FcGoogle className="h-5 w-5" />
-                  <span className="font-medium text-text-primary">Google</span>
+                  <span className="font-medium text-text-primary">{t('googleButton')}</span>
                 </button>
 
                 {!isLogin && (
                   <p className="text-center text-xs text-text-secondary">
-                    Al continuar con Google, aceptas nuestros{' '}
-                    <Link
-                      href="/terms"
-                      className="font-medium text-accent underline transition-colors hover:opacity-80"
-                    >
-                      Términos
-                    </Link>{' '}
-                    y la{' '}
-                    <Link
-                      href="/privacy"
-                      className="font-medium text-accent underline transition-colors hover:opacity-80"
-                    >
-                      Privacidad
-                    </Link>
+                    {t.rich('googleDisclaimer', {
+                      terms: (chunks) => (
+                        <Link href="/terms" className="font-medium text-accent underline transition-colors hover:opacity-80">
+                          {chunks}
+                        </Link>
+                      ),
+                      privacy: (chunks) => (
+                        <Link href="/privacy" className="font-medium text-accent underline transition-colors hover:opacity-80">
+                          {chunks}
+                        </Link>
+                      ),
+                    })}
                   </p>
                 )}
               </div>

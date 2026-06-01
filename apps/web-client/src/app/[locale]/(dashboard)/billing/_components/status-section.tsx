@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { Zap, Shield } from 'lucide-react';
 
 interface StatusSectionProps {
@@ -10,6 +11,7 @@ interface StatusSectionProps {
 }
 
 export default function StatusSection({ subscription, onCancel, isCanceling }: StatusSectionProps) {
+  const t = useTranslations('BillingStatus');
   const currentPlan = subscription?.plan || 'FREE';
   const creditsUsed = subscription?.creditsUsed || 0;
   const creditsTotal = subscription?.creditsTotal || 100;
@@ -21,7 +23,7 @@ export default function StatusSection({ subscription, onCancel, isCanceling }: S
         <div className="relative z-10 flex h-full flex-col">
           <div className="mb-6 flex items-center gap-2 text-sm font-medium text-info">
             <Zap size={16} />
-            <span>ESTADO DE SUSCRIPCIÓN</span>
+            <span>{t('subscriptionStatus')}</span>
           </div>
 
           <div className="mb-8 flex items-end gap-3">
@@ -29,14 +31,14 @@ export default function StatusSection({ subscription, onCancel, isCanceling }: S
               {currentPlan}
             </h2>
             <span className="mb-1.5 font-medium text-text-tertiary">
-              {currentPlan === 'FREE' ? 'Nivel Inicial' : 'Suscripción Mensual'}
+              {currentPlan === 'FREE' ? t('planFree') : t('planMonthly')}
             </span>
           </div>
 
           <div className="w-full space-y-4">
             <div className="mb-1 flex justify-between text-sm">
               <span className="font-medium text-text-secondary">
-                Bolsa de Créditos (Acumulable)
+                {t('creditBag')}
               </span>
               <span className="font-bold text-text-primary">
                 {creditsUsed.toLocaleString()} / {creditsTotal.toLocaleString()}
@@ -55,11 +57,9 @@ export default function StatusSection({ subscription, onCancel, isCanceling }: S
             <div className="mt-6">
               <p className="flex items-center gap-1.5 text-xs font-medium text-text-tertiary">
                 <Shield size={12} />
-                El próximo corte de facturación es el{' '}
-                {new Date(subscription?.currentPeriodEnd).toLocaleDateString('es-MX', {
-                  timeZone: 'UTC',
+                {t('nextBillingDate', {
+                  date: new Date(subscription?.currentPeriodEnd).toLocaleDateString('es-MX', { timeZone: 'UTC' })
                 })}
-                .
               </p>
             </div>
           </div>

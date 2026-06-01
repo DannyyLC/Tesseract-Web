@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import { GetToolsDto } from '@tesseract/types';
@@ -27,6 +28,7 @@ export function CatalogIntegrationCard({
   connectedCount = 0,
   onConnect,
 }: CatalogIntegrationCardProps) {
+  const t = useTranslations('Integrations');
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -48,7 +50,7 @@ export function CatalogIntegrationCard({
           {connectedCount > 0 && (
             <span className="flex items-center gap-1 rounded-full bg-[var(--badge-success-bg-solid)] px-2 py-0.5 text-[10px] font-semibold text-[var(--badge-success-text-solid)]">
               <span className="h-1.5 w-1.5 rounded-full bg-success-500" />
-              {connectedCount === 1 ? '1 conectada' : `${connectedCount} conectadas`}
+              {t('connectedCount', { count: connectedCount })}
             </span>
           )}
           {tool.isInBeta && (
@@ -59,7 +61,7 @@ export function CatalogIntegrationCard({
           )}
           {!tool.isActive && (
             <span className="rounded-full bg-[var(--surface-tint)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
-              Próximamente
+              {t('comingSoon')}
             </span>
           )}
         </div>
@@ -79,7 +81,7 @@ export function CatalogIntegrationCard({
             </span>
             {tool.functions.length > 0 && (
               <span className="flex items-center gap-1 text-[10px] font-medium text-text-tertiary">
-                {tool.functions.length} función{tool.functions.length !== 1 ? 'es' : ''}
+                {t('functionCount', { count: tool.functions.length })}
                 {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
               </span>
             )}
@@ -99,7 +101,7 @@ export function CatalogIntegrationCard({
           >
             <div className="mt-4 space-y-3 border-t border-[var(--border-subtle)] pt-4">
               <p className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
-                Funciones disponibles
+                {t('featuresAvailable')}
               </p>
               <div className="space-y-2">
                 {tool.functions.map((fn) => (
@@ -138,7 +140,7 @@ export function CatalogIntegrationCard({
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-30"
           >
             <Plus size={14} />
-            {connectedCount > 0 ? 'Conectar otra instancia' : 'Conectar'}
+            {connectedCount > 0 ? t('connectAnother') : t('connectButton')}
           </button>
         </PermissionGuard>
       </div>

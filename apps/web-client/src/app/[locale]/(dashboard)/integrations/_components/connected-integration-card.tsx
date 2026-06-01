@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { MoreVertical, Unplug, Pencil, KeyRound, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { DashboardTenantToolDto } from '@tesseract/types';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import PermissionGuard from '@/components/auth/permission-guard';
@@ -17,28 +18,6 @@ interface ConnectedIntegrationCardProps {
   onDelete?: (id: string) => void;
 }
 
-const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }> = {
-  CONNECTED: {
-    dot: 'bg-success-500',
-    label: 'bg-[var(--badge-success-bg-solid)] text-[var(--badge-success-text-solid)]',
-    text: 'Conectado',
-  },
-  ERROR: {
-    dot: 'bg-danger',
-    label: 'bg-[var(--badge-danger-bg-solid)] text-[var(--badge-danger-text-solid)]',
-    text: 'Error',
-  },
-  DISCONNECTED: {
-    dot: 'bg-warning-500',
-    label: 'bg-[var(--badge-warning-bg-solid)] text-[var(--badge-warning-text-solid)]',
-    text: 'Desconectado',
-  },
-  EXPIRED_AUTH: {
-    dot: 'bg-[var(--chart-timeout)]',
-    label: 'bg-[var(--badge-orange-bg-solid)] text-[var(--badge-orange-text-solid)]',
-    text: 'Auth expirado',
-  },
-};
 
 export function ConnectedIntegrationCard({
   tool,
@@ -48,8 +27,32 @@ export function ConnectedIntegrationCard({
   onConfigCredentials,
   onDelete,
 }: ConnectedIntegrationCardProps) {
+  const t = useTranslations('Integrations');
   const [menuOpen, setMenuOpen] = useState(false);
   const { data: currentUser } = useAuth();
+
+  const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }> = {
+    CONNECTED: {
+      dot: 'bg-success-500',
+      label: 'bg-[var(--badge-success-bg-solid)] text-[var(--badge-success-text-solid)]',
+      text: t('connectedStatus'),
+    },
+    ERROR: {
+      dot: 'bg-danger',
+      label: 'bg-[var(--badge-danger-bg-solid)] text-[var(--badge-danger-text-solid)]',
+      text: t('errorStatus'),
+    },
+    DISCONNECTED: {
+      dot: 'bg-warning-500',
+      label: 'bg-[var(--badge-warning-bg-solid)] text-[var(--badge-warning-text-solid)]',
+      text: t('disconnectedStatus'),
+    },
+    EXPIRED_AUTH: {
+      dot: 'bg-[var(--chart-timeout)]',
+      label: 'bg-[var(--badge-orange-bg-solid)] text-[var(--badge-orange-text-solid)]',
+      text: t('expiredAuth'),
+    },
+  };
   const isOwnerRole = currentUser?.role === 'owner';
   const isToolOwner = !!currentUser && tool.createdByUserId === currentUser.sub;
   const canManageTool = isOwnerRole || isToolOwner;
@@ -82,7 +85,7 @@ export function ConnectedIntegrationCard({
           {tool.toolCatalog.displayName} · {tool.toolCatalog.category}
         </p>
         <p className="mt-0.5 text-xs text-text-tertiary">
-          Conectado el {connectedDate}
+          {t('connectedOn', { date: connectedDate })}
         </p>
       </div>
 
@@ -121,7 +124,7 @@ export function ConnectedIntegrationCard({
                         className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
                       >
                         <KeyRound size={14} />
-                        Configurar credenciales
+                        {t('configureCredentials')}
                       </button>
                     </PermissionGuard>
                   )}
@@ -134,7 +137,7 @@ export function ConnectedIntegrationCard({
                     className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
                   >
                     <Pencil size={14} />
-                    Renombrar
+                    {t('rename')}
                   </button>
                 </PermissionGuard>
                 <div className="mx-3 my-1 h-px bg-surface-secondary" />
@@ -148,7 +151,7 @@ export function ConnectedIntegrationCard({
                       className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[var(--danger-text-adaptive)] transition-colors hover:bg-[var(--danger-tint-hover)]"
                     >
                       <Unplug size={14} />
-                      Desconectar credenciales
+                      {t('disconnectCredentials')}
                     </button>
                   </PermissionGuard>
                 )}
@@ -161,7 +164,7 @@ export function ConnectedIntegrationCard({
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[var(--danger-text-adaptive)] transition-colors hover:bg-[var(--danger-tint-hover)]"
                   >
                     <Trash2 size={14} />
-                    Eliminar
+                    {t('deleteMenuItem')}
                   </button>
                 </PermissionGuard>
               </div>

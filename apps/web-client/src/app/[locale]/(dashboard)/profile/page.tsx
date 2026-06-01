@@ -14,6 +14,7 @@ import {
   MonitorX,
   Globe,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { LocaleSwitcher } from '@/components/locale';
 import { useAuth } from '@/hooks/identity/use-auth';
 import { useUser } from '@/hooks/identity/use-users';
@@ -26,6 +27,7 @@ import LeaveOrganizationModal from './_components/leave-organization-modal';
 import LogoutAllModal from './_components/logout-all-modal';
 
 export default function ProfilePage() {
+  const t = useTranslations('Profile');
   const { data: authUser, isLoading: isLoadingAuth } = useAuth();
   const { data: userDetails, isLoading: isLoadingDetails } = useUser(authUser?.sub || '');
 
@@ -49,7 +51,7 @@ export default function ProfilePage() {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <p className="text-text-secondary">
-          No se pudo cargar la información del usuario
+          {t('loadError')}
         </p>
       </div>
     );
@@ -64,9 +66,9 @@ export default function ProfilePage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-text-primary">Mi Perfil</h1>
+        <h1 className="text-2xl font-bold text-text-primary">{t('heading')}</h1>
         <p className="mt-1 text-text-secondary">
-          Gestiona tu información personal y configuración de seguridad
+          {t('description')}
         </p>
       </div>
 
@@ -78,9 +80,9 @@ export default function ProfilePage() {
         className="overflow-hidden rounded-2xl border border-border bg-surface-panel"
       >
         <div className="border-b border-border p-6">
-          <h2 className="text-lg font-semibold text-text-primary">Información Personal</h2>
+          <h2 className="text-lg font-semibold text-text-primary">{t('personalInfoTitle')}</h2>
           <p className="mt-1 text-sm text-text-secondary">
-            Detalles de tu cuenta y organización
+            {t('personalInfoDesc')}
           </p>
         </div>
 
@@ -91,7 +93,7 @@ export default function ProfilePage() {
               <UserIcon size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-text-secondary">Nombre</p>
+              <p className="text-sm font-medium text-text-secondary">{t('nameLabel')}</p>
               <p className="mt-0.5 text-base font-medium text-text-primary">
                 {userDetails.name}
               </p>
@@ -104,7 +106,7 @@ export default function ProfilePage() {
               <Mail size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-text-secondary">Email</p>
+              <p className="text-sm font-medium text-text-secondary">{t('emailLabel')}</p>
               <p className="mt-0.5 text-base font-medium text-text-primary">
                 {userDetails.email}
               </p>
@@ -117,7 +119,7 @@ export default function ProfilePage() {
               <Shield size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-text-secondary">Rol</p>
+              <p className="text-sm font-medium text-text-secondary">{t('roleLabel')}</p>
               <div className="mt-1">
                 <span className={`text-sm font-bold uppercase tracking-wide ${roleConfig.color}`}>
                   {roleConfig.label}
@@ -132,7 +134,7 @@ export default function ProfilePage() {
               <Building2 size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-text-secondary">Organización</p>
+              <p className="text-sm font-medium text-text-secondary">{t('organizationLabel')}</p>
               <p className="mt-0.5 text-base font-medium text-text-primary">
                 {authUser.organizationName}
               </p>
@@ -145,7 +147,7 @@ export default function ProfilePage() {
               <Calendar size={20} className="text-text-secondary" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-text-secondary">Miembro desde</p>
+              <p className="text-sm font-medium text-text-secondary">{t('memberSinceLabel')}</p>
               <p className="mt-0.5 text-base font-medium text-text-primary">
                 {new Date(userDetails.createdAt).toLocaleDateString('es-MX', {
                   year: 'numeric',
@@ -166,9 +168,9 @@ export default function ProfilePage() {
         className="overflow-hidden rounded-2xl border border-border bg-surface-panel"
       >
         <div className="border-b border-border p-6">
-          <h2 className="text-lg font-semibold text-text-primary">Preferencias</h2>
+          <h2 className="text-lg font-semibold text-text-primary">{t('preferencesTitle')}</h2>
           <p className="mt-1 text-sm text-text-secondary">
-            Personaliza tu experiencia en la plataforma
+            {t('preferencesDesc')}
           </p>
         </div>
 
@@ -180,9 +182,9 @@ export default function ProfilePage() {
                 <Globe size={20} className="text-text-secondary" />
               </div>
               <div>
-                <p className="text-sm font-medium text-text-primary">Idioma</p>
+                <p className="text-sm font-medium text-text-primary">{t('languageLabel')}</p>
                 <p className="text-xs text-text-secondary">
-                  Selecciona tu idioma preferido para la interfaz
+                  {t('languageHelper')}
                 </p>
               </div>
             </div>
@@ -199,9 +201,9 @@ export default function ProfilePage() {
         className="overflow-hidden rounded-2xl border border-border bg-surface-panel"
       >
         <div className="border-b border-border p-6">
-          <h2 className="text-lg font-semibold text-text-primary">Seguridad</h2>
+          <h2 className="text-lg font-semibold text-text-primary">{t('securityTitle')}</h2>
           <p className="mt-1 text-sm text-text-secondary">
-            Gestiona tu contraseña y autenticación de dos factores
+            {t('securityDesc')}
           </p>
         </div>
 
@@ -220,12 +222,10 @@ export default function ProfilePage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-text-primary">
-                  Autenticación de Dos Factores
+                  {t('twoFALabel')}
                 </p>
                 <p className="text-xs text-text-secondary">
-                  {twoFactorEnabled
-                    ? 'Tu cuenta está protegida con 2FA'
-                    : 'Agrega una capa extra de seguridad'}
+                  {twoFactorEnabled ? t('twoFAEnabled') : t('twoFADisabled')}
                 </p>
               </div>
             </div>
@@ -239,7 +239,7 @@ export default function ProfilePage() {
                   : 'bg-accent text-text-inverse hover:opacity-90'
               }`}
             >
-              {twoFactorEnabled ? 'Desactivar' : 'Activar'}
+              {twoFactorEnabled ? t('disable') : t('enable')}
             </button>
           </div>
 
@@ -251,12 +251,10 @@ export default function ProfilePage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-text-primary">
-                  {hasPassword ? 'Contraseña' : 'Crear Contraseña'}
+                  {hasPassword ? t('passwordLabel') : t('createPasswordLabel')}
                 </p>
                 <p className="text-xs text-text-secondary">
-                  {hasPassword
-                    ? 'Cambia tu contraseña regularmente'
-                    : 'Establece una contraseña para tu cuenta'}
+                  {hasPassword ? t('passwordHelper') : t('createPasswordHelper')}
                 </p>
               </div>
             </div>
@@ -264,7 +262,7 @@ export default function ProfilePage() {
               onClick={() => setIsChangePasswordModalOpen(true)}
               className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90"
             >
-              {hasPassword ? 'Cambiar' : 'Crear'}
+              {hasPassword ? t('changeButton') : t('createButton')}
             </button>
           </div>
 
@@ -275,9 +273,9 @@ export default function ProfilePage() {
                 <MonitorX size={20} className="text-text-secondary" />
               </div>
               <div>
-                <p className="text-sm font-medium text-text-primary">Sesiones Activas</p>
+                <p className="text-sm font-medium text-text-primary">{t('activeSessionsLabel')}</p>
                 <p className="text-xs text-text-secondary">
-                  Cierra sesión en todos los dispositivos
+                  {t('activeSessionsHelper')}
                 </p>
               </div>
             </div>
@@ -285,7 +283,7 @@ export default function ProfilePage() {
               onClick={() => setIsLogoutAllModalOpen(true)}
               className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-text-primary transition-all hover:bg-surface-secondary"
             >
-              Cerrar todas
+              {t('closeAllButton')}
             </button>
           </div>
         </div>
@@ -299,9 +297,9 @@ export default function ProfilePage() {
         className="overflow-hidden rounded-2xl border border-danger-500 bg-danger-500/5"
       >
         <div className="border-b border-danger-500 p-6">
-          <h2 className="text-lg font-semibold text-danger-500">Zona Peligrosa</h2>
+          <h2 className="text-lg font-semibold text-danger-500">{t('dangerZoneTitle')}</h2>
           <p className="mt-1 text-sm text-danger-500/80">
-            Acciones irreversibles que afectan tu cuenta
+            {t('dangerZoneDesc')}
           </p>
         </div>
 
@@ -313,10 +311,10 @@ export default function ProfilePage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-text-primary">
-                  Salir de la Organización
+                  {t('leaveOrgLabel')}
                 </p>
                 <p className="text-xs text-text-secondary">
-                  Perderás acceso a todos los recursos
+                  {t('leaveOrgHelper')}
                 </p>
               </div>
             </div>
@@ -324,7 +322,7 @@ export default function ProfilePage() {
               onClick={() => setIsLeaveOrgModalOpen(true)}
               className="rounded-xl border border-danger-500 px-4 py-2 text-sm font-medium text-danger-500 transition-all hover:bg-danger-500/10"
             >
-              Salir
+              {t('leaveButton')}
             </button>
           </div>
         </div>

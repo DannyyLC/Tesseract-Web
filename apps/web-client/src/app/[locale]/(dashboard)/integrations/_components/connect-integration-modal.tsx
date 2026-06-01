@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Loader2, KeyRound, CheckCircle2, Check } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { useTenantToolMutations } from '@/hooks/automation/use-tenant-tools';
@@ -28,6 +29,7 @@ export function ConnectIntegrationModal({
   existingToolDisplayName,
   existingToolProvider,
 }: ConnectIntegrationModalProps) {
+  const t = useTranslations('Integrations');
   const [displayName, setDisplayName] = useState('');
   const [selectedFunctions, setSelectedFunctions] = useState<string[]>([]);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -62,12 +64,12 @@ export function ConnectIntegrationModal({
   const handleConnect = async () => {
     const trimmed = displayName.trim();
     if (!trimmed) {
-      toast.error('Por favor ingresa un nombre para la integración.');
+      toast.error(t('instanceNameRequired'));
       return;
     }
 
     if (selectedFunctions.length === 0 && functions.length > 0) {
-      toast.error('Debes seleccionar al menos una función.');
+      toast.error(t('selectFunctionRequired'));
       return;
     }
 
@@ -93,7 +95,7 @@ export function ConnectIntegrationModal({
         setIsSuccess(true);
         setTimeout(onClose, 2500);
       } else {
-        toast.info(`Redirigiendo a ${provider}...`);
+        toast.info(t('redirecting', { provider }));
         const oauthApi = RootApi.getInstance().getToolsOauthApi();
         oauthApi.redirectToGoogleAuth(tenantToolId);
       }
@@ -108,10 +110,7 @@ export function ConnectIntegrationModal({
         '';
 
       if (statusCode === 409) {
-        toast.error(
-          backendMessage ||
-            'Ya existe una integración activa con ese nombre. Intenta con otro nombre.',
-        );
+        toast.error(backendMessage || t('nameConflictError'));
         return;
       }
 
@@ -120,7 +119,7 @@ export function ConnectIntegrationModal({
         return;
       }
 
-      toast.error('Ocurrió un error al intentar conectar la integración.');
+      toast.error(t('connectError'));
     }
   };
 
@@ -139,17 +138,17 @@ export function ConnectIntegrationModal({
       onClose={onClose}
       title={
         existingToolId
-          ? 'Configurar credenciales'
-          : `Conectar ${catalogTool?.displayName || 'Integración'}`
+          ? t('configureModalTitle')
+          : t('connectModalTitle', { name: catalogTool?.displayName || 'Integración' })
       }
     >
       <div className="space-y-6 py-2">
         {isSuccess ? (
           <div className="flex flex-col items-center justify-center space-y-3 py-8 text-center">
             <CheckCircle2 size={48} className="text-success-500" />
-            <h3 className="text-lg font-semibold text-text-primary">¡Listo!</h3>
+            <h3 className="text-lg font-semibold text-text-primary">{t('readyHeading')}</h3>
             <p className="text-sm text-text-secondary">
-              La integración ha sido configurada correctamente.
+              {t('readyDesc')}
             </p>
           </div>
         ) : (
@@ -157,12 +156,12 @@ export function ConnectIntegrationModal({
             {/* Step 1: Naming */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-text-secondary">
-                Nombre de la instancia
+                {t('instanceNameLabel')}
               </label>
               <input
                 autoFocus
                 type="text"
-                placeholder="Nombre de la integración"
+                placeholder={t('instanceNamePlaceholder')}
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 className="w-full rounded-xl border border-border bg-[var(--surface-subtle)] px-4 py-2.5 text-sm text-text-primary outline-none transition-all focus:border-[var(--border-subtle)] focus:ring-2 focus:ring-[var(--border-subtle)]"
@@ -174,15 +173,15 @@ export function ConnectIntegrationModal({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium text-text-secondary">
-                    Habilitar funciones
+                    {t('enableFunctions')}
                   </label>
                   <button
                     onClick={toggleAll}
                     className="text-[10px] font-bold uppercase tracking-wider text-text-secondary hover:text-text-primary"
                   >
                     {selectedFunctions.length === functions.length
-                      ? 'Desmarcar todas'
-                      : 'Marcar todas'}
+                      ? t('deselectAll')
+                      : t('selectAll')}
                   </button>
                 </div>
                 <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
@@ -243,7 +242,7 @@ export function ConnectIntegrationModal({
                     {catalogTool?.displayName || existingToolDisplayName}
                   </h4>
                   <p className="text-xs text-text-tertiary">
-                    Proveedor: {provider === 'none' ? 'Ninguno (Integración local)' : provider}
+                    {t('providerLabel', { provider: provider === 'none' ? t('noCredentials') : provider })}
                   </p>
                 </div>
               </div>
@@ -263,7 +262,7 @@ export function ConnectIntegrationModal({
                   ) : (
                     <>
                       {isGoogle ? <GoogleIcon /> : <KeyRound size={18} />}
-                      {existingToolId ? 'Re-conectar con' : 'Conectar con'}{' '}
+                      {existingToolId ? t('reconnectWith') : t('connectWith')}{' '}
                       {isGoogle ? 'Google' : provider}
                     </>
                   )}
@@ -277,16 +276,14 @@ export function ConnectIntegrationModal({
                   {createTenantTool.isPending ? (
                     <Loader2 size={18} className="animate-spin" />
                   ) : (
-                    'Finalizar configuración'
+                    t('finishSetup')
                   )}
                 </button>
               )}
             </div>
 
             <p className="text-center text-[11px] leading-relaxed text-text-tertiary">
-              {provider !== 'none'
-                ? 'Al conectar, autorizas a Tesseract para acceder a los datos necesarios para ejecutar los workflows configurados.'
-                : 'Esta integración no requiere credenciales externas para funcionar.'}
+              {provider !== 'none' ? t('connectDisclaimer') : t('localIntegrationNote')}
             </p>
           </>
         )}

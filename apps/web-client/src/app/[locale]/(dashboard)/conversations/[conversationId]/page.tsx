@@ -25,6 +25,7 @@ import { Modal } from '@/components/ui/modal';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { useAuth } from '@/hooks/identity/use-auth';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
+import { useTranslations } from 'next-intl';
 
 interface Message {
   id: string;
@@ -43,6 +44,7 @@ const THINKING_WORDS = [
 ];
 
 export default function WorkflowChatPage() {
+  const t = useTranslations('Conversations');
   const params = useParams();
   const conversationId = params.conversationId as string;
 
@@ -567,7 +569,7 @@ export default function WorkflowChatPage() {
                     onClick={() => setIsDeleteOpen(true)}
                     disabled={deleteConversation.isPending}
                     className="rounded-full p-2 text-text-tertiary transition-colors hover:bg-danger-500/10 hover:text-danger"
-                    title="Eliminar conversación"
+                    title={t('deleteTitle')}
                   >
                     {deleteConversation.isPending ? (
                       <Loader2 size={18} className="animate-spin" />
@@ -893,7 +895,7 @@ export default function WorkflowChatPage() {
           <Modal
             isOpen={isDeleteOpen}
             onClose={() => setIsDeleteOpen(false)}
-            title="Eliminar conversación"
+            title={t('deleteTitle')}
           >
             <div className="space-y-4">
               <p className="text-text-secondary">

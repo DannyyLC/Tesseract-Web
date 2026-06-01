@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { usePathname, Link } from '@/i18n/routing';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, Bell, ChevronRight, LogOut, User, CheckCheck, Loader2 } from 'lucide-react';
@@ -14,19 +15,21 @@ interface TopBarProps {
   isSidebarCollapsed: boolean;
 }
 
-const routeNames: Record<string, string> = {
-  dashboard: 'Dashboard',
-  workflows: 'Workflows',
-  executions: 'Ejecuciones',
-  credits: 'Créditos y Facturación',
-  users: 'Miembros',
-  settings: 'Configuración',
-  conversations: 'Conversaciones',
-  'api-keys': 'API Keys',
-};
 
 export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps) {
+  const t = useTranslations('DashboardNav');
   const pathname = usePathname();
+
+  const routeNames: Record<string, string> = {
+    dashboard: t('routeDashboard'),
+    workflows: t('routeWorkflows'),
+    executions: t('routeExecutions'),
+    credits: t('routeCredits'),
+    users: t('routeMembers'),
+    settings: t('routeSettings'),
+    conversations: t('routeConversations'),
+    'api-keys': t('routeApiKeys'),
+  };
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isMarkReadModalOpen, setIsMarkReadModalOpen] = useState(false);
@@ -40,11 +43,11 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
   const { markAllAsRead } = useNotificationMutations();
 
   const user = {
-    name: authUser?.name || 'Usuario',
+    name: authUser?.name || t('userFallbackName'),
     email: authUser?.email || '',
-    role: authUser?.role || 'Viewer',
+    role: authUser?.role || t('userFallbackRole'),
     avatar: null,
-    organization: authUser?.organizationName || 'Mi Organización',
+    organization: authUser?.organizationName || t('userFallbackOrg'),
   };
 
   const formatSegment = (segment: string) => {
@@ -179,7 +182,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                     className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-surface shadow-md sm:w-96"
                   >
                     <div className="flex items-center justify-between border-b border-border p-4">
-                      <h3 className="font-semibold text-text-primary">Notificaciones</h3>
+                      <h3 className="font-semibold text-text-primary">{t('notifications')}</h3>
                       {unreadCount > 0 && (
                         <button
                           onClick={() => setIsMarkReadModalOpen(true)}
@@ -191,7 +194,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                           ) : (
                             <CheckCheck size={12} />
                           )}
-                          Marcar leídas
+                          {t('markRead')}
                         </button>
                       )}
                     </div>
@@ -252,7 +255,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                         onClick={() => setIsProfileOpen(false)}
                       >
                         <User size={18} />
-                        <span>Mi perfil</span>
+                        <span>{t('myProfile')}</span>
                       </Link>
                     </div>
 
@@ -262,7 +265,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                         className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
                         onClick={() => setIsProfileOpen(false)}
                       >
-                        <span>Términos y Condiciones</span>
+                        <span>{t('termsAndConditions')}</span>
                       </Link>
                     </div>
 
@@ -274,7 +277,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                       >
                         <LogOut size={18} />
                         <span>
-                          {logoutMutation.isPending ? 'Cerrando sesión...' : 'Cerrar sesión'}
+                          {logoutMutation.isPending ? t('loggingOut') : t('logout')}
                         </span>
                       </button>
                     </div>
@@ -292,11 +295,11 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
           <Modal
             isOpen={isMarkReadModalOpen}
             onClose={() => setIsMarkReadModalOpen(false)}
-            title="Marcar todas como leídas"
+            title={t('markAllReadTitle')}
           >
             <div className="space-y-6">
               <p className="text-sm text-text-secondary">
-                ¿Estás seguro de que quieres marcar todas las notificaciones como leídas?
+                {t('markAllReadConfirm')}
               </p>
 
               <div className="flex gap-3">
@@ -304,7 +307,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                   onClick={() => setIsMarkReadModalOpen(false)}
                   className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-elevated"
                 >
-                  Cancelar
+                  {t('cancelButton')}
                 </button>
                 <button
                   onClick={handleMarkAllAsRead}
@@ -314,7 +317,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
                   {markAllAsRead.isPending ? (
                     <Loader2 className="mx-auto h-4 w-4 animate-spin" />
                   ) : (
-                    'Confirmar'
+                    t('confirmButton')
                   )}
                 </button>
               </div>

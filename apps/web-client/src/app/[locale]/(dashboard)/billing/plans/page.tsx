@@ -24,11 +24,13 @@ import { toast } from 'sonner';
 import Loading from '@/app/[locale]/(dashboard)/loading';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { triggerWowConfetti } from '@/lib/confetti';
+import { useTranslations } from 'next-intl';
 
 export default function PlansPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const t = useTranslations('BillingPlans');
 
   useEffect(() => {
     // Cuando el portal/checkout de Stripe redirige de vuelta, refrescar datos y limpiar la URL.
@@ -90,11 +92,11 @@ export default function PlansPage() {
     setIsCancellingDowngrade(true);
     cancelPendingDowngrade.mutate(undefined, {
       onSuccess: () => {
-        toast.success('Cambio de plan programado cancelado exitosamente');
+        toast.success(t('downgradeCancelSuccess'));
         setIsCancellingDowngrade(false);
       },
       onError: (error: any) => {
-        let msg = 'Error al cancelar el cambio de plan';
+        let msg = t('downgradeCancelError');
         if (error?.response?.data?.message) {
           msg = error.response.data.message;
         }
@@ -136,8 +138,6 @@ export default function PlansPage() {
       const planState = subscription.plan;
       const subStatus = subscription.status?.toUpperCase() || 'FREE';
 
-      // Si hay un pago pendiente (pago fallido / incomplete en Stripe), redirigir al Portal
-      // para que el usuario actualice su método de pago. Stripe reintentará el cobro automáticamente.
       if (subStatus === 'PAST_DUE') {
         const { url } = await createPortalSession.mutateAsync();
         goToStripe(url);
@@ -147,32 +147,25 @@ export default function PlansPage() {
       const isFreeOrCanceled = planState === SubscriptionPlan.FREE || subStatus === 'CANCELED';
 
       if (isFreeOrCanceled) {
-        // Redirigir al Checkout si estaban en FREE o CANCELED
         const { url } = await createCheckoutSession.mutateAsync(selectedPlan.type);
         goToStripe(url);
       } else {
         try {
-          // Intentar actualizar la suscripción existente
           await updateSubscription.mutateAsync(selectedPlan.type as SubscriptionPlan);
           setChangedPlanName(selectedPlan.name);
           setShowPlanChangeSuccess(true);
           triggerWowConfetti();
         } catch (updateError: any) {
-          // Si el backend detectó que la suscripción está cancelada en Stripe (409 Conflict),
-          // auto-recuperarse: crear una nueva suscripción via Checkout
           if (updateError?.response?.status === 409) {
             const { url } = await createCheckoutSession.mutateAsync(selectedPlan.type);
             goToStripe(url);
             return;
           }
-          // Si hay un pago pendiente (PAST_DUE), redirigir al Portal para actualizar método de pago.
-          // Stripe reintentará el cobro automáticamente al actualizar la tarjeta.
           if (updateError?.response?.data?.message === 'SUBSCRIPTION_PAST_DUE') {
             const { url } = await createPortalSession.mutateAsync();
             goToStripe(url);
             return;
           }
-          // Cualquier otro error, re-lanzar
           throw updateError;
         }
       }
@@ -190,9 +183,7 @@ export default function PlansPage() {
     try {
       setIsCanceling(true);
       await cancelSubscription.mutateAsync();
-      toast.success(
-        'Tu suscripción ha sido cancelada. Seguirás disfrutando de tus beneficios hasta el final del periodo.',
-      );
+      toast.success(t('cancelSuccessToast'));
     } finally {
       setIsCanceling(false);
       setShowCancelModal(false);
@@ -234,17 +225,17 @@ export default function PlansPage() {
             className="group flex items-center gap-2 text-sm font-medium text-text-tertiary transition-colors hover:text-text-primary"
           >
             <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
-            Atrás
+            {t('back')}
           </button>
         </div>
 
         {/* Header */}
         <div className="space-y-2">
           <h1 className="text-4xl font-bold tracking-tight text-text-primary">
-            Planes de Suscripción
+            {t('heading')}
           </h1>
           <p className="max-w-xl font-medium text-text-secondary">
-            Administra tu plan actual, actualiza tu suscripción o cancela el servicio.
+            {t('description')}
           </p>
         </div>
 
@@ -256,11 +247,8 @@ export default function PlansPage() {
                 <AlertCircle size={20} className="text-danger" />
               </div>
               <div>
-                <p className="text-sm font-bold text-text-primary">Pago pendiente</p>
-                <p className="text-xs text-text-secondary">
-                  Tu último pago no fue procesado. Actualiza tu método de pago para activar tu
-                  suscripción.
-                </p>
+                <p className="text-sm font-bold text-text-primary">{t('paymentPendingTitle')}</p>
+                <p className="text-xs text-text-secondary">{t('paymentPendingDesc')}</p>
               </div>
             </div>
             <button
@@ -270,7 +258,7 @@ export default function PlansPage() {
               }}
               className="shrink-0 rounded-lg bg-danger/10 px-4 py-2 text-sm font-bold text-danger-600 transition-colors hover:bg-danger/20"
             >
-              Actualizar Pago
+              {t('updatePayment')}
             </button>
           </div>
         )}
@@ -284,11 +272,11 @@ export default function PlansPage() {
               </div>
               <div>
                 <p className="text-sm font-bold text-text-primary">
-                  Cambio programado a{' '}
+                  {t('scheduledChangeToBefore')}{' '}
                   <span className="text-info">{subscription.pendingPlanChange}</span>
                 </p>
                 <p className="text-xs text-text-secondary">
-                  Tu plan actual seguirá activo hasta el{' '}
+                  {t('currentPlanActiveUntilBefore')}{' '}
                   {subscription.currentPeriodEnd
                     ? new Date(subscription.currentPeriodEnd).toLocaleDateString('es-MX', {
                         day: 'numeric',
@@ -296,8 +284,8 @@ export default function PlansPage() {
                         year: 'numeric',
                         timeZone: 'UTC',
                       })
-                    : 'final del periodo'}
-                  . Después cambiará automáticamente.
+                    : t('endOfPeriod')}
+                  {t('currentPlanActiveUntilAfter')}
                 </p>
               </div>
             </div>
@@ -309,10 +297,10 @@ export default function PlansPage() {
               {isCancellingDowngrade ? (
                 <span className="flex items-center gap-2">
                   <Loader2 size={16} className="animate-spin" />
-                  Cancelando...
+                  {t('canceling')}
                 </span>
               ) : (
-                'Cancelar Cambio'
+                t('cancelChange')
               )}
             </button>
           </div>
@@ -322,18 +310,13 @@ export default function PlansPage() {
         <div className="space-y-8">
           <PlanGrid
             plans={(plansData || []).filter((plan) => {
-              // Enterprise is always handled separately
               if (plan.type === SubscriptionPlan.ENTERPRISE) return false;
-
-              // If user has an active paid subscription, hide the FREE plan from the grid
-              // They should use the "Cancel Subscription" button instead
               if (
                 subscription.plan !== SubscriptionPlan.FREE &&
                 plan.type === SubscriptionPlan.FREE
               ) {
                 return false;
               }
-
               return true;
             })}
             currentPlan={subscription.plan}
@@ -352,16 +335,15 @@ export default function PlansPage() {
                     onClick={() => setShowResumeModal(true)}
                     className="group flex items-center gap-2 rounded-xl border border-success-500/20 bg-success-500/5 px-6 py-3 text-sm font-bold text-success-500/70 shadow-sm transition-all hover:border-success-500 hover:bg-success-500/10 hover:text-success-500"
                   >
-                    Reactivar Suscripción
+                    {t('reactivate')}
                   </button>
                   <p className="text-[10px] font-medium uppercase tracking-widest text-text-tertiary">
-                    Tu suscripción está programada para cancelarse. Puedes reactivarla antes de que
-                    termine el periodo.
+                    {t('reactivateDesc')}
                   </p>
                 </>
               ) : subscription.pendingPlanChange ? (
                 <p className="text-[10px] font-medium uppercase tracking-widest text-warning-500/70">
-                  Cancela el cambio pendiente antes de cancelar la suscripción
+                  {t('cancelPendingFirst')}
                 </p>
               ) : (
                 <>
@@ -369,10 +351,10 @@ export default function PlansPage() {
                     onClick={handleCancelClick}
                     className="group flex items-center gap-2 rounded-xl border border-danger-500/20 bg-danger/5 px-6 py-3 text-sm font-bold text-danger/70 shadow-sm transition-all hover:border-danger-500 hover:bg-danger/10 hover:text-danger"
                   >
-                    Cancelar suscripción actual
+                    {t('cancelSubscription')}
                   </button>
                   <p className="text-[10px] font-medium uppercase tracking-widest text-text-tertiary">
-                    Al cancelar, mantendrás tus beneficios hasta el final del periodo
+                    {t('cancelNote')}
                   </p>
                 </>
               )}
@@ -380,40 +362,40 @@ export default function PlansPage() {
           </div>
         )}
 
-        {/* Modals */}
+        {/* Confirm Plan Change Modal */}
         {selectedPlan && (
           <Modal
             isOpen={!!selectedPlan}
             onClose={() => setSelectedPlan(null)}
-            title={isUpgrade ? 'Confirmar Actualización' : 'Confirmar Cambio de Plan'}
+            title={isUpgrade ? t('confirmUpgradeTitle') : t('confirmChangeTitle')}
           >
             <div className="space-y-4">
               <p className="text-sm text-text-primary">
-                Estás a punto de cambiar tu suscripción al plan{' '}
+                {t('changeIntroBefore')}{' '}
                 <strong className="text-text-primary">{selectedPlan.name}</strong> ($
-                {selectedPlan.price.monthly}/{selectedPlan.price.currency}).
+                {selectedPlan.price.monthly}/{selectedPlan.price.currency}){t('changeIntroAfter')}
               </p>
 
               {isUpgrade ? (
                 <div className="rounded-lg bg-info/10 p-4 text-sm text-info-600">
                   <p>
-                    <strong>Actualización Inmediata:</strong>
+                    <strong>{t('immediateUpgrade')}</strong>
                   </p>
                   <ul className="mt-2 list-disc space-y-1 pl-4">
-                    <li>Se cobrará el total de la nueva suscripción ahora.</li>
-                    <li>Los nuevos créditos se sumarán a tu balance actual.</li>
-                    <li>Tu fecha de facturación se reiniciará al día de hoy.</li>
+                    <li>{t('immediateBullet1')}</li>
+                    <li>{t('immediateBullet2')}</li>
+                    <li>{t('immediateBullet3')}</li>
                   </ul>
                 </div>
               ) : (
                 <div className="rounded-lg bg-warning-500/10 p-4 text-sm text-warning-600">
                   <p>
-                    <strong>Cambio Programado:</strong>
+                    <strong>{t('scheduledChange')}</strong>
                   </p>
                   <ul className="mt-2 list-disc space-y-1 pl-4">
-                    <li>Tu plan actual seguirá activo hasta el final del periodo.</li>
-                    <li>El nuevo precio se cobrará en tu próxima fecha de renovación.</li>
-                    <li>Disfrutarás de los beneficios actuales hasta entonces.</li>
+                    <li>{t('scheduledBullet1')}</li>
+                    <li>{t('scheduledBullet2')}</li>
+                    <li>{t('scheduledBullet3')}</li>
                   </ul>
                 </div>
               )}
@@ -423,7 +405,7 @@ export default function PlansPage() {
                   onClick={() => setSelectedPlan(null)}
                   className="rounded-xl px-4 py-2 text-sm font-bold text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
                 >
-                  Cancelar
+                  {t('cancelButton')}
                 </button>
                 <button
                   onClick={confirmChange}
@@ -431,25 +413,22 @@ export default function PlansPage() {
                   className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-bold text-text-inverse hover:opacity-90 disabled:opacity-50"
                 >
                   {upgradingPlan && <Loader2 size={16} className="animate-spin" />}
-                  {isUpgrade ? 'Confirmar y Pagar' : 'Confirmar Cambio'}
+                  {isUpgrade ? t('confirmPay') : t('confirmChange')}
                 </button>
               </div>
             </div>
           </Modal>
         )}
 
+        {/* Advice Modal */}
         <Modal
           isOpen={showAdviceModal}
           onClose={() => setShowAdviceModal(false)}
-          title="Sugerencia antes de contratar"
+          title={t('adviceTitle')}
         >
           <div className="space-y-4">
             <div className="rounded-lg bg-info/10 p-4 text-sm text-info-600">
-              <p>
-                Te sugerimos que antes de contratar el plan te comuniques con nosotros para crear
-                tus workflows, porque actualmente no podrías aprovechar todos los beneficios de la
-                suscripción.
-              </p>
+              <p>{t('adviceText')}</p>
             </div>
 
             <div className="flex justify-end gap-3 pt-4">
@@ -457,34 +436,32 @@ export default function PlansPage() {
                 onClick={handleProceedWithAdvice}
                 className="rounded-xl px-4 py-2 text-sm font-bold text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
               >
-                Continuar de todos modos
+                {t('proceedAnyway')}
               </button>
               <button
                 onClick={() => router.push('/support?reason=upgrade')}
                 className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-bold text-text-inverse hover:opacity-90"
               >
-                Contactar Soporte
+                {t('contactSupport')}
               </button>
             </div>
           </div>
         </Modal>
 
+        {/* Cancel Subscription Modal */}
         <Modal
           isOpen={showCancelModal}
           onClose={() => setShowCancelModal(false)}
-          title="Cancelar Suscripción"
+          title={t('cancelModalTitle')}
         >
           <div className="space-y-4">
             <div className="rounded-lg bg-danger/10 p-4 text-sm text-danger-600">
-              <p className="mb-2 font-bold">¿Estás seguro de que deseas cancelar?</p>
-              <p>
-                Perderás acceso a tus beneficios premium al finalizar el periodo de facturación
-                actual.
-              </p>
+              <p className="mb-2 font-bold">{t('cancelConfirmHeading')}</p>
+              <p>{t('cancelConfirmDesc')}</p>
             </div>
 
             <p className="text-xs text-text-secondary">
-              Si cancelas ahora, tu acceso continuará hasta el{' '}
+              {t('cancelAccessUntilBefore')}{' '}
               {subscription.currentPeriodEnd
                 ? new Date(subscription.currentPeriodEnd).toLocaleDateString('es-MX', {
                     day: 'numeric',
@@ -492,8 +469,8 @@ export default function PlansPage() {
                     year: 'numeric',
                     timeZone: 'UTC',
                   })
-                : 'final del periodo'}
-              , pero no se renovará automáticamente.
+                : t('endOfPeriod')}
+              {t('cancelNoRenewal')}
             </p>
 
             <div className="flex justify-end gap-3 pt-4">
@@ -501,7 +478,7 @@ export default function PlansPage() {
                 onClick={() => setShowCancelModal(false)}
                 className="rounded-xl px-4 py-2 text-sm font-bold text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
               >
-                Mantener Suscripción
+                {t('keepSubscription')}
               </button>
               <button
                 onClick={confirmCancel}
@@ -509,24 +486,22 @@ export default function PlansPage() {
                 className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2 text-sm font-bold text-brand-white hover:bg-danger-600 disabled:opacity-50"
               >
                 {isCanceling && <Loader2 size={16} className="animate-spin" />}
-                Cancelar Suscripción
+                {t('cancelSubscriptionButton')}
               </button>
             </div>
           </div>
         </Modal>
 
+        {/* Resume Subscription Modal */}
         <Modal
           isOpen={showResumeModal}
           onClose={() => setShowResumeModal(false)}
-          title="Reactivar Suscripción"
+          title={t('reactivateModalTitle')}
         >
           <div className="space-y-4">
             <div className="rounded-lg bg-success-500/10 p-4 text-sm text-success-600">
-              <p className="mb-2 font-bold">¿Deseas reactivar tu suscripción?</p>
-              <p>
-                Tu suscripción continuará normalmente y se renovará automáticamente al finalizar el
-                periodo de facturación actual.
-              </p>
+              <p className="mb-2 font-bold">{t('reactivateConfirmHeading')}</p>
+              <p>{t('reactivateConfirmDesc')}</p>
             </div>
 
             <div className="flex justify-end gap-3 pt-4">
@@ -534,7 +509,7 @@ export default function PlansPage() {
                 onClick={() => setShowResumeModal(false)}
                 className="rounded-xl px-4 py-2 text-sm font-bold text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
               >
-                Cancelar
+                {t('cancelButton')}
               </button>
               <button
                 onClick={confirmResume}
@@ -542,27 +517,27 @@ export default function PlansPage() {
                 className="flex items-center gap-2 rounded-xl bg-success-500 px-4 py-2 text-sm font-bold text-brand-white hover:bg-success-600 disabled:opacity-50"
               >
                 {isResuming && <Loader2 size={16} className="animate-spin" />}
-                Reactivar Suscripción
+                {t('reactivateButton')}
               </button>
             </div>
           </div>
         </Modal>
 
-        {/* Cancel Downgrade Confirmation Modal */}
+        {/* Cancel Downgrade Modal */}
         <Modal
           isOpen={showCancelDowngradeModal}
           onClose={() => !isCancellingDowngrade && setShowCancelDowngradeModal(false)}
-          title="Cancelar Cambio Programado"
+          title={t('cancelDowngradeTitle')}
         >
           <div className="space-y-6">
             <p className="text-text-primary">
-              ¿Estás seguro de que deseas cancelar el cambio programado a{' '}
+              {t('cancelDowngradeConfirmBefore')}{' '}
               <span className="font-bold">{subscription.pendingPlanChange}</span>?
             </p>
 
             <div className="rounded-xl border border-info-500/20 bg-info/5 p-4 text-sm text-info-600">
-              Mantendrás tu plan actual (<span className="font-bold">{subscription.plan}</span>) de
-              forma continua y no habrá interrupciones en tu servicio.
+              {t('keepCurrentPlanBefore')} (<span className="font-bold">{subscription.plan}</span>){' '}
+              {t('keepCurrentPlanAfter')}
             </div>
 
             <div className="flex w-full flex-col-reverse justify-end gap-3 sm:flex-row">
@@ -571,7 +546,7 @@ export default function PlansPage() {
                 disabled={isCancellingDowngrade}
                 className="rounded-xl px-4 py-2 text-sm font-bold text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
               >
-                Cerrar
+                {t('closeButton')}
               </button>
               <button
                 onClick={async () => {
@@ -582,7 +557,7 @@ export default function PlansPage() {
                 className="flex items-center justify-center gap-2 rounded-xl bg-info px-4 py-2 text-sm font-bold text-brand-white transition-colors hover:bg-info-600 disabled:opacity-50"
               >
                 {isCancellingDowngrade && <Loader2 size={16} className="animate-spin" />}
-                Confirmar Cancelación
+                {t('confirmCancellation')}
               </button>
             </div>
           </div>
@@ -599,17 +574,16 @@ export default function PlansPage() {
               <PartyPopper size={40} className="text-success-500" />
             </div>
             <div className="space-y-2 text-center">
-              <h3 className="text-2xl font-bold text-text-primary">¡Plan actualizado!</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{t('planUpdatedHeading')}</h3>
               <p className="max-w-sm text-sm text-text-secondary">
-                Tu suscripción ha sido actualizada al plan <strong>{changedPlanName}</strong>.
-                Gracias por tu confianza. Los cambios pueden tardar unos segundos en reflejarse.
+                {t('planUpdatedTextBefore')} <strong>{changedPlanName}</strong>{t('planUpdatedTextAfter')}
               </p>
             </div>
             <button
               onClick={() => setShowPlanChangeSuccess(false)}
               className="rounded-xl bg-accent px-6 py-3 text-sm font-bold text-text-inverse transition-opacity hover:opacity-90"
             >
-              ¡Entendido!
+              {t('understoodButton')}
             </button>
           </div>
         </Modal>
@@ -621,19 +595,14 @@ export default function PlansPage() {
               <RefreshCw size={40} className="text-success-500" />
             </div>
             <div className="space-y-2 text-center">
-              <h3 className="text-2xl font-bold text-text-primary">
-                ¡Bienvenido de vuelta!
-              </h3>
-              <p className="max-w-sm text-sm text-text-secondary">
-                Tu suscripción ha sido reactivada exitosamente. Seguirás disfrutando de todos tus
-                beneficios sin interrupción.
-              </p>
+              <h3 className="text-2xl font-bold text-text-primary">{t('resumeSuccessHeading')}</h3>
+              <p className="max-w-sm text-sm text-text-secondary">{t('resumeSuccessText')}</p>
             </div>
             <button
               onClick={() => setShowResumeSuccess(false)}
               className="rounded-xl bg-accent px-6 py-3 text-sm font-bold text-text-inverse transition-opacity hover:opacity-90"
             >
-              ¡Continuar!
+              {t('continueButton')}
             </button>
           </div>
         </Modal>
@@ -642,10 +611,10 @@ export default function PlansPage() {
         <div className="space-y-8 pt-6">
           <div className="space-y-3">
             <h2 className="text-3xl font-bold tracking-tight text-text-primary">
-              Servicios de Élite
+              {t('eliteServicesHeading')}
             </h2>
             <p className="max-w-xl font-medium text-text-secondary">
-              Capacidad ilimitada y acompañamiento experto para escalar tu transformación digital.
+              {t('eliteServicesDesc')}
             </p>
           </div>
           <SpecializedCards />

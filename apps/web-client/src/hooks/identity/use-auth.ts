@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
 import { useRouter } from '@/i18n/routing';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 export interface User {
   sub: string;
@@ -178,6 +179,7 @@ export function useSignupStepThree() {
 export function useLogout() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const t = useTranslations('DashboardNav');
 
   return useMutation({
     mutationFn: async () => {
@@ -189,8 +191,8 @@ export function useLogout() {
       router.push('/login');
     },
     onError: () => {
-      toast.error('Error al cerrar sesión', {
-        description: 'No se pudo cerrar la sesión. Intenta de nuevo.',
+      toast.error(t('logoutError'), {
+        description: t('logoutErrorDesc'),
       });
     },
   });

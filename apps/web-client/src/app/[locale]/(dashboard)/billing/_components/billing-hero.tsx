@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Shield, CreditCard, AlertTriangle, ArrowDownRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { SubscriptionPlan, OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
 
 interface BillingHeroProps {
@@ -26,6 +27,7 @@ export default function BillingHero({
   cancelAtPeriodEnd = false,
   pendingPlanChange = null,
 }: BillingHeroProps) {
+  const t = useTranslations('BillingHero');
   const isNegative = credits.available < 0;
   const formattedBalance = Math.abs(credits.available).toLocaleString();
   const nextDateFormatted = nextBillingDate
@@ -34,8 +36,8 @@ export default function BillingHero({
 
   // Plan Display Helper
   const getPlanLabel = (p: SubscriptionPlan) => {
-    if (p === SubscriptionPlan.FREE) return 'Nivel Inicial';
-    return 'Suscripción Premium';
+    if (p === SubscriptionPlan.FREE) return t('planFree');
+    return t('planPremium');
   };
 
   // Subscription Status Helper
@@ -44,7 +46,7 @@ export default function BillingHero({
       case 'active':
       case 'ACTIVE':
         return {
-          label: 'Activo',
+          label: t('statusActive'),
           color: 'bg-success-500',
           text: 'text-success-400',
           bg: 'bg-success-500/20',
@@ -52,7 +54,7 @@ export default function BillingHero({
       case 'PAST_DUE':
       case 'past_due':
         return {
-          label: 'Pago Pendiente',
+          label: t('statusPastDue'),
           color: 'bg-danger',
           text: 'text-danger-400',
           bg: 'bg-danger/20',
@@ -60,7 +62,7 @@ export default function BillingHero({
       case 'CANCELED':
       case 'canceled':
         return {
-          label: 'Cancelado',
+          label: t('statusCanceled'),
           color: 'bg-neutral-500',
           text: 'text-neutral-400',
           bg: 'bg-neutral-500/20',
@@ -91,11 +93,11 @@ export default function BillingHero({
           <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-widest opacity-60">
             {isNegative ? (
               <>
-                <span className="text-danger-500">Balance Negativo</span>
+                <span className="text-danger-500">{t('negativeBalance')}</span>
               </>
             ) : (
               <div className="flex items-center gap-2">
-                <span>Créditos Disponibles</span>
+                <span>{t('availableCredits')}</span>
               </div>
             )}
           </div>
@@ -109,14 +111,13 @@ export default function BillingHero({
               {isNegative ? '-' : ''}
               {formattedBalance}
             </motion.span>
-            <span className="text-xl font-medium opacity-40">créditos</span>
+            <span className="text-xl font-medium opacity-40">{t('creditsUnit')}</span>
           </div>
 
           {/* Negative Balance Helper Text */}
           {isNegative && (
             <p className="max-w-md text-sm text-danger-500">
-              Has excedido tu límite. El consumo extra (${OVERAGE_PRICE_PER_CREDIT}/crédito) se
-              cargará en tu próxima factura.
+              {t('overdraftText', { price: OVERAGE_PRICE_PER_CREDIT })}
             </p>
           )}
         </div>
@@ -141,12 +142,12 @@ export default function BillingHero({
             {cancelAtPeriodEnd ? (
               <div className="inline-flex items-center gap-2 rounded-full bg-warning-500/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-warning-400">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-warning-500" />
-                Cancelación Pendiente
+                {t('pendingCancellation')}
               </div>
             ) : pendingPlanChange ? (
               <div className="inline-flex items-center gap-2 rounded-full bg-info/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-info-400">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-info" />
-                Cambio programado → {pendingPlanChange}
+                {t('scheduledChange', { plan: pendingPlanChange })}
               </div>
             ) : (
               <div
@@ -159,8 +160,9 @@ export default function BillingHero({
 
             {(status === 'PAST_DUE' || status === 'past_due') && (
               <p className="max-w-[200px] text-right text-xs text-danger-400">
-                No pudimos procesar tu último pago. Usa el <strong>Portal de Pagos</strong> para
-                actualizar tu método de pago.
+                {t.rich('paymentFailedText', {
+                  bold: (chunks) => <strong>{chunks}</strong>
+                })}
               </p>
             )}
 
@@ -169,19 +171,17 @@ export default function BillingHero({
                 {cancelAtPeriodEnd ? (
                   <>
                     <AlertTriangle size={14} />
-                    <span>Se cancela el {nextDateFormatted}</span>
+                    <span>{t('cancelsOn', { date: nextDateFormatted })}</span>
                   </>
                 ) : pendingPlanChange ? (
                   <>
                     <ArrowDownRight size={14} />
-                    <span>
-                      Cambia a {pendingPlanChange} el {nextDateFormatted}
-                    </span>
+                    <span>{t('changesTo', { plan: pendingPlanChange, date: nextDateFormatted })}</span>
                   </>
                 ) : (
                   <>
                     <Shield size={14} />
-                    <span>Renueva el {nextDateFormatted}</span>
+                    <span>{t('renewsOn', { date: nextDateFormatted })}</span>
                   </>
                 )}
               </div>

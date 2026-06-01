@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 
 interface UsageCardProps {
   title: string;
@@ -10,6 +11,7 @@ interface UsageCardProps {
 }
 
 export default function UsageCard({ title, icon, used, limit, unit }: UsageCardProps) {
+  const t = useTranslations('BillingUsage');
   const isUnlimited = limit === -1;
   const percentage = isUnlimited ? 0 : Math.min((used / limit) * 100, 100);
 
@@ -26,7 +28,7 @@ export default function UsageCard({ title, icon, used, limit, unit }: UsageCardP
         {/* Unlimited Badge */}
         {isUnlimited && (
           <span className="rounded-full bg-surface-secondary px-2.5 py-0.5 text-xs font-medium text-text-tertiary">
-            Ilimitado
+            {t('unlimited')}
           </span>
         )}
       </div>

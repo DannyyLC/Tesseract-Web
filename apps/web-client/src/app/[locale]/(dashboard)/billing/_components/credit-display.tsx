@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { AlertCircle } from 'lucide-react';
 
 interface CreditDisplayProps {
@@ -7,6 +8,7 @@ interface CreditDisplayProps {
 }
 
 export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDisplayProps) {
+  const t = useTranslations('BillingCredits');
   const isNegative = balance < 0;
 
   // Format number with commas
@@ -24,10 +26,10 @@ export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDi
             {isNegative ? (
               <>
                 <AlertCircle size={16} className="text-danger" />
-                <span className="text-danger-400">Balance Negativo (Overdraft)</span>
+                <span className="text-danger-400">{t('negativeBalance')}</span>
               </>
             ) : (
-              <span>Créditos Disponibles</span>
+              <span>{t('availableCredits')}</span>
             )}
           </div>
 
@@ -40,7 +42,7 @@ export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDi
               {isNegative ? '-' : ''}
               {formattedBalance}
             </motion.span>
-            <span className="text-xl font-medium opacity-40">créditos</span>
+            <span className="text-xl font-medium opacity-40">{t('creditsUnit')}</span>
           </div>
         </div>
 
@@ -48,11 +50,11 @@ export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDi
           <div
             className={`rounded-full px-4 py-1.5 text-sm font-medium backdrop-blur-md ${isNegative ? 'bg-danger/20 text-danger-500' : 'bg-white/10 text-text-inverse'}`}
           >
-            {isNegative ? 'Pago pendiente' : 'Activo'}
+            {isNegative ? t('paymentPending') : t('active')}
           </div>
           {isNegative && (
             <p className="max-w-[200px] text-right text-xs opacity-60">
-              El consumo excedente se facturará en el próximo ciclo.
+              {t('overdraftNote')}
             </p>
           )}
         </div>
