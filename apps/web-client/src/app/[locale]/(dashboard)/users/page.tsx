@@ -634,7 +634,7 @@ export default function UsersPage() {
                     ? t('noResultsForQuery', { query: searchQuery })
                     : filterRole !== 'all'
                       ? t('noMembersWithRole', {
-                          role: roleFilters.find((f) => f.value === filterRole)?.label,
+                          role: roleFilters.find((f) => f.value === filterRole)?.label ?? filterRole,
                         })
                       : t('noMembers')}
               </h3>
