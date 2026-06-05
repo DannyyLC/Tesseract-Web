@@ -398,6 +398,28 @@ yield agents_pb2.AgentStreamEvent(type="metadata", metadata=json.dumps(metadata_
 
 El Gateway que procesa el streaming ya parsea ese JSON — solo necesita leer la nueva clave `variables_json`.
 
+### 5e. Limitación conocida: "tag-leak" del `[ROUTE:x]` en streaming
+
+**Qué es.** En modo streaming, el tag `[ROUTE:x]` puede aparecer visible en la pantalla del usuario, aunque internamente el `intent` se extrae y guarda correctamente. Verificado en una corrida real con OpenAI: el usuario vio `"...horario de 9 AM a 6 PM. [ROUTE:general] Si necesitas..."`.
+
+**Por qué pasa.** La limpieza del tag ocurre en el nodo del grafo (`_make_agent_node`), **después** de que el LLM terminó de generar. Pero `ExecuteStream` reenvía cada token al usuario en el evento `on_chat_model_stream`, **en el instante en que el LLM lo produce** — antes de que el nodo procese y limpie la respuesta. Los tokens del tag ya viajaron al usuario y no se pueden "des-enviar".
+
+```
+LLM genera token a token:  "...6 PM." → "[ROUTE:" → "general" → "]" ...
+        ↓ on_chat_model_stream reenvía cada token al instante
+usuario ve en vivo:        "...6 PM. [ROUTE:general] ..."   ← el tag se cuela
+        ↓ (después) el nodo limpia el tag, pero ya es tarde para el stream
+```
+
+**Cuándo pasa.** Solo con ambas condiciones a la vez: (1) el canal usa `ExecuteStream`/SSE, y (2) un agente incluye `[ROUTE:x]` en un mensaje que se está streameando. En el path no-streaming (`Execute`) **nunca** ocurre, porque la respuesta se procesa completa antes de entregarse (y además el Gateway toma solo el último mensaje).
+
+**Alcance.** Es inherente a streamear tokens crudos, no un bug de la persistencia de estado. La feature de `variables_json`/`persist_variables` funciona correctamente en ambos paths; lo único afectado es la *visibilidad* del tag en streaming.
+
+**Opciones de mitigación (fuera del alcance de este cambio):**
+1. **Por prompt (casi gratis, parcial):** instruir a los especialistas a emitir **solo** `[ROUTE:x]` sin texto acompañante cuando rutean. Así el mensaje con tag queda vacío y el que ve el usuario es el del agente final, sin tag.
+2. **Buffer con centinela:** en `ExecuteStream`, retener tokens al detectar `[` y soltarlos solo si no era un `[ROUTE:`. Robusto, leve latencia, algo de código.
+3. **No streamear agentes con `classification_pattern`:** ejecutarlos en modo buffer y streamear únicamente al agente final.
+
 ---
 
 ## 6. Gateway — mapper de respuesta (corrección no obvia)

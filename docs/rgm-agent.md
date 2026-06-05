@@ -141,6 +141,8 @@ Si el contenido del mensaje queda vacío tras eliminar el tag, el mensaje no se 
 
 Cuando un agente incluye `[ROUTE:x]`, su respuesta **nunca llega al usuario**, independientemente del texto que la acompañe. El mensaje con el tag se usa únicamente como contexto interno para el siguiente agente en la cadena. El usuario solo ve la respuesta del agente final que contesta sin incluir un tag de ruteo.
 
+> **⚠️ Excepción en canales con streaming (efecto "tecleo" en vivo, p.ej. la API web/SSE):** el tag `[ROUTE:x]` **sí puede verse** momentáneamente, porque en streaming el texto se muestra token a token mientras el LLM lo escribe, antes de que el sistema limpie el tag. En canales sin streaming (p.ej. WhatsApp) nunca se ve. **Mitigación recomendada por prompt:** cuando un agente vaya a rutear, debe emitir **solo** `[ROUTE:x]` sin texto adicional (ver templates abajo). Así el mensaje con tag queda vacío y el usuario solo ve la respuesta del agente final. El problema aparece cuando un agente responde *y* rutea en el mismo mensaje.
+
 ### Ejemplo completo
 
 El clasificador genera:
