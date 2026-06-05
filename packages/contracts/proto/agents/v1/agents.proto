@@ -73,6 +73,7 @@ message ExecutionMetadata {
   int64                   total_tokens            = 6;
   map<string, ModelUsage> usage_by_model          = 7;
   HumanHandoff            human_handoff_requested = 8;
+  string                  variables_json          = 9;  // JSON string genérico: estado a persistir por el workflow
 }
 
 message ModelUsage {

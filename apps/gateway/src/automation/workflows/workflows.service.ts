@@ -988,6 +988,10 @@ export class WorkflowsService {
 
       // 7. EXTRAER TOKENS Y CALCULAR COSTO (multi-modelo con BATCH QUERY)
       const responseMetadata = (agentResponse.metadata ?? {}) as any;
+
+      // Persistir el estado del workflow (ya filtrado por el servicer vía persist_variables)
+      await this.persistConversationVariables(conversation, responseMetadata.variables_json);
+
       const humanHandoffRequested = responseMetadata.human_handoff_requested;
       const totalTokens = responseMetadata.total_tokens ?? 0;
       const usageByModel = responseMetadata.usage_by_model ?? {};
@@ -1501,6 +1505,9 @@ export class WorkflowsService {
             );
           }
 
+          // 4b. Persistir el estado del workflow (ya filtrado por el servicer vía persist_variables)
+          await this.persistConversationVariables(conversation, metadataEvent?.variables_json);
+
           // 5. Actualizar Ejecución
           await this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
             result: {
@@ -1763,6 +1770,11 @@ export class WorkflowsService {
         ]
       : messageHistory;
 
+    // Variables persistidas de la conversación (las usa el workflow para recordar estado entre
+    // mensajes). El Gateway es agnóstico: solo reenvía el blob tal cual lo guardó.
+    const persistedVariables =
+      (conversation.metadata as Record<string, any>)?.variables ?? {};
+
     // 7. Construir el payload final
     const payload = {
       // Identificación (OBLIGATORIOS)
@@ -1782,6 +1794,7 @@ export class WorkflowsService {
       // Historial y metadata
       message_history: composedHistory,
       timezone: workflow.timezone ?? 'UTC',
+      user_metadata: { variables: persistedVariables },
     };
 
     // Sanitizar payload para logging (remover credenciales)
@@ -1809,6 +1822,36 @@ export class WorkflowsService {
     );
 
     return payload;
+  }
+
+  /**
+   * Guarda el estado del workflow en Conversation.metadata.variables.
+   *
+   * El Gateway es 100% agnóstico: `variablesJson` ya viene filtrado por el servicer (solo las
+   * claves que el workflow declaró en `persist_variables`). Aquí no se conoce ni filtra ningún
+   * nombre de variable — se guarda verbatim. Nunca debe romper la respuesta al usuario.
+   */
+  private async persistConversationVariables(
+    conversation: { id: string; metadata?: unknown },
+    variablesJson?: string,
+  ): Promise<void> {
+    if (!variablesJson) return;
+    try {
+      const vars = JSON.parse(variablesJson);
+      await this.prisma.conversation.update({
+        where: { id: conversation.id },
+        data: {
+          metadata: {
+            ...((conversation.metadata as object) ?? {}),
+            variables: vars,
+          },
+        },
+      });
+    } catch (e) {
+      this.logger.warn(
+        `Failed to persist conversation variables for ${conversation.id}: ${(e as Error).message}`,
+      );
+    }
   }
 
   private async compactConversationIfThresholdReached(

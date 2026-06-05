@@ -85,12 +85,25 @@ def _proto_to_pydantic_request(req: agents_pb2.AgentExecutionRequest) -> AgentEx
     )
 
 
+def _filter_persistent_variables(variables: dict, ctx) -> str:
+    """
+    Filtra el estado final del grafo a solo las claves que el workflow declaró persistentes
+    en graph_config["persist_variables"], y lo serializa a JSON string.
+
+    El motor es agnóstico: cada workflow elige qué persiste. Sin persist_variables → "{}".
+    """
+    persist_keys = ctx.graph_config.get("persist_variables", []) or []
+    persisted = {k: variables[k] for k in persist_keys if k in variables}
+    return json.dumps(persisted)
+
+
 def _build_execution_metadata(
     execution_time_ms: int,
     graph_type: str,
     agents_count: int,
     usage_by_model: dict,
     human_handoff: dict | None,
+    variables_json: str = "{}",
 ) -> agents_pb2.ExecutionMetadata:
     total_input = sum(v["input_tokens"] for v in usage_by_model.values())
     total_output = sum(v["output_tokens"] for v in usage_by_model.values())
@@ -119,6 +132,7 @@ def _build_execution_metadata(
         total_tokens=total_input + total_output,
         usage_by_model=model_usage_proto,
         human_handoff_requested=handoff_proto,
+        variables_json=variables_json,
     )
 
 
@@ -153,7 +167,16 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
             messages = convert_message_history_to_langchain(validated.message_history)
             messages.append(HumanMessage(content=validated.user_message))
 
-            result = graph.invoke({"messages": messages, "iteration_count": 0})
+            # Cargar variables persistidas de la conversación (las popula el Gateway). Las variables
+            # efímeras (p.ej. reroute_count) no llegan aquí y el grafo las inicializa cuando las necesita.
+            persisted_variables = validated.user_metadata.get("variables", {}) or {}
+            result = graph.invoke({
+                "messages":        messages,
+                "variables":       persisted_variables,
+                "current_node":    "",
+                "execution_path":  [],
+                "iteration_count": 0,
+            })
             execution_time_ms = int((time.time() - start_time) * 1000)
 
             output_messages = result.get("messages", [])
@@ -206,6 +229,7 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
                 agents_count=len(ctx.agents_config),
                 usage_by_model=usage_by_model,
                 human_handoff=human_handoff,
+                variables_json=_filter_persistent_variables(result.get("variables", {}), ctx),
             )
 
             return agents_pb2.AgentExecutionResponse(
@@ -233,6 +257,7 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
         usage_by_model: dict[str, dict] = {}
         max_input_per_model: dict[str, int] = {}
         human_handoff: dict | None = None
+        final_variables: dict = {}
 
         try:
             pydantic_req = _proto_to_pydantic_request(request)
@@ -243,11 +268,28 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
             messages = convert_message_history_to_langchain(validated.message_history)
             messages.append(HumanMessage(content=validated.user_message))
 
+            # Cargar variables persistidas (ver Execute). Idéntico al path no-streaming.
+            persisted_variables = validated.user_metadata.get("variables", {}) or {}
+
             async for event in graph.astream_events(
-                {"messages": messages, "iteration_count": 0},
+                {
+                    "messages":        messages,
+                    "variables":       persisted_variables,
+                    "current_node":    "",
+                    "execution_path":  [],
+                    "iteration_count": 0,
+                },
                 version="v2",
             ):
                 event_type = event.get("event", "")
+
+                # Capturar el estado final del grafo. astream_events no expone un "final_result";
+                # acumulamos el último output que traiga 'variables' (el último corresponde al cierre
+                # del grafo raíz). Se filtra por persist_variables al emitir el metadata final.
+                if event_type == "on_chain_end":
+                    output = event.get("data", {}).get("output")
+                    if isinstance(output, dict) and "variables" in output:
+                        final_variables = output["variables"]
 
                 if event_type == "on_chat_model_stream":
                     chunk = event.get("data", {}).get("chunk")
@@ -333,6 +375,7 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
                     "total_tokens": total_input + total_output,
                     "usage_by_model": usage_by_model,
                     "human_handoff_requested": human_handoff,
+                    "variables_json": _filter_persistent_variables(final_variables, ctx),
                 }),
             )
             yield agents_pb2.AgentStreamEvent(type="end", content="")

@@ -237,7 +237,8 @@ def _evaluate_condition(op: str, field_value: Any, compare_value: Any) -> bool:
 # FÁBRICAS DE NODOS
 # =============================================================================
 
-def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None, ctx: TenantContext):
+def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None, ctx: TenantContext,
+                     classification_pattern: str | None = None):
     """
     Crea un nodo que llama al LLM y opcionalmente guarda su respuesta en variables.
 
@@ -245,13 +246,20 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
     No ejecuta tools — para eso usar nodos de tipo 'tool'.
 
     Args:
-        node_id:         ID del nodo (para logging)
-        agent_name:      Clave en agents_config ("default", "classifier", "sales", etc)
-        output_variable: Si se especifica, guarda el content de la respuesta en variables[output_variable]
-        ctx:             TenantContext con toda la configuración
+        node_id:                ID del nodo (para logging)
+        agent_name:             Clave en agents_config ("default", "classifier", "sales", etc)
+        output_variable:        Si se especifica, guarda un valor en variables[output_variable].
+                                Sin classification_pattern → guarda el content completo (comportamiento
+                                clásico). Con classification_pattern → guarda el grupo extraído del patrón.
+        ctx:                    TenantContext con toda la configuración
+        classification_pattern: Regex opcional. Si el LLM incluye el patrón en su respuesta, se extrae el
+                                grupo 1 como "intent", se guarda en variables[output_variable] y el tag se
+                                limpia del mensaje visible. Si el mensaje queda vacío tras limpiar, no se
+                                agrega al historial. Si variables.routing_locked es True, el patrón se ignora.
     """
     # Inicializar LLM una sola vez (closure)
     llm = get_llm(ctx, agent_name)
+    pattern = re.compile(classification_pattern) if classification_pattern else None
 
     logger.info(f"[{ctx.workflow_id}] Pipeline node '{node_id}' (agent:{agent_name}) initialized")
 
@@ -259,6 +267,10 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
         messages = list(state["messages"])
         agent_config = ctx.get_agent_config(agent_name)
         base_system_prompt = agent_config.get("system_prompt", "")
+
+        # Copia de variables para acumular los cambios de este nodo
+        variables = dict(state.get("variables", {}))
+        variables_changed = False
 
         # Inyectar contexto de tiempo (igual que en ReAct)
         try:
@@ -277,6 +289,13 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
 
         system_prompt = base_system_prompt + time_context if base_system_prompt else time_context
 
+        # Canal interno: un nodo set_variables previo pudo dejar texto a sumar al system prompt.
+        # Se consume aquí (se elimina de variables) para no afectar a nodos posteriores.
+        append_system_msg = variables.pop("__append_system_message__", None)
+        if append_system_msg:
+            system_prompt = (system_prompt + "\n\n" + append_system_msg) if system_prompt else append_system_msg
+            variables_changed = True
+
         if system_prompt:
             if not messages or messages[0].type != "system":
                 messages = [SystemMessage(content=system_prompt)] + messages
@@ -294,21 +313,61 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
             logger.error(f"[{ctx.workflow_id}] Node '{node_id}' LLM error: {e}", exc_info=True)
             response = AIMessage(content=f"Error en nodo {node_id}: {str(e)}")
 
+        content = response.content
+
         updates: Dict[str, Any] = {
-            "messages": [response],
             "current_node": node_id,
             "execution_path": list(state.get("execution_path", [])) + [node_id],
         }
 
-        # Guardar la respuesta en variables si se configuró output_variable
-        if output_variable:
-            variables = dict(state.get("variables", {}))
-            variables[output_variable] = response.content.strip()
-            updates["variables"] = variables
+        # Si el nodo tiene classification_pattern, output_variable lo gestiona SOLO el patrón:
+        # con routing_locked o sin match, el intent queda intacto (no se toca output_variable).
+        if pattern:
+            if not variables.get("routing_locked"):
+                match = pattern.search(content)
+                if match:
+                    extracted = match.group(1).strip().lower()
+                    content = pattern.sub("", content).strip()
+
+                    previous_intent = variables.get(output_variable, "") if output_variable else ""
+                    if output_variable:
+                        variables[output_variable] = extracted
+                        variables_changed = True
+
+                    # Incrementar reroute_count solo si el intent realmente cambió
+                    if extracted != previous_intent:
+                        variables["reroute_count"] = variables.get("reroute_count", 0) + 1
+                        variables_changed = True
+
+                    logger.info(
+                        f"[{ctx.workflow_id}] Node '{node_id}' extracted intent '{extracted}' "
+                        f"(reroute_count={variables.get('reroute_count', 0)})"
+                    )
+        elif output_variable:
+            # Comportamiento clásico (sin classification_pattern): guardar el content completo
+            variables[output_variable] = content.strip()
+            variables_changed = True
             logger.info(
                 f"[{ctx.workflow_id}] Node '{node_id}' stored response in "
-                f"variables.{output_variable}: '{response.content.strip()[:100]}'"
+                f"variables.{output_variable}: '{content.strip()[:100]}'"
             )
+
+        # Solo agregar el mensaje si queda contenido visible tras limpiar el tag.
+        # Si quedó vacío (era solo el tag de ruteo) → no se contamina el historial.
+        if content:
+            if content == response.content:
+                updates["messages"] = [response]
+            else:
+                # Mensaje limpio, preservando metadata de tokens para el accounting del servicer
+                cleaned = AIMessage(content=content)
+                if getattr(response, "usage_metadata", None):
+                    cleaned.usage_metadata = response.usage_metadata
+                if getattr(response, "response_metadata", None):
+                    cleaned.response_metadata = response.response_metadata
+                updates["messages"] = [cleaned]
+
+        if variables_changed:
+            updates["variables"] = variables
 
         return updates
 
@@ -415,6 +474,43 @@ def _make_tool_node(node_id: str, config: Dict[str, Any], ctx: TenantContext):
     return node
 
 
+def _make_set_variables_node(node_id: str, config: Dict[str, Any], ctx: TenantContext):
+    """
+    Nodo sin LLM que:
+    1. Setea variables en el estado.
+    2. Opcionalmente deja texto para sumar al system prompt del siguiente nodo agent
+       (vía el canal interno variables.__append_system_message__, que el agent consume y limpia).
+
+    Config:
+        variables:             dict con las variables a setear
+        append_system_message: texto a agregar al system prompt del siguiente nodo agent
+    """
+    variables_to_set = config.get("variables", {})
+    append_msg = config.get("append_system_message", "")
+
+    logger.info(f"[{ctx.workflow_id}] set_variables node '{node_id}' initialized")
+
+    def node(state: PipelineAgentState) -> dict:
+        variables = dict(state.get("variables", {}))
+        variables.update(variables_to_set)
+
+        if append_msg:
+            variables["__append_system_message__"] = append_msg
+
+        logger.info(
+            f"[{ctx.workflow_id}] set_variables '{node_id}': "
+            f"vars={list(variables_to_set.keys())}, append_msg={bool(append_msg)}"
+        )
+
+        return {
+            "variables": variables,
+            "current_node": node_id,
+            "execution_path": list(state.get("execution_path", [])) + [node_id],
+        }
+
+    return node
+
+
 def _make_condition_function(node_id: str, config: Dict[str, Any], ctx: TenantContext):
     """
     Crea la función de condición para un conditional edge de LangGraph.
@@ -499,10 +595,66 @@ def _make_condition_function(node_id: str, config: Dict[str, Any], ctx: TenantCo
 
         return rules_condition
 
+    elif mode == "router":
+        # Router conversacional con anti-loop. Rutea según un intent persistido y usa
+        # execution_path para saber qué agentes ya respondieron en este ciclo.
+        route_variable = config["route_variable"]   # e.g. "variables.intent"
+        routes = config["routes"]                    # {"ventas": "agent_ventas", ...}
+        fallback = config.get("fallback", END)
+        max_reroutes = config.get("max_reroutes", 3)
+        lock_node = config.get("lock_node")          # ID del nodo set_variables de lock (opcional)
+
+        def router_condition(state: PipelineAgentState) -> str:
+            variables = state.get("variables", {})
+            execution_path = state.get("execution_path", [])
+            reroute_count = variables.get("reroute_count", 0)
+
+            # Anti-loop: máximo de re-ruteos alcanzado
+            if reroute_count >= max_reroutes and lock_node:
+                if lock_node not in execution_path:
+                    logger.warning(
+                        f"[{ctx.workflow_id}] Router '{node_id}': max_reroutes ({max_reroutes}) "
+                        f"alcanzado → '{lock_node}'"
+                    )
+                    return lock_node
+                logger.info(f"[{ctx.workflow_id}] Router '{node_id}': lock ya en path → END")
+                return END
+
+            intent = _resolve_path(state, route_variable)
+            intent_str = str(intent).strip().lower() if intent else ""
+
+            # Sin intent válido → fallback (p.ej. classifier)
+            if not intent_str or intent_str not in routes:
+                if fallback in execution_path:
+                    logger.info(
+                        f"[{ctx.workflow_id}] Router '{node_id}': fallback '{fallback}' ya en path → END"
+                    )
+                    return END
+                logger.info(
+                    f"[{ctx.workflow_id}] Router '{node_id}': intent='{intent_str}' → fallback '{fallback}'"
+                )
+                return fallback
+
+            target_node = routes[intent_str]
+
+            # El agente destino ya respondió en este ciclo → terminar
+            if target_node in execution_path:
+                logger.info(
+                    f"[{ctx.workflow_id}] Router '{node_id}': '{target_node}' ya en path → END"
+                )
+                return END
+
+            logger.info(
+                f"[{ctx.workflow_id}] Router '{node_id}': intent='{intent_str}' → '{target_node}'"
+            )
+            return target_node
+
+        return router_condition
+
     else:
         raise ValueError(
             f"[{ctx.workflow_id}] Condition node '{node_id}': "
-            f"mode desconocido '{mode}'. Usar 'switch' o 'rules'."
+            f"mode desconocido '{mode}'. Usar 'switch', 'rules' o 'router'."
         )
 
 
@@ -569,13 +721,21 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
         if node_type == "agent":
             agent_name = node.get("agent", "default")
             output_variable = node.get("output_variable")
-            graph.add_node(node_id, _make_agent_node(node_id, agent_name, output_variable, ctx))
+            classification_pattern = node.get("classification_pattern")
+            graph.add_node(node_id, _make_agent_node(
+                node_id, agent_name, output_variable, ctx, classification_pattern
+            ))
             logger.debug(f"[{ctx.workflow_id}] Added agent node: '{node_id}' (agent: {agent_name})")
 
         elif node_type == "tool":
             tool_config = node.get("config", {})
             graph.add_node(node_id, _make_tool_node(node_id, tool_config, ctx))
             logger.debug(f"[{ctx.workflow_id}] Added tool node: '{node_id}'")
+
+        elif node_type == "set_variables":
+            node_config = node.get("config", {})
+            graph.add_node(node_id, _make_set_variables_node(node_id, node_config, ctx))
+            logger.debug(f"[{ctx.workflow_id}] Added set_variables node: '{node_id}'")
 
         elif node_type == "condition":
             # Los nodos condition NO se agregan al grafo de LangGraph.
@@ -587,7 +747,7 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
         else:
             raise ValueError(
                 f"[{ctx.workflow_id}] Unknown node type '{node_type}' in node '{node_id}'. "
-                f"Supported types: 'agent', 'tool', 'condition'"
+                f"Supported types: 'agent', 'tool', 'set_variables', 'condition'"
             )
 
     # =========================================================================

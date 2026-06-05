@@ -1,6 +1,8 @@
 # Workflow: Router Conversacional con Especialistas
 
-Documento de implementación para el equipo de agentes. Describe la arquitectura, el mecanismo de ruteo, las variables del sistema y cómo escribir los system prompts.
+**Audiencia:** quien arma workflows en la plataforma (equipo de agentes / configuradores), sin necesidad de conocer el código interno de Tesseract. Describe cómo **configurar** este workflow usando las capacidades que ofrece el motor Pipeline: la arquitectura del grafo, el mecanismo de ruteo, las variables y cómo escribir los system prompts.
+
+> Este es **un** workflow de ejemplo entre muchos posibles. El motor Pipeline es genérico; aquí se combinan sus piezas (nodos `agent`, condición `router`, `set_variables`, `persist_variables`) para construir un router conversacional. Otros workflows usarán otras combinaciones. Para los cambios a nivel de código que habilitan estas piezas, ver [tesseract-rgm.md](tesseract-rgm.md).
 
 ---
 
@@ -166,24 +168,30 @@ El mensaje queda vacío → no se agrega al historial → el agente de soporte r
 
 ## 5. Variables del Sistema
 
-Las variables del sistema se dividen en dos categorías según su ciclo de vida:
+Durante una ejecución, el grafo mantiene un conjunto de variables en memoria. **Tú decides cuáles sobreviven entre mensajes** mediante el campo `persist_variables` del `graph_config` (lista de nombres de variables). Las que listas se guardan en la conversación y vuelven a cargarse en el siguiente mensaje; las que no listas viven solo durante esa ejecución y se descartan al terminar.
 
-### Variables persistentes (sobreviven entre mensajes)
+Para este workflow router declaramos:
 
-| Variable | Tipo | Descripción |
-|---|---|---|
-| `intent` | `string` | Intent actual. Determina a qué especialista se dirige el siguiente mensaje. Vacío = no clasificado. |
+```json
+"persist_variables": ["intent"]
+```
 
-Solo `intent` se preserva entre mensajes. Es la única información que el sistema necesita recordar de una conversación a la siguiente.
-
-### Variables de ejecución (se reinician en cada mensaje)
+### Variables que persisten (porque están en `persist_variables`)
 
 | Variable | Tipo | Descripción |
 |---|---|---|
-| `reroute_count` | `int` | Contador de cambios de intent dentro de la ejecución actual. Siempre inicia en `0` con cada nuevo mensaje del usuario. |
-| `routing_locked` | `bool` | Activo solo durante ejecuciones donde se alcanzó `max_reroutes`. Siempre inicia en `false` con cada nuevo mensaje. |
+| `intent` | `string` | Intent actual. Determina a qué especialista se dirige el siguiente mensaje. Vacío = no clasificado. Es lo único que este workflow necesita recordar de un mensaje al siguiente. |
 
-`reroute_count` y `routing_locked` **nunca se transfieren entre mensajes**. Protegen únicamente contra loops dentro de una sola ejecución (un mensaje del usuario). Lo que ocurrió en el mensaje anterior no afecta estos contadores en el siguiente.
+> Si tu workflow necesitara recordar más cosas (p.ej. el plan del cliente o su idioma), basta con agregarlas: `"persist_variables": ["intent", "customer_tier", "lang"]`. No requiere ningún cambio de código en la plataforma.
+
+### Variables de ejecución (se reinician en cada mensaje, porque NO están en `persist_variables`)
+
+| Variable | Tipo | Descripción |
+|---|---|---|
+| `reroute_count` | `int` | Contador de cambios de intent dentro de la ejecución actual. Inicia en `0` con cada nuevo mensaje del usuario. |
+| `routing_locked` | `bool` | Activo solo durante ejecuciones donde se alcanzó `max_reroutes`. Inicia en `false` con cada nuevo mensaje. |
+
+`reroute_count` y `routing_locked` **se reinician entre mensajes** simplemente porque no las incluimos en `persist_variables`. No hay nada "especial" en ellas a nivel de sistema. Protegen contra loops dentro de una sola ejecución (un mensaje del usuario); lo que ocurrió en el mensaje anterior no afecta estos contadores en el siguiente.
 
 ### Comportamiento entre mensajes
 
@@ -297,6 +305,7 @@ Esta es la estructura base del workflow. Reemplaza los valores entre corchetes c
 ```json
 {
   "type": "pipeline",
+  "persist_variables": ["intent"],
   "nodes": [
     {
       "id": "check_route",
@@ -380,6 +389,8 @@ Esta es la estructura base del workflow. Reemplaza los valores entre corchetes c
   ]
 }
 ```
+
+El campo `persist_variables` a nivel raíz del `graph_config` declara qué variables se guardan en la conversación entre mensajes. Aquí solo `intent`; lo demás (`reroute_count`, `routing_locked`) vive solo durante cada ejecución. **Si lo omites, no se persiste nada** y cada mensaje arranca sin memoria de intent.
 
 La sección `agents_config` (separada del `graph_config`) define el modelo, temperatura y system prompt de cada agente nombrado arriba (`classifier`, `tema_a`, `tema_b`, etc.).
 
@@ -473,6 +484,7 @@ Sistema:    check_route → general YA en path → END
 ## 10. Checklist de Implementación
 
 - [ ] Definir los 4 intents específicos del cliente y sus nombres en snake_case
+- [ ] Declarar `"persist_variables": ["intent"]` en el `graph_config` (agregar otras variables si el workflow necesita recordarlas entre mensajes)
 - [ ] Reemplazar `tema_a/b/c/d` en el JSON por los nombres reales de los intents
 - [ ] Escribir el system prompt del clasificador con los intents y descripciones reales
 - [ ] Escribir el system prompt de cada especialista con su información de dominio

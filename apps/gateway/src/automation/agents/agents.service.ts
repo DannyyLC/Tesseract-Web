@@ -182,6 +182,7 @@ export class AgentsService implements OnModuleInit {
             total_tokens: meta.total_tokens,
             usage_by_model: meta.usage_by_model,
             human_handoff_requested: meta.human_handoff_requested,
+            variables_json: meta.variables_json,
           }
         : undefined,
     };

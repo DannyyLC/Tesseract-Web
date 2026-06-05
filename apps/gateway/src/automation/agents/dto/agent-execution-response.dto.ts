@@ -125,6 +125,15 @@ export class ExecutionMetadataDto {
     reason?: string;
     tool_name?: string;
   } | null;
+
+  @ApiPropertyOptional({
+    description:
+      'Estado persistente del workflow como JSON string. Contiene solo las variables que el workflow declaró en persist_variables. El Gateway lo guarda verbatim en Conversation.metadata.variables.',
+    example: '{"intent":"ventas"}',
+  })
+  @IsOptional()
+  @IsString()
+  variables_json?: string;
 }
 
 export class AgentExecutionResponseDto {

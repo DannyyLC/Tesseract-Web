@@ -1,8 +1,10 @@
 # Tesseract: Cambios para Soporte de Router Conversacional
 
-Documento técnico para el equipo de plataforma. Describe todos los cambios necesarios en Tesseract para soportar el workflow de router conversacional con persistencia de estado entre mensajes.
+**Audiencia:** equipo de plataforma (desarrolladores del motor Tesseract). Este documento describe los cambios a nivel de código necesarios en el engine. Para la guía de cómo *configurar* el workflow router (sin tocar código), ver [rgm-agent.md](rgm-agent.md).
 
-Estos cambios son **genéricos** — no están atados al cliente específico. Cualquier workflow Pipeline que configure un `check_route` con modo `router`, `classification_pattern` en nodos agente o nodos `set_variables` se beneficia automáticamente.
+**Pipeline es un motor genérico** (estilo n8n / grafo de nodos). NO se convierte en un router. El router conversacional es **solo uno de potencialmente miles** de workflows muy distintos que el motor debe poder ejecutar. Todos los cambios de este documento son **extensiones opt-in del motor** — la mayoría de workflows nunca las usarán, y nada de ellas (ni `reroute_count`, ni `routing_locked`, ni `classification_pattern`, ni `intent`...) debe quedar hardcodeado como "siempre presente" en ninguna capa del sistema.
+
+Cualquier workflow Pipeline que configure un `check_route` con modo `router`, un `classification_pattern` en nodos agente o nodos `set_variables` se beneficia de estas capacidades. El estado a persistir entre mensajes lo elige **cada workflow** mediante el campo `persist_variables` de su `graph_config` (ver sección 7).
 
 ---
 
@@ -10,14 +12,15 @@ Estos cambios son **genéricos** — no están atados al cliente específico. Cu
 
 | # | Área | Archivo | Tipo de cambio |
 |---|---|---|---|
-| 1 | Proto | `packages/contracts/proto/agents/v1/agents.proto` | Nuevo campo en mensaje existente |
+| 1 | Proto | `packages/contracts/proto/agents/v1/agents.proto` | Nuevo campo `variables_json` en mensaje existente |
 | 2 | Proto bindings Python | `apps/agents/src/agents/v1/agents_pb2.py` | Regenerar desde proto |
-| 3 | Pipeline — nodo `agent` | `apps/agents/src/graphs/pipeline_agent.py` | Parámetro opcional `classification_pattern` |
+| 3 | Pipeline — nodo `agent` | `apps/agents/src/graphs/pipeline_agent.py` | Parámetro opcional `classification_pattern` + `__append_system_message__` |
 | 4 | Pipeline — condición `router` | `apps/agents/src/graphs/pipeline_agent.py` | Nuevo modo en `_make_condition_function` |
 | 5 | Pipeline — nodo `set_variables` | `apps/agents/src/graphs/pipeline_agent.py` | Nuevo tipo de nodo |
-| 6 | Servicer `Execute` | `apps/agents/src/grpc_servicer.py` | Init variables + retorno en response |
-| 7 | Gateway — payload | `apps/gateway/src/automation/workflows/workflows.service.ts` | Leer `Conversation.metadata` → `user_metadata` |
-| 8 | Gateway — post-ejecución | `apps/gateway/src/automation/workflows/workflows.service.ts` | Guardar `variables_json` → `Conversation.metadata` |
+| 6 | Servicer `Execute` / `ExecuteStream` | `apps/agents/src/grpc_servicer.py` | Init variables + filtrar por `persist_variables` + retorno en response |
+| 7 | Gateway — mapper de respuesta | `apps/gateway/src/automation/agents/agents.service.ts` (+ DTO) | Mapear `variables_json` (no se convierte solo) |
+| 8 | Gateway — payload | `apps/gateway/src/automation/workflows/workflows.service.ts` | Leer `Conversation.metadata.variables` → `user_metadata` |
+| 9 | Gateway — post-ejecución | `apps/gateway/src/automation/workflows/workflows.service.ts` | Guardar `variables_json` (verbatim) → `Conversation.metadata` |
 
 ---
 
@@ -43,18 +46,13 @@ message ExecutionMetadata {
 
 `variables_json` es un JSON string genérico. Cualquier tipo de grafo puede usarlo para retornar estado persistente al Gateway. No está atado a ninguna funcionalidad específica.
 
-Después de editar el proto, regenerar los bindings Python:
+Después de editar el proto, regenerar los bindings Python con el target del Makefile (usa `grpc_tools.protoc` vía poetry):
 
 ```bash
-cd apps/agents
-python -m grpc_tools.protoc \
-  -I../../packages/contracts/proto \
-  --python_out=src \
-  --grpc_python_out=src \
-  packages/contracts/proto/agents/v1/agents.proto
+make proto
 ```
 
-El Gateway (NestJS) deserializa el proto automáticamente mediante el cliente gRPC existente — NestJS convierte `variables_json` a `variablesJson` en camelCase.
+> **⚠️ Importante — el Gateway NO convierte el proto a camelCase automáticamente.** El cliente gRPC del Gateway pasa por un mapper manual (`mapExecutionResponse` en `agents.service.ts`) que copia campo por campo **en snake_case**. Por eso `variables_json` **no llega solo** a `workflows.service.ts`: hay que añadirlo explícitamente al mapper y a su DTO (ver sección 7). Se lee como `metadata.variables_json` (snake_case), no `variablesJson`.
 
 ---
 
@@ -320,9 +318,22 @@ result = graph.invoke({
 })
 ```
 
-`user_metadata` ya llega al servicer via proto (campo 12 del request). El Gateway lo popula con las variables persistidas de la conversación (ver cambio 7).
+`user_metadata` ya llega al servicer via proto (campo 12 del request). El Gateway lo popula con las variables persistidas de la conversación (ver cambio 8). `reroute_count` y `routing_locked` **no** se inicializan aquí: el grafo las crea en `0`/`false` cuando las necesita, y al no persistirse, se reinician naturalmente en cada ejecución.
 
-### 5b. Retornar variables en `_build_execution_metadata`
+### 5b. Filtrar lo que se persiste con `persist_variables`
+
+**El servicer no devuelve todas las variables del estado** — eso filtraría datos efímeros o internos hacia la DB. Cada workflow declara en su `graph_config` qué claves persistir, y el servicer filtra el estado final a solo esas claves. Helper compartido (lo usan `Execute` y `ExecuteStream`):
+
+```python
+def _filter_persistent_variables(variables: dict, ctx) -> str:
+    persist_keys = ctx.graph_config.get("persist_variables", [])
+    persisted = {k: variables[k] for k in persist_keys if k in variables}
+    return json.dumps(persisted)
+```
+
+Si el workflow no declara `persist_variables` (o la lista está vacía) → retorna `"{}"` y no persiste nada. Así un workflow router persiste `["intent"]`, otro `["customer_tier", "lang"]`, otro nada — sin que el servicer conozca ningún nombre de variable concreto.
+
+### 5c. Retornar `variables_json` en `_build_execution_metadata`
 
 Agregar `variables_json` como parámetro y campo en el metadata de respuesta:
 
@@ -342,7 +353,7 @@ def _build_execution_metadata(
     )
 ```
 
-En el método `Execute`, pasar las variables al builder:
+En el método `Execute`, pasar las variables **ya filtradas** al builder:
 
 ```python
 metadata = _build_execution_metadata(
@@ -351,35 +362,79 @@ metadata = _build_execution_metadata(
     agents_count=len(ctx.agents_config),
     usage_by_model=usage_by_model,
     human_handoff=human_handoff,
-    variables_json=json.dumps(result.get("variables", {})),  # ← nuevo
+    variables_json=_filter_persistent_variables(result.get("variables", {}), ctx),  # ← nuevo
 )
 ```
 
-### 5c. Streaming (`ExecuteStream`)
+### 5d. Streaming (`ExecuteStream`) — capturar el estado final
 
-El servicer de streaming ya emite un evento de tipo `"metadata"` al final con un JSON string. Incluir `variables_json` en ese JSON:
+> **⚠️ Importante — `ExecuteStream` no tiene un `final_result`.** Usa `graph.astream_events(...)`, que emite **eventos**, no un estado final acumulado. No existe `final_result.get("variables")`. Hay que capturar el estado final del grafo desde los eventos del stream.
+
+Dentro del bucle `async for event in graph.astream_events(...)`, detectar el evento de cierre del grafo raíz y guardar sus `variables`:
 
 ```python
-# Al emitir el evento metadata final en ExecuteStream:
+final_variables: dict = {}
+async for event in graph.astream_events({...}, version="v2"):
+    # ... manejo actual de tokens / tools / usage ...
+
+    # Capturar el estado final del grafo raíz
+    if event.get("event") == "on_chain_end":
+        output = event.get("data", {}).get("output")
+        if isinstance(output, dict) and "variables" in output:
+            final_variables = output["variables"]
+```
+
+> **Verificar durante implementación** la forma exacta del evento (imprimir `event["name"]`/`event["run_id"]` en una corrida): el objetivo es el `on_chain_end` del grafo compilado, no el de un nodo intermedio. La condición de arriba (acumular el último `output["variables"]` visto) es robusta porque el último `on_chain_end` con `variables` corresponde al cierre del grafo.
+
+Luego, incluir el resultado **filtrado** en el evento `metadata` final (mismo helper que 5b):
+
+```python
 metadata_payload = {
     # ... campos actuales ...
-    "variables_json": json.dumps(final_result.get("variables", {})),  # ← nuevo
+    "variables_json": _filter_persistent_variables(final_variables, ctx),  # ← nuevo
 }
-yield agents_pb2.AgentStreamEvent(
-    type="metadata",
-    metadata=json.dumps(metadata_payload),
-)
+yield agents_pb2.AgentStreamEvent(type="metadata", metadata=json.dumps(metadata_payload))
 ```
 
 El Gateway que procesa el streaming ya parsea ese JSON — solo necesita leer la nueva clave `variables_json`.
 
 ---
 
-## 6. Gateway — leer y escribir variables
+## 6. Gateway — mapper de respuesta (corrección no obvia)
+
+**Archivo:** `apps/gateway/src/automation/agents/agents.service.ts` (+ su DTO)
+
+Como se advirtió en la sección 1, el Gateway **no** convierte el proto automáticamente: el método `mapExecutionResponse()` copia campo por campo. Hay que añadir `variables_json` al objeto `metadata` mapeado, o se descarta antes de llegar a `workflows.service.ts`:
+
+```typescript
+// En mapExecutionResponse(), dentro del objeto metadata:
+metadata: meta
+  ? {
+      // ... campos actuales ...
+      human_handoff_requested: meta.human_handoff_requested,
+      variables_json: meta.variables_json,  // ← nuevo
+    }
+  : undefined,
+```
+
+Y declarar el campo en el DTO de respuesta (`dto/agent-execution-response.dto.ts`):
+
+```typescript
+metadata?: {
+  // ... campos actuales ...
+  variables_json?: string;  // ← nuevo
+};
+```
+
+---
+
+## 7. Gateway — leer y persistir variables (100% agnóstico)
 
 **Archivo:** `apps/gateway/src/automation/workflows/workflows.service.ts`
 
-### 6a. Leer variables persistidas en `buildAgentPayload()`
+El Gateway **no conoce ni filtra ningún nombre de variable** — el filtrado ya lo hizo el servicer con `persist_variables` (sección 5b). El Gateway solo mueve un blob JSON de ida y vuelta.
+
+### 7a. Leer variables persistidas en `buildAgentPayload()`
 
 La función `buildAgentPayload()` (~línea 1610) ya recibe el objeto `conversation`. Agregar la lectura de `metadata.variables` y pasarla como `user_metadata`:
 
@@ -395,65 +450,58 @@ return {
 
 La firma de `buildAgentPayload` ya tiene acceso a `conversation` — no requiere cambios de firma.
 
-### 6b. Guardar variables después de la ejecución — path no-streaming
-
-Después de `agentsService.execute()` (~línea 966), extraer y guardar `variablesJson`:
+### 7b. Helper de persistencia tonto
 
 ```typescript
-const agentResponse = await this.agentsService.execute(payload);
-
-// Guardar variables persistentes en Conversation.metadata
-const variablesJson = (agentResponse.metadata as any)?.variablesJson;
-if (variablesJson) {
+private async persistConversationVariables(conversation: any, variablesJson?: string) {
+  if (!variablesJson) return;
   try {
-    const newVariables = JSON.parse(variablesJson);
-    // Solo persistir `intent` — reroute_count y routing_locked son de ejecución
-    const persistentVars: Record<string, any> = {};
-    if (newVariables.intent !== undefined) {
-      persistentVars.intent = newVariables.intent;
-    }
-    if (Object.keys(persistentVars).length > 0) {
-      await this.prisma.conversation.update({
-        where: { id: conversation.id },
-        data: {
-          metadata: {
-            ...((conversation.metadata as object) ?? {}),
-            variables: persistentVars,
-          },
+    const vars = JSON.parse(variablesJson);  // ya viene filtrado por el servicer
+    await this.prisma.conversation.update({
+      where: { id: conversation.id },
+      data: {
+        metadata: {
+          ...((conversation.metadata as object) ?? {}),
+          variables: vars,
         },
-      });
-    }
+      },
+    });
   } catch (e) {
     this.logger.warn(`Failed to persist conversation variables: ${e}`);
   }
 }
 ```
 
-> **Importante:** Solo se persiste `intent`. Las variables `reroute_count` y `routing_locked` son efímeras — se reinician en cada ejecución y nunca se guardan en DB.
+> **Sin whitelist ni blacklist.** Se guarda exactamente lo que llegó en `variables_json`. La decisión de qué persistir vive en el `graph_config` del workflow, no aquí.
 
-### 6c. Guardar variables después de la ejecución — path streaming
-
-En el bloque de post-procesamiento del streaming (~línea 1435), después de que el stream termina, aplicar la misma lógica usando el evento `"metadata"` parseado:
+### 7c. Path no-streaming
 
 ```typescript
-// El metadataEvent ya se parsea del stream. Agregar:
-const variablesJson = metadataEvent?.variables_json;
-if (variablesJson) {
-  // Misma lógica que en 6b
-}
+const agentResponse = await this.agentsService.execute(payload);
+// ...
+await this.persistConversationVariables(conversation, (agentResponse.metadata as any)?.variables_json);
+```
+
+### 7d. Path streaming
+
+En el handler `rawStream.on('end')` (~línea 1435), tras guardar el mensaje del asistente, el `metadataEvent` ya está parseado (~línea 1409):
+
+```typescript
+await this.persistConversationVariables(conversation, metadataEvent?.variables_json);
 ```
 
 ---
 
-## 7. Notas de Implementación
+## 8. Notas de Implementación
 
 ### Orden de implementación recomendado
 
 1. Proto + regenerar bindings
-2. `pipeline_agent.py` — los tres cambios (classification_pattern, router mode, set_variables)
-3. `grpc_servicer.py` — init variables + retorno
-4. `workflows.service.ts` — leer y escribir variables
-5. Test end-to-end con un workflow Pipeline de prueba
+2. `pipeline_agent.py` — los cambios (classification_pattern, `__append_system_message__`, router mode, set_variables)
+3. `grpc_servicer.py` — init variables + filtro `persist_variables` + retorno (ambos paths)
+4. `agents.service.ts` (+ DTO) — mapear `variables_json`
+5. `workflows.service.ts` — leer y escribir variables
+6. Test end-to-end con un workflow Pipeline de prueba
 
 ### Compatibilidad hacia atrás
 
@@ -462,21 +510,27 @@ Todos los cambios son **opt-in** mediante configuración:
 - El modo `router` es un nuevo valor de `mode` en condiciones — los modos `switch` y `rules` no cambian.
 - `set_variables` es un nuevo tipo de nodo — no afecta a los nodos existentes.
 - `variables_json` en el proto es un campo nuevo en un mensaje existente — proto es backward-compatible al agregar campos numerados.
-- Si `user_metadata.variables` llega vacío (workflows que no usan persistencia), `persisted_variables = {}` y el comportamiento es idéntico al actual.
+- Sin `persist_variables` en el `graph_config` → el servicer retorna `"{}"` y no se persiste nada: comportamiento idéntico al actual.
+- Si `user_metadata.variables` llega vacío, `persisted_variables = {}` y el grafo arranca con estado limpio.
 
-### Variables que se persisten vs variables efímeras
+### Qué se persiste: lo decide el workflow, no el motor
 
-| Variable | Persiste en DB | Motivo |
+**No hay claves hardcodeadas como persistentes o efímeras en ninguna capa.** Cada workflow declara en su `graph_config` la lista `persist_variables`. El servicer filtra el estado final a esas claves; el resto vive solo en memoria durante la ejecución y se descarta al terminar.
+
+Ejemplo: el workflow router declara `"persist_variables": ["intent"]`. Por eso:
+
+| Variable | ¿En `persist_variables`? | Resultado |
 |---|---|---|
-| `intent` | Sí | Define el especialista activo entre mensajes |
-| `reroute_count` | No | Contador de seguridad por ejecución, se reinicia |
-| `routing_locked` | No | Estado de anti-loop por ejecución, se reinicia |
+| `intent` | Sí (lo declara este workflow) | Se persiste en `Conversation.metadata.variables` |
+| `reroute_count` | No | Vive en el estado del grafo, se reinicia cada ejecución |
+| `routing_locked` | No | Igual: efímera por no estar en la lista |
 | `__append_system_message__` | No | Canal interno entre nodos, se limpia tras usarse |
-| Cualquier otra variable custom | Sí | Si está presente en `variables` al final de la ejecución |
+
+Otro workflow podría declarar `"persist_variables": ["customer_tier", "lang"]` y persistir esas en su lugar — sin cambiar una línea del servicer ni del Gateway. Un workflow sin `persist_variables` no persiste nada.
 
 ---
 
-## 8. Verificación
+## 9. Verificación
 
 ### Test unitario — modo `router`
 
@@ -504,9 +558,11 @@ Invocar `_make_agent_node` con `classification_pattern = "\\[ROUTE:(\\w+)\\]"` y
 
 ### Test end-to-end
 
-1. Crear un workflow Pipeline con la config del documento `rgm-agent.md`
-2. Enviar mensaje 1 — verificar que `Conversation.metadata` queda `{}`
-3. Enviar mensaje 2 que dispare clasificación — verificar `Conversation.metadata.variables.intent = "tema_x"`
+1. Crear un workflow Pipeline con la config del documento `rgm-agent.md` (incluye `"persist_variables": ["intent"]`)
+2. Enviar mensaje 1 — verificar que `Conversation.metadata` queda sin `variables` (o `{}`)
+3. Enviar mensaje 2 que dispare clasificación — verificar `Conversation.metadata.variables.intent = "tema_x"` y que `reroute_count` **no** aparece en DB (no está en `persist_variables`)
 4. Enviar mensaje 3 — verificar que el clasificador no corre (`execution_path` del grafo no incluye `"classifier"`)
 5. Enviar mensaje que dispare re-ruteo — verificar que solo la respuesta del agente final llega al usuario
 6. Forzar `reroute_count >= max_reroutes` — verificar activación del lock y respuesta del general
+7. **Agnóstico:** un segundo workflow con `"persist_variables": ["customer_tier"]` persiste esa variable y nada más, sin tocar servicer ni Gateway. Un workflow sin `persist_variables` no persiste nada.
+8. **Ambos canales:** repetir con un canal que use `Execute` (p.ej. WhatsApp) y otro que use `ExecuteStream` (API SSE)
