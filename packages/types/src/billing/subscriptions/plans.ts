@@ -214,7 +214,7 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       overageLimit: 1800,
       allowOverages: true,
     },
-    features: ['Soporte pioritario 12h'],
+    features: ['Soporte prioritario 12h'],
     highlightFeature: '1 hrs Consultoría',
     popular: false,
   },

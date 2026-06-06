@@ -5,7 +5,7 @@ description: 'Referencia completa de planes, creditos, limites y costos de overa
 
 El sistema de creditos es el motor economico de Tesseract. Cada ejecucion de un Workflow consume creditos del balance mensual de la organizacion.
 
-La fuente de verdad de estos valores esta en `packages/types/src/billing/plans.ts`.
+La fuente de verdad de estos valores esta en `packages/types/src/billing/subscriptions/plans.ts`.
 
 ---
 
@@ -14,9 +14,9 @@ La fuente de verdad de estos valores esta en `packages/types/src/billing/plans.t
 | Plan           | Precio/mes    | Creditos/mes  | Usuarios  | Workflows | API Keys  |
 | -------------- | ------------- | ------------- | --------- | --------- | --------- |
 | **Free**       | $0 USD        | 0             | 1         | 3         | 3         |
-| **Starter**    | $25 USD       | 150           | 10        | 10        | 50        |
-| **Growth**     | $79 USD       | 500           | 25        | 25        | 100       |
-| **Business**   | $199 USD      | 1,500         | 50        | 100       | 250       |
+| **Starter**    | $25 USD       | 200           | 10        | 10        | 50        |
+| **Growth**     | $79 USD       | 650           | 25        | 25        | 100       |
+| **Business**   | $199 USD      | 1,800         | 50        | 100       | 250       |
 | **Pro**        | $499 USD      | 5,000         | 100       | 250       | 500       |
 | **Enterprise** | Personalizado | Personalizado | Ilimitado | Ilimitado | Ilimitado |
 
@@ -31,14 +31,14 @@ Cada Workflow tiene una categoria que define cuanto cuesta ejecutarlo y que mode
 | Categoria    | Creditos por ejecucion | Limite de tokens | Descripcion                                            |
 | ------------ | ---------------------- | ---------------- | ------------------------------------------------------ |
 | **LIGHT**    | 1 credito              | 20,000 tokens    | Tareas simples y rapidas con respuestas directas       |
-| **STANDARD** | 5 creditos             | 50,000 tokens    | Workflows completos con multiples pasos y herramientas |
-| **ADVANCED** | 25 creditos            | 128,000 tokens   | Agentes complejos multi-step con reasoning avanzado    |
+| **STANDARD** | 5 creditos             | 100,000 tokens   | Workflows completos con multiples pasos y herramientas |
+| **ADVANCED** | 20 creditos            | 250,000 tokens   | Agentes complejos multi-step con reasoning avanzado    |
 
 ### Ejemplo de calculo
 
-Un cliente en plan **Starter** (150 creditos/mes) con un Workflow de categoria **STANDARD** (5 creditos):
+Un cliente en plan **Starter** (200 creditos/mes) con un Workflow de categoria **STANDARD** (5 creditos):
 
-- Puede ejecutar hasta **30 conversaciones** por mes antes de agotar su balance.
+- Puede ejecutar hasta **40 conversaciones** por mes antes de agotar su balance.
 - Si activa Overage, puede continuar ejecutando hasta el limite configurado.
 
 ---
@@ -64,7 +64,7 @@ Cuando una organizacion agota sus creditos mensuales, puede seguir ejecutando Wo
 ### Precio del Overage
 
 ```
-$0.19 USD por credito adicional
+$0.16 USD por credito adicional
 ```
 
 ### Limite de Overage
@@ -74,10 +74,10 @@ Cada plan incluye un limite de overage por defecto igual a sus creditos mensuale
 | Plan       | Limite de Overage por defecto                  |
 | ---------- | ---------------------------------------------- |
 | Free       | No disponible                                  |
-| Starter    | 150 creditos (hasta $28.50 USD adicionales)    |
-| Growth     | 500 creditos (hasta $95.00 USD adicionales)    |
-| Business   | 1,500 creditos (hasta $285.00 USD adicionales) |
-| Pro        | 5,000 creditos (hasta $950.00 USD adicionales) |
+| Starter    | 200 creditos (hasta $32.00 USD adicionales)    |
+| Growth     | 650 creditos (hasta $104.00 USD adicionales)   |
+| Business   | 1,800 creditos (hasta $288.00 USD adicionales) |
+| Pro        | 5,000 creditos (hasta $800.00 USD adicionales) |
 | Enterprise | Configurable                                   |
 
 La organizacion puede ajustar su limite de overage desde el panel de Billing. Los creditos de overage se cobran al final del mes en la siguiente factura de Stripe.
@@ -86,7 +86,7 @@ La organizacion puede ajustar su limite de overage desde el panel de Billing. Lo
 
 ## 5. Renovacion Mensual de Creditos
 
-Los creditos se asignan automaticamente al inicio de cada ciclo de facturacion. Los creditos no utilizados **no se acumulan** al mes siguiente — cada ciclo comienza desde cero con el balance del plan.
+Los creditos se asignan automaticamente al inicio de cada ciclo de facturacion. Los creditos no utilizados **si se acumulan** al mes siguiente: la renovacion suma el balance del plan al saldo positivo existente (ver `addCredits` en `credits.service.ts`, que hace `balanceAfter = balanceBefore + amount`). Cuando hay saldo negativo por overage, la renovacion lo reconcilia primero y deja el balance en los creditos del plan.
 
 El historial completo de asignaciones, deducciones y cargos queda registrado en la tabla `CreditTransactions` de la base de datos, con los tipos:
 
@@ -105,7 +105,7 @@ El historial completo de asignaciones, deducciones y cargos queda registrado en 
 Si en el futuro se necesita cambiar el precio, los creditos u otros limites de algun plan, el unico archivo a modificar es:
 
 ```
-packages/types/src/billing/plans.ts
+packages/types/src/billing/subscriptions/plans.ts
 ```
 
 Al ser un paquete compartido (`@tesseract/types`), el cambio se refleja automaticamente en el Gateway y el Web-Client sin tocar codigo adicional.
