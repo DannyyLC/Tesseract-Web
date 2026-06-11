@@ -4,13 +4,17 @@ Pipeline Agent - Grafo dinámico construido desde configuración
 PATRÓN PIPELINE:
 - Los nodos y conexiones se definen en graph_config, no en código
 - Soporta tres tipos de nodos:
-    * agent:     Llama al LLM para razonar y generar una respuesta
-    * tool:      Ejecuta una tool directamente, sin LLM
-    * condition: Evalúa el estado y enruta a la rama correcta
+    * agent:         Llama al LLM. Con max_iterations>0 entra en modo agéntico:
+                     loop LLM↔tools hasta respuesta de texto o límite de iteraciones.
+    * tool:          Ejecuta una tool directamente, sin LLM
+    * condition:     Evalúa el estado y enruta a la rama correcta
+    * set_variables: Actualiza variables del estado sin llamar al LLM
 
 DIFERENCIA VS REACT:
-- ReAct: el LLM decide cuándo y qué tools usar (loop dinámico)
-- Pipeline: el flujo es explícito, predecible y definido en config (como N8N)
+- ReAct:     el LLM decide cuándo y qué tools usar (loop dinámico, grafo implícito)
+- Pipeline:  el flujo es explícito y definido en config (como N8N). Los nodos agent
+             pueden ser agénticos (max_iterations>0) para function calling dentro del
+             flujo explícito, sin convertir todo el grafo en un ReAct.
 
 CASOS DE USO:
 - Clasificar la intención del usuario y enrutar a diferentes agentes
@@ -238,30 +242,56 @@ def _evaluate_condition(op: str, field_value: Any, compare_value: Any) -> bool:
 # =============================================================================
 
 def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None, ctx: TenantContext,
-                     classification_pattern: str | None = None):
+                     classification_pattern: str | None = None, max_iterations: int = 0,
+                     disable_tools_if: List[Dict[str, Any]] | None = None,
+                     set_variables_on_tool_call: Dict[str, Dict[str, Any]] | None = None):
     """
     Crea un nodo que llama al LLM y opcionalmente guarda su respuesta en variables.
 
     El LLM se inicializa una sola vez al construir el grafo (no en cada ejecución).
-    No ejecuta tools — para eso usar nodos de tipo 'tool'.
+
+    Modos de operación:
+    - Single-call (default, max_iterations=0): una llamada al LLM, sin tools.
+    - Agéntico (max_iterations>0): loop LLM ↔ tools hasta respuesta de texto o límite de iteraciones.
+      Las tools se cargan desde agents_config[agent_name]["tools"] vía load_tools().
 
     Args:
         node_id:                ID del nodo (para logging)
         agent_name:             Clave en agents_config ("default", "classifier", "sales", etc)
         output_variable:        Si se especifica, guarda un valor en variables[output_variable].
-                                Sin classification_pattern → guarda el content completo (comportamiento
-                                clásico). Con classification_pattern → guarda el grupo extraído del patrón.
+                                Sin classification_pattern → guarda el content completo.
+                                Con classification_pattern → guarda el grupo extraído del patrón.
         ctx:                    TenantContext con toda la configuración
         classification_pattern: Regex opcional. Si el LLM incluye el patrón en su respuesta, se extrae el
-                                grupo 1 como "intent", se guarda en variables[output_variable] y el tag se
-                                limpia del mensaje visible. Si el mensaje queda vacío tras limpiar, no se
-                                agrega al historial. Si variables.routing_locked es True, el patrón se ignora.
+                                grupo 1, se guarda en variables[output_variable] y el tag se limpia del
+                                mensaje visible. Si el mensaje queda vacío tras limpiar, no se agrega al
+                                historial. Si variables.routing_locked es True, el patrón se ignora.
+                                En modo agéntico, el patrón se evalúa solo sobre la respuesta final de texto.
+        max_iterations:         Número máximo de rondas LLM↔tools (0 = single-call, sin tools).
+        disable_tools_if:       Lista de reglas para deshabilitar tools según el estado, evaluadas al
+                                inicio de cada ejecución del nodo. Cada regla:
+                                  {"tool": "nombre" (opcional, None = todas),
+                                   "field": "variables.x", "op": "eq", "value": ...}
+                                Si la regla matchea, la tool NO se enlaza al LLM en esta ejecución
+                                (el LLM no puede llamarla). Gating determinista, sin prompt.
+        set_variables_on_tool_call:
+                                Mapa {tool_name: {variable: valor}}. Cuando el LLM llama esa tool,
+                                las variables se setean de forma determinista en el estado, en el
+                                momento del intento (independiente de si la tool tuvo éxito).
     """
-    # Inicializar LLM una sola vez (closure)
     llm = get_llm(ctx, agent_name)
     pattern = re.compile(classification_pattern) if classification_pattern else None
 
-    logger.info(f"[{ctx.workflow_id}] Pipeline node '{node_id}' (agent:{agent_name}) initialized")
+    # Modo agéntico: cargar tools una sola vez al construir el grafo
+    agent_tools = load_tools(ctx, agent_name) if max_iterations > 0 else []
+    llm_with_tools = llm.bind_tools(agent_tools) if agent_tools else llm
+    tools_by_name = {t.name: t for t in agent_tools}
+    is_agentic = bool(agent_tools)
+
+    logger.info(
+        f"[{ctx.workflow_id}] Pipeline node '{node_id}' (agent:{agent_name}) initialized"
+        + (f" [agentic, {len(agent_tools)} tools, max_iterations={max_iterations}]" if is_agentic else "")
+    )
 
     def node(state: PipelineAgentState) -> dict:
         messages = list(state["messages"])
@@ -302,26 +332,147 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
             else:
                 messages[0] = SystemMessage(content=system_prompt)
 
-        logger.info(
-            f"[{ctx.workflow_id}] Pipeline node '{node_id}' calling LLM ({agent_name}) "
-            f"with {len(messages)} messages"
-        )
-
-        try:
-            response = llm.invoke(messages)
-        except Exception as e:
-            logger.error(f"[{ctx.workflow_id}] Node '{node_id}' LLM error: {e}", exc_info=True)
-            response = AIMessage(content=f"Error en nodo {node_id}: {str(e)}")
-
-        content = response.content
-
         updates: Dict[str, Any] = {
             "current_node": node_id,
             "execution_path": list(state.get("execution_path", [])) + [node_id],
         }
 
-        # Si el nodo tiene classification_pattern, output_variable lo gestiona SOLO el patrón:
-        # con routing_locked o sin match, el intent queda intacto (no se toca output_variable).
+        # ------------------------------------------------------------------
+        # Llamada al LLM: single-call o loop agéntico
+        # ------------------------------------------------------------------
+        preceding_messages: List[Any] = []  # mensajes intermedios (tool calls + results)
+        final_response: AIMessage
+
+        if is_agentic:
+            current_messages = list(messages)
+            content = ""
+
+            # Gating determinista de tools: evaluar disable_tools_if contra el estado actual.
+            # Las tools deshabilitadas NO se enlazan al LLM en esta ejecución — no puede llamarlas.
+            if disable_tools_if:
+                active_tools = []
+                for t in agent_tools:
+                    disabled = False
+                    for rule in disable_tools_if:
+                        rule_tool = rule.get("tool")
+                        if rule_tool is not None and rule_tool != t.name:
+                            continue
+                        field_value = _resolve_path(state, rule.get("field", ""))
+                        if _evaluate_condition(rule.get("op", "eq"), field_value, rule.get("value")):
+                            disabled = True
+                            break
+                    if disabled:
+                        logger.info(
+                            f"[{ctx.workflow_id}] Node '{node_id}': tool '{t.name}' "
+                            f"disabled by disable_tools_if rule"
+                        )
+                    else:
+                        active_tools.append(t)
+                runtime_llm = llm.bind_tools(active_tools) if active_tools else llm
+            else:
+                runtime_llm = llm_with_tools
+
+            logger.info(
+                f"[{ctx.workflow_id}] Pipeline node '{node_id}' starting agentic loop "
+                f"({agent_name}, max_iterations={max_iterations})"
+            )
+
+            for _i in range(max_iterations):
+                try:
+                    response = runtime_llm.invoke(current_messages)
+                except Exception as e:
+                    logger.error(f"[{ctx.workflow_id}] Node '{node_id}' LLM error: {e}", exc_info=True)
+                    response = AIMessage(content=f"Error en nodo {node_id}: {str(e)}")
+
+                if not getattr(response, "tool_calls", None):
+                    # Respuesta final de texto — salir del loop
+                    final_response = response
+                    content = response.content
+                    break
+
+                # LLM quiere llamar tools: ejecutar y continuar
+                logger.info(
+                    f"[{ctx.workflow_id}] Node '{node_id}' iteration {_i + 1}: "
+                    f"{len(response.tool_calls)} tool call(s): "
+                    f"{[tc['name'] for tc in response.tool_calls]}"
+                )
+                preceding_messages.append(response)
+                current_messages.append(response)
+
+                for tc in response.tool_calls:
+                    tool = tools_by_name.get(tc["name"])
+
+                    # Setear variables de forma determinista al intentar llamar la tool
+                    # (independiente del resultado — ver docstring de set_variables_on_tool_call)
+                    if set_variables_on_tool_call and tc["name"] in set_variables_on_tool_call:
+                        variables.update(set_variables_on_tool_call[tc["name"]])
+                        variables_changed = True
+                        logger.info(
+                            f"[{ctx.workflow_id}] Node '{node_id}': tool call '{tc['name']}' "
+                            f"set variables {list(set_variables_on_tool_call[tc['name']].keys())}"
+                        )
+
+                    try:
+                        if tool:
+                            tool_result = tool.invoke(tc["args"])
+                            logger.info(
+                                f"[{ctx.workflow_id}] Node '{node_id}' tool '{tc['name']}' "
+                                f"result: {str(tool_result)[:200]}"
+                            )
+                        else:
+                            tool_result = f"Tool '{tc['name']}' no disponible"
+                            logger.warning(
+                                f"[{ctx.workflow_id}] Node '{node_id}': "
+                                f"tool '{tc['name']}' not found in agent tools"
+                            )
+                    except Exception as e:
+                        logger.error(
+                            f"[{ctx.workflow_id}] Node '{node_id}' tool '{tc['name']}' error: {e}",
+                            exc_info=True,
+                        )
+                        tool_result = f"Error ejecutando '{tc['name']}': {str(e)}"
+
+                    tm = ToolMessage(
+                        content=str(tool_result),
+                        tool_call_id=tc["id"],
+                        name=tc["name"],
+                    )
+                    preceding_messages.append(tm)
+                    current_messages.append(tm)
+
+            else:
+                # Se agotaron las iteraciones sin respuesta de texto — forzar respuesta final
+                logger.warning(
+                    f"[{ctx.workflow_id}] Node '{node_id}' reached max_iterations "
+                    f"({max_iterations}), forcing final text response"
+                )
+                try:
+                    final_response = llm.invoke(current_messages)
+                    content = final_response.content
+                except Exception as e:
+                    logger.error(
+                        f"[{ctx.workflow_id}] Node '{node_id}' final LLM error: {e}", exc_info=True
+                    )
+                    final_response = AIMessage(content=f"Error en nodo {node_id}: {str(e)}")
+                    content = final_response.content
+
+        else:
+            # Single-call (comportamiento original)
+            logger.info(
+                f"[{ctx.workflow_id}] Pipeline node '{node_id}' calling LLM ({agent_name}) "
+                f"with {len(messages)} messages"
+            )
+            try:
+                final_response = llm.invoke(messages)
+            except Exception as e:
+                logger.error(f"[{ctx.workflow_id}] Node '{node_id}' LLM error: {e}", exc_info=True)
+                final_response = AIMessage(content=f"Error en nodo {node_id}: {str(e)}")
+
+            content = final_response.content
+
+        # ------------------------------------------------------------------
+        # Procesar respuesta final: classification_pattern y output_variable
+        # ------------------------------------------------------------------
         if pattern:
             if not variables.get("routing_locked"):
                 match = pattern.search(content)
@@ -334,7 +485,6 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                         variables[output_variable] = extracted
                         variables_changed = True
 
-                    # Incrementar reroute_count solo si el intent realmente cambió
                     if extracted != previous_intent:
                         variables["reroute_count"] = variables.get("reroute_count", 0) + 1
                         variables_changed = True
@@ -344,7 +494,6 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                         f"(reroute_count={variables.get('reroute_count', 0)})"
                     )
         elif output_variable:
-            # Comportamiento clásico (sin classification_pattern): guardar el content completo
             variables[output_variable] = content.strip()
             variables_changed = True
             logger.info(
@@ -352,19 +501,26 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                 f"variables.{output_variable}: '{content.strip()[:100]}'"
             )
 
-        # Solo agregar el mensaje si queda contenido visible tras limpiar el tag.
-        # Si quedó vacío (era solo el tag de ruteo) → no se contamina el historial.
+        # ------------------------------------------------------------------
+        # Construir lista de mensajes a agregar al estado
+        # ------------------------------------------------------------------
+        # preceding_messages contiene los AIMessage(tool_calls) + ToolMessages intermedios.
+        # El mensaje final solo se agrega si tiene contenido visible tras limpiar el tag.
         if content:
-            if content == response.content:
-                updates["messages"] = [response]
+            if content == final_response.content:
+                final_msg = final_response
             else:
                 # Mensaje limpio, preservando metadata de tokens para el accounting del servicer
-                cleaned = AIMessage(content=content)
-                if getattr(response, "usage_metadata", None):
-                    cleaned.usage_metadata = response.usage_metadata
-                if getattr(response, "response_metadata", None):
-                    cleaned.response_metadata = response.response_metadata
-                updates["messages"] = [cleaned]
+                final_msg = AIMessage(content=content)
+                if getattr(final_response, "usage_metadata", None):
+                    final_msg.usage_metadata = final_response.usage_metadata
+                if getattr(final_response, "response_metadata", None):
+                    final_msg.response_metadata = final_response.response_metadata
+
+            updates["messages"] = preceding_messages + [final_msg]
+        elif preceding_messages:
+            # Solo hubo tool calls (sin texto final visible)
+            updates["messages"] = preceding_messages
 
         if variables_changed:
             updates["variables"] = variables
@@ -722,8 +878,12 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
             agent_name = node.get("agent", "default")
             output_variable = node.get("output_variable")
             classification_pattern = node.get("classification_pattern")
+            max_iterations = node.get("max_iterations", 0)
+            disable_tools_if = node.get("disable_tools_if")
+            set_variables_on_tool_call = node.get("set_variables_on_tool_call")
             graph.add_node(node_id, _make_agent_node(
-                node_id, agent_name, output_variable, ctx, classification_pattern
+                node_id, agent_name, output_variable, ctx, classification_pattern, max_iterations,
+                disable_tools_if, set_variables_on_tool_call
             ))
             logger.debug(f"[{ctx.workflow_id}] Added agent node: '{node_id}' (agent: {agent_name})")
 
@@ -747,7 +907,8 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
         else:
             raise ValueError(
                 f"[{ctx.workflow_id}] Unknown node type '{node_type}' in node '{node_id}'. "
-                f"Supported types: 'agent', 'tool', 'set_variables', 'condition'"
+                f"Supported types: 'agent', 'tool', 'set_variables', 'condition'. "
+                f"Note: 'agent' nodes support tool calling via max_iterations>0."
             )
 
     # =========================================================================
