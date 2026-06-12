@@ -224,7 +224,7 @@ Los agentes **siguen respondiendo con normalidad**. El cliente puede seguir preg
 Los números de teléfono **no los decide el LLM**: van fijos en el system prompt de cada especialista como parte de sus instrucciones. La regla de negocio es:
 
 - Cada especialista notifica a **sus** responsables (uno o más números, según el área).
-- **Siempre**, sin importar el especialista, se notifica además al **responsable global** (persona Z).
+- **Siempre**, sin importar el especialista, se notifica además al **responsable global** (Ej. Paco).
 - Si el handoff lo dispara el **agente general** (interés que no encaja en ningún especialista), solo se notifica al responsable global.
 
 ### Reintentos y fallo del envío
@@ -329,8 +329,7 @@ Reglas:
 - No menciones que estás clasificando ni que hay distintas áreas.
 - No incluyas [ROUTE:x] hasta estar seguro del tema.
 - Si no estás seguro, sigue la conversación con naturalidad.
-- Cuando incluyas [ROUTE:x], puedes acompañarlo de una frase de transición 
-  como "Con gusto te conecto con el equipo indicado."
+- Cuando incluyas [ROUTE:x], envialo solo.
 ```
 
 ### Especialistas
@@ -387,20 +386,6 @@ Reglas del handoff:
   conversación: responde con normalidad y NO vuelvas a decir "te voy a conectar".
 - Nunca menciones al cliente que estás enviando notificaciones internas.
 ```
-
-### Agente general
-
-Responde preguntas que no encajan en ningún especialista. También puede disparar el handoff, pero solo notifica al responsable global.
-
-**Adiciones a su template (sobre la base del template de especialista):**
-```
-== HANDOFF A HUMANO ==
-Si el cliente muestra interés real en [PRODUCTO/SERVICIO] pero su necesidad no
-corresponde a ningún área específica, llama a send_bulk_whatsapp notificando
-únicamente al responsable global: +52[NÚMERO_Z] con template [TEMPLATE_ID_Z].
-(Mismas reglas de variables, reintentos y fallback que los especialistas.)
-```
-
 ---
 
 ## 9. Configuración JSON Completa
@@ -441,11 +426,18 @@ Esta es la estructura base del workflow. Reemplaza los valores entre corchetes c
       }
     },
     {
-      "id": "classifier",
+      "id": "agent_general",
       "type": "agent",
-      "agent": "classifier",
+      "agent": "general",
       "output_variable": "intent",
-      "classification_pattern": "\\[ROUTE:(\\w+)\\]"
+      "classification_pattern": "\\[ROUTE:(\\w+)\\]",
+      "max_iterations": 3,
+      "disable_tools_if": [
+        { "tool": "send_bulk_whatsapp", "field": "variables.handoff_done", "op": "eq", "value": true }
+      ],
+      "set_variables_on_tool_call": {
+        "send_bulk_whatsapp": { "handoff_done": true }
+      }
     },
     {
       "id": "agent_tema_a",
@@ -502,31 +494,16 @@ Esta es la estructura base del workflow. Reemplaza los valores entre corchetes c
       "set_variables_on_tool_call": {
         "send_bulk_whatsapp": { "handoff_done": true }
       }
-    },
-    {
-      "id": "agent_general",
-      "type": "agent",
-      "agent": "general",
-      "output_variable": "intent",
-      "classification_pattern": "\\[ROUTE:(\\w+)\\]",
-      "max_iterations": 3,
-      "disable_tools_if": [
-        { "tool": "send_bulk_whatsapp", "field": "variables.handoff_done", "op": "eq", "value": true }
-      ],
-      "set_variables_on_tool_call": {
-        "send_bulk_whatsapp": { "handoff_done": true }
-      }
     }
   ],
   "edges": [
     { "from": "START",        "to": "check_route"  },
-    { "from": "lock_routing", "to": "agent_general" },
-    { "from": "classifier",   "to": "check_route"  },
+    { "from": "lock_routing", "to": "agent_general"},
+    { "from": "agent_general","to": "check_route"  },
     { "from": "agent_tema_a", "to": "check_route"  },
     { "from": "agent_tema_b", "to": "check_route"  },
     { "from": "agent_tema_c", "to": "check_route"  },
-    { "from": "agent_tema_d", "to": "check_route"  },
-    { "from": "agent_general","to": "check_route"  }
+    { "from": "agent_tema_d", "to": "check_route"  }
   ]
 }
 ```
@@ -535,12 +512,11 @@ La sección `agents_config` (separada del `graph_config`) define el modelo, temp
 
 ```json
 {
-  "classifier": { "model": "[MODELO]", "temperature": 0.3, "system_prompt": "..." },
+  "general":    { "model": "[MODELO]", "temperature": 0.5, "system_prompt": "...", "tools": ["<uuid_send_bulk_whatsapp>"] }
   "tema_a":     { "model": "[MODELO]", "temperature": 0.5, "system_prompt": "...", "tools": ["<uuid_send_bulk_whatsapp>"] },
   "tema_b":     { "model": "[MODELO]", "temperature": 0.5, "system_prompt": "...", "tools": ["<uuid_send_bulk_whatsapp>"] },
   "tema_c":     { "model": "[MODELO]", "temperature": 0.5, "system_prompt": "...", "tools": ["<uuid_send_bulk_whatsapp>"] },
-  "tema_d":     { "model": "[MODELO]", "temperature": 0.5, "system_prompt": "...", "tools": ["<uuid_send_bulk_whatsapp>"] },
-  "general":    { "model": "[MODELO]", "temperature": 0.5, "system_prompt": "...", "tools": ["<uuid_send_bulk_whatsapp>"] }
+  "tema_d":     { "model": "[MODELO]", "temperature": 0.5, "system_prompt": "...", "tools": ["<uuid_send_bulk_whatsapp>"] }
 }
 ```
 
