@@ -8,11 +8,13 @@
 
 ## 1. Descripción General
 
-Este workflow atiende a usuarios que pueden tener necesidades de distintos temas. Un agente **clasificador** mantiene una conversación natural con el usuario hasta tener suficiente contexto para identificar su tema. Una vez identificado, la conversación se transfiere al **especialista** correspondiente, quien responde directamente al usuario.
+Este workflow atiende a usuarios que pueden tener necesidades de distintos temas. El **agente general** recibe todos los mensajes cuyo tema aún no está identificado: conversa de forma natural con el usuario hasta tener suficiente contexto para enrutarlo al especialista correcto, y también responde directamente preguntas generales que no requieren especialista. Una vez identificado el tema, la conversación se transfiere al **especialista** correspondiente, quien responde directamente al usuario.
 
 Los especialistas pueden a su vez detectar que una pregunta pertenece a otro tema y re-rutear la conversación al especialista correcto, todo dentro del mismo ciclo de respuesta: el usuario siempre recibe la respuesta del especialista final, nunca mensajes intermedios de un agente que decidió pasarlo a otro.
 
 Adicionalmente, cada especialista es un **agente agéntico**: tiene acceso a la tool `send_bulk_whatsapp`. Cuando detecta **interés real** del cliente en el producto, el mismo especialista — en el mismo turno y con todo el contexto de la conversación — envía notificaciones de WhatsApp a los responsables humanos correspondientes y le comunica al cliente que un especialista humano lo contactará. Este **handoff ocurre una sola vez por conversación**: el motor lo garantiza de forma determinista, sin depender del prompt.
+
+**El agente general no hace handoff.** Su responsabilidad es proporcionar información y enrutar al especialista correcto. Solo en el caso excepcional de que el tema del usuario no encaje en ningún especialista configurado — lo cual en la práctica casi nunca ocurre — el agente general puede notificar al responsable global. En cualquier otro escenario, su única respuesta válida ante interés del usuario es `[ROUTE:especialista_correcto]`, nunca llamar la tool de envío.
 
 Existe también un mecanismo anti-loop que detecta cuando el ruteo ha sido excesivo y fuerza al agente general a responder sin posibilidad de escape.
 
@@ -27,7 +29,7 @@ START
   ↓
 check_route  ←─────────────────────────────────────────┐
   │                                                      │
-  ├─ Sin intent válido          → classifier            │
+  ├─ Sin intent válido          → agent_general         │
   ├─ intent="tema_a" (no corrió) → agent_tema_a ────────┤
   ├─ intent="tema_b" (no corrió) → agent_tema_b ────────┤
   ├─ intent="tema_c" (no corrió) → agent_tema_c ────────┤
@@ -100,7 +102,7 @@ Nodo de decisión puro (sin LLM). Evalúa `variables.intent` contra el mapa de r
       "tema_d": "agent_tema_d",
       "general": "agent_general"
     },
-    "fallback": "classifier",
+    "fallback": "agent_general",
     "max_reroutes": 3,
     "lock_node": "lock_routing"
   }
@@ -160,8 +162,8 @@ En agentes agénticos, el patrón se evalúa **únicamente sobre la respuesta fi
 
 | Situación | Acción |
 |---|---|
-| El clasificador ha entendido el tema | Incluir `[ROUTE:tema]` al final de la respuesta |
-| El clasificador aún no tiene suficiente info | No incluir el tag — solo conversar |
+| El agente general ha entendido el tema del usuario | Incluir `[ROUTE:tema]` al final de la respuesta |
+| El agente general aún no tiene suficiente contexto | No incluir el tag — solo conversar |
 | Un especialista detecta pregunta de otro tema | Incluir `[ROUTE:otro_tema]` — idealmente sin respuesta extensa propia |
 | Un especialista responde normalmente | No incluir el tag |
 | Un especialista hace handoff a humano | **No usar `[ROUTE:x]`** — el handoff es una tool call, no un re-ruteo |
@@ -174,14 +176,14 @@ Cuando un agente incluye `[ROUTE:x]`, su respuesta **nunca llega al usuario**, i
 
 ### Ejemplo completo
 
-El clasificador genera:
+El agente general genera:
 ```
 Entendido, veo que tu pregunta es sobre facturación. [ROUTE:facturacion]
 ```
 
 Lo que ocurre internamente:
 - Tag extraído → `variables.intent = "facturacion"`
-- Mensaje del clasificador (sin tag) se mantiene en **el estado del grafo en memoria** para que el agente de facturación tenga contexto — **no se guarda en base de datos**
+- Mensaje del agente general (sin tag) se mantiene en **el estado del grafo en memoria** para que el agente de facturación tenga contexto — **no se guarda en base de datos**
 - `check_route` → agent_facturacion
 - Agent facturación genera: `"Con gusto te ayudo con tu factura..."` → **este sí se guarda en DB**
 
@@ -196,6 +198,12 @@ El mensaje queda vacío → no se agrega al historial → el agente de soporte r
 ---
 
 ## 5. Handoff a Humano
+
+### Quién es responsable del handoff
+
+**El handoff es responsabilidad exclusiva de los especialistas.** El agente general tiene como propósito proporcionar información y enrutar — no notificar. Si el usuario muestra interés mientras aún está con el agente general, la respuesta correcta es enviarlo al especialista correspondiente con `[ROUTE:intent]`: el especialista será quien tenga la conversación de fondo y quien dispare la notificación cuando corresponda.
+
+La única excepción es cuando el tema del usuario no encaja en ningún especialista del workflow. En ese caso — y solo en ese caso — el agente general puede hacer el handoff directamente al responsable global. Esto no debería ocurrir en condiciones normales si los especialistas están bien definidos; se deja abierto como red de seguridad.
 
 ### Concepto
 
@@ -265,9 +273,9 @@ Para este workflow declaramos:
 
 ### Comportamiento entre mensajes
 
-- **Mensaje 1**: clasificador conversa, `intent = null`, `handoff_done` no existe → se guarda.
-- **Mensaje 2**: clasificador clasifica, `intent = "ventas"` → se guarda. `reroute_count` inicia en `0`.
-- **Mensaje 3**: `check_route` lee `intent = "ventas"` → va directo al especialista de ventas. El clasificador no corre.
+- **Mensaje 1**: agent_general conversa, `intent = null`, `handoff_done` no existe → se guarda.
+- **Mensaje 2**: agent_general identifica el tema, `intent = "ventas"` → se guarda. `reroute_count` inicia en `0`.
+- **Mensaje 3**: `check_route` lee `intent = "ventas"` → va directo al especialista de ventas. El agente general no corre.
 - **Mensaje N**: el especialista detecta interés real → llama `send_bulk_whatsapp` → el motor setea `handoff_done = true` → se persiste.
 - **Mensajes posteriores**: el especialista responde normal, pero la tool de envío ya no está disponible para él. El handoff no puede repetirse.
 
@@ -305,31 +313,71 @@ reroute_count = 3 (= max_reroutes)
 
 ## 8. Guía para System Prompts
 
-### Clasificador
+### Agente General
 
-El clasificador es la primera voz que el usuario escucha. No tiene tools — solo conversa y clasifica.
+El agente general cumple dos funciones principales: **proporcionar información** sobre preguntas generales que no requieren especialista, y **clasificar y enrutar** al especialista correcto en cuanto identifica el tema del usuario. Es un agente de información y de paso, no de cierre.
+
+Tiene `send_bulk_whatsapp` configurado **únicamente como red de seguridad** para el caso excepcional en que el tema no encaje en ningún especialista. En ese escenario — y solo en ese — puede notificar al responsable global. En todos los demás casos, si existe un especialista para el tema, el agente general **debe enrutar con `[ROUTE:x]` y no llamar la tool bajo ninguna circunstancia**.
+
+Los mismos mecanismos de `disable_tools_if` y `set_variables_on_tool_call` aplican para garantizar que, si alguna vez dispara el handoff, sea una sola vez.
 
 **Template base:**
 ```
-Eres un asistente de atención al cliente de [EMPRESA]. Tu función es entender 
-qué necesita el usuario y conectarlo con el área correcta.
+Eres un asistente de atención al cliente de [EMPRESA]. Tu función es:
+1. Atender preguntas generales sobre [EMPRESA] con precisión y amabilidad.
+2. Identificar cuándo el usuario tiene una necesidad específica y enrutarlo 
+   al área correcta usando [ROUTE:intent].
+3. Cuando detectes interés real de contratar y no exista especialista 
+   específico para el caso, notificar al responsable global.
 
-Saluda cordialmente y haz las preguntas necesarias para entender su situación. 
-Una vez que tengas suficiente contexto, incluye exactamente [ROUTE:intent] al 
-final de tu mensaje para indicar a qué área corresponde.
+Saluda cordialmente y conversa de forma natural. Haz las preguntas necesarias 
+para entender la situación del usuario. Una vez que tengas suficiente contexto, 
+incluye exactamente [ROUTE:intent] al final de tu mensaje.
 
 Los intents válidos son:
 - [INTENT_1]: [descripción breve]
 - [INTENT_2]: [descripción breve]
 - [INTENT_3]: [descripción breve]
 - [INTENT_4]: [descripción breve]
-- general: preguntas generales que no encajan en ninguna categoría
+(Para preguntas generales que no encajan en ningún intent, responde tú mismo 
+sin [ROUTE:x].)
 
-Reglas:
+Reglas de clasificación:
 - No menciones que estás clasificando ni que hay distintas áreas.
 - No incluyas [ROUTE:x] hasta estar seguro del tema.
 - Si no estás seguro, sigue la conversación con naturalidad.
-- Cuando incluyas [ROUTE:x], envialo solo.
+- Cuando incluyas [ROUTE:x], envíalo solo, sin texto adicional.
+
+== HANDOFF A HUMANO — CASO EXCEPCIONAL ÚNICAMENTE ==
+ATENCIÓN: Solo debes usar send_bulk_whatsapp si el tema del usuario NO encaja 
+en ninguno de los intents definidos arriba y no hay especialista al que enrutar.
+Si existe un especialista para el tema, usa [ROUTE:intent] — nunca la tool.
+Tu rol es informar y enrutar. El handoff lo hace el especialista, no tú.
+
+Si y solo si el caso no tiene especialista: cuando el usuario muestre interés 
+REAL y CONCRETO en adquirir [PRODUCTO/SERVICIO], notifica ÚNICAMENTE al 
+responsable global:
+
+1. Llama a la tool send_bulk_whatsapp:
+   - Destinatario global (único): +52[NÚMERO_Z] con template [TEMPLATE_ID_Z]
+   - Variables del template: teléfono del cliente, producto/tema de interés, 
+     detalles relevantes mencionados.
+
+2. Después del envío, responde al cliente:
+   "Con gusto te ayudaré personalmente. Un especialista de [EMPRESA] se pondrá 
+   en contacto contigo a la brevedad."
+
+Reglas del handoff:
+- Intercambia al menos 2-3 mensajes con el cliente antes de disparar el handoff.
+  Asegúrate de confirmar el interés con alguna pregunta antes de notificar — 
+  no hagas handoff ante el primer mensaje de interés.
+- Solo dispara el handoff ante interés genuino y específico, no ante preguntas 
+  generales de información.
+- Si la tool retorna un error, reintenta. Si sigue fallando, da los datos de 
+  contacto directos: [TELÉFONO_EMPRESA], [EMAIL_EMPRESA].
+- Si la tool no está disponible, el handoff ya ocurrió en esta conversación: 
+  responde con normalidad y NO vuelvas a decir "te voy a conectar".
+- Nunca menciones al cliente que estás enviando notificaciones internas.
 ```
 
 ### Especialistas
@@ -378,6 +426,9 @@ general), haz lo siguiente EN ESTE ORDEN dentro del mismo turno:
    en contacto contigo a la brevedad para continuar con el proceso."
 
 Reglas del handoff:
+- Intercambia al menos 2-3 mensajes con el cliente antes de disparar el handoff.
+  Confirma el interés con alguna pregunta antes de notificar — no hagas handoff 
+  ante el primer mensaje que suene a interés.
 - Solo dispara el handoff ante interés genuino y específico, no ante preguntas generales.
 - Si la tool retorna un error, reintenta la llamada. Si tras los reintentos sigue
   fallando, dale al cliente los datos de contacto directos: [TELÉFONO_EMPRESA],
@@ -410,7 +461,7 @@ Esta es la estructura base del workflow. Reemplaza los valores entre corchetes c
           "tema_d":   "agent_tema_d",
           "general":  "agent_general"
         },
-        "fallback": "classifier",
+        "fallback": "agent_general",
         "max_reroutes": 3,
         "lock_node": "lock_routing"
       }
@@ -508,11 +559,11 @@ Esta es la estructura base del workflow. Reemplaza los valores entre corchetes c
 }
 ```
 
-La sección `agents_config` (separada del `graph_config`) define el modelo, temperatura, system prompt y **tools** de cada agente. Los especialistas y el general llevan `send_bulk_whatsapp` en su lista de tools (vía el UUID del TenantTool correspondiente); el clasificador no lleva tools:
+La sección `agents_config` (separada del `graph_config`) define el modelo, temperatura, system prompt y **tools** de cada agente. Todos los agentes (el general y los especialistas) llevan `send_bulk_whatsapp` en su lista de tools (vía el UUID del TenantTool correspondiente):
 
 ```json
 {
-  "general":    { "model": "[MODELO]", "temperature": 0.5, "system_prompt": "...", "tools": ["<uuid_send_bulk_whatsapp>"] }
+  "general":    { "model": "[MODELO]", "temperature": 0.5, "system_prompt": "...", "tools": ["<uuid_send_bulk_whatsapp>"] },
   "tema_a":     { "model": "[MODELO]", "temperature": 0.5, "system_prompt": "...", "tools": ["<uuid_send_bulk_whatsapp>"] },
   "tema_b":     { "model": "[MODELO]", "temperature": 0.5, "system_prompt": "...", "tools": ["<uuid_send_bulk_whatsapp>"] },
   "tema_c":     { "model": "[MODELO]", "temperature": 0.5, "system_prompt": "...", "tools": ["<uuid_send_bulk_whatsapp>"] },
@@ -530,13 +581,13 @@ El campo `persist_variables` a nivel raíz del `graph_config` declara qué varia
 
 ```
 Usuario:    "hola, tengo una duda"
-Sistema:    check_route → intent vacío → classifier
-Classifier: "¡Hola! ¿En qué te puedo ayudar hoy?"
+Sistema:    check_route → intent vacío → agent_general
+Agent_G:    "¡Hola! ¿En qué te puedo ayudar hoy?"
             (sin [ROUTE:x])
 
 Usuario:    "quiero saber sobre los precios del plan premium"
-Sistema:    check_route → intent vacío → classifier
-Classifier: "Con gusto te ayudo. [ROUTE:tema_a]"
+Sistema:    check_route → intent vacío → agent_general
+Agent_G:    "Con gusto te ayudo. [ROUTE:tema_a]"
             (tag detectado → mensaje queda solo en contexto interno, no llega al usuario)
 Sistema:    check_route → intent="tema_a", no en path → agent_tema_a
 Agent_A:    "El plan premium tiene las siguientes características..."
@@ -629,7 +680,7 @@ Sistema:    check_route → general YA en path → END
 - [ ] Definir los 4 intents específicos del cliente y sus nombres en snake_case
 - [ ] Declarar `"persist_variables": ["intent", "handoff_done"]` en el `graph_config`
 - [ ] Reemplazar `tema_a/b/c/d` en el JSON por los nombres reales de los intents
-- [ ] Escribir el system prompt del clasificador con los intents y descripciones reales
+- [ ] Escribir el system prompt del agente general con los intents válidos, sus descripciones, y el handoff al responsable global
 - [ ] Definir `max_reroutes` según la complejidad esperada (recomendado: 3)
 - [ ] Configurar el modelo y temperatura para cada agente en `agents_config`
 - [ ] Revisar que el `append_system_message` del lock sea coherente con el idioma del cliente
