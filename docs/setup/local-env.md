@@ -169,5 +169,5 @@ _Solo configurar si vas a probar la conexión de herramientas externas (ToolCata
 _Solo requieres configurar esto si vas a probar correos transaccionales (como verificación de cuenta, reseteo de contraseña)._
 
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`: Credenciales de conexión SMTP (ej. SMTP de Brevo).
-- `SMTP_EMAIL_FROM`: El correo desde donde se enviarán los mensajes (ej. `soporte@tudominio.com`).
-- `SMTP_VERIFIED_EMAIL_FROM`: Remitente verificado para correos que lo requieran.
+- `SMTP_EMAIL_FROM`: El correo verificado desde donde se enviarán los mensajes (ej. `no-reply@tudominio.com`).
+- `SUPPORT_EMAIL_TO`: Correo del equipo que recibirá solicitudes internas como "Nuevo Workflow" (ej. `soporte@tudominio.com`).
