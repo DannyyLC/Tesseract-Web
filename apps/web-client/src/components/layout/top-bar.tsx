@@ -75,7 +75,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
 
     let currentPath = '';
 
-    segments.forEach((segment, index) => {
+    segments.forEach((segment) => {
       currentPath += `/${segment}`;
       const label = formatSegment(segment);
       breadcrumbs.push({ label, href: currentPath });
@@ -166,7 +166,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
               >
                 <Bell size={20} className="text-text-secondary" />
                 {unreadCount > 0 && (
-                  <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-text-inverse shadow-sm ring-2 ring-surface">
+                  <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-text-primary px-1 text-[10px] font-bold leading-none text-surface shadow-sm ring-2 ring-surface">
                     {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
