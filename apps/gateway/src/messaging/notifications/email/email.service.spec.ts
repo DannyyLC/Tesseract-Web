@@ -83,6 +83,7 @@ describe('EmailService', () => {
       'Subject X',
       'Please contact me',
       'Org Name',
+      'org-1',
       '2026-03-23',
     );
 
@@ -106,6 +107,7 @@ describe('EmailService', () => {
       'Subject X',
       'Please contact me',
       'Org Name',
+      'org-1',
       '2026-03-23',
     );
     expect(res).toBeNull();

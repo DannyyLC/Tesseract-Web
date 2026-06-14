@@ -173,6 +173,7 @@ export class EmailService {
     subject: string,
     userMessage: string,
     organizationName: string,
+    organizationId: string,
     date: string,
   ): Promise<unknown> {
     try {
@@ -186,6 +187,7 @@ export class EmailService {
           subject,
           user_message: userMessage,
           organization_name: organizationName,
+          organization_id: organizationId,
           date,
         }),
       });
