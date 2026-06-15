@@ -25,7 +25,7 @@ export class AgentsService implements OnModuleInit {
     const configuredUrl = this.configService.get<string>('AGENTS_GRPC_URL', 'localhost:50051');
     this.agentsGrpcUseTls = configuredUrl.startsWith('https://');
     this.agentsGrpcUrl = configuredUrl.replace(/^https?:\/\//, '');
-    this.agentsServiceTimeout = this.configService.get<number>('AGENTS_SERVICE_TIMEOUT', 30000);
+    this.agentsServiceTimeout = Number(this.configService.get<string>('AGENTS_SERVICE_TIMEOUT', '30000'));
     this.internalSecret = this.configService.get<string>('AGENTS_INTERNAL_SECRET', '');
     this.logger.log(`Agents gRPC URL: ${this.agentsGrpcUrl}`);
   }

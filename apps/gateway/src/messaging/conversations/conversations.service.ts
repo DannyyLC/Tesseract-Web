@@ -264,14 +264,33 @@ export class ConversationsService {
       throw new Error(`Workflow no encontrado: ${workflowId}`);
     }
 
+    // Encontrar o crear el EndUser por número de teléfono (requerido por constraint XOR)
+    const endUser = await this.prisma.endUser.upsert({
+      where: {
+        organizationId_phoneNumber: {
+          organizationId: workflow.organizationId,
+          phoneNumber: userNumber,
+        },
+      },
+      create: {
+        organizationId: workflow.organizationId,
+        phoneNumber: userNumber,
+        lastSeenAt: new Date(),
+      },
+      update: {
+        lastSeenAt: new Date(),
+      },
+    });
+
     // Si no existe, crear una nueva conversación para este número de WhatsApp
     const newConversation = await this.prisma.conversation.create({
       data: {
         workflowId,
-        organizationId: workflow.organizationId, // Asignación obligatoria
+        organizationId: workflow.organizationId,
         channel: ConversationChannel.WHATSAPP,
         whatsappConfigId: whatsappConfig.id,
         phoneNumberSender: userNumber,
+        endUserId: endUser.id, // Requerido por constraint conversations_user_xor_enduser
         status: ConversationStatus.ACTIVE,
         messageCount: 0,
         totalTokens: 0,

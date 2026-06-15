@@ -163,7 +163,7 @@ export class WhatsappConfigService {
           from,
           to,
           type: 'text',
-          text: { body: message, preview_url: false },
+          text: { body: await this.sanitizeOutput(message), preview_url: false },
         },
         { headers: { 'X-API-Key': apiKey, 'Content-Type': 'application/json' } },
       ),
@@ -279,5 +279,10 @@ export class WhatsappConfigService {
       this.logger.error('Error deleting WhatsApp template:', error);
       return false;
     }
+  }
+
+  async sanitizeOutput(text: string): Promise<string> {
+    return text.replace(/\*\*(.+?)\*\*/gs, '*$1*')   // **negrita** → *negrita*
+               .replace(/__(.+?)__/gs, '_$1_');        // __cursiva__ → _cursiva_
   }
 }
