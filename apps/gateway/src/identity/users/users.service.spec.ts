@@ -340,11 +340,22 @@ describe('UsersService', () => {
 
   describe('requestServiceInfoByEmail', () => {
     it('returns true on successful email send', async () => {
+      process.env.SMTP_EMAIL_FROM = 'no-reply@fractalops.com.mx';
+      process.env.SUPPORT_EMAIL_TO = 'daniel@fractalops.com.mx';
       mockPrismaService.organization.findUnique.mockResolvedValue({ name: 'Org' });
       mockEmailService.sendServiceRequestEmail.mockResolvedValue(true);
       const res = await service.requestServiceInfoByEmail('User', 'a@b.com', 'sub', 'msg', 'org-1');
       expect(res).toBe(true);
-      expect(mockEmailService.sendServiceRequestEmail).toHaveBeenCalled();
+      expect(mockEmailService.sendServiceRequestEmail).toHaveBeenCalledWith(
+        'no-reply@fractalops.com.mx',
+        'daniel@fractalops.com.mx',
+        'a@b.com',
+        'User',
+        'sub',
+        'msg',
+        'Org',
+        expect.any(String),
+      );
     });
 
     it('returns false when email send fails', async () => {
