@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MediaProcessorAdapter, MediaProcessResult } from './media-processor.adapter';
-
+  
+type MediaType = 'IMAGE' | 'AUDIO';
 @Injectable()
 export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdapter {
   private readonly apiBaseUrl: string;
@@ -9,6 +10,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
   private readonly sttModels: string[];
   private readonly ocrModels: string[];
   private readonly timeoutMs: number;
+
 
   constructor(private readonly configService: ConfigService) {
     this.apiBaseUrl = this.configService
@@ -25,6 +27,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
 
     this.timeoutMs = this.configService.get<number>('MEDIA_PROCESSING_TIMEOUT_MS', 30000);
   }
+
 
   async process(media: {
     type: 'IMAGE' | 'AUDIO';

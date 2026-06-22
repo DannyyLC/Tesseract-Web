@@ -25,6 +25,7 @@ import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { WhatsappConfigService } from '../../whatsapp-config.service';
 import { WorkflowsService } from '@/automation/workflows/workflows.service';
+import { WhatsappMessageQueueService } from '../../whatsapp-message-queue.service';
 import {
   CreateConfigDto,
   WhatsAppInboundEvent,
@@ -32,6 +33,8 @@ import {
   UpdateTemplateDto,
   SendTemplateDto,
 } from '../../dto';
+import { OpenAiCompatibleMediaProcessorAdapter } from '@/automation/media-processing/adapters/openai-compatible-media-processor.adapter';
+import { MediaProcessResult, MediaType } from '@/automation/media-processing/adapters/media-processor.adapter';
 
 @Controller('whatsapp-config')
 export class WhatsappConfigController {
@@ -40,6 +43,8 @@ export class WhatsappConfigController {
     private readonly whatsappConfigService: WhatsappConfigService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
     private readonly workflowsService: WorkflowsService,
+    private readonly whatsappMessageQueueService: WhatsappMessageQueueService,
+    private readonly mediaProcessor: OpenAiCompatibleMediaProcessorAdapter,
   ) {}
 
   // ─── Webhook ──────────────────────────────────────────────────────────
@@ -102,15 +107,39 @@ export class WhatsappConfigController {
         case 'text':
           txtContent = parsedBody.whatsappInboundMessage.text?.body || '';
           break;
+        case 'image':
+          txtContent = parsedBody.whatsappInboundMessage.image?.caption || 'Picture without caption';
+          break;
+        case 'audio':
+          const audioPayload = {
+            type: "AUDIO" as MediaType,
+            sourceUrl: parsedBody.whatsappInboundMessage.audio?.link || '',
+            mimeType: parsedBody.whatsappInboundMessage.audio?.mime_type || 'audio/ogg',
+            sha256: parsedBody.whatsappInboundMessage.audio?.sha256,
+            metadata: {},
+            customOcrPrompt: ''
+          };
+
+          const audioResult = await this.mediaProcessor.process(
+            audioPayload
+          );
+          if (audioResult.status === 'FAILED' || !audioResult.processedText) {
+            this.logger.error(`Media processing failed for audio message from ${userNumber} to ${phoneNumber}: ${audioResult.error}`);
+            return res.status(200).send({ received: true });
+          }
+          txtContent = audioResult.processedText;
+          break;
         case 'video':
           isUnsupportedVideo = true;
-          break;
+          this.logger.warn(`Received unsupported video message from ${userNumber} to ${phoneNumber}`);
+          return res.status(200).send({ received: true });
       }
 
       if (account.phoneNumber == null || account.phoneNumber === '') {
         await this.whatsappConfigService.updatePhoneNumber(account.id, phoneNumber);
       }
 
+      res.status(HttpStatus.OK).send({ received: true });
       const yCloudApiKey = process.env.Y_CLOUD_API_KEY;
       if (yCloudApiKey && account.defaultWorkflowId) {
         if (isUnsupportedVideo) {
@@ -120,15 +149,52 @@ export class WhatsappConfigController {
             userNumber,
             'Los videos no son compatibles. Por favor envia texto, imagen o audio.',
           );
-          return res.status(HttpStatus.OK).send({ received: true });
+          return;
         }
 
-        await this.markMsgAsReadAndSendTypingIndicator(yCloudApiKey, whatsappInboundMessageId);
+        const queueResult = await this.whatsappMessageQueueService.enqueueMessage({
+          organizationId: account.organizationId,
+          phoneNumber,
+          userNumber,
+          text: txtContent,
+          sessionId: parsedBody.whatsappInboundMessage.wabaId || '',
+          sendTime: parsedBody.whatsappInboundMessage.sendTime || new Date().toISOString(),
+          messageId: whatsappInboundMessageId,
+          windowSeconds: 6,
+        });
 
+        if (!queueResult.isWindowOwner) {
+          return;
+        }
+
+        const aggregatedWindow = queueResult.skipAggregation
+          ? { aggregatedText: txtContent, messageIds: [whatsappInboundMessageId] }
+          : await this.whatsappMessageQueueService.waitAndConsumeWindow(
+              account.organizationId,
+              phoneNumber,
+              userNumber,
+              parsedBody.whatsappInboundMessage.wabaId || ''
+            );
+        const aggregatedText = aggregatedWindow.aggregatedText;
+
+        if (!aggregatedText) {
+          this.logger.warn('WhatsApp message window finished with empty aggregated text', {
+            phoneNumber,
+            userNumber,
+            organizationId: account.organizationId,
+          });
+          return;
+        }
+
+        await this.markMsgsAsReadAndSendTypingIndicator(yCloudApiKey, aggregatedWindow.messageIds);
+
+        this.logger.info(
+          `Aggregated WhatsApp message for phoneNumber=${phoneNumber}, userNumber=${userNumber}, organizationId=${account.organizationId}: ${aggregatedText}`,
+        );
         const execution = await this.workflowsService.execute(
           account.organizationId,
           account.defaultWorkflowId,
-          { message: txtContent },
+          { message: aggregatedText },
           { channel: ConversationChannel.WHATSAPP },
           undefined,
           parsedBody,
@@ -140,7 +206,7 @@ export class WhatsappConfigController {
         const messages = result?.messages ?? [];
         const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
         const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
-
+        
         await this.whatsappConfigService.sendTextMessage(
           yCloudApiKey,
           phoneNumber,
@@ -149,10 +215,11 @@ export class WhatsappConfigController {
         );
       }
 
-      return res.status(HttpStatus.OK).send({ received: true });
     } catch (error) {
       this.logger.error('Webhook error:', error);
-      return res.status(HttpStatus.OK).send({ received: true });
+      if (!res.headersSent) {
+        return res.status(HttpStatus.OK).send({ received: true });
+      }
     }
   }
 
@@ -377,19 +444,49 @@ export class WhatsappConfigController {
 
   // ─── Private helpers ──────────────────────────────────────────────────
 
+  private async markMsgsAsReadAndSendTypingIndicator(
+    accessToken: string,
+    messageIds: string[],
+  ) {
+    this.logger.info(`Marking messages as read and sending typing indicator for messageIds: ${messageIds}`);
+    const results = await Promise.allSettled(
+      messageIds.map((messageId) =>
+        this.markMsgAsReadAndSendTypingIndicator(accessToken, messageId),
+      ),
+    );
+
+    // Log any failures
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        this.logger.error(
+          `Failed to mark message ${messageIds[index]} as read`,
+          { error: result.reason?.message },
+        );
+      }
+    });
+  }
+
   private async markMsgAsReadAndSendTypingIndicator(
     accessToken: string,
     whatsAppInboundMessageId: string,
   ) {
     const url = `https://api.ycloud.com/v2/whatsapp/inboundMessages/${whatsAppInboundMessageId}/typingIndicator`;
-    await firstValueFrom(
-      this.httpService.post(
-        url,
-        {},
-        {
-          headers: { 'X-API-Key': accessToken, 'Content-Type': 'application/json' },
-        },
-      ),
-    );
+    try {
+      await firstValueFrom(
+        this.httpService.post(
+          url,
+          {},
+          {
+            headers: { 'X-API-Key': accessToken, 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+      this.logger.debug(`Successfully marked message ${whatsAppInboundMessageId} as read`);
+    } catch (error) {
+      this.logger.warn(`Failed to mark message as read for ID ${whatsAppInboundMessageId}`, {
+        error: (error as Error).message,
+      });
+      throw error;
+    }
   }
 }

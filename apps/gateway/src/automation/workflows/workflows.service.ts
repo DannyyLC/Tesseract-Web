@@ -757,20 +757,11 @@ export class WorkflowsService {
           whatsappData?.whatsappInboundMessage?.from || '',
         );
       } else {
-        throw new InvalidWorkflowConfigException(
-          'WhatsApp channel requires whatsappData for conversation management',
-          {
-            workflowId,
-            channel,
-          },
-        );
+        this.logger.error(`WhatsApp channel requires whatsappData for conversation management. Workflow: ${workflowId}, Execution: ${execution.id}`);
+        throw new InvalidWorkflowConfigException('WhatsApp channel requires whatsappData for conversation management', { workflowId, executionId: execution.id  });
       }
 
-      if (whatsappData.whatsappInboundMessage.type === 'text') {
-        userMessage = whatsappData.whatsappInboundMessage.text?.body || '';
-      } else if (whatsappData.whatsappInboundMessage.type === 'image') {
-        userMessage =
-          whatsappData.whatsappInboundMessage.image?.caption || 'Picture without caption';
+      if (whatsappData.whatsappInboundMessage.type === 'image') {
         const imageLink = whatsappData.whatsappInboundMessage.image?.link;
         if (imageLink) {
           attachments = [
@@ -783,7 +774,6 @@ export class WorkflowsService {
           ];
         }
       } else if (whatsappData.whatsappInboundMessage.type === 'audio') {
-        userMessage = 'audio message';
         const audioLink = whatsappData.whatsappInboundMessage.audio?.link;
         if (audioLink) {
           attachments = [
@@ -795,14 +785,6 @@ export class WorkflowsService {
             },
           ];
         }
-      } else if (whatsappData.whatsappInboundMessage.type === 'video') {
-        throw new InvalidWorkflowConfigException(
-          'Los mensajes de video por WhatsApp aún no están soportados',
-          {
-            workflowId,
-            channel,
-          },
-        );
       }
     } else {
       conversation = await this.conversationsService.findOrCreateConversation(
@@ -812,9 +794,8 @@ export class WorkflowsService {
         endUserId,
         conversationId,
       );
-
-      userMessage = input?.message ?? JSON.stringify(input);
     }
+    userMessage = input?.message ?? JSON.stringify(input);
 
     const ocrPrompt = (workflow.config as any)?.mediaProcessing?.ocrPrompt;
 
