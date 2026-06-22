@@ -3,97 +3,109 @@
 import { useRef, useState, useMemo, useEffect } from 'react';
 // @ts-ignore
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Line, OrbitControls } from '@react-three/drei';
+import { Segments, Segment, OrbitControls } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import * as THREE from 'three';
 
-// --- Componente Geométrico del Tesseract ---
+// --- Parámetros de la proyección 4D → 3D ---
+const W_DISTANCE = 2.5; // "Distancia" de la cámara 4D sobre el eje W
+const PROJ_SCALE = 3; // Escala visual de la proyección
+
+// --- Componente Geométrico del Tesseract (4D real proyectado a 3D) ---
 function TesseractWireframe() {
   const groupRef = useRef<THREE.Group>(null);
+  const segRefs = useRef<any[]>([]);
 
-  // Animación de rotación constante
-  useFrame((_state: any, delta: number) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.x += delta * 0.2;
-      groupRef.current.rotation.y += delta * 0.3;
+  // Vértices 4D (16) y aristas (32) del hipercubo.
+  // Cada vértice es una combinación de ±1 en las 4 coordenadas (x, y, z, w).
+  // Dos vértices están conectados si difieren en exactamente UNA coordenada.
+  const { vertices4D, edges } = useMemo(() => {
+    const verts: number[][] = [];
+    for (let i = 0; i < 16; i++) {
+      verts.push([
+        i & 1 ? 1 : -1,
+        i & 2 ? 1 : -1,
+        i & 4 ? 1 : -1,
+        i & 8 ? 1 : -1,
+      ]);
+    }
+    const eds: [number, number][] = [];
+    for (let i = 0; i < 16; i++) {
+      for (let j = i + 1; j < 16; j++) {
+        const diff = i ^ j;
+        // diff es potencia de 2 ⇒ difieren en un solo bit (una sola coordenada)
+        if ((diff & (diff - 1)) === 0) eds.push([i, j]);
+      }
+    }
+    return { vertices4D: verts, edges: eds };
+  }, []);
+
+  // Buffer reutilizable de posiciones 3D proyectadas (evita asignar memoria por frame)
+  const projected = useMemo(
+    () => vertices4D.map(() => new THREE.Vector3()),
+    [vertices4D],
+  );
+
+  // Cada frame: rotamos en 4D y proyectamos a 3D.
+  // - La rotación en el plano XW es la que produce el efecto de la 4ª dimensión
+  //   (el cubo interno se voltea de adentro hacia afuera).
+  // - La rotación en el plano YZ añade un giro 3D para un movimiento más rico.
+  useFrame((state: any) => {
+    const t = state.clock.elapsedTime;
+    const cosXW = Math.cos(t * 0.45);
+    const sinXW = Math.sin(t * 0.45);
+    const cosYZ = Math.cos(t * 0.28);
+    const sinYZ = Math.sin(t * 0.28);
+
+    for (let i = 0; i < vertices4D.length; i++) {
+      const v = vertices4D[i];
+      let x = v[0];
+      let y = v[1];
+      let z = v[2];
+      let w = v[3];
+
+      // Rotación en el plano XW (la "cuarta dimensión")
+      const x1 = x * cosXW - w * sinXW;
+      const w1 = x * sinXW + w * cosXW;
+      x = x1;
+      w = w1;
+
+      // Rotación en el plano YZ (giro 3D adicional)
+      const y1 = y * cosYZ - z * sinYZ;
+      const z1 = y * sinYZ + z * cosYZ;
+      y = y1;
+      z = z1;
+
+      // Proyección en perspectiva 4D → 3D: cuanto menor es w, más "lejos"
+      // está el vértice y más pequeño aparece (genera el cubo interno).
+      const f = PROJ_SCALE / (W_DISTANCE - w);
+      projected[i].set(x * f, y * f, z * f);
+    }
+
+    // Volcamos las posiciones proyectadas en cada arista
+    for (let i = 0; i < edges.length; i++) {
+      const seg = segRefs.current[i];
+      if (!seg) continue;
+      seg.start.copy(projected[edges[i][0]]);
+      seg.end.copy(projected[edges[i][1]]);
     }
   });
 
-  // Construcción de la geometría del Tesseract (Cubo dentro de un cubo)
-  const lines = useMemo(() => {
-    const points: THREE.Vector3[][] = [];
-    const size = 2; // Tamaño cubo externo
-    const innerSize = 1; // Tamaño cubo interno
-
-    // Definir vértices
-    const corners = [
-      [-1, -1, -1],
-      [1, -1, -1],
-      [1, 1, -1],
-      [-1, 1, -1],
-      [-1, -1, 1],
-      [1, -1, 1],
-      [1, 1, 1],
-      [-1, 1, 1],
-    ];
-
-    // 1. Líneas del Cubo Externo
-    // 2. Líneas del Cubo Interno
-    // 3. Conexiones entre Interno y Externo
-    const edges = [
-      [0, 1],
-      [1, 2],
-      [2, 3],
-      [3, 0], // Cara trasera
-      [4, 5],
-      [5, 6],
-      [6, 7],
-      [7, 4], // Cara delantera
-      [0, 4],
-      [1, 5],
-      [2, 6],
-      [3, 7], // Conexiones profundidad
-    ];
-
-    // Generar líneas para ambos cubos
-    edges.forEach(([start, end]) => {
-      // Cubo Externo
-      points.push([
-        new THREE.Vector3(...corners[start].map((c) => c * size)),
-        new THREE.Vector3(...corners[end].map((c) => c * size)),
-      ]);
-      // Cubo Interno
-      points.push([
-        new THREE.Vector3(...corners[start].map((c) => c * innerSize)),
-        new THREE.Vector3(...corners[end].map((c) => c * innerSize)),
-      ]);
-    });
-
-    // Conectar vértices externos con internos (La 4ta dimensión visualizada)
-    corners.forEach((c) => {
-      points.push([
-        new THREE.Vector3(...c.map((v) => v * size)),
-        new THREE.Vector3(...c.map((v) => v * innerSize)),
-      ]);
-    });
-
-    return points;
-  }, []);
-
   return (
     <group ref={groupRef}>
-      {lines.map((pos, index) => (
-        <Line
-          key={index}
-          points={pos}
-          color="white"
-          lineWidth={2} // Grosor de línea
-          transparent
-          opacity={0.8}
-        />
-      ))}
+      <Segments limit={edges.length} lineWidth={2}>
+        {edges.map((_, i) => (
+          <Segment
+            key={i}
+            ref={(el: any) => (segRefs.current[i] = el)}
+            start={[0, 0, 0]}
+            end={[0, 0, 0]}
+            color="white"
+          />
+        ))}
+      </Segments>
     </group>
   );
 }
