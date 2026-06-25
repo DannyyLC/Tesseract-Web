@@ -70,6 +70,9 @@ const REQUIRED_IN_PRODUCTION: string[] = [
   // WhatsApp (YCloud)
   'Y_CLOUD_API_KEY',
   'Y_CLOUD_WEBHOOK_SECRET',
+
+  // Upstash Redis (WhatsApp message window aggregation)
+  'REDIS_URL',
 ];
 
 // ─── Validator ────────────────────────────────────────────────────────────────

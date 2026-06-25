@@ -12,6 +12,20 @@ import { AutomationModule } from './automation/automation.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { PlatformModule } from './platform/platform.module';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+const readableLogFormatter = winston.format.printf(
+  ({ timestamp, level, message, context, stack, ...meta }) => {
+    const base = `${timestamp} [${level}]${context ? ` [${context}]` : ''} ${stack ?? message}`;
+    const metaKeys = Object.keys(meta);
+    if (metaKeys.length === 0) {
+      return base;
+    }
+
+    return `${base} ${JSON.stringify(meta)}`;
+  },
+);
+
 @Module({
   imports: [
     WinstonModule.forRoot({
@@ -19,9 +33,24 @@ import { PlatformModule } from './platform/platform.module';
         // En produccion (Cloud Run) los logs van a stdout -> Cloud Logging los
         // captura automaticamente. El filesystem del contenedor es efimero y en
         // memoria, asi que NO escribimos archivos en prod.
-        new winston.transports.Console(),
+        new winston.transports.Console({
+          format: isProduction
+            ? winston.format.combine(
+                winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+                winston.format.errors({ stack: true }),
+                winston.format.splat(),
+                winston.format.json(),
+              )
+            : winston.format.combine(
+                winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+                winston.format.errors({ stack: true }),
+                winston.format.splat(),
+                winston.format.colorize({ all: true }),
+                readableLogFormatter,
+              ),
+        }),
         // Solo en desarrollo: archivos rotados en ./logs para inspeccion local.
-        ...(process.env.NODE_ENV !== 'production'
+        ...(!isProduction
           ? [
               new winston.transports.DailyRotateFile({
                 filename: 'logs/app-%DATE%.log',
@@ -30,6 +59,12 @@ import { PlatformModule } from './platform/platform.module';
                 maxSize: '20m',
                 maxFiles: '14d',
                 level: 'info',
+                format: winston.format.combine(
+                  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+                  winston.format.errors({ stack: true }),
+                  winston.format.splat(),
+                  readableLogFormatter,
+                ),
               }),
             ]
           : []),
