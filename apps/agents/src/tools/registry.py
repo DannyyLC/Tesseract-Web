@@ -399,7 +399,11 @@ def load_specific_tool(
 
     elif tool_name == "send_bulk_whatsapp":
         from tools.whatsapp_outbound import load_whatsapp_outbound_tools
-        tools = load_whatsapp_outbound_tools(credentials, config)
+        tools = load_whatsapp_outbound_tools(credentials, config, ctx.user_metadata.get("dynamic_extra_data_for_templates"))
+
+    elif tool_name == "http_request":
+        from tools.http_request import load_http_request_tools
+        tools = load_http_request_tools(credentials, config)
 
     else:
         logger.warning(

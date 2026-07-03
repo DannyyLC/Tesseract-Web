@@ -136,6 +136,7 @@ def _send_single_message(api_key: str, payload: dict, timeout: float = 15.0) -> 
 def load_whatsapp_outbound_tools(
     credentials: dict[str, Any],
     config: dict[str, Any],
+    dynamic_extra_data_for_templates: dict[str, Any] | None = None
 ) -> list[BaseTool]:
     """
     Returns the send_bulk_whatsapp LangChain tool.
@@ -148,6 +149,7 @@ def load_whatsapp_outbound_tools(
     from_number: str = config.get("from_number", "")
     api_key: str = config.get("api_key", "")
     available_templates: dict = config.get("available_templates", {})
+    dynamic_extra_data_for_templates = dynamic_extra_data_for_templates or {}
 
     if not from_number or not api_key:
         logger.error(
@@ -190,6 +192,12 @@ def load_whatsapp_outbound_tools(
                     "error": f"Template '{msg.template_id}' no disponible para este workflow",
                 })
                 continue
+
+            if tpl["body"]:
+                if "client_number" in tpl["body"]:
+                    msg.variables["body"] = msg.variables.get("body", [])
+                    client_number = dynamic_extra_data_for_templates.get("client_number")
+                    msg.variables["body"].insert(0, client_number)
 
             payload = _build_template_payload(
                 from_number=from_number,  # SISTEMA — el modelo nunca lo controla

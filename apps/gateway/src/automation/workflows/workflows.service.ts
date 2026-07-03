@@ -940,6 +940,9 @@ export class WorkflowsService {
         historyForPayload,
         compactionContext.activeSummary,
         metadata?.whatsAppConfigId,
+        {
+          client_number: whatsappData?.whatsappInboundMessage?.from
+        }
       );
 
       // Llamar al servicio de agents (Python)
@@ -1604,6 +1607,7 @@ export class WorkflowsService {
     messageHistory: any[] = [],
     activeSummary?: string | null,
     whatsAppConfigId?: string,
+    dynamicExtraDataForTemplates?: Record<string, any>
   ) {
     // 1. Extraer nueva estructura unificada de config
     const config = workflow.config;
@@ -1775,7 +1779,10 @@ export class WorkflowsService {
       // Historial y metadata
       message_history: composedHistory,
       timezone: workflow.timezone ?? 'UTC',
-      user_metadata: { variables: persistedVariables },
+      user_metadata: { 
+        variables: persistedVariables,
+        ...(dynamicExtraDataForTemplates !== null && dynamicExtraDataForTemplates !== undefined ? { dynamic_extra_data_for_templates: dynamicExtraDataForTemplates } : {}),
+      },
     };
 
     // Sanitizar payload para logging (remover credenciales)
