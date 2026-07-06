@@ -164,7 +164,7 @@ class TestAgenticLoop:
         )
         upd = run(node)
 
-        assert upd["variables"]["intent"] == "soporte"
+        assert upd["variables"]["intent"] == ["soporte"]
         assert upd["messages"][-1].content == "Esto es de otra área."
 
 

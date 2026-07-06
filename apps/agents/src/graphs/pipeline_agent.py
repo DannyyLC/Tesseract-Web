@@ -81,10 +81,12 @@ CÓMO FLUYEN LOS DATOS ENTRE NODOS:
 import re
 import copy
 import logging
+import operator
 from typing import Annotated, Any, Dict, List, Literal
 
 from langgraph.graph import StateGraph, END, START
 from langgraph.graph.message import add_messages
+from langgraph.types import Send
 from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from typing_extensions import TypedDict
 
@@ -102,23 +104,72 @@ logger = logging.getLogger(__name__)
 # ESTADO DEL GRAFO
 # =============================================================================
 
+# Tag de LangChain que marca las llamadas LLM cuyos tokens NO deben streamearse
+# al usuario (especialistas en modo paralelo). El servicer filtra por este tag.
+NO_STREAM_TAG = "pipeline_no_stream"
+
+
+def _merge_variables(left: Dict[str, Any] | None, right: Dict[str, Any] | None) -> Dict[str, Any]:
+    """
+    Reducer del canal `variables`: merge superficial de DELTAS.
+
+    Cada nodo escribe solo las claves que cambió (no una copia completa del dict);
+    con ramas paralelas, claves distintas se combinan y la misma clave escrita por
+    dos ramas en el mismo superstep queda en last-writer-wins (orden de los Send).
+    No apoyar lógica de negocio en ese orden.
+    """
+    return {**(left or {}), **(right or {})}
+
+
+def _keep_last(left: Any, right: Any) -> Any:
+    """Reducer last-value tolerante a escrituras concurrentes (no lanza error)."""
+    return right if right is not None else left
+
+
+def _append_or_reset(left: list | None, right: list | None) -> list:
+    """
+    operator.add con reset: escribir None vacía el canal.
+    Lo usa el synthesizer para limpiar pending_handoffs tras ejecutar el handoff real.
+    """
+    if right is None:
+        return []
+    return (left or []) + right
+
+
 class PipelineAgentState(TypedDict):
     """
     Estado compartido entre todos los nodos del pipeline.
 
     Campos:
-        messages:       Historial de mensajes acumulado (reducer: concatena)
-        variables:      Bus de datos entre nodos. Cada nodo puede leer/escribir aquí.
-                        Ejemplo: {"intent": "ventas", "user_profile": {...}}
-        current_node:   ID del nodo que se está ejecutando (para logging/debug)
-        execution_path: Secuencia de nodos ejecutados en esta corrida
+        messages:        Historial de mensajes acumulado (reducer: concatena)
+        variables:       Bus de datos entre nodos. Los nodos escriben DELTAS (solo las
+                         claves que cambian); el reducer las mergea. Ejemplo:
+                         {"intent": ["ventas"], "user_profile": {...}}
+        current_node:    ID del último nodo ejecutado (para logging/debug)
+        execution_path:  Secuencia de nodos ejecutados en esta corrida (cada nodo
+                         aporta [su_id]; el reducer concatena)
         iteration_count: Contador de seguridad para prevenir loops infinitos
+        specialist_outputs: Respuestas de especialistas ejecutados en modo paralelo:
+                         [{node_id, agent, intent, content, usage_metadata,
+                           response_metadata}]. El synthesizer las combina en una
+                         sola respuesta. No se persiste entre turnos.
+        pending_handoffs: Capturas de tools interceptadas en modo paralelo:
+                         [{agent, node_id, tool_name, base_name, args}]. El
+                         synthesizer ejecuta UNA llamada real por grupo y resetea
+                         el canal (escribiendo None). No se persiste entre turnos.
+        parallel_mode:   True solo dentro del input de un Send (rama paralela).
+                         Ningún nodo lo escribe como update.
+        current_intent:  Intent que originó esta rama paralela (viaja en el Send).
     """
     messages: Annotated[list, add_messages]
-    variables: Dict[str, Any]
-    current_node: str
-    execution_path: List[str]
+    variables: Annotated[Dict[str, Any], _merge_variables]
+    current_node: Annotated[str, _keep_last]
+    execution_path: Annotated[List[str], operator.add]
     iteration_count: int
+    specialist_outputs: Annotated[list, operator.add]
+    pending_handoffs: Annotated[list, _append_or_reset]
+    parallel_mode: bool
+    current_intent: str
 
 
 # =============================================================================
@@ -237,6 +288,83 @@ def _evaluate_condition(op: str, field_value: Any, compare_value: Any) -> bool:
     return False
 
 
+def _tool_base_name(tool: Any) -> str | None:
+    """Nombre original de la tool antes del sufijo de display_name (registry.load_tools)."""
+    return (getattr(tool, "metadata", None) or {}).get("base_name")
+
+
+def _tool_name_matches(configured_name: str, tool: Any) -> bool:
+    """
+    Matchea el nombre de tool de una config contra una tool cargada.
+
+    Las tools se renombran a '{base}_{display_suffix}' al cargarse; las configs
+    pueden referenciarlas por el nombre base (recomendado) o por el nombre completo.
+    """
+    return configured_name == tool.name or configured_name == _tool_base_name(tool)
+
+
+def _extract_intents(pattern: re.Pattern, content: str) -> tuple[List[str], str]:
+    """
+    Extrae TODOS los intents de una respuesta y limpia los tags del texto visible.
+
+    Soporta ambos formatos de emisión:
+        - Tags repetidos:       "[ROUTE:a] [ROUTE:b]"
+        - Lista con comas:      "[ROUTE:a,b]"   (el regex debe permitir comas en el grupo)
+
+    Returns:
+        (intents normalizados y deduplicados preservando orden, content sin tags)
+    """
+    intents: List[str] = []
+    for group in pattern.findall(content):
+        for part in str(group).split(","):
+            p = part.strip().lower()
+            if p and p not in intents:
+                intents.append(p)
+    cleaned = pattern.sub("", content).strip()
+    return intents, cleaned
+
+
+def _normalize_intents(value: Any) -> List[str]:
+    """
+    Normaliza el valor de la variable de ruteo a lista de intents.
+
+    Retrocompatible: acepta lista, string único ("ventas"), string con comas
+    ("ventas,soporte") o None. Dedup preservando orden.
+    """
+    if value is None:
+        return []
+    if isinstance(value, str):
+        raw_parts = value.split(",")
+    elif isinstance(value, list):
+        raw_parts = value
+    else:
+        raw_parts = [value]
+
+    out: List[str] = []
+    for part in raw_parts:
+        p = str(part).strip().lower()
+        if p and p not in out:
+            out.append(p)
+    return out
+
+
+def _build_time_context(ctx: TenantContext) -> str:
+    """Bloque de contexto de fecha/hora local que se suma al system prompt."""
+    try:
+        local_tz = pytz.timezone(ctx.timezone)
+    except pytz.UnknownTimeZoneError:
+        local_tz = pytz.UTC
+
+    current_time = datetime.now(local_tz)
+    return (
+        f"\n---\n"
+        f"SYSTEM DYNAMIC CONTEXT:\n"
+        f"Today's Date: {current_time.strftime('%A, %B %d, %Y')}\n"
+        f"Current Local Time: {current_time.strftime('%I:%M %p')} (Timezone: {ctx.timezone})\n"
+        f"---\n"
+    )
+
+
 # =============================================================================
 # FÁBRICAS DE NODOS
 # =============================================================================
@@ -244,7 +372,8 @@ def _evaluate_condition(op: str, field_value: Any, compare_value: Any) -> bool:
 def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None, ctx: TenantContext,
                      classification_pattern: str | None = None, max_iterations: int = 0,
                      disable_tools_if: List[Dict[str, Any]] | None = None,
-                     set_variables_on_tool_call: Dict[str, Dict[str, Any]] | None = None):
+                     set_variables_on_tool_call: Dict[str, Dict[str, Any]] | None = None,
+                     intercept_tools_in_parallel: List[str] | None = None):
     """
     Crea un nodo que llama al LLM y opcionalmente guarda su respuesta en variables.
 
@@ -278,6 +407,14 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                                 Mapa {tool_name: {variable: valor}}. Cuando el LLM llama esa tool,
                                 las variables se setean de forma determinista en el estado, en el
                                 momento del intento (independiente de si la tool tuvo éxito).
+                                El tool_name puede ser el nombre base (sin sufijo de display_name)
+                                o el nombre completo.
+        intercept_tools_in_parallel:
+                                Lista de nombres de tool (base o completos) que en MODO PARALELO
+                                (rama de un fan-out multi-intent) NO se ejecutan: la llamada se
+                                captura en pending_handoffs y el synthesizer hace una única
+                                invocación real consolidada. En modo single la tool se ejecuta
+                                directo, como siempre.
     """
     llm = get_llm(ctx, agent_name)
     pattern = re.compile(classification_pattern) if classification_pattern else None
@@ -298,33 +435,23 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
         agent_config = ctx.get_agent_config(agent_name)
         base_system_prompt = agent_config.get("system_prompt", "")
 
-        # Copia de variables para acumular los cambios de este nodo
-        variables = dict(state.get("variables", {}))
-        variables_changed = False
+        # Rama de un fan-out multi-intent (viaja en el input del Send, no en el estado global)
+        parallel = bool(state.get("parallel_mode"))
 
-        # Inyectar contexto de tiempo (igual que en ReAct)
-        try:
-            local_tz = pytz.timezone(ctx.timezone)
-        except pytz.UnknownTimeZoneError:
-            local_tz = pytz.UTC
+        # Lecturas sobre el estado; escrituras SOLO al delta (los canales usan reducers
+        # de merge — escribir una copia completa pisaría escrituras de ramas paralelas)
+        state_vars = state.get("variables", {})
+        variables_delta: Dict[str, Any] = {}
 
-        current_time = datetime.now(local_tz)
-        time_context = (
-            f"\n---\n"
-            f"SYSTEM DYNAMIC CONTEXT:\n"
-            f"Today's Date: {current_time.strftime('%A, %B %d, %Y')}\n"
-            f"Current Local Time: {current_time.strftime('%I:%M %p')} (Timezone: {ctx.timezone})\n"
-            f"---\n"
-        )
-
+        time_context = _build_time_context(ctx)
         system_prompt = base_system_prompt + time_context if base_system_prompt else time_context
 
         # Canal interno: un nodo set_variables previo pudo dejar texto a sumar al system prompt.
-        # Se consume aquí (se elimina de variables) para no afectar a nodos posteriores.
-        append_system_msg = variables.pop("__append_system_message__", None)
+        # Se consume aquí (delta a None; los consumidores tratan None como ausente).
+        append_system_msg = state_vars.get("__append_system_message__")
         if append_system_msg:
             system_prompt = (system_prompt + "\n\n" + append_system_msg) if system_prompt else append_system_msg
-            variables_changed = True
+            variables_delta["__append_system_message__"] = None
 
         if system_prompt:
             if not messages or messages[0].type != "system":
@@ -334,13 +461,21 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
 
         updates: Dict[str, Any] = {
             "current_node": node_id,
-            "execution_path": list(state.get("execution_path", [])) + [node_id],
+            "execution_path": [node_id],
         }
+
+        def invoke_llm(llm_obj, msgs):
+            # En paralelo los tokens no deben llegar al stream del usuario;
+            # el servicer filtra las llamadas marcadas con NO_STREAM_TAG.
+            if parallel:
+                return llm_obj.invoke(msgs, config={"tags": [NO_STREAM_TAG]})
+            return llm_obj.invoke(msgs)
 
         # ------------------------------------------------------------------
         # Llamada al LLM: single-call o loop agéntico
         # ------------------------------------------------------------------
         preceding_messages: List[Any] = []  # mensajes intermedios (tool calls + results)
+        handoff_captures: List[Dict[str, Any]] = []  # tools interceptadas en modo paralelo
         final_response: AIMessage
 
         if is_agentic:
@@ -355,7 +490,7 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                     disabled = False
                     for rule in disable_tools_if:
                         rule_tool = rule.get("tool")
-                        if rule_tool is not None and rule_tool != t.name:
+                        if rule_tool is not None and not _tool_name_matches(rule_tool, t):
                             continue
                         field_value = _resolve_path(state, rule.get("field", ""))
                         if _evaluate_condition(rule.get("op", "eq"), field_value, rule.get("value")):
@@ -379,7 +514,7 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
 
             for _i in range(max_iterations):
                 try:
-                    response = runtime_llm.invoke(current_messages)
+                    response = invoke_llm(runtime_llm, current_messages)
                 except Exception as e:
                     logger.error(f"[{ctx.workflow_id}] Node '{node_id}' LLM error: {e}", exc_info=True)
                     response = AIMessage(content=f"Error en nodo {node_id}: {str(e)}")
@@ -403,34 +538,67 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                     tool = tools_by_name.get(tc["name"])
 
                     # Setear variables de forma determinista al intentar llamar la tool
-                    # (independiente del resultado — ver docstring de set_variables_on_tool_call)
-                    if set_variables_on_tool_call and tc["name"] in set_variables_on_tool_call:
-                        variables.update(set_variables_on_tool_call[tc["name"]])
-                        variables_changed = True
-                        logger.info(
-                            f"[{ctx.workflow_id}] Node '{node_id}': tool call '{tc['name']}' "
-                            f"set variables {list(set_variables_on_tool_call[tc['name']].keys())}"
-                        )
-
-                    try:
-                        if tool:
-                            tool_result = tool.invoke(tc["args"])
+                    # (independiente del resultado — ver docstring de set_variables_on_tool_call).
+                    # La config puede usar el nombre base o el nombre completo con sufijo.
+                    if set_variables_on_tool_call:
+                        sv_key = None
+                        if tc["name"] in set_variables_on_tool_call:
+                            sv_key = tc["name"]
+                        elif tool is not None and _tool_base_name(tool) in set_variables_on_tool_call:
+                            sv_key = _tool_base_name(tool)
+                        if sv_key:
+                            variables_delta.update(set_variables_on_tool_call[sv_key])
                             logger.info(
-                                f"[{ctx.workflow_id}] Node '{node_id}' tool '{tc['name']}' "
-                                f"result: {str(tool_result)[:200]}"
+                                f"[{ctx.workflow_id}] Node '{node_id}': tool call '{tc['name']}' "
+                                f"set variables {list(set_variables_on_tool_call[sv_key].keys())}"
                             )
-                        else:
-                            tool_result = f"Tool '{tc['name']}' no disponible"
-                            logger.warning(
-                                f"[{ctx.workflow_id}] Node '{node_id}': "
-                                f"tool '{tc['name']}' not found in agent tools"
-                            )
-                    except Exception as e:
-                        logger.error(
-                            f"[{ctx.workflow_id}] Node '{node_id}' tool '{tc['name']}' error: {e}",
-                            exc_info=True,
+
+                    # En modo paralelo las tools declaradas en intercept_tools_in_parallel
+                    # NO se ejecutan: se captura la intención y el synthesizer hace una
+                    # única llamada real consolidada.
+                    intercepted = (
+                        parallel
+                        and intercept_tools_in_parallel
+                        and tool is not None
+                        and any(_tool_name_matches(n, tool) for n in intercept_tools_in_parallel)
+                    )
+
+                    if intercepted:
+                        handoff_captures.append({
+                            "agent": agent_name,
+                            "node_id": node_id,
+                            "tool_name": tc["name"],
+                            "base_name": _tool_base_name(tool) or tc["name"],
+                            "args": tc["args"],
+                        })
+                        tool_result = (
+                            "Notificación registrada. Se enviará una sola notificación "
+                            "consolidada al finalizar."
                         )
-                        tool_result = f"Error ejecutando '{tc['name']}': {str(e)}"
+                        logger.info(
+                            f"[{ctx.workflow_id}] Node '{node_id}': tool '{tc['name']}' "
+                            f"intercepted in parallel mode (captured for synthesizer)"
+                        )
+                    else:
+                        try:
+                            if tool:
+                                tool_result = tool.invoke(tc["args"])
+                                logger.info(
+                                    f"[{ctx.workflow_id}] Node '{node_id}' tool '{tc['name']}' "
+                                    f"result: {str(tool_result)[:200]}"
+                                )
+                            else:
+                                tool_result = f"Tool '{tc['name']}' no disponible"
+                                logger.warning(
+                                    f"[{ctx.workflow_id}] Node '{node_id}': "
+                                    f"tool '{tc['name']}' not found in agent tools"
+                                )
+                        except Exception as e:
+                            logger.error(
+                                f"[{ctx.workflow_id}] Node '{node_id}' tool '{tc['name']}' error: {e}",
+                                exc_info=True,
+                            )
+                            tool_result = f"Error ejecutando '{tc['name']}': {str(e)}"
 
                     tm = ToolMessage(
                         content=str(tool_result),
@@ -447,7 +615,7 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                     f"({max_iterations}), forcing final text response"
                 )
                 try:
-                    final_response = llm.invoke(current_messages)
+                    final_response = invoke_llm(llm, current_messages)
                     content = final_response.content
                 except Exception as e:
                     logger.error(
@@ -463,7 +631,7 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                 f"with {len(messages)} messages"
             )
             try:
-                final_response = llm.invoke(messages)
+                final_response = invoke_llm(llm, messages)
             except Exception as e:
                 logger.error(f"[{ctx.workflow_id}] Node '{node_id}' LLM error: {e}", exc_info=True)
                 final_response = AIMessage(content=f"Error en nodo {node_id}: {str(e)}")
@@ -473,57 +641,74 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
         # ------------------------------------------------------------------
         # Procesar respuesta final: classification_pattern y output_variable
         # ------------------------------------------------------------------
-        if pattern:
-            if not variables.get("routing_locked"):
-                match = pattern.search(content)
-                if match:
-                    extracted = match.group(1).strip().lower()
-                    content = pattern.sub("", content).strip()
+        if pattern and parallel:
+            # Los especialistas de un fan-out no re-rutean: los intents ya fueron
+            # decididos. Solo limpiar tags residuales del texto visible.
+            content = pattern.sub("", content).strip()
+        elif pattern:
+            if not state_vars.get("routing_locked"):
+                intents, cleaned = _extract_intents(pattern, content)
+                if intents:
+                    content = cleaned
 
-                    previous_intent = variables.get(output_variable, "") if output_variable else ""
+                    previous_intents = _normalize_intents(
+                        state_vars.get(output_variable) if output_variable else None
+                    )
                     if output_variable:
-                        variables[output_variable] = extracted
-                        variables_changed = True
+                        # Siempre lista (el router acepta lista o string legacy)
+                        variables_delta[output_variable] = intents
 
-                    if extracted != previous_intent:
-                        variables["reroute_count"] = variables.get("reroute_count", 0) + 1
-                        variables_changed = True
+                    if set(intents) != set(previous_intents):
+                        variables_delta["reroute_count"] = state_vars.get("reroute_count", 0) + 1
 
                     logger.info(
-                        f"[{ctx.workflow_id}] Node '{node_id}' extracted intent '{extracted}' "
-                        f"(reroute_count={variables.get('reroute_count', 0)})"
+                        f"[{ctx.workflow_id}] Node '{node_id}' extracted intents {intents} "
+                        f"(reroute_count={variables_delta.get('reroute_count', state_vars.get('reroute_count', 0))})"
                     )
         elif output_variable:
-            variables[output_variable] = content.strip()
-            variables_changed = True
+            variables_delta[output_variable] = content.strip()
             logger.info(
                 f"[{ctx.workflow_id}] Node '{node_id}' stored response in "
                 f"variables.{output_variable}: '{content.strip()[:100]}'"
             )
 
         # ------------------------------------------------------------------
-        # Construir lista de mensajes a agregar al estado
+        # Construir salida del nodo
         # ------------------------------------------------------------------
-        # preceding_messages contiene los AIMessage(tool_calls) + ToolMessages intermedios.
-        # El mensaje final solo se agrega si tiene contenido visible tras limpiar el tag.
-        if content:
-            if content == final_response.content:
-                final_msg = final_response
-            else:
-                # Mensaje limpio, preservando metadata de tokens para el accounting del servicer
-                final_msg = AIMessage(content=content)
-                if getattr(final_response, "usage_metadata", None):
-                    final_msg.usage_metadata = final_response.usage_metadata
-                if getattr(final_response, "response_metadata", None):
-                    final_msg.response_metadata = final_response.response_metadata
+        if parallel:
+            # Rama de fan-out: la respuesta NO va al historial (evita N burbujas al
+            # usuario); va a specialist_outputs para que el synthesizer la combine.
+            updates["specialist_outputs"] = [{
+                "node_id": node_id,
+                "agent": agent_name,
+                "intent": state.get("current_intent"),
+                "content": content,
+                "usage_metadata": getattr(final_response, "usage_metadata", None),
+                "response_metadata": getattr(final_response, "response_metadata", None),
+            }]
+            if handoff_captures:
+                updates["pending_handoffs"] = handoff_captures
+        else:
+            # preceding_messages contiene los AIMessage(tool_calls) + ToolMessages intermedios.
+            # El mensaje final solo se agrega si tiene contenido visible tras limpiar el tag.
+            if content:
+                if content == final_response.content:
+                    final_msg = final_response
+                else:
+                    # Mensaje limpio, preservando metadata de tokens para el accounting del servicer
+                    final_msg = AIMessage(content=content)
+                    if getattr(final_response, "usage_metadata", None):
+                        final_msg.usage_metadata = final_response.usage_metadata
+                    if getattr(final_response, "response_metadata", None):
+                        final_msg.response_metadata = final_response.response_metadata
 
-            updates["messages"] = preceding_messages + [final_msg]
-        elif preceding_messages:
-            # Solo hubo tool calls (sin texto final visible)
-            updates["messages"] = preceding_messages
+                updates["messages"] = preceding_messages + [final_msg]
+            elif preceding_messages:
+                # Solo hubo tool calls (sin texto final visible)
+                updates["messages"] = preceding_messages
 
-        if variables_changed:
-            updates["variables"] = variables
+        if variables_delta:
+            updates["variables"] = variables_delta
 
         return updates
 
@@ -611,15 +796,14 @@ def _make_tool_node(node_id: str, config: Dict[str, Any], ctx: TenantContext):
 
         updates: Dict[str, Any] = {
             "current_node": node_id,
-            "execution_path": list(state.get("execution_path", [])) + [node_id],
+            "execution_path": [node_id],
             # Agregar el resultado como mensaje de contexto para nodos agente posteriores
             "messages": [ToolMessage(content=str(result), tool_call_id=node_id)],
         }
 
         if output_variable:
-            variables = dict(state.get("variables", {}))
-            variables[output_variable] = result
-            updates["variables"] = variables
+            # Delta: solo la clave que cambió (los reducers mergean)
+            updates["variables"] = {output_variable: result}
             logger.info(
                 f"[{ctx.workflow_id}] Node '{node_id}' stored tool result in "
                 f"variables.{output_variable}"
@@ -647,11 +831,11 @@ def _make_set_variables_node(node_id: str, config: Dict[str, Any], ctx: TenantCo
     logger.info(f"[{ctx.workflow_id}] set_variables node '{node_id}' initialized")
 
     def node(state: PipelineAgentState) -> dict:
-        variables = dict(state.get("variables", {}))
-        variables.update(variables_to_set)
+        # Delta: solo las claves seteadas (los reducers mergean)
+        variables_delta = dict(variables_to_set)
 
         if append_msg:
-            variables["__append_system_message__"] = append_msg
+            variables_delta["__append_system_message__"] = append_msg
 
         logger.info(
             f"[{ctx.workflow_id}] set_variables '{node_id}': "
@@ -659,10 +843,175 @@ def _make_set_variables_node(node_id: str, config: Dict[str, Any], ctx: TenantCo
         )
 
         return {
-            "variables": variables,
+            "variables": variables_delta,
             "current_node": node_id,
-            "execution_path": list(state.get("execution_path", [])) + [node_id],
+            "execution_path": [node_id],
         }
+
+    return node
+
+
+def _merge_tool_args(args_list: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Combina los args de múltiples capturas de una misma tool en una sola llamada.
+
+    Por clave: si el valor acumulado y el nuevo son listas → se concatenan
+    (p.ej. 'messages' de send_bulk_whatsapp); en cualquier otro caso → last-wins.
+    """
+    merged: Dict[str, Any] = {}
+    for args in args_list:
+        for key, value in (args or {}).items():
+            if key in merged and isinstance(merged[key], list) and isinstance(value, list):
+                merged[key] = merged[key] + value
+            else:
+                merged[key] = value
+    return merged
+
+
+def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any], ctx: TenantContext):
+    """
+    Nodo de convergencia del fan-out multi-intent.
+
+    1. Si hay pending_handoffs (tools interceptadas por especialistas en paralelo),
+       ejecuta UNA llamada real por grupo (agent, tool_name) con los args combinados,
+       de forma DETERMINISTA en código (no depende de que el LLM "decida" notificar),
+       y resetea el canal.
+    2. Combina los specialist_outputs en UNA respuesta final al usuario:
+       - 1 output  → pass-through sin LLM (el texto del especialista tal cual).
+       - 2+ outputs → una llamada al LLM del agente synthesizer con las respuestas
+         etiquetadas por especialista en el system prompt.
+
+    Config del nodo:
+        execute_pending_handoffs: ejecutar las tools capturadas (default True)
+        handoff_notice:           texto a sumar al system prompt cuando se ejecutó
+                                  un handoff (p.ej. "ya se notificó, no lo repitas")
+
+    El agente (agent_name) debe existir en agents_config como cualquier otro:
+    define model, temperature y system_prompt del sintetizador.
+    """
+    llm = get_llm(ctx, agent_name)
+    execute_pending_handoffs = config.get("execute_pending_handoffs", True)
+    handoff_notice = config.get("handoff_notice", "")
+
+    # Cache de tools cargadas por agente especialista (para ejecutar las capturas)
+    tools_cache: Dict[str, list] = {}
+
+    logger.info(
+        f"[{ctx.workflow_id}] Synthesizer node '{node_id}' (agent:{agent_name}) initialized"
+    )
+
+    def node(state: PipelineAgentState) -> dict:
+        outputs = state.get("specialist_outputs", [])
+
+        updates: Dict[str, Any] = {
+            "current_node": node_id,
+            "execution_path": [node_id],
+        }
+
+        if not outputs:
+            logger.warning(
+                f"[{ctx.workflow_id}] Synthesizer '{node_id}': sin specialist_outputs — no-op"
+            )
+            return updates
+
+        # ------------------------------------------------------------------
+        # 1. Handoff determinista: una llamada real por grupo (agent, tool)
+        # ------------------------------------------------------------------
+        handoffs_executed = False
+        pending = state.get("pending_handoffs", [])
+
+        if execute_pending_handoffs and pending:
+            # Agrupar por tool (nombre base): aunque N especialistas hayan capturado
+            # la misma tool, el usuario debe generar UNA sola notificación.
+            groups: Dict[str, List[Dict[str, Any]]] = {}
+            for capture in pending:
+                key = capture.get("base_name") or capture.get("tool_name")
+                groups.setdefault(key, []).append(capture)
+
+            for base_name, captures in groups.items():
+                try:
+                    # La tool se carga con las credenciales del primer agente que la
+                    # capturó (en la práctica todos referencian el mismo TenantTool).
+                    capture_agent = captures[0].get("agent")
+                    tool_name = captures[0].get("tool_name")
+                    if capture_agent not in tools_cache:
+                        tools_cache[capture_agent] = load_tools(ctx, capture_agent)
+                    tool = next(
+                        (t for t in tools_cache[capture_agent] if t.name == tool_name),
+                        None,
+                    )
+                    if tool is None:
+                        logger.error(
+                            f"[{ctx.workflow_id}] Synthesizer '{node_id}': tool "
+                            f"'{tool_name}' del agente '{capture_agent}' no encontrada"
+                        )
+                        continue
+
+                    merged_args = _merge_tool_args([c.get("args", {}) for c in captures])
+                    result = tool.invoke(merged_args)
+                    handoffs_executed = True
+                    logger.info(
+                        f"[{ctx.workflow_id}] Synthesizer '{node_id}': handoff consolidado "
+                        f"'{base_name}' ({len(captures)} captura(s)) → {str(result)[:200]}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"[{ctx.workflow_id}] Synthesizer '{node_id}': error ejecutando "
+                        f"handoff '{base_name}': {e}",
+                        exc_info=True,
+                    )
+
+            # Reset del canal: un ciclo posterior no debe re-enviar
+            updates["pending_handoffs"] = None
+
+        # ------------------------------------------------------------------
+        # 2. Síntesis de las respuestas
+        # ------------------------------------------------------------------
+        if len(outputs) == 1:
+            # Pass-through sin LLM. Sin usage_metadata: el accounting del servicer
+            # ya suma los specialist_outputs (evita doble conteo).
+            final_msg = AIMessage(content=outputs[0].get("content", ""))
+            logger.info(
+                f"[{ctx.workflow_id}] Synthesizer '{node_id}': 1 output → pass-through"
+            )
+        else:
+            agent_config = ctx.get_agent_config(agent_name)
+            base_system_prompt = agent_config.get("system_prompt", "")
+
+            outputs_block = "\n\nRESPUESTAS DE LOS ESPECIALISTAS:\n" + "\n\n".join(
+                f"[{o.get('intent') or o.get('agent')}]\n{o.get('content', '')}"
+                for o in outputs
+            )
+
+            system_prompt = (base_system_prompt or "") + _build_time_context(ctx)
+            if handoffs_executed and handoff_notice:
+                system_prompt += "\n\n" + handoff_notice
+            system_prompt += outputs_block
+
+            messages = list(state["messages"])
+            if not messages or messages[0].type != "system":
+                messages = [SystemMessage(content=system_prompt)] + messages
+            else:
+                messages[0] = SystemMessage(content=system_prompt)
+
+            logger.info(
+                f"[{ctx.workflow_id}] Synthesizer '{node_id}': combinando "
+                f"{len(outputs)} outputs"
+            )
+            try:
+                final_msg = llm.invoke(messages)
+            except Exception as e:
+                logger.error(
+                    f"[{ctx.workflow_id}] Synthesizer '{node_id}' LLM error: {e}",
+                    exc_info=True,
+                )
+                # Fallback: concatenar las respuestas para no dejar al usuario sin nada
+                final_msg = AIMessage(
+                    content="\n\n".join(o.get("content", "") for o in outputs if o.get("content"))
+                )
+
+        updates["messages"] = [final_msg]
+        return updates
 
     return node
 
@@ -752,18 +1101,59 @@ def _make_condition_function(node_id: str, config: Dict[str, Any], ctx: TenantCo
         return rules_condition
 
     elif mode == "router":
-        # Router conversacional con anti-loop. Rutea según un intent persistido y usa
+        # Router conversacional con anti-loop y soporte multi-intent.
+        # Rutea según un intent persistido (string legacy o lista de intents) y usa
         # execution_path para saber qué agentes ya respondieron en este ciclo.
+        #
+        # - 1 intent nuevo y sin outputs previos → retorna el nombre del nodo (string):
+        #   modo single, ruta idéntica al comportamiento original.
+        # - 2+ intents (o 1 nuevo habiendo outputs previos que reutilizar) → retorna
+        #   list[Send]: fan-out paralelo con parallel_mode=True; los especialistas
+        #   escriben a specialist_outputs y convergen en el synthesizer.
+        #
+        # Config adicional (opcional, retrocompatible):
+        #   max_parallel_agents: tope de ramas paralelas por mensaje (default 3)
+        #   synthesizer_node:    ID del nodo synthesizer (ruta defensiva cuando hay
+        #                        outputs acumulados sin sintetizar)
         route_variable = config["route_variable"]   # e.g. "variables.intent"
         routes = config["routes"]                    # {"ventas": "agent_ventas", ...}
         fallback = config.get("fallback", END)
         max_reroutes = config.get("max_reroutes", 3)
         lock_node = config.get("lock_node")          # ID del nodo set_variables de lock (opcional)
+        max_parallel_agents = config.get("max_parallel_agents", 3)
+        synthesizer_node = config.get("synthesizer_node")
 
-        def router_condition(state: PipelineAgentState) -> str:
+        def router_condition(state: PipelineAgentState):
             variables = state.get("variables", {})
             execution_path = state.get("execution_path", [])
             reroute_count = variables.get("reroute_count", 0)
+            outputs_count = len(state.get("specialist_outputs", []))
+
+            # Convergencia del fan-out: si hay specialist_outputs, un fan-out ya corrió
+            # en este turno y la ÚNICA salida válida es el synthesizer (o END). No se
+            # re-evalúa pending aquí: la evaluación de edges de una rama Send no ve las
+            # escrituras de las ramas hermanas, y decidir con pending re-dispararía a
+            # los otros especialistas en un segundo round duplicado.
+            if outputs_count:
+                if synthesizer_node and synthesizer_node not in execution_path:
+                    logger.info(
+                        f"[{ctx.workflow_id}] Router '{node_id}': fan-out completado "
+                        f"({outputs_count} output(s) visibles) → '{synthesizer_node}'"
+                    )
+                    return synthesizer_node
+                return END
+
+            intents = _normalize_intents(_resolve_path(state, route_variable))
+            valid_intents = [i for i in intents if i in routes]
+
+            # Targets únicos preservando orden, con el intent que originó cada uno
+            intent_by_target: Dict[str, str] = {}
+            for intent in valid_intents:
+                target = routes[intent]
+                if target not in intent_by_target:
+                    intent_by_target[target] = intent
+
+            pending = [t for t in intent_by_target if t not in execution_path][:max_parallel_agents]
 
             # Anti-loop: máximo de re-ruteos alcanzado
             if reroute_count >= max_reroutes and lock_node:
@@ -776,34 +1166,48 @@ def _make_condition_function(node_id: str, config: Dict[str, Any], ctx: TenantCo
                 logger.info(f"[{ctx.workflow_id}] Router '{node_id}': lock ya en path → END")
                 return END
 
-            intent = _resolve_path(state, route_variable)
-            intent_str = str(intent).strip().lower() if intent else ""
-
-            # Sin intent válido → fallback (p.ej. classifier)
-            if not intent_str or intent_str not in routes:
+            # Sin intents válidos → fallback (p.ej. classifier)
+            if not valid_intents:
                 if fallback in execution_path:
                     logger.info(
                         f"[{ctx.workflow_id}] Router '{node_id}': fallback '{fallback}' ya en path → END"
                     )
                     return END
                 logger.info(
-                    f"[{ctx.workflow_id}] Router '{node_id}': intent='{intent_str}' → fallback '{fallback}'"
+                    f"[{ctx.workflow_id}] Router '{node_id}': intents={intents} → fallback '{fallback}'"
                 )
                 return fallback
 
-            target_node = routes[intent_str]
-
-            # El agente destino ya respondió en este ciclo → terminar
-            if target_node in execution_path:
+            if not pending:
                 logger.info(
-                    f"[{ctx.workflow_id}] Router '{node_id}': '{target_node}' ya en path → END"
+                    f"[{ctx.workflow_id}] Router '{node_id}': targets ya en path → END"
                 )
                 return END
 
+            if len(pending) == 1 and outputs_count == 0:
+                # Modo single: ruta idéntica al comportamiento original (el especialista
+                # escribe a messages, streaming intacto, tools reales directas).
+                target_node = pending[0]
+                logger.info(
+                    f"[{ctx.workflow_id}] Router '{node_id}': "
+                    f"intent='{intent_by_target[target_node]}' → '{target_node}' (single)"
+                )
+                return target_node
+
+            # Modo paralelo: fan-out con Send. parallel_mode viaja en el input de cada
+            # rama (no es una escritura de estado); el synthesizer combina los outputs.
             logger.info(
-                f"[{ctx.workflow_id}] Router '{node_id}': intent='{intent_str}' → '{target_node}'"
+                f"[{ctx.workflow_id}] Router '{node_id}': fan-out paralelo → {pending} "
+                f"(intents={valid_intents}, outputs previos={outputs_count})"
             )
-            return target_node
+            return [
+                Send(target, {
+                    **state,
+                    "parallel_mode": True,
+                    "current_intent": intent_by_target[target],
+                })
+                for target in pending
+            ]
 
         return router_condition
 
@@ -881,9 +1285,10 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
             max_iterations = node.get("max_iterations", 0)
             disable_tools_if = node.get("disable_tools_if")
             set_variables_on_tool_call = node.get("set_variables_on_tool_call")
+            intercept_tools_in_parallel = node.get("intercept_tools_in_parallel")
             graph.add_node(node_id, _make_agent_node(
                 node_id, agent_name, output_variable, ctx, classification_pattern, max_iterations,
-                disable_tools_if, set_variables_on_tool_call
+                disable_tools_if, set_variables_on_tool_call, intercept_tools_in_parallel
             ))
             logger.debug(f"[{ctx.workflow_id}] Added agent node: '{node_id}' (agent: {agent_name})")
 
@@ -897,6 +1302,12 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
             graph.add_node(node_id, _make_set_variables_node(node_id, node_config, ctx))
             logger.debug(f"[{ctx.workflow_id}] Added set_variables node: '{node_id}'")
 
+        elif node_type == "synthesizer":
+            agent_name = node.get("agent", "synthesizer")
+            node_config = node.get("config", {})
+            graph.add_node(node_id, _make_synthesizer_node(node_id, agent_name, node_config, ctx))
+            logger.debug(f"[{ctx.workflow_id}] Added synthesizer node: '{node_id}' (agent: {agent_name})")
+
         elif node_type == "condition":
             # Los nodos condition NO se agregan al grafo de LangGraph.
             # Se convierten en conditional edges al procesar las aristas.
@@ -907,7 +1318,7 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
         else:
             raise ValueError(
                 f"[{ctx.workflow_id}] Unknown node type '{node_type}' in node '{node_id}'. "
-                f"Supported types: 'agent', 'tool', 'set_variables', 'condition'. "
+                f"Supported types: 'agent', 'tool', 'set_variables', 'condition', 'synthesizer'. "
                 f"Note: 'agent' nodes support tool calling via max_iterations>0."
             )
 

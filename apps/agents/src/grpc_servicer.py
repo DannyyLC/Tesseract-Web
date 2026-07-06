@@ -171,11 +171,14 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
             # efímeras (p.ej. reroute_count) no llegan aquí y el grafo las inicializa cuando las necesita.
             persisted_variables = validated.user_metadata.get("variables", {}) or {}
             result = graph.invoke({
-                "messages":        messages,
-                "variables":       persisted_variables,
-                "current_node":    "",
-                "execution_path":  [],
-                "iteration_count": 0,
+                "messages":            messages,
+                "variables":           persisted_variables,
+                "current_node":        "",
+                "execution_path":      [],
+                "iteration_count":     0,
+                "specialist_outputs":  [],
+                "pending_handoffs":    [],
+                "parallel_mode":       False,
             })
             execution_time_ms = int((time.time() - start_time) * 1000)
 
@@ -184,17 +187,16 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
             usage_by_model: dict[str, dict] = {}
             max_input_per_model: dict[str, int] = {}
 
-            for msg in output_messages:
-                if not (hasattr(msg, "usage_metadata") and msg.usage_metadata):
-                    continue
-                usage = msg.usage_metadata
+            def _accumulate_usage(usage, response_metadata):
+                if not usage:
+                    return
                 input_tokens = usage.get("input_tokens", 0)
                 output_tokens = usage.get("output_tokens", 0)
                 model_name = "unknown"
-                if hasattr(msg, "response_metadata") and msg.response_metadata:
+                if response_metadata:
                     model_name = (
-                        msg.response_metadata.get("model_name")
-                        or msg.response_metadata.get("model", "unknown")
+                        response_metadata.get("model_name")
+                        or response_metadata.get("model", "unknown")
                     )
                 if model_name == "unknown":
                     default_agent = ctx.get_agent_config("default") or {}
@@ -207,6 +209,21 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
                 if input_tokens > max_input_per_model[model_name]:
                     max_input_per_model[model_name] = input_tokens
                 usage_by_model[model_name]["output_tokens"] += output_tokens
+
+            for msg in output_messages:
+                if hasattr(msg, "usage_metadata") and msg.usage_metadata:
+                    _accumulate_usage(
+                        msg.usage_metadata,
+                        msg.response_metadata if hasattr(msg, "response_metadata") else None,
+                    )
+
+            # Los especialistas ejecutados en paralelo no escriben AIMessages al
+            # historial; su usage viaja en specialist_outputs.
+            for output in result.get("specialist_outputs", []):
+                _accumulate_usage(
+                    output.get("usage_metadata"),
+                    output.get("response_metadata"),
+                )
 
             for name in usage_by_model:
                 usage_by_model[name]["input_tokens"] = max_input_per_model[name]
@@ -273,25 +290,34 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
 
             async for event in graph.astream_events(
                 {
-                    "messages":        messages,
-                    "variables":       persisted_variables,
-                    "current_node":    "",
-                    "execution_path":  [],
-                    "iteration_count": 0,
+                    "messages":            messages,
+                    "variables":           persisted_variables,
+                    "current_node":        "",
+                    "execution_path":      [],
+                    "iteration_count":     0,
+                    "specialist_outputs":  [],
+                    "pending_handoffs":    [],
+                    "parallel_mode":       False,
                 },
                 version="v2",
             ):
                 event_type = event.get("event", "")
 
-                # Capturar el estado final del grafo. astream_events no expone un "final_result";
-                # acumulamos el último output que traiga 'variables' (el último corresponde al cierre
-                # del grafo raíz). Se filtra por persist_variables al emitir el metadata final.
+                # Capturar el estado final del grafo: SOLO el cierre del grafo raíz
+                # (parent_ids vacío). Con ramas paralelas, los on_chain_end intermedios
+                # traen outputs parciales de cada rama y no deben pisar el estado final.
                 if event_type == "on_chain_end":
-                    output = event.get("data", {}).get("output")
-                    if isinstance(output, dict) and "variables" in output:
-                        final_variables = output["variables"]
+                    if not event.get("parent_ids"):
+                        output = event.get("data", {}).get("output")
+                        if isinstance(output, dict) and "variables" in output:
+                            final_variables = output["variables"]
 
                 if event_type == "on_chat_model_stream":
+                    # Las llamadas LLM de especialistas en modo paralelo van marcadas
+                    # con este tag: sus tokens no se streamean al usuario (solo el
+                    # synthesizer / agentes en modo single emiten tokens).
+                    if "pipeline_no_stream" in (event.get("tags") or []):
+                        continue
                     chunk = event.get("data", {}).get("chunk")
                     if chunk and hasattr(chunk, "content") and chunk.content:
                         yield agents_pb2.AgentStreamEvent(type="token", content=chunk.content)

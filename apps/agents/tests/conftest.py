@@ -3,7 +3,6 @@ Configuración y fixtures compartidos para los tests.
 """
 
 import pytest
-from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch
 import sys
 from pathlib import Path
@@ -63,8 +62,9 @@ def sample_request():
 
 @pytest.fixture
 def client():
-    """Cliente de prueba para FastAPI."""
-    # Importar después de agregar src al path
+    """Cliente de prueba para FastAPI (legacy — el servicio ahora expone gRPC)."""
+    # Imports lazy: fastapi ya no es dependencia del servicio
+    from fastapi.testclient import TestClient
     from main import app
     return TestClient(app)
 

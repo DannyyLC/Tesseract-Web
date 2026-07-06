@@ -299,6 +299,13 @@ def load_tools(ctx: TenantContext, agent_name: str = "default") -> List[BaseTool
                 original_name = tool.name
                 tool.name = f"{original_name}_{display_suffix}"
                 tool.description = f"{tool.description} [{display_name}]"
+                # Preservar el nombre base: las configs (disable_tools_if,
+                # set_variables_on_tool_call, intercept_tools_in_parallel)
+                # referencian la tool por su nombre sin sufijo.
+                existing_metadata = getattr(tool, "metadata", None)
+                if not isinstance(existing_metadata, dict):
+                    existing_metadata = {}
+                tool.metadata = {**existing_metadata, "base_name": original_name}
                 logger.debug(
                     f"[{ctx.workflow_id}] Renamed tool: {original_name} -> {tool.name}"
                 )

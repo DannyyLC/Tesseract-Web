@@ -6,7 +6,7 @@ import json
 
 from langchain_core.messages import HumanMessage, ToolMessage
 
-from api.routes import extract_human_handoff_from_messages
+from core.message_utils import extract_human_handoff_from_messages
 from tools.human_handoff import request_human_handoff
 
 

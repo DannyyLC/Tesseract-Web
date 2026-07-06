@@ -76,13 +76,13 @@ class TestClassificationPattern:
 
     def test_tag_with_text_extracts_and_cleans(self):
         upd = run_node("Entendido. [ROUTE:ventas]")
-        assert upd["variables"]["intent"] == "ventas"
+        assert upd["variables"]["intent"] == ["ventas"]
         assert upd["variables"]["reroute_count"] == 1
         assert upd["messages"][0].content == "Entendido."
 
     def test_tag_only_extracts_and_drops_message(self):
         upd = run_node("[ROUTE:ventas]")
-        assert upd["variables"]["intent"] == "ventas"
+        assert upd["variables"]["intent"] == ["ventas"]
         assert "messages" not in upd  # mensaje vacío → no se agrega al historial
 
     def test_locked_ignores_pattern_keeps_tag_and_intent(self):
@@ -131,8 +131,9 @@ class TestSetVariablesAndAppend:
         })
         # el append se sumó al system prompt
         assert "INSTRUCCION EXTRA" in captured["system"]
-        # y se limpió del estado para no afectar nodos posteriores
-        assert "__append_system_message__" not in upd["variables"]
+        # y se consumió: delta a None (con reducers de merge la clave no puede
+        # borrarse; los consumidores tratan None como ausente)
+        assert upd["variables"]["__append_system_message__"] is None
 
 
 # ── Grafo end-to-end ────────────────────────────────────────────────────────────
@@ -200,7 +201,7 @@ class TestRouterGraphEndToEnd:
             "messages": [HumanMessage(content="precios?")],
             "variables": {}, "current_node": "", "execution_path": [], "iteration_count": 0,
         })
-        assert result["variables"]["intent"] == "ventas"
+        assert result["variables"]["intent"] == ["ventas"]
         assert "classifier" in result["execution_path"]
         assert "agent_ventas" in result["execution_path"]
         # El último mensaje (lo que ve el usuario) es la respuesta del especialista

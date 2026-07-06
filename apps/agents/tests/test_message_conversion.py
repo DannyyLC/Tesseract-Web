@@ -10,7 +10,7 @@ from unittest.mock import Mock
 src_path = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from api.routes import (
+from core.message_utils import (
     convert_message_history_to_langchain,
     convert_langchain_messages_to_dict
 )
