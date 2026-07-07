@@ -388,6 +388,25 @@ class TestParallelEndToEnd:
         assert llms["classifier"].invoke_configs == [None]
         assert llms["synthesizer"].invoke_configs == [None]
 
+    def test_synthesizer_reset_clears_intent_for_next_turn(self):
+        # Con set_variables {"intent": []} en el synthesize, el turno multi-tema
+        # termina con intent vacío: el siguiente mensaje cae al fallback (general)
+        # en vez de re-disparar el fan-out completo.
+        import json as _json
+        graph_cfg = _json.loads(_json.dumps(PARALLEL_GRAPH))
+        synth = next(n for n in graph_cfg["nodes"] if n["id"] == "synthesize")
+        synth["config"] = {"set_variables": {"intent": []}}
+
+        ctx = make_ctx(graph_config=graph_cfg, agents_config=PARALLEL_AGENTS)
+        llms = self._llms()
+        with patch("graphs.pipeline_agent.get_llm",
+                   side_effect=lambda _c, n: llms[n]):
+            graph = create_pipeline_agent(ctx)
+        result = graph.invoke(initial_state("precio y ayuda"))
+
+        assert "synthesize" in result["execution_path"]
+        assert result["variables"]["intent"] == []
+
     def test_single_intent_bypasses_synthesizer(self):
         llms = self._llms()
         llms["classifier"] = FakeLLM("[ROUTE:ventas]")
@@ -578,6 +597,27 @@ class TestSynthesizerNode:
             node = _make_synthesizer_node("synth", "synthesizer", {}, ctx)
         upd = node(initial_state())
         assert "messages" not in upd
+
+    def test_set_variables_applied_after_synthesis(self):
+        ctx = make_ctx(agents_config=PARALLEL_AGENTS)
+        with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM("combinada")):
+            node = _make_synthesizer_node(
+                "synth", "synthesizer", {"set_variables": {"intent": []}}, ctx
+            )
+        upd = node(initial_state(specialist_outputs=[
+            {"content": "r1", "agent": "a"}, {"content": "r2", "agent": "b"},
+        ]))
+        assert upd["variables"] == {"intent": []}
+
+    def test_set_variables_not_applied_without_outputs(self):
+        # Sin outputs no hubo síntesis: el reset de ruteo no debe aplicarse
+        ctx = make_ctx(agents_config=PARALLEL_AGENTS)
+        with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM("x")):
+            node = _make_synthesizer_node(
+                "synth", "synthesizer", {"set_variables": {"intent": []}}, ctx
+            )
+        upd = node(initial_state())
+        assert "variables" not in upd
 
     def test_llm_error_falls_back_to_concatenation(self):
         ctx = make_ctx(agents_config=PARALLEL_AGENTS)

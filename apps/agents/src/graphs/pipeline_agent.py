@@ -885,6 +885,11 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
         execute_pending_handoffs: ejecutar las tools capturadas (default True)
         handoff_notice:           texto a sumar al system prompt cuando se ejecutó
                                   un handoff (p.ej. "ya se notificó, no lo repitas")
+        set_variables:            dict de variables a setear al terminar la síntesis
+                                  (p.ej. {"intent": []} para resetear el ruteo: el
+                                  siguiente turno cae al fallback y re-clasifica en
+                                  vez de re-disparar el fan-out completo). Solo
+                                  aplica cuando la síntesis corrió (hubo outputs).
 
     El agente (agent_name) debe existir en agents_config como cualquier otro:
     define model, temperature y system_prompt del sintetizador.
@@ -892,6 +897,7 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
     llm = get_llm(ctx, agent_name)
     execute_pending_handoffs = config.get("execute_pending_handoffs", True)
     handoff_notice = config.get("handoff_notice", "")
+    set_variables_on_finish = config.get("set_variables", {})
 
     # Cache de tools cargadas por agente especialista (para ejecutar las capturas)
     tools_cache: Dict[str, list] = {}
@@ -1011,6 +1017,15 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
                 )
 
         updates["messages"] = [final_msg]
+
+        if set_variables_on_finish:
+            # Delta: solo las claves configuradas (los reducers mergean)
+            updates["variables"] = dict(set_variables_on_finish)
+            logger.info(
+                f"[{ctx.workflow_id}] Synthesizer '{node_id}': set variables "
+                f"{list(set_variables_on_finish.keys())} al finalizar"
+            )
+
         return updates
 
     return node
