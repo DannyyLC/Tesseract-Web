@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useLlmCategories, useLlmCategoryMutations } from '@/hooks/automation/use-llm-categories';
@@ -25,9 +26,10 @@ export default function AdminConfiguracionPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editCategory, setEditCategory] = useState<LlmCategory | null>(null);
+  const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState<LlmCategory | null>(null);
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-6xl">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-text-primary">Configuración</h1>
         <p className="text-sm text-text-secondary">
@@ -93,18 +95,7 @@ export default function AdminConfiguracionPage() {
                     title="Eliminar"
                     disabled={deleteCategory.isPending}
                     className="rounded-lg p-2 text-text-secondary hover:bg-red-500/10 hover:text-red-600 disabled:opacity-40"
-                    onClick={() => {
-                      const warn = c._count?.models
-                        ? `\n\n${c._count.models} modelo(s) quedarán sin categoría.`
-                        : '';
-                      if (confirm(`¿Eliminar la categoría "${c.name}"?${warn}`)) {
-                        deleteCategory.mutate(c.id, {
-                          onSuccess: () => toast.success('Categoría eliminada'),
-                          onError: (e: any) =>
-                            !e?.toastHandled && toast.error('No se pudo eliminar'),
-                        });
-                      }
-                    }}
+                    onClick={() => setDeleteCategoryConfirm(c)}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -116,49 +107,108 @@ export default function AdminConfiguracionPage() {
       </section>
 
       {/* Modal: crear */}
-      <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title="Nueva categoría">
-        <CategoryForm
-          pending={createCategory.isPending}
-          onCancel={() => setCreateOpen(false)}
-          onSubmit={(input) =>
-            createCategory.mutate(input, {
-              onSuccess: () => {
-                toast.success('Categoría creada');
-                setCreateOpen(false);
-              },
-              onError: (e: any) => !e?.toastHandled && toast.error(e?.message || 'No se pudo crear'),
-            })
-          }
-        />
-      </Modal>
+      <AnimatePresence>
+        {createOpen && (
+          <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title="Nueva categoría">
+            <CategoryForm
+              pending={createCategory.isPending}
+              onCancel={() => setCreateOpen(false)}
+              onSubmit={(input) =>
+                createCategory.mutate(input, {
+                  onSuccess: () => {
+                    toast.success('Categoría creada');
+                    setCreateOpen(false);
+                  },
+                  onError: (e: any) => !e?.toastHandled && toast.error(e?.message || 'No se pudo crear'),
+                })
+              }
+            />
+          </Modal>
+        )}
+      </AnimatePresence>
 
       {/* Modal: editar */}
-      <Modal
-        isOpen={!!editCategory}
-        onClose={() => setEditCategory(null)}
-        title={editCategory ? `Editar "${editCategory.name}"` : ''}
-      >
+      <AnimatePresence>
         {editCategory && (
-          <CategoryForm
-            category={editCategory}
-            pending={updateCategory.isPending}
-            onCancel={() => setEditCategory(null)}
-            onSubmit={(input) =>
-              updateCategory.mutate(
-                { id: editCategory.id, data: input },
-                {
-                  onSuccess: () => {
-                    toast.success('Categoría actualizada');
-                    setEditCategory(null);
+          <Modal
+            isOpen={!!editCategory}
+            onClose={() => setEditCategory(null)}
+            title={`Editar "${editCategory.name}"`}
+          >
+            <CategoryForm
+              category={editCategory}
+              pending={updateCategory.isPending}
+              onCancel={() => setEditCategory(null)}
+              onSubmit={(input) =>
+                updateCategory.mutate(
+                  { id: editCategory.id, data: input },
+                  {
+                    onSuccess: () => {
+                      toast.success('Categoría actualizada');
+                      setEditCategory(null);
+                    },
+                    onError: (e: any) =>
+                      !e?.toastHandled && toast.error(e?.message || 'No se pudo actualizar'),
                   },
-                  onError: (e: any) =>
-                    !e?.toastHandled && toast.error(e?.message || 'No se pudo actualizar'),
-                },
-              )
-            }
-          />
+                )
+              }
+            />
+          </Modal>
         )}
-      </Modal>
+      </AnimatePresence>
+
+      {/* Modal: confirmar eliminar */}
+      <AnimatePresence>
+        {deleteCategoryConfirm && (
+          <Modal
+            isOpen={!!deleteCategoryConfirm}
+            onClose={() => setDeleteCategoryConfirm(null)}
+            title="Confirmar eliminación"
+          >
+            <div className="space-y-4">
+              <div className="bg-danger/10 flex items-center gap-3 rounded-xl p-4 text-danger-600">
+                <AlertTriangle size={24} />
+                <p className="text-sm font-medium">¿Estás seguro de que deseas eliminar esta categoría?</p>
+              </div>
+
+              <p className="text-center text-sm text-text-secondary">
+                Se eliminará la categoría <strong>{deleteCategoryConfirm.name}</strong>.
+                {deleteCategoryConfirm._count?.models ? (
+                  <span className="mt-2 block font-medium text-danger-600">
+                    {deleteCategoryConfirm._count.models} modelo(s) quedarán sin categoría.
+                  </span>
+                ) : null}
+              </p>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
+                  onClick={() => setDeleteCategoryConfirm(null)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2 font-medium text-brand-white transition-colors hover:bg-danger-600 disabled:opacity-50"
+                  disabled={deleteCategory.isPending}
+                  onClick={() => {
+                    deleteCategory.mutate(deleteCategoryConfirm.id, {
+                      onSuccess: () => {
+                        toast.success('Categoría eliminada');
+                        setDeleteCategoryConfirm(null);
+                      },
+                      onError: (e: any) => !e?.toastHandled && toast.error('No se pudo eliminar'),
+                    });
+                  }}
+                >
+                  {deleteCategory.isPending ? 'Eliminando…' : 'Eliminar categoría'}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -217,26 +267,32 @@ function CategoryForm({
           role="switch"
           aria-checked={f.isActive}
           onClick={() => setF({ ...f, isActive: !f.isActive })}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-            f.isActive ? 'bg-success-500' : 'bg-border-hover'
-          }`}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${f.isActive ? 'bg-success-500' : 'bg-border-hover'
+            }`}
         >
           <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-surface-elevated transition-transform ${
-              f.isActive ? 'translate-x-6' : 'translate-x-1'
-            }`}
+            className={`inline-block h-4 w-4 transform rounded-full bg-surface-elevated transition-transform ${f.isActive ? 'translate-x-6' : 'translate-x-1'
+              }`}
           />
         </button>
         <span className="text-sm text-text-primary">
           {f.isActive ? 'Activa' : 'Inactiva'}
         </span>
       </div>
-      <div className="flex justify-end gap-2 pt-2">
-        <button type="button" className={btnGhost} onClick={onCancel}>
+      <div className="flex gap-3 pt-4">
+        <button 
+          type="button" 
+          className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated" 
+          onClick={onCancel}
+        >
           Cancelar
         </button>
-        <button type="submit" className={btnPrimary} disabled={pending}>
-          {pending ? 'Guardando…' : category ? 'Guardar' : 'Crear'}
+        <button 
+          type="submit" 
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50" 
+          disabled={pending}
+        >
+          {pending ? 'Guardando…' : category ? 'Guardar cambios' : 'Crear categoría'}
         </button>
       </div>
     </form>

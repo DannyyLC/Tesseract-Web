@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, Pencil, DollarSign, Power, Search } from 'lucide-react';
+import { Plus, Pencil, DollarSign, Power, Search, AlertTriangle } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useLlmModels, useLlmModelMutations } from '@/hooks/automation/use-llm-models';
@@ -50,6 +51,7 @@ export default function LlmModelsAdminPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editModel, setEditModel] = useState<LlmModel | null>(null);
   const [priceModel, setPriceModel] = useState<LlmModel | null>(null);
+  const [deactivateModelConfirm, setDeactivateModelConfirm] = useState<LlmModel | null>(null);
 
   const models = data?.data ?? [];
 
@@ -159,11 +161,10 @@ export default function LlmModelsAdminPage() {
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${
-                        m.isActive
+                      className={`rounded-full px-2 py-0.5 text-xs ${m.isActive
                           ? 'bg-green-500/10 text-green-600'
                           : 'bg-gray-500/10 text-text-secondary'
-                      }`}
+                        }`}
                     >
                       {m.isActive ? 'Activo' : 'Inactivo'}
                     </span>
@@ -188,15 +189,7 @@ export default function LlmModelsAdminPage() {
                         title="Desactivar"
                         disabled={!m.isActive || deactivateModel.isPending}
                         className="rounded-lg p-2 text-text-secondary hover:bg-red-500/10 hover:text-red-600 disabled:opacity-40"
-                        onClick={() => {
-                          if (confirm(`¿Desactivar ${m.provider}/${m.modelName}?`)) {
-                            deactivateModel.mutate(m.id, {
-                              onSuccess: () => toast.success('Modelo desactivado'),
-                              onError: (e: any) =>
-                                !e?.toastHandled && toast.error('No se pudo desactivar'),
-                            });
-                          }
-                        }}
+                        onClick={() => setDeactivateModelConfirm(m)}
                       >
                         <Power size={16} />
                       </button>
@@ -210,80 +203,136 @@ export default function LlmModelsAdminPage() {
       </div>
 
       {/* Modal: crear */}
-      <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title="Nuevo modelo LLM">
-        <CreateForm
-          categories={categories}
-          pending={createModel.isPending}
-          onCancel={() => setCreateOpen(false)}
-          onSubmit={(input) =>
-            createModel.mutate(input, {
-              onSuccess: () => {
-                toast.success('Modelo creado');
-                setCreateOpen(false);
-              },
-              onError: (e: any) =>
-                !e?.toastHandled && toast.error(e?.message || 'No se pudo crear'),
-            })
-          }
-        />
-      </Modal>
+      <AnimatePresence>
+        {createOpen && (
+          <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title="Nuevo modelo LLM">
+            <CreateForm
+              categories={categories}
+              pending={createModel.isPending}
+              onCancel={() => setCreateOpen(false)}
+              onSubmit={(input) =>
+                createModel.mutate(input, {
+                  onSuccess: () => {
+                    toast.success('Modelo creado');
+                    setCreateOpen(false);
+                  },
+                  onError: (e: any) =>
+                    !e?.toastHandled && toast.error(e?.message || 'No se pudo crear'),
+                })
+              }
+            />
+          </Modal>
+        )}
+      </AnimatePresence>
 
       {/* Modal: editar metadatos */}
-      <Modal
-        isOpen={!!editModel}
-        onClose={() => setEditModel(null)}
-        title={editModel ? `Editar ${editModel.modelName}` : ''}
-      >
+      <AnimatePresence>
         {editModel && (
-          <EditForm
-            model={editModel}
-            categories={categories}
-            pending={updateModel.isPending}
-            onCancel={() => setEditModel(null)}
-            onSubmit={(patch) =>
-              updateModel.mutate(
-                { id: editModel.id, data: patch },
-                {
-                  onSuccess: () => {
-                    toast.success('Modelo actualizado');
-                    setEditModel(null);
+          <Modal
+            isOpen={!!editModel}
+            onClose={() => setEditModel(null)}
+            title={`Editar ${editModel.modelName}`}
+          >
+            <EditForm
+              model={editModel}
+              categories={categories}
+              pending={updateModel.isPending}
+              onCancel={() => setEditModel(null)}
+              onSubmit={(patch) =>
+                updateModel.mutate(
+                  { id: editModel.id, data: patch },
+                  {
+                    onSuccess: () => {
+                      toast.success('Modelo actualizado');
+                      setEditModel(null);
+                    },
+                    onError: (e: any) =>
+                      !e?.toastHandled && toast.error(e?.message || 'No se pudo actualizar'),
                   },
-                  onError: (e: any) =>
-                    !e?.toastHandled && toast.error(e?.message || 'No se pudo actualizar'),
-                },
-              )
-            }
-          />
+                )
+              }
+            />
+          </Modal>
         )}
-      </Modal>
+      </AnimatePresence>
 
       {/* Modal: cambio de precio versionado */}
-      <Modal
-        isOpen={!!priceModel}
-        onClose={() => setPriceModel(null)}
-        title={priceModel ? `Cambiar precio · ${priceModel.modelName}` : ''}
-      >
+      <AnimatePresence>
         {priceModel && (
-          <PriceForm
-            model={priceModel}
-            pending={supersedePricing.isPending}
-            onCancel={() => setPriceModel(null)}
-            onSubmit={(data) =>
-              supersedePricing.mutate(
-                { id: priceModel.id, data },
-                {
-                  onSuccess: () => {
-                    toast.success('Precio actualizado (nueva versión creada)');
-                    setPriceModel(null);
+          <Modal
+            isOpen={!!priceModel}
+            onClose={() => setPriceModel(null)}
+            title={`Cambiar precio · ${priceModel.modelName}`}
+          >
+            <PriceForm
+              model={priceModel}
+              pending={supersedePricing.isPending}
+              onCancel={() => setPriceModel(null)}
+              onSubmit={(data) =>
+                supersedePricing.mutate(
+                  { id: priceModel.id, data },
+                  {
+                    onSuccess: () => {
+                      toast.success('Precio actualizado (nueva versión creada)');
+                      setPriceModel(null);
+                    },
+                    onError: (e: any) =>
+                      !e?.toastHandled && toast.error(e?.message || 'No se pudo actualizar el precio'),
                   },
-                  onError: (e: any) =>
-                    !e?.toastHandled && toast.error(e?.message || 'No se pudo actualizar el precio'),
-                },
-              )
-            }
-          />
+                )
+              }
+            />
+          </Modal>
         )}
-      </Modal>
+      </AnimatePresence>
+
+      {/* Modal: confirmar desactivar */}
+      <AnimatePresence>
+        {deactivateModelConfirm && (
+          <Modal
+            isOpen={!!deactivateModelConfirm}
+            onClose={() => setDeactivateModelConfirm(null)}
+            title="Confirmar desactivación"
+          >
+            <div className="space-y-4">
+              <div className="bg-danger/10 flex items-center gap-3 rounded-xl p-4 text-danger-600">
+                <AlertTriangle size={24} />
+                <p className="text-sm font-medium">¿Estás seguro de que deseas desactivar este modelo?</p>
+              </div>
+
+              <p className="text-center text-sm text-text-secondary">
+                Se desactivará el modelo <strong>{deactivateModelConfirm.provider}/{deactivateModelConfirm.modelName}</strong>.
+              </p>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
+                  onClick={() => setDeactivateModelConfirm(null)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2 font-medium text-brand-white transition-colors hover:bg-danger-600 disabled:opacity-50"
+                  disabled={deactivateModel.isPending}
+                  onClick={() => {
+                    deactivateModel.mutate(deactivateModelConfirm.id, {
+                      onSuccess: () => {
+                        toast.success('Modelo desactivado');
+                        setDeactivateModelConfirm(null);
+                      },
+                      onError: (e: any) => !e?.toastHandled && toast.error('No se pudo desactivar'),
+                    });
+                  }}
+                >
+                  {deactivateModel.isPending ? 'Desactivando…' : 'Desactivar modelo'}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -437,12 +486,20 @@ function CreateForm({
           onChange={(e) => setF({ ...f, notes: e.target.value })}
         />
       </div>
-      <div className="flex justify-end gap-2 pt-2">
-        <button type="button" className={btnGhost} onClick={onCancel}>
+      <div className="flex gap-3 pt-4">
+        <button 
+          type="button" 
+          className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated" 
+          onClick={onCancel}
+        >
           Cancelar
         </button>
-        <button type="submit" className={btnPrimary} disabled={pending}>
-          {pending ? 'Creando…' : 'Crear'}
+        <button 
+          type="submit" 
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50" 
+          disabled={pending}
+        >
+          {pending ? 'Creando…' : 'Crear modelo'}
         </button>
       </div>
     </form>
@@ -554,20 +611,38 @@ function EditForm({
           onChange={(e) => setF({ ...f, notes: e.target.value })}
         />
       </div>
-      <label className="flex items-center gap-2 text-sm text-text-primary">
-        <input
-          type="checkbox"
-          checked={f.isActive}
-          onChange={(e) => setF({ ...f, isActive: e.target.checked })}
-        />
-        Activo
-      </label>
-      <div className="flex justify-end gap-2 pt-2">
-        <button type="button" className={btnGhost} onClick={onCancel}>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={f.isActive}
+          onClick={() => setF({ ...f, isActive: !f.isActive })}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${f.isActive ? 'bg-success-500' : 'bg-border-hover'
+            }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-surface-elevated transition-transform ${f.isActive ? 'translate-x-6' : 'translate-x-1'
+              }`}
+          />
+        </button>
+        <span className="text-sm text-text-primary">
+          {f.isActive ? 'Activo' : 'Inactivo'}
+        </span>
+      </div>
+      <div className="flex gap-3 pt-4">
+        <button 
+          type="button" 
+          className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated" 
+          onClick={onCancel}
+        >
           Cancelar
         </button>
-        <button type="submit" className={btnPrimary} disabled={pending}>
-          {pending ? 'Guardando…' : 'Guardar'}
+        <button 
+          type="submit" 
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50" 
+          disabled={pending}
+        >
+          {pending ? 'Guardando…' : 'Guardar cambios'}
         </button>
       </div>
     </form>
@@ -640,11 +715,19 @@ function PriceForm({
           placeholder="Motivo del cambio de precio"
         />
       </div>
-      <div className="flex justify-end gap-2 pt-2">
-        <button type="button" className={btnGhost} onClick={onCancel}>
+      <div className="flex gap-3 pt-4">
+        <button 
+          type="button" 
+          className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated" 
+          onClick={onCancel}
+        >
           Cancelar
         </button>
-        <button type="submit" className={btnPrimary} disabled={pending}>
+        <button 
+          type="submit" 
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50" 
+          disabled={pending}
+        >
           {pending ? 'Actualizando…' : 'Actualizar precio'}
         </button>
       </div>
