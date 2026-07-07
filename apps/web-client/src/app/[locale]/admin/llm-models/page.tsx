@@ -171,7 +171,7 @@ export default function LlmModelsAdminPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button
-                        title="Editar metadatos"
+                        title="Editar"
                         className="rounded-lg p-2 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
                         onClick={() => setEditModel(m)}
                       >
