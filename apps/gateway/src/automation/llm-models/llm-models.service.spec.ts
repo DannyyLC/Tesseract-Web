@@ -112,6 +112,7 @@ describe('LlmModelsService', () => {
 
       expect(mockPrismaService.llmModel.findUnique).toHaveBeenCalledWith({
         where: { id: 'model-1' },
+        include: { llmCategory: true },
       });
       expect(result).toEqual(mockModel);
     });
@@ -173,7 +174,7 @@ describe('LlmModelsService', () => {
         provider: 'openai',
         modelName: 'gpt-4o',
         tier: ModelTier.STANDARD,
-        category: 'chat',
+        llmCategoryId: 'cat-1',
         contextWindow: 128000,
         recommendedMaxTokens: 100000,
         currency: 'USD',
@@ -205,6 +206,7 @@ describe('LlmModelsService', () => {
           data: expect.objectContaining({
             provider: 'openai',
             modelName: 'gpt-4o',
+            llmCategoryId: 'cat-1',
             inputPricePer1m: 3,
             outputPricePer1m: 12,
             contextWindow: 128000,

@@ -30,12 +30,11 @@ export class QueryLlmModelsDto {
   isActive?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Filtrar por categoría',
-    example: 'respuesta-rapida',
+    description: 'Filtrar por ID de categoría del modelo LLM',
   })
   @IsString()
   @IsOptional()
-  category?: string;
+  llmCategoryId?: string;
 
   @ApiPropertyOptional({
     description: 'Página (1-indexed)',

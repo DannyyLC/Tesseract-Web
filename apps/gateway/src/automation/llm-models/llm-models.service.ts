@@ -63,20 +63,21 @@ export class LlmModelsService {
    * Obtener todos los modelos LLM con filtros y paginación
    */
   async findAll(query: QueryLlmModelsDto) {
-    const { provider, tier, isActive, category, page = 1, limit = 20 } = query;
+    const { provider, tier, isActive, llmCategoryId, page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
 
     const where: any = {};
     if (provider) where.provider = provider;
     if (tier) where.tier = tier;
     if (isActive !== undefined) where.isActive = isActive;
-    if (category) where.category = category;
+    if (llmCategoryId) where.llmCategoryId = llmCategoryId;
 
     const [data, total] = await Promise.all([
       this.prisma.llmModel.findMany({
         where,
         skip,
         take: limit,
+        include: { llmCategory: true },
         orderBy: [{ provider: 'asc' }, { modelName: 'asc' }, { effectiveFrom: 'desc' }],
       }),
       this.prisma.llmModel.count({ where }),
@@ -113,6 +114,7 @@ export class LlmModelsService {
   async findOne(id: string) {
     const llmModel = await this.prisma.llmModel.findUnique({
       where: { id },
+      include: { llmCategory: true },
     });
 
     if (!llmModel) {
@@ -189,7 +191,7 @@ export class LlmModelsService {
           provider: current.provider,
           modelName: current.modelName,
           tier: current.tier,
-          category: current.category,
+          llmCategoryId: current.llmCategoryId,
           inputPricePer1m: dto.inputPricePer1m,
           outputPricePer1m: dto.outputPricePer1m,
           contextWindow: current.contextWindow,
