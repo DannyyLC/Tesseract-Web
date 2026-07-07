@@ -12,6 +12,7 @@ import ToolCatalogApi from './automation/tools/tool-catalog-api';
 import TenantToolsApi from './automation/tools/tenant-tools-api';
 import ToolsOauthApi from './automation/tools/tools-oauth-api';
 import WhatsappConfigApi from './messaging/whatsapp-config/whatsapp-config';
+import LlmModelsApi from './automation/llm-models/llm-models-api';
 
 class RootApi {
   private static instance: RootApi;
@@ -29,6 +30,7 @@ class RootApi {
   private tenantToolsApi: TenantToolsApi;
   private toolsOauthApi: ToolsOauthApi;
   private whatsappConfigApi: WhatsappConfigApi;
+  private llmModelsApi: LlmModelsApi;
 
   private constructor() {
     this.authApi = new AuthApi();
@@ -45,6 +47,7 @@ class RootApi {
     this.tenantToolsApi = new TenantToolsApi();
     this.toolsOauthApi = new ToolsOauthApi();
     this.whatsappConfigApi = new WhatsappConfigApi();
+    this.llmModelsApi = new LlmModelsApi();
   }
 
   public static getInstance(): RootApi {
@@ -108,6 +111,10 @@ class RootApi {
 
   public getWhatsappConfigApi(): WhatsappConfigApi {
     return this.whatsappConfigApi;
+  }
+
+  public getLlmModelsApi(): LlmModelsApi {
+    return this.llmModelsApi;
   }
 }
 
