@@ -3,6 +3,14 @@ import { ApiResponse } from '@tesseract/types';
 
 export type ModelTier = 'BASIC' | 'STANDARD' | 'PREMIUM';
 
+/** Categoría de modelo LLM (relación incluida en las lecturas de modelo). */
+export interface LlmCategoryRef {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+}
+
 /**
  * Modelo LLM tal como lo devuelve el gateway. Los precios son Decimal en
  * Prisma y se serializan como string en JSON.
@@ -12,7 +20,8 @@ export interface LlmModel {
   provider: string;
   modelName: string;
   tier: ModelTier;
-  category: string | null;
+  llmCategoryId: string | null;
+  llmCategory: LlmCategoryRef | null;
   inputPricePer1m: string;
   outputPricePer1m: string;
   contextWindow: number;
@@ -35,7 +44,7 @@ export interface LlmModelsQuery {
   provider?: string;
   tier?: ModelTier;
   isActive?: boolean;
-  category?: string;
+  llmCategoryId?: string;
   page?: number;
   limit?: number;
 }
@@ -44,7 +53,7 @@ export interface CreateLlmModelInput {
   provider: string;
   modelName: string;
   tier: ModelTier;
-  category?: string;
+  llmCategoryId?: string;
   inputPricePer1m: number;
   outputPricePer1m: number;
   contextWindow: number;
@@ -79,7 +88,7 @@ class LlmModelsApi {
     if (query.provider) params.append('provider', query.provider);
     if (query.tier) params.append('tier', query.tier);
     if (query.isActive !== undefined) params.append('isActive', String(query.isActive));
-    if (query.category) params.append('category', query.category);
+    if (query.llmCategoryId) params.append('llmCategoryId', query.llmCategoryId);
     if (query.page) params.append('page', String(query.page));
     if (query.limit) params.append('limit', String(query.limit));
 
