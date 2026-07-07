@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { Prisma } from '@tesseract/database';
 import { PrismaService } from '@/platform/database/prisma.service';
-import { CreateLlmCategoryDto, UpdateLlmCategoryDto } from './dto';
+import { CreateLlmCategoryDto, UpdateLlmCategoryDto, QueryLlmCategoryDto } from './dto';
 
 /**
  * CRUD de categorías de modelos LLM (globales, gestionadas por super admin).
@@ -16,12 +16,31 @@ export class LlmCategoriesService {
    * Listar categorías, opcionalmente filtrando por estado. Incluye el conteo
    * de modelos asociados (útil para estadísticas y para evitar borrados ciegos).
    */
-  async findAll(isActive?: boolean) {
-    return this.prisma.llmModelCategory.findMany({
-      where: isActive === undefined ? {} : { isActive },
-      orderBy: { name: 'asc' },
-      include: { _count: { select: { models: true } } },
-    });
+  async findAll(query: QueryLlmCategoryDto) {
+    const { isActive, page = 1, limit = 20 } = query;
+    const skip = (page - 1) * limit;
+    const where = isActive === undefined ? {} : { isActive };
+
+    const [data, total] = await Promise.all([
+      this.prisma.llmModelCategory.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { name: 'asc' },
+        include: { _count: { select: { models: true } } },
+      }),
+      this.prisma.llmModelCategory.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string) {

@@ -1,21 +1,41 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
 import type {
   CreateLlmCategoryInput,
   UpdateLlmCategoryInput,
+  LlmCategoriesQuery,
 } from '@/lib/api/endpoints/automation/llm-models/llm-categories-api';
 
 const KEY = 'llm-categories';
 
-// Listado de categorías (opcionalmente por estado)
-export function useLlmCategories(isActive?: boolean) {
+// Listado de categorías (opcionalmente por estado, paginado)
+export function useLlmCategories(query: LlmCategoriesQuery = {}) {
   return useQuery({
-    queryKey: [KEY, 'list', isActive ?? 'all'],
+    queryKey: [KEY, 'list', query],
     queryFn: async () => {
       const api = RootApi.getInstance().getLlmCategoriesApi();
-      return await api.findAll(isActive);
+      return await api.findAll(query);
     },
     retry: false,
+    staleTime: 5000,
+  });
+}
+
+// Listado de categorías con scroll infinito
+export function useInfiniteLlmCategories(query: LlmCategoriesQuery = {}) {
+  return useInfiniteQuery({
+    queryKey: [KEY, 'list', 'infinite', query],
+    queryFn: async ({ pageParam = 1 }) => {
+      const api = RootApi.getInstance().getLlmCategoriesApi();
+      return await api.findAll({ ...query, page: pageParam as number, limit: 20 });
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.meta.page < lastPage.meta.totalPages) {
+        return lastPage.meta.page + 1;
+      }
+      return undefined;
+    },
     staleTime: 5000,
   });
 }

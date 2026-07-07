@@ -21,7 +21,10 @@ const btnGhost =
   'inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm text-text-primary transition-colors hover:bg-surface-secondary';
 
 export default function AdminConfiguracionPage() {
-  const { data: categories = [], isLoading, isError } = useLlmCategories();
+  const [page, setPage] = useState(1);
+  const { data: response, isLoading, isError } = useLlmCategories({ page, limit: 10 });
+  const categories = response?.data ?? [];
+  const meta = response?.meta;
   const { createCategory, updateCategory, deleteCategory } = useLlmCategoryMutations();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -103,6 +106,29 @@ export default function AdminConfiguracionPage() {
               </li>
             ))}
           </ul>
+        )}
+        
+        {/* Paginación */}
+        {meta && meta.totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-border p-4">
+            <button
+              className={btnGhost}
+              disabled={page === 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Anterior
+            </button>
+            <span className="text-sm font-medium text-text-secondary">
+              Página {page} de {meta.totalPages}
+            </span>
+            <button
+              className={btnGhost}
+              disabled={page === meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Siguiente
+            </button>
+          </div>
         )}
       </section>
 

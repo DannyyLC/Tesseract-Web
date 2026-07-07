@@ -41,7 +41,7 @@ export interface LlmModelsListResult {
 }
 
 export interface LlmModelsQuery {
-  provider?: string;
+  search?: string;
   tier?: ModelTier;
   isActive?: boolean;
   llmCategoryId?: string;
@@ -85,7 +85,7 @@ class LlmModelsApi {
 
   public async findAll(query: LlmModelsQuery = {}): Promise<LlmModelsListResult> {
     const params = new URLSearchParams();
-    if (query.provider) params.append('provider', query.provider);
+    if (query.search) params.append('search', query.search);
     if (query.tier) params.append('tier', query.tier);
     if (query.isActive !== undefined) params.append('isActive', String(query.isActive));
     if (query.llmCategoryId) params.append('llmCategoryId', query.llmCategoryId);

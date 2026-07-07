@@ -15,7 +15,7 @@ import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
 import { LlmCategoriesService } from '../llm-categories.service';
-import { CreateLlmCategoryDto, UpdateLlmCategoryDto } from '../dto';
+import { CreateLlmCategoryDto, UpdateLlmCategoryDto, QueryLlmCategoryDto } from '../dto';
 
 /**
  * CRUD de categorías de modelos LLM para el super admin.
@@ -30,10 +30,9 @@ export class LlmCategoriesAdminController {
   constructor(private readonly categoriesService: LlmCategoriesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar categorías de modelos LLM' })
-  async findAll(@Query('isActive') isActive?: string): Promise<ApiResponse> {
-    const filter = isActive === undefined ? undefined : isActive === 'true';
-    const data = await this.categoriesService.findAll(filter);
+  @ApiOperation({ summary: 'Listar categorías de modelos LLM (paginado + filtros)' })
+  async findAll(@Query() query: QueryLlmCategoryDto): Promise<ApiResponse> {
+    const data = await this.categoriesService.findAll(query);
     return new ApiResponseBuilder().setData(data).build();
   }
 

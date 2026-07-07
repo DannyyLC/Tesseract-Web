@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Plus, Pencil, DollarSign, Power, Search, AlertTriangle } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useLlmModels, useLlmModelMutations } from '@/hooks/automation/use-llm-models';
-import { useLlmCategories } from '@/hooks/automation/use-llm-categories';
+import { useInfiniteLlmCategories } from '@/hooks/automation/use-llm-categories';
+import { useDebounce } from '@/hooks/use-debounce';
+import { InfiniteSelect } from '@/components/ui/infinite-select';
 import type {
   LlmModel,
   ModelTier,
@@ -31,21 +33,43 @@ function fmtPrice(v: string) {
 }
 
 export default function LlmModelsAdminPage() {
-  const [providerFilter, setProviderFilter] = useState('');
+  const [searchFilter, setSearchFilter] = useState('');
+  const debouncedSearch = useDebounce(searchFilter, 400);
+
   const [tierFilter, setTierFilter] = useState<ModelTier | ''>('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('active');
+  const [page, setPage] = useState(1);
+
+  // Reiniciar a la página 1 cuando cambian los filtros
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, tierFilter, categoryFilter, activeFilter]);
 
   const query = {
-    provider: providerFilter || undefined,
+    search: debouncedSearch || undefined,
     tier: tierFilter || undefined,
     llmCategoryId: categoryFilter || undefined,
     isActive: activeFilter === 'all' ? undefined : activeFilter === 'active',
-    limit: 100,
+    limit: 20,
+    page,
   };
 
   const { data, isLoading, isError } = useLlmModels(query);
-  const { data: categories = [] } = useLlmCategories(true);
+  const {
+    data: categoriesPages,
+    isLoading: isCategoriesLoading,
+    fetchNextPage: fetchNextCategoryPage,
+    hasNextPage: hasNextCategoryPage,
+    isFetchingNextPage: isFetchingNextCategoryPage,
+  } = useInfiniteLlmCategories({ isActive: true });
+  
+  const categories = categoriesPages?.pages.flatMap((p) => p.data) ?? [];
+  const categoryOptions = [
+    { label: 'Todas las categorías', value: '' },
+    ...categories.map((c) => ({ label: c.name, value: c.id })),
+  ];
+
   const { createModel, updateModel, supersedePricing, deactivateModel } = useLlmModelMutations();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -54,6 +78,7 @@ export default function LlmModelsAdminPage() {
   const [deactivateModelConfirm, setDeactivateModelConfirm] = useState<LlmModel | null>(null);
 
   const models = data?.data ?? [];
+  const meta = data?.meta;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -71,16 +96,16 @@ export default function LlmModelsAdminPage() {
 
       {/* Filtros */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative">
+        <div className="relative flex-1 min-w-[250px]">
           <Search
             size={16}
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary"
           />
           <input
-            className={`${inputClass} pl-9`}
-            placeholder="Filtrar por provider"
-            value={providerFilter}
-            onChange={(e) => setProviderFilter(e.target.value)}
+            className={`${inputClass} pl-9 w-full`}
+            placeholder="Buscar por proveedor o modelo..."
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
           />
         </div>
         <select
@@ -95,18 +120,17 @@ export default function LlmModelsAdminPage() {
             </option>
           ))}
         </select>
-        <select
-          className={inputClass + ' w-auto'}
+        <InfiniteSelect
+          className="flex-1 min-w-[200px]"
           value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-        >
-          <option value="">Todas las categorías</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+          onChange={setCategoryFilter}
+          options={categoryOptions}
+          placeholder="Todas las categorías"
+          isLoading={isCategoriesLoading}
+          fetchNextPage={fetchNextCategoryPage}
+          hasNextPage={hasNextCategoryPage}
+          isFetchingNextPage={isFetchingNextCategoryPage}
+        />
         <select
           className={inputClass + ' w-auto'}
           value={activeFilter}
@@ -200,6 +224,29 @@ export default function LlmModelsAdminPage() {
             </tbody>
           </table>
         )}
+        
+        {/* Paginación */}
+        {meta && meta.totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-border p-4">
+            <button
+              className={btnGhost}
+              disabled={page === 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Anterior
+            </button>
+            <span className="text-sm font-medium text-text-secondary">
+              Página {page} de {meta.totalPages}
+            </span>
+            <button
+              className={btnGhost}
+              disabled={page === meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Siguiente
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Modal: crear */}
@@ -208,6 +255,10 @@ export default function LlmModelsAdminPage() {
           <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title="Nuevo modelo LLM">
             <CreateForm
               categories={categories}
+              isCategoriesLoading={isCategoriesLoading}
+              fetchNextCategoryPage={fetchNextCategoryPage}
+              hasNextCategoryPage={hasNextCategoryPage}
+              isFetchingNextCategoryPage={isFetchingNextCategoryPage}
               pending={createModel.isPending}
               onCancel={() => setCreateOpen(false)}
               onSubmit={(input) =>
@@ -236,6 +287,10 @@ export default function LlmModelsAdminPage() {
             <EditForm
               model={editModel}
               categories={categories}
+              isCategoriesLoading={isCategoriesLoading}
+              fetchNextCategoryPage={fetchNextCategoryPage}
+              hasNextCategoryPage={hasNextCategoryPage}
+              isFetchingNextCategoryPage={isFetchingNextCategoryPage}
               pending={updateModel.isPending}
               onCancel={() => setEditModel(null)}
               onSubmit={(patch) =>
@@ -341,11 +396,19 @@ export default function LlmModelsAdminPage() {
 
 function CreateForm({
   categories,
+  isCategoriesLoading,
+  fetchNextCategoryPage,
+  hasNextCategoryPage,
+  isFetchingNextCategoryPage,
   onSubmit,
   onCancel,
   pending,
 }: {
   categories: LlmCategory[];
+  isCategoriesLoading?: boolean;
+  fetchNextCategoryPage?: () => void;
+  hasNextCategoryPage?: boolean;
+  isFetchingNextCategoryPage?: boolean;
   onSubmit: (input: CreateLlmModelInput) => void;
   onCancel: () => void;
   pending: boolean;
@@ -416,20 +479,21 @@ function CreateForm({
             ))}
           </select>
         </div>
-        <div>
+        <div className="flex flex-col h-full">
           <label className={labelClass}>Categoría (opcional)</label>
-          <select
-            className={inputClass}
+          <InfiniteSelect
             value={f.llmCategoryId}
-            onChange={(e) => setF({ ...f, llmCategoryId: e.target.value })}
-          >
-            <option value="">Sin categoría</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => setF({ ...f, llmCategoryId: val })}
+            options={[
+              { label: 'Sin categoría', value: '' },
+              ...categories.map((c) => ({ label: c.name, value: c.id })),
+            ]}
+            placeholder="Sin categoría"
+            isLoading={isCategoriesLoading}
+            fetchNextPage={fetchNextCategoryPage}
+            hasNextPage={hasNextCategoryPage}
+            isFetchingNextPage={isFetchingNextCategoryPage}
+          />
         </div>
         <div>
           <label className={labelClass}>Precio input /1M</label>
@@ -509,12 +573,20 @@ function CreateForm({
 function EditForm({
   model,
   categories,
+  isCategoriesLoading,
+  fetchNextCategoryPage,
+  hasNextCategoryPage,
+  isFetchingNextCategoryPage,
   onSubmit,
   onCancel,
   pending,
 }: {
   model: LlmModel;
   categories: LlmCategory[];
+  isCategoriesLoading?: boolean;
+  fetchNextCategoryPage?: () => void;
+  hasNextCategoryPage?: boolean;
+  isFetchingNextCategoryPage?: boolean;
   onSubmit: (patch: {
     tier?: ModelTier;
     llmCategoryId?: string;
@@ -567,20 +639,21 @@ function EditForm({
             ))}
           </select>
         </div>
-        <div>
+        <div className="flex flex-col h-full">
           <label className={labelClass}>Categoría</label>
-          <select
-            className={inputClass}
+          <InfiniteSelect
             value={f.llmCategoryId}
-            onChange={(e) => setF({ ...f, llmCategoryId: e.target.value })}
-          >
-            <option value="">Sin categoría</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => setF({ ...f, llmCategoryId: val })}
+            options={[
+              { label: 'Sin categoría', value: '' },
+              ...categories.map((c) => ({ label: c.name, value: c.id })),
+            ]}
+            placeholder="Sin categoría"
+            isLoading={isCategoriesLoading}
+            fetchNextPage={fetchNextCategoryPage}
+            hasNextPage={hasNextCategoryPage}
+            isFetchingNextPage={isFetchingNextCategoryPage}
+          />
         </div>
         <div>
           <label className={labelClass}>Ventana de contexto</label>

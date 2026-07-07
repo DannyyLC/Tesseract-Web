@@ -63,11 +63,16 @@ export class LlmModelsService {
    * Obtener todos los modelos LLM con filtros y paginación
    */
   async findAll(query: QueryLlmModelsDto) {
-    const { provider, tier, isActive, llmCategoryId, page = 1, limit = 20 } = query;
+    const { search, tier, isActive, llmCategoryId, page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
 
     const where: any = {};
-    if (provider) where.provider = provider;
+    if (search) {
+      where.OR = [
+        { provider: { contains: search, mode: 'insensitive' } },
+        { modelName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
     if (tier) where.tier = tier;
     if (isActive !== undefined) where.isActive = isActive;
     if (llmCategoryId) where.llmCategoryId = llmCategoryId;

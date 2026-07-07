@@ -12,6 +12,17 @@ export interface LlmCategory {
   _count?: { models: number };
 }
 
+export interface LlmCategoriesListResult {
+  data: LlmCategory[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+export interface LlmCategoriesQuery {
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+}
+
 export interface CreateLlmCategoryInput {
   name: string;
   description?: string;
@@ -28,12 +39,17 @@ class LlmCategoriesApi {
     this.apiRequestManager = ApiRequestManager.getInstance();
   }
 
-  public async findAll(isActive?: boolean): Promise<LlmCategory[]> {
-    const qs = isActive === undefined ? '' : `?isActive=${isActive}`;
-    const result = await this.apiRequestManager.get<ApiResponse<LlmCategory[]>>(
-      `${LlmCategoriesApi.BASE_URL}${qs}`,
+  public async findAll(query: LlmCategoriesQuery = {}): Promise<LlmCategoriesListResult> {
+    const params = new URLSearchParams();
+    if (query.isActive !== undefined) params.append('isActive', String(query.isActive));
+    if (query.page) params.append('page', String(query.page));
+    if (query.limit) params.append('limit', String(query.limit));
+
+    const qs = params.toString();
+    const result = await this.apiRequestManager.get<ApiResponse<LlmCategoriesListResult>>(
+      `${LlmCategoriesApi.BASE_URL}${qs ? `?${qs}` : ''}`,
     );
-    return result.data.data ?? [];
+    return result.data.data!;
   }
 
   public async create(data: CreateLlmCategoryInput): Promise<LlmCategory> {
