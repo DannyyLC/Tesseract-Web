@@ -406,7 +406,10 @@ export class UsersService {
         }),
       ]);
 
-    const roleMap: Record<UserRole, 'viewer' | 'admin' | 'owner'> = {
+    // SUPER_ADMIN no es un rol de inquilino: vive en la organización de
+    // plataforma y no aparece en las estadísticas por organización, por eso
+    // el mapa es parcial (el reduce de abajo ignora roles no mapeados).
+    const roleMap: Partial<Record<UserRole, 'viewer' | 'admin' | 'owner'>> = {
       [UserRole.OWNER]: 'owner',
       [UserRole.ADMIN]: 'admin',
       [UserRole.VIEWER]: 'viewer',

@@ -80,6 +80,7 @@ enum UserRole {
   VIEWER
   ADMIN
   OWNER
+  SUPER_ADMIN
 }
 
 enum ConversationStatus {
