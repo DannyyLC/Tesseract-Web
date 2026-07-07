@@ -188,7 +188,7 @@ export class AuthController {
    *   401 - Cuenta inactiva o eliminada
    */
   @Post('login')
-  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({
     summary: 'User login with email and password',
     description: loginSwaggerDesc,
@@ -369,6 +369,7 @@ export class AuthController {
    *   401 - Cookie refreshToken no encontrada
    */
   @Post('refresh')
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Refresh access token',
@@ -438,6 +439,7 @@ export class AuthController {
    *   401 - Token inválido o expirado
    */
   @Get('me')
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Get user profile',

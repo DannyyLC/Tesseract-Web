@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { validateEnv } from './platform/config/env-validation';
 import { ValidationPipe } from '@nestjs/common';
@@ -10,7 +11,13 @@ import helmet from 'helmet';
 async function bootstrap() {
   validateEnv();
   try {
-    const app = await NestFactory.create(AppModule, { rawBody: true });
+    const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+
+    // Cloud Run coloca un proxy delante del contenedor. Confiamos en 1 salto para
+    // que Express lea la IP real del cliente desde X-Forwarded-For (req.ip). Sin esto,
+    // el ThrottlerGuard agrupa a todos los usuarios bajo la IP interna del proxy y
+    // dispara 429 prematuros. Usamos 1 (no `true`) para no permitir spoofing de IP.
+    app.set('trust proxy', 1);
 
     // Security headers
     app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
