@@ -3,6 +3,7 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import {
   CreateLlmModelDto,
   UpdateLlmModelDto,
+  SupersedePricingDto,
   QueryLlmModelsDto,
   TokenUsage,
   CostCalculation,
@@ -155,6 +156,59 @@ export class LlmModelsService {
           : undefined,
       },
     });
+  }
+
+  /**
+   * Cambio de precio versionado.
+   *
+   * Cierra la fila de precio vigente (`effectiveTo = now`) y crea una nueva
+   * fila activa (`effectiveFrom = now`) copiando el resto de atributos del
+   * modelo. Preserva el historial de precios, tal como está diseñada la tabla.
+   *
+   * El cálculo de costos (`getModel`/`calculateCost`) ordena por
+   * `effectiveFrom` desc, así que tras el supersede la nueva fila es la vigente.
+   */
+  async supersedePricing(id: string, dto: SupersedePricingDto) {
+    const current = await this.findOne(id);
+    const now = new Date();
+
+    const [, newModel] = await this.prisma.$transaction([
+      // Cerrar la fila vigente conservando su historial.
+      this.prisma.llmModel.update({
+        where: { id },
+        data: {
+          effectiveTo: now,
+          notes: dto.notes
+            ? `${current.notes ? `${current.notes} | ` : ''}Reemplazado: ${now.toISOString()}`
+            : current.notes,
+        },
+      }),
+      // Crear la nueva fila de precio vigente copiando el resto de atributos.
+      this.prisma.llmModel.create({
+        data: {
+          provider: current.provider,
+          modelName: current.modelName,
+          tier: current.tier,
+          category: current.category,
+          inputPricePer1m: dto.inputPricePer1m,
+          outputPricePer1m: dto.outputPricePer1m,
+          contextWindow: current.contextWindow,
+          recommendedMaxTokens: current.recommendedMaxTokens,
+          currency: current.currency,
+          effectiveFrom: now,
+          effectiveTo: null,
+          isActive: true,
+          notes: dto.notes ?? null,
+        },
+      }),
+    ]);
+
+    this.logger.log(
+      `Precio versionado para ${current.provider}/${current.modelName}: ` +
+        `${current.id} cerrado, nueva fila ${newModel.id}`,
+    );
+
+    return newModel;
   }
 
   /**
