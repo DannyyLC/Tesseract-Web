@@ -495,7 +495,23 @@ const notifications: NotificationSeed[] = [
 ];
 
 async function seedModels() {
+  // 1. Upsert de categorías (a partir de los valores distintos del seed) y
+  //    construcción de un mapa nombre -> id para enlazar los modelos.
+  const categoryNames = [...new Set(llmModels.map((m) => m.category))];
+  const categoryIdByName = new Map<string, string>();
+  for (const name of categoryNames) {
+    const category = await prisma.llmModelCategory.upsert({
+      where: { name },
+      update: { isActive: true },
+      create: { name, isActive: true },
+    });
+    categoryIdByName.set(name, category.id);
+  }
+
+  // 2. Upsert de modelos, enlazando por llmCategoryId.
   for (const model of llmModels) {
+    const { category, ...modelData } = model;
+    const llmCategoryId = categoryIdByName.get(category) ?? null;
     await prisma.llmModel.upsert({
       where: {
         provider_modelName_effectiveFrom: {
@@ -505,14 +521,15 @@ async function seedModels() {
         },
       },
       create: {
-        ...model,
+        ...modelData,
+        llmCategoryId,
         effectiveFrom: MODEL_EFFECTIVE_FROM,
         isActive: true,
         currency: 'USD',
       },
       update: {
         tier: model.tier,
-        category: model.category,
+        llmCategoryId,
         inputPricePer1m: model.inputPricePer1m,
         outputPricePer1m: model.outputPricePer1m,
         contextWindow: model.contextWindow,

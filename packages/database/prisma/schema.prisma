@@ -705,8 +705,10 @@ model LlmModel {
   // Tier del modelo (para restricciones por workflow category)
   tier ModelTier // BASIC, STANDARD, PREMIUM
 
-  // Categoría para UI (agrupación visual)
-  category String? // "respuesta-rapida", "razonamiento-avanzado", "ultima-generacion"
+  // Categoría del modelo LLM (agrupación dinámica, gestionada por super admin).
+  // Habilita agrupación en UI y, a futuro, routing/failover por categoría+tier.
+  llmCategoryId String?
+  llmCategory   LlmModelCategory? @relation(fields: [llmCategoryId], references: [id], onDelete: SetNull)
 
   // Precios por 1 millón de tokens
   inputPricePer1m  Decimal @db.Decimal(19, 6) // Precio por 1,000,000 tokens de entrada
@@ -733,7 +735,30 @@ model LlmModel {
   @@index([provider, modelName, isActive])
   @@index([isActive, effectiveFrom])
   @@index([tier, isActive])
+  @@index([llmCategoryId])
   @@map("llm_models")
+}
+
+// ============================================
+// LLM MODEL CATEGORY (Categoría de modelos LLM - global, gestionada por super admin)
+// ============================================
+// Entidad de primera clase para agrupar modelos LLM. Creada dinámicamente por
+// el super admin (no es un enum). Habilita agrupación en UI y, a futuro,
+// estadísticas y routing/failover (elegir otro modelo de la misma categoría y
+// tier si un proveedor falla). No está scopeada por organización.
+model LlmModelCategory {
+  id          String  @id @default(uuid())
+  name        String  @unique // nombre canónico, ej: "chat", "reasoning"
+  description String?
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  models LlmModel[]
+
+  @@index([isActive])
+  @@map("llm_model_categories")
 }
 
 // ============================================
