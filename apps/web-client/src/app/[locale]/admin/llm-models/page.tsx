@@ -6,11 +6,13 @@ import { Plus, Pencil, DollarSign, Power, Search } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useLlmModels, useLlmModelMutations } from '@/hooks/automation/use-llm-models';
+import { useLlmCategories } from '@/hooks/automation/use-llm-categories';
 import type {
   LlmModel,
   ModelTier,
   CreateLlmModelInput,
 } from '@/lib/api/endpoints/automation/llm-models/llm-models-api';
+import type { LlmCategory } from '@/lib/api/endpoints/automation/llm-models/llm-categories-api';
 
 const TIERS: ModelTier[] = ['BASIC', 'STANDARD', 'PREMIUM'];
 
@@ -30,16 +32,19 @@ function fmtPrice(v: string) {
 export default function LlmModelsAdminPage() {
   const [providerFilter, setProviderFilter] = useState('');
   const [tierFilter, setTierFilter] = useState<ModelTier | ''>('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('active');
 
   const query = {
     provider: providerFilter || undefined,
     tier: tierFilter || undefined,
+    llmCategoryId: categoryFilter || undefined,
     isActive: activeFilter === 'all' ? undefined : activeFilter === 'active',
     limit: 100,
   };
 
   const { data, isLoading, isError } = useLlmModels(query);
+  const { data: categories = [] } = useLlmCategories(true);
   const { createModel, updateModel, supersedePricing, deactivateModel } = useLlmModelMutations();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -90,6 +95,18 @@ export default function LlmModelsAdminPage() {
         </select>
         <select
           className={inputClass + ' w-auto'}
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+        >
+          <option value="">Todas las categorías</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <select
+          className={inputClass + ' w-auto'}
           value={activeFilter}
           onChange={(e) => setActiveFilter(e.target.value as typeof activeFilter)}
         >
@@ -118,6 +135,7 @@ export default function LlmModelsAdminPage() {
                 <th className="px-4 py-3">Provider</th>
                 <th className="px-4 py-3">Modelo</th>
                 <th className="px-4 py-3">Tier</th>
+                <th className="px-4 py-3">Categoría</th>
                 <th className="px-4 py-3">Input /1M</th>
                 <th className="px-4 py-3">Output /1M</th>
                 <th className="px-4 py-3">Contexto</th>
@@ -131,6 +149,9 @@ export default function LlmModelsAdminPage() {
                   <td className="px-4 py-3 text-text-primary">{m.provider}</td>
                   <td className="px-4 py-3 font-medium text-text-primary">{m.modelName}</td>
                   <td className="px-4 py-3 text-text-secondary">{m.tier}</td>
+                  <td className="px-4 py-3 text-text-secondary">
+                    {m.llmCategory?.name ?? '—'}
+                  </td>
                   <td className="px-4 py-3 text-text-secondary">{fmtPrice(m.inputPricePer1m)}</td>
                   <td className="px-4 py-3 text-text-secondary">{fmtPrice(m.outputPricePer1m)}</td>
                   <td className="px-4 py-3 text-text-secondary">
@@ -191,6 +212,7 @@ export default function LlmModelsAdminPage() {
       {/* Modal: crear */}
       <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title="Nuevo modelo LLM">
         <CreateForm
+          categories={categories}
           pending={createModel.isPending}
           onCancel={() => setCreateOpen(false)}
           onSubmit={(input) =>
@@ -215,6 +237,7 @@ export default function LlmModelsAdminPage() {
         {editModel && (
           <EditForm
             model={editModel}
+            categories={categories}
             pending={updateModel.isPending}
             onCancel={() => setEditModel(null)}
             onSubmit={(patch) =>
@@ -268,10 +291,12 @@ export default function LlmModelsAdminPage() {
 // ── Formularios ──────────────────────────────────────────────────────────────
 
 function CreateForm({
+  categories,
   onSubmit,
   onCancel,
   pending,
 }: {
+  categories: LlmCategory[];
   onSubmit: (input: CreateLlmModelInput) => void;
   onCancel: () => void;
   pending: boolean;
@@ -280,7 +305,7 @@ function CreateForm({
     provider: '',
     modelName: '',
     tier: 'STANDARD' as ModelTier,
-    category: '',
+    llmCategoryId: '',
     inputPricePer1m: '',
     outputPricePer1m: '',
     contextWindow: '',
@@ -295,7 +320,7 @@ function CreateForm({
       provider: f.provider.trim(),
       modelName: f.modelName.trim(),
       tier: f.tier,
-      category: f.category.trim() || undefined,
+      llmCategoryId: f.llmCategoryId || undefined,
       inputPricePer1m: Number(f.inputPricePer1m),
       outputPricePer1m: Number(f.outputPricePer1m),
       contextWindow: Number(f.contextWindow),
@@ -344,11 +369,18 @@ function CreateForm({
         </div>
         <div>
           <label className={labelClass}>Categoría (opcional)</label>
-          <input
+          <select
             className={inputClass}
-            value={f.category}
-            onChange={(e) => setF({ ...f, category: e.target.value })}
-          />
+            value={f.llmCategoryId}
+            onChange={(e) => setF({ ...f, llmCategoryId: e.target.value })}
+          >
+            <option value="">Sin categoría</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className={labelClass}>Precio input /1M</label>
@@ -419,14 +451,16 @@ function CreateForm({
 
 function EditForm({
   model,
+  categories,
   onSubmit,
   onCancel,
   pending,
 }: {
   model: LlmModel;
+  categories: LlmCategory[];
   onSubmit: (patch: {
     tier?: ModelTier;
-    category?: string;
+    llmCategoryId?: string;
     contextWindow?: number;
     recommendedMaxTokens?: number;
     notes?: string;
@@ -437,7 +471,7 @@ function EditForm({
 }) {
   const [f, setF] = useState({
     tier: model.tier,
-    category: model.category ?? '',
+    llmCategoryId: model.llmCategoryId ?? '',
     contextWindow: String(model.contextWindow),
     recommendedMaxTokens: String(model.recommendedMaxTokens),
     notes: model.notes ?? '',
@@ -448,7 +482,7 @@ function EditForm({
     e.preventDefault();
     onSubmit({
       tier: f.tier,
-      category: f.category.trim() || undefined,
+      llmCategoryId: f.llmCategoryId || undefined,
       contextWindow: Number(f.contextWindow),
       recommendedMaxTokens: Number(f.recommendedMaxTokens),
       notes: f.notes.trim() || undefined,
@@ -478,11 +512,18 @@ function EditForm({
         </div>
         <div>
           <label className={labelClass}>Categoría</label>
-          <input
+          <select
             className={inputClass}
-            value={f.category}
-            onChange={(e) => setF({ ...f, category: e.target.value })}
-          />
+            value={f.llmCategoryId}
+            onChange={(e) => setF({ ...f, llmCategoryId: e.target.value })}
+          >
+            <option value="">Sin categoría</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className={labelClass}>Ventana de contexto</label>
