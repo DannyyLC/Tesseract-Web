@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePathname } from '@/i18n/routing';
+import { usePathname, useRouter } from '@/i18n/routing';
 import { AnimatePresence, motion } from 'framer-motion';
 import Sidebar from '@/components/layout/side-bar';
 import TopBar from '@/components/layout/top-bar';
 import Loading from './loading';
 import { Suspense } from 'react';
 import { WelcomeOnboarding } from '@/components/ui/welcome-onboarding';
+import { useAuth } from '@/hooks/identity/use-auth';
+import { LogoLoader } from '@/components/ui/logo-loader';
 
 interface PanelLayoutProps {
   children: React.ReactNode;
@@ -18,6 +20,19 @@ export default function PanelLayout({ children }: PanelLayoutProps) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+
+  // El super admin es operador de plataforma: no pertenece al panel de
+  // inquilino (scopeado por organización). Si cae aquí por cualquier vía
+  // (navegación directa, refresh, redirect raíz), lo mandamos a /admin.
+  const { data: user } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      router.replace('/admin');
+    }
+  }, [isSuperAdmin, router]);
 
   // Detectar si estamos en una página de detalle de conversación o workflow chat
   // Lógica: empieza con /conversations/ o /workflows/ y tiene caracteres después (el ID)
@@ -46,6 +61,16 @@ export default function PanelLayout({ children }: PanelLayoutProps) {
   const handleMobileMenuClick = () => {
     setIsMobileSidebarOpen(!isMobileSidebarOpen);
   };
+
+  // Mientras redirigimos al super admin, no montamos el panel de inquilino
+  // (evita las llamadas org-scoped que devuelven 403).
+  if (isSuperAdmin) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-dashboard-background">
+        <LogoLoader text="Redirigiendo a Super Admin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-dashboard-background">
