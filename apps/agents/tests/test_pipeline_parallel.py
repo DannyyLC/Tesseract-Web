@@ -31,6 +31,7 @@ from graphs.pipeline_agent import (  # noqa: E402
     _normalize_intents,
     _tool_name_matches,
     _merge_tool_args,
+    _consolidate_list_items,
     _make_agent_node,
     _make_condition_function,
     _make_synthesizer_node,
@@ -642,3 +643,88 @@ class TestMergeToolArgs:
             {"messages": [2], "note": "b"},
         ])
         assert merged == {"messages": [1, 2], "note": "b"}
+
+
+class TestConsolidateListItems:
+
+    def test_same_recipient_merges_into_one(self):
+        items = [
+            {"to": "+52X", "template_id": "t", "variables": {"body": ["blindaje", "detalle A"]}},
+            {"to": "+52X", "template_id": "t", "variables": {"body": ["armas", "detalle B"]}},
+        ]
+        out = _consolidate_list_items(items, "to", "variables", ", ")
+        assert out == [
+            {"to": "+52X", "template_id": "t",
+             "variables": {"body": ["blindaje, armas", "detalle A, detalle B"]}}
+        ]
+
+    def test_different_recipients_stay_separate(self):
+        items = [
+            {"to": "+52X", "template_id": "t", "variables": {"body": ["blindaje"]}},
+            {"to": "+52Y", "template_id": "t", "variables": {"body": ["armas"]}},
+        ]
+        out = _consolidate_list_items(items, "to", "variables", ", ")
+        assert len(out) == 2
+        assert {i["to"] for i in out} == {"+52X", "+52Y"}
+
+    def test_dedup_identical_values(self):
+        items = [
+            {"to": "+52X", "variables": {"body": ["envíos a todo el país", "detalle A"]}},
+            {"to": "+52X", "variables": {"body": ["envíos a todo el país", "detalle B"]}},
+        ]
+        out = _consolidate_list_items(items, "to", "variables", ", ")
+        assert out[0]["variables"]["body"][0] == "envíos a todo el país"  # sin duplicar
+        assert out[0]["variables"]["body"][1] == "detalle A, detalle B"
+
+    def test_preserves_order_of_recipients(self):
+        items = [
+            {"to": "+52A", "variables": {"body": ["a"]}},
+            {"to": "+52B", "variables": {"body": ["b"]}},
+            {"to": "+52A", "variables": {"body": ["a2"]}},
+        ]
+        out = _consolidate_list_items(items, "to", "variables", ", ")
+        assert [i["to"] for i in out] == ["+52A", "+52B"]
+        assert out[0]["variables"]["body"] == ["a, a2"]
+
+    def test_items_without_group_key_pass_through(self):
+        items = [{"other": 1}, {"to": "+52A", "variables": {"body": ["x"]}}]
+        out = _consolidate_list_items(items, "to", "variables", ", ")
+        assert {"other": 1} in out
+
+
+class TestSynthesizerConsolidatesHandoff:
+
+    def _run(self, consolidate_cfg):
+        ctx = make_ctx(agents_config=PARALLEL_AGENTS)
+        tool = FakeTool(TOOL_FULL_NAME, base_name=TOOL_BASE_NAME)
+        cfg = {"execute_pending_handoffs": True}
+        if consolidate_cfg is not None:
+            cfg["consolidate_handoffs"] = consolidate_cfg
+        with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM("s")), \
+             patch("graphs.pipeline_agent.load_tools", return_value=[tool]):
+            node = _make_synthesizer_node("synth", "synthesizer", cfg, ctx)
+            state = initial_state(
+                specialist_outputs=[{"content": "r1", "agent": "a"}, {"content": "r2", "agent": "b"}],
+                pending_handoffs=[
+                    {"agent": "blindaje", "tool_name": TOOL_FULL_NAME, "base_name": TOOL_BASE_NAME,
+                     "args": {"messages": [{"to": "+52G", "template_id": "t", "variables": {"body": ["blindaje", "d1"]}}]}},
+                    {"agent": "armas", "tool_name": TOOL_FULL_NAME, "base_name": TOOL_BASE_NAME,
+                     "args": {"messages": [{"to": "+52G", "template_id": "t", "variables": {"body": ["armas", "d2"]}}]}},
+                ],
+            )
+            node(state)
+        return tool
+
+    def test_without_config_sends_two_messages(self):
+        tool = self._run(None)
+        # una sola invocación, pero con 2 items → 2 mensajes al mismo número
+        assert len(tool.calls) == 1
+        assert len(tool.calls[0]["messages"]) == 2
+
+    def test_with_config_collapses_to_one_message(self):
+        tool = self._run({"list_arg": "messages", "group_by": "to",
+                          "merge_field": "variables", "separator": ", "})
+        assert len(tool.calls) == 1
+        msgs = tool.calls[0]["messages"]
+        assert len(msgs) == 1  # un solo mensaje al mismo número
+        assert msgs[0]["variables"]["body"] == ["blindaje, armas", "d1, d2"]

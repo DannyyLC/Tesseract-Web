@@ -868,6 +868,76 @@ def _merge_tool_args(args_list: List[Dict[str, Any]]) -> Dict[str, Any]:
     return merged
 
 
+def _join_dedup(values: List[Any], separator: str) -> str:
+    """Une valores en un string, ignorando vacíos y eliminando duplicados por orden."""
+    out: List[str] = []
+    for v in values:
+        s = str(v).strip()
+        if s and s not in out:
+            out.append(s)
+    return separator.join(out)
+
+
+def _consolidate_list_items(
+    items: List[Dict[str, Any]], group_by: str, merge_field: str, separator: str
+) -> List[Dict[str, Any]]:
+    """
+    Colapsa items que comparten `group_by` en uno solo, fusionando `merge_field`.
+
+    Pensado para el argumento `messages` de send_bulk_whatsapp: agrupa por
+    destinatario (`to`) y fusiona el dict de variables de plantilla posición por
+    posición (cada canal — body/header/buttons — es una lista ordenada de
+    placeholders; los valores en la misma posición se unen con `separator`,
+    deduplicando). Los items que no son dicts o no traen `group_by` se dejan
+    intactos. Preserva el orden de aparición de los grupos.
+
+    Ejemplo (group_by="to", merge_field="variables", separator=", "):
+        [{"to": "X", "template_id": "t", "variables": {"body": ["blindaje", "detalle A"]}},
+         {"to": "X", "template_id": "t", "variables": {"body": ["armas", "detalle B"]}}]
+      → [{"to": "X", "template_id": "t",
+          "variables": {"body": ["blindaje, armas", "detalle A, detalle B"]}}]
+    """
+    grouped: Dict[Any, List[Dict[str, Any]]] = {}
+    order: List[Any] = []
+    passthrough: List[Dict[str, Any]] = []
+
+    for item in items:
+        if not isinstance(item, dict) or group_by not in item:
+            passthrough.append(item)
+            continue
+        key = item[group_by]
+        if key not in grouped:
+            grouped[key] = []
+            order.append(key)
+        grouped[key].append(item)
+
+    consolidated: List[Dict[str, Any]] = []
+    for key in order:
+        members = grouped[key]
+        base = dict(members[0])  # conserva to, template_id y demás campos escalares
+        merged_channels: Dict[str, List[str]] = {}
+        for member in members:
+            variables = member.get(merge_field) or {}
+            if not isinstance(variables, dict):
+                continue
+            for channel, placeholders in variables.items():
+                values = placeholders if isinstance(placeholders, list) else [placeholders]
+                bucket = merged_channels.setdefault(channel, [])
+                for idx, val in enumerate(values):
+                    if idx < len(bucket):
+                        bucket[idx].append(val)
+                    else:
+                        bucket.append([val])
+        if merged_channels:
+            base[merge_field] = {
+                channel: [_join_dedup(pos, separator) for pos in positions]
+                for channel, positions in merged_channels.items()
+            }
+        consolidated.append(base)
+
+    return consolidated + passthrough
+
+
 def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any], ctx: TenantContext):
     """
     Nodo de convergencia del fan-out multi-intent.
@@ -890,6 +960,13 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
                                   siguiente turno cae al fallback y re-clasifica en
                                   vez de re-disparar el fan-out completo). Solo
                                   aplica cuando la síntesis corrió (hubo outputs).
+        consolidate_handoffs:     opcional. Colapsa los items de la llamada de
+                                  handoff que comparten un destinatario, para que
+                                  varios especialistas que notifican al MISMO número
+                                  generen UN solo mensaje (en vez de uno por captura).
+                                  Forma: {"list_arg": "messages", "group_by": "to",
+                                  "merge_field": "variables", "separator": ", "}.
+                                  Sin este campo, las capturas se concatenan (N mensajes).
 
     El agente (agent_name) debe existir en agents_config como cualquier otro:
     define model, temperature y system_prompt del sintetizador.
@@ -898,6 +975,7 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
     execute_pending_handoffs = config.get("execute_pending_handoffs", True)
     handoff_notice = config.get("handoff_notice", "")
     set_variables_on_finish = config.get("set_variables", {})
+    consolidate_handoffs = config.get("consolidate_handoffs")
 
     # Cache de tools cargadas por agente especialista (para ejecutar las capturas)
     tools_cache: Dict[str, list] = {}
@@ -954,6 +1032,20 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
                         continue
 
                     merged_args = _merge_tool_args([c.get("args", {}) for c in captures])
+
+                    # Colapsar items que van al mismo destinatario en un solo
+                    # mensaje (opcional, ver config.consolidate_handoffs).
+                    if consolidate_handoffs:
+                        list_arg = consolidate_handoffs.get("list_arg", "messages")
+                        items = merged_args.get(list_arg)
+                        if isinstance(items, list) and items:
+                            merged_args[list_arg] = _consolidate_list_items(
+                                items,
+                                group_by=consolidate_handoffs.get("group_by", "to"),
+                                merge_field=consolidate_handoffs.get("merge_field", "variables"),
+                                separator=consolidate_handoffs.get("separator", ", "),
+                            )
+
                     result = tool.invoke(merged_args)
                     handoffs_executed = True
                     logger.info(
