@@ -281,8 +281,59 @@ export class WhatsappConfigService {
     }
   }
 
+  /**
+   * Convierte el Markdown que genera el agente al subconjunto de formato que
+   * WhatsApp entiende:
+   *   *negrita*   _cursiva_   ~tachado~   ```monoespaciado```
+   *
+   * Las construcciones sin equivalente en WhatsApp (títulos, enlaces, viñetas,
+   * citas, líneas horizontales) se degradan a texto plano o a una aproximación
+   * visual cercana.
+   */
   async sanitizeOutput(text: string): Promise<string> {
-    return text.replace(/\*\*(.+?)\*\*/gs, '*$1*')   // **negrita** → *negrita*
-               .replace(/__(.+?)__/gs, '_$1_');        // __cursiva__ → _cursiva_
+    if (!text) return text;
+
+    // Marcadores temporales para no reprocesar segmentos ya resueltos.
+    const CODE = String.fromCharCode(0); // sentinela para bloques de código
+    const BOLD = String.fromCharCode(1); // sentinela para negrita
+
+    // 1. Aislar bloques de código (WhatsApp soporta ```) para no tocar su contenido.
+    const codeBlocks: string[] = [];
+    let output = text.replace(/```[\s\S]*?```/g, (match) => {
+      codeBlocks.push(match);
+      return `${CODE}${codeBlocks.length - 1}${CODE}`;
+    });
+
+    output = output
+      // Títulos (#, ##, ...) → negrita en su propia línea.
+      .replace(/^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/gm, `${BOLD}$1${BOLD}`)
+      // Líneas horizontales (---, ***, ___) → se eliminan.
+      .replace(/^\s*([-*_])\1{2,}\s*$/gm, '')
+      // Viñetas de lista (-, *, +) → •.
+      .replace(/^(\s*)[-*+]\s+/gm, '$1• ')
+      // Negrita: **texto** o __texto__ → marcador (se resuelve a * al final).
+      .replace(/\*\*(.+?)\*\*/g, `${BOLD}$1${BOLD}`)
+      .replace(/__(.+?)__/g, `${BOLD}$1${BOLD}`)
+      // Cursiva Markdown: *texto* → _texto_ (WhatsApp usa _ para cursiva).
+      .replace(/\*(.+?)\*/g, '_$1_')
+      // Tachado: ~~texto~~ → ~texto~.
+      .replace(/~~(.+?)~~/g, '~$1~')
+      // Código en línea: `texto` → texto (WhatsApp no soporta backtick simple).
+      .replace(/`([^`]+?)`/g, '$1')
+      // Imágenes: ![alt](url) → url.
+      .replace(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g, '$1')
+      // Enlaces: [texto](url) → texto (url).
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '$1 ($2)');
+
+    // 2. Resolver marcadores de negrita al formato de WhatsApp.
+    output = output.split(BOLD).join('*');
+
+    // 3. Restaurar los bloques de código.
+    output = output.replace(
+      new RegExp(`${CODE}(\\d+)${CODE}`, 'g'),
+      (_, i) => codeBlocks[Number(i)],
+    );
+
+    return output;
   }
 }
