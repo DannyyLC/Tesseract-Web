@@ -71,7 +71,11 @@ export function useLogin() {
         queryClient.setQueryData(['auth', 'me'], response.data.user);
         queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
         const queryStr = window.location.search;
-        router.push(`/dashboard${queryStr}`);
+        // El super admin es operador de plataforma: va a su propia área /admin,
+        // no al panel de inquilino (scopeado por organización).
+        const destination =
+          response.data.user.role === 'SUPER_ADMIN' ? '/admin/llm-models' : '/dashboard';
+        router.push(`${destination}${queryStr}`);
       } else if (response?.data?.require2FA) {
         // 2FA requerido - redirigir a página de verificación
         router.push('/verify-2fa');

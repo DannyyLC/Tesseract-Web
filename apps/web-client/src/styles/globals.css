@@ -100,8 +100,9 @@ label {
   }
 }
 
-/* Fix para el scroll en iOS */
+/* Fix para el scroll en iOS y adaptar UI nativa al tema */
 html {
+  color-scheme: light dark;
   -webkit-overflow-scrolling: touch;
 }
 

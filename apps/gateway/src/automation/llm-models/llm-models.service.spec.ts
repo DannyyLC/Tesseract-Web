@@ -13,6 +13,8 @@ const mockPrismaService = {
     findUnique: jest.fn(),
     update: jest.fn(),
   },
+  // El array-form de $transaction resuelve todas las operaciones en orden.
+  $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
 };
 
 describe('LlmModelsService', () => {
@@ -110,6 +112,7 @@ describe('LlmModelsService', () => {
 
       expect(mockPrismaService.llmModel.findUnique).toHaveBeenCalledWith({
         where: { id: 'model-1' },
+        include: { llmCategory: true },
       });
       expect(result).toEqual(mockModel);
     });
@@ -161,6 +164,67 @@ describe('LlmModelsService', () => {
         NotFoundException,
       );
       expect(mockPrismaService.llmModel.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('supersedePricing', () => {
+    it('should close the current row and create a new active price row copying attributes', async () => {
+      const current = {
+        id: 'm1',
+        provider: 'openai',
+        modelName: 'gpt-4o',
+        tier: ModelTier.STANDARD,
+        llmCategoryId: 'cat-1',
+        contextWindow: 128000,
+        recommendedMaxTokens: 100000,
+        currency: 'USD',
+        notes: 'old',
+      };
+      mockPrismaService.llmModel.findUnique.mockResolvedValue(current);
+      // Primer update: cierra la fila vigente. create: nueva fila.
+      mockPrismaService.llmModel.update.mockResolvedValue({ id: 'm1' });
+      mockPrismaService.llmModel.create.mockResolvedValue({ id: 'm2' });
+
+      const result = await service.supersedePricing('m1', {
+        inputPricePer1m: 3,
+        outputPricePer1m: 12,
+        notes: 'Q3',
+      });
+
+      // Se usó una transacción.
+      expect(mockPrismaService.$transaction).toHaveBeenCalled();
+      // Cerró la fila vigente con effectiveTo.
+      expect(mockPrismaService.llmModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'm1' },
+          data: expect.objectContaining({ effectiveTo: expect.any(Date) }),
+        }),
+      );
+      // Creó la nueva fila con los precios nuevos, activa, copiando atributos.
+      expect(mockPrismaService.llmModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            provider: 'openai',
+            modelName: 'gpt-4o',
+            llmCategoryId: 'cat-1',
+            inputPricePer1m: 3,
+            outputPricePer1m: 12,
+            contextWindow: 128000,
+            isActive: true,
+            effectiveTo: null,
+          }),
+        }),
+      );
+      expect(result).toEqual({ id: 'm2' });
+    });
+
+    it('should throw NotFoundException if model does not exist', async () => {
+      mockPrismaService.llmModel.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.supersedePricing('invalid', { inputPricePer1m: 1, outputPricePer1m: 2 }),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
     });
   });
 

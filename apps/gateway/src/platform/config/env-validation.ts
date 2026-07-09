@@ -75,6 +75,12 @@ const REQUIRED_IN_PRODUCTION: string[] = [
   'REDIS_URL',
 ];
 
+// ─── Opcionales (documentadas) ──────────────────────────────────────────────
+// SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD / SUPER_ADMIN_NAME:
+//   Si se definen, SuperAdminBootstrapService crea/actualiza el super admin al
+//   arrancar. Si faltan, simplemente no se hace nada — por eso NO son
+//   obligatorias (no romper entornos existentes). Ver .env.example.
+
 // ─── Validator ────────────────────────────────────────────────────────────────
 
 export function validateEnv(): void {

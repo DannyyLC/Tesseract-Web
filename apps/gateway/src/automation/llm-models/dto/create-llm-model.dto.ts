@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsBoolean,
   IsDateString,
+  IsUUID,
   Min,
   MaxLength,
 } from 'class-validator';
@@ -38,13 +39,12 @@ export class CreateLlmModelDto {
   tier: ModelTier;
 
   @ApiPropertyOptional({
-    description: 'Categoría para agrupación en UI',
-    example: 'respuesta-rapida',
+    description: 'ID de la categoría del modelo LLM (FK a llm_model_categories)',
+    example: 'a1b2c3d4-...',
   })
-  @IsString()
+  @IsUUID()
   @IsOptional()
-  @MaxLength(100)
-  category?: string;
+  llmCategoryId?: string;
 
   @ApiProperty({
     description: 'Precio por 1M tokens de entrada en USD',

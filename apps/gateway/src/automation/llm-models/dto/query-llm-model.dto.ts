@@ -5,12 +5,12 @@ import { Type } from 'class-transformer';
 
 export class QueryLlmModelsDto {
   @ApiPropertyOptional({
-    description: 'Filtrar por provider',
+    description: 'Búsqueda por proveedor o nombre de modelo',
     example: 'openai',
   })
   @IsString()
   @IsOptional()
-  provider?: string;
+  search?: string;
 
   @ApiPropertyOptional({
     description: 'Filtrar por tier',
@@ -30,12 +30,11 @@ export class QueryLlmModelsDto {
   isActive?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Filtrar por categoría',
-    example: 'respuesta-rapida',
+    description: 'Filtrar por ID de categoría del modelo LLM',
   })
   @IsString()
   @IsOptional()
-  category?: string;
+  llmCategoryId?: string;
 
   @ApiPropertyOptional({
     description: 'Página (1-indexed)',

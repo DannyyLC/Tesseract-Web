@@ -3,6 +3,7 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import {
   CreateLlmModelDto,
   UpdateLlmModelDto,
+  SupersedePricingDto,
   QueryLlmModelsDto,
   TokenUsage,
   CostCalculation,
@@ -62,20 +63,26 @@ export class LlmModelsService {
    * Obtener todos los modelos LLM con filtros y paginación
    */
   async findAll(query: QueryLlmModelsDto) {
-    const { provider, tier, isActive, category, page = 1, limit = 20 } = query;
+    const { search, tier, isActive, llmCategoryId, page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
 
     const where: any = {};
-    if (provider) where.provider = provider;
+    if (search) {
+      where.OR = [
+        { provider: { contains: search, mode: 'insensitive' } },
+        { modelName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
     if (tier) where.tier = tier;
     if (isActive !== undefined) where.isActive = isActive;
-    if (category) where.category = category;
+    if (llmCategoryId) where.llmCategoryId = llmCategoryId;
 
     const [data, total] = await Promise.all([
       this.prisma.llmModel.findMany({
         where,
         skip,
         take: limit,
+        include: { llmCategory: true },
         orderBy: [{ provider: 'asc' }, { modelName: 'asc' }, { effectiveFrom: 'desc' }],
       }),
       this.prisma.llmModel.count({ where }),
@@ -112,6 +119,7 @@ export class LlmModelsService {
   async findOne(id: string) {
     const llmModel = await this.prisma.llmModel.findUnique({
       where: { id },
+      include: { llmCategory: true },
     });
 
     if (!llmModel) {
@@ -155,6 +163,59 @@ export class LlmModelsService {
           : undefined,
       },
     });
+  }
+
+  /**
+   * Cambio de precio versionado.
+   *
+   * Cierra la fila de precio vigente (`effectiveTo = now`) y crea una nueva
+   * fila activa (`effectiveFrom = now`) copiando el resto de atributos del
+   * modelo. Preserva el historial de precios, tal como está diseñada la tabla.
+   *
+   * El cálculo de costos (`getModel`/`calculateCost`) ordena por
+   * `effectiveFrom` desc, así que tras el supersede la nueva fila es la vigente.
+   */
+  async supersedePricing(id: string, dto: SupersedePricingDto) {
+    const current = await this.findOne(id);
+    const now = new Date();
+
+    const [, newModel] = await this.prisma.$transaction([
+      // Cerrar la fila vigente conservando su historial.
+      this.prisma.llmModel.update({
+        where: { id },
+        data: {
+          effectiveTo: now,
+          notes: dto.notes
+            ? `${current.notes ? `${current.notes} | ` : ''}Reemplazado: ${now.toISOString()}`
+            : current.notes,
+        },
+      }),
+      // Crear la nueva fila de precio vigente copiando el resto de atributos.
+      this.prisma.llmModel.create({
+        data: {
+          provider: current.provider,
+          modelName: current.modelName,
+          tier: current.tier,
+          llmCategoryId: current.llmCategoryId,
+          inputPricePer1m: dto.inputPricePer1m,
+          outputPricePer1m: dto.outputPricePer1m,
+          contextWindow: current.contextWindow,
+          recommendedMaxTokens: current.recommendedMaxTokens,
+          currency: current.currency,
+          effectiveFrom: now,
+          effectiveTo: null,
+          isActive: true,
+          notes: dto.notes ?? null,
+        },
+      }),
+    ]);
+
+    this.logger.log(
+      `Precio versionado para ${current.provider}/${current.modelName}: ` +
+        `${current.id} cerrado, nueva fila ${newModel.id}`,
+    );
+
+    return newModel;
   }
 
   /**
