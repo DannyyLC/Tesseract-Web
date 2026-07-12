@@ -7,10 +7,13 @@ import { WhatsappConfigService } from './whatsapp-config.service';
 import { WhatsappMessageQueueService } from './whatsapp-message-queue.service';
 import { MediaProcessingModule } from '@/automation/media-processing/media-processing.module';
 import { OpenAiCompatibleMediaProcessorAdapter } from '@/automation/media-processing/adapters/openai-compatible-media-processor.adapter';
+import { GoogleDriveModule } from '@/platform/cloud/google-drive/google-drive.module';
+import { ConversationsModule } from '@/messaging/conversations/conversations.module';
+import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
 
 @Module({
-  imports: [UtilityModule, HttpModule, WorkflowsModule, MediaProcessingModule],
-  providers: [WhatsappConfigService, WhatsappMessageQueueService, OpenAiCompatibleMediaProcessorAdapter],
+  imports: [UtilityModule, HttpModule, WorkflowsModule, MediaProcessingModule, GoogleDriveModule, ConversationsModule],
+  providers: [WhatsappConfigService, WhatsappMessageQueueService, OpenAiCompatibleMediaProcessorAdapter, GoogleDriveService],
   controllers: [WhatsappConfigController],
   exports: [WhatsappConfigService, WhatsappMessageQueueService],
 })

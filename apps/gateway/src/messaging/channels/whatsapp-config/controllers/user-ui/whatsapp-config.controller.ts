@@ -34,7 +34,9 @@ import {
   SendTemplateDto,
 } from '../../dto';
 import { OpenAiCompatibleMediaProcessorAdapter } from '@/automation/media-processing/adapters/openai-compatible-media-processor.adapter';
-import { MediaProcessResult, MediaType } from '@/automation/media-processing/adapters/media-processor.adapter';
+import { MediaType } from '@/automation/media-processing/adapters/media-processor.adapter';
+import { ConversationsService } from '@/messaging/conversations/conversations.service';
+import { JsonObject } from '@prisma/client/runtime/client';
 
 @Controller('whatsapp-config')
 export class WhatsappConfigController {
@@ -45,12 +47,14 @@ export class WhatsappConfigController {
     private readonly workflowsService: WorkflowsService,
     private readonly whatsappMessageQueueService: WhatsappMessageQueueService,
     private readonly mediaProcessor: OpenAiCompatibleMediaProcessorAdapter,
+    private readonly conversationsService: ConversationsService,
   ) {}
 
   // ─── Webhook ──────────────────────────────────────────────────────────
 
   @Post('whatsapp-webhook')
   async handleWebhook(@Body() body: any, @Res() res: Response, @Headers() headers: any) {
+    res.status(HttpStatus.OK).send({ received: true });
     try {
       const parsedBody = body as WhatsAppInboundEvent;
       const whatsappInboundMessageId = parsedBody.whatsappInboundMessage.id;
@@ -72,14 +76,14 @@ export class WhatsappConfigController {
 
       if (!account) {
         this.logger.warn(`No WhatsApp config found for phone number: ${phoneNumber}`);
-        return res.status(200).send({ received: true });
+        return;
       }
 
       if (!account.isActive) {
         this.logger.warn(
           `Received message for inactive WhatsApp config with phone number: ${phoneNumber}`,
         );
-        return res.status(200).send({ received: true });
+        return;
       }
 
       if (account.connectionStatus !== WhatsAppConnectionStatus.CONNECTED) {
@@ -94,7 +98,7 @@ export class WhatsappConfigController {
           this.logger.error(
             `Failed to update WhatsApp config connection status to CONNECTED for phone number: ${phoneNumber}`,
           );
-          return res.status(200).send({ received: true });
+          return;
         }
       }
 
@@ -125,26 +129,25 @@ export class WhatsappConfigController {
           );
           if (audioResult.status === 'FAILED' || !audioResult.processedText) {
             this.logger.error(`Media processing failed for audio message from ${userNumber} to ${phoneNumber}: ${audioResult.error}`);
-            return res.status(200).send({ received: true });
+            return;
           }
           txtContent = audioResult.processedText;
           break;
         case 'video':
           isUnsupportedVideo = true;
           this.logger.warn(`Received unsupported video message from ${userNumber} to ${phoneNumber}`);
-          return res.status(200).send({ received: true });
+          return;
       }
 
       if (account.phoneNumber == null || account.phoneNumber === '') {
         await this.whatsappConfigService.updatePhoneNumber(account.id, phoneNumber);
       }
 
-      res.status(HttpStatus.OK).send({ received: true });
+    
       const yCloudApiKey = process.env.Y_CLOUD_API_KEY;
       if (yCloudApiKey && account.defaultWorkflowId) {
         if (isUnsupportedVideo) {
           await this.whatsappConfigService.sendTextMessage(
-            yCloudApiKey,
             phoneNumber,
             userNumber,
             'Los videos no son compatibles. Por favor envia texto, imagen o audio.',
@@ -160,7 +163,7 @@ export class WhatsappConfigController {
           sessionId: parsedBody.whatsappInboundMessage.wabaId || '',
           sendTime: parsedBody.whatsappInboundMessage.sendTime || new Date().toISOString(),
           messageId: whatsappInboundMessageId,
-          windowSeconds: 6,
+          windowSeconds: 8,
         });
 
         if (!queueResult.isWindowOwner) {
@@ -206,20 +209,22 @@ export class WhatsappConfigController {
         const messages = result?.messages ?? [];
         const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
         const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
+        const conversation = await this.conversationsService.findOne(account.organizationId, result?.conversationId);
         
         await this.whatsappConfigService.sendTextMessage(
-          yCloudApiKey,
           phoneNumber,
           userNumber,
           assistantContent || 'Received your message, but no response generated, try again later.',
         );
+
+        await this.whatsappConfigService.handleActionsDerivatedFromMetadata(
+          conversation?.metadata as JsonObject,
+          parsedBody
+        )
       }
 
     } catch (error) {
       this.logger.error('Webhook error:', error);
-      if (!res.headersSent) {
-        return res.status(HttpStatus.OK).send({ received: true });
-      }
     }
   }
 
@@ -420,17 +425,7 @@ export class WhatsappConfigController {
       return res.status(HttpStatus.NOT_FOUND).json(apiResponse.build());
     }
 
-    const apiKey = process.env.Y_CLOUD_API_KEY;
-    if (!apiKey) {
-      apiResponse
-        .setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
-        .setData(false)
-        .setMessage('Y_CLOUD_API_KEY is not configured');
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
-    }
-
     await this.whatsappConfigService.sendTemplateMessage(
-      apiKey,
       config.phoneNumber,
       body.to,
       template.name,

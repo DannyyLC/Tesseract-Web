@@ -6,14 +6,19 @@ import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { firstValueFrom } from 'rxjs';
 import { Logger } from 'winston';
 import { PrismaService } from '@/platform/database/prisma.service';
+import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
+import { JsonObject } from '@prisma/client/runtime/client';
+import { WhatsAppInboundEvent } from './dto';
 
 const YCLOUD_API_BASE = process.env.YCLOUD_API_BASE ?? 'https://api.ycloud.com/v2';
 
 @Injectable()
 export class WhatsappConfigService {
+  private readonly yCloudApiKey: string = process.env.Y_CLOUD_API_KEY || '';
   constructor(
     private readonly prismaService: PrismaService,
     private readonly httpService: HttpService,
+    private readonly driveService: GoogleDriveService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
@@ -155,7 +160,7 @@ export class WhatsappConfigService {
 
   // ─── Outbound messaging ───────────────────────────────────────────────
 
-  async sendTextMessage(apiKey: string, from: string, to: string, message: string): Promise<void> {
+  async sendTextMessage(from: string, to: string, message: string): Promise<void> {
     await firstValueFrom(
       this.httpService.post(
         `${YCLOUD_API_BASE}/whatsapp/messages/sendDirectly`,
@@ -165,7 +170,7 @@ export class WhatsappConfigService {
           type: 'text',
           text: { body: await this.sanitizeOutput(message), preview_url: false },
         },
-        { headers: { 'X-API-Key': apiKey, 'Content-Type': 'application/json' } },
+        { headers: { 'X-API-Key': this.yCloudApiKey, 'Content-Type': 'application/json' } },
       ),
     );
   }
@@ -178,7 +183,6 @@ export class WhatsappConfigService {
    *   Each array position corresponds to {{1}}, {{2}}, etc. in the template.
    */
   async sendTemplateMessage(
-    apiKey: string,
     from: string,
     to: string,
     templateName: string,
@@ -225,7 +229,7 @@ export class WhatsappConfigService {
             components,
           },
         },
-        { headers: { 'X-API-Key': apiKey, 'Content-Type': 'application/json' } },
+        { headers: { 'X-API-Key': this.yCloudApiKey, 'Content-Type': 'application/json' } },
       ),
     );
   }
@@ -336,4 +340,74 @@ export class WhatsappConfigService {
 
     return output;
   }
+
+  async handleActionsDerivatedFromMetadata(executionMetadata: JsonObject, whatsappInboundMessagePayload: WhatsAppInboundEvent): Promise<void>  {
+    const clientNumber = whatsappInboundMessagePayload.whatsappInboundMessage.from;
+    const ownerNumber = whatsappInboundMessagePayload.whatsappInboundMessage.to;
+    if(clientNumber === undefined || ownerNumber === undefined) {
+      this.logger.error('Client number or owner number is undefined in the WhatsApp inbound message payload.');
+      return;
+    }
+
+    if (executionMetadata) {
+      const variables = ((executionMetadata ?? {}) as JsonObject)?.variables;
+      if (variables && Object.keys(variables).length > 0) {
+        if ((variables as JsonObject)?.media_url) {
+          const mediaUrl = (variables as JsonObject)?.media_url as string;
+          await this.sendFolderMediaToUser(mediaUrl, ownerNumber, clientNumber);
+        }
+      }
+    }
+  }
+
+  private async sendFolderMediaToUser(folderUrl: string, fromPhoneNumber: string, toPhoneNumber: string) {
+    // 1. Obtener todos los archivos clasificados
+    const files = await this.driveService.getFilesFromPublicFolder(folderUrl);
+    
+    this.logger.info(`Procesando ${files.length} archivos para el cliente.`);
+
+    // 2. Recorrer y enviar secuencialmente (evita saturar la API)
+    for (const file of files) {
+      if (file.type === 'unknown') {
+        this.logger.warn(`Archivo ignorado por formato no soportado: ${file.name} (${file.mimeType})`);
+        continue;
+      }
+
+      try {
+        this.logger.info(`Enviando ${file.type}: ${file.name}...`);
+
+        // yCloud usa `link` (no `url`). WhatsApp exige `filename` para documentos.
+        const media =
+          file.type === 'document'
+            ? { link: file.downloadUrl, filename: file.name }
+            : { link: file.downloadUrl };
+
+        await firstValueFrom(
+          this.httpService.post(
+            `${YCLOUD_API_BASE}/whatsapp/messages/sendDirectly`,
+            {
+              from: fromPhoneNumber,
+              to: toPhoneNumber,
+              type: file.type,
+              [file.type]: media,
+            },
+            { headers: { 'X-API-Key': this.yCloudApiKey, 'Content-Type': 'application/json' } },
+          ),
+        );
+
+        this.logger.info(`Enviado con éxito: ${file.name}`);
+        
+        // Opcional: Pequeño delay de 500ms entre envíos para respetar límites de tasa (rate limiting)
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+      } catch (error: any) {
+        // El detalle real del rechazo de yCloud viene en la respuesta, no en el message.
+        const detail = error?.response?.data
+          ? JSON.stringify(error.response.data)
+          : error?.message;
+        this.logger.error(`Error enviando archivo ${file.name}: ${detail}`);
+        // Decisión arquitectónica: Continuar con el siguiente archivo aunque falle uno
+      }
+    }
+  } 
 }

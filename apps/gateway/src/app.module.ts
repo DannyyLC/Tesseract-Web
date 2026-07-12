@@ -11,6 +11,7 @@ import { BillingModule } from './billing/billing.module';
 import { AutomationModule } from './automation/automation.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { PlatformModule } from './platform/platform.module';
+import { GoogleDriveModule } from './platform/cloud/google-drive/google-drive.module';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -90,6 +91,7 @@ const readableLogFormatter = winston.format.printf(
     BillingModule,
     AutomationModule,
     MessagingModule,
+    GoogleDriveModule,
   ],
   controllers: [],
   providers: [
