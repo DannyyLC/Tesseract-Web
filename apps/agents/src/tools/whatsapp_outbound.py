@@ -196,7 +196,7 @@ def load_whatsapp_outbound_tools(
             if tpl["body"]:
                 if "client_number" in tpl["body"]:
                     msg.variables["body"] = msg.variables.get("body", [])
-                    client_number = dynamic_extra_data_for_templates.get("client_number")
+                    client_number = dynamic_extra_data_for_templates.get("client_number") or "No disponible"
                     msg.variables["body"].insert(0, client_number)
 
             payload = _build_template_payload(

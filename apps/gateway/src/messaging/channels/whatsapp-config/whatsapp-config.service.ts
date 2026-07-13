@@ -353,8 +353,21 @@ export class WhatsappConfigService {
       const variables = ((executionMetadata ?? {}) as JsonObject)?.variables;
       if (variables && Object.keys(variables).length > 0) {
         if ((variables as JsonObject)?.media_url) {
-          const mediaUrl = (variables as JsonObject)?.media_url as string;
-          await this.sendFolderMediaToUser(mediaUrl, ownerNumber, clientNumber);
+          const mediaUrlValue = (variables as JsonObject)?.media_url;
+          const mediaUrls = Array.isArray(mediaUrlValue)
+            ? mediaUrlValue
+            : typeof mediaUrlValue === 'string' && mediaUrlValue.includes(',')
+              ? mediaUrlValue.split(',')
+              : [mediaUrlValue];
+
+          for (const mediaUrl of mediaUrls) {
+            const normalizedMediaUrl = String(mediaUrl).trim();
+            if (!normalizedMediaUrl) {
+              continue;
+            }
+
+            await this.sendFolderMediaToUser(normalizedMediaUrl, ownerNumber, clientNumber);
+          }
         }
       }
     }
