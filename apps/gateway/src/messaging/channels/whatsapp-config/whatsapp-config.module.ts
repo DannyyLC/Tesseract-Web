@@ -10,10 +10,11 @@ import { OpenAiCompatibleMediaProcessorAdapter } from '@/automation/media-proces
 import { GoogleDriveModule } from '@/platform/cloud/google-drive/google-drive.module';
 import { ConversationsModule } from '@/messaging/conversations/conversations.module';
 import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
+import { ConversationsService } from '@/messaging/conversations/conversations.service';
 
 @Module({
   imports: [UtilityModule, HttpModule, WorkflowsModule, MediaProcessingModule, GoogleDriveModule, ConversationsModule],
-  providers: [WhatsappConfigService, WhatsappMessageQueueService, OpenAiCompatibleMediaProcessorAdapter, GoogleDriveService],
+  providers: [WhatsappConfigService, WhatsappMessageQueueService, OpenAiCompatibleMediaProcessorAdapter, GoogleDriveService, ConversationsService],
   controllers: [WhatsappConfigController],
   exports: [WhatsappConfigService, WhatsappMessageQueueService],
 })

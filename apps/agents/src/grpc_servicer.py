@@ -178,6 +178,7 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
                 "iteration_count":     0,
                 "specialist_outputs":  [],
                 "pending_handoffs":    [],
+                "collected_variables": [],
                 "parallel_mode":       False,
             })
             execution_time_ms = int((time.time() - start_time) * 1000)
@@ -297,6 +298,7 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
                     "iteration_count":     0,
                     "specialist_outputs":  [],
                     "pending_handoffs":    [],
+                    "collected_variables": [],
                     "parallel_mode":       False,
                 },
                 version="v2",

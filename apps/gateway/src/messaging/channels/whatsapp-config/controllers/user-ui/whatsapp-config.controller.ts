@@ -218,6 +218,8 @@ export class WhatsappConfigController {
         );
 
         await this.whatsappConfigService.handleActionsDerivatedFromMetadata(
+          result?.conversationId,
+          account.organizationId,
           conversation?.metadata as JsonObject,
           parsedBody
         )

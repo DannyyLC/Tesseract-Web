@@ -9,6 +9,7 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
 import { JsonObject } from '@prisma/client/runtime/client';
 import { WhatsAppInboundEvent } from './dto';
+import { ConversationsService } from '@/messaging/conversations/conversations.service';
 
 const YCLOUD_API_BASE = process.env.YCLOUD_API_BASE ?? 'https://api.ycloud.com/v2';
 
@@ -19,6 +20,7 @@ export class WhatsappConfigService {
     private readonly prismaService: PrismaService,
     private readonly httpService: HttpService,
     private readonly driveService: GoogleDriveService,
+    private readonly conversationsService: ConversationsService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
@@ -341,7 +343,7 @@ export class WhatsappConfigService {
     return output;
   }
 
-  async handleActionsDerivatedFromMetadata(executionMetadata: JsonObject, whatsappInboundMessagePayload: WhatsAppInboundEvent): Promise<void>  {
+  async handleActionsDerivatedFromMetadata(conversationId: string, organizationId: string, executionMetadata: JsonObject, whatsappInboundMessagePayload: WhatsAppInboundEvent): Promise<void>  {
     const clientNumber = whatsappInboundMessagePayload.whatsappInboundMessage.from;
     const ownerNumber = whatsappInboundMessagePayload.whatsappInboundMessage.to;
     if(clientNumber === undefined || ownerNumber === undefined) {
@@ -352,7 +354,7 @@ export class WhatsappConfigService {
     if (executionMetadata) {
       const variables = ((executionMetadata ?? {}) as JsonObject)?.variables;
       if (variables && Object.keys(variables).length > 0) {
-        if ((variables as JsonObject)?.media_url) {
+        if ((variables as JsonObject)?.media_url && !(executionMetadata as JsonObject)?.media_url_sent) {
           const mediaUrlValue = (variables as JsonObject)?.media_url;
           const mediaUrls = Array.isArray(mediaUrlValue)
             ? mediaUrlValue
@@ -360,7 +362,12 @@ export class WhatsappConfigService {
               ? mediaUrlValue.split(',')
               : [mediaUrlValue];
 
+          var firstTime = true;
           for (const mediaUrl of mediaUrls) {
+            if (firstTime) {
+              this.sendTextMessage(ownerNumber, clientNumber, 'Te tratare de compartir algúnos archivos que son relevantes en relación a lo mencionado anteriormente.');
+              firstTime = false;
+            }
             const normalizedMediaUrl = String(mediaUrl).trim();
             if (!normalizedMediaUrl) {
               continue;
@@ -368,6 +375,12 @@ export class WhatsappConfigService {
 
             await this.sendFolderMediaToUser(normalizedMediaUrl, ownerNumber, clientNumber);
           }
+          this.conversationsService.update(organizationId, conversationId, {
+            metadata: {
+              ...executionMetadata,
+              media_url_sent: true,
+            },
+          });
         }
       }
     }
@@ -388,7 +401,6 @@ export class WhatsappConfigService {
 
       try {
         this.logger.info(`Enviando ${file.type}: ${file.name}...`);
-
         // yCloud usa `link` (no `url`). WhatsApp exige `filename` para documentos.
         const media =
           file.type === 'document'

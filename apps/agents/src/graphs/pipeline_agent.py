@@ -157,6 +157,12 @@ class PipelineAgentState(TypedDict):
                          [{agent, node_id, tool_name, base_name, args}]. El
                          synthesizer ejecuta UNA llamada real por grupo y resetea
                          el canal (escribiendo None). No se persiste entre turnos.
+        collected_variables: Snapshots de los deltas de set_variables_on_tool_call de
+                         cada rama paralela (reducer: concatena). A diferencia de
+                         `variables` (merge last-writer-wins), aquí se preservan TODOS
+                         los valores de cada rama para que el synthesizer pueda
+                         fusionarlos (p.ej. concatenar media_url con `join_variables`).
+                         No se persiste entre turnos.
         parallel_mode:   True solo dentro del input de un Send (rama paralela).
                          Ningún nodo lo escribe como update.
         current_intent:  Intent que originó esta rama paralela (viaja en el Send).
@@ -168,6 +174,7 @@ class PipelineAgentState(TypedDict):
     iteration_count: int
     specialist_outputs: Annotated[list, operator.add]
     pending_handoffs: Annotated[list, _append_or_reset]
+    collected_variables: Annotated[list, operator.add]
     parallel_mode: bool
     current_intent: str
 
@@ -442,6 +449,9 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
         # de merge — escribir una copia completa pisaría escrituras de ramas paralelas)
         state_vars = state.get("variables", {})
         variables_delta: Dict[str, Any] = {}
+        # Snapshots de cada set_variables_on_tool_call aplicado (para que el synthesizer
+        # pueda fusionar valores que el reducer de `variables` colapsaría en paralelo).
+        collected_sv: List[Dict[str, Any]] = []
 
         time_context = _build_time_context(ctx)
         system_prompt = base_system_prompt + time_context if base_system_prompt else time_context
@@ -548,6 +558,7 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                             sv_key = _tool_base_name(tool)
                         if sv_key:
                             variables_delta.update(set_variables_on_tool_call[sv_key])
+                            collected_sv.append(dict(set_variables_on_tool_call[sv_key]))
                             logger.info(
                                 f"[{ctx.workflow_id}] Node '{node_id}': tool call '{tc['name']}' "
                                 f"set variables {list(set_variables_on_tool_call[sv_key].keys())}"
@@ -688,6 +699,8 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
             }]
             if handoff_captures:
                 updates["pending_handoffs"] = handoff_captures
+            if collected_sv:
+                updates["collected_variables"] = collected_sv
         else:
             # preceding_messages contiene los AIMessage(tool_calls) + ToolMessages intermedios.
             # El mensaje final solo se agrega si tiene contenido visible tras limpiar el tag.
@@ -967,6 +980,12 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
                                   Forma: {"list_arg": "messages", "group_by": "to",
                                   "merge_field": "variables", "separator": ", "}.
                                   Sin este campo, las capturas se concatenan (N mensajes).
+        join_variables:           opcional. Fusiona variables que las ramas paralelas
+                                  setearon vía set_variables_on_tool_call y que el
+                                  reducer de `variables` habría colapsado (last-writer
+                                  -wins). Une los valores de cada rama en un solo string
+                                  (deduplicando, ignorando vacíos) y lo escribe en
+                                  variables[<clave>]. Forma: {"media_url": ","}.
 
     El agente (agent_name) debe existir en agents_config como cualquier otro:
     define model, temperature y system_prompt del sintetizador.
@@ -976,6 +995,11 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
     handoff_notice = config.get("handoff_notice", "")
     set_variables_on_finish = config.get("set_variables", {})
     consolidate_handoffs = config.get("consolidate_handoffs")
+    # Variables a fusionar desde collected_variables (deltas de las ramas paralelas):
+    # {"<var>": "<separador>"}. Une los valores de esa clave aportados por cada
+    # especialista en un solo string (deduplicando, ignorando vacíos) y lo escribe
+    # en variables[<var>], evitando el last-writer-wins del reducer de `variables`.
+    join_variables = config.get("join_variables") or {}
 
     # Cache de tools cargadas por agente especialista (para ejecutar las capturas)
     tools_cache: Dict[str, list] = {}
@@ -1110,12 +1134,33 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
 
         updates["messages"] = [final_msg]
 
-        if set_variables_on_finish:
+        variables_delta: Dict[str, Any] = dict(set_variables_on_finish)
+
+        # Fusionar variables acumuladas por las ramas paralelas (p.ej. media_url):
+        # une todos los valores aportados en un solo string separado por el separador
+        # configurado, evitando el last-writer-wins del reducer de `variables`.
+        if join_variables:
+            collected = state.get("collected_variables", [])
+            for var_name, separator in join_variables.items():
+                values = [
+                    delta[var_name]
+                    for delta in collected
+                    if isinstance(delta, dict) and delta.get(var_name) is not None
+                ]
+                if values:
+                    joined = _join_dedup(values, separator)
+                    variables_delta[var_name] = joined
+                    logger.info(
+                        f"[{ctx.workflow_id}] Synthesizer '{node_id}': join_variables "
+                        f"'{var_name}' ({len(values)} valor(es)) → '{joined[:200]}'"
+                    )
+
+        if variables_delta:
             # Delta: solo las claves configuradas (los reducers mergean)
-            updates["variables"] = dict(set_variables_on_finish)
+            updates["variables"] = variables_delta
             logger.info(
                 f"[{ctx.workflow_id}] Synthesizer '{node_id}': set variables "
-                f"{list(set_variables_on_finish.keys())} al finalizar"
+                f"{list(variables_delta.keys())} al finalizar"
             )
 
         return updates
