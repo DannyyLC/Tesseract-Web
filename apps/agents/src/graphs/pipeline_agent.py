@@ -213,13 +213,47 @@ def _resolve_path(state: PipelineAgentState, path: str) -> Any:
     return current
 
 
-def _render_params(params: Dict[str, Any], state: PipelineAgentState) -> Dict[str, Any]:
+_TEMPLATE_PATTERN = re.compile(r"\{\{([^}]+)\}\}")
+
+
+def _render_template_value(value: Any, state: PipelineAgentState) -> Any:
     """
-    Renderiza los parámetros de un nodo tool reemplazando templates con valores del estado.
+    Resuelve templates {{variables.x}} contra el estado. Reutilizado por _render_params
+    (params de nodos tool) y por los nodos set_variables/synthesizer para que
+    `variables` y `append_system_message` también soporten templates.
 
     Soporta dos formas:
     1. Template completo:  "{{variables.fecha}}"       → devuelve el valor tal cual (cualquier tipo)
     2. Template inline:   "Hola {{variables.nombre}}"  → reemplaza dentro del string
+    """
+    if not isinstance(value, str):
+        if isinstance(value, dict):
+            return {k: _render_template_value(v, state) for k, v in value.items()}
+        if isinstance(value, list):
+            return [_render_template_value(item, state) for item in value]
+        return value
+
+    matches = _TEMPLATE_PATTERN.findall(value)
+
+    if not matches:
+        return value
+
+    # Template completo (el string entero es un template) → devolver tipo original
+    if len(matches) == 1 and value.strip() == f"{{{{{matches[0]}}}}}":
+        return _resolve_path(state, matches[0].strip())
+
+    # Template inline → reemplazar dentro del string
+    result = value
+    for match in matches:
+        resolved = _resolve_path(state, match.strip())
+        result = result.replace(f"{{{{{match}}}}}", str(resolved) if resolved is not None else "")
+
+    return result
+
+
+def _render_params(params: Dict[str, Any], state: PipelineAgentState) -> Dict[str, Any]:
+    """
+    Renderiza los parámetros de un nodo tool reemplazando templates con valores del estado.
 
     Ejemplo:
         params = {
@@ -233,36 +267,7 @@ def _render_params(params: Dict[str, Any], state: PipelineAgentState) -> Dict[st
             "fixed": "valor_fijo"
           }
     """
-
-    template_pattern = re.compile(r"\{\{([^}]+)\}\}")
-
-    def render_value(value: Any) -> Any:
-        if not isinstance(value, str):
-            if isinstance(value, dict):
-                return {k: render_value(v) for k, v in value.items()}
-            if isinstance(value, list):
-                return [render_value(item) for item in value]
-            return value
-
-        matches = template_pattern.findall(value)
-
-        if not matches:
-            return value
-
-        # Template completo (el string entero es un template) → devolver tipo original
-        if len(matches) == 1 and value.strip() == f"{{{{{matches[0]}}}}}":
-            resolved = _resolve_path(state, matches[0].strip())
-            return resolved
-
-        # Template inline → reemplazar dentro del string
-        result = value
-        for match in matches:
-            resolved = _resolve_path(state, match.strip())
-            result = result.replace(f"{{{{{match}}}}}", str(resolved) if resolved is not None else "")
-
-        return result
-
-    return {k: render_value(v) for k, v in params.items()}
+    return {k: _render_template_value(v, state) for k, v in params.items()}
 
 
 def _evaluate_condition(op: str, field_value: Any, compare_value: Any) -> bool:
@@ -835,18 +840,24 @@ def _make_set_variables_node(node_id: str, config: Dict[str, Any], ctx: TenantCo
        (vía el canal interno variables.__append_system_message__, que el agent consume y limpia).
 
     Config:
-        variables:             dict con las variables a setear
-        append_system_message: texto a agregar al system prompt del siguiente nodo agent
+        variables:             dict con las variables a setear. Los valores soportan
+                                templates {{variables.x}} (ver _render_template_value),
+                                resueltos contra el estado en el momento de ejecución.
+        append_system_message: texto a agregar al system prompt del siguiente nodo agent.
+                                También soporta templates {{variables.x}}.
     """
     variables_to_set = config.get("variables", {})
-    append_msg = config.get("append_system_message", "")
+    append_msg_template = config.get("append_system_message", "")
 
     logger.info(f"[{ctx.workflow_id}] set_variables node '{node_id}' initialized")
 
     def node(state: PipelineAgentState) -> dict:
-        # Delta: solo las claves seteadas (los reducers mergean)
-        variables_delta = dict(variables_to_set)
+        # Delta: solo las claves seteadas (los reducers mergean), templates resueltos
+        variables_delta = _render_params(variables_to_set, state)
 
+        append_msg = (
+            _render_template_value(append_msg_template, state) if append_msg_template else ""
+        )
         if append_msg:
             variables_delta["__append_system_message__"] = append_msg
 
@@ -971,7 +982,10 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
         set_variables:            dict de variables a setear al terminar la síntesis
                                   (p.ej. {"intent": []} para resetear el ruteo: el
                                   siguiente turno cae al fallback y re-clasifica en
-                                  vez de re-disparar el fan-out completo). Solo
+                                  vez de re-disparar el fan-out completo). Los valores
+                                  soportan templates {{variables.x}} (p.ej.
+                                  {"previous_intent": "{{variables.intent}}"} para
+                                  copiar el intent vigente antes de resetearlo). Solo
                                   aplica cuando la síntesis corrió (hubo outputs).
         consolidate_handoffs:     opcional. Colapsa los items de la llamada de
                                   handoff que comparten un destinatario, para que
@@ -1134,7 +1148,9 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
 
         updates["messages"] = [final_msg]
 
-        variables_delta: Dict[str, Any] = dict(set_variables_on_finish)
+        # Templates {{variables.x}} resueltos contra el estado (p.ej. "previous_intent":
+        # "{{variables.intent}}" copia el intent vigente antes de resetearlo).
+        variables_delta: Dict[str, Any] = _render_params(set_variables_on_finish, state)
 
         # Fusionar variables acumuladas por las ramas paralelas (p.ej. media_url):
         # une todos los valores aportados en un solo string separado por el separador
