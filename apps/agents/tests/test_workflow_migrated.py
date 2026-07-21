@@ -25,7 +25,7 @@ sys.path.insert(0, str(src_path))
 
 from langchain_core.messages import AIMessage, HumanMessage  # noqa: E402
 from core.context import TenantContext  # noqa: E402
-from graphs.pipeline_agent import NO_STREAM_TAG, create_pipeline_agent  # noqa: E402
+from graphs.pipeline import NO_STREAM_TAG, create_pipeline_agent  # noqa: E402
 
 MIGRATION_FILE = Path(__file__).parent.parent / "docs" / "workflow-migration.json"
 
@@ -133,10 +133,10 @@ def run(llms, tool, message="hola", variables=None):
     )
 
     patches = [
-        patch("graphs.pipeline_agent.get_llm", side_effect=lambda _c, name: llms[name]),
+        patch("tools.registry.get_llm", side_effect=lambda _c, name: llms[name]),
         # Solo el loader de la instancia real (nodo notify_team); las signal
         # tools se cargan por el registry REAL desde agents_config
-        patch("graphs.pipeline_agent.load_specific_tool", return_value=[tool]),
+        patch("tools.registry.load_specific_tool", return_value=[tool]),
     ]
     for p in patches:
         p.start()

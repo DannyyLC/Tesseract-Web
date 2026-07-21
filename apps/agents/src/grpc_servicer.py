@@ -15,13 +15,14 @@ import grpc
 from agents.v1 import agents_pb2, agents_pb2_grpc
 from langchain_core.messages import HumanMessage
 from api.deps import AgentExecutionRequest, validate_request, build_context
-from core.agent_factory import create_agent_graph
+from core.agent_factory import build_initial_state, create_agent_graph
 from core.message_utils import (
     convert_message_history_to_langchain,
     convert_langchain_messages_to_dict,
     extract_human_handoff_from_messages,
 )
-from graphs.pipeline_agent import NO_STREAM_TAG
+from core.usage import UsageAccumulator
+from graphs.pipeline import NO_STREAM_TAG
 
 logger = logging.getLogger(__name__)
 
@@ -171,51 +172,19 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
             # Cargar variables persistidas de la conversación (las popula el Gateway). Las variables
             # efímeras (p.ej. reroute_count) no llegan aquí y el grafo las inicializa cuando las necesita.
             persisted_variables = validated.user_metadata.get("variables", {}) or {}
-            result = graph.invoke({
-                "messages":            messages,
-                "variables":           persisted_variables,
-                "current_node":        "",
-                "execution_path":      [],
-                "iteration_count":     0,
-                "specialist_outputs":  [],
-                "pending_handoffs":    [],
-                "collected_variables": [],
-                "internal_usage":      [],
-                "parallel_mode":       False,
-            })
+            result = graph.invoke(build_initial_state(
+                ctx.graph_config.get("type", ""), messages, persisted_variables,
+            ))
             execution_time_ms = int((time.time() - start_time) * 1000)
 
             output_messages = result.get("messages", [])
 
-            usage_by_model: dict[str, dict] = {}
-            max_input_per_model: dict[str, int] = {}
-
-            def _accumulate_usage(usage, response_metadata):
-                if not usage:
-                    return
-                input_tokens = usage.get("input_tokens", 0)
-                output_tokens = usage.get("output_tokens", 0)
-                model_name = "unknown"
-                if response_metadata:
-                    model_name = (
-                        response_metadata.get("model_name")
-                        or response_metadata.get("model", "unknown")
-                    )
-                if model_name == "unknown":
-                    default_agent = ctx.get_agent_config("default") or {}
-                    model_name = default_agent.get("model", "unknown")
-
-                if model_name not in usage_by_model:
-                    usage_by_model[model_name] = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
-                    max_input_per_model[model_name] = 0
-
-                if input_tokens > max_input_per_model[model_name]:
-                    max_input_per_model[model_name] = input_tokens
-                usage_by_model[model_name]["output_tokens"] += output_tokens
+            default_model = (ctx.get_agent_config("default") or {}).get("model", "unknown")
+            accumulator = UsageAccumulator(default_model)
 
             for msg in output_messages:
                 if hasattr(msg, "usage_metadata") and msg.usage_metadata:
-                    _accumulate_usage(
+                    accumulator.add(
                         msg.usage_metadata,
                         msg.response_metadata if hasattr(msg, "response_metadata") else None,
                     )
@@ -223,24 +192,14 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
             # Los especialistas ejecutados en paralelo no escriben AIMessages al
             # historial; su usage viaja en specialist_outputs.
             for output in result.get("specialist_outputs", []):
-                _accumulate_usage(
-                    output.get("usage_metadata"),
-                    output.get("response_metadata"),
-                )
+                accumulator.add(output.get("usage_metadata"), output.get("response_metadata"))
 
             # Nodos silent (internos): tampoco escriben al historial; su usage
             # viaja en internal_usage.
             for entry in result.get("internal_usage", []):
-                _accumulate_usage(
-                    entry.get("usage_metadata"),
-                    entry.get("response_metadata"),
-                )
+                accumulator.add(entry.get("usage_metadata"), entry.get("response_metadata"))
 
-            for name in usage_by_model:
-                usage_by_model[name]["input_tokens"] = max_input_per_model[name]
-                usage_by_model[name]["total_tokens"] = (
-                    max_input_per_model[name] + usage_by_model[name]["output_tokens"]
-                )
+            usage_by_model = accumulator.totals()
 
             all_messages = convert_langchain_messages_to_dict(output_messages)
             human_handoff = extract_human_handoff_from_messages(output_messages)
@@ -282,8 +241,6 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
         conversation_id = request.conversation_id
         start_time = time.time()
 
-        usage_by_model: dict[str, dict] = {}
-        max_input_per_model: dict[str, int] = {}
         human_handoff: dict | None = None
         final_variables: dict = {}
 
@@ -293,6 +250,9 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
             ctx = build_context(validated, streaming=True)
             graph = create_agent_graph(ctx)
 
+            default_model = (ctx.get_agent_config("default") or {}).get("model", "unknown")
+            accumulator = UsageAccumulator(default_model)
+
             messages = convert_message_history_to_langchain(validated.message_history)
             messages.append(HumanMessage(content=validated.user_message))
 
@@ -300,18 +260,9 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
             persisted_variables = validated.user_metadata.get("variables", {}) or {}
 
             async for event in graph.astream_events(
-                {
-                    "messages":            messages,
-                    "variables":           persisted_variables,
-                    "current_node":        "",
-                    "execution_path":      [],
-                    "iteration_count":     0,
-                    "specialist_outputs":  [],
-                    "pending_handoffs":    [],
-                    "collected_variables": [],
-                    "internal_usage":      [],
-                    "parallel_mode":       False,
-                },
+                build_initial_state(
+                    ctx.graph_config.get("type", ""), messages, persisted_variables,
+                ),
                 version="v2",
             ):
                 event_type = event.get("event", "")
@@ -375,30 +326,12 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
                     if not usage:
                         continue
 
-                    input_tokens = usage.get("input_tokens", 0)
-                    output_tokens = usage.get("output_tokens", 0)
-                    model_name = "unknown"
+                    response_metadata = None
                     if hasattr(output, "response_metadata") and output.response_metadata:
-                        model_name = (
-                            output.response_metadata.get("model_name")
-                            or output.response_metadata.get("model", "unknown")
-                        )
-                    if model_name == "unknown" and ctx:
-                        model_name = (ctx.get_agent_config("default") or {}).get("model", "unknown")
+                        response_metadata = output.response_metadata
+                    accumulator.add(usage, response_metadata)
 
-                    if model_name not in usage_by_model:
-                        usage_by_model[model_name] = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
-                        max_input_per_model[model_name] = 0
-                    if input_tokens > max_input_per_model[model_name]:
-                        max_input_per_model[model_name] = input_tokens
-                    usage_by_model[model_name]["output_tokens"] += output_tokens
-
-            # Calcular totales
-            for name in usage_by_model:
-                usage_by_model[name]["input_tokens"] = max_input_per_model[name]
-                usage_by_model[name]["total_tokens"] = (
-                    max_input_per_model[name] + usage_by_model[name]["output_tokens"]
-                )
+            usage_by_model = accumulator.totals()
 
             execution_time_ms = int((time.time() - start_time) * 1000)
             total_input = sum(v["input_tokens"] for v in usage_by_model.values())

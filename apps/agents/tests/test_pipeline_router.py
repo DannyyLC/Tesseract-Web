@@ -2,7 +2,7 @@
 Tests para el soporte de router conversacional en graphs/pipeline_agent.py.
 
 Cubre:
-- classification_pattern en _make_agent_node (extracción de intent, limpieza de tag, lock)
+- classification_pattern en make_agent_node (extracción de intent, limpieza de tag, lock)
 - __append_system_message__ propagado por set_variables y consumido por agent
 - modo router en _make_condition_function (ya cubierto por smoke test; aquí integración)
 - grafo end-to-end: classify → especialista → END
@@ -18,9 +18,9 @@ sys.path.insert(0, str(src_path))
 
 from langchain_core.messages import AIMessage, HumanMessage  # noqa: E402
 from core.context import TenantContext  # noqa: E402
-from graphs.pipeline_agent import (  # noqa: E402
-    _make_agent_node,
-    _make_set_variables_node,
+from graphs.pipeline import (  # noqa: E402
+    make_agent_node,
+    make_set_variables_node,
     create_pipeline_agent,
 )
 
@@ -54,8 +54,8 @@ def make_ctx(graph_config=None, agents_config=None) -> TenantContext:
 def run_node(content, *, locked=False, intent_before=None, pattern=r"\[ROUTE:(\w+)\]"):
     """Construye un agent node con classification_pattern y lo ejecuta una vez."""
     ctx = make_ctx()
-    with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM(content)):
-        node = _make_agent_node("classifier", "classifier", "intent", ctx, pattern)
+    with patch("tools.registry.get_llm", return_value=FakeLLM(content)):
+        node = make_agent_node("classifier", "classifier", "intent", ctx, pattern)
     variables = {}
     if intent_before is not None:
         variables["intent"] = intent_before
@@ -103,7 +103,7 @@ class TestSetVariablesAndAppend:
 
     def test_set_variables_sets_and_appends(self):
         ctx = make_ctx()
-        node = _make_set_variables_node(
+        node = make_set_variables_node(
             "lock",
             {"variables": {"routing_locked": True}, "append_system_message": "NO RUTEES"},
             ctx,
@@ -122,8 +122,8 @@ class TestSetVariablesAndAppend:
                 captured["system"] = messages[0].content
                 return AIMessage(content="respuesta")
 
-        with patch("graphs.pipeline_agent.get_llm", return_value=CapturingLLM()):
-            node = _make_agent_node("general", "general", None, ctx)
+        with patch("tools.registry.get_llm", return_value=CapturingLLM()):
+            node = make_agent_node("general", "general", None, ctx)
         upd = node({
             "messages": [HumanMessage(content="hola")],
             "variables": {"__append_system_message__": "INSTRUCCION EXTRA"},
@@ -184,7 +184,7 @@ def build_router_graph(scripts):
     def fake_get_llm(_ctx, agent_name):
         return FakeLLM(scripts[agent_name])
 
-    with patch("graphs.pipeline_agent.get_llm", side_effect=fake_get_llm):
+    with patch("tools.registry.get_llm", side_effect=fake_get_llm):
         graph = create_pipeline_agent(ctx)
     return graph
 

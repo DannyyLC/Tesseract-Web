@@ -16,7 +16,8 @@ from core.context import TenantContext
 
 # Imports de los builders específicos
 from graphs.react_agent import create_react_agent
-from graphs.pipeline_agent import create_pipeline_agent
+from graphs.pipeline import create_pipeline_agent
+from graphs.pipeline import initial_state as pipeline_initial_state
 from graphs.router_agent import create_router_agent
 from graphs.sequential_agent import create_sequential_agent
 from graphs.supervisor_agent import create_supervisor_agent
@@ -54,6 +55,27 @@ GRAPH_BUILDERS: Dict[str, GraphBuilder] = {
     "sequential": create_sequential_agent,
     "supervisor": create_supervisor_agent,
 }
+
+
+def build_initial_state(graph_type: str, messages: list, variables: dict | None = None) -> dict:
+    """
+    Estado inicial de ejecución según el tipo de grafo. El servicer NO conoce los
+    canales internos de cada grafo: cada builder define los suyos aquí.
+    """
+    if graph_type == "pipeline":
+        return pipeline_initial_state(messages, variables)
+
+    # Superset genérico para react/router/sequential/supervisor: LangGraph ignora
+    # las claves que no existan en el schema del grafo.
+    return {
+        "messages": messages,
+        "variables": variables or {},
+        "iteration_count": 0,
+        "intent": "",
+        "next": "",
+        "current_node": "",
+        "execution_path": [],
+    }
 
 
 # ==========================================

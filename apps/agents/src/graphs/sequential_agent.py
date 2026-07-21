@@ -52,10 +52,9 @@ from langgraph.graph import StateGraph, END, START
 from langgraph.graph.message import add_messages
 from langchain_core.messages import AIMessage, SystemMessage
 from typing_extensions import TypedDict
-from datetime import datetime
-import pytz
 
 from core.context import TenantContext
+from core.prompts import build_time_context
 from tools.registry import get_llm
 
 logger = logging.getLogger(__name__)
@@ -113,21 +112,8 @@ def _make_step_node(step_index: int, agent_name: str, output_variable: str | Non
         messages = list(state["messages"])
         base_system_prompt = agent_config.get("system_prompt", "")
 
-        # Inyectar contexto de tiempo actual
-        try:
-            local_tz = pytz.timezone(ctx.timezone)
-        except pytz.UnknownTimeZoneError:
-            local_tz = pytz.UTC
 
-        current_time = datetime.now(local_tz)
-        time_context = (
-            f"\n---\n"
-            f"SYSTEM DYNAMIC CONTEXT:\n"
-            f"Today's Date: {current_time.strftime('%A, %B %d, %Y')}\n"
-            f"Current Local Time: {current_time.strftime('%I:%M %p')} (Timezone: {ctx.timezone})\n"
-            f"---\n"
-        )
-
+        time_context = build_time_context(ctx)
         system_prompt = base_system_prompt + time_context if base_system_prompt else time_context
 
         if system_prompt:

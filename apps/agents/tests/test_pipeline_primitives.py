@@ -20,12 +20,12 @@ sys.path.insert(0, str(src_path))
 import pytest  # noqa: E402
 from langchain_core.messages import AIMessage, HumanMessage  # noqa: E402
 from core.context import TenantContext  # noqa: E402
-from graphs.pipeline_agent import (  # noqa: E402
+from graphs.pipeline import (  # noqa: E402
     NO_STREAM_TAG,
-    _render_template_value,
-    _resolve_path,
-    _make_variables_reducer,
-    _make_agent_node,
+    render_template_value,
+    resolve_path,
+    make_variables_reducer,
+    make_agent_node,
     create_pipeline_agent,
 )
 
@@ -84,40 +84,40 @@ class TestTemplatingContext:
 
     def test_context_user_metadata_resolves(self):
         ctx = make_ctx(user_metadata={"client_number": "+52123"})
-        out = _render_template_value(
+        out = render_template_value(
             "Cliente: {{context.user_metadata.client_number}}", initial_state(), ctx
         )
         assert out == "Cliente: +52123"
 
     def test_context_full_template_preserves_type(self):
         ctx = make_ctx(user_metadata={"tags": ["a", "b"]})
-        out = _render_template_value("{{context.user_metadata.tags}}", initial_state(), ctx)
+        out = render_template_value("{{context.user_metadata.tags}}", initial_state(), ctx)
         assert out == ["a", "b"]
 
     def test_context_scalar_fields(self):
         ctx = make_ctx()
         state = initial_state()
-        assert _render_template_value("{{context.channel}}", state, ctx) == "whatsapp"
-        assert _render_template_value("{{context.user_id}}", state, ctx) == "u"
-        assert _render_template_value("{{context.conversation_id}}", state, ctx) == "c"
+        assert render_template_value("{{context.channel}}", state, ctx) == "whatsapp"
+        assert render_template_value("{{context.user_id}}", state, ctx) == "u"
+        assert render_template_value("{{context.conversation_id}}", state, ctx) == "c"
 
     def test_unknown_namespace_left_literal(self):
         # Placeholders tipo Meta ("{{1}}") en prompts NO deben destruirse
-        out = _render_template_value("Usa el formato {{1}} y {{2}}", initial_state(), make_ctx())
+        out = render_template_value("Usa el formato {{1}} y {{2}}", initial_state(), make_ctx())
         assert out == "Usa el formato {{1}} y {{2}}"
 
     def test_unknown_full_template_left_literal(self):
-        out = _render_template_value("{{cosa.rara}}", initial_state(), make_ctx())
+        out = render_template_value("{{cosa.rara}}", initial_state(), make_ctx())
         assert out == "{{cosa.rara}}"
 
     def test_variables_missing_still_renders_empty(self):
         # Comportamiento clásico: variables.* conocido pero sin valor → vacío
-        out = _render_template_value("Hola {{variables.nombre}}", initial_state(), make_ctx())
+        out = render_template_value("Hola {{variables.nombre}}", initial_state(), make_ctx())
         assert out == "Hola "
 
     def test_resolve_path_context_disallows_private_fields(self):
         ctx = make_ctx()
-        assert _resolve_path(initial_state(), "context.streaming", ctx) is None
+        assert resolve_path(initial_state(), "context.streaming", ctx) is None
 
     def test_system_prompt_renders_templates(self):
         ctx = make_ctx(agents_config={
@@ -125,16 +125,16 @@ class TestTemplatingContext:
                   "system_prompt": "Atiendes a {{context.user_metadata.name}}."},
         }, user_metadata={"name": "Carlos"})
         llm = FakeLLM("ok")
-        with patch("graphs.pipeline_agent.get_llm", return_value=llm):
-            node = _make_agent_node("n", "a", None, ctx)
+        with patch("tools.registry.get_llm", return_value=llm):
+            node = make_agent_node("n", "a", None, ctx)
         node(initial_state())
         assert "Atiendes a Carlos." in llm.seen_system
 
     def test_system_prompt_extra_appended_when_set(self):
         ctx = make_ctx()
         llm = FakeLLM("ok")
-        with patch("graphs.pipeline_agent.get_llm", return_value=llm):
-            node = _make_agent_node(
+        with patch("tools.registry.get_llm", return_value=llm):
+            node = make_agent_node(
                 "n", "a", None, ctx,
                 system_prompt_extra="{{variables.notice}}",
             )
@@ -144,8 +144,8 @@ class TestTemplatingContext:
     def test_system_prompt_extra_empty_adds_nothing(self):
         ctx = make_ctx()
         llm = FakeLLM("ok")
-        with patch("graphs.pipeline_agent.get_llm", return_value=llm):
-            node = _make_agent_node(
+        with patch("tools.registry.get_llm", return_value=llm):
+            node = make_agent_node(
                 "n", "a", None, ctx,
                 system_prompt_extra="{{variables.notice}}",
             )
@@ -158,34 +158,34 @@ class TestTemplatingContext:
 class TestVariableReducers:
 
     def test_default_last_wins(self):
-        reducer = _make_variables_reducer({})
+        reducer = make_variables_reducer({})
         assert reducer({"a": 1}, {"a": 2}) == {"a": 2}
 
     def test_join_mode_joins_with_separator(self):
-        reducer = _make_variables_reducer({"urls": {"mode": "join", "separator": ","}})
+        reducer = make_variables_reducer({"urls": {"mode": "join", "separator": ","}})
         out = reducer({"urls": "a"}, {"urls": "b"})
         assert out == {"urls": "a,b"}
 
     def test_join_mode_dedups(self):
-        reducer = _make_variables_reducer({"urls": {"mode": "join", "separator": ","}})
+        reducer = make_variables_reducer({"urls": {"mode": "join", "separator": ","}})
         assert reducer({"urls": "a"}, {"urls": "a"}) == {"urls": "a"}
 
     def test_join_first_write_sets_plain_value(self):
-        reducer = _make_variables_reducer({"urls": {"mode": "join"}})
+        reducer = make_variables_reducer({"urls": {"mode": "join"}})
         assert reducer({}, {"urls": "a"}) == {"urls": "a"}
 
     def test_append_mode_accumulates_list(self):
-        reducer = _make_variables_reducer({"hits": {"mode": "append"}})
+        reducer = make_variables_reducer({"hits": {"mode": "append"}})
         out = reducer({"hits": ["x"]}, {"hits": "y"})
         assert out == {"hits": ["x", "y"]}
 
     def test_non_declared_keys_still_last_wins(self):
-        reducer = _make_variables_reducer({"urls": {"mode": "join"}})
+        reducer = make_variables_reducer({"urls": {"mode": "join"}})
         assert reducer({"other": 1}, {"other": 2}) == {"other": 2}
 
     def test_none_overwrites_in_join_mode(self):
         # Escribir None resetea (p.ej. limpiar canal) — no se intenta join
-        reducer = _make_variables_reducer({"urls": {"mode": "join"}})
+        reducer = make_variables_reducer({"urls": {"mode": "join"}})
         assert reducer({"urls": "a"}, {"urls": None}) == {"urls": None}
 
     def test_parallel_branches_join_in_graph(self):
@@ -252,8 +252,8 @@ class TestVariableReducers:
 
         from tools.signals import load_signal_tools
         ctx = make_ctx(graph_config=graph_config, agents_config=agents)
-        with patch("graphs.pipeline_agent.get_llm", side_effect=lambda _c, n: llms[n]), \
-             patch("graphs.pipeline_agent.load_tools",
+        with patch("tools.registry.get_llm", side_effect=lambda _c, n: llms[n]), \
+             patch("tools.registry.load_tools",
                    side_effect=lambda _c, n: load_signal_tools(
                        agents[n].get("signal_tools"))):
             graph = create_pipeline_agent(ctx)
@@ -316,8 +316,8 @@ class TestSilentAgentNode:
     def _run(self, state=None):
         ctx = make_ctx()
         llm = FakeLLM("  resumen interno  ")
-        with patch("graphs.pipeline_agent.get_llm", return_value=llm):
-            node = _make_agent_node("n", "a", "resumen", ctx, silent=True)
+        with patch("tools.registry.get_llm", return_value=llm):
+            node = make_agent_node("n", "a", "resumen", ctx, silent=True)
         return node(state or initial_state()), llm
 
     def test_output_only_to_variable(self):
@@ -361,7 +361,7 @@ class TestFirstClassConditions:
             ],
         }
         ctx = make_ctx(graph_config=graph_config, agents_config=SIMPLE_AGENTS)
-        with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM("hola")):
+        with patch("tools.registry.get_llm", return_value=FakeLLM("hola")):
             graph = create_pipeline_agent(ctx)
         result = graph.invoke(initial_state())
         assert result["execution_path"][0] == "cond"
@@ -397,7 +397,7 @@ class TestFirstClassConditions:
         }
         llms = {"a": FakeLLM("respuesta a"), "final": FakeLLM("paso final")}
         ctx = make_ctx(graph_config=graph_config, agents_config=SIMPLE_AGENTS)
-        with patch("graphs.pipeline_agent.get_llm", side_effect=lambda _c, n: llms[n]):
+        with patch("tools.registry.get_llm", side_effect=lambda _c, n: llms[n]):
             graph = create_pipeline_agent(ctx)
 
         # flag=True → tras el turno corre el paso final
@@ -435,7 +435,7 @@ class TestFirstClassConditions:
             ],
         }
         ctx = make_ctx(graph_config=graph_config, agents_config=SIMPLE_AGENTS)
-        with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM("r")):
+        with patch("tools.registry.get_llm", return_value=FakeLLM("r")):
             graph = create_pipeline_agent(ctx)
         result = graph.invoke(initial_state(variables={"intent": ["a"]}))
         assert result["execution_path"].count("cierre") == 1
@@ -458,12 +458,12 @@ class TestSchemaVersion:
 
     def test_absent_version_defaults_to_supported(self):
         ctx = make_ctx(graph_config=self._graph_config(), agents_config=SIMPLE_AGENTS)
-        with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM("x")):
+        with patch("tools.registry.get_llm", return_value=FakeLLM("x")):
             assert create_pipeline_agent(ctx) is not None
 
     def test_supported_version_accepted(self):
         ctx = make_ctx(graph_config=self._graph_config(1), agents_config=SIMPLE_AGENTS)
-        with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM("x")):
+        with patch("tools.registry.get_llm", return_value=FakeLLM("x")):
             assert create_pipeline_agent(ctx) is not None
 
     def test_future_version_rejected(self):

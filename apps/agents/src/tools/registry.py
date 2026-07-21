@@ -350,6 +350,53 @@ def load_tools(ctx: TenantContext, agent_name: str = "default") -> List[BaseTool
 
 
 # ==========================================
+# Registry declarativo de tool loaders
+# ==========================================
+# Agregar una tool = crear su módulo en tools/ y registrarla aquí con firma
+# uniforme load(credentials, config, ctx) -> list[BaseTool]. Los imports son
+# lazy (dentro de cada wrapper) para no pagar dependencias que no se usan.
+
+def _load_google_calendar(credentials, config, ctx):
+    from tools.google.calendar import load_google_calendar_tools
+    return load_google_calendar_tools(credentials, config)
+
+
+def _load_google_sheets(credentials, config, ctx):
+    from tools.google.sheets import load_google_sheets_tools
+    return load_google_sheets_tools(credentials, config)
+
+
+def _load_calculator(credentials, config, ctx):
+    from tools.calculator import load_calculator_tools
+    return load_calculator_tools()
+
+
+def _load_human_handoff(credentials, config, ctx):
+    from tools.human_handoff import load_human_handoff_tools
+    return load_human_handoff_tools()
+
+
+def _load_send_bulk_whatsapp(credentials, config, ctx):
+    from tools.whatsapp_outbound import load_whatsapp_outbound_tools
+    return load_whatsapp_outbound_tools(credentials, config)
+
+
+def _load_http_request(credentials, config, ctx):
+    from tools.http_request import load_http_request_tools
+    return load_http_request_tools(credentials, config)
+
+
+TOOL_LOADERS = {
+    "google_calendar": _load_google_calendar,
+    "google_sheets": _load_google_sheets,
+    "calculator": _load_calculator,
+    "human_handoff": _load_human_handoff,
+    "send_bulk_whatsapp": _load_send_bulk_whatsapp,
+    "http_request": _load_http_request,
+}
+
+
+# ==========================================
 # LOAD SPECIFIC TOOL - Inicializa una tool
 # ==========================================
 def load_specific_tool(
@@ -398,40 +445,16 @@ def load_specific_tool(
         # → [HubSpotTool1, HubSpotTool2] (filtradas)
     """
     
-    # ==========================================
-    # Registry de tool loaders
-    # ==========================================    
-    if tool_name == "google_calendar":
-        from tools.google.calendar import load_google_calendar_tools
-        tools = load_google_calendar_tools(credentials, config)
-        
-    elif tool_name == "google_sheets":
-        from tools.google.sheets import load_google_sheets_tools
-        tools = load_google_sheets_tools(credentials, config)
-    
-    elif tool_name == "calculator":
-        from tools.calculator import load_calculator_tools
-        tools = load_calculator_tools()
-
-    elif tool_name == "human_handoff":
-        from tools.human_handoff import load_human_handoff_tools
-        tools = load_human_handoff_tools()
-
-    elif tool_name == "send_bulk_whatsapp":
-        from tools.whatsapp_outbound import load_whatsapp_outbound_tools
-        tools = load_whatsapp_outbound_tools(credentials, config, ctx.user_metadata.get("dynamic_extra_data_for_templates"))
-
-    elif tool_name == "http_request":
-        from tools.http_request import load_http_request_tools
-        tools = load_http_request_tools(credentials, config)
-
-    else:
+    loader = TOOL_LOADERS.get(tool_name)
+    if loader is None:
         logger.warning(
             f"[{ctx.workflow_id}] Unknown tool: '{tool_name}'. "
-            f"Tool loader not implemented."
+            f"Tool loader not implemented. Available: {sorted(TOOL_LOADERS)}"
         )
         return []
-    
+
+    tools = loader(credentials, config, ctx)
+
     # Retornar las tools sin filtrado (el filtrado ahora se hace en load_tools)
     return tools if isinstance(tools, list) else [tools] if tools else []
 

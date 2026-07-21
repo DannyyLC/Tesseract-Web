@@ -136,7 +136,6 @@ def _send_single_message(api_key: str, payload: dict, timeout: float = 15.0) -> 
 def load_whatsapp_outbound_tools(
     credentials: dict[str, Any],
     config: dict[str, Any],
-    dynamic_extra_data_for_templates: dict[str, Any] | None = None
 ) -> list[BaseTool]:
     """
     Returns the send_bulk_whatsapp LangChain tool.
@@ -145,11 +144,15 @@ def load_whatsapp_outbound_tools(
         from_number         str  — número remitente (E.164)
         api_key             str  — YCloud API key
         available_templates dict — {template_uuid: {name, language, variables}}
+        auto_fill_variables dict — opcional: {nombre_variable: valor}. Si una
+                                   plantilla declara una variable con ese nombre,
+                                   el valor se inserta en su posición declarada
+                                   (el modelo no la provee ni la controla).
     """
     from_number: str = config.get("from_number", "")
     api_key: str = config.get("api_key", "")
     available_templates: dict = config.get("available_templates", {})
-    dynamic_extra_data_for_templates = dynamic_extra_data_for_templates or {}
+    auto_fill_variables: dict = config.get("auto_fill_variables", {}) or {}
 
     if not from_number or not api_key:
         logger.error(
@@ -193,11 +196,18 @@ def load_whatsapp_outbound_tools(
                 })
                 continue
 
-            if tpl["body"]:
-                if "client_number" in tpl["body"]:
-                    msg.variables["body"] = msg.variables.get("body", [])
-                    client_number = dynamic_extra_data_for_templates.get("client_number") or "No disponible"
-                    msg.variables["body"].insert(0, client_number)
+            # Auto-fill: variables declaradas por la plantilla cuyo valor lo pone
+            # el sistema (p.ej. client_number), insertadas en su posición declarada.
+            if auto_fill_variables:
+                for channel in ("header", "body"):
+                    declared = tpl.get(channel) or []
+                    if not isinstance(declared, list):
+                        continue
+                    values = msg.variables.setdefault(channel, [])
+                    for idx, var_name in enumerate(declared):
+                        if var_name in auto_fill_variables:
+                            fill_value = str(auto_fill_variables[var_name] or "No disponible")
+                            values.insert(min(idx, len(values)), fill_value)
 
             payload = _build_template_payload(
                 from_number=from_number,  # SISTEMA — el modelo nunca lo controla

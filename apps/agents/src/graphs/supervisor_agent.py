@@ -60,10 +60,9 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 from typing_extensions import TypedDict
-from datetime import datetime
-import pytz
 
 from core.context import TenantContext
+from core.prompts import build_time_context
 from tools.registry import get_llm, load_tools
 
 logger = logging.getLogger(__name__)
@@ -204,19 +203,6 @@ def _make_supervisor_node(supervisor_agent: str, worker_names: List[str], ctx: T
         messages = list(state["messages"])
         base_system_prompt = agent_config.get("system_prompt", "")
 
-        try:
-            local_tz = pytz.timezone(ctx.timezone)
-        except pytz.UnknownTimeZoneError:
-            local_tz = pytz.UTC
-
-        current_time = datetime.now(local_tz)
-        time_context = (
-            f"\n---\n"
-            f"SYSTEM DYNAMIC CONTEXT:\n"
-            f"Today's Date: {current_time.strftime('%A, %B %d, %Y')}\n"
-            f"Current Local Time: {current_time.strftime('%I:%M %p')} (Timezone: {ctx.timezone})\n"
-            f"---\n"
-        )
 
         # System prompt = rol del supervisor + contexto de tiempo + protocolo
         full_system_prompt = base_system_prompt + time_context + protocol_instruction
@@ -281,21 +267,8 @@ def _make_worker_node(worker_name: str, ctx: TenantContext):
         messages = list(state["messages"])
         base_system_prompt = agent_config.get("system_prompt", "")
 
-        try:
-            local_tz = pytz.timezone(ctx.timezone)
-        except pytz.UnknownTimeZoneError:
-            local_tz = pytz.UTC
 
-        current_time = datetime.now(local_tz)
-        time_context = (
-            f"\n---\n"
-            f"SYSTEM DYNAMIC CONTEXT:\n"
-            f"Today's Date: {current_time.strftime('%A, %B %d, %Y')}\n"
-            f"Current Local Time: {current_time.strftime('%I:%M %p')} (Timezone: {ctx.timezone})\n"
-            f"Your role: {worker_name}\n"
-            f"---\n"
-        )
-
+        time_context = build_time_context(ctx)
         system_prompt = base_system_prompt + time_context if base_system_prompt else time_context
 
         if not messages or messages[0].type != "system":

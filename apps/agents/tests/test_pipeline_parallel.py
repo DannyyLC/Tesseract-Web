@@ -2,16 +2,14 @@
 Tests para el routing multi-intent con fan-out paralelo + synthesizer.
 
 Cubre:
-- _extract_intents: tags repetidos, lista con comas, dedup
-- _normalize_intents: retrocompat string/lista
+- extract_intents: tags repetidos, lista con comas, dedup
+- normalize_intents: retrocompat string/lista
 - clasificador: output_variable siempre lista, reroute_count por cambio de set
 - router: modo single (string), fan-out (list[Send]) con tope, reutilización de
   especialistas ya ejecutados, ruta defensiva al synthesizer, anti-loop intacto
 - e2e paralelo: un solo AIMessage final, specialist_outputs, sin InvalidUpdateError
-- tool interceptada: captura en paralelo, UNA llamada real del synthesizer,
-  reset de pending_handoffs, ejecución directa en modo single
-- _tool_name_matches / base_name en registry.load_tools
-- synthesizer pass-through con 1 output
+- tool_name_matches / base_name en registry.load_tools
+- synthesizer: pass-through con 1 output, no-op sin outputs, set_variables
 """
 
 import re
@@ -25,18 +23,14 @@ sys.path.insert(0, str(src_path))
 from langchain_core.messages import AIMessage, HumanMessage  # noqa: E402
 from langgraph.types import Send  # noqa: E402
 from core.context import TenantContext  # noqa: E402
-from graphs.pipeline_agent import (  # noqa: E402
+from graphs.pipeline import (  # noqa: E402
     NO_STREAM_TAG,
-    _extract_intents,
-    _normalize_intents,
-    _tool_name_matches,
-    _merge_tool_args,
-    _consolidate_list_items,
-    _apply_handoff_reason,
-    _summarize_handoff_conversation,
-    _make_agent_node,
-    _make_condition_function,
-    _make_synthesizer_node,
+    extract_intents,
+    normalize_intents,
+    tool_name_matches,
+    make_agent_node,
+    make_condition_function,
+    make_synthesizer_node,
     create_pipeline_agent,
 )
 
@@ -116,7 +110,7 @@ def initial_state(message="hola", variables=None, **overrides):
         "execution_path": [],
         "iteration_count": 0,
         "specialist_outputs": [],
-        "pending_handoffs": [],
+        "internal_usage": [],
         "parallel_mode": False,
     }
     state.update(overrides)
@@ -126,49 +120,49 @@ def initial_state(message="hola", variables=None, **overrides):
 MULTI_PATTERN = r"\[ROUTE:([\w,\s]+)\]"
 
 
-# ── _extract_intents / _normalize_intents ───────────────────────────────────────
+# ── extract_intents / normalize_intents ─────────────────────────────────────────
 
 class TestExtractIntents:
 
     def test_repeated_tags(self):
         pattern = re.compile(MULTI_PATTERN)
-        intents, cleaned = _extract_intents(pattern, "Ok. [ROUTE:ventas] [ROUTE:soporte]")
+        intents, cleaned = extract_intents(pattern, "Ok. [ROUTE:ventas] [ROUTE:soporte]")
         assert intents == ["ventas", "soporte"]
         assert cleaned == "Ok."
 
     def test_comma_list(self):
         pattern = re.compile(MULTI_PATTERN)
-        intents, cleaned = _extract_intents(pattern, "[ROUTE:ventas, soporte]")
+        intents, cleaned = extract_intents(pattern, "[ROUTE:ventas, soporte]")
         assert intents == ["ventas", "soporte"]
         assert cleaned == ""
 
     def test_dedup_preserves_order(self):
         pattern = re.compile(MULTI_PATTERN)
-        intents, _ = _extract_intents(pattern, "[ROUTE:soporte,ventas] [ROUTE:soporte]")
+        intents, _ = extract_intents(pattern, "[ROUTE:soporte,ventas] [ROUTE:soporte]")
         assert intents == ["soporte", "ventas"]
 
     def test_legacy_pattern_still_works_for_repeated_tags(self):
         # El patrón viejo (\w+) no matchea comas, pero sí tags repetidos
         pattern = re.compile(r"\[ROUTE:(\w+)\]")
-        intents, _ = _extract_intents(pattern, "[ROUTE:ventas] [ROUTE:soporte]")
+        intents, _ = extract_intents(pattern, "[ROUTE:ventas] [ROUTE:soporte]")
         assert intents == ["ventas", "soporte"]
 
 
 class TestNormalizeIntents:
 
     def test_none_and_empty(self):
-        assert _normalize_intents(None) == []
-        assert _normalize_intents("") == []
-        assert _normalize_intents([]) == []
+        assert normalize_intents(None) == []
+        assert normalize_intents("") == []
+        assert normalize_intents([]) == []
 
     def test_legacy_string(self):
-        assert _normalize_intents("Ventas") == ["ventas"]
+        assert normalize_intents("Ventas") == ["ventas"]
 
     def test_comma_string(self):
-        assert _normalize_intents("ventas, soporte") == ["ventas", "soporte"]
+        assert normalize_intents("ventas, soporte") == ["ventas", "soporte"]
 
     def test_list_with_dedup(self):
-        assert _normalize_intents(["Ventas", "soporte", "ventas"]) == ["ventas", "soporte"]
+        assert normalize_intents(["Ventas", "soporte", "ventas"]) == ["ventas", "soporte"]
 
 
 # ── Clasificador multi-intent ────────────────────────────────────────────────────
@@ -177,8 +171,8 @@ class TestMultiIntentClassifier:
 
     def _run(self, content, variables=None):
         ctx = make_ctx()
-        with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM(content)):
-            node = _make_agent_node("classifier", "classifier", "intent", ctx, MULTI_PATTERN)
+        with patch("tools.registry.get_llm", return_value=FakeLLM(content)):
+            node = make_agent_node("classifier", "classifier", "intent", ctx, MULTI_PATTERN)
         return node(initial_state(variables=variables or {}))
 
     def test_stores_list_even_for_single_intent(self):
@@ -204,8 +198,8 @@ class TestMultiIntentClassifier:
 
     def test_parallel_mode_skips_extraction(self):
         ctx = make_ctx()
-        with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM("Resp. [ROUTE:otro]")):
-            node = _make_agent_node("spec", "classifier", "intent", ctx, MULTI_PATTERN)
+        with patch("tools.registry.get_llm", return_value=FakeLLM("Resp. [ROUTE:otro]")):
+            node = make_agent_node("spec", "classifier", "intent", ctx, MULTI_PATTERN)
         upd = node(initial_state(parallel_mode=True, current_intent="ventas"))
         # no re-rutea: no escribe intent ni reroute_count
         assert "intent" not in upd.get("variables", {})
@@ -228,7 +222,7 @@ ROUTER_CFG = {
 
 
 def make_router(cfg=None):
-    return _make_condition_function("check_route", cfg or ROUTER_CFG, make_ctx())
+    return make_condition_function("check_route", cfg or ROUTER_CFG, make_ctx())
 
 
 class TestRouterFanOut:
@@ -339,7 +333,7 @@ def build_parallel_graph(llms):
     def fake_get_llm(_ctx, agent_name):
         return llms[agent_name]
 
-    with patch("graphs.pipeline_agent.get_llm", side_effect=fake_get_llm):
+    with patch("tools.registry.get_llm", side_effect=fake_get_llm):
         graph = create_pipeline_agent(ctx)
     return graph
 
@@ -402,7 +396,7 @@ class TestParallelEndToEnd:
 
         ctx = make_ctx(graph_config=graph_cfg, agents_config=PARALLEL_AGENTS)
         llms = self._llms()
-        with patch("graphs.pipeline_agent.get_llm",
+        with patch("tools.registry.get_llm",
                    side_effect=lambda _c, n: llms[n]):
             graph = create_pipeline_agent(ctx)
         result = graph.invoke(initial_state("precio y ayuda"))
@@ -424,144 +418,24 @@ class TestParallelEndToEnd:
         assert llms["ventas"].invoke_configs == [None]
 
 
-# ── Tool interceptada + handoff consolidado ─────────────────────────────────────
+# ── tool_name_matches / disable_tools_if por base_name ──────────────────────────
 
 TOOL_FULL_NAME = "send_bulk_whatsapp_WhatsApp_Outbound"
 TOOL_BASE_NAME = "send_bulk_whatsapp"
 
 
-def intercept_graph_config(with_reason_injection=False):
-    cfg = {
-        "type": "pipeline",
-        "persist_variables": ["intent", "handoff_done"],
-        "nodes": [],
-        "edges": PARALLEL_GRAPH["edges"],
-    }
-    if with_reason_injection:
-        cfg["handoff_reason_injection"] = {
-            "tool": TOOL_BASE_NAME, "list_arg": "messages", "variables_key": "body",
-        }
-    labels = {"agent_ventas": "Ventas", "agent_soporte": "Soporte"}
-    for node in PARALLEL_GRAPH["nodes"]:
-        node = dict(node)
-        if node["id"] in ("agent_ventas", "agent_soporte"):
-            node.update({
-                "max_iterations": 3,
-                "intercept_tools_in_parallel": [TOOL_BASE_NAME],
-                "set_variables_on_tool_call": {TOOL_BASE_NAME: {"handoff_done": True}},
-            })
-            if with_reason_injection:
-                node["handoff_label"] = labels[node["id"]]
-        cfg["nodes"].append(node)
-    return cfg
-
-
-class TestInterceptedTool:
-
-    def _build(self, tool, with_reason_injection=False):
-        ctx = make_ctx(
-            graph_config=intercept_graph_config(with_reason_injection),
-            agents_config=PARALLEL_AGENTS,
-        )
-        llms = {
-            "classifier": FakeLLM("[ROUTE:ventas,soporte]"),
-            "ventas": FakeAgenticLLM([
-                tool_call_msg(TOOL_FULL_NAME, {"messages": [{"to": "+52A"}]}),
-                AIMessage(content="Ventas notificó."),
-            ]),
-            "soporte": FakeAgenticLLM([
-                tool_call_msg(TOOL_FULL_NAME, {"messages": [{"to": "+52B"}]}),
-                AIMessage(content="Soporte notificó."),
-            ]),
-            "synthesizer": FakeLLM("SÍNTESIS."),
-        }
-
-        def fake_get_llm(_ctx, agent_name):
-            return llms[agent_name]
-
-        # El patch de load_tools debe seguir activo durante invoke: el synthesizer
-        # carga las tools en runtime para ejecutar el handoff consolidado.
-        patches = (
-            patch("graphs.pipeline_agent.get_llm", side_effect=fake_get_llm),
-            patch("graphs.pipeline_agent.load_tools", return_value=[tool]),
-        )
-        return ctx, patches
-
-    def test_parallel_captures_and_synthesizer_calls_once(self):
-        tool = FakeTool(TOOL_FULL_NAME, base_name=TOOL_BASE_NAME)
-        ctx, (p_llm, p_tools) = self._build(tool)
-
-        with p_llm, p_tools:
-            graph = create_pipeline_agent(ctx)
-            result = graph.invoke(initial_state("precio y ayuda"))
-
-        # Los especialistas NO ejecutaron la tool; el synthesizer hizo UNA llamada
-        # con los args combinados (listas concatenadas)
-        assert len(tool.calls) == 1
-        assert tool.calls[0] == {"messages": [{"to": "+52A"}, {"to": "+52B"}]}
-
-        # pending_handoffs quedó reseteado tras la ejecución
-        assert result["pending_handoffs"] == []
-
-        # set_variables_on_tool_call (por nombre base) funcionó en ambas ramas
-        assert result["variables"]["handoff_done"] is True
-
-        # Respuesta única del synthesizer
-        assert result["messages"][-1].content == "SÍNTESIS."
-
-    def test_single_mode_executes_tool_directly(self):
-        tool = FakeTool(TOOL_FULL_NAME, base_name=TOOL_BASE_NAME)
-        ctx, (p_llm, p_tools) = self._build(tool)
-
-        with p_llm, p_tools:
-            graph = create_pipeline_agent(ctx)
-            # Forzamos modo single: intent persistido de un solo tema
-            result = graph.invoke(initial_state(
-                "solo precio", variables={"intent": ["ventas"]}
-            ))
-
-        # La tool real se ejecutó directo en el especialista (sin captura)
-        assert tool.calls == [{"messages": [{"to": "+52A"}]}]
-        assert result["pending_handoffs"] == []
-        assert "synthesize" not in result["execution_path"]
-        assert result["variables"]["handoff_done"] is True
-
-    def test_e2e_handoff_reason_injection_joins_labels_across_graph(self):
-        tool = FakeTool(TOOL_FULL_NAME, base_name=TOOL_BASE_NAME)
-        ctx, (p_llm, p_tools) = self._build(tool, with_reason_injection=True)
-
-        with p_llm, p_tools, patch(
-            "graphs.pipeline_agent._summarize_handoff_conversation",
-            return_value="Cliente interesado en ambos temas.",
-        ):
-            graph = create_pipeline_agent(ctx)
-            graph.invoke(initial_state("precio y ayuda"))
-
-        # Una sola llamada real, con los 2 mensajes (destinatarios distintos, sin
-        # consolidate_handoffs), pero AMBOS con el motivo conjunto determinista —
-        # nunca el texto que cada especialista hubiera puesto en su tool call.
-        assert len(tool.calls) == 1
-        bodies = [m["variables"]["body"] for m in tool.calls[0]["messages"]]
-        assert bodies == [
-            ["Ventas, Soporte", "Cliente interesado en ambos temas."],
-            ["Ventas, Soporte", "Cliente interesado en ambos temas."],
-        ]
-
-
-# ── _tool_name_matches / disable_tools_if por base_name ─────────────────────────
-
 class TestToolNameMatching:
 
     def test_matches_full_name_and_base_name(self):
         tool = FakeTool(TOOL_FULL_NAME, base_name=TOOL_BASE_NAME)
-        assert _tool_name_matches(TOOL_FULL_NAME, tool)
-        assert _tool_name_matches(TOOL_BASE_NAME, tool)
-        assert not _tool_name_matches("otra_tool", tool)
+        assert tool_name_matches(TOOL_FULL_NAME, tool)
+        assert tool_name_matches(TOOL_BASE_NAME, tool)
+        assert not tool_name_matches("otra_tool", tool)
 
     def test_tool_without_metadata_matches_only_full_name(self):
         tool = FakeTool("calculator")
-        assert _tool_name_matches("calculator", tool)
-        assert not _tool_name_matches("calc", tool)
+        assert tool_name_matches("calculator", tool)
+        assert not tool_name_matches("calc", tool)
 
     def test_disable_tools_if_matches_base_name(self):
         ctx = make_ctx(agents_config={"a": {"system_prompt": "x", "model": "gpt-4o"}})
@@ -569,9 +443,9 @@ class TestToolNameMatching:
         other = FakeTool("calculator_Calc", base_name="calculator")
         llm = FakeAgenticLLM([AIMessage(content="listo")])
 
-        with patch("graphs.pipeline_agent.get_llm", return_value=llm), \
-             patch("graphs.pipeline_agent.load_tools", return_value=[whatsapp, other]):
-            node = _make_agent_node(
+        with patch("tools.registry.get_llm", return_value=llm), \
+             patch("tools.registry.load_tools", return_value=[whatsapp, other]):
+            node = make_agent_node(
                 "n", "a", None, ctx, max_iterations=2,
                 disable_tools_if=[{"tool": TOOL_BASE_NAME, "field": "variables.handoff_done",
                                    "op": "eq", "value": True}],
@@ -616,8 +490,8 @@ class TestSynthesizerNode:
     def test_passthrough_single_output_without_llm(self):
         ctx = make_ctx(agents_config=PARALLEL_AGENTS)
         llm = FakeLLM("no debería llamarse")
-        with patch("graphs.pipeline_agent.get_llm", return_value=llm):
-            node = _make_synthesizer_node("synth", "synthesizer", {}, ctx)
+        with patch("tools.registry.get_llm", return_value=llm):
+            node = make_synthesizer_node("synth", "synthesizer", {}, ctx)
 
         upd = node(initial_state(specialist_outputs=[
             {"node_id": "agent_ventas", "agent": "ventas", "content": "única respuesta"}
@@ -627,15 +501,15 @@ class TestSynthesizerNode:
 
     def test_no_outputs_is_noop(self):
         ctx = make_ctx(agents_config=PARALLEL_AGENTS)
-        with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM("x")):
-            node = _make_synthesizer_node("synth", "synthesizer", {}, ctx)
+        with patch("tools.registry.get_llm", return_value=FakeLLM("x")):
+            node = make_synthesizer_node("synth", "synthesizer", {}, ctx)
         upd = node(initial_state())
         assert "messages" not in upd
 
     def test_set_variables_applied_after_synthesis(self):
         ctx = make_ctx(agents_config=PARALLEL_AGENTS)
-        with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM("combinada")):
-            node = _make_synthesizer_node(
+        with patch("tools.registry.get_llm", return_value=FakeLLM("combinada")):
+            node = make_synthesizer_node(
                 "synth", "synthesizer", {"set_variables": {"intent": []}}, ctx
             )
         upd = node(initial_state(specialist_outputs=[
@@ -646,8 +520,8 @@ class TestSynthesizerNode:
     def test_set_variables_not_applied_without_outputs(self):
         # Sin outputs no hubo síntesis: el reset de ruteo no debe aplicarse
         ctx = make_ctx(agents_config=PARALLEL_AGENTS)
-        with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM("x")):
-            node = _make_synthesizer_node(
+        with patch("tools.registry.get_llm", return_value=FakeLLM("x")):
+            node = make_synthesizer_node(
                 "synth", "synthesizer", {"set_variables": {"intent": []}}, ctx
             )
         upd = node(initial_state())
@@ -660,281 +534,9 @@ class TestSynthesizerNode:
             def invoke(self, messages, config=None):
                 raise RuntimeError("boom")
 
-        with patch("graphs.pipeline_agent.get_llm", return_value=BrokenLLM()):
-            node = _make_synthesizer_node("synth", "synthesizer", {}, ctx)
+        with patch("tools.registry.get_llm", return_value=BrokenLLM()):
+            node = make_synthesizer_node("synth", "synthesizer", {}, ctx)
         upd = node(initial_state(specialist_outputs=[
             {"content": "r1", "agent": "a"}, {"content": "r2", "agent": "b"},
         ]))
         assert upd["messages"][0].content == "r1\n\nr2"
-
-
-class TestMergeToolArgs:
-
-    def test_lists_concatenate_rest_last_wins(self):
-        merged = _merge_tool_args([
-            {"messages": [1], "note": "a"},
-            {"messages": [2], "note": "b"},
-        ])
-        assert merged == {"messages": [1, 2], "note": "b"}
-
-
-class TestConsolidateListItems:
-
-    def test_same_recipient_merges_into_one(self):
-        items = [
-            {"to": "+52X", "template_id": "t", "variables": {"body": ["blindaje", "detalle A"]}},
-            {"to": "+52X", "template_id": "t", "variables": {"body": ["armas", "detalle B"]}},
-        ]
-        out = _consolidate_list_items(items, "to", "variables", ", ")
-        assert out == [
-            {"to": "+52X", "template_id": "t",
-             "variables": {"body": ["blindaje, armas", "detalle A, detalle B"]}}
-        ]
-
-    def test_different_recipients_stay_separate(self):
-        items = [
-            {"to": "+52X", "template_id": "t", "variables": {"body": ["blindaje"]}},
-            {"to": "+52Y", "template_id": "t", "variables": {"body": ["armas"]}},
-        ]
-        out = _consolidate_list_items(items, "to", "variables", ", ")
-        assert len(out) == 2
-        assert {i["to"] for i in out} == {"+52X", "+52Y"}
-
-    def test_dedup_identical_values(self):
-        items = [
-            {"to": "+52X", "variables": {"body": ["envíos a todo el país", "detalle A"]}},
-            {"to": "+52X", "variables": {"body": ["envíos a todo el país", "detalle B"]}},
-        ]
-        out = _consolidate_list_items(items, "to", "variables", ", ")
-        assert out[0]["variables"]["body"][0] == "envíos a todo el país"  # sin duplicar
-        assert out[0]["variables"]["body"][1] == "detalle A, detalle B"
-
-    def test_preserves_order_of_recipients(self):
-        items = [
-            {"to": "+52A", "variables": {"body": ["a"]}},
-            {"to": "+52B", "variables": {"body": ["b"]}},
-            {"to": "+52A", "variables": {"body": ["a2"]}},
-        ]
-        out = _consolidate_list_items(items, "to", "variables", ", ")
-        assert [i["to"] for i in out] == ["+52A", "+52B"]
-        assert out[0]["variables"]["body"] == ["a, a2"]
-
-    def test_items_without_group_key_pass_through(self):
-        items = [{"other": 1}, {"to": "+52A", "variables": {"body": ["x"]}}]
-        out = _consolidate_list_items(items, "to", "variables", ", ")
-        assert {"other": 1} in out
-
-
-class TestApplyHandoffReason:
-
-    CFG = {"list_arg": "messages", "variables_key": "body"}
-
-    def test_overwrites_body_regardless_of_llm_content(self):
-        args = {"messages": [{"to": "+52X", "variables": {"body": ["lo que puso el LLM"]}}]}
-        _apply_handoff_reason(args, self.CFG, "Armas menos letales", "Resumen X")
-        assert args["messages"][0]["variables"]["body"] == ["Armas menos letales", "Resumen X"]
-
-    def test_creates_variables_key_if_missing(self):
-        args = {"messages": [{"to": "+52X"}]}
-        _apply_handoff_reason(args, self.CFG, "Motivo", "Resumen")
-        assert args["messages"][0]["variables"] == {"body": ["Motivo", "Resumen"]}
-
-    def test_missing_list_arg_is_noop(self):
-        args = {"other_field": "x"}
-        _apply_handoff_reason(args, self.CFG, "Motivo", "Resumen")
-        assert args == {"other_field": "x"}
-
-    def test_empty_messages_list_is_noop(self):
-        args = {"messages": []}
-        _apply_handoff_reason(args, self.CFG, "Motivo", "Resumen")
-        assert args == {"messages": []}
-
-    def test_applies_to_every_item_in_list(self):
-        args = {"messages": [{"to": "+52X"}, {"to": "+52Y"}]}
-        _apply_handoff_reason(args, self.CFG, "Motivo", "Resumen")
-        assert args["messages"][0]["variables"]["body"] == ["Motivo", "Resumen"]
-        assert args["messages"][1]["variables"]["body"] == ["Motivo", "Resumen"]
-
-    def test_respects_custom_list_arg_and_variables_key(self):
-        args = {"items": [{"to": "+52X"}]}
-        cfg = {"list_arg": "items", "variables_key": "header"}
-        _apply_handoff_reason(args, cfg, "Motivo", "Resumen")
-        assert args["items"][0]["variables"]["header"] == ["Motivo", "Resumen"]
-
-
-class TestSummarizeHandoffConversation:
-
-    def test_returns_stripped_llm_content(self):
-        llm = FakeLLM("  Cliente interesado en 2 lanzadoras S2.  ")
-        result = _summarize_handoff_conversation(llm, [HumanMessage(content="quiero 2 S2")])
-        assert result == "Cliente interesado en 2 lanzadoras S2."
-
-    def test_tags_no_stream_regardless_of_mode(self):
-        llm = FakeLLM("resumen")
-        _summarize_handoff_conversation(llm, [HumanMessage(content="hola")])
-        assert llm.invoke_configs == [{"tags": [NO_STREAM_TAG]}]
-
-    def test_filters_system_messages_from_prompt(self):
-        from langchain_core.messages import SystemMessage
-
-        class RecordingLLM:
-            def __init__(self):
-                self.seen_messages = None
-
-            def invoke(self, messages, config=None):
-                self.seen_messages = messages
-                return AIMessage(content="resumen")
-
-        llm = RecordingLLM()
-        _summarize_handoff_conversation(
-            llm,
-            [SystemMessage(content="prompt del especialista"), HumanMessage(content="hola")],
-        )
-        contents = [m.content for m in llm.seen_messages]
-        assert "prompt del especialista" not in contents
-        assert "hola" in contents
-
-    def test_llm_error_falls_back_to_default_string(self):
-        class RaisingLLM:
-            def invoke(self, messages, config=None):
-                raise RuntimeError("modelo caído")
-
-        result = _summarize_handoff_conversation(RaisingLLM(), [HumanMessage(content="hola")])
-        assert result == "Resumen no disponible"
-
-    def test_empty_llm_response_falls_back_to_default_string(self):
-        llm = FakeLLM("   ")
-        result = _summarize_handoff_conversation(llm, [HumanMessage(content="hola")])
-        assert result == "Resumen no disponible"
-
-
-class TestSynthesizerConsolidatesHandoff:
-
-    def _run(self, consolidate_cfg):
-        ctx = make_ctx(agents_config=PARALLEL_AGENTS)
-        tool = FakeTool(TOOL_FULL_NAME, base_name=TOOL_BASE_NAME)
-        cfg = {"execute_pending_handoffs": True}
-        if consolidate_cfg is not None:
-            cfg["consolidate_handoffs"] = consolidate_cfg
-        with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM("s")), \
-             patch("graphs.pipeline_agent.load_tools", return_value=[tool]):
-            node = _make_synthesizer_node("synth", "synthesizer", cfg, ctx)
-            state = initial_state(
-                specialist_outputs=[{"content": "r1", "agent": "a"}, {"content": "r2", "agent": "b"}],
-                pending_handoffs=[
-                    {"agent": "blindaje", "tool_name": TOOL_FULL_NAME, "base_name": TOOL_BASE_NAME,
-                     "args": {"messages": [{"to": "+52G", "template_id": "t", "variables": {"body": ["blindaje", "d1"]}}]}},
-                    {"agent": "armas", "tool_name": TOOL_FULL_NAME, "base_name": TOOL_BASE_NAME,
-                     "args": {"messages": [{"to": "+52G", "template_id": "t", "variables": {"body": ["armas", "d2"]}}]}},
-                ],
-            )
-            node(state)
-        return tool
-
-    def test_without_config_sends_two_messages(self):
-        tool = self._run(None)
-        # una sola invocación, pero con 2 items → 2 mensajes al mismo número
-        assert len(tool.calls) == 1
-        assert len(tool.calls[0]["messages"]) == 2
-
-    def test_with_config_collapses_to_one_message(self):
-        tool = self._run({"list_arg": "messages", "group_by": "to",
-                          "merge_field": "variables", "separator": ", "})
-        assert len(tool.calls) == 1
-        msgs = tool.calls[0]["messages"]
-        assert len(msgs) == 1  # un solo mensaje al mismo número
-        assert msgs[0]["variables"]["body"] == ["blindaje, armas", "d1, d2"]
-
-
-# ── handoff_reason_injection (modo paralelo, en el synthesizer) ─────────────────
-
-REASON_CFG = {"tool": "send_bulk_whatsapp", "list_arg": "messages", "variables_key": "body"}
-
-
-class TestHandoffReasonInjectionParallel:
-
-    def _run(self, captures, consolidate_cfg=None, reason_cfg=REASON_CFG, summary="Resumen X."):
-        ctx = make_ctx(agents_config=PARALLEL_AGENTS)
-        tool = FakeTool(TOOL_FULL_NAME, base_name=TOOL_BASE_NAME)
-        cfg = {"execute_pending_handoffs": True}
-        if reason_cfg is not None:
-            cfg["handoff_reason_injection"] = reason_cfg
-        if consolidate_cfg is not None:
-            cfg["consolidate_handoffs"] = consolidate_cfg
-        with patch("graphs.pipeline_agent.get_llm", return_value=FakeLLM("s")), \
-             patch("graphs.pipeline_agent.load_tools", return_value=[tool]), \
-             patch("graphs.pipeline_agent._summarize_handoff_conversation",
-                   return_value=summary) as mock_summary:
-            node = _make_synthesizer_node("synth", "synthesizer", cfg, ctx)
-            state = initial_state(
-                specialist_outputs=[{"content": "r1", "agent": "a"}, {"content": "r2", "agent": "b"}],
-                pending_handoffs=captures,
-            )
-            node(state)
-        return tool, mock_summary
-
-    def _capture(self, to, label, base_content=None):
-        return {
-            "agent": label, "tool_name": TOOL_FULL_NAME, "base_name": TOOL_BASE_NAME,
-            "handoff_label": label,
-            "args": {"messages": [{
-                "to": to, "template_id": "t",
-                "variables": {"body": base_content or ["lo que puso el LLM"]},
-            }]},
-        }
-
-    def test_motivo_joins_two_specialist_labels_in_order(self):
-        tool, _ = self._run([
-            self._capture("+52G", "Ventas"),
-            self._capture("+52G", "Soporte"),
-        ])
-        body = tool.calls[0]["messages"][0]["variables"]["body"]
-        assert body == ["Ventas, Soporte", "Resumen X."]
-
-    def test_motivo_single_specialist_no_trailing_separator(self):
-        tool, _ = self._run([self._capture("+52G", "Ventas")])
-        body = tool.calls[0]["messages"][0]["variables"]["body"]
-        assert body[0] == "Ventas"
-
-    def test_summary_llm_called_exactly_once_for_two_specialists(self):
-        _, mock_summary = self._run([
-            self._capture("+52G", "Ventas"),
-            self._capture("+52G", "Soporte"),
-        ])
-        assert mock_summary.call_count == 1
-
-    def test_no_captures_with_handoff_label_skips_injection_entirely(self):
-        # Grupo sin ninguna captura con handoff_label (p.ej. solo el handoff excepcional
-        # de agent_general dentro de un fan-out): la inyección no debe activarse.
-        capture = self._capture(
-            "+52G", None, base_content=["consultoría de riesgo", "Juan Pérez"]
-        )
-        capture.pop("handoff_label")
-        tool, mock_summary = self._run([capture])
-        assert tool.calls[0]["messages"][0]["variables"]["body"] == ["consultoría de riesgo", "Juan Pérez"]
-        mock_summary.assert_not_called()
-
-    def test_overrides_consolidate_handoffs_merge_for_body(self):
-        # Sin la inyección, consolidate_handoffs uniría los "body" individuales de cada
-        # especialista (el bug original de duplicidad). Con la inyección, el motivo/resumen
-        # deterministas ganan sobre lo que el merge posicional hubiera producido.
-        tool, _ = self._run(
-            [
-                self._capture("+52G", "Ventas", base_content=["texto redundante de ventas"]),
-                self._capture("+52G", "Soporte", base_content=["texto redundante de soporte"]),
-            ],
-            consolidate_cfg={"list_arg": "messages", "group_by": "to",
-                             "merge_field": "variables", "separator": ", "},
-        )
-        assert len(tool.calls[0]["messages"]) == 1  # consolidate_handoffs sigue colapsando por "to"
-        body = tool.calls[0]["messages"][0]["variables"]["body"]
-        assert body == ["Ventas, Soporte", "Resumen X."]
-        assert "texto redundante" not in body[0]
-
-    def test_without_reason_injection_config_body_stays_from_merge(self):
-        tool, mock_summary = self._run(
-            [self._capture("+52G", "Ventas", base_content=["texto del LLM"])],
-            reason_cfg=None,
-        )
-        assert tool.calls[0]["messages"][0]["variables"]["body"] == ["texto del LLM"]
-        mock_summary.assert_not_called()
