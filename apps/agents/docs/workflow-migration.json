@@ -1,0 +1,369 @@
+{
+  "_notes": {
+    "que_es": "Workflow de producción migrado a las primitivas generales del motor (F3). Reemplaza intercept_tools_in_parallel / handoff_label / handoff_reason_injection / consolidate_handoffs / join_variables por: signal tool + condition + agente resumidor (silent) + nodo tool determinista + variable_reducers.",
+    "placeholders_a_reemplazar_al_aplicar": {
+      "<<NUMERO_EQUIPO_VENTAS>>": "Número E.164 del equipo (hoy vive en los prompts de los especialistas en DB)",
+      "<<TEMPLATE_UUID>>": "UUID del WhatsAppTemplate con body = [client_number, motivo, resumen]",
+      "<<PROMPT ...>>": "Prompts actuales de DB, verbatim (se trabajan por separado)"
+    },
+    "requisitos_gateway": "F5.2: el Gateway debe exponer user_metadata.client_number (hoy lo manda como dynamic_extra_data_for_templates.client_number)",
+    "equivalencia": "El body final que recibe YCloud es idéntico al actual: [client_number, motivo, resumen]. Antes el client_number lo insertaba un hack dentro de la tool; ahora es explícito en el nodo notify_team.",
+    "tool_instance_en_synthesizer": "El UUID de send_bulk_whatsapp se declara en agents.synthesizer.tools SOLO para que el Gateway incluya la instancia en agent_tool_instances (el nodo notify_team la busca por UUID). El synthesizer nunca la bindea a su LLM."
+  },
+  "type": "agent",
+  "graph": {
+    "type": "pipeline",
+    "schema_version": 1,
+    "edges": [
+      { "from": "START", "to": "check_route" },
+      { "from": "inject_context", "to": "agent_general" },
+      { "from": "lock_routing", "to": "agent_general" },
+      { "from": "agent_general", "to": "check_route" },
+      { "from": "armas_menos_letales", "to": "check_route" },
+      { "from": "simuladores_de_manejo", "to": "check_route" },
+      { "from": "stands_tiro_real", "to": "check_route" },
+      { "from": "stands_tiro_virtual", "to": "check_route" },
+      { "from": "blindaje_automotriz", "to": "check_route" },
+      { "from": "equipamiento_de_armerias", "to": "check_route" },
+      { "from": "summarize_handoff", "to": "notify_team" },
+      { "from": "notify_team", "to": "mark_handoff_done" },
+      { "from": "mark_handoff_done", "to": "synthesize" },
+      { "from": "synthesize", "to": "END" }
+    ],
+    "nodes": [
+      {
+        "id": "check_route",
+        "type": "condition",
+        "config": {
+          "mode": "router",
+          "routes": {
+            "general": "inject_context",
+            "stands_tiro_real": "stands_tiro_real",
+            "stand_de_tiro_real": "stands_tiro_real",
+            "stand_tiro_real": "stands_tiro_real",
+            "stands_tiro_virtual": "stands_tiro_virtual",
+            "stand_de_tiro_virtual": "stands_tiro_virtual",
+            "stand_tiro_virtual": "stands_tiro_virtual",
+            "armas_menos_letales": "armas_menos_letales",
+            "blindaje_automotriz": "blindaje_automotriz",
+            "simuladores_de_manejo": "simuladores_de_manejo",
+            "equipamiento_de_armerias": "equipamiento_de_armerias"
+          },
+          "fallback": "inject_context",
+          "max_reroutes": 3,
+          "route_variable": "variables.intent",
+          "lock_node": "lock_routing",
+          "max_parallel_agents": 7,
+          "synthesizer_node": "check_handoff",
+          "end_node": "check_handoff"
+        }
+      },
+      {
+        "id": "inject_context",
+        "type": "set_variables",
+        "config": {
+          "append_system_message": "TEMAS VIGENTES DEL TURNO ANTERIOR: {{variables.previous_intent}}. Reevalúa cuáles siguen vigentes según el mensaje actual del cliente e inclúyelos TODOS en tu tag, junto con cualquier tema nuevo que haya introducido. Omitir un tema lo cierra silenciosamente, sin notificación a nadie."
+        }
+      },
+      {
+        "id": "lock_routing",
+        "type": "set_variables",
+        "config": {
+          "variables": { "routing_locked": true },
+          "append_system_message": "IMPORTANTE — RUTEO BLOQUEADO: Debes responder al usuario directamente con la mejor respuesta posible. No incluyas [ROUTE:x] en esta respuesta bajo ninguna circunstancia."
+        }
+      },
+      {
+        "id": "agent_general",
+        "type": "agent",
+        "agent": "general",
+        "max_iterations": 3,
+        "output_variable": "intent",
+        "classification_pattern": "\\[ROUTE:([\\w,\\s]+)\\]",
+        "disable_tools_if": [
+          { "tool": "solicitar_asesor", "field": "variables.handoff_done", "op": "eq", "value": true }
+        ],
+        "set_variables_on_tool_call": {
+          "solicitar_asesor": {
+            "handoff_requested": true,
+            "handoff_topics": "Solicitud general",
+            "handoff_notice_text": "Ya se envió una notificación consolidada al equipo; no digas que enviarás otra ni que 'vas a conectar' al cliente de nuevo."
+          }
+        }
+      },
+      {
+        "id": "armas_menos_letales",
+        "type": "agent",
+        "agent": "armas_menos_letales",
+        "max_iterations": 3,
+        "output_variable": "intent",
+        "classification_pattern": "\\[ROUTE:([\\w,\\s]+)\\]",
+        "disable_tools_if": [
+          { "tool": "solicitar_asesor", "field": "variables.handoff_done", "op": "eq", "value": true }
+        ],
+        "set_variables_on_tool_call": {
+          "solicitar_asesor": {
+            "handoff_requested": true,
+            "handoff_topics": "Armas menos letales",
+            "media_url": "https://drive.google.com/drive/folders/19SoXBInEmkRjmhv2HjJAP4wD7hqFTVlm",
+            "handoff_notice_text": "Ya se envió una notificación consolidada al equipo; no digas que enviarás otra ni que 'vas a conectar' al cliente de nuevo."
+          }
+        }
+      },
+      {
+        "id": "simuladores_de_manejo",
+        "type": "agent",
+        "agent": "simuladores_de_manejo",
+        "max_iterations": 3,
+        "output_variable": "intent",
+        "classification_pattern": "\\[ROUTE:([\\w,\\s]+)\\]",
+        "disable_tools_if": [
+          { "tool": "solicitar_asesor", "field": "variables.handoff_done", "op": "eq", "value": true }
+        ],
+        "set_variables_on_tool_call": {
+          "solicitar_asesor": {
+            "handoff_requested": true,
+            "handoff_topics": "Simuladores de manejo",
+            "media_url": "https://drive.google.com/drive/folders/138Yi4GoRAAM46n9zs2clpBtfUhdG5zc9",
+            "handoff_notice_text": "Ya se envió una notificación consolidada al equipo; no digas que enviarás otra ni que 'vas a conectar' al cliente de nuevo."
+          }
+        }
+      },
+      {
+        "id": "stands_tiro_real",
+        "type": "agent",
+        "agent": "stands_tiro_real",
+        "max_iterations": 3,
+        "output_variable": "intent",
+        "classification_pattern": "\\[ROUTE:([\\w,\\s]+)\\]",
+        "disable_tools_if": [
+          { "tool": "solicitar_asesor", "field": "variables.handoff_done", "op": "eq", "value": true }
+        ],
+        "set_variables_on_tool_call": {
+          "solicitar_asesor": {
+            "handoff_requested": true,
+            "handoff_topics": "Stands de tiro real",
+            "handoff_notice_text": "Ya se envió una notificación consolidada al equipo; no digas que enviarás otra ni que 'vas a conectar' al cliente de nuevo."
+          }
+        }
+      },
+      {
+        "id": "stands_tiro_virtual",
+        "type": "agent",
+        "agent": "stands_tiro_virtual",
+        "max_iterations": 3,
+        "output_variable": "intent",
+        "classification_pattern": "\\[ROUTE:([\\w,\\s]+)\\]",
+        "disable_tools_if": [
+          { "tool": "solicitar_asesor", "field": "variables.handoff_done", "op": "eq", "value": true }
+        ],
+        "set_variables_on_tool_call": {
+          "solicitar_asesor": {
+            "handoff_requested": true,
+            "handoff_topics": "Stands de tiro virtual",
+            "handoff_notice_text": "Ya se envió una notificación consolidada al equipo; no digas que enviarás otra ni que 'vas a conectar' al cliente de nuevo."
+          }
+        }
+      },
+      {
+        "id": "blindaje_automotriz",
+        "type": "agent",
+        "agent": "blindaje_automotriz",
+        "max_iterations": 3,
+        "output_variable": "intent",
+        "classification_pattern": "\\[ROUTE:([\\w,\\s]+)\\]",
+        "disable_tools_if": [
+          { "tool": "solicitar_asesor", "field": "variables.handoff_done", "op": "eq", "value": true }
+        ],
+        "set_variables_on_tool_call": {
+          "solicitar_asesor": {
+            "handoff_requested": true,
+            "handoff_topics": "Blindaje automotriz",
+            "handoff_notice_text": "Ya se envió una notificación consolidada al equipo; no digas que enviarás otra ni que 'vas a conectar' al cliente de nuevo."
+          }
+        }
+      },
+      {
+        "id": "equipamiento_de_armerias",
+        "type": "agent",
+        "agent": "equipamiento_de_armerias",
+        "max_iterations": 3,
+        "output_variable": "intent",
+        "classification_pattern": "\\[ROUTE:([\\w,\\s]+)\\]",
+        "disable_tools_if": [
+          { "tool": "solicitar_asesor", "field": "variables.handoff_done", "op": "eq", "value": true }
+        ],
+        "set_variables_on_tool_call": {
+          "solicitar_asesor": {
+            "handoff_requested": true,
+            "handoff_topics": "Equipamiento de armerías",
+            "handoff_notice_text": "Ya se envió una notificación consolidada al equipo; no digas que enviarás otra ni que 'vas a conectar' al cliente de nuevo."
+          }
+        }
+      },
+      {
+        "id": "check_handoff",
+        "type": "condition",
+        "config": {
+          "mode": "rules",
+          "rules": [
+            { "when": { "field": "variables.handoff_done", "op": "eq", "value": true }, "goto": "synthesize" },
+            { "when": { "field": "variables.handoff_requested", "op": "eq", "value": true }, "goto": "summarize_handoff" }
+          ],
+          "default": "synthesize"
+        }
+      },
+      {
+        "id": "summarize_handoff",
+        "type": "agent",
+        "agent": "handoff_summarizer",
+        "silent": true,
+        "output_variable": "handoff_summary"
+      },
+      {
+        "id": "notify_team",
+        "type": "tool",
+        "config": {
+          "tool_instance": "ec0f1bf0-e03f-4475-ba57-599ebad41f0c",
+          "function": "send_bulk_whatsapp",
+          "params": {
+            "messages": [
+              {
+                "to": "<<NUMERO_EQUIPO_VENTAS>>",
+                "template_id": "<<TEMPLATE_UUID>>",
+                "variables": {
+                  "body": [
+                    "{{context.user_metadata.client_number}}",
+                    "{{variables.handoff_topics}}",
+                    "{{variables.handoff_summary}}"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "mark_handoff_done",
+        "type": "set_variables",
+        "config": {
+          "variables": { "handoff_done": true }
+        }
+      },
+      {
+        "id": "synthesize",
+        "type": "synthesizer",
+        "agent": "synthesizer",
+        "config": {
+          "system_prompt_extra": "{{variables.handoff_notice_text}}",
+          "set_variables": {
+            "previous_intent": "{{variables.intent}}",
+            "intent": []
+          }
+        }
+      }
+    ],
+    "persist_variables": ["intent", "previous_intent", "handoff_done", "media_url"],
+    "variable_reducers": {
+      "handoff_topics": { "mode": "join", "separator": ", " },
+      "media_url": { "mode": "join", "separator": "," }
+    }
+  },
+  "agents": {
+    "general": {
+      "model": "gpt-5.4-mini",
+      "temperature": 0.7,
+      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>",
+      "signal_tools": [
+        {
+          "name": "solicitar_asesor",
+          "description": "Llama esta herramienta cuando el cliente deba ser atendido por un asesor humano del equipo de ventas (interés de compra concreto, cotización, o solicitud explícita de hablar con una persona). No confirma el envío al instante; el sistema notifica al equipo al cerrar el turno.",
+          "response": "Solicitud registrada. Se notificará al equipo de ventas al finalizar."
+        }
+      ]
+    },
+    "stands_tiro_real": {
+      "model": "gpt-5.4-mini",
+      "temperature": 0.7,
+      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>",
+      "signal_tools": [
+        {
+          "name": "solicitar_asesor",
+          "description": "Llama esta herramienta cuando el cliente deba ser atendido por un asesor humano del equipo de ventas.",
+          "response": "Solicitud registrada. Se notificará al equipo de ventas al finalizar."
+        }
+      ]
+    },
+    "stands_tiro_virtual": {
+      "model": "gpt-5.4-mini",
+      "temperature": 0.7,
+      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>",
+      "signal_tools": [
+        {
+          "name": "solicitar_asesor",
+          "description": "Llama esta herramienta cuando el cliente deba ser atendido por un asesor humano del equipo de ventas.",
+          "response": "Solicitud registrada. Se notificará al equipo de ventas al finalizar."
+        }
+      ]
+    },
+    "simuladores_de_manejo": {
+      "model": "gpt-5.4-mini",
+      "temperature": 0.7,
+      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>",
+      "signal_tools": [
+        {
+          "name": "solicitar_asesor",
+          "description": "Llama esta herramienta cuando el cliente deba ser atendido por un asesor humano del equipo de ventas.",
+          "response": "Solicitud registrada. Se notificará al equipo de ventas al finalizar."
+        }
+      ]
+    },
+    "armas_menos_letales": {
+      "model": "gpt-5.4-mini",
+      "temperature": 0.7,
+      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>",
+      "signal_tools": [
+        {
+          "name": "solicitar_asesor",
+          "description": "Llama esta herramienta cuando el cliente deba ser atendido por un asesor humano del equipo de ventas.",
+          "response": "Solicitud registrada. Se notificará al equipo de ventas al finalizar."
+        }
+      ]
+    },
+    "blindaje_automotriz": {
+      "model": "gpt-5.4-mini",
+      "temperature": 0.7,
+      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>",
+      "signal_tools": [
+        {
+          "name": "solicitar_asesor",
+          "description": "Llama esta herramienta cuando el cliente deba ser atendido por un asesor humano del equipo de ventas.",
+          "response": "Solicitud registrada. Se notificará al equipo de ventas al finalizar."
+        }
+      ]
+    },
+    "equipamiento_de_armerias": {
+      "model": "gpt-5.4-mini",
+      "temperature": 0.7,
+      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>",
+      "signal_tools": [
+        {
+          "name": "solicitar_asesor",
+          "description": "Llama esta herramienta cuando el cliente deba ser atendido por un asesor humano del equipo de ventas.",
+          "response": "Solicitud registrada. Se notificará al equipo de ventas al finalizar."
+        }
+      ]
+    },
+    "handoff_summarizer": {
+      "model": "gpt-5.4-mini",
+      "temperature": 0.2,
+      "system_prompt": "Resume en máximo 2-3 frases, en español, la conversación con el cliente para notificar al equipo de ventas interno. Sé específico: si el cliente mencionó un producto, modelo, cantidad o urgencia concretos, inclúyelos tal cual. No inventes información que no esté en la conversación. Marca el nivel de prioridad como lo PRIMERO que dice el resumen, según estas dos categorías (evalúa en este orden, usa como mucho una): 1) 'Prioridad: Gobierno' si el cliente indica que pertenece a una institución u organismo de gobierno (federal, estatal, municipal, fuerzas armadas, fiscalías, etc.). 2) 'Prioridad: Alto' si no es de gobierno pero el cliente menciona un proyecto, cotización o licitación activa, o solicita algo relacionado con transporte de valores. Si no aplica ninguna de las dos, no incluyas ninguna etiqueta de prioridad y empieza el resumen directo con el contenido. Responde solo con el resumen, sin prefijos adicionales, comillas ni saltos de línea."
+    },
+    "synthesizer": {
+      "model": "gpt-5.4-mini",
+      "temperature": 0.2,
+      "tools": ["ec0f1bf0-e03f-4475-ba57-599ebad41f0c"],
+      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>"
+    }
+  }
+}
