@@ -22,7 +22,7 @@ from core.message_utils import (
     extract_human_handoff_from_messages,
 )
 from core.usage import UsageAccumulator
-from graphs.pipeline import NO_STREAM_TAG
+from graphs.pipeline import NO_STREAM_TAG, get_node_catalog
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +148,24 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
             logger.info("Internal token auth enabled")
         else:
             logger.warning("AGENTS_INTERNAL_SECRET not set — auth disabled")
+
+    async def GetNodeCatalog(
+        self,
+        request: agents_pb2.NodeCatalogRequest,
+        context: grpc.aio.ServicerContext,
+    ) -> agents_pb2.NodeCatalogResponse:
+        """Catálogo autodescriptivo de tipos de nodo (ver graphs/pipeline/catalog.py)."""
+        if not _verify_token(context, self._internal_secret):
+            await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid internal token")
+
+        graph_type = request.graph_type or "pipeline"
+        if graph_type != "pipeline":
+            await context.abort(
+                grpc.StatusCode.INVALID_ARGUMENT,
+                f"No hay catálogo para graph_type '{graph_type}' (disponible: pipeline)",
+            )
+
+        return agents_pb2.NodeCatalogResponse(catalog_json=json.dumps(get_node_catalog()))
 
     async def Execute(
         self,

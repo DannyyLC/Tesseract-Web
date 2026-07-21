@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16\x61gents/v1/agents.proto\x12\x13tesseract.agents.v1\"\x85\x05\n\x15\x41gentExecutionRequest\x12\x11\n\ttenant_id\x18\x01 \x01(\t\x12\x13\n\x0bworkflow_id\x18\x02 \x01(\t\x12\x17\n\x0f\x63onversation_id\x18\x03 \x01(\t\x12\x11\n\tuser_type\x18\x04 \x01(\t\x12\x0f\n\x07user_id\x18\x05 \x01(\t\x12\x0f\n\x07\x63hannel\x18\x06 \x01(\t\x12\x14\n\x0cuser_message\x18\x07 \x01(\t\x12\x14\n\x0cgraph_config\x18\x08 \x01(\t\x12S\n\ragents_config\x18\t \x03(\x0b\x32<.tesseract.agents.v1.AgentExecutionRequest.AgentsConfigEntry\x12`\n\x14\x61gent_tool_instances\x18\n \x03(\x0b\x32\x42.tesseract.agents.v1.AgentExecutionRequest.AgentToolInstancesEntry\x12\x35\n\x0fmessage_history\x18\x0b \x03(\x0b\x32\x1c.tesseract.agents.v1.Message\x12\x15\n\ruser_metadata\x18\x0c \x01(\t\x12\x10\n\x08timezone\x18\r \x01(\t\x1aU\n\x11\x41gentsConfigEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12/\n\x05value\x18\x02 \x01(\x0b\x32 .tesseract.agents.v1.AgentConfig:\x02\x38\x01\x1a\\\n\x17\x41gentToolInstancesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x30\n\x05value\x18\x02 \x01(\x0b\x32!.tesseract.agents.v1.AgentToolMap:\x02\x38\x01\"\xa7\x01\n\x0b\x41gentConfig\x12\r\n\x05model\x18\x01 \x01(\t\x12\x13\n\x0btemperature\x18\x02 \x01(\x02\x12\x15\n\rsystem_prompt\x18\x03 \x01(\t\x12\x12\n\nmax_tokens\x18\x04 \x01(\x05\x12\x11\n\tfallbacks\x18\x05 \x03(\t\x12\x13\n\x0bmax_retries\x18\x06 \x01(\x05\x12\x0f\n\x07timeout\x18\x07 \x01(\x05\x12\x10\n\x08\x61pi_base\x18\x08 \x01(\t\"\x9c\x01\n\x0c\x41gentToolMap\x12;\n\x05tools\x18\x01 \x03(\x0b\x32,.tesseract.agents.v1.AgentToolMap.ToolsEntry\x1aO\n\nToolsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x30\n\x05value\x18\x02 \x01(\x0b\x32!.tesseract.agents.v1.ToolInstance:\x02\x38\x01\"w\n\x0cToolInstance\x12\x11\n\ttool_name\x18\x01 \x01(\t\x12\x14\n\x0c\x64isplay_name\x18\x02 \x01(\t\x12\x0e\n\x06\x63onfig\x18\x03 \x01(\t\x12\x19\n\x11\x65nabled_functions\x18\x04 \x03(\t\x12\x13\n\x0b\x63redentials\x18\x05 \x01(\t\"(\n\x07Message\x12\x0c\n\x04role\x18\x01 \x01(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x01(\t\"\x9b\x01\n\x16\x41gentExecutionResponse\x12\x17\n\x0f\x63onversation_id\x18\x01 \x01(\t\x12.\n\x08messages\x18\x02 \x03(\x0b\x32\x1c.tesseract.agents.v1.Message\x12\x38\n\x08metadata\x18\x03 \x01(\x0b\x32&.tesseract.agents.v1.ExecutionMetadata\"\x9f\x03\n\x11\x45xecutionMetadata\x12\x19\n\x11\x65xecution_time_ms\x18\x01 \x01(\x03\x12\x12\n\ngraph_type\x18\x02 \x01(\t\x12\x14\n\x0c\x61gents_count\x18\x03 \x01(\x05\x12\x14\n\x0cinput_tokens\x18\x04 \x01(\x03\x12\x15\n\routput_tokens\x18\x05 \x01(\x03\x12\x14\n\x0ctotal_tokens\x18\x06 \x01(\x03\x12P\n\x0eusage_by_model\x18\x07 \x03(\x0b\x32\x38.tesseract.agents.v1.ExecutionMetadata.UsageByModelEntry\x12\x42\n\x17human_handoff_requested\x18\x08 \x01(\x0b\x32!.tesseract.agents.v1.HumanHandoff\x12\x16\n\x0evariables_json\x18\t \x01(\t\x1aT\n\x11UsageByModelEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12.\n\x05value\x18\x02 \x01(\x0b\x32\x1f.tesseract.agents.v1.ModelUsage:\x02\x38\x01\"O\n\nModelUsage\x12\x14\n\x0cinput_tokens\x18\x01 \x01(\x03\x12\x15\n\routput_tokens\x18\x02 \x01(\x03\x12\x14\n\x0ctotal_tokens\x18\x03 \x01(\x03\"D\n\x0cHumanHandoff\x12\x11\n\trequested\x18\x01 \x01(\x08\x12\x0e\n\x06reason\x18\x02 \x01(\t\x12\x11\n\ttool_name\x18\x03 \x01(\t\"C\n\x10\x41gentStreamEvent\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x01(\t\x12\x10\n\x08metadata\x18\x03 \x01(\t2\xd9\x01\n\rAgentsService\x12\x62\n\x07\x45xecute\x12*.tesseract.agents.v1.AgentExecutionRequest\x1a+.tesseract.agents.v1.AgentExecutionResponse\x12\x64\n\rExecuteStream\x12*.tesseract.agents.v1.AgentExecutionRequest\x1a%.tesseract.agents.v1.AgentStreamEvent0\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16\x61gents/v1/agents.proto\x12\x13tesseract.agents.v1\"(\n\x12NodeCatalogRequest\x12\x12\n\ngraph_type\x18\x01 \x01(\t\"+\n\x13NodeCatalogResponse\x12\x14\n\x0c\x63\x61talog_json\x18\x01 \x01(\t\"\x85\x05\n\x15\x41gentExecutionRequest\x12\x11\n\ttenant_id\x18\x01 \x01(\t\x12\x13\n\x0bworkflow_id\x18\x02 \x01(\t\x12\x17\n\x0f\x63onversation_id\x18\x03 \x01(\t\x12\x11\n\tuser_type\x18\x04 \x01(\t\x12\x0f\n\x07user_id\x18\x05 \x01(\t\x12\x0f\n\x07\x63hannel\x18\x06 \x01(\t\x12\x14\n\x0cuser_message\x18\x07 \x01(\t\x12\x14\n\x0cgraph_config\x18\x08 \x01(\t\x12S\n\ragents_config\x18\t \x03(\x0b\x32<.tesseract.agents.v1.AgentExecutionRequest.AgentsConfigEntry\x12`\n\x14\x61gent_tool_instances\x18\n \x03(\x0b\x32\x42.tesseract.agents.v1.AgentExecutionRequest.AgentToolInstancesEntry\x12\x35\n\x0fmessage_history\x18\x0b \x03(\x0b\x32\x1c.tesseract.agents.v1.Message\x12\x15\n\ruser_metadata\x18\x0c \x01(\t\x12\x10\n\x08timezone\x18\r \x01(\t\x1aU\n\x11\x41gentsConfigEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12/\n\x05value\x18\x02 \x01(\x0b\x32 .tesseract.agents.v1.AgentConfig:\x02\x38\x01\x1a\\\n\x17\x41gentToolInstancesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x30\n\x05value\x18\x02 \x01(\x0b\x32!.tesseract.agents.v1.AgentToolMap:\x02\x38\x01\"\xa7\x01\n\x0b\x41gentConfig\x12\r\n\x05model\x18\x01 \x01(\t\x12\x13\n\x0btemperature\x18\x02 \x01(\x02\x12\x15\n\rsystem_prompt\x18\x03 \x01(\t\x12\x12\n\nmax_tokens\x18\x04 \x01(\x05\x12\x11\n\tfallbacks\x18\x05 \x03(\t\x12\x13\n\x0bmax_retries\x18\x06 \x01(\x05\x12\x0f\n\x07timeout\x18\x07 \x01(\x05\x12\x10\n\x08\x61pi_base\x18\x08 \x01(\t\"\x9c\x01\n\x0c\x41gentToolMap\x12;\n\x05tools\x18\x01 \x03(\x0b\x32,.tesseract.agents.v1.AgentToolMap.ToolsEntry\x1aO\n\nToolsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x30\n\x05value\x18\x02 \x01(\x0b\x32!.tesseract.agents.v1.ToolInstance:\x02\x38\x01\"w\n\x0cToolInstance\x12\x11\n\ttool_name\x18\x01 \x01(\t\x12\x14\n\x0c\x64isplay_name\x18\x02 \x01(\t\x12\x0e\n\x06\x63onfig\x18\x03 \x01(\t\x12\x19\n\x11\x65nabled_functions\x18\x04 \x03(\t\x12\x13\n\x0b\x63redentials\x18\x05 \x01(\t\"(\n\x07Message\x12\x0c\n\x04role\x18\x01 \x01(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x01(\t\"\x9b\x01\n\x16\x41gentExecutionResponse\x12\x17\n\x0f\x63onversation_id\x18\x01 \x01(\t\x12.\n\x08messages\x18\x02 \x03(\x0b\x32\x1c.tesseract.agents.v1.Message\x12\x38\n\x08metadata\x18\x03 \x01(\x0b\x32&.tesseract.agents.v1.ExecutionMetadata\"\x9f\x03\n\x11\x45xecutionMetadata\x12\x19\n\x11\x65xecution_time_ms\x18\x01 \x01(\x03\x12\x12\n\ngraph_type\x18\x02 \x01(\t\x12\x14\n\x0c\x61gents_count\x18\x03 \x01(\x05\x12\x14\n\x0cinput_tokens\x18\x04 \x01(\x03\x12\x15\n\routput_tokens\x18\x05 \x01(\x03\x12\x14\n\x0ctotal_tokens\x18\x06 \x01(\x03\x12P\n\x0eusage_by_model\x18\x07 \x03(\x0b\x32\x38.tesseract.agents.v1.ExecutionMetadata.UsageByModelEntry\x12\x42\n\x17human_handoff_requested\x18\x08 \x01(\x0b\x32!.tesseract.agents.v1.HumanHandoff\x12\x16\n\x0evariables_json\x18\t \x01(\t\x1aT\n\x11UsageByModelEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12.\n\x05value\x18\x02 \x01(\x0b\x32\x1f.tesseract.agents.v1.ModelUsage:\x02\x38\x01\"O\n\nModelUsage\x12\x14\n\x0cinput_tokens\x18\x01 \x01(\x03\x12\x15\n\routput_tokens\x18\x02 \x01(\x03\x12\x14\n\x0ctotal_tokens\x18\x03 \x01(\x03\"D\n\x0cHumanHandoff\x12\x11\n\trequested\x18\x01 \x01(\x08\x12\x0e\n\x06reason\x18\x02 \x01(\t\x12\x11\n\ttool_name\x18\x03 \x01(\t\"C\n\x10\x41gentStreamEvent\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x01(\t\x12\x10\n\x08metadata\x18\x03 \x01(\t2\xbe\x02\n\rAgentsService\x12\x62\n\x07\x45xecute\x12*.tesseract.agents.v1.AgentExecutionRequest\x1a+.tesseract.agents.v1.AgentExecutionResponse\x12\x64\n\rExecuteStream\x12*.tesseract.agents.v1.AgentExecutionRequest\x1a%.tesseract.agents.v1.AgentStreamEvent0\x01\x12\x63\n\x0eGetNodeCatalog\x12\'.tesseract.agents.v1.NodeCatalogRequest\x1a(.tesseract.agents.v1.NodeCatalogResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -39,34 +39,38 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_AGENTTOOLMAP_TOOLSENTRY']._serialized_options = b'8\001'
   _globals['_EXECUTIONMETADATA_USAGEBYMODELENTRY']._loaded_options = None
   _globals['_EXECUTIONMETADATA_USAGEBYMODELENTRY']._serialized_options = b'8\001'
-  _globals['_AGENTEXECUTIONREQUEST']._serialized_start=48
-  _globals['_AGENTEXECUTIONREQUEST']._serialized_end=693
-  _globals['_AGENTEXECUTIONREQUEST_AGENTSCONFIGENTRY']._serialized_start=514
-  _globals['_AGENTEXECUTIONREQUEST_AGENTSCONFIGENTRY']._serialized_end=599
-  _globals['_AGENTEXECUTIONREQUEST_AGENTTOOLINSTANCESENTRY']._serialized_start=601
-  _globals['_AGENTEXECUTIONREQUEST_AGENTTOOLINSTANCESENTRY']._serialized_end=693
-  _globals['_AGENTCONFIG']._serialized_start=696
-  _globals['_AGENTCONFIG']._serialized_end=863
-  _globals['_AGENTTOOLMAP']._serialized_start=866
-  _globals['_AGENTTOOLMAP']._serialized_end=1022
-  _globals['_AGENTTOOLMAP_TOOLSENTRY']._serialized_start=943
-  _globals['_AGENTTOOLMAP_TOOLSENTRY']._serialized_end=1022
-  _globals['_TOOLINSTANCE']._serialized_start=1024
-  _globals['_TOOLINSTANCE']._serialized_end=1143
-  _globals['_MESSAGE']._serialized_start=1145
-  _globals['_MESSAGE']._serialized_end=1185
-  _globals['_AGENTEXECUTIONRESPONSE']._serialized_start=1188
-  _globals['_AGENTEXECUTIONRESPONSE']._serialized_end=1343
-  _globals['_EXECUTIONMETADATA']._serialized_start=1346
-  _globals['_EXECUTIONMETADATA']._serialized_end=1761
-  _globals['_EXECUTIONMETADATA_USAGEBYMODELENTRY']._serialized_start=1677
-  _globals['_EXECUTIONMETADATA_USAGEBYMODELENTRY']._serialized_end=1761
-  _globals['_MODELUSAGE']._serialized_start=1763
-  _globals['_MODELUSAGE']._serialized_end=1842
-  _globals['_HUMANHANDOFF']._serialized_start=1844
-  _globals['_HUMANHANDOFF']._serialized_end=1912
-  _globals['_AGENTSTREAMEVENT']._serialized_start=1914
-  _globals['_AGENTSTREAMEVENT']._serialized_end=1981
-  _globals['_AGENTSSERVICE']._serialized_start=1984
-  _globals['_AGENTSSERVICE']._serialized_end=2201
+  _globals['_NODECATALOGREQUEST']._serialized_start=47
+  _globals['_NODECATALOGREQUEST']._serialized_end=87
+  _globals['_NODECATALOGRESPONSE']._serialized_start=89
+  _globals['_NODECATALOGRESPONSE']._serialized_end=132
+  _globals['_AGENTEXECUTIONREQUEST']._serialized_start=135
+  _globals['_AGENTEXECUTIONREQUEST']._serialized_end=780
+  _globals['_AGENTEXECUTIONREQUEST_AGENTSCONFIGENTRY']._serialized_start=601
+  _globals['_AGENTEXECUTIONREQUEST_AGENTSCONFIGENTRY']._serialized_end=686
+  _globals['_AGENTEXECUTIONREQUEST_AGENTTOOLINSTANCESENTRY']._serialized_start=688
+  _globals['_AGENTEXECUTIONREQUEST_AGENTTOOLINSTANCESENTRY']._serialized_end=780
+  _globals['_AGENTCONFIG']._serialized_start=783
+  _globals['_AGENTCONFIG']._serialized_end=950
+  _globals['_AGENTTOOLMAP']._serialized_start=953
+  _globals['_AGENTTOOLMAP']._serialized_end=1109
+  _globals['_AGENTTOOLMAP_TOOLSENTRY']._serialized_start=1030
+  _globals['_AGENTTOOLMAP_TOOLSENTRY']._serialized_end=1109
+  _globals['_TOOLINSTANCE']._serialized_start=1111
+  _globals['_TOOLINSTANCE']._serialized_end=1230
+  _globals['_MESSAGE']._serialized_start=1232
+  _globals['_MESSAGE']._serialized_end=1272
+  _globals['_AGENTEXECUTIONRESPONSE']._serialized_start=1275
+  _globals['_AGENTEXECUTIONRESPONSE']._serialized_end=1430
+  _globals['_EXECUTIONMETADATA']._serialized_start=1433
+  _globals['_EXECUTIONMETADATA']._serialized_end=1848
+  _globals['_EXECUTIONMETADATA_USAGEBYMODELENTRY']._serialized_start=1764
+  _globals['_EXECUTIONMETADATA_USAGEBYMODELENTRY']._serialized_end=1848
+  _globals['_MODELUSAGE']._serialized_start=1850
+  _globals['_MODELUSAGE']._serialized_end=1929
+  _globals['_HUMANHANDOFF']._serialized_start=1931
+  _globals['_HUMANHANDOFF']._serialized_end=1999
+  _globals['_AGENTSTREAMEVENT']._serialized_start=2001
+  _globals['_AGENTSTREAMEVENT']._serialized_end=2068
+  _globals['_AGENTSSERVICE']._serialized_start=2071
+  _globals['_AGENTSSERVICE']._serialized_end=2389
 # @@protoc_insertion_point(module_scope)

@@ -5,6 +5,22 @@ package tesseract.agents.v1;
 service AgentsService {
   rpc Execute(AgentExecutionRequest) returns (AgentExecutionResponse);
   rpc ExecuteStream(AgentExecutionRequest) returns (stream AgentStreamEvent);
+  // Catálogo autodescriptivo de tipos de nodo (JSON Schema por tipo, puertos,
+  // contrato de templates). Fuente de verdad para validar workflows al guardar
+  // y para el futuro editor visual.
+  rpc GetNodeCatalog(NodeCatalogRequest) returns (NodeCatalogResponse);
+}
+
+// ── Node catalog ──────────────────────────────────────────────────────────────
+
+message NodeCatalogRequest {
+  // Tipo de grafo (por ahora solo "pipeline"; vacío = todos los disponibles)
+  string graph_type = 1;
+}
+
+message NodeCatalogResponse {
+  // Catálogo serializado como JSON (estructura versionada por schema_version)
+  string catalog_json = 1;
 }
 
 // ── Request ───────────────────────────────────────────────────────────────────

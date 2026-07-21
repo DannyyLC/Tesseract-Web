@@ -27,9 +27,28 @@ el editor leerá y escribirá el mismo JSON que el motor ejecuta.
 | `type` | string | Tipo de grafo (`pipeline`, `react`, ...) — decide el builder |
 | `schema_version` | int (opc) | Versión del contrato (default 1) |
 | `nodes` | list | Nodos del grafo (ver tipos abajo) |
-| `edges` | list | Aristas `{"from", "to"}` (`START`/`END` como especiales) |
+| `edges` | list | Aristas (ver formas abajo) |
 | `persist_variables` | list (opc) | Claves de `variables` que el Gateway persiste entre turnos |
 | `variable_reducers` | dict (opc) | Semántica de merge por variable (ver abajo) |
+
+## Aristas
+
+Dos formas válidas:
+
+1. **Clásica**: `{"from": "nodo|START", "to": "nodo|END"}` — arista estática.
+2. **Con puerto** (la que emitirá el editor): `{"from": "<condition>", "output": "<puerto>", "to": "nodo"}`.
+   Las aristas cuyo `from` es un nodo condition son DECLARATIVAS: documentan la
+   conexión de cada puerto de salida para que el editor la dibuje, pero el ruteo
+   real lo resuelve la config de la condition (branches/rules/routes). El motor
+   las acepta y las ignora al compilar.
+
+## Catálogo de nodos (autodescripción del motor)
+
+`graphs/pipeline/catalog.py` → `get_node_catalog()` expone tipos de nodo con su
+JSON Schema de config y puertos, vía el RPC `GetNodeCatalog` y el endpoint del
+Gateway `GET /workflows/node-catalog`. El Gateway valida los workflows contra el
+catálogo al guardarlos; el editor futuro consume el mismo endpoint para renderizar
+la paleta de nodos y los formularios.
 
 ## `variable_reducers`
 

@@ -130,9 +130,23 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
     # =========================================================================
     # 2. Procesar aristas
     # =========================================================================
+    condition_ids = {n["id"] for n in nodes_config if n.get("type") == "condition"}
+
     for edge in edges_config:
         from_id = edge["from"]
         to_id = edge["to"]
+
+        # Forma con puerto (editor): {"from": condition, "output": "<puerto>", "to": nodo}.
+        # El ruteo real lo definen los conditional edges de la condition; la arista
+        # con puerto es declarativa (documenta la conexión para el editor) y NO se
+        # agrega como arista estática — rompería la bifurcación.
+        if from_id in condition_ids:
+            logger.debug(
+                f"[{ctx.workflow_id}] Edge declarativa desde condition "
+                f"'{from_id}'{'.' + edge['output'] if edge.get('output') else ''} → '{to_id}' "
+                f"(el ruteo lo resuelve la condition)"
+            )
+            continue
 
         from_node = START if from_id == "START" else from_id
 

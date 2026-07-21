@@ -5,7 +5,7 @@ import warnings
 
 from agents.v1 import agents_pb2 as agents_dot_v1_dot_agents__pb2
 
-GRPC_GENERATED_VERSION = '1.76.0'
+GRPC_GENERATED_VERSION = '1.80.0'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -44,6 +44,11 @@ class AgentsServiceStub(object):
                 request_serializer=agents_dot_v1_dot_agents__pb2.AgentExecutionRequest.SerializeToString,
                 response_deserializer=agents_dot_v1_dot_agents__pb2.AgentStreamEvent.FromString,
                 _registered_method=True)
+        self.GetNodeCatalog = channel.unary_unary(
+                '/tesseract.agents.v1.AgentsService/GetNodeCatalog',
+                request_serializer=agents_dot_v1_dot_agents__pb2.NodeCatalogRequest.SerializeToString,
+                response_deserializer=agents_dot_v1_dot_agents__pb2.NodeCatalogResponse.FromString,
+                _registered_method=True)
 
 
 class AgentsServiceServicer(object):
@@ -61,6 +66,15 @@ class AgentsServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetNodeCatalog(self, request, context):
+        """Catálogo autodescriptivo de tipos de nodo (JSON Schema por tipo, puertos,
+        contrato de templates). Fuente de verdad para validar workflows al guardar
+        y para el futuro editor visual.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_AgentsServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -73,6 +87,11 @@ def add_AgentsServiceServicer_to_server(servicer, server):
                     servicer.ExecuteStream,
                     request_deserializer=agents_dot_v1_dot_agents__pb2.AgentExecutionRequest.FromString,
                     response_serializer=agents_dot_v1_dot_agents__pb2.AgentStreamEvent.SerializeToString,
+            ),
+            'GetNodeCatalog': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetNodeCatalog,
+                    request_deserializer=agents_dot_v1_dot_agents__pb2.NodeCatalogRequest.FromString,
+                    response_serializer=agents_dot_v1_dot_agents__pb2.NodeCatalogResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -129,6 +148,33 @@ class AgentsService(object):
             '/tesseract.agents.v1.AgentsService/ExecuteStream',
             agents_dot_v1_dot_agents__pb2.AgentExecutionRequest.SerializeToString,
             agents_dot_v1_dot_agents__pb2.AgentStreamEvent.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetNodeCatalog(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/tesseract.agents.v1.AgentsService/GetNodeCatalog',
+            agents_dot_v1_dot_agents__pb2.NodeCatalogRequest.SerializeToString,
+            agents_dot_v1_dot_agents__pb2.NodeCatalogResponse.FromString,
             options,
             channel_credentials,
             insecure,

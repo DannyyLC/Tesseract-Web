@@ -44,6 +44,23 @@ export class WorkflowsController {
   constructor(private readonly workflowsService: WorkflowsService) {}
 
   /**
+   * GET /workflows/node-catalog
+   * Catálogo autodescriptivo de tipos de nodo del motor (JSON Schema por tipo,
+   * puertos, contrato de templates). El futuro editor visual consume esto para
+   * renderizar la paleta de nodos y los formularios de config.
+   */
+  @Get('node-catalog')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
+  async getNodeCatalog(
+    @Query('graphType', new DefaultValuePipe('pipeline')) graphType: string,
+  ) {
+    const apiResponse = new ApiResponseBuilder<Record<string, any>>();
+    const catalog = await this.workflowsService.getNodeCatalog(graphType);
+    apiResponse.setData(catalog).setMessage('Node catalog retrieved successfully').setSuccess(true);
+    return apiResponse.build();
+  }
+
+  /**
    * GET /workflows/dashboard
    * Obtener datos para el dashboard de workflows (paginado)
    */

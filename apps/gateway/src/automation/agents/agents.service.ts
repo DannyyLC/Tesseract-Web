@@ -148,6 +148,32 @@ export class AgentsService implements OnModuleInit {
     ) as NodeJS.ReadableStream;
   }
 
+  /**
+   * Catálogo autodescriptivo de tipos de nodo del motor (JSON Schema por tipo,
+   * puertos, contrato de templates). Se usa para validar workflows al guardarlos
+   * y será la fuente del futuro editor visual.
+   */
+  async getNodeCatalog(graphType = 'pipeline'): Promise<Record<string, any>> {
+    return this.withRetry(() => {
+      return new Promise<Record<string, any>>((resolve, reject) => {
+        const deadline = new Date(Date.now() + 10000);
+        this.grpcClient.getNodeCatalog(
+          { graph_type: graphType },
+          this.buildMetadata(),
+          { deadline },
+          (err: any, response: any) => {
+            if (err) return reject(err);
+            try {
+              resolve(JSON.parse(response.catalog_json ?? '{}'));
+            } catch (parseError) {
+              reject(parseError);
+            }
+          },
+        );
+      });
+    }, 'getNodeCatalog', 1);
+  }
+
   async healthCheck(): Promise<boolean> {
     try {
       await new Promise<void>((resolve, reject) => {

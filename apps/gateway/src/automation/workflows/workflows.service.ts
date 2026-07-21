@@ -2077,6 +2077,11 @@ export class WorkflowsService {
   /**
    * Valida la estructura del config según su tipo
    */
+  /** Catálogo de tipos de nodo del motor (proxy del RPC GetNodeCatalog). */
+  async getNodeCatalog(graphType = 'pipeline'): Promise<Record<string, any>> {
+    return this.agentsService.getNodeCatalog(graphType);
+  }
+
   private async validateConfig(config: any) {
     if (!config || typeof config !== 'object') {
       throw new InvalidWorkflowConfigException('Config must be an object');
@@ -2103,6 +2108,75 @@ export class WorkflowsService {
 
       // Validar que los modelos especificados existen en la BD
       await this.validateModelsInConfig(config.agents);
+
+      // Validación estructural del grafo pipeline contra el catálogo del motor
+      if (config.graph?.type === 'pipeline') {
+        await this.validatePipelineGraph(config.graph);
+      }
+    }
+  }
+
+  /**
+   * Valida un graph_config de pipeline contra el catálogo autodescriptivo del
+   * motor (GetNodeCatalog): tipos de nodo soportados, ids únicos y aristas que
+   * referencian nodos existentes. Si el motor no está disponible, la validación
+   * de catálogo se omite (con warning) pero la estructural corre igual.
+   */
+  private async validatePipelineGraph(graph: any) {
+    const nodes: any[] = Array.isArray(graph.nodes) ? graph.nodes : [];
+    const edges: any[] = Array.isArray(graph.edges) ? graph.edges : [];
+
+    if (nodes.length === 0) {
+      throw new InvalidWorkflowConfigException('Pipeline graph must have a non-empty "nodes" list');
+    }
+    if (edges.length === 0) {
+      throw new InvalidWorkflowConfigException('Pipeline graph must have a non-empty "edges" list');
+    }
+
+    const nodeIds = new Set<string>();
+    for (const node of nodes) {
+      if (!node?.id || !node?.type) {
+        throw new InvalidWorkflowConfigException('Every pipeline node needs "id" and "type"');
+      }
+      if (nodeIds.has(node.id)) {
+        throw new InvalidWorkflowConfigException(`Duplicate node id: "${node.id}"`);
+      }
+      nodeIds.add(node.id);
+    }
+
+    for (const edge of edges) {
+      const from = edge?.from;
+      const to = edge?.to;
+      if (!from || !to) {
+        throw new InvalidWorkflowConfigException('Every edge needs "from" and "to"');
+      }
+      if (from !== 'START' && !nodeIds.has(from)) {
+        throw new InvalidWorkflowConfigException(`Edge references unknown node: "${from}"`);
+      }
+      if (to !== 'END' && !nodeIds.has(to)) {
+        throw new InvalidWorkflowConfigException(`Edge references unknown node: "${to}"`);
+      }
+    }
+
+    // Tipos de nodo contra el catálogo del motor (best-effort si el motor está caído)
+    try {
+      const catalog = await this.agentsService.getNodeCatalog('pipeline');
+      const supportedTypes = new Set(Object.keys(catalog?.node_types ?? {}));
+      if (supportedTypes.size > 0) {
+        for (const node of nodes) {
+          if (!supportedTypes.has(node.type)) {
+            throw new InvalidWorkflowConfigException(
+              `Unknown node type "${node.type}" (node "${node.id}"). ` +
+                `Supported: ${Array.from(supportedTypes).join(', ')}`,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      if (error instanceof InvalidWorkflowConfigException) throw error;
+      this.logger.warn(
+        `Node catalog unavailable, skipping catalog validation: ${(error as Error).message}`,
+      );
     }
   }
 

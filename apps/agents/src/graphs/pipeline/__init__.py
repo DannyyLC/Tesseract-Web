@@ -5,6 +5,7 @@ API pública del paquete. El contrato del graph_config está en docs/graph-schem
 """
 
 from graphs.pipeline.builder import create_pipeline_agent
+from graphs.pipeline.catalog import get_node_catalog
 from graphs.pipeline.conditions import evaluate_condition, make_condition_function
 from graphs.pipeline.nodes import (
     make_agent_node,
@@ -37,6 +38,7 @@ __all__ = [
     "create_pipeline_agent",
     "evaluate_condition",
     "extract_intents",
+    "get_node_catalog",
     "initial_state",
     "join_dedup",
     "make_agent_node",
