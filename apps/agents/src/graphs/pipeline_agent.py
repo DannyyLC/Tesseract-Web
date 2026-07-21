@@ -154,9 +154,12 @@ class PipelineAgentState(TypedDict):
                            response_metadata}]. El synthesizer las combina en una
                          sola respuesta. No se persiste entre turnos.
         pending_handoffs: Capturas de tools interceptadas en modo paralelo:
-                         [{agent, node_id, tool_name, base_name, args}]. El
-                         synthesizer ejecuta UNA llamada real por grupo y resetea
-                         el canal (escribiendo None). No se persiste entre turnos.
+                         [{agent, node_id, tool_name, base_name, args, handoff_label}].
+                         `handoff_label` es la etiqueta fija del nodo (config, no LLM)
+                         usada para componer el "motivo" determinista del handoff — ver
+                         `_apply_handoff_reason`. El synthesizer ejecuta UNA llamada real
+                         por grupo y resetea el canal (escribiendo None). No se persiste
+                         entre turnos.
         collected_variables: Snapshots de los deltas de set_variables_on_tool_call de
                          cada rama paralela (reducer: concatena). A diferencia de
                          `variables` (merge last-writer-wins), aquí se preservan TODOS
@@ -385,7 +388,9 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                      classification_pattern: str | None = None, max_iterations: int = 0,
                      disable_tools_if: List[Dict[str, Any]] | None = None,
                      set_variables_on_tool_call: Dict[str, Dict[str, Any]] | None = None,
-                     intercept_tools_in_parallel: List[str] | None = None):
+                     intercept_tools_in_parallel: List[str] | None = None,
+                     handoff_label: str | None = None,
+                     handoff_reason_injection: Dict[str, Any] | None = None):
     """
     Crea un nodo que llama al LLM y opcionalmente guarda su respuesta en variables.
 
@@ -427,6 +432,28 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                                 captura en pending_handoffs y el synthesizer hace una única
                                 invocación real consolidada. En modo single la tool se ejecuta
                                 directo, como siempre.
+        handoff_label:          Etiqueta fija de este nodo (p.ej. "Armas menos letales") usada,
+                                junto con handoff_reason_injection, para componer el "motivo" del
+                                handoff sin depender de que el LLM lo redacte. Viaja en cada
+                                captura de pending_handoffs (clave "handoff_label") para que el
+                                synthesizer pueda unir las etiquetas de todos los especialistas
+                                que contribuyeron. Es requisito de activación (ver
+                                handoff_reason_injection): sin handoff_label, este nodo NUNCA
+                                sobrescribe variables.body, sin importar si handoff_reason_injection
+                                está configurado a nivel grafo.
+        handoff_reason_injection:
+                                Config opcional (normalmente heredada del graph_config raíz vía
+                                create_pipeline_agent): {"tool", "list_arg", "variables_key",
+                                "label_separator"}. La inyección SOLO se activa si, además de que
+                                la tool llamada matchee "tool" (vía _tool_name_matches), este nodo
+                                declara handoff_label — así un mismo graph_config puede aplicar el
+                                mecanismo a unos nodos (catálogo fijo) y dejar intacto el de otros
+                                (p.ej. el handoff excepcional de agent_general, que no declara
+                                handoff_label y por tanto el LLM sigue controlando variables.body
+                                libremente, igual que antes de este mecanismo). Cuando se activa,
+                                sobrescribe variables[<variables_key>] = [handoff_label, resumen]
+                                ANTES de invocar la tool directo, con resumen =
+                                _summarize_handoff_conversation(llm, state["messages"]).
     """
     llm = get_llm(ctx, agent_name)
     pattern = re.compile(classification_pattern) if classification_pattern else None
@@ -491,6 +518,15 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
         # ------------------------------------------------------------------
         preceding_messages: List[Any] = []  # mensajes intermedios (tool calls + results)
         handoff_captures: List[Dict[str, Any]] = []  # tools interceptadas en modo paralelo
+        _handoff_summary_cache: List[str] = []  # memoiza el resumen dentro de esta ejecución
+
+        def _get_handoff_summary() -> str:
+            if not _handoff_summary_cache:
+                _handoff_summary_cache.append(
+                    _summarize_handoff_conversation(llm, state["messages"])
+                )
+            return _handoff_summary_cache[0]
+
         final_response: AIMessage
 
         if is_agentic:
@@ -586,6 +622,7 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                             "tool_name": tc["name"],
                             "base_name": _tool_base_name(tool) or tc["name"],
                             "args": tc["args"],
+                            "handoff_label": handoff_label,
                         })
                         tool_result = (
                             "Notificación registrada. Se enviará una sola notificación "
@@ -596,6 +633,18 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                             f"intercepted in parallel mode (captured for synthesizer)"
                         )
                     else:
+                        if (
+                            handoff_reason_injection
+                            and handoff_label
+                            and tool is not None
+                            and _tool_name_matches(handoff_reason_injection.get("tool", ""), tool)
+                        ):
+                            resumen = _get_handoff_summary()
+                            _apply_handoff_reason(tc["args"], handoff_reason_injection, handoff_label, resumen)
+                            logger.info(
+                                f"[{ctx.workflow_id}] Node '{node_id}': handoff reason inyectado "
+                                f"(motivo='{handoff_label}')"
+                            )
                         try:
                             if tool:
                                 tool_result = tool.invoke(tc["args"])
@@ -962,6 +1011,60 @@ def _consolidate_list_items(
     return consolidated + passthrough
 
 
+def _summarize_handoff_conversation(llm: Any, messages: List[Any]) -> str:
+    """
+    Genera un resumen conciso de la conversación para notificar un handoff.
+
+    UNA sola llamada LLM, con visibilidad de TODA la conversación — pensada para
+    usarse tanto desde el modo single (_make_agent_node, un especialista llama la
+    tool directo) como desde el modo paralelo (_make_synthesizer_node, tras el
+    fan-out), de forma que la calidad del resumen no dependa de cuántos
+    especialistas participaron. Nunca debe llegar al stream del usuario: siempre
+    se taguea con NO_STREAM_TAG, sin condicionar a modo paralelo o single.
+    """
+    instruction = (
+        "Resume en máximo 2-3 frases, en español, la conversación con el cliente "
+        "para notificar al equipo de ventas interno. Sé específico: si el cliente "
+        "mencionó un producto, modelo, cantidad o urgencia concretos, inclúyelos "
+        "tal cual. No inventes información que no esté en la conversación. "
+        "Responde solo con el resumen, sin prefijos, comillas ni saltos de línea."
+    )
+    convo = [m for m in messages if getattr(m, "type", None) != "system"]
+    try:
+        response = llm.invoke(
+            [SystemMessage(content=instruction)] + convo,
+            config={"tags": [NO_STREAM_TAG]},
+        )
+        return (response.content or "").strip() or "Resumen no disponible"
+    except Exception as e:
+        logger.error(f"Error generando resumen de handoff: {e}", exc_info=True)
+        return "Resumen no disponible"
+
+
+def _apply_handoff_reason(
+    args: Dict[str, Any], injection_cfg: Dict[str, Any], motivo: str, resumen: str
+) -> None:
+    """
+    Sobrescribe in-place args[list_arg][i]["variables"][variables_key] = [motivo,
+    resumen] en cada item de la lista, sin importar lo que el LLM haya puesto ahí.
+
+    injection_cfg (config.handoff_reason_injection):
+        list_arg:      arg de la tool que es una lista de items (default "messages")
+        variables_key: sub-clave dentro de item["variables"] a sobrescribir (default "body")
+
+    No falla si faltan claves — las crea. Reutilizada tal cual en modo single
+    (sobre tc["args"]) y en modo paralelo (sobre merged_args, ya consolidado).
+    """
+    list_arg = injection_cfg.get("list_arg", "messages")
+    variables_key = injection_cfg.get("variables_key", "body")
+    items = args.get(list_arg)
+    if not isinstance(items, list):
+        return
+    for item in items:
+        if isinstance(item, dict):
+            item.setdefault("variables", {})[variables_key] = [motivo, resumen]
+
+
 def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any], ctx: TenantContext):
     """
     Nodo de convergencia del fan-out multi-intent.
@@ -1000,6 +1103,21 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
                                   -wins). Une los valores de cada rama en un solo string
                                   (deduplicando, ignorando vacíos) y lo escribe en
                                   variables[<clave>]. Forma: {"media_url": ","}.
+        handoff_reason_injection: opcional (normalmente heredado del graph_config raíz vía
+                                  create_pipeline_agent, no declarado aquí directamente).
+                                  Se activa SOLO si la tool de un grupo de pending_handoffs
+                                  matchea "tool" Y al menos una captura del grupo trae
+                                  handoff_label — si ninguna lo declara (p.ej. un grupo
+                                  formado solo por el handoff excepcional de agent_general),
+                                  la tool call pasa intacta. Cuando se activa, sobrescribe
+                                  variables[<variables_key>] = [motivo, resumen] en
+                                  merged_args ANTES de invocar la tool real: motivo = join
+                                  determinista de los handoff_label de todos los
+                                  especialistas que contribuyeron a ese grupo (ver
+                                  _join_dedup), resumen = una sola llamada a
+                                  _summarize_handoff_conversation con toda la conversación.
+                                  Así se evita que cada especialista redacte su propia
+                                  versión del motivo/resumen y queden duplicados.
 
     El agente (agent_name) debe existir en agents_config como cualquier otro:
     define model, temperature y system_prompt del sintetizador.
@@ -1014,6 +1132,10 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
     # especialista en un solo string (deduplicando, ignorando vacíos) y lo escribe
     # en variables[<var>], evitando el last-writer-wins del reducer de `variables`.
     join_variables = config.get("join_variables") or {}
+    # Motivo/resumen deterministas del handoff (ver _apply_handoff_reason). Normalmente
+    # heredado del graph_config raíz vía create_pipeline_agent — ver docstring de
+    # _make_agent_node para el shape de {"tool", "list_arg", "variables_key", "label_separator"}.
+    handoff_reason_injection = config.get("handoff_reason_injection")
 
     # Cache de tools cargadas por agente especialista (para ejecutar las capturas)
     tools_cache: Dict[str, list] = {}
@@ -1083,6 +1205,27 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
                                 merge_field=consolidate_handoffs.get("merge_field", "variables"),
                                 separator=consolidate_handoffs.get("separator", ", "),
                             )
+
+                    # Motivo/resumen deterministas: se calculan UNA sola vez por grupo
+                    # (no por especialista) y sobrescriben lo que el LLM haya puesto,
+                    # evitando la duplicidad de que cada rama redacte su propia versión.
+                    # Gate: solo se activa si AL MENOS una captura del grupo trae
+                    # handoff_label — si ninguna lo declara (p.ej. el handoff excepcional
+                    # de un agente sin catálogo fijo, tipo agent_general), la tool call
+                    # pasa intacta y el LLM sigue controlando variables.body como hoy.
+                    labels = [c.get("handoff_label") for c in captures if c.get("handoff_label")]
+                    if handoff_reason_injection and labels and _tool_name_matches(
+                        handoff_reason_injection.get("tool", ""), tool
+                    ):
+                        motivo = _join_dedup(
+                            labels, handoff_reason_injection.get("label_separator", ", ")
+                        )
+                        resumen = _summarize_handoff_conversation(llm, state["messages"])
+                        _apply_handoff_reason(merged_args, handoff_reason_injection, motivo, resumen)
+                        logger.info(
+                            f"[{ctx.workflow_id}] Synthesizer '{node_id}': handoff reason inyectado "
+                            f"(motivo='{motivo}', {len(labels)} especialista(s))"
+                        )
 
                     result = tool.invoke(merged_args)
                     handoffs_executed = True
@@ -1419,6 +1562,10 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
     """
     nodes_config: List[Dict] = ctx.graph_config.get("nodes", [])
     edges_config: List[Dict] = ctx.graph_config.get("edges", [])
+    # Config raíz opcional: motivo/resumen deterministas del handoff, compartida por
+    # todos los nodos agent y por el synthesizer (ver docstrings de _make_agent_node
+    # y _make_synthesizer_node). Una sola declaración en vez de repetirla por nodo.
+    handoff_reason_injection = ctx.graph_config.get("handoff_reason_injection")
 
     if not nodes_config:
         raise ValueError(
@@ -1454,9 +1601,11 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
             disable_tools_if = node.get("disable_tools_if")
             set_variables_on_tool_call = node.get("set_variables_on_tool_call")
             intercept_tools_in_parallel = node.get("intercept_tools_in_parallel")
+            handoff_label = node.get("handoff_label")
             graph.add_node(node_id, _make_agent_node(
                 node_id, agent_name, output_variable, ctx, classification_pattern, max_iterations,
-                disable_tools_if, set_variables_on_tool_call, intercept_tools_in_parallel
+                disable_tools_if, set_variables_on_tool_call, intercept_tools_in_parallel,
+                handoff_label, handoff_reason_injection
             ))
             logger.debug(f"[{ctx.workflow_id}] Added agent node: '{node_id}' (agent: {agent_name})")
 
@@ -1472,7 +1621,9 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
 
         elif node_type == "synthesizer":
             agent_name = node.get("agent", "synthesizer")
-            node_config = node.get("config", {})
+            node_config = dict(node.get("config", {}))
+            if handoff_reason_injection and "handoff_reason_injection" not in node_config:
+                node_config["handoff_reason_injection"] = handoff_reason_injection
             graph.add_node(node_id, _make_synthesizer_node(node_id, agent_name, node_config, ctx))
             logger.debug(f"[{ctx.workflow_id}] Added synthesizer node: '{node_id}' (agent: {agent_name})")
 

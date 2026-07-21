@@ -50,7 +50,7 @@ class FakeAgenticLLM:
         self.bound_tool_names = [t.name for t in tools]
         return self
 
-    def invoke(self, messages):
+    def invoke(self, messages, config=None):
         return self.responses.pop(0)
 
 
@@ -88,6 +88,9 @@ def build_node(llm, tools, **node_kwargs):
             node_kwargs.pop("max_iterations", 3),
             node_kwargs.pop("disable_tools_if", None),
             node_kwargs.pop("set_variables_on_tool_call", None),
+            node_kwargs.pop("intercept_tools_in_parallel", None),
+            node_kwargs.pop("handoff_label", None),
+            node_kwargs.pop("handoff_reason_injection", None),
         )
 
 
@@ -241,6 +244,109 @@ class TestSetVariablesOnToolCall:
         upd = run(build_node(llm, [tool], set_variables_on_tool_call=SET_ON_CALL))
 
         assert "handoff_done" not in upd.get("variables", {})
+
+
+# ── handoff_reason_injection (modo single) ──────────────────────────────────────
+
+INJECTION_CFG = {"tool": "send_bulk_whatsapp", "list_arg": "messages", "variables_key": "body"}
+
+
+class TestHandoffReasonInjectionSingle:
+
+    def test_overwrites_body_with_deterministic_motivo_and_summary(self):
+        tool = FakeTool("send_bulk_whatsapp", result="enviado")
+        llm = FakeAgenticLLM([
+            tool_call_msg("send_bulk_whatsapp", {
+                "messages": [{"to": "+521", "variables": {"body": ["lo que puso el LLM"]}}]
+            }),
+            AIMessage(content="Listo."),
+        ])
+        node = build_node(
+            llm, [tool],
+            handoff_label="Armas menos letales",
+            handoff_reason_injection=INJECTION_CFG,
+        )
+        with patch(
+            "graphs.pipeline_agent._summarize_handoff_conversation",
+            return_value="Cliente pidió 2 lanzadoras S2.",
+        ):
+            run(node)
+
+        assert tool.calls == [{
+            "messages": [{
+                "to": "+521",
+                "variables": {"body": ["Armas menos letales", "Cliente pidió 2 lanzadoras S2."]},
+            }]
+        }]
+
+    def test_summary_computed_once_for_two_tool_calls_in_same_turn(self):
+        tool = FakeTool("send_bulk_whatsapp", result="enviado")
+        llm = FakeAgenticLLM([
+            tool_call_msg("send_bulk_whatsapp", {"messages": [{"to": "+521"}]}, call_id="c1"),
+            tool_call_msg("send_bulk_whatsapp", {"messages": [{"to": "+522"}]}, call_id="c2"),
+            AIMessage(content="Listo."),
+        ])
+        node = build_node(
+            llm, [tool], max_iterations=3,
+            handoff_label="Armas menos letales",
+            handoff_reason_injection=INJECTION_CFG,
+        )
+        with patch(
+            "graphs.pipeline_agent._summarize_handoff_conversation",
+            return_value="resumen",
+        ) as mock_summary:
+            run(node)
+
+        assert mock_summary.call_count == 1
+
+    def test_missing_handoff_label_skips_injection_entirely(self):
+        # Escenario real: handoff_reason_injection configurado a nivel grafo (aplica a
+        # TODOS los nodos agent), pero este nodo específico no declara handoff_label —
+        # p.ej. el handoff excepcional de agent_general, que usa texto libre del LLM.
+        # La inyección NO debe activarse; el body debe quedar tal cual lo mandó el LLM.
+        tool = FakeTool("send_bulk_whatsapp", result="enviado")
+        llm = FakeAgenticLLM([
+            tool_call_msg("send_bulk_whatsapp", {
+                "messages": [{"to": "+521", "variables": {"body": ["consultoría de riesgo", "Juan Pérez"]}}]
+            }),
+            AIMessage(content="Listo."),
+        ])
+        node = build_node(llm, [tool], handoff_reason_injection=INJECTION_CFG)
+        with patch(
+            "graphs.pipeline_agent._summarize_handoff_conversation", return_value="resumen"
+        ) as mock_summary:
+            run(node)
+
+        assert tool.calls[0]["messages"][0]["variables"]["body"] == ["consultoría de riesgo", "Juan Pérez"]
+        mock_summary.assert_not_called()
+
+    def test_without_injection_config_llm_body_stays_untouched(self):
+        tool = FakeTool("send_bulk_whatsapp", result="enviado")
+        llm = FakeAgenticLLM([
+            tool_call_msg("send_bulk_whatsapp", {
+                "messages": [{"to": "+521", "variables": {"body": ["texto libre del LLM"]}}]
+            }),
+            AIMessage(content="Listo."),
+        ])
+        node = build_node(llm, [tool], handoff_label="Armas menos letales")
+        run(node)
+
+        assert tool.calls[0]["messages"][0]["variables"]["body"] == ["texto libre del LLM"]
+
+    def test_non_matching_tool_is_not_touched(self):
+        tool = FakeTool("get_info", result="dato")
+        llm = FakeAgenticLLM([
+            tool_call_msg("get_info", {"messages": [{"to": "+521"}]}),
+            AIMessage(content="Listo."),
+        ])
+        node = build_node(
+            llm, [tool],
+            handoff_label="Armas menos letales",
+            handoff_reason_injection=INJECTION_CFG,
+        )
+        run(node)
+
+        assert tool.calls == [{"messages": [{"to": "+521"}]}]
 
 
 # ── Compatibilidad hacia atrás ──────────────────────────────────────────────────
