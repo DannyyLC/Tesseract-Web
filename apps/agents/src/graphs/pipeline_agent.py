@@ -1027,6 +1027,11 @@ def _summarize_handoff_conversation(llm: Any, messages: List[Any]) -> str:
         "para notificar al equipo de ventas interno. Sé específico: si el cliente "
         "mencionó un producto, modelo, cantidad o urgencia concretos, inclúyelos "
         "tal cual. No inventes información que no esté en la conversación. "
+        "Si el cliente indica que pertenece a una institución u organismo de "
+        "gobierno (federal, estatal, municipal, fuerzas armadas, fiscalías, etc.), "
+        "es un indicador de prioridad para los asesores: menciónalo como lo "
+        "PRIMERO que dice el resumen (por ejemplo 'Cliente de gobierno: ...'). "
+        "Si no hay ninguna señal de que sea del sector gobierno, no lo menciones. "
         "Responde solo con el resumen, sin prefijos, comillas ni saltos de línea."
     )
     convo = [m for m in messages if getattr(m, "type", None) != "system"]
