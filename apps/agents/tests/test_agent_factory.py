@@ -3,7 +3,6 @@ Tests para core/agent_factory.py.
 
 Cubre:
 - get_available_graph_types()
-- validate_graph_config()
 - create_agent_graph() — rutas felices y de error
 """
 
@@ -19,7 +18,6 @@ from core.context import TenantContext
 from core.agent_factory import (
     create_agent_graph,
     get_available_graph_types,
-    validate_graph_config,
     GRAPH_BUILDERS,
 )
 
@@ -63,69 +61,6 @@ class TestGetAvailableGraphTypes:
 
 
 # ──────────────────────────────────────────────
-# validate_graph_config
-# ──────────────────────────────────────────────
-
-class TestValidateGraphConfig:
-
-    def test_react_valid(self):
-        valid, error = validate_graph_config("react", {"graph_type": "react"})
-        assert valid is True
-        assert error == ""
-
-    def test_graph_type_mismatch_returns_false(self):
-        valid, error = validate_graph_config("react", {"graph_type": "router"})
-        assert valid is False
-        assert "mismatch" in error
-
-    def test_router_without_routes_invalid(self):
-        valid, error = validate_graph_config("router", {"graph_type": "router"})
-        assert valid is False
-        assert "routes" in error
-
-    def test_router_with_routes_valid(self):
-        valid, error = validate_graph_config(
-            "router", {"graph_type": "router", "routes": ["a", "b"]}
-        )
-        assert valid is True
-
-    def test_sequential_without_steps_invalid(self):
-        valid, error = validate_graph_config("sequential", {"graph_type": "sequential"})
-        assert valid is False
-        assert "steps" in error
-
-    def test_sequential_steps_not_list_invalid(self):
-        valid, error = validate_graph_config(
-            "sequential", {"graph_type": "sequential", "steps": "not-a-list"}
-        )
-        assert valid is False
-
-    def test_sequential_with_steps_valid(self):
-        valid, error = validate_graph_config(
-            "sequential", {"graph_type": "sequential", "steps": ["step1", "step2"]}
-        )
-        assert valid is True
-
-    def test_supervisor_without_agents_invalid(self):
-        valid, error = validate_graph_config("supervisor", {"graph_type": "supervisor"})
-        assert valid is False
-        assert "agents" in error
-
-    def test_supervisor_with_agents_valid(self):
-        valid, error = validate_graph_config(
-            "supervisor", {"graph_type": "supervisor", "agents": ["a1"]}
-        )
-        assert valid is True
-
-    def test_unknown_type_with_matching_graph_type_valid(self):
-        """Tipos no específicamente validados pasan si graph_type coincide."""
-        valid, error = validate_graph_config(
-            "custom_type", {"graph_type": "custom_type"}
-        )
-        assert valid is True
-
-
-# ──────────────────────────────────────────────
 # create_agent_graph
 # ──────────────────────────────────────────────
 
@@ -147,34 +82,38 @@ class TestCreateAgentGraph:
             create_agent_graph(ctx)
         assert "react" in str(exc_info.value)
 
-    @patch("core.agent_factory.create_react_agent")
-    def test_calls_react_builder_and_returns_graph(self, mock_react):
+    def test_calls_react_builder_and_returns_graph(self):
+        # GRAPH_BUILDERS captura la referencia al importarse: se parchea el dict
         mock_graph = Mock()
-        mock_react.return_value = mock_graph
+        mock_react = Mock(return_value=mock_graph)
+        mock_react.__name__ = "mock_react"
 
         ctx = make_ctx(graph_config={"type": "react"})
-        result = create_agent_graph(ctx)
+        with patch.dict(GRAPH_BUILDERS, {"react": mock_react}):
+            result = create_agent_graph(ctx)
 
         mock_react.assert_called_once_with(ctx)
         assert result is mock_graph
 
-    @patch("core.agent_factory.create_react_agent")
-    def test_builder_exception_propagates(self, mock_react):
-        mock_react.side_effect = RuntimeError("builder falló")
+    def test_builder_exception_propagates(self):
+        mock_react = Mock(side_effect=RuntimeError("builder falló"))
+        mock_react.__name__ = "mock_react"
 
         ctx = make_ctx(graph_config={"type": "react"})
-        with pytest.raises(RuntimeError, match="builder falló"):
-            create_agent_graph(ctx)
+        with patch.dict(GRAPH_BUILDERS, {"react": mock_react}):
+            with pytest.raises(RuntimeError, match="builder falló"):
+                create_agent_graph(ctx)
 
-    @patch("core.agent_factory.create_react_agent")
-    def test_passes_full_context_to_builder(self, mock_react):
-        mock_react.return_value = Mock()
+    def test_passes_full_context_to_builder(self):
+        mock_react = Mock(return_value=Mock())
+        mock_react.__name__ = "mock_react"
 
         ctx = make_ctx(
             graph_config={"type": "react"},
             agents_config={"default": {"system_prompt": "Hola"}},
         )
-        create_agent_graph(ctx)
+        with patch.dict(GRAPH_BUILDERS, {"react": mock_react}):
+            create_agent_graph(ctx)
 
         call_arg = mock_react.call_args[0][0]
         assert call_arg is ctx

@@ -77,8 +77,10 @@ def safe_eval(expression: str) -> float:
             if isinstance(node, ast.Expression):
                 return _eval(node.body)
             
-            elif isinstance(node, ast.Num):  # Números
-                return node.n
+            elif isinstance(node, ast.Constant):  # Números
+                if not isinstance(node.value, (int, float)):
+                    raise ValueError(f"Constant {node.value!r} not allowed")
+                return node.value
             
             elif isinstance(node, ast.BinOp):  # Operadores binarios
                 op_type = type(node.op)

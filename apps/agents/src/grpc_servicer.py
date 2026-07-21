@@ -21,6 +21,7 @@ from core.message_utils import (
     convert_langchain_messages_to_dict,
     extract_human_handoff_from_messages,
 )
+from graphs.pipeline_agent import NO_STREAM_TAG
 
 logger = logging.getLogger(__name__)
 
@@ -318,7 +319,7 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
                     # Las llamadas LLM de especialistas en modo paralelo van marcadas
                     # con este tag: sus tokens no se streamean al usuario (solo el
                     # synthesizer / agentes en modo single emiten tokens).
-                    if "pipeline_no_stream" in (event.get("tags") or []):
+                    if NO_STREAM_TAG in (event.get("tags") or []):
                         continue
                     chunk = event.get("data", {}).get("chunk")
                     if chunk and hasattr(chunk, "content") and chunk.content:

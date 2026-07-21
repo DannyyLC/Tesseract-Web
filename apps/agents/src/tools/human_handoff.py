@@ -5,6 +5,8 @@ Tooling to request human intervention from the AI workflow.
 The Gateway consumes this signal and toggles HITL on the conversation.
 """
 
+import json
+
 from langchain_core.tools import BaseTool, tool
 
 
@@ -17,13 +19,16 @@ def request_human_handoff(reason: str = "Necesita atencion humana") -> str:
         reason: Motivo breve de la escalacion.
 
     Returns:
-        Payload JSON-like en texto para facilitar parseo en el Gateway.
+        Payload JSON en texto para facilitar parseo en el Gateway.
     """
     normalized_reason = (reason or "Necesita atencion humana").strip()
-    return (
-        '{"requested": true, "reason": "'
-        + normalized_reason.replace('"', "'")
-        + '", "source": "request_human_handoff"}'
+    return json.dumps(
+        {
+            "requested": True,
+            "reason": normalized_reason,
+            "source": "request_human_handoff",
+        },
+        ensure_ascii=False,
     )
 
 

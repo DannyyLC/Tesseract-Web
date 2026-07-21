@@ -30,11 +30,9 @@ class TenantContext:
         - conversation_id: ID de la conversación
         - user_type, user_id: Usuario que envía el mensaje
         - channel: Canal de origen (whatsapp, web, api, dashboard)
-        - enabled_tools: Lista de tools habilitadas
-        - agent_config: Configuración completa del grafo
-        - model_configs: Configuración de modelos (default, classifier, etc)
-        - credentials: Credenciales de tools desde Secret Manager
-        - tool_configs: Configuración específica de cada tool para este tenant
+        - graph_config: Configuración del grafo (Workflow.config.graph)
+        - agents_config: Configuración por agente (model, temperature, system_prompt)
+        - agent_tool_instances: Tool instances por agente (con credenciales descifradas)
         - message_history: Historial completo de mensajes de la conversación
         - user_metadata: Info adicional del usuario (source, name, phone, etc)
         - timezone: Zona horaria del workflow
@@ -150,7 +148,7 @@ class TenantContext:
         return cls(**data)
     
     def to_dict(self) -> dict[str, Any]:
-        """Convierte el contexto a diccionario."""
+        """Convierte el contexto a diccionario (inverso de from_dict)."""
         return {
             "tenant_id": self.tenant_id,
             "workflow_id": self.workflow_id,
@@ -158,12 +156,9 @@ class TenantContext:
             "user_type": self.user_type,
             "user_id": self.user_id,
             "channel": self.channel,
-            "enabled_tools": self.enabled_tools,
-            "agent_config": self.agent_config,
-            "model_configs": self.model_configs,
-            "credentials": self.credentials,
-            "tool_configs": self.tool_configs,
-            "enabled_functions": self.enabled_functions,
+            "graph_config": self.graph_config,
+            "agents_config": self.agents_config,
+            "agent_tool_instances": self.agent_tool_instances,
             "message_history": self.message_history,
             "user_metadata": self.user_metadata,
             "timezone": self.timezone,

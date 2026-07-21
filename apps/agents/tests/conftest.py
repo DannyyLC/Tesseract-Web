@@ -2,10 +2,11 @@
 Configuración y fixtures compartidos para los tests.
 """
 
-import pytest
-from unittest.mock import Mock, patch
 import sys
 from pathlib import Path
+
+import pytest
+from unittest.mock import Mock
 
 # Agregar src al path para imports
 src_path = Path(__file__).parent.parent / "src"
@@ -19,54 +20,6 @@ def mock_llm_response():
     mock_message.content = "Respuesta del asistente"
     mock_message.tool_calls = []
     return mock_message
-
-
-@pytest.fixture
-def sample_request():
-    """Request de ejemplo para tests."""
-    return {
-        "tenant_id": "test-tenant",
-        "workflow_id": "test-workflow",
-        "user_id": "test-user",
-        "conversation_id": "test-conv",
-        "channel": "dashboard",
-        "user_type": "internal",
-        "timezone": "America/Mexico_City",
-        "user_message": "¿Cuánto es 2 + 2?",
-        "message_history": [],
-        "user_metadata": {
-            "name": "Test User",
-            "email": "test@example.com"
-        },
-        "agent_config": {
-            "graph_type": "react",
-            "max_iterations": 10,
-            "system_prompt": "Eres un asistente de prueba."
-        },
-        "model_configs": {
-            "default": {
-                "model": "gpt-4o",
-                "temperature": 0.7
-            }
-        },
-        "enabled_tools": ["calculator"],
-        "tool_configs": {
-            "calculator": {}
-        },
-        "credentials": {},
-        "enabled_functions": {
-            "calculator": ["calculator", "percentage"]
-        }
-    }
-
-
-@pytest.fixture
-def client():
-    """Cliente de prueba para FastAPI (legacy — el servicio ahora expone gRPC)."""
-    # Imports lazy: fastapi ya no es dependencia del servicio
-    from fastapi.testclient import TestClient
-    from main import app
-    return TestClient(app)
 
 
 @pytest.fixture

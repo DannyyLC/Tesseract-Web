@@ -121,7 +121,7 @@ def get_llm(ctx: TenantContext, model_key: str = "default") -> BaseChatModel:
     if not model_config:
         raise ValueError(
             f"No model configuration found for key '{model_key}'. "
-            f"Available keys: {list(ctx.model_configs.keys())}"
+            f"Available keys: {list(ctx.agents_config.keys())}"
         )
     
     model_name = model_config.get("model")
@@ -478,37 +478,5 @@ def _filter_tool_functions(
     
     if excluded:
         logger.debug(f"Excluded functions: {excluded}")
-    
+
     return filtered_tools
-
-
-# ==========================================
-# Futuro: MCP Server Manager
-# ==========================================
-class MCPServerManager:
-    """
-    FUTURO: Gestor de procesos MCP servers.
-    
-    Responsabilidades:
-    - Spawn MCP server processes
-    - Mantener pool de procesos activos
-    - Cleanup de procesos idle
-    - Health checks
-    
-    Implementación cuando integres MCP:
-    
-    def spawn_server(self, tool_name, credentials):
-        # Spawn proceso MCP server
-        process = subprocess.Popen([
-            "npx", "-y", f"@modelcontextprotocol/server-{tool_name}"
-        ], stdin=subprocess.PIPE, ...)
-        
-        # Pasar credenciales via stdin
-        process.stdin.write(json.dumps(credentials))
-        
-        # Guardar en pool
-        self.active_servers[tool_name] = process
-        
-        return process
-    """
-    pass

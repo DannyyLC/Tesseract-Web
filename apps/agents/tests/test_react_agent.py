@@ -113,8 +113,8 @@ class TestShouldContinue:
         assert should_continue(state, ctx) == "end"
 
     def test_forces_end_at_max_iterations(self):
-        # agents_config con max_iterations en la raíz (como lo usa should_continue)
-        ctx = make_ctx(agents_config={"max_iterations": 3})
+        # max_iterations vive en graph_config (config del grafo, no de un agente)
+        ctx = make_ctx(graph_config={"max_iterations": 3})
         state = {
             "messages": [self._ai_msg_with_tool_calls()],
             "iteration_count": 3,
@@ -258,9 +258,15 @@ class TestCreateReactAgent:
     @patch("graphs.react_agent.load_tools")
     @patch("graphs.react_agent.get_llm")
     def test_creates_graph_with_tools(self, mock_get_llm, mock_load_tools):
-        mock_tool = Mock()
-        mock_tool.name = "calculator"
-        mock_load_tools.return_value = [mock_tool]
+        # ToolNode exige tools reales de LangChain (un Mock no pasa su validación)
+        from langchain_core.tools import tool as lc_tool
+
+        @lc_tool
+        def calculator(expression: str) -> str:
+            """Evalúa una expresión."""
+            return "4"
+
+        mock_load_tools.return_value = [calculator]
 
         mock_llm = Mock()
         mock_llm.bind_tools.return_value = mock_llm
@@ -270,7 +276,7 @@ class TestCreateReactAgent:
         graph = create_react_agent(ctx)
 
         assert graph is not None
-        mock_llm.bind_tools.assert_called_once_with([mock_tool])
+        mock_llm.bind_tools.assert_called_once_with([calculator])
 
     @patch("graphs.react_agent.load_tools", return_value=[])
     @patch("graphs.react_agent.get_llm")

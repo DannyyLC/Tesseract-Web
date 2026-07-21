@@ -239,8 +239,8 @@ def should_continue(state: ReactAgentState, ctx: TenantContext) -> Literal["tool
     # ==========================================
     # 1. Verificar límite de iteraciones
     # ==========================================
-    # Safety para evitar loops infinitos
-    max_iterations = ctx.agents_config.get("max_iterations", 10)
+    # Safety para evitar loops infinitos (config del grafo, no de un agente)
+    max_iterations = ctx.graph_config.get("max_iterations", 10)
     current_iteration = state.get("iteration_count", 0)
     
     if current_iteration >= max_iterations:
@@ -405,7 +405,7 @@ def create_react_agent(ctx: TenantContext) -> StateGraph:
     # Si el workflow tiene interrupts configurados,
     # LangGraph pausará antes de ejecutar tools
     # Útil para: human-in-the-loop, aprobaciones, etc
-    interrupts = ctx.agents_config.get("interrupts", [])
+    interrupts = ctx.graph_config.get("interrupts", [])
     interrupt_before = []
     
     if "before_tools" in interrupts and tools:
@@ -423,7 +423,7 @@ def create_react_agent(ctx: TenantContext) -> StateGraph:
     logger.info(
         f"[{ctx.workflow_id}] ReAct agent graph compiled successfully. "
         f"Tools: {len(tools)}, "
-        f"Max iterations: {ctx.agents_config.get('max_iterations', 10)}"
+        f"Max iterations: {ctx.graph_config.get('max_iterations', 10)}"
     )
     
     return compiled
