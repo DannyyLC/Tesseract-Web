@@ -221,7 +221,8 @@ export class WhatsappConfigController {
           result?.conversationId,
           account.organizationId,
           conversation?.metadata as JsonObject,
-          parsedBody
+          parsedBody,
+          account.defaultWorkflowId,
         )
       }
 

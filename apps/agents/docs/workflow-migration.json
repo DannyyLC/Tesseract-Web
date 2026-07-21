@@ -6,11 +6,22 @@
       "<<TEMPLATE_UUID>>": "UUID del WhatsAppTemplate con body = [client_number, motivo, resumen]",
       "<<PROMPT ...>>": "Prompts actuales de DB, verbatim (se trabajan por separado)"
     },
-    "requisitos_gateway": "F5.2: el Gateway debe exponer user_metadata.client_number (hoy lo manda como dynamic_extra_data_for_templates.client_number)",
+    "requisitos_gateway": "F5.2: el Gateway expone user_metadata.client_number (channelContext en buildAgentPayload). F5.1: post_turn_actions declaradas abajo reemplazan el hook hardcodeado de media_url (mismo texto y once-per-conversation).",
     "equivalencia": "El body final que recibe YCloud es idéntico al actual: [client_number, motivo, resumen]. Antes el client_number lo insertaba un hack dentro de la tool; ahora es explícito en el nodo notify_team.",
     "tool_instance_en_synthesizer": "El UUID de send_bulk_whatsapp se declara en agents.synthesizer.tools SOLO para que el Gateway incluya la instancia en agent_tool_instances (el nodo notify_team la busca por UUID). El synthesizer nunca la bindea a su LLM."
   },
   "type": "agent",
+  "post_turn_actions": [
+    {
+      "id": "share_catalog_media",
+      "when": { "variable": "media_url", "op": "not_empty" },
+      "action": "send_drive_folder_media",
+      "params": {
+        "intro_message": "Te tratare de compartir algúnos archivos que son relevantes en relación a lo mencionado anteriormente."
+      },
+      "once_per_conversation": true
+    }
+  ],
   "graph": {
     "type": "pipeline",
     "schema_version": 1,

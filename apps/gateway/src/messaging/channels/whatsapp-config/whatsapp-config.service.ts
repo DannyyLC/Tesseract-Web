@@ -10,6 +10,11 @@ import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.s
 import { JsonObject } from '@prisma/client/runtime/client';
 import { WhatsAppInboundEvent } from './dto';
 import { ConversationsService } from '@/messaging/conversations/conversations.service';
+import {
+  PostTurnAction,
+  PostTurnActionHandler,
+  runPostTurnActions,
+} from '@/messaging/post-turn-actions';
 
 const YCLOUD_API_BASE = process.env.YCLOUD_API_BASE ?? 'https://api.ycloud.com/v2';
 
@@ -343,46 +348,138 @@ export class WhatsappConfigService {
     return output;
   }
 
-  async handleActionsDerivatedFromMetadata(conversationId: string, organizationId: string, executionMetadata: JsonObject, whatsappInboundMessagePayload: WhatsAppInboundEvent): Promise<void>  {
+  /**
+   * Ejecuta las acciones post-turno DECLARADAS en la config del workflow
+   * (workflow.config.post_turn_actions) contra las variables persistidas de la
+   * conversación. El Gateway es agnóstico: qué acción, con qué variable, con qué
+   * texto y con qué frecuencia lo decide cada workflow en su config.
+   *
+   * Retrocompatibilidad: si el workflow NO declara post_turn_actions, se aplica
+   * el comportamiento legacy (variables.media_url → enviar archivos una vez).
+   */
+  async handleActionsDerivatedFromMetadata(
+    conversationId: string,
+    organizationId: string,
+    executionMetadata: JsonObject,
+    whatsappInboundMessagePayload: WhatsAppInboundEvent,
+    workflowId?: string,
+  ): Promise<void> {
     const clientNumber = whatsappInboundMessagePayload.whatsappInboundMessage.from;
     const ownerNumber = whatsappInboundMessagePayload.whatsappInboundMessage.to;
-    if(clientNumber === undefined || ownerNumber === undefined) {
+    if (clientNumber === undefined || ownerNumber === undefined) {
       this.logger.error('Client number or owner number is undefined in the WhatsApp inbound message payload.');
       return;
     }
 
-    if (executionMetadata) {
-      const variables = ((executionMetadata ?? {}) as JsonObject)?.variables;
-      if (variables && Object.keys(variables).length > 0) {
-        if ((variables as JsonObject)?.media_url && !(executionMetadata as JsonObject)?.media_url_sent) {
-          const mediaUrlValue = (variables as JsonObject)?.media_url;
-          const mediaUrls = Array.isArray(mediaUrlValue)
-            ? mediaUrlValue
-            : typeof mediaUrlValue === 'string' && mediaUrlValue.includes(',')
-              ? mediaUrlValue.split(',')
-              : [mediaUrlValue];
+    const variables = (((executionMetadata ?? {}) as JsonObject)?.variables ?? {}) as Record<string, unknown>;
+    if (Object.keys(variables).length === 0) {
+      return;
+    }
 
-          var firstTime = true;
-          for (const mediaUrl of mediaUrls) {
-            if (firstTime) {
-              this.sendTextMessage(ownerNumber, clientNumber, 'Te tratare de compartir algúnos archivos que son relevantes en relación a lo mencionado anteriormente.');
-              firstTime = false;
-            }
-            const normalizedMediaUrl = String(mediaUrl).trim();
-            if (!normalizedMediaUrl) {
-              continue;
-            }
-
-            await this.sendFolderMediaToUser(normalizedMediaUrl, ownerNumber, clientNumber);
-          }
-          this.conversationsService.update(organizationId, conversationId, {
-            metadata: {
-              ...executionMetadata,
-              media_url_sent: true,
-            },
-          });
+    // Acciones declaradas por el workflow (si hay workflowId disponible)
+    let declaredActions: PostTurnAction[] | null = null;
+    if (workflowId) {
+      try {
+        const workflow = await this.prismaService.workflow.findUnique({
+          where: { id: workflowId },
+          select: { config: true },
+        });
+        const configured = (workflow?.config as JsonObject | null)?.post_turn_actions;
+        if (Array.isArray(configured)) {
+          declaredActions = configured as unknown as PostTurnAction[];
         }
+      } catch (error) {
+        this.logger.error(`post_turn_actions: error cargando workflow ${workflowId}:`, error);
       }
+    }
+
+    if (declaredActions === null) {
+      // Legacy: workflow sin post_turn_actions declaradas → comportamiento histórico
+      await this.legacyMediaUrlAction(conversationId, organizationId, executionMetadata, ownerNumber, clientNumber);
+      return;
+    }
+
+    // Handlers que este canal (WhatsApp) ofrece a las acciones declaradas
+    const handlers: Record<string, PostTurnActionHandler> = {
+      send_drive_folder_media: async (triggerValue, params) => {
+        const urls = Array.isArray(triggerValue)
+          ? triggerValue
+          : String(triggerValue ?? '').split(',');
+        const intro = params.intro_message ? String(params.intro_message) : '';
+        if (intro) {
+          await this.sendTextMessage(ownerNumber, clientNumber, intro);
+        }
+        for (const url of urls) {
+          const normalized = String(url).trim();
+          if (!normalized) continue;
+          await this.sendFolderMediaToUser(normalized, ownerNumber, clientNumber);
+        }
+      },
+      send_text_message: async (_triggerValue, params) => {
+        const text = params.text ? String(params.text) : '';
+        if (text) {
+          await this.sendTextMessage(ownerNumber, clientNumber, text);
+        }
+      },
+    };
+
+    const previousFlags =
+      ((executionMetadata as JsonObject)?.postTurnActions as Record<string, boolean>) ?? {};
+
+    const updatedFlags = await runPostTurnActions({
+      actions: declaredActions,
+      variables,
+      doneFlags: previousFlags,
+      handlers,
+      log: (level, message) => this.logger[level](message),
+    });
+
+    if (JSON.stringify(updatedFlags) !== JSON.stringify(previousFlags)) {
+      await this.conversationsService.update(organizationId, conversationId, {
+        metadata: {
+          ...executionMetadata,
+          postTurnActions: updatedFlags,
+        },
+      });
+    }
+  }
+
+  /** Comportamiento histórico (workflows sin post_turn_actions declaradas). */
+  private async legacyMediaUrlAction(
+    conversationId: string,
+    organizationId: string,
+    executionMetadata: JsonObject,
+    ownerNumber: string,
+    clientNumber: string,
+  ): Promise<void> {
+    const variables = ((executionMetadata ?? {}) as JsonObject)?.variables;
+    if ((variables as JsonObject)?.media_url && !(executionMetadata as JsonObject)?.media_url_sent) {
+      const mediaUrlValue = (variables as JsonObject)?.media_url;
+      const mediaUrls = Array.isArray(mediaUrlValue)
+        ? mediaUrlValue
+        : typeof mediaUrlValue === 'string' && mediaUrlValue.includes(',')
+          ? mediaUrlValue.split(',')
+          : [mediaUrlValue];
+
+      let firstTime = true;
+      for (const mediaUrl of mediaUrls) {
+        if (firstTime) {
+          this.sendTextMessage(ownerNumber, clientNumber, 'Te tratare de compartir algúnos archivos que son relevantes en relación a lo mencionado anteriormente.');
+          firstTime = false;
+        }
+        const normalizedMediaUrl = String(mediaUrl).trim();
+        if (!normalizedMediaUrl) {
+          continue;
+        }
+
+        await this.sendFolderMediaToUser(normalizedMediaUrl, ownerNumber, clientNumber);
+      }
+      await this.conversationsService.update(organizationId, conversationId, {
+        metadata: {
+          ...executionMetadata,
+          media_url_sent: true,
+        },
+      });
     }
   }
 
