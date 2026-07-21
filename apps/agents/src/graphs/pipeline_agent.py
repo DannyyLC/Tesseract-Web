@@ -105,8 +105,13 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 # Tag de LangChain que marca las llamadas LLM cuyos tokens NO deben streamearse
-# al usuario (especialistas en modo paralelo). El servicer filtra por este tag.
+# al usuario (especialistas en modo paralelo, nodos silent). El servicer filtra
+# por este tag.
 NO_STREAM_TAG = "pipeline_no_stream"
+
+# Versión máxima del contrato de graph_config que este motor soporta.
+# La evolución del schema es SOLO ADITIVA (ver docs/graph-schema.md).
+SUPPORTED_SCHEMA_VERSION = 1
 
 
 def _merge_variables(left: Dict[str, Any] | None, right: Dict[str, Any] | None) -> Dict[str, Any]:
@@ -119,6 +124,46 @@ def _merge_variables(left: Dict[str, Any] | None, right: Dict[str, Any] | None) 
     No apoyar lógica de negocio en ese orden.
     """
     return {**(left or {}), **(right or {})}
+
+
+def _make_variables_reducer(reducers_cfg: Dict[str, Any] | None):
+    """
+    Construye el reducer del canal `variables` respetando los modos declarados en
+    graph_config.variable_reducers: {"<var>": {"mode": "join"|"append"|"last", ...}}.
+
+    Modos:
+        last   (default) — la escritura nueva pisa la anterior (comportamiento clásico)
+        join   — une valores en un string con "separator" (default ","), deduplicando
+                 y descartando vacíos. Sobrevive a escrituras de ramas paralelas.
+        append — acumula en lista (concatena listas, agrega escalares)
+
+    Sin variable_reducers declarados, es equivalente a _merge_variables.
+    """
+    reducers_cfg = reducers_cfg or {}
+
+    if not reducers_cfg:
+        return _merge_variables
+
+    def reduce_variables(left: Dict[str, Any] | None, right: Dict[str, Any] | None) -> Dict[str, Any]:
+        left = left or {}
+        right = right or {}
+        out = dict(left)
+        for key, value in right.items():
+            cfg = reducers_cfg.get(key)
+            mode = (cfg or {}).get("mode", "last")
+
+            if mode == "join" and key in out and out[key] not in (None, "") and value not in (None, ""):
+                separator = (cfg or {}).get("separator", ",")
+                out[key] = _join_dedup([out[key], value], separator)
+            elif mode == "append" and key in out and out[key] is not None and value is not None:
+                prev = out[key] if isinstance(out[key], list) else [out[key]]
+                new = value if isinstance(value, list) else [value]
+                out[key] = prev + new
+            else:
+                out[key] = value
+        return out
+
+    return reduce_variables
 
 
 def _keep_last(left: Any, right: Any) -> Any:
@@ -178,31 +223,83 @@ class PipelineAgentState(TypedDict):
     specialist_outputs: Annotated[list, operator.add]
     pending_handoffs: Annotated[list, _append_or_reset]
     collected_variables: Annotated[list, operator.add]
+    internal_usage: Annotated[list, operator.add]
     parallel_mode: bool
     current_intent: str
+
+
+def _build_state_class(variable_reducers: Dict[str, Any] | None):
+    """
+    Construye el schema de estado del pipeline POR WORKFLOW.
+
+    Los reducers de LangGraph son estáticos en el TypedDict, así que para que
+    graph_config.variable_reducers sea configurable, el builder crea la clase de
+    estado dinámicamente con el reducer de `variables` como closure sobre la
+    config. Sin variable_reducers declarados, devuelve el schema clásico.
+    """
+    if not variable_reducers:
+        return PipelineAgentState
+
+    return TypedDict("PipelineAgentState", {
+        "messages": Annotated[list, add_messages],
+        "variables": Annotated[Dict[str, Any], _make_variables_reducer(variable_reducers)],
+        "current_node": Annotated[str, _keep_last],
+        "execution_path": Annotated[List[str], operator.add],
+        "iteration_count": int,
+        "specialist_outputs": Annotated[list, operator.add],
+        "pending_handoffs": Annotated[list, _append_or_reset],
+        "collected_variables": Annotated[list, operator.add],
+        "internal_usage": Annotated[list, operator.add],
+        "parallel_mode": bool,
+        "current_intent": str,
+    })
 
 
 # =============================================================================
 # UTILIDADES: RESOLUCIÓN DE PATHS Y TEMPLATES
 # =============================================================================
 
-def _resolve_path(state: PipelineAgentState, path: str) -> Any:
+# Namespaces reconocidos por el motor de templates. Un template cuyo primer
+# segmento NO esté aquí se deja LITERAL (no se reemplaza por vacío): permite que
+# los system prompts contengan texto como "{{1}}" (placeholders de Meta) sin que
+# el renderizado los destruya.
+_TEMPLATE_ROOTS = {
+    "variables",        # bus de datos del pipeline (state.variables)
+    "context",          # TenantContext de solo lectura (user_metadata, channel, ...)
+    "current_node",
+    "current_intent",
+    "execution_path",
+}
+
+# Campos del TenantContext expuestos al namespace {{context.*}} (solo lectura)
+_CONTEXT_FIELDS = {
+    "user_metadata", "channel", "timezone", "user_id",
+    "conversation_id", "tenant_id", "workflow_id", "user_type",
+}
+
+
+def _resolve_path(state: PipelineAgentState, path: str, ctx: "TenantContext | None" = None) -> Any:
     """
-    Resuelve un path con notación de punto contra el estado del grafo.
+    Resuelve un path con notación de punto contra el estado del grafo, o contra
+    el TenantContext si el path empieza con "context.".
 
     Ejemplos:
-        _resolve_path(state, "variables.intent")    → state["variables"]["intent"]
-        _resolve_path(state, "variables.user.name") → state["variables"]["user"]["name"]
-
-    Args:
-        state: Estado actual del grafo
-        path:  Path con notación de punto (ej: "variables.intent")
+        _resolve_path(state, "variables.intent")             → state["variables"]["intent"]
+        _resolve_path(state, "variables.user.name")          → state["variables"]["user"]["name"]
+        _resolve_path(state, "context.user_metadata.phone")  → ctx.user_metadata["phone"]
 
     Returns:
         El valor en ese path, o None si no existe
     """
     parts = path.split(".")
-    current: Any = state
+
+    if parts[0] == "context":
+        if ctx is None or len(parts) < 2 or parts[1] not in _CONTEXT_FIELDS:
+            return None
+        current: Any = getattr(ctx, parts[1], None)
+        parts = parts[2:]
+    else:
+        current = state
 
     for part in parts:
         if isinstance(current, dict):
@@ -219,21 +316,31 @@ def _resolve_path(state: PipelineAgentState, path: str) -> Any:
 _TEMPLATE_PATTERN = re.compile(r"\{\{([^}]+)\}\}")
 
 
-def _render_template_value(value: Any, state: PipelineAgentState) -> Any:
+def _is_known_template(path: str) -> bool:
+    return path.split(".")[0].strip() in _TEMPLATE_ROOTS
+
+
+def _render_template_value(
+    value: Any, state: PipelineAgentState, ctx: "TenantContext | None" = None
+) -> Any:
     """
-    Resuelve templates {{variables.x}} contra el estado. Reutilizado por _render_params
-    (params de nodos tool) y por los nodos set_variables/synthesizer para que
-    `variables` y `append_system_message` también soporten templates.
+    Resuelve templates {{variables.x}} / {{context.x}} contra el estado y el
+    TenantContext. Es el ÚNICO motor de templates del pipeline: lo usan los
+    params de nodos tool, set_variables, append_system_message,
+    system_prompt_extra y el system_prompt de los agentes.
 
     Soporta dos formas:
     1. Template completo:  "{{variables.fecha}}"       → devuelve el valor tal cual (cualquier tipo)
     2. Template inline:   "Hola {{variables.nombre}}"  → reemplaza dentro del string
+
+    Los templates con namespace desconocido (p.ej. "{{1}}" en un prompt) se dejan
+    literales — nunca se reemplazan por vacío.
     """
     if not isinstance(value, str):
         if isinstance(value, dict):
-            return {k: _render_template_value(v, state) for k, v in value.items()}
+            return {k: _render_template_value(v, state, ctx) for k, v in value.items()}
         if isinstance(value, list):
-            return [_render_template_value(item, state) for item in value]
+            return [_render_template_value(item, state, ctx) for item in value]
         return value
 
     matches = _TEMPLATE_PATTERN.findall(value)
@@ -243,18 +350,26 @@ def _render_template_value(value: Any, state: PipelineAgentState) -> Any:
 
     # Template completo (el string entero es un template) → devolver tipo original
     if len(matches) == 1 and value.strip() == f"{{{{{matches[0]}}}}}":
-        return _resolve_path(state, matches[0].strip())
+        path = matches[0].strip()
+        if not _is_known_template(path):
+            return value
+        return _resolve_path(state, path, ctx)
 
-    # Template inline → reemplazar dentro del string
+    # Template inline → reemplazar dentro del string (solo namespaces conocidos)
     result = value
     for match in matches:
-        resolved = _resolve_path(state, match.strip())
+        path = match.strip()
+        if not _is_known_template(path):
+            continue
+        resolved = _resolve_path(state, path, ctx)
         result = result.replace(f"{{{{{match}}}}}", str(resolved) if resolved is not None else "")
 
     return result
 
 
-def _render_params(params: Dict[str, Any], state: PipelineAgentState) -> Dict[str, Any]:
+def _render_params(
+    params: Dict[str, Any], state: PipelineAgentState, ctx: "TenantContext | None" = None
+) -> Dict[str, Any]:
     """
     Renderiza los parámetros de un nodo tool reemplazando templates con valores del estado.
 
@@ -270,7 +385,7 @@ def _render_params(params: Dict[str, Any], state: PipelineAgentState) -> Dict[st
             "fixed": "valor_fijo"
           }
     """
-    return {k: _render_template_value(v, state) for k, v in params.items()}
+    return {k: _render_template_value(v, state, ctx) for k, v in params.items()}
 
 
 def _evaluate_condition(op: str, field_value: Any, compare_value: Any) -> bool:
@@ -390,7 +505,9 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                      set_variables_on_tool_call: Dict[str, Dict[str, Any]] | None = None,
                      intercept_tools_in_parallel: List[str] | None = None,
                      handoff_label: str | None = None,
-                     handoff_reason_injection: Dict[str, Any] | None = None):
+                     handoff_reason_injection: Dict[str, Any] | None = None,
+                     silent: bool = False,
+                     system_prompt_extra: str = ""):
     """
     Crea un nodo que llama al LLM y opcionalmente guarda su respuesta en variables.
 
@@ -441,6 +558,15 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                                 handoff_reason_injection): sin handoff_label, este nodo NUNCA
                                 sobrescribe variables.body, sin importar si handoff_reason_injection
                                 está configurado a nivel grafo.
+        silent:                 Si True, el nodo es INTERNO: toda llamada LLM lleva NO_STREAM_TAG
+                                (sus tokens nunca llegan al usuario), su respuesta va SOLO a
+                                variables[output_variable] y no escribe messages ni
+                                specialist_outputs. El usage se reporta vía el canal
+                                internal_usage para el accounting del servicer.
+        system_prompt_extra:    Template opcional que se suma al system prompt del agente en cada
+                                ejecución (p.ej. "{{variables.handoff_notice_text}}"). Un template
+                                que resuelve a vacío no agrega nada. Sustituto explícito y visible
+                                del canal interno __append_system_message__.
         handoff_reason_injection:
                                 Config opcional (normalmente heredada del graph_config raíz vía
                                 create_pipeline_agent): {"tool", "list_arg", "variables_key",
@@ -469,10 +595,14 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
         + (f" [agentic, {len(agent_tools)} tools, max_iterations={max_iterations}]" if is_agentic else "")
     )
 
-    def node(state: PipelineAgentState) -> dict:
+    def node(state) -> dict:
         messages = list(state["messages"])
         agent_config = ctx.get_agent_config(agent_name)
-        base_system_prompt = agent_config.get("system_prompt", "")
+        # El system prompt soporta templates {{variables.x}} / {{context.x}}
+        # (los namespaces desconocidos, p.ej. "{{1}}", se dejan literales)
+        base_system_prompt = _render_template_value(
+            agent_config.get("system_prompt", ""), state, ctx
+        )
 
         # Rama de un fan-out multi-intent (viaja en el input del Send, no en el estado global)
         parallel = bool(state.get("parallel_mode"))
@@ -488,8 +618,15 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
         time_context = _build_time_context(ctx)
         system_prompt = base_system_prompt + time_context if base_system_prompt else time_context
 
-        # Canal interno: un nodo set_variables previo pudo dejar texto a sumar al system prompt.
-        # Se consume aquí (delta a None; los consumidores tratan None como ausente).
+        # system_prompt_extra: texto adicional declarado en la config del nodo,
+        # con templates. Si resuelve a vacío, no agrega nada.
+        if system_prompt_extra:
+            extra = _render_template_value(system_prompt_extra, state, ctx)
+            if extra and str(extra).strip():
+                system_prompt = (system_prompt + "\n\n" + str(extra)) if system_prompt else str(extra)
+
+        # Canal interno (legacy): un nodo set_variables previo pudo dejar texto a sumar
+        # al system prompt. Se consume aquí (delta a None; None se trata como ausente).
         append_system_msg = state_vars.get("__append_system_message__")
         if append_system_msg:
             system_prompt = (system_prompt + "\n\n" + append_system_msg) if system_prompt else append_system_msg
@@ -507,9 +644,9 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
         }
 
         def invoke_llm(llm_obj, msgs):
-            # En paralelo los tokens no deben llegar al stream del usuario;
-            # el servicer filtra las llamadas marcadas con NO_STREAM_TAG.
-            if parallel:
+            # En paralelo (y en nodos silent) los tokens no deben llegar al stream
+            # del usuario; el servicer filtra las llamadas con NO_STREAM_TAG.
+            if parallel or silent:
                 return llm_obj.invoke(msgs, config={"tags": [NO_STREAM_TAG]})
             return llm_obj.invoke(msgs)
 
@@ -543,7 +680,7 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
                         rule_tool = rule.get("tool")
                         if rule_tool is not None and not _tool_name_matches(rule_tool, t):
                             continue
-                        field_value = _resolve_path(state, rule.get("field", ""))
+                        field_value = _resolve_path(state, rule.get("field", ""), ctx)
                         if _evaluate_condition(rule.get("op", "eq"), field_value, rule.get("value")):
                             disabled = True
                             break
@@ -740,6 +877,22 @@ def _make_agent_node(node_id: str, agent_name: str, output_variable: str | None,
         # ------------------------------------------------------------------
         # Construir salida del nodo
         # ------------------------------------------------------------------
+        if silent:
+            # Nodo interno: la respuesta va SOLO a variables[output_variable];
+            # nada al historial ni a specialist_outputs. El usage se reporta por
+            # internal_usage para que el accounting del servicer no lo pierda.
+            if output_variable:
+                variables_delta[output_variable] = content.strip() if isinstance(content, str) else content
+            usage = getattr(final_response, "usage_metadata", None)
+            if usage:
+                updates["internal_usage"] = [{
+                    "usage_metadata": usage,
+                    "response_metadata": getattr(final_response, "response_metadata", None),
+                }]
+            if variables_delta:
+                updates["variables"] = variables_delta
+            return updates
+
         if parallel:
             # Rama de fan-out: la respuesta NO va al historial (evita N burbujas al
             # usuario); va a specialist_outputs para que el synthesizer la combine.
@@ -845,9 +998,9 @@ def _make_tool_node(node_id: str, config: Dict[str, Any], ctx: TenantContext):
         f"(tool:{tool_name}.{function_name}) initialized"
     )
 
-    def node(state: PipelineAgentState) -> dict:
-        # Renderizar parámetros con valores del estado
-        rendered_params = _render_params(raw_params, state)
+    def node(state) -> dict:
+        # Renderizar parámetros con valores del estado y del contexto
+        rendered_params = _render_params(raw_params, state, ctx)
 
         logger.info(
             f"[{ctx.workflow_id}] Pipeline node '{node_id}' executing "
@@ -900,12 +1053,12 @@ def _make_set_variables_node(node_id: str, config: Dict[str, Any], ctx: TenantCo
 
     logger.info(f"[{ctx.workflow_id}] set_variables node '{node_id}' initialized")
 
-    def node(state: PipelineAgentState) -> dict:
+    def node(state) -> dict:
         # Delta: solo las claves seteadas (los reducers mergean), templates resueltos
-        variables_delta = _render_params(variables_to_set, state)
+        variables_delta = _render_params(variables_to_set, state, ctx)
 
         append_msg = (
-            _render_template_value(append_msg_template, state) if append_msg_template else ""
+            _render_template_value(append_msg_template, state, ctx) if append_msg_template else ""
         )
         if append_msg:
             variables_delta["__append_system_message__"] = append_msg
@@ -1136,6 +1289,9 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
     llm = get_llm(ctx, agent_name)
     execute_pending_handoffs = config.get("execute_pending_handoffs", True)
     handoff_notice = config.get("handoff_notice", "")
+    # Template opcional a sumar al system prompt de la síntesis (p.ej.
+    # "{{variables.handoff_notice_text}}"). Vacío al resolver → no agrega nada.
+    system_prompt_extra = config.get("system_prompt_extra", "")
     set_variables_on_finish = config.get("set_variables", {})
     consolidate_handoffs = config.get("consolidate_handoffs")
     # Variables a fusionar desde collected_variables (deltas de las ramas paralelas):
@@ -1155,7 +1311,7 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
         f"[{ctx.workflow_id}] Synthesizer node '{node_id}' (agent:{agent_name}) initialized"
     )
 
-    def node(state: PipelineAgentState) -> dict:
+    def node(state) -> dict:
         outputs = state.get("specialist_outputs", [])
 
         updates: Dict[str, Any] = {
@@ -1266,7 +1422,9 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
             )
         else:
             agent_config = ctx.get_agent_config(agent_name)
-            base_system_prompt = agent_config.get("system_prompt", "")
+            base_system_prompt = _render_template_value(
+                agent_config.get("system_prompt", ""), state, ctx
+            )
 
             outputs_block = "\n\nRESPUESTAS DE LOS ESPECIALISTAS:\n" + "\n\n".join(
                 f"[{o.get('intent') or o.get('agent')}]\n{o.get('content', '')}"
@@ -1276,6 +1434,10 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
             system_prompt = (base_system_prompt or "") + _build_time_context(ctx)
             if handoffs_executed and handoff_notice:
                 system_prompt += "\n\n" + handoff_notice
+            if system_prompt_extra:
+                extra = _render_template_value(system_prompt_extra, state, ctx)
+                if extra and str(extra).strip():
+                    system_prompt += "\n\n" + str(extra)
             system_prompt += outputs_block
 
             messages = list(state["messages"])
@@ -1304,7 +1466,7 @@ def _make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any]
 
         # Templates {{variables.x}} resueltos contra el estado (p.ej. "previous_intent":
         # "{{variables.intent}}" copia el intent vigente antes de resetearlo).
-        variables_delta: Dict[str, Any] = _render_params(set_variables_on_finish, state)
+        variables_delta: Dict[str, Any] = _render_params(set_variables_on_finish, state, ctx)
 
         # Fusionar variables acumuladas por las ramas paralelas (p.ej. media_url):
         # une todos los valores aportados en un solo string separado por el separador
@@ -1374,7 +1536,7 @@ def _make_condition_function(node_id: str, config: Dict[str, Any], ctx: TenantCo
         source = config["source"]
         branches = config["branches"]
 
-        def switch_condition(state: PipelineAgentState) -> str:
+        def switch_condition(state) -> str:
             value = _resolve_path(state, source)
             value_str = str(value).strip() if value is not None else ""
 
@@ -1399,12 +1561,12 @@ def _make_condition_function(node_id: str, config: Dict[str, Any], ctx: TenantCo
         rules = config.get("rules", [])
         default = config.get("default", END)
 
-        def rules_condition(state: PipelineAgentState) -> str:
+        def rules_condition(state) -> str:
             for rule in rules:
                 when = rule.get("when", {})
-                field_value = _resolve_path(state, when.get("field", ""))
+                field_value = _resolve_path(state, when.get("field", ""), ctx)
                 op = when.get("op", "eq")
-                compare_value = when.get("value")
+                compare_value = _render_template_value(when.get("value"), state, ctx)
 
                 if _evaluate_condition(op, field_value, compare_value):
                     destination = rule["goto"]
@@ -1444,12 +1606,26 @@ def _make_condition_function(node_id: str, config: Dict[str, Any], ctx: TenantCo
         lock_node = config.get("lock_node")          # ID del nodo set_variables de lock (opcional)
         max_parallel_agents = config.get("max_parallel_agents", 3)
         synthesizer_node = config.get("synthesizer_node")
+        # end_node: nodo al que ir en vez de END al terminar el turno (opcional).
+        # Punto único de finalización — permite colgar cadenas post-turno (p.ej.
+        # verificación de handoff) tanto en modo single como tras el lock.
+        end_node = config.get("end_node")
 
-        def router_condition(state: PipelineAgentState):
+        def router_condition(state):
             variables = state.get("variables", {})
             execution_path = state.get("execution_path", [])
             reroute_count = variables.get("reroute_count", 0)
             outputs_count = len(state.get("specialist_outputs", []))
+
+            def finish():
+                """Salida de fin de turno: end_node configurado (una sola vez) o END."""
+                if end_node and end_node not in execution_path:
+                    logger.info(
+                        f"[{ctx.workflow_id}] Router '{node_id}': fin de turno → "
+                        f"end_node '{end_node}'"
+                    )
+                    return end_node
+                return END
 
             # Convergencia del fan-out: si hay specialist_outputs, un fan-out ya corrió
             # en este turno y la ÚNICA salida válida es el synthesizer (o END). No se
@@ -1463,7 +1639,7 @@ def _make_condition_function(node_id: str, config: Dict[str, Any], ctx: TenantCo
                         f"({outputs_count} output(s) visibles) → '{synthesizer_node}'"
                     )
                     return synthesizer_node
-                return END
+                return finish()
 
             intents = _normalize_intents(_resolve_path(state, route_variable))
             valid_intents = [i for i in intents if i in routes]
@@ -1485,16 +1661,16 @@ def _make_condition_function(node_id: str, config: Dict[str, Any], ctx: TenantCo
                         f"alcanzado → '{lock_node}'"
                     )
                     return lock_node
-                logger.info(f"[{ctx.workflow_id}] Router '{node_id}': lock ya en path → END")
-                return END
+                logger.info(f"[{ctx.workflow_id}] Router '{node_id}': lock ya en path → fin de turno")
+                return finish()
 
             # Sin intents válidos → fallback (p.ej. classifier)
             if not valid_intents:
                 if fallback in execution_path:
                     logger.info(
-                        f"[{ctx.workflow_id}] Router '{node_id}': fallback '{fallback}' ya en path → END"
+                        f"[{ctx.workflow_id}] Router '{node_id}': fallback '{fallback}' ya en path → fin de turno"
                     )
-                    return END
+                    return finish()
                 logger.info(
                     f"[{ctx.workflow_id}] Router '{node_id}': intents={intents} → fallback '{fallback}'"
                 )
@@ -1502,9 +1678,9 @@ def _make_condition_function(node_id: str, config: Dict[str, Any], ctx: TenantCo
 
             if not pending:
                 logger.info(
-                    f"[{ctx.workflow_id}] Router '{node_id}': targets ya en path → END"
+                    f"[{ctx.workflow_id}] Router '{node_id}': targets ya en path → fin de turno"
                 )
-                return END
+                return finish()
 
             if len(pending) == 1 and outputs_count == 0:
                 # Modo single: ruta idéntica al comportamiento original (el especialista
@@ -1571,6 +1747,14 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
             "iteration_count": 0
         })
     """
+    # Versionado del contrato del schema (evolución solo aditiva; ver docs/graph-schema.md)
+    schema_version = ctx.graph_config.get("schema_version", 1)
+    if not isinstance(schema_version, int) or schema_version > SUPPORTED_SCHEMA_VERSION:
+        raise ValueError(
+            f"[{ctx.workflow_id}] graph_config.schema_version={schema_version} no soportado "
+            f"(máximo: {SUPPORTED_SCHEMA_VERSION})"
+        )
+
     nodes_config: List[Dict] = ctx.graph_config.get("nodes", [])
     edges_config: List[Dict] = ctx.graph_config.get("edges", [])
     # Config raíz opcional: motivo/resumen deterministas del handoff, compartida por
@@ -1595,7 +1779,9 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
     # Mapa rápido para buscar nodos por ID
     nodes_map: Dict[str, Dict] = {node["id"]: node for node in nodes_config}
 
-    graph = StateGraph(PipelineAgentState)
+    # Schema de estado por workflow (reducers de variables declarados en config)
+    state_class = _build_state_class(ctx.graph_config.get("variable_reducers"))
+    graph = StateGraph(state_class)
 
     # =========================================================================
     # 1. Agregar nodos al grafo (solo agent y tool; condition se maneja en edges)
@@ -1613,10 +1799,12 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
             set_variables_on_tool_call = node.get("set_variables_on_tool_call")
             intercept_tools_in_parallel = node.get("intercept_tools_in_parallel")
             handoff_label = node.get("handoff_label")
+            silent = bool(node.get("silent", False))
+            system_prompt_extra = node.get("system_prompt_extra", "")
             graph.add_node(node_id, _make_agent_node(
                 node_id, agent_name, output_variable, ctx, classification_pattern, max_iterations,
                 disable_tools_if, set_variables_on_tool_call, intercept_tools_in_parallel,
-                handoff_label, handoff_reason_injection
+                handoff_label, handoff_reason_injection, silent, system_prompt_extra
             ))
             logger.debug(f"[{ctx.workflow_id}] Added agent node: '{node_id}' (agent: {agent_name})")
 
@@ -1639,11 +1827,19 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
             logger.debug(f"[{ctx.workflow_id}] Added synthesizer node: '{node_id}' (agent: {agent_name})")
 
         elif node_type == "condition":
-            # Los nodos condition NO se agregan al grafo de LangGraph.
-            # Se convierten en conditional edges al procesar las aristas.
-            logger.debug(
-                f"[{ctx.workflow_id}] Condition node '{node_id}' will be converted to conditional edge"
+            # Nodo de PRIMERA CLASE: se agrega como pass-through y sus salidas son
+            # conditional edges desde él. Así puede ser destino de cualquier arista
+            # (incluido el router) y mapea 1:1 a un nodo visual con puertos de salida.
+            def _make_passthrough(nid):
+                def passthrough(state) -> dict:
+                    return {"current_node": nid, "execution_path": [nid]}
+                return passthrough
+
+            graph.add_node(node_id, _make_passthrough(node_id))
+            graph.add_conditional_edges(
+                node_id, _make_condition_function(node_id, node["config"], ctx)
             )
+            logger.debug(f"[{ctx.workflow_id}] Added condition node: '{node_id}'")
 
         else:
             raise ValueError(
@@ -1668,18 +1864,11 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
             logger.debug(f"[{ctx.workflow_id}] Edge: '{from_id}' → END")
             continue
 
-        # Verificar si el destino es un nodo condition
-        dest_config = nodes_map.get(to_id)
-        if dest_config and dest_config.get("type") == "condition":
-            # Convertir en conditional edge: el from_node bifurca según la condición
-            condition_fn = _make_condition_function(to_id, dest_config["config"], ctx)
-            graph.add_conditional_edges(from_node, condition_fn)
-            logger.debug(
-                f"[{ctx.workflow_id}] Conditional edge: '{from_id}' → condition '{to_id}'"
-            )
-        else:
-            graph.add_edge(from_node, to_id)
-            logger.debug(f"[{ctx.workflow_id}] Edge: '{from_id}' → '{to_id}'")
+        # Las conditions son nodos reales: una arista hacia ellas es una arista
+        # normal (la bifurcación son los conditional edges DESDE la condition,
+        # agregados al crear el nodo). Ambas sintaxis de config siguen válidas.
+        graph.add_edge(from_node, to_id)
+        logger.debug(f"[{ctx.workflow_id}] Edge: '{from_id}' → '{to_id}'")
 
     # =========================================================================
     # 3. Compilar

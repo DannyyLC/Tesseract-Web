@@ -240,18 +240,18 @@ def load_tools(ctx: TenantContext, agent_name: str = "default") -> List[BaseTool
     """
     
     agent_tools = ctx.get_agent_tools(agent_name)
-    
-    if not agent_tools:
-        logger.info(f"[{ctx.workflow_id}] No tools for agent '{agent_name}'")
-        return []
-    
-    logger.info(
-        f"[{ctx.workflow_id}] Loading {len(agent_tools)} tool instances "
-        f"for agent '{agent_name}'"
-    )
-    
+
+    if agent_tools:
+        logger.info(
+            f"[{ctx.workflow_id}] Loading {len(agent_tools)} tool instances "
+            f"for agent '{agent_name}'"
+        )
+    else:
+        # Sin tool instances el agente aún puede declarar signal_tools (abajo)
+        logger.info(f"[{ctx.workflow_id}] No tool instances for agent '{agent_name}'")
+
     tools = []
-    
+
     for tool_uuid, tool_instance in agent_tools.items():
         try:
             tool_name = tool_instance["tool_name"]
@@ -328,11 +328,24 @@ def load_tools(ctx: TenantContext, agent_name: str = "default") -> List[BaseTool
                 exc_info=True
             )
     
+    # ==========================================
+    # Signal tools declaradas por config (sin efectos; ver tools/signals.py)
+    # ==========================================
+    signal_defs = ctx.get_agent_config(agent_name).get("signal_tools")
+    if signal_defs:
+        from tools.signals import load_signal_tools
+        signal_tools = load_signal_tools(signal_defs)
+        tools.extend(signal_tools)
+        logger.info(
+            f"[{ctx.workflow_id}] Loaded {len(signal_tools)} signal tool(s) "
+            f"for agent '{agent_name}'"
+        )
+
     logger.info(
         f"[{ctx.workflow_id}] Successfully loaded {len(tools)} tools "
         f"for agent '{agent_name}'"
     )
-    
+
     return tools
 
 

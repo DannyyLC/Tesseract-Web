@@ -180,6 +180,7 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
                 "specialist_outputs":  [],
                 "pending_handoffs":    [],
                 "collected_variables": [],
+                "internal_usage":      [],
                 "parallel_mode":       False,
             })
             execution_time_ms = int((time.time() - start_time) * 1000)
@@ -225,6 +226,14 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
                 _accumulate_usage(
                     output.get("usage_metadata"),
                     output.get("response_metadata"),
+                )
+
+            # Nodos silent (internos): tampoco escriben al historial; su usage
+            # viaja en internal_usage.
+            for entry in result.get("internal_usage", []):
+                _accumulate_usage(
+                    entry.get("usage_metadata"),
+                    entry.get("response_metadata"),
                 )
 
             for name in usage_by_model:
@@ -300,6 +309,7 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
                     "specialist_outputs":  [],
                     "pending_handoffs":    [],
                     "collected_variables": [],
+                    "internal_usage":      [],
                     "parallel_mode":       False,
                 },
                 version="v2",
