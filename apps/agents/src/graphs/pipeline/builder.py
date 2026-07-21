@@ -10,7 +10,7 @@ PATRÓN PIPELINE:
 - El estado existe solo durante la ejecución; el Gateway persiste lo declarado
   en persist_variables.
 
-El contrato completo del schema está en docs/graph-schema.md.
+El contrato completo del schema está en <repo>/docs/reference/pipeline-graph-schema.md.
 """
 
 import logging
@@ -40,7 +40,7 @@ def create_pipeline_agent(ctx: TenantContext) -> StateGraph:
     - Nodos 'condition' son nodos de PRIMERA CLASE (pass-through) cuyas salidas son
       conditional edges — pueden ser destino de cualquier arista o del router.
     """
-    # Versionado del contrato del schema (evolución solo aditiva; ver docs/graph-schema.md)
+    # Versionado del contrato del schema (evolución solo aditiva; ver <repo>/docs/reference/pipeline-graph-schema.md)
     schema_version = ctx.graph_config.get("schema_version", 1)
     if not isinstance(schema_version, int) or schema_version > SUPPORTED_SCHEMA_VERSION:
         raise ValueError(

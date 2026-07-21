@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 NO_STREAM_TAG = "pipeline_no_stream"
 
 # Versión máxima del contrato de graph_config que este motor soporta.
-# La evolución del schema es SOLO ADITIVA (ver docs/graph-schema.md).
+# La evolución del schema es SOLO ADITIVA (ver <repo>/docs/reference/pipeline-graph-schema.md).
 SUPPORTED_SCHEMA_VERSION = 1
 
 

@@ -1,8 +1,14 @@
-# Contrato del schema de `graph_config` (pipeline)
+---
+title: 'Schema del grafo Pipeline'
+description: 'Contrato de `config.graph` para workflows tipo pipeline: tipos de nodo, aristas, templates, reducers y regla de evolución.'
+---
 
 Este documento define el contrato entre los workflows guardados en DB, el motor
 (`apps/agents`) y el futuro editor visual. **El JSON del grafo ES el contrato**:
 el editor leerá y escribirá el mismo JSON que el motor ejecuta.
+
+Para elegir entre los cinco tipos de grafo disponibles, ver
+[Tipos de Agente](/reference/agent-types). Este documento cubre solo `pipeline`.
 
 ## Regla de oro: evolución SOLO ADITIVA
 

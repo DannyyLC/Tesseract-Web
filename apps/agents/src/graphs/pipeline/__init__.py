@@ -1,7 +1,7 @@
 """
 Pipeline: grafo dinámico construido desde configuración.
 
-API pública del paquete. El contrato del graph_config está en docs/graph-schema.md.
+API pública del paquete. El contrato del graph_config está en <repo>/docs/reference/pipeline-graph-schema.md.
 """
 
 from graphs.pipeline.builder import create_pipeline_agent

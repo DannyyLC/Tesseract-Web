@@ -1,10 +1,14 @@
 """
-Equivalencia del workflow MIGRADO (docs/workflow-migration.json) contra los
-mismos 8 escenarios golden de test_workflow_equivalence.py.
+Equivalencia del workflow de producción (fixtures/workflow-pipeline.json) contra
+los 8 escenarios golden del comportamiento histórico.
 
-El workflow migrado usa SOLO primitivas generales (signal tool + condition +
-agente resumidor silent + nodo tool determinista + variable_reducers) y debe
-producir los mismos resultados observables que el original:
+El fixture es una copia del cableado real aplicado en DB, con valores de prueba
+en lugar de los datos del cliente (número del equipo, template UUID y prompts).
+Su función aquí es de REGRESIÓN: si un cambio futuro del motor rompe alguna de
+las primitivas que ese cableado usa (signal tool, condition, agente silent, nodo
+tool determinista, variable_reducers), estos tests lo detectan.
+
+Comportamientos verificados:
 
 - misma respuesta única al usuario en cada modo
 - UNA sola notificación al equipo por conversación, con el body posicional que
@@ -27,7 +31,7 @@ from langchain_core.messages import AIMessage, HumanMessage  # noqa: E402
 from core.context import TenantContext  # noqa: E402
 from graphs.pipeline import NO_STREAM_TAG, create_pipeline_agent  # noqa: E402
 
-MIGRATION_FILE = Path(__file__).parent.parent / "docs" / "workflow-migration.json"
+WORKFLOW_FIXTURE = Path(__file__).parent / "fixtures" / "workflow-pipeline.json"
 
 TEAM_NUMBER = "+52TEAM"
 TEMPLATE_UUID = "tpl-uuid"
@@ -43,10 +47,7 @@ SPECIALIST_IDS = [
 
 
 def load_workflow():
-    raw = MIGRATION_FILE.read_text(encoding="utf-8")
-    raw = raw.replace("<<NUMERO_EQUIPO_VENTAS>>", TEAM_NUMBER)
-    raw = raw.replace("<<TEMPLATE_UUID>>", TEMPLATE_UUID)
-    return json.loads(raw)
+    return json.loads(WORKFLOW_FIXTURE.read_text(encoding="utf-8"))
 
 
 # ── Fakes ───────────────────────────────────────────────────────────────────────

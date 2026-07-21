@@ -6,7 +6,7 @@ expone vía el RPC GetNodeCatalog para que el Gateway valide workflows al
 guardarlos y para que el futuro editor visual renderice formularios y paletas de
 nodos sin duplicar conocimiento del motor.
 
-La evolución es SOLO ADITIVA (ver docs/graph-schema.md).
+La evolución es SOLO ADITIVA (ver <repo>/docs/reference/pipeline-graph-schema.md).
 """
 
 from typing import Any, Dict

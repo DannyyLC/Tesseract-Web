@@ -1,20 +1,12 @@
 {
-  "_notes": {
-    "que_es": "Workflow de producción migrado a las primitivas generales del motor (F3). Reemplaza intercept_tools_in_parallel / handoff_label / handoff_reason_injection / consolidate_handoffs / join_variables por: signal tool + condition + agente resumidor (silent) + nodo tool determinista + variable_reducers.",
-    "placeholders_a_reemplazar_al_aplicar": {
-      "<<NUMERO_EQUIPO_VENTAS>>": "Número E.164 del equipo (hoy vive en los prompts de los especialistas en DB)",
-      "<<TEMPLATE_UUID>>": "UUID del WhatsAppTemplate con body = [client_number, motivo, resumen]",
-      "<<PROMPT ...>>": "Prompts actuales de DB, verbatim (se trabajan por separado)"
-    },
-    "requisitos_gateway": "F5.2: el Gateway expone user_metadata.client_number (channelContext en buildAgentPayload). F5.1: post_turn_actions declaradas abajo reemplazan el hook hardcodeado de media_url (mismo texto y once-per-conversation).",
-    "equivalencia": "El body final que recibe YCloud es idéntico al actual: [client_number, motivo, resumen]. Antes el client_number lo insertaba un hack dentro de la tool; ahora es explícito en el nodo notify_team.",
-    "tool_instance_en_synthesizer": "El UUID de send_bulk_whatsapp se declara en agents.synthesizer.tools SOLO para que el Gateway incluya la instancia en agent_tool_instances (el nodo notify_team la busca por UUID). El synthesizer nunca la bindea a su LLM."
-  },
   "type": "agent",
   "post_turn_actions": [
     {
       "id": "share_catalog_media",
-      "when": { "variable": "media_url", "op": "not_empty" },
+      "when": {
+        "variable": "media_url",
+        "op": "not_empty"
+      },
       "action": "send_drive_folder_media",
       "params": {
         "intro_message": "Te tratare de compartir algúnos archivos que son relevantes en relación a lo mencionado anteriormente."
@@ -26,20 +18,62 @@
     "type": "pipeline",
     "schema_version": 1,
     "edges": [
-      { "from": "START", "to": "check_route" },
-      { "from": "inject_context", "to": "agent_general" },
-      { "from": "lock_routing", "to": "agent_general" },
-      { "from": "agent_general", "to": "check_route" },
-      { "from": "armas_menos_letales", "to": "check_route" },
-      { "from": "simuladores_de_manejo", "to": "check_route" },
-      { "from": "stands_tiro_real", "to": "check_route" },
-      { "from": "stands_tiro_virtual", "to": "check_route" },
-      { "from": "blindaje_automotriz", "to": "check_route" },
-      { "from": "equipamiento_de_armerias", "to": "check_route" },
-      { "from": "summarize_handoff", "to": "notify_team" },
-      { "from": "notify_team", "to": "mark_handoff_done" },
-      { "from": "mark_handoff_done", "to": "synthesize" },
-      { "from": "synthesize", "to": "END" }
+      {
+        "from": "START",
+        "to": "check_route"
+      },
+      {
+        "from": "inject_context",
+        "to": "agent_general"
+      },
+      {
+        "from": "lock_routing",
+        "to": "agent_general"
+      },
+      {
+        "from": "agent_general",
+        "to": "check_route"
+      },
+      {
+        "from": "armas_menos_letales",
+        "to": "check_route"
+      },
+      {
+        "from": "simuladores_de_manejo",
+        "to": "check_route"
+      },
+      {
+        "from": "stands_tiro_real",
+        "to": "check_route"
+      },
+      {
+        "from": "stands_tiro_virtual",
+        "to": "check_route"
+      },
+      {
+        "from": "blindaje_automotriz",
+        "to": "check_route"
+      },
+      {
+        "from": "equipamiento_de_armerias",
+        "to": "check_route"
+      },
+      {
+        "from": "summarize_handoff",
+        "to": "notify_team"
+      },
+      {
+        "from": "notify_team",
+        "to": "mark_handoff_done"
+      },
+      {
+        "from": "mark_handoff_done",
+        "to": "synthesize"
+      },
+      {
+        "from": "synthesize",
+        "to": "END"
+      }
     ],
     "nodes": [
       {
@@ -80,7 +114,9 @@
         "id": "lock_routing",
         "type": "set_variables",
         "config": {
-          "variables": { "routing_locked": true },
+          "variables": {
+            "routing_locked": true
+          },
           "append_system_message": "IMPORTANTE — RUTEO BLOQUEADO: Debes responder al usuario directamente con la mejor respuesta posible. No incluyas [ROUTE:x] en esta respuesta bajo ninguna circunstancia."
         }
       },
@@ -92,7 +128,12 @@
         "output_variable": "intent",
         "classification_pattern": "\\[ROUTE:([\\w,\\s]+)\\]",
         "disable_tools_if": [
-          { "tool": "solicitar_asesor", "field": "variables.handoff_done", "op": "eq", "value": true }
+          {
+            "tool": "solicitar_asesor",
+            "field": "variables.handoff_done",
+            "op": "eq",
+            "value": true
+          }
         ],
         "set_variables_on_tool_call": {
           "solicitar_asesor": {
@@ -110,7 +151,12 @@
         "output_variable": "intent",
         "classification_pattern": "\\[ROUTE:([\\w,\\s]+)\\]",
         "disable_tools_if": [
-          { "tool": "solicitar_asesor", "field": "variables.handoff_done", "op": "eq", "value": true }
+          {
+            "tool": "solicitar_asesor",
+            "field": "variables.handoff_done",
+            "op": "eq",
+            "value": true
+          }
         ],
         "set_variables_on_tool_call": {
           "solicitar_asesor": {
@@ -129,7 +175,12 @@
         "output_variable": "intent",
         "classification_pattern": "\\[ROUTE:([\\w,\\s]+)\\]",
         "disable_tools_if": [
-          { "tool": "solicitar_asesor", "field": "variables.handoff_done", "op": "eq", "value": true }
+          {
+            "tool": "solicitar_asesor",
+            "field": "variables.handoff_done",
+            "op": "eq",
+            "value": true
+          }
         ],
         "set_variables_on_tool_call": {
           "solicitar_asesor": {
@@ -148,7 +199,12 @@
         "output_variable": "intent",
         "classification_pattern": "\\[ROUTE:([\\w,\\s]+)\\]",
         "disable_tools_if": [
-          { "tool": "solicitar_asesor", "field": "variables.handoff_done", "op": "eq", "value": true }
+          {
+            "tool": "solicitar_asesor",
+            "field": "variables.handoff_done",
+            "op": "eq",
+            "value": true
+          }
         ],
         "set_variables_on_tool_call": {
           "solicitar_asesor": {
@@ -166,7 +222,12 @@
         "output_variable": "intent",
         "classification_pattern": "\\[ROUTE:([\\w,\\s]+)\\]",
         "disable_tools_if": [
-          { "tool": "solicitar_asesor", "field": "variables.handoff_done", "op": "eq", "value": true }
+          {
+            "tool": "solicitar_asesor",
+            "field": "variables.handoff_done",
+            "op": "eq",
+            "value": true
+          }
         ],
         "set_variables_on_tool_call": {
           "solicitar_asesor": {
@@ -184,7 +245,12 @@
         "output_variable": "intent",
         "classification_pattern": "\\[ROUTE:([\\w,\\s]+)\\]",
         "disable_tools_if": [
-          { "tool": "solicitar_asesor", "field": "variables.handoff_done", "op": "eq", "value": true }
+          {
+            "tool": "solicitar_asesor",
+            "field": "variables.handoff_done",
+            "op": "eq",
+            "value": true
+          }
         ],
         "set_variables_on_tool_call": {
           "solicitar_asesor": {
@@ -202,7 +268,12 @@
         "output_variable": "intent",
         "classification_pattern": "\\[ROUTE:([\\w,\\s]+)\\]",
         "disable_tools_if": [
-          { "tool": "solicitar_asesor", "field": "variables.handoff_done", "op": "eq", "value": true }
+          {
+            "tool": "solicitar_asesor",
+            "field": "variables.handoff_done",
+            "op": "eq",
+            "value": true
+          }
         ],
         "set_variables_on_tool_call": {
           "solicitar_asesor": {
@@ -218,8 +289,22 @@
         "config": {
           "mode": "rules",
           "rules": [
-            { "when": { "field": "variables.handoff_done", "op": "eq", "value": true }, "goto": "synthesize" },
-            { "when": { "field": "variables.handoff_requested", "op": "eq", "value": true }, "goto": "summarize_handoff" }
+            {
+              "when": {
+                "field": "variables.handoff_done",
+                "op": "eq",
+                "value": true
+              },
+              "goto": "synthesize"
+            },
+            {
+              "when": {
+                "field": "variables.handoff_requested",
+                "op": "eq",
+                "value": true
+              },
+              "goto": "summarize_handoff"
+            }
           ],
           "default": "synthesize"
         }
@@ -240,8 +325,8 @@
           "params": {
             "messages": [
               {
-                "to": "<<NUMERO_EQUIPO_VENTAS>>",
-                "template_id": "<<TEMPLATE_UUID>>",
+                "to": "+52TEAM",
+                "template_id": "tpl-uuid",
                 "variables": {
                   "body": [
                     "{{context.user_metadata.client_number}}",
@@ -258,7 +343,9 @@
         "id": "mark_handoff_done",
         "type": "set_variables",
         "config": {
-          "variables": { "handoff_done": true }
+          "variables": {
+            "handoff_done": true
+          }
         }
       },
       {
@@ -274,17 +361,28 @@
         }
       }
     ],
-    "persist_variables": ["intent", "previous_intent", "handoff_done", "media_url"],
+    "persist_variables": [
+      "intent",
+      "previous_intent",
+      "handoff_done",
+      "media_url"
+    ],
     "variable_reducers": {
-      "handoff_topics": { "mode": "join", "separator": ", " },
-      "media_url": { "mode": "join", "separator": "," }
+      "handoff_topics": {
+        "mode": "join",
+        "separator": ", "
+      },
+      "media_url": {
+        "mode": "join",
+        "separator": ","
+      }
     }
   },
   "agents": {
     "general": {
       "model": "gpt-5.4-mini",
       "temperature": 0.7,
-      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>",
+      "system_prompt": "PROMPT de prueba para el agente 'general'.",
       "signal_tools": [
         {
           "name": "solicitar_asesor",
@@ -296,7 +394,7 @@
     "stands_tiro_real": {
       "model": "gpt-5.4-mini",
       "temperature": 0.7,
-      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>",
+      "system_prompt": "PROMPT de prueba para el agente 'stands_tiro_real'.",
       "signal_tools": [
         {
           "name": "solicitar_asesor",
@@ -308,7 +406,7 @@
     "stands_tiro_virtual": {
       "model": "gpt-5.4-mini",
       "temperature": 0.7,
-      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>",
+      "system_prompt": "PROMPT de prueba para el agente 'stands_tiro_virtual'.",
       "signal_tools": [
         {
           "name": "solicitar_asesor",
@@ -320,7 +418,7 @@
     "simuladores_de_manejo": {
       "model": "gpt-5.4-mini",
       "temperature": 0.7,
-      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>",
+      "system_prompt": "PROMPT de prueba para el agente 'simuladores_de_manejo'.",
       "signal_tools": [
         {
           "name": "solicitar_asesor",
@@ -332,7 +430,7 @@
     "armas_menos_letales": {
       "model": "gpt-5.4-mini",
       "temperature": 0.7,
-      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>",
+      "system_prompt": "PROMPT de prueba para el agente 'armas_menos_letales'.",
       "signal_tools": [
         {
           "name": "solicitar_asesor",
@@ -344,7 +442,7 @@
     "blindaje_automotriz": {
       "model": "gpt-5.4-mini",
       "temperature": 0.7,
-      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>",
+      "system_prompt": "PROMPT de prueba para el agente 'blindaje_automotriz'.",
       "signal_tools": [
         {
           "name": "solicitar_asesor",
@@ -356,7 +454,7 @@
     "equipamiento_de_armerias": {
       "model": "gpt-5.4-mini",
       "temperature": 0.7,
-      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>",
+      "system_prompt": "PROMPT de prueba para el agente 'equipamiento_de_armerias'.",
       "signal_tools": [
         {
           "name": "solicitar_asesor",
@@ -373,8 +471,10 @@
     "synthesizer": {
       "model": "gpt-5.4-mini",
       "temperature": 0.2,
-      "tools": ["ec0f1bf0-e03f-4475-ba57-599ebad41f0c"],
-      "system_prompt": "<<< CONSERVAR EL PROMPT ACTUAL — se trabaja por separado >>>"
+      "tools": [
+        "ec0f1bf0-e03f-4475-ba57-599ebad41f0c"
+      ],
+      "system_prompt": "PROMPT de prueba para el agente 'synthesizer'."
     }
   }
 }
