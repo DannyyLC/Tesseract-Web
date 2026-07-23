@@ -329,7 +329,10 @@ def make_agent_node(node_id: str, agent_name: str, output_variable: str | None, 
             # Nodo interno: la respuesta va SOLO a variables[output_variable];
             # nada al historial ni a specialist_outputs. El usage se reporta por
             # internal_usage para que el accounting del servicer no lo pierda.
-            if output_variable:
+            # Con classification_pattern, output_variable ya recibió los intents
+            # extraídos arriba: NO lo pisamos con el contenido (permite un router
+            # silent que solo clasifica, sin filtrar texto al usuario).
+            if output_variable and pattern is None:
                 variables_delta[output_variable] = content.strip() if isinstance(content, str) else content
             usage = getattr(final_response, "usage_metadata", None)
             if usage:
