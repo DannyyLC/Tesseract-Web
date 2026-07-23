@@ -7,7 +7,7 @@ import copy
 import logging
 from typing import Any, Dict
 
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import AIMessage, ToolMessage
 
 from core.context import TenantContext
 from tools import registry
@@ -91,11 +91,27 @@ def make_tool_node(node_id: str, config: Dict[str, Any], ctx: TenantContext):
             logger.error(f"[{ctx.workflow_id}] Node '{node_id}' tool error: {e}", exc_info=True)
             result = {"error": str(e)}
 
+        # El resultado se agrega como contexto para nodos agente posteriores. Va como
+        # PAR (AIMessage con tool_calls + ToolMessage): un ToolMessage suelto es un
+        # historial inválido para los proveedores ("messages with role 'tool' must be
+        # a response to a preceeding message with 'tool_calls'") y haría fallar a
+        # cualquier LLM invocado después en el mismo turno. El AIMessage va sin
+        # contenido: no se streamea ni se persiste en el historial.
+        call_id = f"call_{node_id}"
         updates: Dict[str, Any] = {
             "current_node": node_id,
             "execution_path": [node_id],
-            # Agregar el resultado como mensaje de contexto para nodos agente posteriores
-            "messages": [ToolMessage(content=str(result), tool_call_id=node_id)],
+            "messages": [
+                AIMessage(
+                    content="",
+                    tool_calls=[{
+                        "name": function_name,
+                        "args": rendered_params,
+                        "id": call_id,
+                    }],
+                ),
+                ToolMessage(content=str(result), tool_call_id=call_id, name=function_name),
+            ],
         }
 
         if output_variable:
