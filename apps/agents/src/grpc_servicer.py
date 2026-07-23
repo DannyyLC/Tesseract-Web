@@ -38,19 +38,43 @@ def _verify_token(context: grpc.aio.ServicerContext, expected: str) -> bool:
 
 # ── Proto ↔ dict converters ───────────────────────────────────────────────────
 
+def _agent_config_to_dict(cfg: agents_pb2.AgentConfig) -> dict:
+    """
+    Un AgentConfig proto → dict del agente.
+
+    temperature respeta la presencia del proto (optional): omitido en el config →
+    None → get_llm no lo manda al proveedor (necesario para modelos reasoning que
+    rechazan temperature != 1). model_params_json (JSON object) → model_params
+    (model_kwargs del LLM). signal_tools_json (JSON array) → signal_tools, que el
+    motor construye y bindea vía tools.signals.load_signal_tools.
+    """
+    def _parse_json(raw: str, expected_type):
+        if not raw:
+            return expected_type()
+        try:
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, expected_type) else expected_type()
+        except (ValueError, TypeError):
+            return expected_type()
+
+    return {
+        "model": cfg.model,
+        "temperature": cfg.temperature if cfg.HasField("temperature") else None,
+        "system_prompt": cfg.system_prompt,
+        "max_tokens": cfg.max_tokens or None,
+        "fallbacks": list(cfg.fallbacks),
+        "max_retries": cfg.max_retries or None,
+        "timeout": cfg.timeout or None,
+        "api_base": cfg.api_base or None,
+        "model_params": _parse_json(cfg.model_params_json, dict),
+        "signal_tools": _parse_json(cfg.signal_tools_json, list),
+    }
+
+
 def _proto_to_pydantic_request(req: agents_pb2.AgentExecutionRequest) -> AgentExecutionRequest:
     """Convierte un proto AgentExecutionRequest al modelo Pydantic existente."""
     agents_config = {
-        name: {
-            "model": cfg.model,
-            "temperature": cfg.temperature,
-            "system_prompt": cfg.system_prompt,
-            "max_tokens": cfg.max_tokens or None,
-            "fallbacks": list(cfg.fallbacks),
-            "max_retries": cfg.max_retries or None,
-            "timeout": cfg.timeout or None,
-            "api_base": cfg.api_base or None,
-        }
+        name: _agent_config_to_dict(cfg)
         for name, cfg in req.agents_config.items()
     }
 

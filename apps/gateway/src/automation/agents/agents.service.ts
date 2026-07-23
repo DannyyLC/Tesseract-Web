@@ -50,7 +50,8 @@ export class AgentsService implements OnModuleInit {
 
   /**
    * Los campos dinámicos del proto (graph_config, user_metadata, config/credentials
-   * de cada tool) viajan como JSON string. Aquí los serializamos antes de enviar.
+   * de cada tool, y por agente: model_params + signal_tools) viajan como JSON string.
+   * Aquí los serializamos antes de enviar.
    */
   private toWireRequest(request: AgentExecutionRequestDto): Record<string, any> {
     const toJson = (value: unknown): string =>
@@ -71,11 +72,26 @@ export class AgentsService implements OnModuleInit {
       agentToolInstances[agentName] = { tools: wrappedTools };
     }
 
+    // El proto AgentConfig no tiene campos para model_params ni signal_tools:
+    // viajan como JSON string (model_params_json / signal_tools_json). temperature
+    // se deja tal cual — si el agente no la trae, el campo `optional` queda ausente.
+    const agentsConfig: Record<string, any> = {};
+    for (const [agentName, cfg] of Object.entries(request.agents_config ?? {})) {
+      const { model_params, signal_tools, tools, ...rest } = (cfg ?? {}) as Record<string, any>;
+      void tools; // `tools` no viaja en AgentConfig (se resuelve vía agent_tool_instances)
+      agentsConfig[agentName] = {
+        ...rest,
+        model_params_json: toJson(model_params),
+        signal_tools_json: toJson(signal_tools),
+      };
+    }
+
     return {
       ...request,
       graph_config: toJson(request.graph_config),
       user_metadata: toJson((request as Record<string, any>).user_metadata),
       agent_tool_instances: agentToolInstances,
+      agents_config: agentsConfig,
     };
   }
 

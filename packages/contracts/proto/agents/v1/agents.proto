@@ -45,14 +45,22 @@ message AgentExecutionRequest {
 }
 
 message AgentConfig {
-  string          model         = 1;
-  float           temperature   = 2;
-  string          system_prompt = 3;
-  int32           max_tokens    = 4;
-  repeated string fallbacks     = 5;
-  int32           max_retries   = 6;
-  int32           timeout       = 7;
-  string          api_base      = 8;
+  string          model             = 1;
+  optional float  temperature       = 2;  // opcional: omitido = no se envía al proveedor
+  string          system_prompt     = 3;
+  int32           max_tokens        = 4;
+  repeated string fallbacks         = 5;
+  int32           max_retries       = 6;
+  int32           timeout           = 7;
+  string          api_base          = 8;
+  // Parámetros extra específicos del proveedor (JSON object), p.ej.
+  // {"reasoning_effort":"none","verbosity":"low"}. Se mergean como model_kwargs
+  // del LLM. Genérico: agregar un parámetro nuevo NO requiere tocar el proto.
+  string          model_params_json = 9;
+  // Signal tools declaradas por el agente (JSON array de {name, description, args?,
+  // response?}). Viaja como JSON string (mismo idioma que graph_config). El motor
+  // las construye vía tools.signals.load_signal_tools y las bindea al LLM.
+  string          signal_tools_json = 10;
 }
 
 message AgentToolMap {

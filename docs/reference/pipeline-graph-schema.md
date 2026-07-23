@@ -141,6 +141,31 @@ produce `set_variables_on_tool_call` + el grafo:
 }
 ```
 
+## Configuración de modelo por agente (`agents_config`)
+
+Cada agente define su LLM. Campos:
+
+| Campo | Notas |
+|---|---|
+| `model` | requerido (id del modelo, p.ej. `gpt-5.6-luna`) |
+| `temperature` | **opcional**: si se omite, no se envía al proveedor (necesario para modelos reasoning que rechazan `temperature != 1`) |
+| `model_params` | objeto con params específicos del proveedor, mergeados como `model_kwargs` del LLM. Genérico: p.ej. `{"reasoning_effort":"none"}`, `{"verbosity":"low"}`. Agregar uno nuevo NO requiere cambios de código |
+| `system_prompt`, `max_tokens`, `fallbacks`, `max_retries`, `timeout`, `api_base` | estándar |
+| `signal_tools` | ver sección anterior |
+
+```json
+"agents": {
+  "ventas": {
+    "model": "gpt-5.6-luna",
+    "model_params": { "reasoning_effort": "none" }
+  }
+}
+```
+
+> Nota de transporte: `model_params` y `signal_tools` viajan al motor como JSON string
+> (`model_params_json` / `signal_tools_json` del proto `AgentConfig`); `temperature`
+> usa presencia (`optional`). El editor/config sigue usando los nombres legibles.
+
 ## Panel de variables (para el editor)
 
 Las variables disponibles de un workflow se derivan estáticamente de su propio

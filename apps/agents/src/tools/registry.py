@@ -133,16 +133,22 @@ def get_llm(ctx: TenantContext, model_key: str = "default") -> BaseChatModel:
     # ==========================================
     # 2. Extraer parámetros
     # ==========================================
-    temperature = model_config.get("temperature", 0.7)
+    # temperature es opcional: None = no especificado → no se envía al proveedor
+    # (necesario para modelos reasoning que rechazan temperature != 1).
+    temperature = model_config.get("temperature")
     max_tokens = model_config.get("max_tokens")
     fallbacks = model_config.get("fallbacks", [])
     max_retries = model_config.get("max_retries", 2)
     timeout = model_config.get("timeout", 60)
     api_base = model_config.get("api_base")
-    
+    # Parámetros extra por-proveedor (p.ej. {"reasoning_effort": "none"}). Se mergean
+    # como model_kwargs del LLM. Genérico: no requiere cambios de código por parámetro.
+    model_params = model_config.get("model_params") or {}
+
     logger.info(
         f"[{ctx.workflow_id}] Initializing LLM with LiteLLM: {model_name} "
-        f"(temperature={temperature}, fallbacks={len(fallbacks)})"
+        f"(temperature={temperature}, fallbacks={len(fallbacks)}, "
+        f"model_params={list(model_params.keys()) or None})"
     )
     
     # ==========================================
@@ -154,12 +160,19 @@ def get_llm(ctx: TenantContext, model_key: str = "default") -> BaseChatModel:
         # Construir parámetros
         llm_kwargs = {
             "model": model_name,
-            "temperature": temperature,
             "max_retries": max_retries,
             "request_timeout": timeout,
             "streaming": ctx.streaming,  # Habilitar/deshabilitar streaming
         }
-        
+
+        # temperature solo si se especificó (omitirlo deja el default del proveedor)
+        if temperature is not None:
+            llm_kwargs["temperature"] = temperature
+
+        # Parámetros extra del proveedor → model_kwargs (p.ej. reasoning_effort)
+        if model_params:
+            llm_kwargs["model_kwargs"] = {**model_params}
+
         # Agregar parámetros opcionales
         if max_tokens:
             llm_kwargs["max_tokens"] = max_tokens

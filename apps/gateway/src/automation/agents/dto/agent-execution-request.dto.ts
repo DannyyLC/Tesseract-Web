@@ -126,21 +126,23 @@ export class AgentExecutionRequestDto {
 
   @ApiProperty({
     description: `Configuración de agentes por nombre (default, sales, support, etc).
-            
-            Campos: model (requerido), temperature, max_tokens, system_prompt, fallbacks, max_retries, timeout.
-            
-            NOTA: El campo 'tools' NO se envía aquí (aunque existe en BD).
-            - Gateway lo usa internamente para filtrar agent_tool_instances
-            - Python solo lee agent_tool_instances, no necesita ver 'tools'`,
+
+            Campos: model (requerido), temperature (OPCIONAL — omitido = no se envía al
+            proveedor), max_tokens, system_prompt, fallbacks, max_retries, timeout,
+            model_params (objeto con params específicos del proveedor, p.ej.
+            {"reasoning_effort":"none"}), signal_tools (array de tools declarativas).
+
+            NOTA: 'tools' NO se envía aquí (Gateway lo usa para filtrar agent_tool_instances).
+            model_params y signal_tools viajan al Python como JSON string
+            (model_params_json / signal_tools_json); temperature usa presencia (optional).`,
     example: {
       default: {
-        model: 'gpt-4o',
-        temperature: 0.7,
+        model: 'gpt-5.6-luna',
+        // temperature omitido a propósito (modelo reasoning)
         max_tokens: 1000,
         system_prompt: 'Eres un asistente...',
-        fallbacks: ['claude-3-5-sonnet-20241022'],
-        max_retries: 2,
-        timeout: 60,
+        model_params: { reasoning_effort: 'none' },
+        signal_tools: [{ name: 'solicitar_asesor', description: 'Llama a un asesor humano' }],
       },
     },
   })
