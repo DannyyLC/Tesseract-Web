@@ -26,6 +26,7 @@ from graphs.pipeline import (  # noqa: E402
     resolve_path,
     make_variables_reducer,
     make_agent_node,
+    make_tool_node,
     create_pipeline_agent,
 )
 
@@ -470,3 +471,74 @@ class TestSchemaVersion:
         ctx = make_ctx(graph_config=self._graph_config(99), agents_config=SIMPLE_AGENTS)
         with pytest.raises(ValueError, match="schema_version"):
             create_pipeline_agent(ctx)
+
+
+# ── Nodo tool: parse_json_result / append_result_to_messages ────────────────────
+
+class FakeTool:
+    """Tool falsa para el nodo tool determinista."""
+
+    name = "fn"
+    description = "fake"
+    metadata = {}
+
+    def __init__(self, result):
+        self._result = result
+
+    def __deepcopy__(self, memo):
+        return self
+
+    def invoke(self, args):
+        return self._result
+
+
+class TestToolNodeOptions:
+    """
+    El nodo `tool` ejecuta sin LLM, así que su resultado no es una respuesta de
+    tool "de verdad": necesita opciones para (a) quedar legible por condiciones y
+    (b) no exponerle detalles internos a un LLM posterior.
+    """
+
+    JSON_RESULT = '{"total": 1, "sent": 0, "failed": 1}'
+
+    def _node(self, result, **config):
+        ctx = make_ctx()
+        ctx.agent_tool_instances = {"a": {"uuid-1": {
+            "tool_name": "t", "credentials": {}, "config": {},
+        }}}
+        cfg = {"tool_instance": "uuid-1", "function": "fn", **config}
+        with patch("tools.registry.load_specific_tool", return_value=[FakeTool(result)]):
+            return make_tool_node("n", cfg, ctx)
+
+    def test_json_result_stored_raw_by_default(self):
+        node = self._node(self.JSON_RESULT, output_variable="r")
+        assert node(initial_state())["variables"]["r"] == self.JSON_RESULT
+
+    def test_parse_json_result_enables_nested_reads(self):
+        node = self._node(self.JSON_RESULT, output_variable="r", parse_json_result=True)
+        state = {"variables": node(initial_state())["variables"]}
+        # Sin parsear, resolve_path no puede navegar un string: una condición
+        # sobre "variables.r.sent" nunca se cumpliría.
+        assert resolve_path(state, "variables.r.sent") == 0
+        assert resolve_path(state, "variables.r.failed") == 1
+
+    def test_invalid_json_is_stored_unparsed(self):
+        node = self._node("no soy json", output_variable="r", parse_json_result=True)
+        assert node(initial_state())["variables"]["r"] == "no soy json"
+
+    def test_non_string_result_passes_through(self):
+        node = self._node({"sent": 2}, output_variable="r", parse_json_result=True)
+        assert node(initial_state())["variables"]["r"] == {"sent": 2}
+
+    def test_result_reaches_history_as_valid_pair_by_default(self):
+        # Un ToolMessage suelto es historial inválido para los proveedores: el
+        # nodo emite el AIMessage con tool_calls que lo justifica.
+        messages = self._node("ok")(initial_state())["messages"]
+        assert [m.type for m in messages] == ["ai", "tool"]
+        assert messages[0].tool_calls[0]["id"] == messages[1].tool_call_id
+
+    def test_append_result_to_messages_false_keeps_history_clean(self):
+        node = self._node("ok", output_variable="r", append_result_to_messages=False)
+        updates = node(initial_state())
+        assert "messages" not in updates
+        assert updates["variables"]["r"] == "ok"  # sigue disponible por variable

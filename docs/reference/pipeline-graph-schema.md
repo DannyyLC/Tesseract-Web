@@ -95,6 +95,17 @@ Llama al LLM del agente declarado en `agents_config`.
 Ejecuta una función de una tool instance directamente, sin LLM. `params`
 soporta templates.
 
+- `output_variable`: dónde guardar el resultado.
+- `parse_json_result` (default `false`): si la tool devuelve un string JSON, lo
+  guarda ya parseado. Necesario para que una `condition` posterior pueda leer
+  campos anidados (`variables.x.sent`); sobre un string, `resolve_path` devuelve
+  `None` y la regla nunca se cumple.
+- `append_result_to_messages` (default `true`): el resultado entra al historial
+  como par válido (`AIMessage` con `tool_calls` + `ToolMessage`) — un
+  `ToolMessage` suelto lo rechazan los proveedores y tumba a cualquier LLM
+  invocado después en el mismo turno. Ponlo en `false` cuando ningún nodo agente
+  posterior deba ver el resultado (evita exponerle detalles internos al LLM).
+
 ### `condition`
 Nodo de PRIMERA CLASE con puertos de salida. Modos: `switch` (campo → branches),
 `rules` (primera regla que matchea), `router` (ruteo multi-intent con fan-out,

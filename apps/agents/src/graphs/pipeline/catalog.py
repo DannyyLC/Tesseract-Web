@@ -77,6 +77,14 @@ NODE_TYPES: Dict[str, Dict[str, Any]] = {
                 "function": {"type": "string"},
                 "params": {"type": "object", "description": "Parámetros (soportan templates)"},
                 "output_variable": {"type": "string"},
+                "parse_json_result": {
+                    "type": "boolean", "default": False,
+                    "description": "Guarda el resultado JSON ya parseado, para que las condiciones lean campos anidados",
+                },
+                "append_result_to_messages": {
+                    "type": "boolean", "default": True,
+                    "description": "False = el resultado no entra al historial (no lo ve ningún LLM posterior)",
+                },
             },
             "required": ["tool_instance", "function"],
         },

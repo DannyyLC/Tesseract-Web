@@ -12,6 +12,18 @@
         "intro_message": "Te tratare de compartir algúnos archivos que son relevantes en relación a lo mencionado anteriormente."
       },
       "once_per_conversation": false
+    },
+    {
+      "id": "contacto_directo_fallback",
+      "when": {
+        "variable": "handoff_contact_fallback",
+        "op": "not_empty"
+      },
+      "action": "send_text_message",
+      "params": {
+        "text": "Por cierto, si quieres adelantar el proceso, puedes contactar directamente a tu asesor de RGM Advanced al +524961337305, o escribirnos a contacto@rgmarmor.com. Con gusto revisamos contigo los detalles de tu proyecto cuando lo necesites."
+      },
+      "once_per_conversation": true
     }
   ],
   "graph": {
@@ -72,10 +84,14 @@
       },
       {
         "from": "notify_team",
-        "to": "mark_handoff_done"
+        "to": "check_notify"
       },
       {
         "from": "mark_handoff_done",
+        "to": "synthesize"
+      },
+      {
+        "from": "handoff_retry",
         "to": "synthesize"
       },
       {
@@ -93,7 +109,8 @@
         "type": "set_variables",
         "config": {
           "variables": {
-            "media_url_pending": ""
+            "media_url_pending": "",
+            "handoff_contact_fallback": ""
           }
         }
       },
@@ -345,6 +362,37 @@
                 }
               }
             ]
+          },
+          "output_variable": "notify_result",
+          "parse_json_result": true,
+          "append_result_to_messages": false
+        }
+      },
+      {
+        "id": "check_notify",
+        "type": "condition",
+        "config": {
+          "mode": "rules",
+          "rules": [
+            {
+              "when": {
+                "field": "variables.notify_result.sent",
+                "op": "gt",
+                "value": 0
+              },
+              "goto": "mark_handoff_done"
+            }
+          ],
+          "default": "handoff_retry"
+        }
+      },
+      {
+        "id": "handoff_retry",
+        "type": "set_variables",
+        "config": {
+          "variables": {
+            "handoff_contact_fallback": "1",
+            "handoff_notice_text": ""
           }
         }
       },
@@ -383,7 +431,8 @@
       "handoff_done",
       "handoff_done_topics",
       "media_url",
-      "media_url_pending"
+      "media_url_pending",
+      "handoff_contact_fallback"
     ],
     "variable_reducers": {
       "handoff_topics": {

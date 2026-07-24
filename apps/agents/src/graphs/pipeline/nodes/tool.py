@@ -4,6 +4,7 @@ Los params soportan templates {{variables.x}} / {{context.x}}.
 """
 
 import copy
+import json
 import logging
 from typing import Any, Dict
 
@@ -32,11 +33,22 @@ def make_tool_node(node_id: str, config: Dict[str, Any], ctx: TenantContext):
         function:        Función específica a llamar
         params:          Parámetros (pueden tener templates)
         output_variable: Dónde guardar el resultado (opcional)
+        parse_json_result:
+                         Si True y la tool devuelve un string JSON, se guarda YA
+                         PARSEADO en output_variable, para que las condiciones
+                         puedan leer campos anidados (p.ej. "variables.x.sent").
+                         Default False: el resultado se guarda tal cual.
+        append_result_to_messages:
+                         Si False, el resultado NO se agrega al historial. Úsalo
+                         cuando ningún nodo agente posterior deba verlo (evita
+                         exponerle detalles internos al LLM). Default True.
     """
     tool_instance_uuid = config.get("tool_instance")
     function_name = config.get("function")
     raw_params = config.get("params", {})
     output_variable = config.get("output_variable")
+    parse_json_result = config.get("parse_json_result", False)
+    append_result_to_messages = config.get("append_result_to_messages", True)
 
     # Buscar el tool_instance entre todos los agentes (se hace al construir el grafo)
     tool_instance = None
@@ -91,17 +103,20 @@ def make_tool_node(node_id: str, config: Dict[str, Any], ctx: TenantContext):
             logger.error(f"[{ctx.workflow_id}] Node '{node_id}' tool error: {e}", exc_info=True)
             result = {"error": str(e)}
 
-        # El resultado se agrega como contexto para nodos agente posteriores. Va como
-        # PAR (AIMessage con tool_calls + ToolMessage): un ToolMessage suelto es un
-        # historial inválido para los proveedores ("messages with role 'tool' must be
-        # a response to a preceeding message with 'tool_calls'") y haría fallar a
-        # cualquier LLM invocado después en el mismo turno. El AIMessage va sin
-        # contenido: no se streamea ni se persiste en el historial.
-        call_id = f"call_{node_id}"
         updates: Dict[str, Any] = {
             "current_node": node_id,
             "execution_path": [node_id],
-            "messages": [
+        }
+
+        if append_result_to_messages:
+            # El resultado se agrega como contexto para nodos agente posteriores. Va como
+            # PAR (AIMessage con tool_calls + ToolMessage): un ToolMessage suelto es un
+            # historial inválido para los proveedores ("messages with role 'tool' must be
+            # a response to a preceeding message with 'tool_calls'") y haría fallar a
+            # cualquier LLM invocado después en el mismo turno. El AIMessage va sin
+            # contenido: no se streamea ni se persiste en el historial.
+            call_id = f"call_{node_id}"
+            updates["messages"] = [
                 AIMessage(
                     content="",
                     tool_calls=[{
@@ -111,12 +126,20 @@ def make_tool_node(node_id: str, config: Dict[str, Any], ctx: TenantContext):
                     }],
                 ),
                 ToolMessage(content=str(result), tool_call_id=call_id, name=function_name),
-            ],
-        }
+            ]
 
         if output_variable:
+            stored = result
+            if parse_json_result and isinstance(result, str):
+                try:
+                    stored = json.loads(result)
+                except (ValueError, TypeError):
+                    logger.warning(
+                        f"[{ctx.workflow_id}] Node '{node_id}': parse_json_result activo pero "
+                        f"el resultado no es JSON válido — se guarda sin parsear"
+                    )
             # Delta: solo la clave que cambió (los reducers mergean)
-            updates["variables"] = {output_variable: result}
+            updates["variables"] = {output_variable: stored}
             logger.info(
                 f"[{ctx.workflow_id}] Node '{node_id}' stored tool result in "
                 f"variables.{output_variable}"
