@@ -176,6 +176,7 @@ export class WorkflowsController {
       executeDto.input,
       { ...executeDto.metadata, channel: 'dashboard' },
       user.sub,
+      undefined, // whatsappData (execute lo lleva; executeStream no)
       undefined, // apiKeyId
       TriggerType.MANUAL, // trigger: UI executions are manual
     );
