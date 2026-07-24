@@ -85,7 +85,7 @@ def _build_template_payload(
     if body_vars:
         components.append({
             "type": "body",
-            "parameters": [{"type": "text", "text": v} for v in body_vars],
+            "parameters": [{"type": "text", "text": str(v) if v is not None else "No Disponible" } for v in body_vars],
         })
 
     for idx, payload_value in enumerate(button_vars):
@@ -95,6 +95,21 @@ def _build_template_payload(
             "index": idx,
             "parameters": [{"type": "payload", "payload": payload_value}],
         })
+
+
+    logger.info(
+        "calling template %s",
+        {
+            "from": from_number,
+            "to": to,
+            "type": "template",
+            "template": {
+                "name": template_name,
+                "language": {"code": language, "policy": "deterministic"},
+                "components": components,
+            }
+        }
+    )
 
     return {
         "from": from_number,
@@ -221,10 +236,12 @@ def load_whatsapp_outbound_tools(
             results.append({"to": msg.to, **result})
 
             logger.info(
-                "send_bulk_whatsapp: to=%s template=%s ok=%s",
+                "send_bulk_whatsapp: from=%s to=%s template=%s ok=%s, variables=%s",
+                from_number,
                 msg.to,
                 tpl["name"],
                 result["ok"],
+                msg.variables,
             )
 
         sent = sum(1 for r in results if r.get("ok"))
