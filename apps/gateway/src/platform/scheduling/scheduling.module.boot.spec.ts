@@ -26,9 +26,9 @@ describe('SchedulingModule cron discovery', () => {
     await moduleRef?.close();
   });
 
-  it('registers all 4 cron jobs', () => {
+  it('registers all 5 cron jobs', () => {
     const registry = moduleRef.get(SchedulerRegistry);
     const crons = registry.getCronJobs();
-    expect(crons.size).toBe(4);
+    expect(crons.size).toBe(5);
   });
 });

@@ -23,6 +23,9 @@ import {
 
 const YCLOUD_API_BASE = process.env.YCLOUD_API_BASE ?? 'https://api.ycloud.com/v2';
 
+/** Ventana de tolerancia para el timestamp de la firma de webhooks (5 minutos). */
+const WEBHOOK_SIGNATURE_TOLERANCE_SECONDS = 300;
+
 @Injectable()
 export class WhatsappConfigService {
   private readonly yCloudApiKey: string = process.env.Y_CLOUD_API_KEY || '';
@@ -157,17 +160,68 @@ export class WhatsappConfigService {
     }
   }
 
-  async verifySignature(payload: string, signatureHeader: string): Promise<boolean> {
-    const secret = process.env.Y_CLOUD_WEBHOOK_SECRET || '';
-    const parts = signatureHeader.split(',');
-    const timestamp = parts[0].split('=')[1];
-    const signature = parts[1].split('=')[1];
-    const signedPayload = `${timestamp}.${payload}`;
+  /**
+   * Verifica la firma HMAC de un webhook de YCloud.
+   *
+   * El header viene con formato `t=<unix>,v1=<hmac_hex>` y se firma
+   * `<timestamp>.<payload>` con `Y_CLOUD_WEBHOOK_SECRET`.
+   *
+   * @param payload Cuerpo crudo de la petición. Debe ser el raw body, no un
+   *   `JSON.stringify` del body parseado: re-serializar puede alterar orden de
+   *   llaves o escapes de Unicode y romper la firma.
+   * @param signatureHeader Contenido del header `ycloud-signature`.
+   */
+  verifySignature(payload: string, signatureHeader: string): boolean {
+    const secret = process.env.Y_CLOUD_WEBHOOK_SECRET ?? '';
+    if (!secret || !signatureHeader) return false;
+
+    // Parseo tolerante: el header puede venir vacío, con partes faltantes o en
+    // otro orden. Antes, un header malformado lanzaba TypeError.
+    //
+    // Se aceptan `v1` y `s` como llave de la firma: el código anterior tomaba
+    // ciegamente `parts[1]` sin mirar el nombre, así que no hay certeza de cuál
+    // manda YCloud realmente. Aceptar ambas evita romper producción.
+    let timestamp: string | undefined;
+    let signature: string | undefined;
+
+    for (const part of signatureHeader.split(',')) {
+      const separator = part.indexOf('=');
+      if (separator === -1) continue;
+      const key = part.slice(0, separator).trim();
+      const value = part.slice(separator + 1).trim();
+      if (key === 't') timestamp = value;
+      else if (key === 'v1' || key === 's') signature = value;
+    }
+
+    if (!timestamp || !signature) return false;
+
+    // Frescura: cierra la ventana de replay con una firma legítima capturada.
+    // La unidad del timestamp se detecta sola porque tampoco está confirmada:
+    // en segundos ronda 1.7e9, en milisegundos 1.7e12.
+    const rawTimestamp = Number(timestamp);
+    if (!Number.isFinite(rawTimestamp)) return false;
+
+    const timestampSeconds = rawTimestamp > 1e12 ? rawTimestamp / 1000 : rawTimestamp;
+    const ageSeconds = Math.abs(Date.now() / 1000 - timestampSeconds);
+    if (ageSeconds > WEBHOOK_SIGNATURE_TOLERANCE_SECONDS) {
+      this.logger.warn(
+        `Firma de YCloud fuera de la ventana de tolerancia (${Math.round(ageSeconds)}s)`,
+      );
+      return false;
+    }
+
     const expectedSignature = crypto
       .createHmac('sha256', secret)
-      .update(signedPayload)
+      .update(`${timestamp}.${payload}`)
       .digest('hex');
-    return signature === expectedSignature;
+
+    // Comparación en tiempo constante. timingSafeEqual exige buffers de igual
+    // longitud, así que se descarta antes cualquier firma de largo distinto.
+    const received = Buffer.from(signature, 'utf8');
+    const expected = Buffer.from(expectedSignature, 'utf8');
+    if (received.length !== expected.length) return false;
+
+    return crypto.timingSafeEqual(received, expected);
   }
 
   // ─── Outbound messaging ───────────────────────────────────────────────
