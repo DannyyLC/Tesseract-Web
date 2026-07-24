@@ -66,7 +66,7 @@ describe('LlmModelsService', () => {
 
   describe('findAll', () => {
     it('should return paginated models', async () => {
-      const query = { provider: 'openai', page: 1, limit: 10 };
+      const query = { page: 1, limit: 10 };
       const mockModels = [{ id: 'model-1' }, { id: 'model-2' }];
 
       mockPrismaService.llmModel.findMany.mockResolvedValue(mockModels);
@@ -76,7 +76,7 @@ describe('LlmModelsService', () => {
 
       expect(mockPrismaService.llmModel.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { provider: 'openai' },
+          where: {},
           skip: 0,
           take: 10,
         }),
@@ -88,6 +88,45 @@ describe('LlmModelsService', () => {
         limit: 10,
         totalPages: 1,
       });
+    });
+
+    // El DTO no expone un filtro `provider`: la busqueda por proveedor va dentro
+    // de `search`, que ademas cubre el nombre del modelo.
+    it('should turn search into an OR over provider and model name', async () => {
+      mockPrismaService.llmModel.findMany.mockResolvedValue([]);
+      mockPrismaService.llmModel.count.mockResolvedValue(0);
+
+      await service.findAll({ search: 'openai', page: 2, limit: 5 });
+
+      expect(mockPrismaService.llmModel.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [
+              { provider: { contains: 'openai', mode: 'insensitive' } },
+              { modelName: { contains: 'openai', mode: 'insensitive' } },
+            ],
+          },
+          skip: 5,
+          take: 5,
+        }),
+      );
+    });
+
+    it('should apply the declared filters', async () => {
+      mockPrismaService.llmModel.findMany.mockResolvedValue([]);
+      mockPrismaService.llmModel.count.mockResolvedValue(0);
+
+      await service.findAll({
+        tier: ModelTier.PREMIUM,
+        isActive: true,
+        llmCategoryId: 'cat-1',
+      });
+
+      expect(mockPrismaService.llmModel.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { tier: ModelTier.PREMIUM, isActive: true, llmCategoryId: 'cat-1' },
+        }),
+      );
     });
   });
 

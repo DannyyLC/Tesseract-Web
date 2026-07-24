@@ -1,6 +1,21 @@
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+import { config } from 'dotenv';
+import { resolve } from 'node:path';
 
-const prisma = new PrismaClient();
+// El .env vive en la raíz del monorepo (mismo criterio que prisma.config.ts)
+config({ path: resolve(__dirname, '../../../.env') });
+
+if (!process.env.DATABASE_URL) {
+  console.error('Seed failed: falta DATABASE_URL (revisa el .env de la raíz).');
+  process.exit(1);
+}
+
+// Prisma 7 exige un driver adapter: sin él, el constructor lanza
+// "PrismaClient needs to be constructed with a non-empty, valid PrismaClientOptions".
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
 const MODEL_EFFECTIVE_FROM = new Date('2026-01-01T00:00:00.000Z');
 
@@ -675,4 +690,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end();
   });

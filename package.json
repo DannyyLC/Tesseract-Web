@@ -19,7 +19,7 @@
     "prisma:migrate:deploy": "pnpm --filter @tesseract/database exec prisma migrate deploy",
     "prisma:studio": "pnpm --filter @tesseract/database exec prisma studio",
     "prisma:reset": "pnpm --filter @tesseract/database exec prisma migrate reset",
-    "prisma:seed": "pnpm dlx ts-node packages/database/prisma/seed.ts",
+    "prisma:seed": "pnpm --filter @tesseract/database seed",
     "test:all": "pnpm -r --if-present run test",
     "test:gateway": "pnpm --filter @tesseract/gateway test",
     "test:gateway:unit": "pnpm --filter @tesseract/gateway test:unit",
