@@ -6,6 +6,8 @@ import {
   Body,
   Headers,
   BadRequestException,
+  InternalServerErrorException,
+  ServiceUnavailableException,
   Req,
   UseGuards,
   Delete,
@@ -32,6 +34,10 @@ import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { Response } from 'express';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
+import { WebhookDedupService } from '@/platform/webhooks/webhook-dedup.service';
+
+/** Identificador de proveedor para la tabla de deduplicación de webhooks. */
+const WEBHOOK_PROVIDER_STRIPE = 'stripe';
 
 @Controller('billing')
 export class BillingController {
@@ -41,6 +47,7 @@ export class BillingController {
     private readonly prisma: PrismaService,
     private readonly stripeClient: StripeClient,
     private readonly organizationsService: OrganizationsService,
+    private readonly webhookDedup: WebhookDedupService,
   ) {}
   private readonly logger = new Logger(BillingController.name);
 
@@ -286,6 +293,19 @@ export class BillingController {
     return { message: 'Pending downgrade cancelled successfully' };
   }
 
+  /**
+   * Webhook de Stripe.
+   *
+   * Procesa antes de responder, a propósito: los reintentos de Stripe son la red
+   * de seguridad ante fallos transitorios, y responder 200 antes de tiempo los
+   * anularía (Stripe no reintenta un 2xx, así que el evento se perdería).
+   *
+   * Los códigos importan porque Stripe deshabilita endpoints que fallan seguido:
+   *   - 400 → error de configuración nuestro; reintentar no lo arregla.
+   *   - 503 → fallo transitorio; Stripe reintenta con backoff.
+   * Devolver 400 ante un hipo de la base de datos, como se hacía antes, quemaba
+   * el endpoint de producción sin motivo.
+   */
   @Throttle({ default: { limit: 100, ttl: 60000 } })
   @Post('webhook')
   async handleWebhook(@Headers('stripe-signature') signature: string, @Req() request: Request) {
@@ -295,32 +315,44 @@ export class BillingController {
 
     const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
     if (!webhookSecret) {
-      throw new Error('STRIPE_WEBHOOK_SECRET not configured');
+      this.logger.error('STRIPE_WEBHOOK_SECRET no está configurado');
+      throw new InternalServerErrorException('Webhook secret not configured');
     }
 
     // Verify signature and construct event
     let event: Stripe.Event;
     try {
-      const rawBody = (request as unknown as { rawBody: string }).rawBody;
+      const rawBody = (request as unknown as { rawBody?: string | Buffer }).rawBody;
       if (!rawBody) {
         throw new Error('Raw body not available. Ensure `rawBody: true` is set in main.ts');
       }
       event = this.stripeClient.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        this.logger.error(`Webhook Signature Verification Failed: ${err.message}`);
-        throw new BadRequestException(`Webhook Error: ${err.message}`);
-      }
-      throw new BadRequestException(`Webhook Error: Unknown error`);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      this.logger.error(`Webhook Signature Verification Failed: ${message}`);
+      throw new BadRequestException(`Webhook Error: ${message}`);
+    }
+
+    // Idempotencia: varios handlers son aditivos (addCredits suma al balance,
+    // invoiceItems.create cobra al cliente), así que reprocesar duplica dinero.
+    const isNew = await this.webhookDedup.claim(WEBHOOK_PROVIDER_STRIPE, event.id, event.type);
+    if (!isNew) {
+      this.logger.log(`Evento de Stripe ${event.id} (${event.type}) ya procesado, se omite`);
+      return { received: true, duplicate: true };
     }
 
     try {
       await this.billingService.handleWebhookEvent(event);
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        throw new BadRequestException(`Webhook Processing Error: ${err.message}`);
-      }
-      throw new BadRequestException(`Webhook Processing Error: Unknown error`);
+      // Liberamos el claim para que el reintento de Stripe sí reprocese.
+      await this.webhookDedup.release(WEBHOOK_PROVIDER_STRIPE, event.id);
+
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      this.logger.error(
+        `Fallo procesando el evento de Stripe ${event.id} (${event.type}): ${message}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+      throw new ServiceUnavailableException(`Webhook Processing Error: ${message}`);
     }
 
     return { received: true };

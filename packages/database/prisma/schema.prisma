@@ -1463,3 +1463,24 @@ model UserNotification {
   @@index([userId, organizationId])
   @@map("user_notifications")
 }
+
+/// Deduplicación de webhooks entrantes.
+///
+/// Los proveedores (Stripe, YCloud) reintentan ante cualquier respuesta no-2xx,
+/// y varios handlers son aditivos (addCredits suma al balance, invoiceItems.create
+/// factura al cliente). Sin esta tabla, un reintento duplica créditos y cobros.
+///
+/// El @@unique([provider, eventId]) es el mecanismo real: si dos instancias de
+/// Cloud Run reciben el mismo evento en paralelo, la segunda choca contra el
+/// constraint y se rinde. Las filas se purgan a los 30 días vía cron.
+model ProcessedWebhookEvent {
+  id          String   @id @default(uuid())
+  provider    String
+  eventId     String
+  eventType   String?
+  processedAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([processedAt])
+  @@map("processed_webhook_events")
+}

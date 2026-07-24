@@ -68,6 +68,24 @@ export class CronJobsService {
 
   // Runs every day at midnight (00:00)
   @Cron('0 0 * * *')
+  async handleProcessedWebhookEventCleanup() {
+    // Los claims de deduplicación solo sirven mientras el proveedor pueda
+    // reintentar. Stripe reintenta hasta 3 días; 30 da margen de sobra.
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const result = await this.prisma.processedWebhookEvent.deleteMany({
+      where: {
+        processedAt: { lt: thirtyDaysAgo },
+      },
+    });
+
+    if (result.count > 0) {
+      this.logger.log(`Daily Webhook Cleanup: Deleted ${result.count} processed webhook events`);
+    }
+  }
+
+  // Runs every day at midnight (00:00)
+  @Cron('0 0 * * *')
   async handleNotificationCleanup() {
     // Auto-soft-delete read notifications older than 30 days to clear the user's feed
     // but keep them in the database for history/audit.

@@ -18,6 +18,9 @@ describe('CronJobsService', () => {
     userNotification: {
       updateMany: jest.fn(),
     },
+    processedWebhookEvent: {
+      deleteMany: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -79,6 +82,16 @@ describe('CronJobsService', () => {
           where: expect.objectContaining({ isRead: true }),
         }),
       );
+    });
+  });
+
+  describe('handleProcessedWebhookEventCleanup', () => {
+    it('should delete webhook dedup claims older than 30 days', async () => {
+      mockPrismaService.processedWebhookEvent.deleteMany.mockResolvedValue({ count: 7 });
+      await service.handleProcessedWebhookEventCleanup();
+      expect(mockPrismaService.processedWebhookEvent.deleteMany).toHaveBeenCalledWith({
+        where: { processedAt: { lt: expect.any(Date) } },
+      });
     });
   });
 });

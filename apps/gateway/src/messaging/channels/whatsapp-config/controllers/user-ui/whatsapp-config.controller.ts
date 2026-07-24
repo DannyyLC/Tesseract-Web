@@ -37,6 +37,10 @@ import { OpenAiCompatibleMediaProcessorAdapter } from '@/automation/media-proces
 import { MediaType } from '@/automation/media-processing/adapters/media-processor.adapter';
 import { ConversationsService } from '@/messaging/conversations/conversations.service';
 import { JsonObject } from '@prisma/client/runtime/client';
+import { WebhookDedupService } from '@/platform/webhooks/webhook-dedup.service';
+
+/** Identificador de proveedor para la tabla de deduplicación de webhooks. */
+const WEBHOOK_PROVIDER_YCLOUD = 'ycloud';
 
 @Controller('whatsapp-config')
 export class WhatsappConfigController {
@@ -48,31 +52,97 @@ export class WhatsappConfigController {
     private readonly whatsappMessageQueueService: WhatsappMessageQueueService,
     private readonly mediaProcessor: OpenAiCompatibleMediaProcessorAdapter,
     private readonly conversationsService: ConversationsService,
+    private readonly webhookDedup: WebhookDedupService,
   ) {}
 
   // ─── Webhook ──────────────────────────────────────────────────────────
 
+  /**
+   * Webhook de mensajes entrantes de YCloud.
+   *
+   * El orden importa. Lo barato y crítico (firma + deduplicación) va ANTES de
+   * responder; el trabajo pesado (transcripción de audio, OCR, ejecución del
+   * workflow) va después del ACK, porque puede tardar decenas de segundos y
+   * YCloud cortaría por timeout.
+   *
+   * Antes se verificaba la firma después de consultar y MUTAR la base
+   * (`updateConnectionStatus`), lo que permitía a un llamador sin credenciales
+   * cambiar el estado de conexión de una cuenta.
+   */
   @Post('whatsapp-webhook')
   async handleWebhook(@Body() body: any, @Res() res: Response, @Headers() headers: any) {
+    const parsedBody = body as WhatsAppInboundEvent;
+    const whatsappInboundMessageId = parsedBody?.whatsappInboundMessage?.id;
+    const phoneNumber = parsedBody?.whatsappInboundMessage?.to || 'unknown';
+    const userNumber = parsedBody?.whatsappInboundMessage?.from || 'unknown';
+
+    // 1. Firma primero, antes de tocar la base de datos.
+    //
+    // Lo correcto es firmar sobre el body crudo; el código anterior usaba
+    // JSON.stringify(body), que solo funciona si la re-serialización coincide
+    // byte a byte con lo que envió YCloud. Se intenta el raw body y, si no
+    // valida, se cae al comportamiento viejo para no romper producción.
+    // TODO(webhook-firma): revisar los logs de `signatureSource` unos días y,
+    // si nunca aparece 'json-stringify', eliminar el fallback.
+    const signatureHeader = headers['ycloud-signature'] || '';
+    const rawBody = (res.req as unknown as { rawBody?: Buffer }).rawBody;
+
+    let isValidSignature = false;
+    let signatureSource = 'raw-body';
+
+    if (rawBody) {
+      isValidSignature = this.whatsappConfigService.verifySignature(
+        rawBody.toString('utf8'),
+        signatureHeader,
+      );
+    }
+
+    if (!isValidSignature) {
+      const validViaStringify = this.whatsappConfigService.verifySignature(
+        JSON.stringify(body),
+        signatureHeader,
+      );
+      if (validViaStringify) {
+        isValidSignature = true;
+        signatureSource = 'json-stringify';
+      }
+    }
+
+    if (isValidSignature) {
+      this.logger.info(`Firma de YCloud validada vía ${signatureSource}`);
+    }
+
+    if (!isValidSignature) {
+      this.logger.warn(`Invalid signature for message from ${userNumber} to ${phoneNumber}`);
+      return res.status(HttpStatus.UNAUTHORIZED).send({ received: false });
+    }
+
+    if (!whatsappInboundMessageId) {
+      this.logger.warn(`Webhook de YCloud sin id de mensaje desde ${userNumber}`);
+      return res.status(HttpStatus.OK).send({ received: true });
+    }
+
+    // 2. Deduplicación: YCloud reintenta, y reprocesar dispara el workflow dos
+    //    veces (y con él, el cobro de créditos al tenant).
+    const isNew = await this.webhookDedup.claim(
+      WEBHOOK_PROVIDER_YCLOUD,
+      whatsappInboundMessageId,
+      parsedBody?.whatsappInboundMessage?.type,
+    );
+    if (!isNew) {
+      this.logger.warn(`Mensaje de WhatsApp ${whatsappInboundMessageId} duplicado, se omite`);
+      return res.status(HttpStatus.OK).send({ received: true, duplicate: true });
+    }
+
+    // 3. ACK. A partir de aquí el trabajo continúa fuera del ciclo de respuesta.
     res.status(HttpStatus.OK).send({ received: true });
+
     try {
-      const parsedBody = body as WhatsAppInboundEvent;
-      const whatsappInboundMessageId = parsedBody.whatsappInboundMessage.id;
-      const phoneNumber = parsedBody.whatsappInboundMessage.to || 'unknown';
-      const userNumber = parsedBody.whatsappInboundMessage.from || 'unknown';
       const messageType = parsedBody.whatsappInboundMessage.type;
       let txtContent = '';
       let isUnsupportedVideo = false;
 
       const account = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(phoneNumber);
-      const signatureHeader = headers['ycloud-signature'] || '';
-      const isValidSignature = await this.whatsappConfigService.verifySignature(
-        JSON.stringify(body),
-        signatureHeader,
-      );
-      this.logger.info(
-        `payload: ${JSON.stringify(body)}, signatureHeader: ${signatureHeader}, isValidSignature: ${isValidSignature}`,
-      );
 
       if (!account) {
         this.logger.warn(`No WhatsApp config found for phone number: ${phoneNumber}`);
@@ -100,11 +170,6 @@ export class WhatsappConfigController {
           );
           return;
         }
-      }
-
-      if (!isValidSignature) {
-        this.logger.warn(`Invalid signature for message from ${userNumber} to ${phoneNumber}`);
-        return res.status(200).send({ received: true });
       }
 
       switch (messageType) {
@@ -227,7 +292,17 @@ export class WhatsappConfigController {
       }
 
     } catch (error) {
-      this.logger.error('Webhook error:', error);
+      // El ACK ya se envió, así que YCloud no va a reintentar: liberamos el
+      // claim para no dejar el mensaje marcado como procesado cuando no lo fue.
+      await this.webhookDedup.release(WEBHOOK_PROVIDER_YCLOUD, whatsappInboundMessageId);
+
+      this.logger.error('Webhook error', {
+        whatsappInboundMessageId,
+        phoneNumber,
+        userNumber,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
     }
   }
 

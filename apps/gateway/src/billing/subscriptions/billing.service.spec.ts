@@ -421,4 +421,140 @@ describe('BillingService', () => {
       });
     });
   });
+
+  describe('Webhook Events - invoice.payment_succeeded', () => {
+    // El plan PRO cuesta 499 USD e incluye 5000 créditos mensuales.
+    const PRO_MONTHLY_CREDITS = 5000;
+
+    /** Factura de renovación del plan PRO, resuelta por priceId de la línea. */
+    const proInvoice = (overrides: Record<string, any> = {}) => ({
+      id: 'inv_pro_1',
+      customer: 'cus_1',
+      amount_paid: 49900,
+      metadata: { organizationId: 'org-1' },
+      subscription: 'sub_1',
+      lines: { data: [{ price: { id: 'price_pro_m_123' } }] },
+      ...overrides,
+    });
+
+    /** Argumentos de addCredits: (orgId, monto, tipo, descripción, metadata, ...). */
+    const addCreditsAmount = () => mockCreditsService.addCredits.mock.calls[0][1];
+
+    beforeEach(() => {
+      mockPrismaService.creditBalance.findUnique.mockResolvedValue({
+        balance: 0,
+        invoicedOverageCredits: 0,
+      });
+      mockPrismaService.subscription.findUnique.mockResolvedValue({ plan: 'PRO' });
+      mockPrismaService.subscription.upsert.mockResolvedValue({ id: 'sub-db-1' });
+      mockStripeClient.stripe.subscriptions.retrieve.mockResolvedValue({
+        id: 'sub_1',
+        metadata: { organizationId: 'org-1' },
+        items: { data: [{ current_period_start: 1700000000, current_period_end: 1702592000 }] },
+      });
+    });
+
+    it('acredita los créditos del plan al pagarse la renovación', async () => {
+      await service.handleWebhookEvent({
+        type: 'invoice.payment_succeeded',
+        data: { object: proInvoice() },
+      } as any);
+
+      expect(mockCreditsService.addCredits).toHaveBeenCalledWith(
+        'org-1',
+        PRO_MONTHLY_CREDITS,
+        'SUBSCRIPTION_RENEWAL',
+        expect.any(String),
+        expect.objectContaining({ stripeInvoiceId: 'inv_pro_1' }),
+        expect.any(Number),
+        'sub-db-1',
+        undefined,
+      );
+    });
+
+    it('no acredita nada en facturas de $0 (inicio de trial)', async () => {
+      await service.handleWebhookEvent({
+        type: 'invoice.payment_succeeded',
+        data: { object: proInvoice({ amount_paid: 0 }) },
+      } as any);
+
+      expect(mockCreditsService.addCredits).not.toHaveBeenCalled();
+    });
+
+    it('no acredita nada si la factura no trae suscripción', async () => {
+      const invoice = proInvoice();
+      delete (invoice as any).subscription;
+
+      await service.handleWebhookEvent({
+        type: 'invoice.payment_succeeded',
+        data: { object: invoice },
+      } as any);
+
+      expect(mockCreditsService.addCredits).not.toHaveBeenCalled();
+    });
+
+    it('devuelve el overage ya facturado además de los créditos del plan', async () => {
+      // Se facturaron 300 créditos de overage y el balance quedó en -300:
+      // el pago los cubre, así que el saldo debe volver a los 5000 del plan.
+      mockPrismaService.creditBalance.findUnique.mockResolvedValue({
+        balance: -300,
+        invoicedOverageCredits: 300,
+      });
+
+      await service.handleWebhookEvent({
+        type: 'invoice.payment_succeeded',
+        data: { object: proInvoice() },
+      } as any);
+
+      expect(addCreditsAmount()).toBe(PRO_MONTHLY_CREDITS + 300);
+
+      // Y el snapshot de overage se limpia para el siguiente ciclo.
+      expect(mockPrismaService.creditBalance.update).toHaveBeenCalledWith({
+        where: { organizationId: 'org-1' },
+        data: { invoicedOverageCredits: 0 },
+      });
+    });
+
+    it('factura al mes siguiente el consumo que el pago no alcanzó a cubrir', async () => {
+      // Balance -400 con solo 300 facturados deja un hueco de 100 créditos.
+      mockPrismaService.creditBalance.findUnique.mockResolvedValue({
+        balance: -400,
+        invoicedOverageCredits: 300,
+      });
+
+      await service.handleWebhookEvent({
+        type: 'invoice.payment_succeeded',
+        data: { object: proInvoice() },
+      } as any);
+
+      expect(mockStripeClient.stripe.invoiceItems.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customer: 'cus_1',
+          price: 'price_overage_123',
+          quantity: 100,
+        }),
+      );
+    });
+
+    it('resuelve el organizationId desde la suscripción de Stripe si falta en la factura', async () => {
+      const invoice = proInvoice({ metadata: {} });
+
+      await service.handleWebhookEvent({
+        type: 'invoice.payment_succeeded',
+        data: { object: invoice },
+      } as any);
+
+      expect(mockStripeClient.stripe.subscriptions.retrieve).toHaveBeenCalledWith('sub_1');
+      expect(mockCreditsService.addCredits).toHaveBeenCalledWith(
+        'org-1',
+        PRO_MONTHLY_CREDITS,
+        'SUBSCRIPTION_RENEWAL',
+        expect.any(String),
+        expect.any(Object),
+        expect.any(Number),
+        'sub-db-1',
+        undefined,
+      );
+    });
+  });
 });

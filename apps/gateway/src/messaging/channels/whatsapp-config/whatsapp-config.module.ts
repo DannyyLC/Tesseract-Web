@@ -11,9 +11,10 @@ import { GoogleDriveModule } from '@/platform/cloud/google-drive/google-drive.mo
 import { ConversationsModule } from '@/messaging/conversations/conversations.module';
 import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
 import { ConversationsService } from '@/messaging/conversations/conversations.service';
+import { WebhookDedupModule } from '@/platform/webhooks/webhook-dedup.module';
 
 @Module({
-  imports: [UtilityModule, HttpModule, WorkflowsModule, MediaProcessingModule, GoogleDriveModule, ConversationsModule],
+  imports: [UtilityModule, HttpModule, WorkflowsModule, MediaProcessingModule, GoogleDriveModule, ConversationsModule, WebhookDedupModule],
   providers: [WhatsappConfigService, WhatsappMessageQueueService, OpenAiCompatibleMediaProcessorAdapter, GoogleDriveService, ConversationsService],
   controllers: [WhatsappConfigController],
   exports: [WhatsappConfigService, WhatsappMessageQueueService],

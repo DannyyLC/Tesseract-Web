@@ -190,25 +190,68 @@ describe('WhatsappConfigService', () => {
       process.env.Y_CLOUD_WEBHOOK_SECRET = origSecret;
     });
 
-    it('returns true for valid signature', async () => {
+    /** Construye un header de firma válido para el payload dado. */
+    const signHeader = (payload: string, timestamp: string, key: 's' | 'v1' = 's') => {
+      const signature = crypto
+        .createHmac('sha256', process.env.Y_CLOUD_WEBHOOK_SECRET || '')
+        .update(`${timestamp}.${payload}`)
+        .digest('hex');
+      return `t=${timestamp},${key}=${signature}`;
+    };
+
+    it('returns true for valid signature', () => {
       const payload = JSON.stringify({ hello: 'world' });
       const timestamp = `${Date.now()}`;
-      const signedPayload = `${timestamp}.${payload}`;
-      const expectedSignature = crypto
-        .createHmac('sha256', process.env.Y_CLOUD_WEBHOOK_SECRET || '')
-        .update(signedPayload)
-        .digest('hex');
-      const header = `t=${timestamp},s=${expectedSignature}`;
 
-      const res = await service.verifySignature(payload, header);
-      expect(res).toBe(true);
+      expect(service.verifySignature(payload, signHeader(payload, timestamp))).toBe(true);
     });
 
-    it('returns false for invalid signature', async () => {
-      const payload = 'x';
-      const header = `t=123,s=invalid`;
-      const res = await service.verifySignature(payload, header);
-      expect(res).toBe(false);
+    it('returns false for invalid signature', () => {
+      expect(service.verifySignature('x', 't=123,s=invalid')).toBe(false);
+    });
+
+    // La llave de la firma no está confirmada del lado de YCloud: el código
+    // anterior tomaba parts[1] sin mirar el nombre. Se aceptan ambas.
+    it('acepta la firma tanto en v1= como en s=', () => {
+      const payload = '{"a":1}';
+      const timestamp = `${Date.now()}`;
+
+      expect(service.verifySignature(payload, signHeader(payload, timestamp, 's'))).toBe(true);
+      expect(service.verifySignature(payload, signHeader(payload, timestamp, 'v1'))).toBe(true);
+    });
+
+    // Idem con la unidad del timestamp: se detecta sola.
+    it('acepta timestamps en segundos y en milisegundos', () => {
+      const payload = '{"a":1}';
+      const seconds = `${Math.floor(Date.now() / 1000)}`;
+      const millis = `${Date.now()}`;
+
+      expect(service.verifySignature(payload, signHeader(payload, seconds))).toBe(true);
+      expect(service.verifySignature(payload, signHeader(payload, millis))).toBe(true);
+    });
+
+    it('rechaza firmas viejas para cerrar la ventana de replay', () => {
+      const payload = '{"a":1}';
+      const oldTimestamp = `${Math.floor(Date.now() / 1000) - 3600}`;
+
+      expect(service.verifySignature(payload, signHeader(payload, oldTimestamp))).toBe(false);
+    });
+
+    // Antes, un header vacío o malformado lanzaba TypeError.
+    it.each([
+      ['header vacío', ''],
+      ['sin separadores', 'garbage'],
+      ['solo timestamp', 't=123'],
+      ['solo firma', 's=abc'],
+      ['timestamp no numérico', 't=abc,s=def'],
+    ])('devuelve false sin lanzar con %s', (_label, header) => {
+      expect(() => service.verifySignature('x', header)).not.toThrow();
+      expect(service.verifySignature('x', header)).toBe(false);
+    });
+
+    it('devuelve false si no hay secreto configurado', () => {
+      delete process.env.Y_CLOUD_WEBHOOK_SECRET;
+      expect(service.verifySignature('x', 't=123,s=abc')).toBe(false);
     });
   });
 });
