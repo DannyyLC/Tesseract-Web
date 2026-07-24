@@ -30,6 +30,7 @@ class ConversationsApi {
     workflowId?: string,
     userId?: string,
     prioritizeHitl: boolean = true,
+    needsFollowUp?: boolean,
   ): Promise<PaginatedResponse<DashboardConversationDto>> {
     const queryParams = new URLSearchParams();
     if (cursor) queryParams.append('cursor', cursor);
@@ -38,6 +39,9 @@ class ConversationsApi {
     if (status) queryParams.append('status', status);
     if (typeof isIntervened === 'boolean') {
       queryParams.append('isIntervened', isIntervened ? 'true' : 'false');
+    }
+    if (typeof needsFollowUp === 'boolean') {
+      queryParams.append('needsFollowUp', needsFollowUp ? 'true' : 'false');
     }
     if (workflowId) queryParams.append('workflowId', workflowId);
     if (userId) queryParams.append('userId', userId);

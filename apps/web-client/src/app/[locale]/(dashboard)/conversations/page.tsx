@@ -35,6 +35,7 @@ export default function ConversationsPage() {
   const pageAction = searchParams.get('action') as 'next' | 'prev' | undefined;
   const selectedStatus = searchParams.get('status') || undefined;
   const selectedIntervened = searchParams.get('isIntervened') || undefined;
+  const selectedFollowUp = searchParams.get('needsFollowUp') || undefined;
   const selectedWorkflow = searchParams.get('workflowId') || undefined;
   const selectedUser = searchParams.get('userId') || undefined;
 
@@ -104,6 +105,8 @@ export default function ConversationsPage() {
     status: selectedStatus,
     isIntervened:
       selectedIntervened === 'true' ? true : selectedIntervened === 'false' ? false : undefined,
+    needsFollowUp:
+      selectedFollowUp === 'true' ? true : selectedFollowUp === 'false' ? false : undefined,
     workflowId: selectedWorkflow,
     userId: selectedUser,
     prioritizeHitl: true,
@@ -117,6 +120,11 @@ export default function ConversationsPage() {
   const interventionOptions = [
     { label: t('interventionYes'), value: 'true' },
     { label: t('interventionNo'), value: 'false' },
+  ];
+
+  const followUpOptions = [
+    { label: t('followUpYes'), value: 'true' },
+    { label: t('followUpNo'), value: 'false' },
   ];
 
   // Cargar listas para filtros
@@ -181,6 +189,10 @@ export default function ConversationsPage() {
 
   const handleIntervenedChange = (value: string) => {
     updateUrl({ isIntervened: value || null, cursor: null, action: null });
+  };
+
+  const handleFollowUpChange = (value: string) => {
+    updateUrl({ needsFollowUp: value || null, cursor: null, action: null });
   };
 
   return (
@@ -286,6 +298,14 @@ export default function ConversationsPage() {
               value={selectedIntervened}
               onChange={handleIntervenedChange}
               placeholder={t('allInterventions')}
+            />
+
+            <FilterDropdown
+              label={t('followUpLabel')}
+              options={followUpOptions}
+              value={selectedFollowUp}
+              onChange={handleFollowUpChange}
+              placeholder={t('allFollowUps')}
             />
 
             <FilterDropdown

@@ -68,6 +68,7 @@ describe('ConversationsController', () => {
         undefined,
         undefined,
         undefined,
+        undefined,
         'true',
         res,
       );
@@ -79,6 +80,7 @@ describe('ConversationsController', () => {
         paginationAction: null,
         status: undefined,
         isHumanInTheLoop: undefined,
+        needsFollowUp: undefined,
         workflowId: undefined,
         userId: undefined,
         prioritizeHitl: true,

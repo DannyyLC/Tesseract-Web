@@ -32,10 +32,14 @@ export interface PostTurnAction {
   once_per_conversation?: boolean;
 }
 
-/** Handler de una acción: recibe el valor de la variable disparadora y los params declarados. */
+/**
+ * Handler de una acción: recibe el valor de la variable disparadora, los params
+ * declarados y el id de la acción (para que el canal pueda atribuir lo que envía).
+ */
 export type PostTurnActionHandler = (
   triggerValue: unknown,
   params: Record<string, unknown>,
+  actionId: string,
 ) => Promise<void>;
 
 export interface RunPostTurnActionsInput {
@@ -108,7 +112,7 @@ export async function runPostTurnActions(
 
     try {
       log('info', `post_turn_actions: ejecutando '${action.id}' (${action.action})`);
-      await handler(variables[action.when.variable], action.params ?? {});
+      await handler(variables[action.when.variable], action.params ?? {}, action.id);
       if (action.once_per_conversation) {
         doneFlags[action.id] = true;
       }

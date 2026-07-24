@@ -7,6 +7,10 @@ export class UpdateConversationDto implements IUpdateConversationDto {
   isHumanInTheLoop?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  needsFollowUp?: boolean;
+
+  @IsOptional()
   @IsString()
   status?: string;
 

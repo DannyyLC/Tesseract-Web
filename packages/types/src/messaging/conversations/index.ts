@@ -52,6 +52,10 @@ export interface ConversationDetailDto {
   channel: string;
   status: string;
   isHumanInTheLoop: boolean;
+  needsFollowUp: boolean;
+  followUpReason: string | null;
+  /** Telefono del cliente final. Solo en conversaciones de WhatsApp. */
+  endUserPhoneNumber: string | null;
   messageCount: number;
   lastMessageAt: Date | null;
   createdAt: Date;
@@ -68,6 +72,10 @@ export interface DashboardConversationDto {
   channel: string;
   status: string; // 'open' | 'closed' | 'snoozed' etc.
   isHumanInTheLoop: boolean;
+  needsFollowUp: boolean;
+  followUpReason: string | null;
+  /** Telefono del cliente final. Solo en conversaciones de WhatsApp. */
+  endUserPhoneNumber: string | null;
   messageCount: number;
   lastMessageAt: Date | null;
   workflowId: string;
@@ -81,6 +89,8 @@ export interface UpdateConversationDto {
   title?: string;
   status?: string;
   isHumanInTheLoop?: boolean;
+  needsFollowUp?: boolean;
+  followUpReason?: string | null;
 }
 
 export interface ConversationsStatsDto {

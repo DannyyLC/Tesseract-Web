@@ -13,6 +13,8 @@ import {
   Archive,
   RefreshCw,
   AlertCircle,
+  Phone,
+  BellRing,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useWorkflow, useExecuteStream } from '@/hooks/automation/use-workflows';
@@ -472,13 +474,31 @@ export default function WorkflowChatPage() {
                         {isEmpty ? (
                           workflow?.description || t('interactiveTester')
                         ) : (
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-2">
                             <span className="font-medium text-text-secondary">
                               {workflow?.name}
                             </span>
+                            {conversationData?.channel === 'WHATSAPP' &&
+                              conversationData?.endUserPhoneNumber && (
+                                <>
+                                  <span className="text-text-tertiary">•</span>
+                                  <span
+                                    className="flex items-center gap-1 text-text-secondary"
+                                    title={t('phoneNumberTitle')}
+                                  >
+                                    <Phone size={11} className="shrink-0" />
+                                    {conversationData.endUserPhoneNumber}
+                                  </span>
+                                </>
+                              )}
                           </span>
                         )}
                       </p>
+                      {conversationData?.needsFollowUp && conversationData.followUpReason && (
+                        <p className="mt-1 max-w-[180px] truncate text-xs text-info-600 lg:max-w-md">
+                          {conversationData.followUpReason}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -528,6 +548,36 @@ export default function WorkflowChatPage() {
                             </button>
                           </PermissionGuard>
                         )}
+
+                        {/* Seguimiento: se levanta solo desde el workflow, pero el
+                            boton va siempre visible para poder apagarlo cuando ya se
+                            atendio — y volver a prenderlo si se apago por error. */}
+                        <PermissionGuard permissions="conversations:update">
+                          <button
+                            onClick={() =>
+                              updateConversation.mutate({
+                                id: conversationId,
+                                data: { needsFollowUp: !conversationData.needsFollowUp },
+                              })
+                            }
+                            disabled={updateConversation.isPending}
+                            className={`flex items-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium transition-colors lg:px-3 ${
+                              conversationData.needsFollowUp
+                                ? 'border border-info-600 text-info-600 hover:bg-[color-mix(in_srgb,var(--info)_10%,transparent)]'
+                                : 'bg-surface-secondary text-text-tertiary hover:bg-surface-elevated'
+                            }`}
+                            title={
+                              conversationData.needsFollowUp
+                                ? t('clearFollowUp')
+                                : t('markFollowUp')
+                            }
+                          >
+                            <BellRing size={13} className="shrink-0" />
+                            <span className="hidden lg:inline">
+                              {t('statusNeedsFollowUp')}
+                            </span>
+                          </button>
+                        </PermissionGuard>
 
                         {/* Status Toggle (Simple Open/Close for now) */}
                         <PermissionGuard permissions="conversations:update">

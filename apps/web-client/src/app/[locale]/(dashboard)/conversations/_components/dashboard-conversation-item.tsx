@@ -10,6 +10,8 @@ import {
   Terminal,
   Trash2,
   Loader2,
+  Phone,
+  BellRing,
 } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { useState } from 'react';
@@ -192,6 +194,18 @@ export default function DashboardConversationItem({
                       {statusConfig.label}
                     </span>
                   </div>
+
+                  {conversation.needsFollowUp && (
+                    <div
+                      className="flex shrink-0 items-center gap-1.5 rounded-full bg-info/10 px-2 py-0.5"
+                      title={conversation.followUpReason || t('followUpBadgeTitle')}
+                    >
+                      <BellRing size={10} className="text-info-600" />
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-info-600">
+                        {t('statusNeedsFollowUp')}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Metadata Row */}
@@ -206,6 +220,15 @@ export default function DashboardConversationItem({
                       {conversation.channel?.toLowerCase()}
                     </span>
                   </div>
+                  {conversation.channel === 'WHATSAPP' && conversation.endUserPhoneNumber && (
+                    <>
+                      <span className="text-text-tertiary">•</span>
+                      <div className="flex items-center gap-1.5" title={t('phoneNumberTitle')}>
+                        <Phone size={12} />
+                        <span className="text-xs">{conversation.endUserPhoneNumber}</span>
+                      </div>
+                    </>
+                  )}
                   <span className="text-text-tertiary">•</span>
                   <div className="flex items-center gap-1.5">
                     <Calendar size={12} />

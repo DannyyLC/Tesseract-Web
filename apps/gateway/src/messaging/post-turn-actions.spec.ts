@@ -47,9 +47,12 @@ describe('runPostTurnActions', () => {
       handlers: { send_drive_folder_media: handler },
     });
 
-    expect(handler).toHaveBeenCalledWith('https://a,https://b', {
-      intro_message: 'Te comparto archivos',
-    });
+    // El id de la accion viaja al handler para que el canal atribuya lo que envia
+    expect(handler).toHaveBeenCalledWith(
+      'https://a,https://b',
+      { intro_message: 'Te comparto archivos' },
+      'share_catalog',
+    );
     expect(flags).toEqual({ share_catalog: true });
   });
 

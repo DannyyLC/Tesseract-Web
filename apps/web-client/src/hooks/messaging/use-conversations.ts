@@ -8,6 +8,7 @@ interface DashboardParams {
   action?: 'next' | 'prev' | null;
   status?: string;
   isIntervened?: boolean;
+  needsFollowUp?: boolean;
   workflowId?: string;
   userId?: string;
   prioritizeHitl?: boolean;
@@ -28,6 +29,7 @@ export function useConversationsDashboard(params: DashboardParams = {}) {
         params.workflowId,
         params.userId,
         params.prioritizeHitl,
+        params.needsFollowUp,
       );
     },
   });

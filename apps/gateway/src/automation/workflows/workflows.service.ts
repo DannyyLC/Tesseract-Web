@@ -41,6 +41,15 @@ import { WhatsAppInboundEvent } from '@/messaging/channels/whatsapp-config/dto/w
 import { MediaProcessingService } from '@/automation/media-processing/media-processing.service';
 
 /**
+ * Variables reservadas de la plataforma. Un workflow las deja en sus variables
+ * persistidas para pedir que alguien del equipo dé seguimiento a la conversación,
+ * sea cual sea el canal o el motivo. Son convención, no configuración: funcionan
+ * igual en todos los workflows sin declarar nada.
+ */
+const FOLLOW_UP_VARIABLE = 'requires_follow_up';
+const FOLLOW_UP_REASON_VARIABLE = 'follow_up_reason';
+
+/**
  * Service que maneja la lógica de negocio de workflows
  * Incluye validación de límites según el plan de la organización
  */
@@ -974,7 +983,11 @@ export class WorkflowsService {
       const responseMetadata = (agentResponse.metadata ?? {}) as any;
 
       // Persistir el estado del workflow (ya filtrado por el servicer vía persist_variables)
-      await this.persistConversationVariables(conversation, responseMetadata.variables_json);
+      await this.persistConversationVariables(
+        conversation,
+        responseMetadata.variables_json,
+        organizationId,
+      );
 
       const humanHandoffRequested = responseMetadata.human_handoff_requested;
       const totalTokens = responseMetadata.total_tokens ?? 0;
@@ -1490,7 +1503,11 @@ export class WorkflowsService {
           }
 
           // 4b. Persistir el estado del workflow (ya filtrado por el servicer vía persist_variables)
-          await this.persistConversationVariables(conversation, metadataEvent?.variables_json);
+          await this.persistConversationVariables(
+            conversation,
+            metadataEvent?.variables_json,
+            organizationId,
+          );
 
           // 5. Actualizar Ejecución
           await this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
@@ -1830,6 +1847,7 @@ export class WorkflowsService {
   private async persistConversationVariables(
     conversation: { id: string; metadata?: unknown },
     variablesJson?: string,
+    organizationId?: string,
   ): Promise<void> {
     if (!variablesJson) return;
     try {
@@ -1843,6 +1861,19 @@ export class WorkflowsService {
           },
         },
       });
+
+      // Señal genérica de la plataforma: cualquier workflow puede pedir seguimiento
+      // humano dejando `requires_follow_up: true` en sus variables persistidas.
+      // Se evalúa aquí porque es el único punto por el que pasan TODOS los canales.
+      if (organizationId && vars?.[FOLLOW_UP_VARIABLE] === true) {
+        await this.conversationsService.markNeedsFollowUp(
+          organizationId,
+          conversation.id,
+          typeof vars[FOLLOW_UP_REASON_VARIABLE] === 'string'
+            ? vars[FOLLOW_UP_REASON_VARIABLE]
+            : undefined,
+        );
+      }
     } catch (e) {
       this.logger.warn(
         `Failed to persist conversation variables for ${conversation.id}: ${(e as Error).message}`,

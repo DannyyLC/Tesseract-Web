@@ -526,6 +526,12 @@ model Conversation {
   totalTokens      Int       @default(0) // Suma de tokens usados
   totalCost        Decimal   @default(0) @db.Decimal(19, 8) // Costo acumulado en USD
   isHumanInTheLoop Boolean   @default(false) // Si true, la IA no responde, espera humano
+  // Requiere que alguien del equipo dé seguimiento por fuera del bot. Lo levanta
+  // cualquier workflow dejando `requires_follow_up: true` en sus variables
+  // persistidas, o un humano desde la UI. Solo se apaga a mano: que el bot deje
+  // de pedirlo no significa que el seguimiento ya se hizo.
+  needsFollowUp    Boolean   @default(false)
+  followUpReason   String?   // Por qué se marcó (se muestra en la UI)
   isCompacting     Boolean   @default(false) // Lock de compactación por conversación
   compactingLockedAt DateTime? // Timestamp para TTL y recuperación de lock stale
   lastMessageAt    DateTime? // Último mensaje (para calcular inactividad)
@@ -558,6 +564,7 @@ model Conversation {
   @@index([whatsappConfigId])
   @@index([status])
   @@index([channel])
+  @@index([needsFollowUp]) // El listado ordena y filtra por esto
   @@index([createdAt])
   @@index([lastMessageAt])
   @@index([autoCloseAt])

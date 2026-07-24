@@ -167,6 +167,45 @@ export class ConversationsService {
   }
 
   /**
+   * Marca la conversación como pendiente de seguimiento por parte del equipo.
+   *
+   * Es una señal genérica de la plataforma: cualquier workflow la levanta dejando
+   * `requires_follow_up: true` en sus variables persistidas, sin importar el canal
+   * ni el motivo. La marca NO se apaga sola — que el workflow deje de pedirla no
+   * significa que alguien ya haya contactado al cliente; se apaga desde la UI.
+   *
+   * Idempotente: si ya estaba marcada, no vuelve a notificar.
+   */
+  async markNeedsFollowUp(
+    organizationId: string,
+    conversationId: string,
+    reason?: string,
+  ): Promise<void> {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { id: conversationId, organizationId, deletedAt: null },
+      select: { id: true, workflowId: true, needsFollowUp: true },
+    });
+
+    if (!conversation || conversation.needsFollowUp) {
+      return;
+    }
+
+    const safeReason = reason?.trim() || 'Requiere seguimiento del equipo';
+
+    await this.prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { needsFollowUp: true, followUpReason: safeReason },
+    });
+
+    await this.utilityService.sendNotificationToAppClients(
+      organizationId,
+      [UserRole.OWNER, UserRole.ADMIN],
+      (NOTIFICATIONSENUM as any).CONVERSATION_NEEDS_FOLLOW_UP ?? '0000-0115',
+      [conversation.id, conversation.workflowId, safeReason],
+    );
+  }
+
+  /**
    * Busca o crea una conversación para la ejecución
    *
    * @param workflowId - ID del workflow
@@ -321,6 +360,7 @@ export class ConversationsService {
             attachments: true,
           },
         },
+        endUser: { select: { phoneNumber: true } },
       },
     });
 
@@ -328,7 +368,10 @@ export class ConversationsService {
       throw new NotFoundException(`Conversation with ID ${id} not found`);
     }
 
-    return conversation;
+    return {
+      ...conversation,
+      endUserPhoneNumber: conversation.endUser?.phoneNumber ?? null,
+    };
   }
 
   /**
@@ -350,6 +393,12 @@ export class ConversationsService {
     }
 
     const updateData = { ...data };
+
+    // Al apagar la marca de seguimiento se limpia también el motivo: quedó atendida
+    // y conservarlo confundiría si el workflow la vuelve a levantar por otra razón.
+    if (updateData.needsFollowUp === false) {
+      updateData.followUpReason = null;
+    }
 
     if (typeof updateData.status === 'string') {
       const normalizedStatus = updateData.status.toUpperCase();
@@ -392,6 +441,7 @@ export class ConversationsService {
     take?: number;
     paginationAction: 'next' | 'prev' | null;
     isHumanInTheLoop?: boolean;
+    needsFollowUp?: boolean;
     status?: string;
     prioritizeHitl?: boolean;
     organizationId: string;
@@ -403,6 +453,7 @@ export class ConversationsService {
       take,
       paginationAction,
       isHumanInTheLoop,
+      needsFollowUp,
       status,
       prioritizeHitl = true,
       organizationId,
@@ -410,9 +461,12 @@ export class ConversationsService {
       userId,
     } = params;
 
+    // Las que piden accion humana van primero: intervenidas, luego pendientes de
+    // seguimiento, y solo entonces el resto por recencia.
     const orderBy = prioritizeHitl
       ? [
           { isHumanInTheLoop: 'desc' as const },
+          { needsFollowUp: 'desc' as const },
           { status: 'asc' as const },
           { lastMessageAt: 'desc' as const },
           { createdAt: 'desc' as const },
@@ -428,6 +482,7 @@ export class ConversationsService {
       cursor: cursor ? { id: cursor } : undefined,
       where: {
         isHumanInTheLoop,
+        needsFollowUp,
         ...(status && { status: status.toUpperCase() as any }),
         organizationId,
         workflowId,
@@ -441,7 +496,7 @@ export class ConversationsService {
           orderBy: { createdAt: 'desc' },
         },
         user: { select: { name: true, email: true, avatar: true } },
-        endUser: { select: { name: true, email: true, avatar: true } },
+        endUser: { select: { name: true, email: true, avatar: true, phoneNumber: true } },
       },
     });
 
@@ -456,6 +511,7 @@ export class ConversationsService {
       items: paginatedResult.items.map((c: any) => ({
         ...c,
         isInternal: !!c.userId,
+        endUserPhoneNumber: c.endUser?.phoneNumber ?? null,
       })) as DashboardConversationDto[],
     };
   }

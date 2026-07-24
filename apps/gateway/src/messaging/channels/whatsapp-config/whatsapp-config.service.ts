@@ -1,6 +1,11 @@
 import { HttpService } from '@nestjs/axios';
 import { Inject, Injectable } from '@nestjs/common';
-import { WhatsAppConfig, WhatsAppConnectionStatus, WhatsAppTemplate } from '@tesseract/database';
+import {
+  ChatRole,
+  WhatsAppConfig,
+  WhatsAppConnectionStatus,
+  WhatsAppTemplate,
+} from '@tesseract/database';
 import * as crypto from 'crypto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { firstValueFrom } from 'rxjs';
@@ -399,15 +404,35 @@ export class WhatsappConfigService {
       return;
     }
 
+    /**
+     * El cliente SÍ recibe estos mensajes, así que tienen que quedar en el historial:
+     * de lo contrario quien revise la conversación en el dashboard vería menos de lo
+     * que realmente se envió. Se marcan en metadata con el id de la acción para poder
+     * distinguirlos después de las respuestas del agente.
+     */
+    const sendAndRecord = async (actionId: string, text: string) => {
+      await this.sendTextMessage(ownerNumber, clientNumber, text);
+      try {
+        await this.conversationsService.addMessage(conversationId, ChatRole.ASSISTANT, text, {
+          postTurnAction: actionId,
+        });
+      } catch (error) {
+        // El mensaje ya salió; no registrarlo no debe tumbar el resto de las acciones
+        this.logger.error(
+          `post_turn_actions: no se pudo registrar el mensaje de '${actionId}': ${(error as Error).message}`,
+        );
+      }
+    };
+
     // Handlers que este canal (WhatsApp) ofrece a las acciones declaradas
     const handlers: Record<string, PostTurnActionHandler> = {
-      send_drive_folder_media: async (triggerValue, params) => {
+      send_drive_folder_media: async (triggerValue, params, actionId) => {
         const urls = Array.isArray(triggerValue)
           ? triggerValue
           : String(triggerValue ?? '').split(',');
         const intro = params.intro_message ? String(params.intro_message) : '';
         if (intro) {
-          await this.sendTextMessage(ownerNumber, clientNumber, intro);
+          await sendAndRecord(actionId, intro);
         }
         for (const url of urls) {
           const normalized = String(url).trim();
@@ -415,10 +440,10 @@ export class WhatsappConfigService {
           await this.sendFolderMediaToUser(normalized, ownerNumber, clientNumber);
         }
       },
-      send_text_message: async (_triggerValue, params) => {
+      send_text_message: async (_triggerValue, params, actionId) => {
         const text = params.text ? String(params.text) : '';
         if (text) {
-          await this.sendTextMessage(ownerNumber, clientNumber, text);
+          await sendAndRecord(actionId, text);
         }
       },
     };

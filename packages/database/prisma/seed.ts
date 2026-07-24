@@ -484,6 +484,15 @@ const notifications: NotificationSeed[] = [
     isActive: true,
   },
   {
+    code: '0000-0115',
+    version: 1,
+    titleTemplate: 'Conversacion Requiere Seguimiento.',
+    messageTemplate:
+      'La conversacion %s del workflow %s quedo marcada para seguimiento. Motivo: %s.',
+    targetRoles: ['OWNER', 'ADMIN'],
+    isActive: true,
+  },
+  {
     code: '0000-1000',
     version: 1,
     titleTemplate: 'Aceptacion De Invitacion.',

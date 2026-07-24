@@ -7,6 +7,9 @@ export class ConversationDetailDto implements IConversationDetailDto {
   channel: string;
   status: string;
   isHumanInTheLoop: boolean;
+  needsFollowUp: boolean;
+  followUpReason: string | null;
+  endUserPhoneNumber: string | null;
   messageCount: number;
   lastMessageAt: Date | null;
   createdAt: Date;

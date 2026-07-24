@@ -888,7 +888,16 @@
     "thinkingWord3": "Analizando",
     "thinkingWord4": "Generando respuesta",
     "thinkingWord5": "Un momento",
-    "thinkingWord6": "Revisando contexto"
+    "thinkingWord6": "Revisando contexto",
+    "followUpLabel": "Seguimiento",
+    "allFollowUps": "Todas",
+    "followUpYes": "Requiere seguimiento",
+    "followUpNo": "Sin pendientes",
+    "statusNeedsFollowUp": "Seguimiento",
+    "followUpBadgeTitle": "Requiere seguimiento del equipo",
+    "markFollowUp": "Marcar para seguimiento",
+    "clearFollowUp": "Marcar como atendida",
+    "phoneNumberTitle": "Telefono del cliente"
   },
   "ApiKeys": {
     "heading": "API Keys",

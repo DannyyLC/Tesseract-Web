@@ -122,7 +122,19 @@ describe('ConversationsService', () => {
           where: { id: 'c-1', organizationId: 'org-1', deletedAt: null },
         }),
       );
-      expect(result).toEqual(mockConversation);
+      // El telefono del cliente se aplana para que la UI no tenga que navegar la relacion
+      expect(result).toEqual({ ...mockConversation, endUserPhoneNumber: null });
+    });
+
+    it('should expose the end user phone number when present', async () => {
+      mockPrismaService.conversation.findFirst.mockResolvedValue({
+        id: 'c-1',
+        messages: [],
+        endUser: { phoneNumber: '+5215555555555' },
+      });
+
+      const result = await service.findOne('org-1', 'c-1');
+      expect(result.endUserPhoneNumber).toBe('+5215555555555');
     });
 
     it('should throw NotFoundException if conversation not found', async () => {

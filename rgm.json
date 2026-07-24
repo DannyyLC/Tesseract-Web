@@ -392,7 +392,9 @@
         "config": {
           "variables": {
             "handoff_contact_fallback": "1",
-            "handoff_notice_text": ""
+            "handoff_notice_text": "",
+            "requires_follow_up": true,
+            "follow_up_reason": "No se pudo confirmar la notificación al equipo de ventas. Contactar al cliente directamente."
           }
         }
       },
@@ -432,7 +434,9 @@
       "handoff_done_topics",
       "media_url",
       "media_url_pending",
-      "handoff_contact_fallback"
+      "handoff_contact_fallback",
+      "requires_follow_up",
+      "follow_up_reason"
     ],
     "variable_reducers": {
       "handoff_topics": {
