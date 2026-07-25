@@ -860,6 +860,7 @@ export class UsersService {
         subject,
         userMessage,
         organizationName,
+        organizationId,
         dateTime,
       );
       if (!emailResult) {
