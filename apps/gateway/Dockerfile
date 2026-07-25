@@ -30,7 +30,9 @@ RUN pnpm --filter @tesseract/types build
 RUN pnpm --filter @tesseract/database build
 
 # Construir la aplicación principal (Gateway)
-RUN pnpm --filter @tesseract/gateway build
+# El heap default de Node (~2 GB) no alcanza: nest build corre el plugin de
+# swagger sobre todos los DTOs/controladores del gateway.
+RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @tesseract/gateway build
 
 
 # ==========================================

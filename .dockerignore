@@ -1,0 +1,29 @@
+# Dependencias: se instalan dentro de la imagen (pnpm install), nunca se copian.
+# Copiarlas rompe los symlinks del store de pnpm e infla el contexto de build.
+node_modules
+**/node_modules
+
+# Artefactos de build y cachés
+dist
+**/dist
+*.tsbuildinfo
+**/*.tsbuildinfo
+.nx
+.pytest_cache
+**/__pycache__
+**/*.pyc
+
+# Control de versiones y metadatos
+.git
+.gitignore
+.github
+
+# Entorno local — los secretos se inyectan en Cloud Run, no en la imagen
+.env
+.env.*
+!.env.example
+
+# Editor / herramientas
+.claude
+.vscode
+.idea
