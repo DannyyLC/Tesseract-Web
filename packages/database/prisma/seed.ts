@@ -62,6 +62,28 @@ type NotificationSeed = {
 };
 
 const llmModels: LlmModelSeed[] = [
+  // Modelos base: son los que referencian rgm.json y workflow-config.json.
+  // Sin ellos en la BD, validateModels() rechaza el workflow al guardarlo.
+  {
+    provider: 'openai',
+    modelName: 'gpt-5.4-mini',
+    tier: 'BASIC',
+    category: 'chat',
+    inputPricePer1m: 0.75,
+    outputPricePer1m: 4.5,
+    contextWindow: 400000,
+    recommendedMaxTokens: 128000,
+  },
+  {
+    provider: 'openai',
+    modelName: 'gpt-5.6-luna',
+    tier: 'STANDARD',
+    category: 'chat',
+    inputPricePer1m: 1.0,
+    outputPricePer1m: 6.0,
+    contextWindow: 1050000,
+    recommendedMaxTokens: 128000,
+  },
   {
     provider: 'openai',
     modelName: 'gpt-4o-mini',
