@@ -6,7 +6,6 @@ import {
   MediaTooLargeError,
 } from './media-processor.adapter';
   
-type MediaType = 'IMAGE' | 'AUDIO';
 @Injectable()
 export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdapter {
   private readonly apiBaseUrl: string;

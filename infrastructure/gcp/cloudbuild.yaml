@@ -66,7 +66,15 @@ steps:
       - --region=us-central1
       - --platform=managed
       - --add-cloudsql-instances=fractal-tesseract:us-central1:tesseract-db
+      # El worker de WhatsApp corre el workflow completo dentro de una request de
+      # Cloud Tasks. Los 300s por defecto se quedan cortos: el propio workflow ya
+      # tiene timeout de 300s, más transcripción y compactación.
       - --timeout=600
+      # Explícito a propósito. `gcloud run deploy` CONSERVA las banderas que no se le
+      # pasan, así que omitirla no garantiza nada: si alguien despliega una vez con
+      # --no-cpu-throttling, se queda hasta que se revierta a mano. Con Cloud Tasks no
+      # queda trabajo después del ACK, así que facturamos por request.
+      - --cpu-throttling
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy-agents'

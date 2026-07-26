@@ -887,9 +887,14 @@ export class ConversationsService {
   }
 
   /**
-   * Devuelve el resumen activo (si existe) para componer contexto de ejecución.
+   * Devuelve la compactación activa: el resumen y hasta dónde llegó.
+   *
+   * `sourceMessageToId` es lo que permite compactar de forma incremental — resumir solo
+   * lo que llegó después — en vez de rehacer el resumen entero en cada turno.
    */
-  async getActiveCompactionSummary(conversationId: string): Promise<string | null> {
+  async getActiveCompaction(
+    conversationId: string,
+  ): Promise<{ summary: string; sourceMessageToId: string | null } | null> {
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
       select: {
@@ -897,17 +902,33 @@ export class ConversationsService {
           select: {
             summary: true,
             status: true,
+            sourceMessageToId: true,
           },
         },
       },
     });
 
-    if (!conversation?.currentCompaction) {
+    const compaction = conversation?.currentCompaction;
+
+    if (
+      !compaction ||
+      compaction.status !== CompactionStatus.SUCCEEDED ||
+      !compaction.summary
+    ) {
       return null;
     }
 
-    return conversation.currentCompaction.status === CompactionStatus.SUCCEEDED
-      ? conversation.currentCompaction.summary
-      : null;
+    return {
+      summary: compaction.summary,
+      sourceMessageToId: compaction.sourceMessageToId,
+    };
+  }
+
+  /**
+   * Devuelve el resumen activo (si existe) para componer contexto de ejecución.
+   */
+  async getActiveCompactionSummary(conversationId: string): Promise<string | null> {
+    const active = await this.getActiveCompaction(conversationId);
+    return active?.summary ?? null;
   }
 }

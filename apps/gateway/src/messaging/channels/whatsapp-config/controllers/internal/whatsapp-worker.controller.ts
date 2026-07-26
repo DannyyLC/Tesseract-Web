@@ -8,6 +8,7 @@ import { firstValueFrom } from 'rxjs';
 import { Logger } from 'winston';
 import {
   MediaPolicy,
+  approximateAudioSeconds,
   maxAudioBytes,
 } from '@/automation/media-processing/media-policy';
 import {
@@ -394,6 +395,11 @@ export class WhatsappWorkerController {
               ...logContext,
               messageId: buffered.messageId,
               sizeBytes: attachment.sizeBytes,
+              // Aproximado: el webhook no trae la duración, se deriva del tamaño. Sirve
+              // para entender de un vistazo si el límite está bien calibrado.
+              approxSeconds: attachment.sizeBytes
+                ? approximateAudioSeconds(attachment.sizeBytes)
+                : undefined,
               maxSeconds: policy.audio.maxSeconds,
             });
             break;

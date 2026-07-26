@@ -44,6 +44,7 @@ import {
   toAttachmentInput,
 } from '@/automation/media-processing/media-processing.service';
 import { MediaPolicy, resolveMediaPolicy } from '@/automation/media-processing/media-policy';
+import { selectMessagesToArchive } from './compaction-window';
 
 /**
  * Variables reservadas de la plataforma. Un workflow las deja en sus variables
@@ -64,6 +65,8 @@ export class WorkflowsService {
   private readonly compactionThresholdRatio = 0.8;
   private readonly recentMessagesToKeepWithSummary = 7;
   private readonly maxArchivedMessagesForSummary = 40;
+  /** Mensajes nuevos mínimos para compactar. Evita una llamada al LLM por cada mensaje. */
+  private readonly minMessagesToCompact = 10;
   private readonly maxCompactionSummaryChars = 8000;
   private readonly compactionApiBaseUrl: string;
   private readonly compactionApiKey: string;
@@ -947,31 +950,13 @@ export class WorkflowsService {
 
     // 5. EJECUTAR WORKFLOW CON EL SERVICIO DE AGENTS
     try {
-      const historyForCompaction = [...messageHistory, { role: 'user', content: userMessage }];
-
-      const compactionContext = await this.compactConversationIfThresholdReached(
+      const { historyForPayload, activeSummary } = await this.prepareHistoryForPayload(
         conversation.id,
         workflow.maxTokensPerExecution,
-        historyForCompaction,
+        messageHistory,
+        userMessage,
       );
-
-      const finalMessageHistory = compactionContext.compactionApplied
-        ? await this.conversationsService.getMessageHistory(conversation.id)
-        : messageHistory;
-      let historyForPayload = compactionContext.activeSummary
-        ? this.calculateAdaptiveRecentMessages(finalMessageHistory, workflow.maxTokensPerExecution)
-        : finalMessageHistory;
-
-      const finalTokens = this.estimateMessageHistoryTokens(historyForPayload);
-      const hardCap = workflow.maxTokensPerExecution;
-      if (finalTokens > hardCap) {
-        this.logger.warn(
-          `CRITICAL: conversation ${conversation.id} exceeded hard cap ` +
-            `(${finalTokens}/${hardCap} tokens) after all reduction strategies. ` +
-            `Forcing minimum history window.`,
-        );
-        historyForPayload = historyForPayload.slice(-2);
-      }
+      const compactionContext = { activeSummary };
 
       // Construir el payload completo con credenciales y configuración
       const payload = await this.buildAgentPayload(
@@ -1346,32 +1331,13 @@ export class WorkflowsService {
 
     // 5. EJECUTAR STREAM
     try {
-      const historyForCompaction = [...messageHistory, { role: 'user', content: userMessage }];
-
-      const compactionContext = await this.compactConversationIfThresholdReached(
+      const { historyForPayload, activeSummary } = await this.prepareHistoryForPayload(
         conversation.id,
         workflow.maxTokensPerExecution,
-        historyForCompaction,
+        messageHistory,
+        userMessage,
       );
-
-      const finalMessageHistory = compactionContext.compactionApplied
-        ? await this.conversationsService.getMessageHistory(conversation.id)
-        : messageHistory;
-      // Este historial sí incluye el mensaje de usuario porque addMessage ocurre antes de la recarga.
-      let historyForPayload = compactionContext.activeSummary
-        ? this.calculateAdaptiveRecentMessages(finalMessageHistory, workflow.maxTokensPerExecution)
-        : finalMessageHistory;
-
-      const finalTokens = this.estimateMessageHistoryTokens(historyForPayload);
-      const hardCap = workflow.maxTokensPerExecution;
-      if (finalTokens > hardCap) {
-        this.logger.warn(
-          `CRITICAL: conversation ${conversation.id} exceeded hard cap ` +
-            `(${finalTokens}/${hardCap} tokens) after all reduction strategies. ` +
-            `Forcing minimum history window.`,
-        );
-        historyForPayload = historyForPayload.slice(-2);
-      }
+      const compactionContext = { activeSummary };
 
       const payload = await this.buildAgentPayload(
         workflow,
@@ -1915,6 +1881,62 @@ export class WorkflowsService {
     }
   }
 
+  /**
+   * Deja listo el historial que se le manda al agente: compacta si toca, recorta si hay
+   * resumen, y aplica el tope duro.
+   *
+   * Vive en un solo lugar porque `execute` y `executeStream` hacían exactamente lo mismo
+   * con código duplicado, y arreglar uno y olvidar el otro era cuestión de tiempo.
+   */
+  private async prepareHistoryForPayload(
+    conversationId: string,
+    maxTokensPerExecution: number,
+    messageHistory: Array<{ role: string; content?: string | null }>,
+    userMessage: string,
+  ): Promise<{
+    historyForPayload: Array<{ role: string; content?: string | null }>;
+    activeSummary: string | null;
+  }> {
+    const historyForCompaction = [...messageHistory, { role: 'user', content: userMessage }];
+
+    const compactionContext = await this.compactConversationIfThresholdReached(
+      conversationId,
+      maxTokensPerExecution,
+      historyForCompaction,
+    );
+
+    const finalMessageHistory = compactionContext.compactionApplied
+      ? await this.conversationsService.getMessageHistory(conversationId)
+      : messageHistory;
+
+    // Si hay resumen vigente —lo haya generado este turno o uno anterior— el historial se
+    // recorta. Antes solo se recortaba cuando la compactación corría en ese turno, así que
+    // el resto del tiempo se mandaba resumen + historial completo.
+    let historyForPayload = compactionContext.activeSummary
+      ? this.calculateAdaptiveRecentMessages(finalMessageHistory, maxTokensPerExecution)
+      : finalMessageHistory;
+
+    const finalTokens = this.estimateMessageHistoryTokens(historyForPayload);
+    if (finalTokens > maxTokensPerExecution) {
+      this.logger.warn(
+        `CRITICAL: conversation ${conversationId} exceeded hard cap ` +
+          `(${finalTokens}/${maxTokensPerExecution} tokens) after all reduction strategies. ` +
+          `Forcing minimum history window.`,
+      );
+      historyForPayload = historyForPayload.slice(-2);
+    }
+
+    return { historyForPayload, activeSummary: compactionContext.activeSummary };
+  }
+
+  /**
+   * Compacta el historial si hace falta y devuelve el resumen que aplica.
+   *
+   * Devuelve `activeSummary` SIEMPRE que exista uno, haya compactado en este turno o no.
+   * Antes solo lo devolvía cuando compactaba, y como `buildAgentPayload` inyecta el
+   * resumen guardado de todos modos, en los turnos sin compactación se mandaba resumen
+   * MÁS historial completo: más tokens que si nunca se hubiera compactado.
+   */
   private async compactConversationIfThresholdReached(
     conversationId: string,
     maxTokensPerExecution: number,
@@ -1924,27 +1946,42 @@ export class WorkflowsService {
     const threshold = Math.floor(maxTokensPerExecution * this.compactionThresholdRatio);
 
     if (historyTokens < threshold) {
-      return { compactionApplied: false, activeSummary: null };
+      const active = await this.conversationsService.getActiveCompaction(conversationId);
+      return { compactionApplied: false, activeSummary: active?.summary ?? null };
     }
 
     const acquired = await this.conversationsService.tryAcquireCompactionLock(conversationId);
     if (!acquired) {
       this.logger.debug(`Compaction lock busy for conversation ${conversationId}. Skipping.`);
-      return { compactionApplied: false, activeSummary: null };
+      const active = await this.conversationsService.getActiveCompaction(conversationId);
+      return { compactionApplied: false, activeSummary: active?.summary ?? null };
     }
+
+    let existingSummary: string | null = null;
 
     try {
       const fullHistory = await this.conversationsService.getMessageHistoryWithIds(conversationId);
-      const existingSummary =
-        await this.conversationsService.getActiveCompactionSummary(conversationId);
+      const active = await this.conversationsService.getActiveCompaction(conversationId);
+      existingSummary = active?.summary ?? null;
 
-      const boundary = Math.max(0, fullHistory.length - this.recentMessagesToKeepWithSummary);
-      const archivedMessages = fullHistory.slice(0, boundary);
+      // Solo lo que llegó después de la compactación anterior, y solo si ya hay un lote
+      // que lo justifique. Antes se recalculaba desde el índice 0 en cada turno: una
+      // llamada al LLM por mensaje, resumiendo casi siempre el mismo contenido.
+      const selection = selectMessagesToArchive({
+        fullHistory,
+        sourceMessageToId: active?.sourceMessageToId,
+        recentToKeep: this.recentMessagesToKeepWithSummary,
+        minBatch: this.minMessagesToCompact,
+      });
 
-      if (archivedMessages.length === 0 && !existingSummary) {
-        return { compactionApplied: false, activeSummary: null };
+      if (selection.messages.length === 0) {
+        this.logger.debug(
+          `Nada nuevo que compactar en ${conversationId} (${selection.reason ?? 'sin motivo'})`,
+        );
+        return { compactionApplied: false, activeSummary: existingSummary };
       }
 
+      const archivedMessages = selection.messages;
       const archivedTail = archivedMessages.slice(-this.maxArchivedMessagesForSummary);
       const composedSummary = await this.summarizeArchivedConversation(
         existingSummary,
@@ -1983,7 +2020,9 @@ export class WorkflowsService {
           (recordError as Error).stack,
         );
       }
-      return { compactionApplied: false, activeSummary: null };
+      // Que fallara la compactación no invalida el resumen anterior: seguirlo usando es
+      // mejor que mandar el historial completo sin resumir.
+      return { compactionApplied: false, activeSummary: existingSummary };
     } finally {
       try {
         await this.conversationsService.releaseCompactionLock(conversationId);

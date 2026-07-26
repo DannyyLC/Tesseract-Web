@@ -83,6 +83,7 @@ describe('WorkflowsService', () => {
     tryAcquireCompactionLock: jest.fn().mockResolvedValue(false),
     releaseCompactionLock: jest.fn(),
     getActiveCompactionSummary: jest.fn().mockResolvedValue(null),
+    getActiveCompaction: jest.fn().mockResolvedValue(null),
     createAndActivateCompaction: jest.fn(),
   };
   const mockToolsService = {

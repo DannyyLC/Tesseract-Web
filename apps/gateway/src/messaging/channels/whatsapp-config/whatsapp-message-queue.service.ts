@@ -53,10 +53,6 @@ export class WhatsappMessageQueueService {
   /** Margen amplio: cubre el retraso de la ventana más los reintentos de la cola. */
   private readonly bufferTtlSeconds = 900;
 
-  isConfigured(): boolean {
-    return Boolean(this.redisUrl);
-  }
-
   /** Agrega un mensaje a la ventana en curso. */
   async bufferMessage(
     organizationId: string,
