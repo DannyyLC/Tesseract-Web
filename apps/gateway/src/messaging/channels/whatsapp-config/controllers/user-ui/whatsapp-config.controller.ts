@@ -1,4 +1,3 @@
-import { HttpService } from '@nestjs/axios';
 import {
   Body,
   Controller,
@@ -13,19 +12,20 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { WhatsAppConfig, WhatsAppConnectionStatus, WhatsAppTemplate } from '@tesseract/database';
-import { TriggerType, ConversationChannel } from '@tesseract/database';
+import { SkipThrottle } from '@nestjs/throttler';
+import { WhatsAppConfig, WhatsAppTemplate } from '@tesseract/database';
 import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
 import { Response } from 'express';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { firstValueFrom } from 'rxjs';
 import { Logger } from 'winston';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { WhatsappConfigService } from '../../whatsapp-config.service';
-import { WorkflowsService } from '@/automation/workflows/workflows.service';
-import { WhatsappMessageQueueService } from '../../whatsapp-message-queue.service';
+import {
+  WHATSAPP_WINDOW_SECONDS,
+  WhatsappMessageQueueService,
+} from '../../whatsapp-message-queue.service';
 import {
   CreateConfigDto,
   WhatsAppInboundEvent,
@@ -33,25 +33,20 @@ import {
   UpdateTemplateDto,
   SendTemplateDto,
 } from '../../dto';
-import { OpenAiCompatibleMediaProcessorAdapter } from '@/automation/media-processing/adapters/openai-compatible-media-processor.adapter';
-import { MediaType } from '@/automation/media-processing/adapters/media-processor.adapter';
-import { ConversationsService } from '@/messaging/conversations/conversations.service';
-import { JsonObject } from '@prisma/client/runtime/client';
+import { CloudTasksService } from '@/platform/tasks/cloud-tasks.service';
 import { WebhookDedupService } from '@/platform/webhooks/webhook-dedup.service';
-
-/** Identificador de proveedor para la tabla de deduplicación de webhooks. */
-const WEBHOOK_PROVIDER_YCLOUD = 'ycloud';
+import {
+  WEBHOOK_PROVIDER_YCLOUD,
+  WHATSAPP_WORKER_PATH,
+} from '../../whatsapp-worker.constants';
 
 @Controller('whatsapp-config')
 export class WhatsappConfigController {
   constructor(
-    private readonly httpService: HttpService,
     private readonly whatsappConfigService: WhatsappConfigService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
-    private readonly workflowsService: WorkflowsService,
     private readonly whatsappMessageQueueService: WhatsappMessageQueueService,
-    private readonly mediaProcessor: OpenAiCompatibleMediaProcessorAdapter,
-    private readonly conversationsService: ConversationsService,
+    private readonly cloudTasks: CloudTasksService,
     private readonly webhookDedup: WebhookDedupService,
   ) {}
 
@@ -60,15 +55,26 @@ export class WhatsappConfigController {
   /**
    * Webhook de mensajes entrantes de YCloud.
    *
-   * El orden importa. Lo barato y crítico (firma + deduplicación) va ANTES de
-   * responder; el trabajo pesado (transcripción de audio, OCR, ejecución del
-   * workflow) va después del ACK, porque puede tardar decenas de segundos y
-   * YCloud cortaría por timeout.
+   * Este handler solo acusa recibo: verifica firma, deduplica, guarda el mensaje en
+   * la ventana de agregación y encola una tarea. Todo dentro del ciclo de la
+   * request, en decenas de milisegundos.
+   *
+   * El trabajo pesado (transcripción, OCR, ejecución del workflow, respuesta) vive
+   * en `WhatsappWorkerController`. Antes ocurría aquí mismo, después del ACK: Cloud
+   * Run estrangula la CPU en cuanto la respuesta sale, así que ese trabajo se
+   * congelaba, y si la instancia se reciclaba el mensaje desaparecía sin dejar ni un
+   * log. Ahora lo despacha Cloud Tasks como una request normal, con reintentos.
    *
    * Antes se verificaba la firma después de consultar y MUTAR la base
    * (`updateConnectionStatus`), lo que permitía a un llamador sin credenciales
    * cambiar el estado de conexión de una cuenta.
+   *
+   * El ThrottlerGuard global (20 req/60s por IP) no aplica: todas las entregas de
+   * YCloud salen de un puñado de IPs suyas, así que comparten un solo bucket y una
+   * ráfaga normal de mensajes se llevaba 429. Lo que protege este endpoint es la
+   * firma HMAC y la deduplicación, no un límite por IP.
    */
+  @SkipThrottle()
   @Post('whatsapp-webhook')
   async handleWebhook(@Body() body: any, @Res() res: Response, @Headers() headers: any) {
     const parsedBody = body as WhatsAppInboundEvent;
@@ -134,175 +140,72 @@ export class WhatsappConfigController {
       return res.status(HttpStatus.OK).send({ received: true, duplicate: true });
     }
 
-    // 3. ACK. A partir de aquí el trabajo continúa fuera del ciclo de respuesta.
-    res.status(HttpStatus.OK).send({ received: true });
-
+    // 3. Resolver la cuenta y agendar el procesamiento. Todo esto es barato y va
+    //    ANTES de responder: si algo falla, devolvemos un no-2xx y YCloud reintenta.
     try {
-      const messageType = parsedBody.whatsappInboundMessage.type;
-      let txtContent = '';
-      let isUnsupportedVideo = false;
-
       const account = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(phoneNumber);
 
       if (!account) {
         this.logger.warn(`No WhatsApp config found for phone number: ${phoneNumber}`);
-        return;
+        return res.status(HttpStatus.OK).send({ received: true, ignored: 'unknown-config' });
       }
 
       if (!account.isActive) {
         this.logger.warn(
           `Received message for inactive WhatsApp config with phone number: ${phoneNumber}`,
         );
-        return;
+        return res.status(HttpStatus.OK).send({ received: true, ignored: 'inactive-config' });
       }
 
-      if (account.connectionStatus !== WhatsAppConnectionStatus.CONNECTED) {
-        this.logger.warn(
-          `Received message for WhatsApp config with phone number ${phoneNumber} that is not in CONNECTED status, connecting at first time...`,
-        );
-        const isConnected = await this.whatsappConfigService.updateConnectionStatus(
-          account.id,
-          WhatsAppConnectionStatus.CONNECTED,
-        );
-        if (!isConnected) {
-          this.logger.error(
-            `Failed to update WhatsApp config connection status to CONNECTED for phone number: ${phoneNumber}`,
-          );
-          return;
-        }
-      }
+      const windowId = this.whatsappMessageQueueService.buildWindowId();
 
-      switch (messageType) {
-        case 'text':
-          txtContent = parsedBody.whatsappInboundMessage.text?.body || '';
-          break;
-        case 'image':
-          txtContent = parsedBody.whatsappInboundMessage.image?.caption || 'Picture without caption';
-          break;
-        case 'audio':
-          const audioPayload = {
-            type: "AUDIO" as MediaType,
-            sourceUrl: parsedBody.whatsappInboundMessage.audio?.link || '',
-            mimeType: parsedBody.whatsappInboundMessage.audio?.mime_type || 'audio/ogg',
-            sha256: parsedBody.whatsappInboundMessage.audio?.sha256,
-            metadata: {},
-            customOcrPrompt: ''
-          };
+      await this.whatsappMessageQueueService.bufferMessage(
+        account.organizationId,
+        phoneNumber,
+        userNumber,
+        {
+          messageId: whatsappInboundMessageId,
+          sendTime: parsedBody.whatsappInboundMessage.sendTime || new Date().toISOString(),
+          event: parsedBody,
+        },
+      );
 
-          const audioResult = await this.mediaProcessor.process(
-            audioPayload
-          );
-          if (audioResult.status === 'FAILED' || !audioResult.processedText) {
-            this.logger.error(`Media processing failed for audio message from ${userNumber} to ${phoneNumber}: ${audioResult.error}`);
-            return;
-          }
-          txtContent = audioResult.processedText;
-          break;
-        case 'video':
-          isUnsupportedVideo = true;
-          this.logger.warn(`Received unsupported video message from ${userNumber} to ${phoneNumber}`);
-          return;
-      }
-
-      if (account.phoneNumber == null || account.phoneNumber === '') {
-        await this.whatsappConfigService.updatePhoneNumber(account.id, phoneNumber);
-      }
-
-    
-      const yCloudApiKey = process.env.Y_CLOUD_API_KEY;
-      if (yCloudApiKey && account.defaultWorkflowId) {
-        if (isUnsupportedVideo) {
-          await this.whatsappConfigService.sendTextMessage(
-            phoneNumber,
-            userNumber,
-            'Los videos no son compatibles. Por favor envia texto, imagen o audio.',
-          );
-          return;
-        }
-
-        const queueResult = await this.whatsappMessageQueueService.enqueueMessage({
+      // El nombre de la tarea es determinista por ventana, así que el segundo y
+      // tercer mensaje de la misma ráfaga no agendan nada nuevo: Cloud Tasks
+      // rechaza el nombre repetido y el primero termina procesándolos todos.
+      await this.cloudTasks.enqueue({
+        path: WHATSAPP_WORKER_PATH,
+        delaySeconds: WHATSAPP_WINDOW_SECONDS,
+        taskId: [
+          'wa',
+          CloudTasksService.sanitizeIdPart(account.organizationId),
+          CloudTasksService.sanitizeIdPart(phoneNumber),
+          CloudTasksService.sanitizeIdPart(userNumber),
+          windowId,
+        ].join('-'),
+        payload: {
           organizationId: account.organizationId,
           phoneNumber,
           userNumber,
-          text: txtContent,
-          sessionId: parsedBody.whatsappInboundMessage.wabaId || '',
-          sendTime: parsedBody.whatsappInboundMessage.sendTime || new Date().toISOString(),
-          messageId: whatsappInboundMessageId,
-          windowSeconds: 8,
-        });
+          windowId,
+        },
+      });
 
-        if (!queueResult.isWindowOwner) {
-          return;
-        }
-
-        const aggregatedWindow = queueResult.skipAggregation
-          ? { aggregatedText: txtContent, messageIds: [whatsappInboundMessageId] }
-          : await this.whatsappMessageQueueService.waitAndConsumeWindow(
-              account.organizationId,
-              phoneNumber,
-              userNumber,
-              parsedBody.whatsappInboundMessage.wabaId || ''
-            );
-        const aggregatedText = aggregatedWindow.aggregatedText;
-
-        if (!aggregatedText) {
-          this.logger.warn('WhatsApp message window finished with empty aggregated text', {
-            phoneNumber,
-            userNumber,
-            organizationId: account.organizationId,
-          });
-          return;
-        }
-
-        await this.markMsgsAsReadAndSendTypingIndicator(yCloudApiKey, aggregatedWindow.messageIds);
-
-        this.logger.info(
-          `Aggregated WhatsApp message for phoneNumber=${phoneNumber}, userNumber=${userNumber}, organizationId=${account.organizationId}: ${aggregatedText}`,
-        );
-        const execution = await this.workflowsService.execute(
-          account.organizationId,
-          account.defaultWorkflowId,
-          { message: aggregatedText },
-          { channel: ConversationChannel.WHATSAPP },
-          undefined,
-          parsedBody,
-          undefined,
-          TriggerType.WEBHOOK,
-        );
-
-        const result = execution.result as any;
-        const messages = result?.messages ?? [];
-        const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-        const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
-        const conversation = await this.conversationsService.findOne(account.organizationId, result?.conversationId);
-        
-        await this.whatsappConfigService.sendTextMessage(
-          phoneNumber,
-          userNumber,
-          assistantContent || 'Received your message, but no response generated, try again later.',
-        );
-
-        await this.whatsappConfigService.handleActionsDerivatedFromMetadata(
-          result?.conversationId,
-          account.organizationId,
-          conversation?.metadata as JsonObject,
-          parsedBody,
-          account.defaultWorkflowId,
-        )
-      }
-
+      return res.status(HttpStatus.OK).send({ received: true });
     } catch (error) {
-      // El ACK ya se envió, así que YCloud no va a reintentar: liberamos el
-      // claim para no dejar el mensaje marcado como procesado cuando no lo fue.
+      // Nada se procesó, así que se libera el claim y se devuelve 500 para que
+      // YCloud reintente. Antes esto era irrecuperable: el ACK ya había salido.
       await this.webhookDedup.release(WEBHOOK_PROVIDER_YCLOUD, whatsappInboundMessageId);
 
-      this.logger.error('Webhook error', {
+      this.logger.error('No se pudo encolar el mensaje de WhatsApp', {
         whatsappInboundMessageId,
         phoneNumber,
         userNumber,
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });
+
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send({ received: false });
     }
   }
 
@@ -515,51 +418,4 @@ export class WhatsappConfigController {
     return res.status(HttpStatus.OK).json(apiResponse.build());
   }
 
-  // ─── Private helpers ──────────────────────────────────────────────────
-
-  private async markMsgsAsReadAndSendTypingIndicator(
-    accessToken: string,
-    messageIds: string[],
-  ) {
-    this.logger.info(`Marking messages as read and sending typing indicator for messageIds: ${messageIds}`);
-    const results = await Promise.allSettled(
-      messageIds.map((messageId) =>
-        this.markMsgAsReadAndSendTypingIndicator(accessToken, messageId),
-      ),
-    );
-
-    // Log any failures
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        this.logger.error(
-          `Failed to mark message ${messageIds[index]} as read`,
-          { error: result.reason?.message },
-        );
-      }
-    });
-  }
-
-  private async markMsgAsReadAndSendTypingIndicator(
-    accessToken: string,
-    whatsAppInboundMessageId: string,
-  ) {
-    const url = `https://api.ycloud.com/v2/whatsapp/inboundMessages/${whatsAppInboundMessageId}/typingIndicator`;
-    try {
-      await firstValueFrom(
-        this.httpService.post(
-          url,
-          {},
-          {
-            headers: { 'X-API-Key': accessToken, 'Content-Type': 'application/json' },
-          },
-        ),
-      );
-      this.logger.debug(`Successfully marked message ${whatsAppInboundMessageId} as read`);
-    } catch (error) {
-      this.logger.warn(`Failed to mark message as read for ID ${whatsAppInboundMessageId}`, {
-        error: (error as Error).message,
-      });
-      throw error;
-    }
-  }
 }

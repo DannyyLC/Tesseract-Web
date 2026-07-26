@@ -258,6 +258,9 @@ importers:
       cron:
         specifier: ^4.4.0
         version: 4.4.0
+      google-auth-library:
+        specifier: ^10.9.1
+        version: 10.9.1
       googleapis:
         specifier: ^173.0.0
         version: 173.0.0
@@ -306,7 +309,7 @@ importers:
     devDependencies:
       '@nestjs/cli':
         specifier: ^11.0.0
-        version: 11.0.21(@swc/core@1.15.40(@swc/helpers@0.5.21))(@types/node@22.19.19)(postcss@8.5.15)(prettier@3.8.3)(webpack-cli@5.1.4(webpack@5.107.2))
+        version: 11.0.21(@swc/core@1.15.40(@swc/helpers@0.5.21))(@types/node@22.19.19)(postcss@8.5.15)(prettier@3.8.3)(webpack-cli@5.1.4)
       '@nestjs/testing':
         specifier: ^11.1.7
         version: 11.1.24(@nestjs/common@11.1.24(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.24)(@nestjs/microservices@11.1.24)(@nestjs/platform-express@11.1.24)
@@ -5740,6 +5743,10 @@ packages:
 
   google-auth-library@10.6.2:
     resolution: {integrity: sha512-e27Z6EThmVNNvtYASwQxose/G57rkRuaRbQyxM2bvYLLX/GqWZ5chWq2EBoUchJbCc57eC9ArzO5wMsEmWftCw==}
+    engines: {node: '>=18'}
+
+  google-auth-library@10.9.1:
+    resolution: {integrity: sha512-i1ydyHrqcIxXkWh/uBmVkzCvIuq5yiK2ATndIe5XxKholrG/MTYP9xGYka4sQhrbIAgGjL2B6NOE7rFaiF3fXw==}
     engines: {node: '>=18'}
 
   google-gax@5.0.6:
@@ -11657,7 +11664,7 @@ snapshots:
       axios: 1.16.1
       rxjs: 7.8.2
 
-  '@nestjs/cli@11.0.21(@swc/core@1.15.40(@swc/helpers@0.5.21))(@types/node@22.19.19)(postcss@8.5.15)(prettier@3.8.3)(webpack-cli@5.1.4(webpack@5.107.2))':
+  '@nestjs/cli@11.0.21(@swc/core@1.15.40(@swc/helpers@0.5.21))(@types/node@22.19.19)(postcss@8.5.15)(prettier@3.8.3)(webpack-cli@5.1.4)':
     dependencies:
       '@angular-devkit/core': 19.2.24(chokidar@4.0.3)
       '@angular-devkit/schematics': 19.2.24(chokidar@4.0.3)
@@ -11668,14 +11675,14 @@ snapshots:
       chokidar: 4.0.3
       cli-table3: 0.6.5
       commander: 4.1.1
-      fork-ts-checker-webpack-plugin: 9.1.0(typescript@5.9.3)(webpack@5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2)))
+      fork-ts-checker-webpack-plugin: 9.1.0(typescript@5.9.3)(webpack@5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4))
       glob: 13.0.6
       node-emoji: 1.11.0
       ora: 5.4.1
       tsconfig-paths: 4.2.0
       tsconfig-paths-webpack-plugin: 4.2.0
       typescript: 5.9.3
-      webpack: 5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2))
+      webpack: 5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4)
       webpack-node-externals: 3.0.0
     optionalDependencies:
       '@swc/core': 1.15.40(@swc/helpers@0.5.21)
@@ -15882,7 +15889,7 @@ snapshots:
       typescript: 5.9.3
       webpack: 5.107.2(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4)
 
-  fork-ts-checker-webpack-plugin@9.1.0(typescript@5.9.3)(webpack@5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2))):
+  fork-ts-checker-webpack-plugin@9.1.0(typescript@5.9.3)(webpack@5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4)):
     dependencies:
       '@babel/code-frame': 7.29.7
       chalk: 4.1.2
@@ -15897,7 +15904,7 @@ snapshots:
       semver: 7.8.1
       tapable: 2.3.3
       typescript: 5.9.3
-      webpack: 5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2))
+      webpack: 5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4)
 
   form-data@4.0.5:
     dependencies:
@@ -16119,6 +16126,17 @@ snapshots:
       - supports-color
 
   google-auth-library@10.6.2:
+    dependencies:
+      base64-js: 1.5.1
+      ecdsa-sig-formatter: 1.0.11
+      gaxios: 7.1.4
+      gcp-metadata: 8.1.2
+      google-logging-utils: 1.1.3
+      jws: 4.0.1
+    transitivePeerDependencies:
+      - supports-color
+
+  google-auth-library@10.9.1:
     dependencies:
       base64-js: 1.5.1
       ecdsa-sig-formatter: 1.0.11
@@ -20229,13 +20247,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  terser-webpack-plugin@5.6.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack@5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2))):
+  terser-webpack-plugin@5.6.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack@5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4)):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       terser: 5.48.0
-      webpack: 5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2))
+      webpack: 5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4)
     optionalDependencies:
       '@swc/core': 1.15.40(@swc/helpers@0.5.21)
       postcss: 8.5.15
@@ -20895,7 +20913,7 @@ snapshots:
       typed-assert: 1.0.9
       webpack: 5.107.2(@swc/core@1.5.29(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4)
 
-  webpack@5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2)):
+  webpack@5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4):
     dependencies:
       '@types/eslint-scope': 3.7.7
       '@types/estree': 1.0.9
@@ -20919,7 +20937,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.3.3
       tapable: 2.3.3
-      terser-webpack-plugin: 5.6.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack@5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4(webpack@5.107.2)))
+      terser-webpack-plugin: 5.6.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack@5.106.0(@swc/core@1.15.40(@swc/helpers@0.5.21))(postcss@8.5.15)(webpack-cli@5.1.4))
       watchpack: 2.5.1
       webpack-sources: 3.5.0
     optionalDependencies:
