@@ -151,11 +151,12 @@ export class WhatsappWorkerController {
 
       if (!interpreted.aggregatedText.trim()) {
         if (interpreted.notices.length === 0) {
-          // Sin texto y sin nada que avisar: el usuario se quedaría esperando.
+          // Red de seguridad: ningún camino conocido llega aquí sin haber avisado, pero
+          // si aparece uno nuevo, el usuario recibe algo en vez de silencio.
           await this.whatsappConfigService.sendTextMessage(
             phoneNumber,
             userNumber,
-            policy.messages.audioFailed,
+            policy.messages.unsupportedFormat,
           );
           this.logger.error('No se pudo extraer texto de la ventana', {
             ...logContext,
@@ -399,6 +400,10 @@ export class WhatsappWorkerController {
           }
 
           if (!attachment?.processedText) {
+            // Avisar aunque la ventana traiga texto además del audio. Antes, si venían
+            // juntos, se contestaba al texto y el audio moría en silencio: el usuario
+            // veía una respuesta y se quedaba pensando por qué ignoramos su nota de voz.
+            notices.add(policy.messages.audioFailed);
             mediaErrors.push(attachment?.processingError ?? 'STT sin texto');
             this.logger.error('Falló la transcripción de un audio', {
               ...logContext,
@@ -414,6 +419,9 @@ export class WhatsappWorkerController {
         }
 
         default:
+          // Stickers, documentos, ubicaciones, contactos. Antes solo se registraba y el
+          // usuario no recibía nada.
+          notices.add(policy.messages.unsupportedFormat);
           this.logger.warn('Tipo de mensaje de WhatsApp no manejado', {
             ...logContext,
             messageId: buffered.messageId,

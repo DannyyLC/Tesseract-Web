@@ -13,6 +13,8 @@ export type MediaKind = 'audio' | 'image' | 'video';
 
 export interface MediaPolicy {
   audio: { enabled: boolean; maxSeconds: number };
+  /** `maxBytes` e `imageTooLarge` quedan inertes mientras las imágenes estén
+   *  apagadas: nunca se descargan, así que no hay dónde comprobar el tamaño. */
   image: { enabled: boolean; maxBytes: number };
   video: { enabled: boolean };
   messages: {
@@ -22,6 +24,10 @@ export interface MediaPolicy {
     imageDisabled: string;
     imageTooLarge: string;
     videoDisabled: string;
+    /** Para todo lo que no sabemos manejar: stickers, documentos, ubicaciones,
+     *  contactos. Antes caían en un `default` que solo dejaba un log y el usuario
+     *  se quedaba esperando una respuesta que nunca llegaba. */
+    unsupportedFormat: string;
   };
   ocrPrompt?: string;
 }
@@ -53,6 +59,7 @@ export const DEFAULT_MEDIA_POLICY: MediaPolicy = {
     imageDisabled: 'Todavía no puedo ver imágenes.',
     imageTooLarge: 'Esa imagen es muy pesada para mí.',
     videoDisabled: 'No puedo ver videos, mándame texto por favor.',
+    unsupportedFormat: 'No pude entender ese mensaje. ¿Me lo escribes?',
   },
 };
 

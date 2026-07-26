@@ -126,6 +126,8 @@ export interface WorkflowConfig {
       imageDisabled?: string;
       imageTooLarge?: string;
       videoDisabled?: string;
+      /** Stickers, documentos, ubicaciones, contactos y cualquier tipo nuevo. */
+      unsupportedFormat?: string;
     };
     ocrPrompt?: string;
   };

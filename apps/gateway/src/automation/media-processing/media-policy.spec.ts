@@ -59,6 +59,18 @@ describe('resolveMediaPolicy', () => {
     expect(policy.image.maxBytes).toBe(DEFAULT_MEDIA_POLICY.image.maxBytes);
   });
 
+  it('define un mensaje para cada forma de fallar, sin dejar ninguno vacío', () => {
+    // El objetivo es que ningún camino termine en silencio: si un caso no tiene texto,
+    // el usuario se queda esperando una respuesta que nunca llega.
+    const policy = resolveMediaPolicy({});
+
+    for (const [key, value] of Object.entries(policy.messages)) {
+      expect(typeof value).toBe('string');
+      expect(value.trim().length).toBeGreaterThan(0);
+      expect(key).toBeTruthy();
+    }
+  });
+
   it('respeta una política completamente definida', () => {
     const policy = resolveMediaPolicy({
       mediaProcessing: {
