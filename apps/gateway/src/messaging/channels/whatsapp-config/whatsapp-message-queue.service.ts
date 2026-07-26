@@ -1,12 +1,29 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { WhatsAppInboundEvent } from './dto/whatsapp-inbound-event.dto';
 
-/** Segundos que se agrupan los mensajes de un mismo remitente antes de responder. */
-export const WHATSAPP_WINDOW_SECONDS = 8;
+/**
+ * Silencio que hay que esperar antes de responder. La ventana es *deslizante*:
+ * cada mensaje nuevo la reinicia, así que se responde cuando la persona deja de
+ * escribir, no a los N segundos del primer mensaje.
+ */
+export const WHATSAPP_WINDOW_SECONDS = Number(process.env.WHATSAPP_WINDOW_SECONDS ?? 8);
+
+/**
+ * Tope total de espera. Sin él, alguien que escribe cada 7 segundos extendería la
+ * ventana para siempre y el bot nunca contestaría. Al alcanzarlo se responde con lo
+ * acumulado; lo que llegue después arma la siguiente ventana, así que no se pierde
+ * nada — solo se parte la respuesta en dos.
+ */
+export const WHATSAPP_MAX_WINDOW_SECONDS = Number(
+  process.env.WHATSAPP_MAX_WINDOW_SECONDS ?? 40,
+);
 
 export type BufferedMessage = {
   messageId: string;
   sendTime: string;
+  /** Hora de llegada según nuestro reloj. La ventana se mide con esto, no con
+   *  `sendTime`, que viene del proveedor y puede traer desfase. */
+  bufferedAt: number;
   event: WhatsAppInboundEvent;
 };
 
@@ -55,6 +72,33 @@ export class WhatsappMessageQueueService {
 
     await this.redisCommand(['RPUSH', key, JSON.stringify(message)]);
     await this.redisCommand(['EXPIRE', key, String(this.bufferTtlSeconds)]);
+  }
+
+  /**
+   * Hora de llegada del último mensaje en el buffer, sin consumirlo.
+   *
+   * Es lo que permite decidir si la persona sigue escribiendo: se mira la cola de
+   * la lista con `LINDEX -1` en vez de drenarla, para poder reagendar sin haber
+   * tocado nada. Devuelve `null` si no hay nada que procesar.
+   */
+  async peekLastBufferedAt(
+    organizationId: string,
+    phoneNumber: string,
+    userNumber: string,
+  ): Promise<number | null> {
+    if (!this.redisUrl) {
+      throw new Error('REDIS_URL no está configurado');
+    }
+
+    const key = this.getConversationKey(organizationId, phoneNumber, userNumber);
+    const raw = await this.redisCommand(['LINDEX', key, '-1']);
+
+    if (raw === null || raw === undefined) {
+      return null;
+    }
+
+    const [message] = this.parseMessages([raw]);
+    return typeof message?.bufferedAt === 'number' ? message.bufferedAt : null;
   }
 
   /**

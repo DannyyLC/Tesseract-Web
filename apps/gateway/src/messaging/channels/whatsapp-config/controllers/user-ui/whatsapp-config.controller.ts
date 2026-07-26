@@ -157,7 +157,8 @@ export class WhatsappConfigController {
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'inactive-config' });
       }
 
-      const windowId = this.whatsappMessageQueueService.buildWindowId();
+      const bufferedAt = Date.now();
+      const windowId = this.whatsappMessageQueueService.buildWindowId(bufferedAt);
 
       await this.whatsappMessageQueueService.bufferMessage(
         account.organizationId,
@@ -166,13 +167,16 @@ export class WhatsappConfigController {
         {
           messageId: whatsappInboundMessageId,
           sendTime: parsedBody.whatsappInboundMessage.sendTime || new Date().toISOString(),
+          bufferedAt,
           event: parsedBody,
         },
       );
 
       // El nombre de la tarea es determinista por ventana, así que el segundo y
       // tercer mensaje de la misma ráfaga no agendan nada nuevo: Cloud Tasks
-      // rechaza el nombre repetido y el primero termina procesándolos todos.
+      // rechaza el nombre repetido. Si un mensaje cruza la frontera de tiempo y
+      // agenda una tarea extra, el worker la resuelve como ventana vacía o la
+      // reagenda; en ninguno de los dos casos se pierde nada.
       await this.cloudTasks.enqueue({
         path: WHATSAPP_WORKER_PATH,
         delaySeconds: WHATSAPP_WINDOW_SECONDS,
@@ -188,6 +192,7 @@ export class WhatsappConfigController {
           phoneNumber,
           userNumber,
           windowId,
+          windowStartedAt: bufferedAt,
         },
       });
 

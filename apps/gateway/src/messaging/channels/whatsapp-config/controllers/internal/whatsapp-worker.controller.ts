@@ -11,16 +11,27 @@ import { OpenAiCompatibleMediaProcessorAdapter } from '@/automation/media-proces
 import { WorkflowsService } from '@/automation/workflows/workflows.service';
 import { ConversationsService } from '@/messaging/conversations/conversations.service';
 import { CloudTasksOidcGuard } from '@/platform/tasks/cloud-tasks-oidc.guard';
+import { CloudTasksService } from '@/platform/tasks/cloud-tasks.service';
 import { JsonObject } from '@prisma/client/runtime/client';
 import { WhatsappConfigService } from '../../whatsapp-config.service';
-import { BufferedMessage, WhatsappMessageQueueService } from '../../whatsapp-message-queue.service';
+import {
+  BufferedMessage,
+  WHATSAPP_MAX_WINDOW_SECONDS,
+  WHATSAPP_WINDOW_SECONDS,
+  WhatsappMessageQueueService,
+} from '../../whatsapp-message-queue.service';
 import { WhatsAppInboundEvent } from '../../dto';
+import { WHATSAPP_WORKER_PATH } from '../../whatsapp-worker.constants';
 
 interface ProcessWindowBody {
   organizationId: string;
   phoneNumber: string;
   userNumber: string;
   windowId: string;
+  /** Epoch ms del primer mensaje de la ventana; sirve para aplicar el tope total. */
+  windowStartedAt?: number;
+  /** Cuántas veces se ha reagendado esta ventana porque la persona seguía escribiendo. */
+  extension?: number;
 }
 
 /** Texto de un mensaje que no pudimos interpretar, para no dejar al usuario sin respuesta. */
@@ -54,12 +65,22 @@ export class WhatsappWorkerController {
     private readonly whatsappMessageQueueService: WhatsappMessageQueueService,
     private readonly mediaProcessor: OpenAiCompatibleMediaProcessorAdapter,
     private readonly conversationsService: ConversationsService,
+    private readonly cloudTasks: CloudTasksService,
   ) {}
 
   @Post('process-window')
   async processWindow(@Body() body: ProcessWindowBody, @Res() res: Response) {
     const { organizationId, phoneNumber, userNumber, windowId } = body;
     const logContext = { organizationId, phoneNumber, userNumber, windowId };
+
+    // Ventana deslizante: si el último mensaje es más reciente que el silencio
+    // requerido, la persona sigue escribiendo. Se reagenda sin tocar el buffer para
+    // responder una sola vez a toda la ráfaga, en lugar de partirla en respuestas
+    // sueltas cada vez que se cruza una frontera de tiempo.
+    const deferred = await this.deferIfStillTyping(body, logContext);
+    if (deferred) {
+      return res.status(HttpStatus.OK).send(deferred);
+    }
 
     const drained = await this.whatsappMessageQueueService.drainWindow(
       organizationId,
@@ -204,6 +225,76 @@ export class WhatsappWorkerController {
 
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send({ processed: false });
     }
+  }
+
+  /**
+   * Decide si hay que esperar más antes de responder.
+   *
+   * Devuelve el cuerpo de respuesta si reagendó (y por tanto no hay que procesar
+   * ahora), o `null` si toca procesar ya. Reagendar es barato: mira la cola del
+   * buffer sin consumirla y crea otra tarea con el tiempo que falta.
+   */
+  private async deferIfStillTyping(
+    body: ProcessWindowBody,
+    logContext: Record<string, unknown>,
+  ): Promise<Record<string, unknown> | null> {
+    const { organizationId, phoneNumber, userNumber, windowId } = body;
+
+    const lastBufferedAt = await this.whatsappMessageQueueService.peekLastBufferedAt(
+      organizationId,
+      phoneNumber,
+      userNumber,
+    );
+
+    if (lastBufferedAt === null) {
+      return null; // Buffer vacío: que siga el flujo normal y lo reporte.
+    }
+
+    const now = Date.now();
+    const windowStartedAt = body.windowStartedAt ?? lastBufferedAt;
+    const silenceMs = now - lastBufferedAt;
+    const totalWaitMs = now - windowStartedAt;
+
+    const stillTyping = silenceMs < WHATSAPP_WINDOW_SECONDS * 1000;
+    const capReached = totalWaitMs >= WHATSAPP_MAX_WINDOW_SECONDS * 1000;
+
+    if (!stillTyping || capReached) {
+      if (capReached && stillTyping) {
+        // No se pierde nada: lo que llegue después arma la siguiente ventana.
+        this.logger.info('Tope de ventana alcanzado, se responde con lo acumulado', {
+          ...logContext,
+          totalWaitMs,
+        });
+      }
+      return null;
+    }
+
+    const extension = (body.extension ?? 0) + 1;
+    const remainingMs = WHATSAPP_WINDOW_SECONDS * 1000 - silenceMs;
+
+    await this.cloudTasks.enqueue({
+      path: WHATSAPP_WORKER_PATH,
+      // Al menos un segundo: agendar en el pasado inmediato dispara al instante y
+      // desperdicia el reagendado.
+      delaySeconds: Math.max(1, Math.ceil(remainingMs / 1000)),
+      taskId: [
+        'wa',
+        CloudTasksService.sanitizeIdPart(organizationId),
+        CloudTasksService.sanitizeIdPart(phoneNumber),
+        CloudTasksService.sanitizeIdPart(userNumber),
+        windowId,
+        `x${extension}`,
+      ].join('-'),
+      payload: { organizationId, phoneNumber, userNumber, windowId, windowStartedAt, extension },
+    });
+
+    this.logger.debug('La persona sigue escribiendo, se extiende la ventana', {
+      ...logContext,
+      extension,
+      silenceMs,
+    });
+
+    return { processed: false, reason: 'still-typing', extension };
   }
 
   /**
