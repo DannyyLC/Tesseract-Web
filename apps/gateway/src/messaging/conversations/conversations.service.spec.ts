@@ -24,6 +24,12 @@ const mockPrismaService = {
   workflow: {
     findUnique: jest.fn(),
   },
+  whatsAppConfig: {
+    findUnique: jest.fn(),
+  },
+  endUser: {
+    upsert: jest.fn(),
+  },
   message: {
     findMany: jest.fn(),
     count: jest.fn(),
@@ -108,6 +114,51 @@ describe('ConversationsService', () => {
         },
       });
       expect(result).toEqual(mockNewConversation);
+    });
+  });
+
+  describe('findOrCreateConversationFromWhatsAppMessage', () => {
+    const CONFIG = { id: 'wac-1' };
+
+    beforeEach(() => {
+      mockPrismaService.whatsAppConfig.findUnique.mockResolvedValue(CONFIG);
+      mockPrismaService.workflow.findUnique.mockResolvedValue({ organizationId: 'org-1' });
+      mockPrismaService.endUser.upsert.mockResolvedValue({ id: 'eu-1' });
+    });
+
+    it('should ignore soft-deleted conversations when looking for an existing one', async () => {
+      mockPrismaService.conversation.findFirst.mockResolvedValue(null);
+      mockPrismaService.conversation.create.mockResolvedValue({ id: 'new-conv-1' });
+
+      const result = await service.findOrCreateConversationFromWhatsAppMessage(
+        'wf-1',
+        '+52111',
+        '+52222',
+      );
+
+      // La regresión que cubrimos: sin `deletedAt: null` se reutilizaba una
+      // conversación borrada desde la UI y el webhook moría en findOne.
+      expect(mockPrismaService.conversation.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ deletedAt: null }),
+        }),
+      );
+      expect(mockPrismaService.conversation.create).toHaveBeenCalled();
+      expect(result).toEqual({ id: 'new-conv-1' });
+    });
+
+    it('should reuse an existing conversation that is not deleted', async () => {
+      const existing = { id: 'conv-existing' };
+      mockPrismaService.conversation.findFirst.mockResolvedValue(existing);
+
+      const result = await service.findOrCreateConversationFromWhatsAppMessage(
+        'wf-1',
+        '+52111',
+        '+52222',
+      );
+
+      expect(result).toEqual(existing);
+      expect(mockPrismaService.conversation.create).not.toHaveBeenCalled();
     });
   });
 

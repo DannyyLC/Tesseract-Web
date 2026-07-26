@@ -15,6 +15,25 @@ import { GoogleDriveModule } from './platform/cloud/google-drive/google-drive.mo
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Cloud Logging clasifica cada entrada por el campo `severity`. Winston escribe
+// `level`, que Cloud Logging ignora, así que sin este mapeo TODO el JSON entra
+// como INFO —- incluidos los logger.error— y filtrar por severidad en Cloud Run
+// no devuelve nada.
+const GCP_SEVERITY_BY_LEVEL: Record<string, string> = {
+  error: 'ERROR',
+  warn: 'WARNING',
+  info: 'INFO',
+  http: 'INFO',
+  verbose: 'DEBUG',
+  debug: 'DEBUG',
+  silly: 'DEBUG',
+};
+
+const gcpSeverity = winston.format((info) => {
+  info.severity = GCP_SEVERITY_BY_LEVEL[info.level] ?? 'DEFAULT';
+  return info;
+});
+
 const readableLogFormatter = winston.format.printf(
   ({ timestamp, level, message, context, stack, ...meta }) => {
     const base = `${timestamp} [${level}]${context ? ` [${context}]` : ''} ${stack ?? message}`;
@@ -40,6 +59,7 @@ const readableLogFormatter = winston.format.printf(
                 winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
                 winston.format.errors({ stack: true }),
                 winston.format.splat(),
+                gcpSeverity(),
                 winston.format.json(),
               )
             : winston.format.combine(

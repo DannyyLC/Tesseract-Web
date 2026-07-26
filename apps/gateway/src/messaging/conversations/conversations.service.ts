@@ -275,13 +275,19 @@ export class ConversationsService {
       throw new Error(`WhatsApp config no encontrada para número: ${phoneNumber}`);
     }
 
-    // Buscar si ya existe una conversación para este número de WhatsApp y configuración
+    // Buscar si ya existe una conversación para este número de WhatsApp y configuración.
+    //
+    // El filtro `deletedAt: null` no es opcional: sin él se reutiliza una conversación
+    // borrada desde la UI, y como `findOne` sí descarta las borradas, el flujo del
+    // webhook terminaba lanzando NotFoundException y no enviando la respuesta. En la
+    // práctica, borrar una conversación dejaba ese número sin servicio para siempre.
     const existing = await this.prisma.conversation.findFirst({
       where: {
         channel: ConversationChannel.WHATSAPP,
         whatsappConfigId: whatsappConfig.id,
         phoneNumberSender: userNumber,
         status: ConversationStatus.ACTIVE,
+        deletedAt: null,
       },
       orderBy: { createdAt: 'desc' },
     });
