@@ -40,7 +40,8 @@
         "setup/stripe-local",
         "setup/deployment",
         "contributing",
-        "security"
+        "security",
+        "todo"
       ]
     },
     {
