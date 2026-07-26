@@ -698,6 +698,13 @@ export class ConversationsService {
       });
 
       return createdMessage;
+    }, {
+      // Cloud Run puede throttlear CPU entre ticks del event loop cuando la
+      // instancia no está atendiendo activamente la request, lo que puede
+      // inflar el tiempo real de una transacción interactiva simple muy por
+      // encima del default de Prisma (5000ms). Damos más margen aquí.
+      timeout: 10000,
+      maxWait: 10000,
     });
 
     this.logger.debug(`Mensaje ${role} agregado a conversación ${conversationId}`);

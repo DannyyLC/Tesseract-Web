@@ -66,6 +66,8 @@ steps:
       - --region=us-central1
       - --platform=managed
       - --add-cloudsql-instances=fractal-tesseract:us-central1:tesseract-db
+      - --no-cpu-throttling
+      - --min-instances=1
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy-agents'
