@@ -73,6 +73,12 @@ const REQUIRED_IN_PRODUCTION: string[] = [
 
   // Upstash Redis (WhatsApp message window aggregation)
   'REDIS_URL',
+
+  // Cloud Tasks (procesamiento diferido de los webhooks de WhatsApp)
+  'GCP_TASKS_LOCATION',
+  'GCP_TASKS_QUEUE',
+  'GCP_TASKS_SERVICE_ACCOUNT',
+  'GCP_TASKS_WORKER_BASE_URL',
 ];
 
 // ─── Opcionales (documentadas) ──────────────────────────────────────────────
