@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MediaProcessorAdapter, MediaProcessResult } from './media-processor.adapter';
+import {
+  MediaProcessorAdapter,
+  MediaProcessResult,
+  MediaTooLargeError,
+} from './media-processor.adapter';
   
 type MediaType = 'IMAGE' | 'AUDIO';
 @Injectable()
@@ -36,6 +40,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
     sha256?: string;
     metadata?: Record<string, any>;
     customOcrPrompt?: string;
+    maxBytes?: number;
   }): Promise<MediaProcessResult> {
     if (!this.apiKey) {
       return {
@@ -48,15 +53,17 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
 
     try {
       if (media.type === 'AUDIO') {
-        const { text: processedText, modelUsed } = await this.transcribeAudio(
+        const { text: processedText, modelUsed, sizeBytes } = await this.transcribeAudio(
           media.sourceUrl,
           media.mimeType,
+          media.maxBytes,
         );
         return {
           status: 'PROCESSED',
           processedText,
           processor: 'openai-compatible-media-processor',
           processorVersion: '1.0.0',
+          sizeBytes,
           metadata: {
             strategy: 'stt',
             model: modelUsed,
@@ -83,6 +90,16 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
         },
       };
     } catch (error) {
+      if (error instanceof MediaTooLargeError) {
+        return {
+          status: 'TOO_LARGE',
+          error: error.message,
+          processor: 'openai-compatible-media-processor',
+          processorVersion: '1.0.0',
+          sizeBytes: error.sizeBytes,
+        };
+      }
+
       return {
         status: 'FAILED',
         error: (error as Error).message,
@@ -95,8 +112,9 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
   private async transcribeAudio(
     sourceUrl: string,
     mimeType: string,
-  ): Promise<{ text: string; modelUsed: string }> {
-    const fileBuffer = await this.downloadBinary(sourceUrl);
+    maxBytes?: number,
+  ): Promise<{ text: string; modelUsed: string; sizeBytes: number }> {
+    const fileBuffer = await this.downloadBinary(sourceUrl, maxBytes);
     const extension = this.mimeTypeToExtension(mimeType);
 
     let lastError: Error | null = null;
@@ -125,6 +143,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
           text:
             payload.text?.trim() || 'Audio recibido, pero no se pudo transcribir contenido util.',
           modelUsed: model,
+          sizeBytes: fileBuffer.length,
         };
       } catch (error) {
         lastError = error as Error;
@@ -219,7 +238,14 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
     throw new Error(lastError?.message || 'OCR request failed for all configured models');
   }
 
-  private async downloadBinary(sourceUrl: string): Promise<Buffer> {
+  /**
+   * Descarga el binario, opcionalmente con un tope de tamaño.
+   *
+   * El tope se comprueba con `Content-Length` ANTES de consumir el cuerpo: así un audio
+   * de media hora se rechaza sin descargarlo y sin pagar la transcripción. Si el
+   * servidor responde sin `Content-Length`, se lee por trozos y se corta al pasarse.
+   */
+  private async downloadBinary(sourceUrl: string, maxBytes?: number): Promise<Buffer> {
     const response = await this.fetchWithTimeout(sourceUrl, {
       method: 'GET',
     });
@@ -228,8 +254,31 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
       throw new Error(`Media download failed with status ${response.status}`);
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    const declaredLength = Number(response.headers.get('content-length'));
+
+    if (maxBytes && Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+      await response.body?.cancel();
+      throw new MediaTooLargeError(declaredLength, maxBytes);
+    }
+
+    if (!maxBytes || !response.body) {
+      const arrayBuffer = await response.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    }
+
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+
+    for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
+      total += chunk.length;
+      if (total > maxBytes) {
+        await response.body.cancel();
+        throw new MediaTooLargeError(total, maxBytes);
+      }
+      chunks.push(chunk);
+    }
+
+    return Buffer.concat(chunks);
   }
 
   private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {

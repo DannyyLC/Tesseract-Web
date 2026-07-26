@@ -38,7 +38,12 @@ import { OrganizationsService } from '@/identity/organizations/organizations.ser
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { WhatsAppInboundEvent } from '@/messaging/channels/whatsapp-config/dto/whatsapp-inbound-event.dto';
-import { MediaProcessingService } from '@/automation/media-processing/media-processing.service';
+import {
+  MediaProcessingService,
+  ProcessedAttachment,
+  toAttachmentInput,
+} from '@/automation/media-processing/media-processing.service';
+import { MediaPolicy, resolveMediaPolicy } from '@/automation/media-processing/media-policy';
 
 /**
  * Variables reservadas de la plataforma. Un workflow las deja en sus variables
@@ -660,6 +665,21 @@ export class WorkflowsService {
   /**
    * Ejecutar un workflow
    */
+  /**
+   * Política de media del workflow, con los defaults ya aplicados.
+   *
+   * Lee solo `config` porque quien la necesita —el worker de WhatsApp— decide con ella
+   * si vale la pena descargar y transcribir un archivo, mucho antes de ejecutar nada.
+   */
+  async getMediaPolicy(organizationId: string, workflowId: string): Promise<MediaPolicy> {
+    const workflow = await this.prisma.workflow.findFirst({
+      where: { id: workflowId, organizationId, deletedAt: null },
+      select: { config: true },
+    });
+
+    return resolveMediaPolicy(workflow?.config);
+  }
+
   async execute(
     organizationId: string,
     workflowId: string,
@@ -746,6 +766,12 @@ export class WorkflowsService {
     const channel = metadata?.channel ?? 'API';
     const conversationId = metadata?.conversationId;
     const endUserId = metadata?.endUserId;
+    // El worker de WhatsApp procesa los adjuntos antes de llamar aquí, porque necesita
+    // el texto para agregar varios mensajes en una sola respuesta. Cuando vienen, no se
+    // vuelve a procesar nada.
+    const preProcessedAttachments = metadata?.preProcessedAttachments as
+      | ProcessedAttachment[]
+      | undefined;
     let attachments:
       | {
           type: MessageAttachmentType;
@@ -770,7 +796,13 @@ export class WorkflowsService {
         throw new InvalidWorkflowConfigException('WhatsApp channel requires whatsappData for conversation management', { workflowId, executionId: execution.id  });
       }
 
-      if (whatsappData.whatsappInboundMessage.type === 'image') {
+      // Si quien llama ya procesó los adjuntos —el worker de WhatsApp lo hace para
+      // poder agregar varios mensajes en una sola respuesta— se usan tal cual. Antes se
+      // rearmaban desde el link y se volvían a transcribir aquí, pagando dos veces por
+      // el mismo audio y guardando el texto duplicado en el historial.
+      if (preProcessedAttachments) {
+        attachments = undefined;
+      } else if (whatsappData.whatsappInboundMessage.type === 'image') {
         const imageLink = whatsappData.whatsappInboundMessage.image?.link;
         if (imageLink) {
           attachments = [
@@ -806,22 +838,24 @@ export class WorkflowsService {
     }
     userMessage = input?.message ?? JSON.stringify(input);
 
-    const ocrPrompt = (workflow.config as any)?.mediaProcessing?.ocrPrompt;
+    if (preProcessedAttachments) {
+      attachments = preProcessedAttachments.map(toAttachmentInput);
+    } else {
+      const ocrPrompt = (workflow.config as any)?.mediaProcessing?.ocrPrompt;
 
-    const processedMedia = await this.mediaProcessingService.processIncomingAttachments(
-      organizationId,
-      attachments,
-      ocrPrompt,
-    );
-    attachments = processedMedia.attachments;
+      const processedMedia = await this.mediaProcessingService.processIncomingAttachments(
+        organizationId,
+        attachments,
+        ocrPrompt,
+      );
+      attachments = processedMedia.attachments?.map(toAttachmentInput);
 
-    if (
-      processedMedia.derivedText &&
-      (userMessage === 'audio message' ||
-        userMessage === 'Picture without caption' ||
-        !userMessage.trim())
-    ) {
-      userMessage = processedMedia.derivedText;
+      if (
+        processedMedia.derivedText &&
+        (userMessage === 'Picture without caption' || !userMessage.trim())
+      ) {
+        userMessage = processedMedia.derivedText;
+      }
     }
 
     // Asociar la ejecución a la conversación

@@ -550,7 +550,10 @@ export class ConversationsService {
         .filter(
           (attachment) =>
             attachment.processingStatus === 'PROCESSED' &&
-            Boolean(attachment.processedText?.trim()),
+            Boolean(attachment.processedText?.trim()) &&
+            // Para audio, el contenido del mensaje YA es la transcripción; agregarla
+            // otra vez le mandaba al agente el mismo texto dos veces, en cada turno.
+            attachment.processedText!.trim() !== message.content?.trim(),
         )
         .map(
           (attachment) => `[${attachment.type.toLowerCase()}] ${attachment.processedText!.trim()}`,
@@ -601,7 +604,10 @@ export class ConversationsService {
         .filter(
           (attachment) =>
             attachment.processingStatus === 'PROCESSED' &&
-            Boolean(attachment.processedText?.trim()),
+            Boolean(attachment.processedText?.trim()) &&
+            // Para audio, el contenido del mensaje YA es la transcripción; agregarla
+            // otra vez le mandaba al agente el mismo texto dos veces, en cada turno.
+            attachment.processedText!.trim() !== message.content?.trim(),
         )
         .map(
           (attachment) => `[${attachment.type.toLowerCase()}] ${attachment.processedText!.trim()}`,

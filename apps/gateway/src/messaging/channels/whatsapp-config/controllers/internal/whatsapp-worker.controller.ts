@@ -6,8 +6,14 @@ import { Response } from 'express';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { firstValueFrom } from 'rxjs';
 import { Logger } from 'winston';
-import { MediaType } from '@/automation/media-processing/adapters/media-processor.adapter';
-import { OpenAiCompatibleMediaProcessorAdapter } from '@/automation/media-processing/adapters/openai-compatible-media-processor.adapter';
+import {
+  MediaPolicy,
+  maxAudioBytes,
+} from '@/automation/media-processing/media-policy';
+import {
+  MediaProcessingService,
+  ProcessedAttachment,
+} from '@/automation/media-processing/media-processing.service';
 import { WorkflowsService } from '@/automation/workflows/workflows.service';
 import { ConversationsService } from '@/messaging/conversations/conversations.service';
 import { CloudTasksOidcGuard } from '@/platform/tasks/cloud-tasks-oidc.guard';
@@ -34,12 +40,6 @@ interface ProcessWindowBody {
   extension?: number;
 }
 
-/** Texto de un mensaje que no pudimos interpretar, para no dejar al usuario sin respuesta. */
-const UNSUPPORTED_VIDEO_REPLY =
-  'Los videos no son compatibles. Por favor envia texto, imagen o audio.';
-const AUDIO_FAILED_REPLY =
-  'No pude escuchar tu audio. ¿Me lo puedes mandar de nuevo o escribirlo?';
-
 /**
  * Procesamiento diferido de los mensajes de WhatsApp.
  *
@@ -63,7 +63,7 @@ export class WhatsappWorkerController {
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
     private readonly workflowsService: WorkflowsService,
     private readonly whatsappMessageQueueService: WhatsappMessageQueueService,
-    private readonly mediaProcessor: OpenAiCompatibleMediaProcessorAdapter,
+    private readonly mediaProcessingService: MediaProcessingService,
     private readonly conversationsService: ConversationsService,
     private readonly cloudTasks: CloudTasksService,
   ) {}
@@ -130,29 +130,38 @@ export class WhatsappWorkerController {
         await this.whatsappConfigService.updatePhoneNumber(account.id, phoneNumber);
       }
 
-      const interpreted = await this.interpretMessages(drained.messages, logContext);
+      const policy = await this.workflowsService.getMediaPolicy(
+        organizationId,
+        account.defaultWorkflowId,
+      );
 
-      if (interpreted.unsupportedVideo) {
-        await this.whatsappConfigService.sendTextMessage(
-          phoneNumber,
-          userNumber,
-          UNSUPPORTED_VIDEO_REPLY,
-        );
-        await this.commit(drained.processingKey);
-        return res.status(HttpStatus.OK).send({ processed: true, reason: 'unsupported-video' });
+      const interpreted = await this.interpretMessages(
+        organizationId,
+        drained.messages,
+        policy,
+        logContext,
+      );
+
+      // Los avisos van primero y el texto se sigue procesando: si alguien manda una
+      // imagen junto con su pregunta, se le dice que la imagen no se puede leer pero su
+      // pregunta igual se contesta.
+      for (const notice of interpreted.notices) {
+        await this.whatsappConfigService.sendTextMessage(phoneNumber, userNumber, notice);
       }
 
       if (!interpreted.aggregatedText.trim()) {
-        // Antes esto era un `return` mudo y el usuario se quedaba esperando.
-        await this.whatsappConfigService.sendTextMessage(
-          phoneNumber,
-          userNumber,
-          AUDIO_FAILED_REPLY,
-        );
-        this.logger.error('No se pudo extraer texto de la ventana', {
-          ...logContext,
-          mediaErrors: interpreted.mediaErrors,
-        });
+        if (interpreted.notices.length === 0) {
+          // Sin texto y sin nada que avisar: el usuario se quedaría esperando.
+          await this.whatsappConfigService.sendTextMessage(
+            phoneNumber,
+            userNumber,
+            policy.messages.audioFailed,
+          );
+          this.logger.error('No se pudo extraer texto de la ventana', {
+            ...logContext,
+            mediaErrors: interpreted.mediaErrors,
+          });
+        }
         await this.commit(drained.processingKey);
         return res.status(HttpStatus.OK).send({ processed: false, reason: 'no-text' });
       }
@@ -167,7 +176,11 @@ export class WhatsappWorkerController {
         organizationId,
         account.defaultWorkflowId,
         { message: interpreted.aggregatedText },
-        { channel: ConversationChannel.WHATSAPP },
+        {
+          channel: ConversationChannel.WHATSAPP,
+          // Ya procesados aquí: `execute()` no debe volver a transcribirlos.
+          preProcessedAttachments: interpreted.attachments,
+        },
         undefined,
         interpreted.primaryEvent,
         undefined,
@@ -300,22 +313,32 @@ export class WhatsappWorkerController {
   /**
    * Convierte los mensajes crudos de la ventana en un solo texto para el agente.
    *
-   * La transcripción y el OCR ocurren aquí, una sola vez por mensaje. Antes el audio
-   * se transcribía en el webhook y `execute()` lo volvía a transcribir al rearmar los
-   * adjuntos, pagando dos veces por el mismo audio.
+   * La transcripción ocurre aquí, **una sola vez por audio**, y pasa por
+   * `MediaProcessingService` para aprovechar su caché por `contentHash`: si alguien
+   * reenvía el mismo audio, el `sha256` coincide y no se vuelve a pagar. Los adjuntos
+   * resultantes se le entregan ya resueltos a `execute()`, que antes los rearmaba desde
+   * el link y los transcribía de nuevo.
+   *
+   * Cada tipo se consulta contra la política del workflow antes de descargar nada, así
+   * que un tipo apagado no cuesta ni un byte.
    */
   private async interpretMessages(
+    organizationId: string,
     messages: BufferedMessage[],
+    policy: MediaPolicy,
     logContext: Record<string, unknown>,
   ): Promise<{
     aggregatedText: string;
     primaryEvent: WhatsAppInboundEvent;
-    unsupportedVideo: boolean;
+    attachments?: ProcessedAttachment[];
+    notices: string[];
     mediaErrors: string[];
   }> {
     const parts: string[] = [];
     const mediaErrors: string[] = [];
-    let unsupportedVideo = false;
+    const attachments: ProcessedAttachment[] = [];
+    // Set para no repetir el mismo aviso si mandan tres imágenes seguidas.
+    const notices = new Set<string>();
 
     for (const buffered of messages) {
       const inbound = buffered.event.whatsappInboundMessage;
@@ -328,40 +351,67 @@ export class WhatsappWorkerController {
           break;
 
         case 'image':
-          parts.push(inbound.image?.caption || 'Picture without caption');
-          break;
-
-        case 'audio': {
-          const result = await this.mediaProcessor.process({
-            type: 'AUDIO' as MediaType,
-            sourceUrl: inbound.audio?.link || '',
-            mimeType: inbound.audio?.mime_type || 'audio/ogg',
-            sha256: inbound.audio?.sha256,
-            metadata: {},
-            customOcrPrompt: '',
-          });
-
-          if (result.status === 'FAILED' || !result.processedText) {
-            mediaErrors.push(result.error ?? 'STT sin texto');
-            this.logger.error('Falló la transcripción de un audio', {
-              ...logContext,
-              messageId: buffered.messageId,
-              error: result.error,
-            });
+          if (!policy.image.enabled) {
+            notices.add(policy.messages.imageDisabled);
             break;
           }
-
-          parts.push(result.processedText);
+          if (inbound.image?.caption) {
+            parts.push(inbound.image.caption);
+          }
           break;
-        }
 
         case 'video':
-          unsupportedVideo = true;
+          notices.add(policy.messages.videoDisabled);
           this.logger.warn('Mensaje de video recibido, no soportado', {
             ...logContext,
             messageId: buffered.messageId,
           });
           break;
+
+        case 'audio': {
+          if (!policy.audio.enabled) {
+            notices.add(policy.messages.audioDisabled);
+            break;
+          }
+
+          const { attachments: processed } =
+            await this.mediaProcessingService.processIncomingAttachments(organizationId, [
+              {
+                type: 'AUDIO',
+                sourceUrl: inbound.audio?.link || '',
+                mimeType: inbound.audio?.mime_type || 'audio/ogg',
+                sha256: inbound.audio?.sha256,
+                maxBytes: maxAudioBytes(policy),
+              },
+            ]);
+
+          const attachment = processed?.[0];
+
+          if (attachment?.tooLarge) {
+            notices.add(policy.messages.audioTooLong);
+            this.logger.warn('Audio rechazado por exceder el límite', {
+              ...logContext,
+              messageId: buffered.messageId,
+              sizeBytes: attachment.sizeBytes,
+              maxSeconds: policy.audio.maxSeconds,
+            });
+            break;
+          }
+
+          if (!attachment?.processedText) {
+            mediaErrors.push(attachment?.processingError ?? 'STT sin texto');
+            this.logger.error('Falló la transcripción de un audio', {
+              ...logContext,
+              messageId: buffered.messageId,
+              error: attachment?.processingError,
+            });
+            break;
+          }
+
+          parts.push(attachment.processedText);
+          attachments.push(attachment);
+          break;
+        }
 
         default:
           this.logger.warn('Tipo de mensaje de WhatsApp no manejado', {
@@ -374,10 +424,11 @@ export class WhatsappWorkerController {
 
     return {
       aggregatedText: parts.map((part) => part.trim()).filter(Boolean).join('\n'),
-      // El primer mensaje representa la ventana: es el que aporta los adjuntos y el
-      // contexto de remitente a `execute()`, igual que hacía el "dueño" de la ventana.
+      // El primer mensaje representa la ventana: es el que aporta el contexto de
+      // remitente a `execute()`, igual que hacía el "dueño" de la ventana.
       primaryEvent: messages[0].event,
-      unsupportedVideo,
+      attachments: attachments.length > 0 ? attachments : undefined,
+      notices: [...notices],
       mediaErrors,
     };
   }

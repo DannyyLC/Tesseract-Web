@@ -6,7 +6,6 @@ import { WhatsappConfigController } from './controllers/user-ui/whatsapp-config.
 import { WhatsappConfigService } from './whatsapp-config.service';
 import { WhatsappMessageQueueService } from './whatsapp-message-queue.service';
 import { MediaProcessingModule } from '@/automation/media-processing/media-processing.module';
-import { OpenAiCompatibleMediaProcessorAdapter } from '@/automation/media-processing/adapters/openai-compatible-media-processor.adapter';
 import { GoogleDriveModule } from '@/platform/cloud/google-drive/google-drive.module';
 import { ConversationsModule } from '@/messaging/conversations/conversations.module';
 import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
@@ -17,7 +16,7 @@ import { WhatsappWorkerController } from './controllers/internal/whatsapp-worker
 
 @Module({
   imports: [UtilityModule, HttpModule, WorkflowsModule, MediaProcessingModule, GoogleDriveModule, ConversationsModule, WebhookDedupModule, CloudTasksModule],
-  providers: [WhatsappConfigService, WhatsappMessageQueueService, OpenAiCompatibleMediaProcessorAdapter, GoogleDriveService, ConversationsService],
+  providers: [WhatsappConfigService, WhatsappMessageQueueService, GoogleDriveService, ConversationsService],
   controllers: [WhatsappConfigController, WhatsappWorkerController],
   exports: [WhatsappConfigService, WhatsappMessageQueueService],
 })

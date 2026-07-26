@@ -109,7 +109,24 @@ export interface WorkflowConfig {
       tools?: (string | { id: string; functions?: string[] })[];
     }
   >;
+  /**
+   * Qué tipos de media procesa este workflow y con qué límites. Todo apagado por
+   * defecto: transcribir cuesta dinero y debe ser opt-in explícito. Los defaults y la
+   * resolución viven en `@/automation/media-processing/media-policy`.
+   */
   mediaProcessing?: {
+    audio?: { enabled?: boolean; maxSeconds?: number };
+    image?: { enabled?: boolean; maxBytes?: number };
+    video?: { enabled?: boolean };
+    /** Respuestas al usuario, personalizables por cliente. */
+    messages?: {
+      audioDisabled?: string;
+      audioTooLong?: string;
+      audioFailed?: string;
+      imageDisabled?: string;
+      imageTooLarge?: string;
+      videoDisabled?: string;
+    };
     ocrPrompt?: string;
   };
 }

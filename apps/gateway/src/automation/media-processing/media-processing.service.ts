@@ -9,9 +9,11 @@ export interface IncomingAttachment {
   sourceUrl: string;
   sha256?: string;
   metadata?: Record<string, any>;
+  /** Tope de tamaño para este adjunto. Lo fija la política del workflow. */
+  maxBytes?: number;
 }
 
-export type ProcessedAttachment = IncomingAttachment & {
+export type ProcessedAttachment = Omit<IncomingAttachment, 'maxBytes'> & {
   contentHash: string;
   processingStatus: 'PENDING' | 'PROCESSING' | 'PROCESSED' | 'FAILED' | 'UNSUPPORTED';
   processedText?: string;
@@ -19,7 +21,35 @@ export type ProcessedAttachment = IncomingAttachment & {
   processingError?: string;
   processor?: string;
   processorVersion?: string;
+  sizeBytes?: number;
+  /** `true` cuando el archivo excedió el tope; el mensaje al usuario es distinto. */
+  tooLarge?: boolean;
 };
+
+/**
+ * Deja un adjunto listo para persistir.
+ *
+ * `ProcessedAttachment` lleva campos de trabajo (`tooLarge`) que no existen como
+ * columna; pasarlos tal cual a Prisma revienta. Este mapeo explícito es la frontera
+ * entre lo que se calcula y lo que se guarda.
+ */
+export function toAttachmentInput(attachment: ProcessedAttachment) {
+  return {
+    type: attachment.type,
+    mimeType: attachment.mimeType,
+    sourceUrl: attachment.sourceUrl,
+    sha256: attachment.sha256,
+    contentHash: attachment.contentHash,
+    processingStatus: attachment.processingStatus,
+    processedText: attachment.processedText,
+    processedAt: attachment.processedAt,
+    processingError: attachment.processingError,
+    processor: attachment.processor,
+    processorVersion: attachment.processorVersion,
+    sizeBytes: attachment.sizeBytes,
+    metadata: attachment.metadata,
+  };
+}
 
 @Injectable()
 export class MediaProcessingService {
@@ -64,19 +94,25 @@ export class MediaProcessingService {
             processedAt: true,
             processor: true,
             processorVersion: true,
+            sizeBytes: true,
           },
           orderBy: [{ processedAt: 'desc' }, { createdAt: 'desc' }],
         });
 
         if (cached?.processedText?.trim()) {
+          // Acierto de caché: el mismo audio ya fue transcrito (el hash sale del sha256
+          // que manda WhatsApp). Se reutiliza sin volver a pagar la transcripción.
+          const { maxBytes: _ignored, ...persistable } = attachment;
+
           return {
-            ...attachment,
+            ...persistable,
             contentHash,
             processingStatus: 'PROCESSED' as const,
             processedText: cached.processedText,
             processedAt: cached.processedAt ?? new Date(),
             processor: cached.processor ?? 'cache-hit',
             processorVersion: cached.processorVersion ?? '1.0.0',
+            sizeBytes: cached.sizeBytes ?? undefined,
             metadata: {
               ...(attachment.metadata ?? {}),
               cacheHit: true,
@@ -85,19 +121,36 @@ export class MediaProcessingService {
           };
         }
 
+        const { maxBytes, ...persistable } = attachment;
+
         const result = await this.adapter.process({
           ...attachment,
           customOcrPrompt,
         });
 
+        if (result.status === 'TOO_LARGE') {
+          return {
+            ...persistable,
+            contentHash,
+            processingStatus: 'UNSUPPORTED' as const,
+            processingError: result.error,
+            processor: result.processor,
+            processorVersion: result.processorVersion,
+            sizeBytes: result.sizeBytes,
+            tooLarge: true,
+            metadata: { ...(attachment.metadata ?? {}), ...(result.metadata ?? {}) },
+          };
+        }
+
         if (result.status === 'FAILED') {
           return {
-            ...attachment,
+            ...persistable,
             contentHash,
             processingStatus: 'FAILED' as const,
             processingError: result.error ?? 'Unknown media processing error',
             processor: result.processor,
             processorVersion: result.processorVersion,
+            sizeBytes: result.sizeBytes,
             metadata: {
               ...(attachment.metadata ?? {}),
               ...(result.metadata ?? {}),
@@ -106,13 +159,14 @@ export class MediaProcessingService {
         }
 
         return {
-          ...attachment,
+          ...persistable,
           contentHash,
           processingStatus: 'PROCESSED' as const,
           processedText: result.processedText,
           processedAt: new Date(),
           processor: result.processor,
           processorVersion: result.processorVersion,
+          sizeBytes: result.sizeBytes,
           metadata: {
             ...(attachment.metadata ?? {}),
             ...(result.metadata ?? {}),
