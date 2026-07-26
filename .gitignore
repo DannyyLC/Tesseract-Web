@@ -18,6 +18,14 @@ dist/
 **/.env.*
 !**/.env.example
 
+# Volcados de base de datos - IMPORTANTE: nunca subirlos.
+# Traen credenciales vivas (webhookSecret de WhatsApp, hashes de contraseñas,
+# refresh tokens) y datos personales. Las migraciones de Prisma sí se versionan.
+*.sql
+*.sql.orig
+*.dump
+!packages/database/prisma/migrations/**/*.sql
+
 # Secrets - IMPORTANTE: nunca subir credenciales locales
 secrets.local.json
 
