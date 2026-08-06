@@ -12,13 +12,30 @@ import {
   NotFoundException,
   Param,
   Patch,
+  Post,
   Query,
+  Req,
   Res,
   UseGuards,
   DefaultValuePipe,
   ParseIntPipe,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
+import { Request, Response } from 'express';
+import { MediaProcessingService } from '@/automation/media-processing/media-processing.service';
+import { DEFAULT_MEDIA_POLICY, MediaPolicy } from '@/automation/media-processing/media-policy';
+
+/**
+ * Política que rige el dictado del panel: audio siempre encendido.
+ *
+ * Es deliberadamente distinta de la del workflow. La del workflow decide qué sabe
+ * escuchar el agente en WhatsApp; esta solo aporta el tope de duración y los textos de
+ * error, reutilizando los mismos defaults para no inventar mensajes nuevos.
+ */
+const WEB_DICTATION_POLICY: MediaPolicy = {
+  ...DEFAULT_MEDIA_POLICY,
+  audio: { ...DEFAULT_MEDIA_POLICY.audio, enabled: true },
+};
 import { ApiResponse, ApiResponseBuilder, PaginatedResponse, UserRole } from '@tesseract/types';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
@@ -29,7 +46,64 @@ import { Roles } from '@/identity/auth/decorators/roles.decorator';
 @Controller('conversations')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ConversationsController {
-  constructor(private readonly conversationsService: ConversationsService) {}
+  constructor(
+    private readonly conversationsService: ConversationsService,
+    private readonly mediaProcessingService: MediaProcessingService,
+  ) {}
+
+  /**
+   * POST /conversations/transcribe
+   *
+   * Transcribe un dictado grabado en el navegador y devuelve solo el texto. El audio
+   * llega como cuerpo binario (`Content-Type: audio/...`), se transcribe al vuelo y se
+   * descarta: nunca se almacena ni se convierte en adjunto de un mensaje.
+   *
+   * No cuelga de una conversación a propósito: el dictado tiene que funcionar también
+   * en `/conversations/new`, donde todavía no existe ninguna.
+   *
+   * Tampoco mira la política del workflow. Esa política gobierna lo que el agente sabe
+   * *recibir* por WhatsApp; aquí el audio no llega al workflow —lo que se envía es
+   * texto—, así que dictar desde el panel es una comodidad del operador y está siempre
+   * disponible. El tope de tamaño sigue vigente como red de seguridad.
+   */
+  @Post('transcribe')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
+  // Cada transcripción cuesta dinero: se limita por si el micrófono se queda pulsado.
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  async transcribe(
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponse<{ text: string }>>> {
+    const apiResponse = new ApiResponseBuilder<{ text: string }>();
+
+    const buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    const mimeType = req.headers['content-type'] ?? 'audio/webm';
+
+    const result = await this.mediaProcessingService.transcribeDictation({
+      buffer,
+      mimeType,
+      policy: WEB_DICTATION_POLICY,
+    });
+
+    if (result.status === 'PROCESSED') {
+      return res
+        .status(200)
+        .json(
+          apiResponse
+            .setData({ text: result.text })
+            .setMessage('Audio transcribed successfully')
+            .setSuccess(true)
+            .build(),
+        );
+    }
+
+    // El mensaje viene de la política del workflow, así que el cliente puede
+    // personalizarlo igual que hace con las notas de voz de WhatsApp.
+    const status = result.status === 'REJECTED' ? 400 : 502;
+    return res
+      .status(status)
+      .json(apiResponse.setMessage(result.message).setSuccess(false).build());
+  }
 
   @Get('dashboard')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)

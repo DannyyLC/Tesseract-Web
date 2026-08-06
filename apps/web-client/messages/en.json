@@ -1287,5 +1287,16 @@
     "cancelButton": "Cancel",
     "fileHeading": "Your backup codes — Tesseract",
     "fileFooter": "Each code works only once. Keep them somewhere safe."
+  },
+  "Dictation": {
+    "startTitle": "Dictate a message",
+    "stopTitle": "Stop and transcribe",
+    "cancelTitle": "Discard recording",
+    "transcribing": "Transcribing...",
+    "micUnavailable": "Could not access the microphone. Check your browser permissions.",
+    "emptyRecording": "Nothing was recorded.",
+    "emptyTranscription": "The audio could not be understood. Try again.",
+    "transcriptionFailed": "The audio could not be transcribed.",
+    "waveformLabel": "Recording audio"
   }
 }

@@ -1287,5 +1287,16 @@
     "cancelButton": "Cancelar",
     "fileHeading": "Tus códigos de respaldo — Tesseract",
     "fileFooter": "Cada código sirve una sola vez. Guárdalos en un lugar seguro."
+  },
+  "Dictation": {
+    "startTitle": "Dictar un mensaje",
+    "stopTitle": "Terminar y transcribir",
+    "cancelTitle": "Descartar grabación",
+    "transcribing": "Transcribiendo...",
+    "micUnavailable": "No pude acceder al micrófono. Revisa los permisos del navegador.",
+    "emptyRecording": "No se grabó nada.",
+    "emptyTranscription": "No se entendió el audio. Inténtalo de nuevo.",
+    "transcriptionFailed": "No se pudo transcribir el audio.",
+    "waveformLabel": "Grabando audio"
   }
 }

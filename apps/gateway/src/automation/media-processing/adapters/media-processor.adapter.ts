@@ -37,4 +37,16 @@ export interface MediaProcessorAdapter {
     /** Tope de tamaño. Se comprueba antes de descargar cuando el servidor lo declara. */
     maxBytes?: number;
   }): Promise<MediaProcessResult>;
+
+  /**
+   * Transcribe audio que ya tenemos en memoria, sin pasar por una URL.
+   *
+   * Lo usa el dictado desde el navegador: el audio llega en el cuerpo de la petición,
+   * se transcribe y se descarta. No hay nada que descargar ni que almacenar.
+   */
+  transcribeBuffer(audio: {
+    buffer: Buffer;
+    mimeType: string;
+    metadata?: Record<string, any>;
+  }): Promise<MediaProcessResult>;
 }

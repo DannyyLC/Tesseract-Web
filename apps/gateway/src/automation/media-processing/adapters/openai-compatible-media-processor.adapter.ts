@@ -108,12 +108,64 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
     }
   }
 
+  /**
+   * Transcribe audio ya cargado en memoria.
+   *
+   * Es el punto en común entre las notas de voz de WhatsApp —que se descargan de una
+   * URL— y el dictado del navegador, que llega directo en el cuerpo de la petición.
+   * Ambos acaban aquí, así que comparten cadena de modelos, respaldo y timeout.
+   */
+  async transcribeBuffer(audio: {
+    buffer: Buffer;
+    mimeType: string;
+    metadata?: Record<string, any>;
+  }): Promise<MediaProcessResult> {
+    if (!this.apiKey) {
+      return {
+        status: 'FAILED',
+        error: 'MEDIA_PROCESSING_API_KEY is not configured',
+        processor: 'openai-compatible-media-processor',
+        processorVersion: '1.0.0',
+      };
+    }
+
+    try {
+      const { text, modelUsed, sizeBytes } = await this.transcribeFileBuffer(
+        audio.buffer,
+        audio.mimeType,
+      );
+
+      return {
+        status: 'PROCESSED',
+        processedText: text,
+        processor: 'openai-compatible-media-processor',
+        processorVersion: '1.0.0',
+        sizeBytes,
+        metadata: { ...(audio.metadata ?? {}), modelUsed, mimeType: audio.mimeType },
+      };
+    } catch (error) {
+      return {
+        status: 'FAILED',
+        error: (error as Error).message,
+        processor: 'openai-compatible-media-processor',
+        processorVersion: '1.0.0',
+      };
+    }
+  }
+
   private async transcribeAudio(
     sourceUrl: string,
     mimeType: string,
     maxBytes?: number,
   ): Promise<{ text: string; modelUsed: string; sizeBytes: number }> {
     const fileBuffer = await this.downloadBinary(sourceUrl, maxBytes);
+    return this.transcribeFileBuffer(fileBuffer, mimeType);
+  }
+
+  private async transcribeFileBuffer(
+    fileBuffer: Buffer,
+    mimeType: string,
+  ): Promise<{ text: string; modelUsed: string; sizeBytes: number }> {
     const extension = this.mimeTypeToExtension(mimeType);
 
     let lastError: Error | null = null;
