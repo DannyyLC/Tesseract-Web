@@ -470,8 +470,8 @@ export class WorkflowsService {
       {} as Record<string, number>,
     );
 
-    const successfulCount = statusCounts['COMPLETED'] || 0;
-    const failedCount = statusCounts['FAILED'] || 0;
+    const successfulCount = statusCounts.COMPLETED || 0;
+    const failedCount = statusCounts.FAILED || 0;
     const successRate = totalExecutions > 0 ? (successfulCount / totalExecutions) * 100 : 0;
 
     // Error Distribution Processing
@@ -1667,7 +1667,7 @@ export class WorkflowsService {
       // Enriquecer send_bulk_whatsapp con config del sistema (el modelo nunca elige el remitente)
       if (toolName === 'send_bulk_whatsapp') {
         const configId =
-          (tenantTool.config as any)?.whatsapp_config_id ?? whatsAppConfigId ?? undefined;
+          (tenantTool.config)?.whatsapp_config_id ?? whatsAppConfigId ?? undefined;
 
         if (configId) {
           const wac = await this.prisma.whatsAppConfig.findFirst({
@@ -1893,10 +1893,10 @@ export class WorkflowsService {
   private async prepareHistoryForPayload(
     conversationId: string,
     maxTokensPerExecution: number,
-    messageHistory: Array<{ role: string; content?: string | null }>,
+    messageHistory: { role: string; content?: string | null }[],
     userMessage: string,
   ): Promise<{
-    historyForPayload: Array<{ role: string; content?: string | null }>;
+    historyForPayload: { role: string; content?: string | null }[];
     activeSummary: string | null;
   }> {
     const historyForCompaction = [...messageHistory, { role: 'user', content: userMessage }];
@@ -1942,7 +1942,7 @@ export class WorkflowsService {
   private async compactConversationIfThresholdReached(
     conversationId: string,
     maxTokensPerExecution: number,
-    messageHistory: Array<{ role: string; content?: string | null }>,
+    messageHistory: { role: string; content?: string | null }[],
   ): Promise<{ compactionApplied: boolean; activeSummary: string | null }> {
     const historyTokens = this.estimateMessageHistoryTokens(messageHistory);
     const threshold = Math.floor(maxTokensPerExecution * this.compactionThresholdRatio);
@@ -2037,7 +2037,7 @@ export class WorkflowsService {
     }
   }
 
-  private estimateMessageHistoryTokens(messageHistory: Array<{ content?: string | null }>): number {
+  private estimateMessageHistoryTokens(messageHistory: { content?: string | null }[]): number {
     return messageHistory.reduce((acc, msg) => {
       const content = String(msg.content ?? '');
       return acc + Math.max(1, Math.ceil(content.length / 4));
@@ -2045,9 +2045,9 @@ export class WorkflowsService {
   }
 
   private calculateAdaptiveRecentMessages(
-    historyForPayload: Array<{ role: string; content?: string | null }>,
+    historyForPayload: { role: string; content?: string | null }[],
     absoluteLimit: number,
-  ): Array<{ role: string; content?: string | null }> {
+  ): { role: string; content?: string | null }[] {
     const ratio = this.estimateMessageHistoryTokens(historyForPayload) / absoluteLimit;
 
     let keep: number;
@@ -2061,7 +2061,7 @@ export class WorkflowsService {
 
   private async summarizeArchivedConversation(
     existingSummary: string | null,
-    archivedMessages: Array<{ role: string; content: string }>,
+    archivedMessages: { role: string; content: string }[],
   ): Promise<string> {
     if (!this.compactionApiKey) {
       throw new Error('COMPACTION_API_KEY is not configured');
@@ -2115,7 +2115,7 @@ export class WorkflowsService {
     }
 
     const payload = (await response.json()) as {
-      choices?: { message?: { content?: string | Array<{ type?: string; text?: string }> } }[];
+      choices?: { message?: { content?: string | { type?: string; text?: string }[] } }[];
     };
 
     const content = payload.choices?.[0]?.message?.content;

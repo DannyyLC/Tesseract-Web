@@ -71,9 +71,9 @@ describe('diffConfigs', () => {
     const entries = diffConfigs(before, after);
     const byPath = Object.fromEntries(entries.map((e) => [e.path, e]));
 
-    expect(byPath['a']).toMatchObject({ op: 'removed', before: 1 });
-    expect(byPath['b']).toMatchObject({ op: 'changed', before: 2, after: 99 });
-    expect(byPath['c']).toMatchObject({ op: 'added', after: 3 });
+    expect(byPath.a).toMatchObject({ op: 'removed', before: 1 });
+    expect(byPath.b).toMatchObject({ op: 'changed', before: 2, after: 99 });
+    expect(byPath.c).toMatchObject({ op: 'added', after: 3 });
   });
 
   it('indexa los elementos de un array en la ruta', () => {

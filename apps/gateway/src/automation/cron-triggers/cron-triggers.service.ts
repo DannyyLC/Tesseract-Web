@@ -191,7 +191,7 @@ export class CronTriggersService implements OnModuleInit {
       where: { id: triggerId },
     });
 
-    if (!trigger || !trigger.isActive) {
+    if (!trigger?.isActive) {
       this.logger.warn(`Cron trigger ${triggerId} fired but is no longer active. Skipping.`);
       return;
     }

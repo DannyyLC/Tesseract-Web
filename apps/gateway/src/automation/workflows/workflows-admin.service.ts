@@ -545,7 +545,7 @@ export class WorkflowsAdminService {
         maxTokensPerExecution: source.maxTokensPerExecution,
         config: config as any,
         note: `Clonado del workflow ${sourceWorkflowId}`,
-      } as CreateWorkflowAdminDto,
+      },
       actor,
     );
 

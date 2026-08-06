@@ -66,7 +66,7 @@ export class GoogleDriveService {
   }
 
   private extractFolderId(url: string): string | null {
-    const match = url.match(/\/folders\/([a-zA-Z0-9-_]+)/);
+    const match = /\/folders\/([a-zA-Z0-9-_]+)/.exec(url);
     return match ? match[1] : null;
   }
 }
