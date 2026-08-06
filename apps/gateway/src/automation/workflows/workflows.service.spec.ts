@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WorkflowsService } from './workflows.service';
+import { WorkflowConfigValidator } from './workflow-config.validator';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { ExecutionsService } from '@/automation/executions/executions.service';
 import { OrganizationsService } from '@/identity/organizations/organizations.service';
@@ -113,6 +114,9 @@ describe('WorkflowsService', () => {
         { provide: ToolsService, useValue: mockToolsService },
         { provide: MediaProcessingService, useValue: mockMediaProcessingService },
         { provide: ConfigService, useValue: mockConfigService },
+        // El validador real, no un mock: los tests de config de abajo existen para
+        // ejercer esa lógica, y mockearla los dejaría sin verificar nada.
+        WorkflowConfigValidator,
       ],
     }).compile();
 

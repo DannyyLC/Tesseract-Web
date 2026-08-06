@@ -19,6 +19,11 @@ async function bootstrap() {
     // dispara 429 prematuros. Usamos 1 (no `true`) para no permitir spoofing de IP.
     app.set('trust proxy', 1);
 
+    // El default de Express son 100 KB, y el `config` de un workflow real ronda los
+    // 300 KB (los system prompts de cada agente son lo que pesa). Sin esto, guardar
+    // desde el editor de super admin devuelve 413.
+    app.useBodyParser('json', { limit: '5mb' });
+
     // Security headers
     app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
