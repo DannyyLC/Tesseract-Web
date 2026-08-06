@@ -12,6 +12,4 @@ Crons con recordatorios automaticos, tal vez microservicio aparte para no tener 
 
 Procesamiento de audio como lo hacen en Claude o Gemini que te permite grabar un audio el cual se transcribe al momento de ser posible y se envia para mayor accesibilidad
 
-En caso de estar utilizando Speakeasy evaluar si tenemos que cambiar de libreria
-
 Ver la posibilidad de mostrar cuando una credencial ejemplo de google calendar va a expirar para que el agente no pierda acceso a la tool.
