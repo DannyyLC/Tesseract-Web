@@ -1,5 +1,6 @@
 'use client';
 
+import { Switch } from '@/components/ui/switch';
 import { deleteAtPath, setAtPath, type WorkflowConfig } from '@/lib/workflow-config/config-edit';
 import { inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 
@@ -28,37 +29,6 @@ export function MediaTab({ config, onChange }: Props) {
   const set = (path: (string | number)[], value: unknown) =>
     onChange(setAtPath(config, ['mediaProcessing', ...path], value));
 
-  const Toggle = ({
-    checked,
-    onToggle,
-    label,
-  }: {
-    checked: boolean;
-    onToggle: (v: boolean) => void;
-    label: string;
-  }) => (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onToggle(!checked)}
-      className="flex items-center gap-2"
-    >
-      <span
-        className={`relative h-5 w-9 rounded-full transition-colors ${
-          checked ? 'bg-accent' : 'bg-surface-secondary border border-border'
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface transition-transform ${
-            checked ? 'translate-x-4' : 'translate-x-0.5'
-          }`}
-        />
-      </span>
-      <span className="text-sm text-text-primary">{label}</span>
-    </button>
-  );
-
   return (
     <div className="max-w-2xl space-y-5">
       <p className="text-xs text-text-secondary">
@@ -66,10 +36,11 @@ export function MediaTab({ config, onChange }: Props) {
       </p>
 
       <div className="space-y-4 rounded-lg border border-border p-4">
-        <Toggle
+        <Switch
           checked={!!media.audio?.enabled}
-          onToggle={(v) => set(['audio', 'enabled'], v)}
+          onChange={(v) => set(['audio', 'enabled'], v)}
           label="Procesar audio (transcripción)"
+          hint="Transcribe las notas de voz que manda el cliente."
         />
         {media.audio?.enabled && (
           <div className="pl-11">
@@ -89,10 +60,11 @@ export function MediaTab({ config, onChange }: Props) {
       </div>
 
       <div className="space-y-4 rounded-lg border border-border p-4">
-        <Toggle
+        <Switch
           checked={!!media.image?.enabled}
-          onToggle={(v) => set(['image', 'enabled'], v)}
+          onChange={(v) => set(['image', 'enabled'], v)}
           label="Procesar imágenes (OCR / visión)"
+          hint="Lee el contenido de las fotos que envía el cliente."
         />
         {media.image?.enabled && (
           <div className="space-y-3 pl-11">
@@ -123,9 +95,9 @@ export function MediaTab({ config, onChange }: Props) {
       </div>
 
       <div className="rounded-lg border border-border p-4">
-        <Toggle
+        <Switch
           checked={!!media.video?.enabled}
-          onToggle={(v) => set(['video', 'enabled'], v)}
+          onChange={(v) => set(['video', 'enabled'], v)}
           label="Procesar video"
         />
       </div>

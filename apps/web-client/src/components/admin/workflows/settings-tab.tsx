@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, Save } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { useAdminWorkflowMutations } from '@/hooks/automation/use-admin-workflows';
 import type { AdminWorkflowDetail } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
 import { btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
@@ -63,40 +64,6 @@ export function SettingsTab({ workflow }: Props) {
       },
     );
   };
-
-  const Toggle = ({
-    checked,
-    onToggle,
-    label,
-    hint,
-  }: {
-    checked: boolean;
-    onToggle: (v: boolean) => void;
-    label: string;
-    hint: string;
-  }) => (
-    <div className="flex items-start gap-3 rounded-lg border border-border p-3">
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onToggle(!checked)}
-        className={`relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors ${
-          checked ? 'bg-accent' : 'border border-border bg-surface-secondary'
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface transition-transform ${
-            checked ? 'translate-x-4' : 'translate-x-0.5'
-          }`}
-        />
-      </button>
-      <div>
-        <span className="block text-sm text-text-primary">{label}</span>
-        <span className="block text-xs text-text-secondary">{hint}</span>
-      </div>
-    </div>
-  );
 
   return (
     <div className="max-w-2xl space-y-4">
@@ -169,18 +136,22 @@ export function SettingsTab({ workflow }: Props) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Toggle
-          checked={form.isActive}
-          onToggle={(v) => set('isActive', v)}
-          label="Activo"
-          hint="Si se desactiva, el workflow deja de ejecutarse por completo."
-        />
-        <Toggle
-          checked={form.isPaused}
-          onToggle={(v) => set('isPaused', v)}
-          label="Pausado"
-          hint="Sigue activo pero rechaza ejecuciones temporalmente."
-        />
+        <div className="rounded-lg border border-border p-3">
+          <Switch
+            checked={form.isActive}
+            onChange={(v) => set('isActive', v)}
+            label="Activo"
+            hint="Si se desactiva, el workflow deja de ejecutarse por completo."
+          />
+        </div>
+        <div className="rounded-lg border border-border p-3">
+          <Switch
+            checked={form.isPaused}
+            onChange={(v) => set('isPaused', v)}
+            label="Pausado"
+            hint="Sigue activo pero rechaza ejecuciones temporalmente."
+          />
+        </div>
       </div>
 
       <div className="flex justify-end pt-2">
