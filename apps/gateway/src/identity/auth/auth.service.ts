@@ -31,6 +31,7 @@ import {
   VerificationCodeDto,
 } from './dto';
 import { Prisma, UserRole } from '@tesseract/database';
+import { maskEmail } from '@/platform/common/utils/mask-email';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
@@ -58,7 +59,9 @@ export class AuthService {
    * @returns qrCode, tempToken
    */
   async login(dto: LoginDto) {
-    this.logger.info(`Intentando login: ${dto.email}`);
+    // Enmascarado: esto se escribe ANTES de validar credenciales, así que también
+    // registra emails tecleados por quien no tiene cuenta.
+    this.logger.info(`Intentando login: ${maskEmail(dto.email)}`);
 
     // 1. Validar credenciales y obtener usuario con organización
     const { user, organization } = await this.validateUser(dto.email, dto.password);
@@ -87,7 +90,8 @@ export class AuthService {
         data: { lastLoginAt: new Date() },
       });
 
-      this.logger.info(`Login directo exitoso: ${user.email}`);
+      // Ya hay usuario validado: el id identifica la cuenta sin exponer el email.
+      this.logger.info(`Login directo exitoso: userId=${user.id}`);
       return {
         status: 'complete',
         user: {
@@ -159,7 +163,7 @@ export class AuthService {
             },
           });
 
-          this.logger.info(`Sesión cerrada para: ${payload.email}`);
+          this.logger.info(`Sesión cerrada para: userId=${payload.sub}`);
           return { message: 'Sesión cerrada exitosamente' };
         }
       }
@@ -355,36 +359,36 @@ export class AuthService {
     });
 
     if (!user) {
-      this.logger.warn(`Usuario no encontrado: ${email}`);
+      this.logger.warn(`Usuario no encontrado: ${maskEmail(email)}`);
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
     // 2. Verificar que tenga organización
     if (!user.organization) {
-      this.logger.warn(`Usuario sin organización: ${email}`);
+      this.logger.warn(`Usuario sin organización: userId=${user.id}`);
       throw new UnauthorizedException('Usuario sin organización asignada');
     }
 
     // 3. Verificar contraseña
     if (!user.password) {
-      this.logger.warn(`Usuario sin contraseña intentando login con password: ${email}`);
+      this.logger.warn(`Usuario sin contraseña intentando login con password: userId=${user.id}`);
       throw new UnauthorizedException('Debe iniciar sesión con Google');
     }
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      this.logger.warn(`Contraseña inválida para: ${email}`);
+      this.logger.warn(`Contraseña inválida para: userId=${user.id}`);
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
     // 4. Verificar que el usuario esté activo
     if (!user.isActive) {
-      this.logger.warn(`Usuario inactivo: ${email}`);
+      this.logger.warn(`Usuario inactivo: userId=${user.id}`);
       throw new UnauthorizedException('Cuenta inactiva');
     }
 
     // 5. Verificar que no esté eliminado
     if (user.deletedAt) {
-      this.logger.warn(`Usuario eliminado: ${email}`);
+      this.logger.warn(`Usuario eliminado: userId=${user.id}`);
       throw new UnauthorizedException('Cuenta eliminada');
     }
 
@@ -544,7 +548,7 @@ export class AuthService {
         payload.rememberMe,
       );
 
-      this.logger.info(`Tokens refrescados para: ${payload.email}`);
+      this.logger.info(`Tokens refrescados para: userId=${payload.sub}`);
 
       return {
         ...tokens,
@@ -733,7 +737,7 @@ export class AuthService {
         select: { name: true, slug: true, plan: true },
       });
 
-      this.logger.info(`Login exitoso: ${userPayload.email} (${organization?.name})`);
+      this.logger.info(`Login exitoso: userId=${userPayload.sub} (${organization?.name})`);
       return {
         user: {
           id: userPayload.sub,
@@ -779,7 +783,7 @@ export class AuthService {
       await this.emailService.sendVerificationCodeByEmail(payload);
 
     if (!sentMessageInfo || sentMessageInfo.success === false) {
-      this.logger.error(`authService >> signupStepOne >> Email no aceptado para ${payload.email}`);
+      this.logger.error(`authService >> signupStepOne >> Email no aceptado para ${maskEmail(payload.email)}`);
       return StepOneErrors.TRANSPORTER_ERROR;
     }
 

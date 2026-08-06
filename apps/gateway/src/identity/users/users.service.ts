@@ -16,6 +16,7 @@ import { EmailService } from '@/messaging/notifications/email/email.service';
 import * as speakeasy from 'speakeasy';
 import { DashboardUserDataDto, UpdateProfileDto, UserFiltersDto } from './dto';
 import { PendingInvitationDto } from './dto/pending-invitation.dto';
+import { maskEmail } from '@/platform/common/utils/mask-email';
 
 interface PaginatedUsers {
   data: User[];
@@ -708,7 +709,7 @@ export class UsersService {
     });
 
     // 6. Log de auditoría
-    this.logger.info(`User ${user.email} left organization ${user.organization.name} voluntarily`);
+    this.logger.info(`User userId=${user.id} left organization ${user.organization.name} voluntarily`);
 
     return {
       message: 'Has abandonado la organización exitosamente.',
@@ -864,7 +865,7 @@ export class UsersService {
         dateTime,
       );
       if (!emailResult) {
-        this.logger.error(`Failed to send service information request email for user ${email}`);
+        this.logger.error(`Failed to send service information request email for user ${maskEmail(email)}`);
         return false;
       }
       return true;
