@@ -10,6 +10,6 @@ Intergacion con messenger
 
 Crons con recordatorios automaticos, tal vez microservicio aparte para no tener problemas de varias contestaciones a un mismo request debido a la arquitectura distribuida
 
-Procesamiento de audio como lo hacen en Claude o Gemini que te permite grabar un audio el cual se transcribe al momento de ser posible y se envia para mayor accesibilidad
-
 Ver la posibilidad de mostrar cuando una credencial ejemplo de google calendar va a expirar para que el agente no pierda acceso a la tool.
+
+Grafica de horas del dia
