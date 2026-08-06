@@ -10,7 +10,7 @@
     "build:types": "pnpm --filter @tesseract/types build",
     "build:database": "pnpm --filter @tesseract/database build",
     "build:gateway": "pnpm --filter @tesseract/gateway build",
-    "build:web": "dotenv -e .env -- pnpm --filter @tesseract/web-client build",
+    "build:web": "NODE_ENV=production dotenv -e .env -- pnpm --filter @tesseract/web-client build",
     "build:all": "pnpm run build:database && pnpm run build:types && pnpm run build:gateway && pnpm run build:web",
     "dev:gateway": "pnpm run build:types && pnpm --filter @tesseract/gateway start:dev",
     "dev:web": "dotenv -e .env -- pnpm --filter @tesseract/web-client dev",
