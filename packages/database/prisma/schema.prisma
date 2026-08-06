@@ -427,6 +427,12 @@ model User {
   // 2FA
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
+  // Secreto en pruebas: se llena al iniciar el alta y solo se promueve a
+  // twoFactorSecret cuando el usuario confirma un código. Así un alta abandonada
+  // nunca deja la cuenta sin segundo factor.
+  twoFactorPendingSecret String?
+  // Último paso TOTP consumido (epoch/30). Impide reusar un código dentro de su ventana.
+  twoFactorLastUsedStep  Int?
 
   // Rol y estado
   role     UserRole @default(VIEWER)
@@ -453,12 +459,30 @@ model User {
   auditLogs        AuditLog[]
   notifications    UserNotification[]
   tenantTools      TenantTool[]
+  backupCodes      UserBackupCode[]
 
   @@index([organizationId])
   @@index([role])
   @@index([deletedAt])
   @@index([isActive])
   @@map("users")
+}
+
+/// Códigos de respaldo de 2FA: permiten entrar cuando se pierde el autenticador.
+/// Se guardan hasheados con SHA-256 (determinista, para búsqueda indexada) porque
+/// son aleatorios de alta entropía y no contraseñas elegidas por el usuario.
+model UserBackupCode {
+  id       String    @id @default(uuid())
+  codeHash String    @unique
+  usedAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_backup_codes")
 }
 
 // ============================================

@@ -12,6 +12,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { UtilityModule } from '@/platform/utility/utility.module';
 import { NotificationsModule } from '@/messaging/notifications/notifications.module';
+import { TwoFactorModule } from '../two-factor/two-factor.module';
 /**
  * AuthModule agrupa toda la funcionalidad de autenticación
  */
@@ -21,6 +22,7 @@ import { NotificationsModule } from '@/messaging/notifications/notifications.mod
     // Passport con estrategia por defecto 'jwt'
     UtilityModule,
     NotificationsModule,
+    TwoFactorModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     // Configuración de JWT
     JwtModule.registerAsync({

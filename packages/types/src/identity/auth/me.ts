@@ -15,4 +15,6 @@ export interface MeResponse {
   rememberMe?: boolean;
   hasPassword: boolean;
   twoFactorEnabled: boolean;
+  /** Códigos de respaldo sin usar. 0 cuando el 2FA está desactivado. */
+  backupCodesRemaining: number;
 }

@@ -14,6 +14,8 @@ export interface User {
   plan: string;
   hasPassword?: boolean;
   twoFactorEnabled?: boolean;
+  /** Códigos de respaldo sin usar. 0 cuando el 2FA está desactivado. */
+  backupCodesRemaining?: number;
 }
 
 // Hook para obtener el usuario actual
@@ -105,11 +107,12 @@ export function useVerify2FA() {
 }
 
 // Hook para iniciar configuración 2FA
+// El código solo hace falta si el usuario ya tiene 2FA activo y lo está sustituyendo
 export function useSetup2FA() {
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (code2FA?: string) => {
       const api = RootApi.getInstance().getAuthApi();
-      return await api.setup2FA();
+      return await api.setup2FA(code2FA);
     },
   });
 }
@@ -228,6 +231,23 @@ export function useDisable2FA() {
       return await api.disable2FA({ code2FA: code });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+}
+
+// Hook para regenerar los códigos de respaldo
+export function useRegenerateBackupCodes() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const api = RootApi.getInstance().getAuthApi();
+      return await api.regenerateBackupCodes({ code2FA: code });
+    },
+    onSuccess: () => {
+      // El contador de códigos restantes vive en /auth/me
       queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
     },
   });

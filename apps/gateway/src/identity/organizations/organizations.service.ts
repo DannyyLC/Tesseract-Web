@@ -16,7 +16,7 @@ import {
 } from '@tesseract/types';
 import { Organization, SubscriptionStatus, UserRole } from '@tesseract/database';
 import { randomBytes } from 'crypto';
-import * as speakeasy from 'speakeasy';
+import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { PrismaService } from '@/platform/database/prisma.service';
@@ -47,6 +47,7 @@ export class OrganizationsService {
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
     private readonly emailService: EmailService,
     private readonly utilityService: UtilityService,
+    private readonly twoFactorService: TwoFactorService,
   ) {}
 
   // ============================================
@@ -735,11 +736,7 @@ export class OrganizationsService {
       if (!code2FA) {
         throw new ForbiddenException('Código 2FA requerido');
       }
-      const verified = speakeasy.totp.verify({
-        secret: user.twoFactorSecret!,
-        encoding: 'base32',
-        token: code2FA,
-      });
+      const verified = await this.twoFactorService.verifySecondFactor(userId, code2FA);
 
       if (!verified) {
         throw new BadRequestException('Código 2FA inválido');

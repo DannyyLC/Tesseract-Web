@@ -1,4 +1,7 @@
+export * from './backup-codes-panel';
+export * from './copy-button';
 export * from './dynamic-icon';
 export * from './logo-loader';
 export * from './modal';
+export * from './two-factor-code-input';
 export * from './welcome-onboarding';

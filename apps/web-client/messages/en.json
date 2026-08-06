@@ -1128,7 +1128,9 @@
     "activated": "2FA activated successfully",
     "invalidCode": "Invalid code",
     "codeCopied": "Code copied to clipboard",
-    "copyCode": "Copy code"
+    "copyCode": "Copy code",
+    "codesSavedConfirm": "I have saved my backup codes somewhere safe",
+    "finishButton": "Done"
   },
   "Disable2FAModal": {
     "title": "Disable Two-Factor Authentication",
@@ -1256,5 +1258,34 @@
   "Notifications": {
     "deleted": "Notification deleted",
     "deleteError": "Error deleting the notification"
+  },
+  "TwoFactorCodeInput": {
+    "useBackupCode": "Lost your device? Use a backup code",
+    "useAuthenticator": "Back to authenticator code"
+  },
+  "BackupCodes": {
+    "cardLabel": "Backup codes",
+    "remaining": "You have {count} unused codes left",
+    "runningLow": "Only {count} codes left. Generate new ones.",
+    "regenerateButton": "Regenerate",
+    "regenerateTitle": "Regenerate backup codes",
+    "regenerateWarningHeading": "Your current codes will stop working",
+    "regenerateWarningText": "Generating new codes invalidates the previous ones immediately. Make sure you save the new ones.",
+    "codeLabel": "Verification code",
+    "codeRequired": "Enter a valid code",
+    "invalidCode": "Invalid code",
+    "regenerating": "Generating...",
+    "regeneratedToast": "Backup codes regenerated",
+    "warningHeading": "Save them now",
+    "warningText": "These codes are shown only once. Each one works a single time and lets you sign in if you lose your device.",
+    "copyAll": "Copy all",
+    "copied": "Copied",
+    "copiedToast": "Codes copied to clipboard",
+    "download": "Download .txt",
+    "codesSavedConfirm": "I have saved my backup codes somewhere safe",
+    "finishButton": "Done",
+    "cancelButton": "Cancel",
+    "fileHeading": "Your backup codes — Tesseract",
+    "fileFooter": "Each code works only once. Keep them somewhere safe."
   }
 }

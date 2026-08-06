@@ -16,10 +16,9 @@ import {
 import { StepOneErrors, StepThreeErrors, ForgotPassErrors } from './dto';
 import { UserRole } from '@tesseract/database';
 import * as bcrypt from 'bcrypt';
-import * as speakeasy from 'speakeasy';
+import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
 
 jest.mock('bcrypt');
-jest.mock('speakeasy');
 jest.mock('qrcode', () => ({
   toDataURL: jest.fn().mockResolvedValue('mock-qr-code-url'),
 }));
@@ -94,6 +93,15 @@ describe('AuthService', () => {
     info: jest.fn(),
   };
 
+  const mockTwoFactorService = {
+    generateSetup: jest.fn(),
+    verifyTotp: jest.fn(),
+    verifySecondFactor: jest.fn(),
+    generateBackupCodes: jest.fn(),
+    countRemainingBackupCodes: jest.fn().mockResolvedValue(0),
+    deleteBackupCodes: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -104,6 +112,7 @@ describe('AuthService', () => {
         { provide: EmailService, useValue: mockEmailService },
         { provide: UtilityService, useValue: mockUtilityService },
         { provide: WINSTON_MODULE_PROVIDER, useValue: mockLogger },
+        { provide: TwoFactorService, useValue: mockTwoFactorService },
       ],
     }).compile();
 
@@ -462,42 +471,80 @@ describe('AuthService', () => {
 
   describe('2FA Flows (setup2FA, enable2FA, verify2FACode)', () => {
     it('should setup 2FA by generating secret and QR', async () => {
-      (speakeasy.generateSecret as jest.Mock).mockReturnValue({
-        base32: 'secret32',
-        otpauth_url: 'otpurl',
-      });
-      const result = await service.setup2FA('u1');
-
-      expect(prisma.user.update).toHaveBeenCalledWith({
-        where: { id: 'u1' },
-        data: { twoFactorSecret: 'secret32', twoFactorEnabled: false },
-      });
-      expect(result).toEqual({ qr: 'mock-qr-code-url' });
-    });
-
-    it('should enable 2FA if code is verified', async () => {
       prisma.user.findUnique = jest
         .fn()
-        .mockResolvedValue({ id: 'u1', twoFactorSecret: 'secret32' });
-      (speakeasy.totp.verify as jest.Mock).mockReturnValue(true);
+        .mockResolvedValue({ email: 'test@test.com', twoFactorEnabled: false });
+      mockTwoFactorService.generateSetup.mockReturnValue({
+        otpauthUrl: 'otpurl',
+        base32Secret: 'secret32',
+      });
+
+      const result = await service.setup2FA('u1');
+
+      // La etiqueta del QR se construye con el email, no con el userId
+      expect(mockTwoFactorService.generateSetup).toHaveBeenCalledWith('test@test.com');
+      // El secreto queda en pruebas: no toca el 2FA vigente hasta que se confirme
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: { twoFactorPendingSecret: 'secret32' },
+      });
+      // El secreto vuelve al front para quien no pueda escanear el QR
+      expect(result).toEqual({ qr: 'mock-qr-code-url', secret: 'secret32' });
+    });
+
+    it('should require a valid code to re-arm 2FA when already enabled', async () => {
+      prisma.user.findUnique = jest
+        .fn()
+        .mockResolvedValue({ email: 'test@test.com', twoFactorEnabled: true });
+
+      // Sin código: no se puede rearmar
+      await expect(service.setup2FA('u1')).rejects.toThrow(ForbiddenException);
+
+      // Con código inválido: tampoco
+      mockTwoFactorService.verifySecondFactor.mockResolvedValue(false);
+      await expect(service.setup2FA('u1', '000000')).rejects.toThrow(UnauthorizedException);
+
+      // En ninguno de los dos casos se tocó el secreto activo
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('should enable 2FA promoting the pending secret and return backup codes', async () => {
+      prisma.user.findUnique = jest.fn().mockResolvedValue({ twoFactorPendingSecret: 'pending32' });
+      mockTwoFactorService.verifyTotp.mockReturnValue(0);
+      mockTwoFactorService.generateBackupCodes.mockResolvedValue(['AAAAA-BBBBB', 'CCCCC-DDDDD']);
 
       const result = await service.enable2FA('u1', '123456');
 
+      // Se valida contra el secreto en pruebas, no contra el activo
+      expect(mockTwoFactorService.verifyTotp).toHaveBeenCalledWith('pending32', '123456');
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'u1' },
-        data: { twoFactorEnabled: true },
+        data: {
+          twoFactorSecret: 'pending32',
+          twoFactorEnabled: true,
+          twoFactorPendingSecret: null,
+          twoFactorLastUsedStep: expect.any(Number),
+        },
       });
-      expect(result).toBe(true);
+      expect(result).toEqual({ backupCodes: ['AAAAA-BBBBB', 'CCCCC-DDDDD'] });
     });
 
     it('should fail to enable 2FA if code is invalid', async () => {
-      prisma.user.findUnique = jest
-        .fn()
-        .mockResolvedValue({ id: 'u1', twoFactorSecret: 'secret32' });
-      (speakeasy.totp.verify as jest.Mock).mockReturnValue(false);
+      prisma.user.findUnique = jest.fn().mockResolvedValue({ twoFactorPendingSecret: 'pending32' });
+      mockTwoFactorService.verifyTotp.mockReturnValue(null);
 
       const result = await service.enable2FA('u1', '000000');
-      expect(result).toBe(false);
+      expect(result).toBeNull();
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(mockTwoFactorService.generateBackupCodes).not.toHaveBeenCalled();
+    });
+
+    it('should fail to enable 2FA if there is no pending setup', async () => {
+      prisma.user.findUnique = jest.fn().mockResolvedValue({ twoFactorPendingSecret: null });
+
+      const result = await service.enable2FA('u1', '123456');
+      expect(result).toBeNull();
+      expect(mockTwoFactorService.verifyTotp).not.toHaveBeenCalled();
     });
 
     describe('verify2FACode', () => {
@@ -516,17 +563,13 @@ describe('AuthService', () => {
         prisma.organization.findUnique = jest
           .fn()
           .mockResolvedValue({ id: 'org1', name: 'Org 1', plan: 'free' });
-        (speakeasy.totp.verify as jest.Mock).mockReturnValue(true);
+        mockTwoFactorService.verifySecondFactor.mockResolvedValue(true);
         jest
           .spyOn(service, 'generateTokens')
           .mockResolvedValue({ accessToken: 'acc2fa', refreshToken: 'ref2fa' });
 
         const result = await service.verify2FACode(mockPayload as any, '123456');
 
-        expect(prisma.user.update).toHaveBeenCalledWith({
-          where: { id: 'u1' },
-          data: { twoFactorEnabled: true },
-        });
         expect(prisma.user.update).toHaveBeenCalledWith({
           where: { id: 'u1' },
           data: { lastLoginAt: expect.any(Date) },
@@ -544,7 +587,7 @@ describe('AuthService', () => {
           .fn()
           .mockResolvedValue({ id: 'u1', twoFactorSecret: 'secret32' });
         prisma.organization.findUnique = jest.fn().mockResolvedValue({ id: 'org1' });
-        (speakeasy.totp.verify as jest.Mock).mockReturnValue(false);
+        mockTwoFactorService.verifySecondFactor.mockResolvedValue(false);
 
         const result = await service.verify2FACode(mockPayload as any, '000000');
         expect(result).toBeNull();
@@ -641,7 +684,7 @@ describe('AuthService', () => {
 
       it('should return EMAIL_NOT_VERIFIED if not verified', async () => {
         prisma.userVerification.findFirst = jest.fn().mockResolvedValue(null);
-        const result = await service.signupStepThree(payload as any);
+        const result = await service.signupStepThree(payload);
         expect(result).toBe(StepThreeErrors.EMAIL_NOT_VERIFIED);
       });
 
@@ -679,7 +722,7 @@ describe('AuthService', () => {
           .spyOn(service, 'generateTokens')
           .mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
 
-        const result = await service.signupStepThree(payload as any);
+        const result = await service.signupStepThree(payload);
         expect(prisma.$transaction).toHaveBeenCalled();
         expect(result).toHaveProperty('user');
         expect(result).toHaveProperty('accessToken');
@@ -767,6 +810,26 @@ describe('AuthService', () => {
         await expect(
           service.changePassword('u1', { currentPassword: 'old', newPassword: 'new' }),
         ).rejects.toThrow(ForbiddenException);
+      });
+
+      it('should reject if 2FA code is invalid when 2fa enabled', async () => {
+        prisma.user.findUnique = jest.fn().mockResolvedValue({
+          id: 'u1',
+          password: 'old',
+          twoFactorEnabled: true,
+          twoFactorSecret: 'abc',
+        });
+        (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+        mockTwoFactorService.verifySecondFactor.mockResolvedValue(false);
+
+        await expect(
+          service.changePassword('u1', {
+            currentPassword: 'old',
+            newPassword: 'new',
+            code2FA: '000000',
+          }),
+        ).rejects.toThrow(UnauthorizedException);
+        expect(prisma.user.update).not.toHaveBeenCalled();
       });
 
       it('should change password successfully', async () => {

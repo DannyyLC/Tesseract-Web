@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   MonitorX,
   Globe,
+  KeyRound,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { LocaleSwitcher } from '@/components/locale';
@@ -25,9 +26,11 @@ import Disable2FAModal from './_components/disable-2fa-modal';
 import ChangePasswordModal from './_components/change-password-modal';
 import LeaveOrganizationModal from './_components/leave-organization-modal';
 import LogoutAllModal from './_components/logout-all-modal';
+import RegenerateBackupCodesModal from './_components/regenerate-backup-codes-modal';
 
 export default function ProfilePage() {
   const t = useTranslations('Profile');
+  const tBackup = useTranslations('BackupCodes');
   const { data: authUser, isLoading: isLoadingAuth } = useAuth();
   const { data: userDetails, isLoading: isLoadingDetails } = useUser(authUser?.sub || '');
 
@@ -36,6 +39,7 @@ export default function ProfilePage() {
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [isLeaveOrgModalOpen, setIsLeaveOrgModalOpen] = useState(false);
   const [isLogoutAllModalOpen, setIsLogoutAllModalOpen] = useState(false);
+  const [isRegenerateCodesModalOpen, setIsRegenerateCodesModalOpen] = useState(false);
 
   const isLoading = isLoadingAuth || isLoadingDetails;
 
@@ -59,6 +63,9 @@ export default function ProfilePage() {
   // Use data from authUser (GET /auth/me) instead of userDetails
   const twoFactorEnabled = authUser.twoFactorEnabled || false;
   const hasPassword = authUser.hasPassword !== false; // Default to true if undefined
+  const backupCodesRemaining = authUser.backupCodesRemaining ?? 0;
+  // Con dos o menos, conviene avisar antes de que se quede sin vía de recuperación
+  const isRunningLowOnCodes = backupCodesRemaining <= 2;
 
   return (
     <div className="space-y-6">
@@ -225,6 +232,41 @@ export default function ProfilePage() {
             </button>
           </div>
 
+          {/* Backup Codes — solo tiene sentido con 2FA activo */}
+          {twoFactorEnabled && (
+            <div className="flex items-center justify-between rounded-xl border border-border p-4">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`rounded-lg p-2.5 ${
+                    isRunningLowOnCodes
+                      ? 'bg-warning-500/10 text-warning-500'
+                      : 'bg-surface-secondary text-text-secondary'
+                  }`}
+                >
+                  <KeyRound size={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-text-primary">{tBackup('cardLabel')}</p>
+                  <p
+                    className={`text-xs ${
+                      isRunningLowOnCodes ? 'text-warning-500' : 'text-text-secondary'
+                    }`}
+                  >
+                    {isRunningLowOnCodes
+                      ? tBackup('runningLow', { count: backupCodesRemaining })
+                      : tBackup('remaining', { count: backupCodesRemaining })}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsRegenerateCodesModalOpen(true)}
+                className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-text-primary transition-all hover:bg-surface-secondary"
+              >
+                {tBackup('regenerateButton')}
+              </button>
+            </div>
+          )}
+
           {/* Change Password */}
           <div className="flex items-center justify-between rounded-xl border border-border p-4">
             <div className="flex items-center gap-3">
@@ -320,6 +362,10 @@ export default function ProfilePage() {
       <LogoutAllModal
         isOpen={isLogoutAllModalOpen}
         onClose={() => setIsLogoutAllModalOpen(false)}
+      />
+      <RegenerateBackupCodesModal
+        isOpen={isRegenerateCodesModalOpen}
+        onClose={() => setIsRegenerateCodesModalOpen(false)}
       />
       <LeaveOrganizationModal
         isOpen={isLeaveOrgModalOpen}

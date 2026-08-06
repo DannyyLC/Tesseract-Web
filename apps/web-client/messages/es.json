@@ -1127,7 +1127,10 @@
     "codeRequired": "Por favor ingresa un código de 6 dígitos",
     "activated": "2FA activado correctamente",
     "invalidCode": "Código inválido",
-    "codeCopied": "Código copiado al portapapeles"
+    "codeCopied": "Código copiado al portapapeles",
+    "copyCode": "Copiar código",
+    "codesSavedConfirm": "He guardado mis códigos de respaldo en un lugar seguro",
+    "finishButton": "Listo"
   },
   "Disable2FAModal": {
     "title": "Desactivar Autenticación de Dos Factores",
@@ -1255,5 +1258,34 @@
   "Notifications": {
     "deleted": "Notificación eliminada",
     "deleteError": "Error al eliminar la notificación"
+  },
+  "TwoFactorCodeInput": {
+    "useBackupCode": "¿Perdiste tu dispositivo? Usa un código de respaldo",
+    "useAuthenticator": "Volver al código de la aplicación"
+  },
+  "BackupCodes": {
+    "cardLabel": "Códigos de respaldo",
+    "remaining": "Te quedan {count} códigos sin usar",
+    "runningLow": "Solo te quedan {count} códigos. Genera unos nuevos.",
+    "regenerateButton": "Regenerar",
+    "regenerateTitle": "Regenerar códigos de respaldo",
+    "regenerateWarningHeading": "Los códigos actuales dejarán de servir",
+    "regenerateWarningText": "Al generar códigos nuevos, los anteriores se invalidan de inmediato. Asegúrate de guardar los nuevos.",
+    "codeLabel": "Código de verificación",
+    "codeRequired": "Ingresa un código válido",
+    "invalidCode": "Código inválido",
+    "regenerating": "Generando...",
+    "regeneratedToast": "Códigos de respaldo regenerados",
+    "warningHeading": "Guárdalos ahora",
+    "warningText": "Estos códigos solo se muestran una vez. Cada uno sirve una sola vez y te permite entrar si pierdes tu dispositivo.",
+    "copyAll": "Copiar todos",
+    "copied": "Copiados",
+    "copiedToast": "Códigos copiados al portapapeles",
+    "download": "Descargar .txt",
+    "codesSavedConfirm": "He guardado mis códigos de respaldo en un lugar seguro",
+    "finishButton": "Listo",
+    "cancelButton": "Cancelar",
+    "fileHeading": "Tus códigos de respaldo — Tesseract",
+    "fileFooter": "Cada código sirve una sola vez. Guárdalos en un lugar seguro."
   }
 }

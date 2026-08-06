@@ -3,6 +3,10 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Modal } from '@/components/ui/modal';
+import {
+  TwoFactorCodeInput,
+  isTwoFactorCodeComplete,
+} from '@/components/ui/two-factor-code-input';
 import { useChangePassword } from '@/hooks/identity/use-auth';
 import { useRouter } from '@/i18n/routing';
 import { useQueryClient } from '@tanstack/react-query';
@@ -52,7 +56,7 @@ export default function ChangePasswordModal({
       return;
     }
 
-    if (twoFactorEnabled && (!code2FA || code2FA.length !== 6)) {
+    if (twoFactorEnabled && !isTwoFactorCodeComplete(code2FA)) {
       toast.error(t('code2FARequired'));
       return;
     }
@@ -180,25 +184,12 @@ export default function ChangePasswordModal({
 
         {/* 2FA Code (if enabled) */}
         {twoFactorEnabled && (
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-text-primary">
-              {t('code2FALabel')}
-            </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={code2FA}
-              onChange={(e) => setCode2FA(e.target.value.replace(/\D/g, ''))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && code2FA.length === 6) {
-                  handleSubmit();
-                }
-              }}
-              placeholder={t('codePlaceholder')}
-              className="focus:ring-border-focus/5 w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4"
-            />
-          </div>
+          <TwoFactorCodeInput
+            value={code2FA}
+            onChange={setCode2FA}
+            onSubmit={handleSubmit}
+            label={t('code2FALabel')}
+          />
         )}
 
         <div className="flex gap-3 pt-4">
@@ -210,7 +201,9 @@ export default function ChangePasswordModal({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={changePassword.isPending}
+            disabled={
+              changePassword.isPending || (twoFactorEnabled && !isTwoFactorCodeComplete(code2FA))
+            }
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {changePassword.isPending ? (

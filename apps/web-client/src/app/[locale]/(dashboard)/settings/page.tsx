@@ -10,6 +10,10 @@ import { toast } from 'sonner';
 import { Loader2, Trash2, AlertTriangle, Building2 } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
+import {
+  TwoFactorCodeInput,
+  isTwoFactorCodeComplete,
+} from '@/components/ui/two-factor-code-input';
 import { useAuth } from '@/hooks/identity/use-auth';
 import PermissionGuard from '@/components/auth/permission-guard';
 
@@ -61,7 +65,7 @@ export default function SettingsPage() {
       return;
     }
 
-    if (authUser?.twoFactorEnabled && (!code2FA || code2FA.length !== 6)) {
+    if (authUser?.twoFactorEnabled && !isTwoFactorCodeComplete(code2FA)) {
       toast.error(t('code2FARequired'));
       return;
     }
@@ -227,18 +231,12 @@ export default function SettingsPage() {
             </div>
 
             {authUser?.twoFactorEnabled && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">{t('code2FALabel')}</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={code2FA}
-                  onChange={(e) => setCode2FA(e.target.value.replace(/\D/g, ''))}
-                  className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-center font-mono text-sm tracking-widest ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  placeholder={t('codePlaceholder')}
-                />
-              </div>
+              <TwoFactorCodeInput
+                value={code2FA}
+                onChange={setCode2FA}
+                onSubmit={handleDelete}
+                label={t('code2FALabel')}
+              />
             )}
 
             <label className="flex cursor-pointer items-start gap-2 pt-2">
@@ -269,7 +267,7 @@ export default function SettingsPage() {
                   deleteOrganization.isPending ||
                   deleteConfirmation !== orgData.name ||
                   !isAgreed ||
-                  (authUser?.twoFactorEnabled && code2FA.length !== 6)
+                  (authUser?.twoFactorEnabled && !isTwoFactorCodeComplete(code2FA))
                 }
                 className="focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md bg-danger-500 px-4 py-2 text-sm font-medium text-brand-white ring-offset-background transition-colors hover:bg-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
               >

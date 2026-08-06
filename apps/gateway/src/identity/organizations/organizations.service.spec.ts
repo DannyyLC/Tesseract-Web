@@ -2,10 +2,11 @@ import { InviteUserErrorsDto } from '../users/dto/invite-user-errors.dto';
 import { OrganizationsService } from './organizations.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '@/platform/database/prisma.service';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { EmailService } from '@/messaging/notifications/email/email.service';
 import { UtilityService } from '@/platform/utility/utility.service';
+import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
 
 describe('OrganizationsService invite', () => {
   const organizationId = 'org-1';
@@ -57,11 +58,14 @@ describe('OrganizationsService invite', () => {
       sendNotificationToAppClients: jest.fn(),
     };
 
+    const twoFactorService = { verifySecondFactor: jest.fn() };
+
     const service = new OrganizationsService(
       prisma as any,
       logger as any,
       emailService as any,
       utilityService as any,
+      twoFactorService as any,
     );
 
     return {
@@ -153,6 +157,10 @@ describe('OrganizationsService', () => {
     sendNotificationToAppClients: jest.fn(),
   };
 
+  const mockTwoFactorService = {
+    verifySecondFactor: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -161,6 +169,7 @@ describe('OrganizationsService', () => {
         { provide: WINSTON_MODULE_PROVIDER, useValue: mockLogger },
         { provide: EmailService, useValue: mockEmailService },
         { provide: UtilityService, useValue: mockUtilityService },
+        { provide: TwoFactorService, useValue: mockTwoFactorService },
       ],
     }).compile();
 
@@ -201,7 +210,7 @@ describe('OrganizationsService', () => {
       // generateUniqueSlug checks for existing slug via findUnique; ensure it returns null
       mockPrismaService.organization.findUnique.mockResolvedValue(null);
       mockPrismaService.organization.create.mockResolvedValue({ id: 'org-new', ...payload });
-      const res = await service.create(payload as any);
+      const res = await service.create(payload);
       expect(res).toEqual(expect.objectContaining({ id: 'org-new', name: 'New Org' }));
       expect(mockPrismaService.organization.create).toHaveBeenCalled();
     });
@@ -211,7 +220,7 @@ describe('OrganizationsService', () => {
     it('updates organization', async () => {
       mockPrismaService.organization.findUnique.mockResolvedValue({ id: 'org-1' });
       mockPrismaService.organization.update.mockResolvedValue({ id: 'org-1', name: 'Updated' });
-      const res = await service.update('org-1', { name: 'Updated' } as any);
+      const res = await service.update('org-1', { name: 'Updated' });
       expect(res).toEqual({ id: 'org-1', name: 'Updated' });
       expect(mockPrismaService.organization.update).toHaveBeenCalledWith({
         where: { id: 'org-1' },
@@ -221,7 +230,7 @@ describe('OrganizationsService', () => {
 
     it('returns null when updating missing org', async () => {
       mockPrismaService.organization.findUnique.mockResolvedValue(null);
-      const res = await service.update('org-x', { name: 'x' } as any);
+      const res = await service.update('org-x', { name: 'x' });
       expect(res).toBeNull();
     });
   });
@@ -247,6 +256,55 @@ describe('OrganizationsService', () => {
       expect(mockPrismaService.organization.update).toHaveBeenCalledWith({
         where: { id: 'org-1' },
         data: expect.objectContaining({ deletedAt: expect.any(Date), isActive: false }),
+      });
+    });
+
+    describe('con 2FA activo', () => {
+      const ownerWith2FA = {
+        id: 'user-1',
+        organizationId: 'org-1',
+        organization: { name: 'Org' },
+        role: 'OWNER',
+        twoFactorEnabled: true,
+        twoFactorSecret: 'SECRET32',
+      };
+
+      beforeEach(() => {
+        mockPrismaService.user.findUnique.mockResolvedValue(ownerWith2FA);
+        mockPrismaService.organization.findUnique.mockResolvedValue({
+          id: 'org-1',
+          deletedAt: null,
+        });
+      });
+
+      it('rechaza el borrado si falta el código 2FA', async () => {
+        await expect(service.softDelete('org-1', 'user-1', 'Org')).rejects.toThrow(
+          ForbiddenException,
+        );
+        expect(mockPrismaService.organization.update).not.toHaveBeenCalled();
+      });
+
+      it('rechaza el borrado si el código 2FA es inválido', async () => {
+        mockTwoFactorService.verifySecondFactor.mockResolvedValue(false);
+
+        await expect(service.softDelete('org-1', 'user-1', 'Org', '000000')).rejects.toThrow(
+          BadRequestException,
+        );
+        expect(mockPrismaService.organization.update).not.toHaveBeenCalled();
+      });
+
+      it('borra la organización cuando el código 2FA es válido', async () => {
+        mockTwoFactorService.verifySecondFactor.mockResolvedValue(true);
+        mockPrismaService.organization.update.mockResolvedValue({
+          id: 'org-1',
+          deletedAt: new Date(),
+          isActive: false,
+        });
+
+        await service.softDelete('org-1', 'user-1', 'Org', '123456');
+
+        expect(mockTwoFactorService.verifySecondFactor).toHaveBeenCalledWith('user-1', '123456');
+        expect(mockPrismaService.organization.update).toHaveBeenCalled();
       });
     });
   });

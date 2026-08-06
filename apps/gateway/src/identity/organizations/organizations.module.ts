@@ -4,9 +4,10 @@ import { OrganizationsAdminController } from './controllers/admin/organizations.
 import { OrganizationsService } from './organizations.service';
 import { UtilityModule } from '@/platform/utility/utility.module';
 import { NotificationsModule } from '@/messaging/notifications/notifications.module';
+import { TwoFactorModule } from '../two-factor/two-factor.module';
 
 @Module({
-  imports: [UtilityModule, NotificationsModule],
+  imports: [UtilityModule, NotificationsModule, TwoFactorModule],
   controllers: [OrganizationsController, OrganizationsAdminController],
   providers: [OrganizationsService],
   exports: [OrganizationsService],
