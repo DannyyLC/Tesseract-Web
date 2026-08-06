@@ -1,12 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { useRouter } from '@/i18n/routing';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from '@/i18n/routing';
 import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft,
   Bot,
   Boxes,
   CheckCircle2,
@@ -71,16 +70,35 @@ function discardStaleDrafts(workflowId: string, currentVersion: number) {
   }
 }
 
+/**
+ * `useSearchParams` obliga a Next a tener un límite de Suspense para poder
+ * prerenderizar; sin él, el build falla al exportar la ruta.
+ */
 export default function WorkflowEditorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <LogoLoader text="Cargando workflow" />
+        </div>
+      }
+    >
+      <WorkflowEditor />
+    </Suspense>
+  );
+}
+
+function WorkflowEditor() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const workflowId = String(params.id);
 
   const { data: workflow, isLoading, error } = useAdminWorkflow(workflowId);
   const { data: editorContext } = useEditorContext();
   const { saveConfig, validateConfig } = useAdminWorkflowMutations();
 
-  const [tab, setTab] = useState<TabId>('agents');
   /** Documento tal como vino del servidor. Nunca se muta. */
   const [original, setOriginal] = useState<WorkflowConfig | null>(null);
   /** Copia de trabajo. Cada control cambia una ruta; todo lo demás viaja intacto. */
@@ -93,6 +111,25 @@ export default function WorkflowEditorPage() {
   const [changesOpen, setChangesOpen] = useState(false);
   const [note, setNote] = useState('');
   const [validation, setValidation] = useState<{ valid: boolean; errors: string[] } | null>(null);
+
+  /*
+   * La pestaña activa vive en la URL (?tab=…) y no en estado local: así sobrevive a
+   * un refresh, se puede compartir el enlace a una pestaña concreta y los botones de
+   * atrás/adelante del navegador funcionan como se espera.
+   */
+  const tabParam = searchParams.get('tab');
+  const tab: TabId = TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : 'agents';
+
+  const setTab = useCallback(
+    (next: TabId) => {
+      const query = new URLSearchParams(searchParams.toString());
+      query.set('tab', next);
+      // `replace` y no `push`: cambiar de pestaña no debería llenar el historial de
+      // entradas que el usuario tendría que deshacer una por una.
+      router.replace(`${pathname}?${query.toString()}`, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
 
   // Carga inicial + recuperación de un borrador local de la misma versión.
   // La guarda es la VERSIÓN cargada, no `original`. Usar `original` provocaba que
@@ -239,30 +276,49 @@ export default function WorkflowEditorPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl pb-24">
-      <button
-        onClick={() => router.push('/admin/workflows')}
-        className="mb-3 inline-flex items-center gap-1 text-xs text-text-secondary transition-colors hover:text-text-primary"
-      >
-        <ArrowLeft size={13} /> Workflows
-      </button>
-
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-text-primary">{workflow.name}</h1>
-          <p className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-text-secondary">
-            <span>{workflow.organization.name}</span>
-            <span>v{loadedVersion ?? workflow.version}</span>
-            <span>{workflow.category}</span>
-            {!workflow.isActive && <span className="text-danger">inactivo</span>}
-            {workflow.isPaused && <span className="text-danger">pausado</span>}
-          </p>
+    <div className="w-full pb-24">
+      {/*
+        Barra propia del editor, pegada al borde del área de contenido: se sangra el
+        padding del layout con márgenes negativos y queda fija al hacer scroll, para
+        que las pestañas sigan a mano en un documento largo. En móvil arranca bajo el
+        header del layout (h-14); en escritorio no hay header, así que va a top-0.
+      */}
+      <div className="sticky top-14 z-20 -mx-4 -mt-4 mb-4 border-b border-border bg-surface/95 backdrop-blur md:-mx-6 md:-mt-6 lg:top-0 lg:-mx-8 lg:-mt-8">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 pt-3 md:px-6 lg:px-8">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+            <h1 className="text-base font-semibold text-text-primary">{workflow.name}</h1>
+            <p className="flex flex-wrap items-center gap-x-3 text-xs text-text-secondary">
+              <span>{workflow.organization.name}</span>
+              <span>v{loadedVersion ?? workflow.version}</span>
+              <span>{workflow.category}</span>
+              {!workflow.isActive && <span className="text-danger">inactivo</span>}
+              {workflow.isPaused && <span className="text-danger">pausado</span>}
+            </p>
+          </div>
+          {isDirty && (
+            <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs text-accent">
+              {changes.length} cambio(s) sin guardar
+            </span>
+          )}
         </div>
-        {isDirty && (
-          <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs text-accent">
-            {changes.length} cambio(s) sin guardar
-          </span>
-        )}
+
+        <nav className="flex flex-wrap gap-1 px-4 md:px-6 lg:px-8">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              aria-current={tab === id ? 'page' : undefined}
+              className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm transition-colors ${
+                tab === id
+                  ? 'border-accent font-medium text-text-primary'
+                  : 'border-transparent text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <Icon size={14} />
+              {label}
+            </button>
+          ))}
+        </nav>
       </div>
 
       {lintErrors.length > 0 && (
@@ -277,23 +333,6 @@ export default function WorkflowEditorPage() {
           ))}
         </div>
       )}
-
-      <div className="mb-4 flex flex-wrap gap-1 border-b border-border">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={`inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors ${
-              tab === id
-                ? 'border-accent font-medium text-text-primary'
-                : 'border-transparent text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            <Icon size={14} />
-            {label}
-          </button>
-        ))}
-      </div>
 
       {tab === 'agents' && (
         <AgentsTab
@@ -339,9 +378,12 @@ export default function WorkflowEditorPage() {
         </div>
       )}
 
-      {/* Barra de acciones */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur lg:pl-[264px]">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-end gap-2">
+      {/*
+        Sticky y no fixed: así se alinea sola con el área de contenido. Con `fixed`
+        había que hardcodear el ancho del sidebar, y quedaba descuadrada al colapsarlo.
+      */}
+      <div className="sticky bottom-0 z-20 -mx-4 -mb-24 mt-6 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {validation?.valid && (
             <span className="mr-auto inline-flex items-center gap-1 text-xs text-success-500">
               <CheckCircle2 size={13} /> Config válido

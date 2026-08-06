@@ -15,5 +15,3 @@ Procesamiento de audio como lo hacen en Claude o Gemini que te permite grabar un
 En caso de estar utilizando Speakeasy evaluar si tenemos que cambiar de libreria
 
 Ver la posibilidad de mostrar cuando una credencial ejemplo de google calendar va a expirar para que el agente no pierda acceso a la tool.
-
-Interfaz grafica para editar workflows de clientes

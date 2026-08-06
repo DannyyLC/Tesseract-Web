@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { useAuth, useLogout } from '@/hooks/identity/use-auth';
 import { LogoLoader } from '@/components/ui/logo-loader';
-import { Cpu, Settings, ShieldCheck, LogOut, Menu, X, PanelLeftClose, PanelLeftOpen, User as UserIcon, Workflow } from 'lucide-react';
+import { Cpu, Settings, ShieldCheck, LogOut, Menu, PanelLeftClose, PanelLeftOpen, User as UserIcon, Workflow } from 'lucide-react';
 
 const ADMIN_NAV = [
   { label: 'Workflows', href: '/admin/workflows', icon: Workflow },

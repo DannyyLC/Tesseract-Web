@@ -61,7 +61,7 @@ export default function AdminWorkflowsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="w-full">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-text-primary">Workflows</h1>
