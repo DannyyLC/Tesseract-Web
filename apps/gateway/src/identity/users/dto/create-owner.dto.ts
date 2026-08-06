@@ -1,8 +1,10 @@
 import { IsEmail, IsNotEmpty, IsString, MinLength, Matches } from 'class-validator';
+import { NormalizeEmail } from '@/platform/common/utils/normalize-email';
 
 export class CreateOwnerDto {
   @IsEmail({}, { message: 'Invalid email format' })
   @IsNotEmpty()
+  @NormalizeEmail()
   email: string;
 
   @IsString()
