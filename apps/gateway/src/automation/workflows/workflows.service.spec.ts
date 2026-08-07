@@ -398,6 +398,39 @@ describe('WorkflowsService', () => {
         );
         expect(result.id).toBe('exec1');
       });
+
+      it('marca el resultado con skipped:hitl cuando un humano atiende la conversación', async () => {
+        // El worker de WhatsApp se apoya en esta marca para distinguir el silencio
+        // deliberado de una ejecución que quedó vacía por un fallo. Sin ella volvería a
+        // mandarle al cliente una disculpa inventada cada vez que escribe.
+        prisma.workflow.findFirst = jest.fn().mockResolvedValue(wfMock);
+        (mockCreditsService as any).canExecuteWorkflow = jest
+          .fn()
+          .mockResolvedValue({ allowed: true });
+        (mockExecutionsService as any).create = jest.fn().mockResolvedValue({ id: 'exec1' });
+        (mockExecutionsService as any).linkToConversation = jest.fn();
+        (mockExecutionsService as any).getByIdFull = jest.fn().mockResolvedValue({ id: 'exec1' });
+        (mockExecutionsService as any).updateStatus = jest.fn();
+        (mockConversationsService as any).findOrCreateConversation = jest.fn().mockResolvedValue({
+          id: 'conv1',
+          isHumanInTheLoop: true,
+          endUserId: 'end-user-1',
+        });
+        (mockConversationsService as any).addMessage = jest.fn();
+        (mockConversationsService as any).update = jest.fn();
+        (mockAgentsService as any).execute = jest.fn();
+
+        await service.execute(orgId, wfId, { message: 'Hola, sigo esperando' });
+
+        expect((mockAgentsService as any).execute).not.toHaveBeenCalled();
+        expect((mockExecutionsService as any).updateStatus).toHaveBeenCalledWith(
+          'exec1',
+          'COMPLETED',
+          expect.objectContaining({
+            result: expect.objectContaining({ messages: [], skipped: 'hitl' }),
+          }),
+        );
+      });
     });
   });
 });
