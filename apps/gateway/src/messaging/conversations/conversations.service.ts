@@ -266,6 +266,32 @@ export class ConversationsService {
     return newConversation;
   }
 
+  /**
+   * Conversación activa de un número de WhatsApp, sin crearla si no existe.
+   *
+   * Es el mismo predicado que usa `findOrCreateConversationFromWhatsAppMessage`, y por eso
+   * vive aquí en vez de duplicarse: el worker consulta esta conversación *antes* de procesar
+   * la ventana para saber si está intervenida, y si los dos `where` se separaran, el worker
+   * decidiría sobre una conversación distinta de la que después se ejecuta.
+   *
+   * El filtro `deletedAt: null` no es opcional: sin él se reutiliza una conversación borrada
+   * desde la UI, y como `findOne` sí descarta las borradas, el flujo del webhook terminaba
+   * lanzando NotFoundException y no enviando la respuesta. En la práctica, borrar una
+   * conversación dejaba ese número sin servicio para siempre.
+   */
+  async findActiveWhatsappConversation(whatsappConfigId: string, userNumber: string) {
+    return this.prisma.conversation.findFirst({
+      where: {
+        channel: ConversationChannel.WHATSAPP,
+        whatsappConfigId,
+        phoneNumberSender: userNumber,
+        status: ConversationStatus.ACTIVE,
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async findOrCreateConversationFromWhatsAppMessage(
     workflowId: string,
     phoneNumber: string,
@@ -278,22 +304,7 @@ export class ConversationsService {
       throw new Error(`WhatsApp config no encontrada para número: ${phoneNumber}`);
     }
 
-    // Buscar si ya existe una conversación para este número de WhatsApp y configuración.
-    //
-    // El filtro `deletedAt: null` no es opcional: sin él se reutiliza una conversación
-    // borrada desde la UI, y como `findOne` sí descarta las borradas, el flujo del
-    // webhook terminaba lanzando NotFoundException y no enviando la respuesta. En la
-    // práctica, borrar una conversación dejaba ese número sin servicio para siempre.
-    const existing = await this.prisma.conversation.findFirst({
-      where: {
-        channel: ConversationChannel.WHATSAPP,
-        whatsappConfigId: whatsappConfig.id,
-        phoneNumberSender: userNumber,
-        status: ConversationStatus.ACTIVE,
-        deletedAt: null,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const existing = await this.findActiveWhatsappConversation(whatsappConfig.id, userNumber);
 
     if (existing) {
       this.logger.debug(

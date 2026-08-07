@@ -117,11 +117,26 @@ export class WhatsappWorkerController {
         return res.status(HttpStatus.OK).send({ processed: false, reason: 'missing-config' });
       }
 
-      // Marcar como leído cuanto antes: es la señal de vida que ve el usuario.
-      await this.markMsgsAsReadAndSendTypingIndicator(
-        yCloudApiKey,
-        drained.messages.map((message) => message.messageId),
+      // Si un humano ya tomó la conversación, el bot no emite nada en todo el turno: ni
+      // respuesta, ni avisos de media, ni acuse de lectura. La palomita azul afirma que
+      // alguien leyó el mensaje, y con el bot apagado nadie lo leyó.
+      //
+      // `execute()` vuelve a comprobar la bandera y sigue siendo la guardia autoritativa
+      // —cubre que la prendan entre esta consulta y la ejecución—; esto solo evita los
+      // efectos visibles que ocurren antes de llegar ahí.
+      const conversation = await this.conversationsService.findActiveWhatsappConversation(
+        account.id,
+        userNumber,
       );
+      const isIntervened = conversation?.isHumanInTheLoop === true;
+
+      if (!isIntervened) {
+        // Marcar como leído cuanto antes: es la señal de vida que ve el usuario.
+        await this.markMsgsAsReadAndSendTypingIndicator(
+          yCloudApiKey,
+          drained.messages.map((message) => message.messageId),
+        );
+      }
 
       if (account.connectionStatus !== 'CONNECTED') {
         await this.whatsappConfigService.updateConnectionStatus(account.id, 'CONNECTED' as any);
@@ -145,23 +160,30 @@ export class WhatsappWorkerController {
 
       // Los avisos van primero y el texto se sigue procesando: si alguien manda una
       // imagen junto con su pregunta, se le dice que la imagen no se puede leer pero su
-      // pregunta igual se contesta.
-      for (const notice of interpreted.notices) {
-        await this.whatsappConfigService.sendTextMessage(phoneNumber, userNumber, notice);
+      // pregunta igual se contesta. Con la conversación intervenida no sale ninguno: son
+      // texto del bot y el bot está apagado.
+      if (!isIntervened) {
+        for (const notice of interpreted.notices) {
+          await this.whatsappConfigService.sendTextMessage(phoneNumber, userNumber, notice);
+        }
       }
 
       if (!interpreted.aggregatedText.trim()) {
         if (interpreted.notices.length === 0) {
           // Red de seguridad: ningún camino conocido llega aquí sin haber avisado, pero
-          // si aparece uno nuevo, el usuario recibe algo en vez de silencio.
-          await this.whatsappConfigService.sendTextMessage(
-            phoneNumber,
-            userNumber,
-            policy.messages.unsupportedFormat,
-          );
+          // si aparece uno nuevo, el usuario recibe algo en vez de silencio. Salvo con la
+          // conversación intervenida, donde el silencio es justamente lo correcto.
+          if (!isIntervened) {
+            await this.whatsappConfigService.sendTextMessage(
+              phoneNumber,
+              userNumber,
+              policy.messages.unsupportedFormat,
+            );
+          }
           this.logger.error('No se pudo extraer texto de la ventana', {
             ...logContext,
             mediaErrors: interpreted.mediaErrors,
+            isIntervened,
           });
         }
         await this.commit(drained.processingKey);
@@ -194,14 +216,35 @@ export class WhatsappWorkerController {
       const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
       const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
 
+      if (!assistantContent) {
+        // Sin texto del asistente no hay nada legítimo que decir, así que no se manda nada.
+        // Antes salía una disculpa inventada en inglés que no existe en las traducciones, y
+        // como la rama HITL de `execute()` devuelve la ejecución sin mensajes, el cliente la
+        // recibía cada vez que escribía mientras un humano atendía la conversación.
+        const skipped = result?.skipped;
+        const detail = {
+          ...logContext,
+          executionId: execution.id,
+          conversationId: result?.conversationId,
+        };
+
+        if (skipped === 'hitl') {
+          this.logger.info('Conversación intervenida por un humano: el bot no responde', detail);
+        } else {
+          // Nadie apagó al bot y aun así no hay respuesta: eso sí es una anomalía.
+          this.logger.error('Ejecución sin mensaje del asistente; no se envía nada', detail);
+        }
+
+        await this.commit(drained.processingKey);
+        return res
+          .status(HttpStatus.OK)
+          .send({ processed: false, reason: skipped === 'hitl' ? 'hitl' : 'no-assistant-message' });
+      }
+
       // Responder ANTES de consultar la conversación: `findOne` lanza si el id viene
       // vacío o la conversación está borrada, y hacerlo primero tiraba al piso una
       // respuesta ya generada y ya cobrada al tenant.
-      await this.whatsappConfigService.sendTextMessage(
-        phoneNumber,
-        userNumber,
-        assistantContent || 'Received your message, but no response generated, try again later.',
-      );
+      await this.whatsappConfigService.sendTextMessage(phoneNumber, userNumber, assistantContent);
 
       // A partir de aquí el usuario ya tiene su respuesta: la ventana se cierra pase
       // lo que pase, para que un reintento no vuelva a ejecutar el workflow.

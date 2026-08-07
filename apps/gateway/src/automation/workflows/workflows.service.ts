@@ -922,6 +922,10 @@ export class WorkflowsService {
       await this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
         result: {
           messages: [],
+          // Marca por qué no hay respuesta. Sin ella, quien consuma la ejecución no puede
+          // distinguir este silencio deliberado de un fallo que dejó la ejecución vacía, y
+          // los dos casos se ven iguales en logs y en la base.
+          skipped: 'hitl',
           conversationId: conversation.id,
         },
         cost: 0,
@@ -982,7 +986,11 @@ export class WorkflowsService {
       const lastMessage = messages[messages.length - 1]; // Último mensaje = respuesta del asistente
       let assistantMessageSaved = false;
 
-      if ((lastMessage?.role as string).toUpperCase() === ChatRole.ASSISTANT) {
+      // El `?.` del rol no es decorativo: si el servicio de agentes no devuelve ningún
+      // mensaje, `lastMessage` es undefined y la versión anterior reventaba con TypeError.
+      // La ejecución quedaba FAILED, Cloud Tasks reintentaba la ventana completa y se volvía
+      // a pagar el LLM en cada intento, en vez de caer en el `else` que ya existe aquí.
+      if (lastMessage?.role?.toUpperCase() === ChatRole.ASSISTANT) {
         await this.conversationsService.addMessage(
           conversation.id,
           lastMessage.role.toUpperCase() as any,
@@ -1309,6 +1317,8 @@ export class WorkflowsService {
       await this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
         result: {
           messages: [],
+          // Ver la rama equivalente de `execute()`: marca el silencio como deliberado.
+          skipped: 'hitl',
           conversationId: conversation.id,
         },
         cost: 0,
