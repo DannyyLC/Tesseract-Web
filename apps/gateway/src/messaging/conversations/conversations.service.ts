@@ -256,6 +256,9 @@ export class ConversationsService {
         messageCount: 0,
         totalTokens: 0,
         totalCost: 0,
+        // El listado ordena por `lastMessageAt`: dejarlo en NULL mandaria la
+        // conversacion al tope. Hasta que llegue el primer mensaje vale su creacion.
+        lastMessageAt: new Date(),
       },
     });
 
@@ -340,6 +343,8 @@ export class ConversationsService {
         messageCount: 0,
         totalTokens: 0,
         totalCost: 0,
+        // Ver nota en findOrCreateConversation: NULL flotaria al tope del listado.
+        lastMessageAt: new Date(),
       },
     });
 
@@ -467,6 +472,17 @@ export class ConversationsService {
       userId,
     } = params;
 
+    // Recencia real de la conversacion: manda el ultimo mensaje, no cuando se creo.
+    // Los NULL van explicitamente al final porque Postgres los pondria primero en un
+    // DESC, y eso empujaba al tope las conversaciones que nunca recibieron mensajes.
+    // El `id` cierra el orden: sin un desempate unico la paginacion por cursor puede
+    // saltarse o repetir filas cuando dos conversaciones empatan en todo lo demas.
+    const recency = [
+      { lastMessageAt: { sort: 'desc' as const, nulls: 'last' as const } },
+      { createdAt: 'desc' as const },
+      { id: 'desc' as const },
+    ];
+
     // Las que piden accion humana van primero: intervenidas, luego pendientes de
     // seguimiento, y solo entonces el resto por recencia.
     const orderBy = prioritizeHitl
@@ -474,10 +490,9 @@ export class ConversationsService {
           { isHumanInTheLoop: 'desc' as const },
           { needsFollowUp: 'desc' as const },
           { status: 'asc' as const },
-          { lastMessageAt: 'desc' as const },
-          { createdAt: 'desc' as const },
+          ...recency,
         ]
-      : [{ createdAt: 'desc' as const }];
+      : recency;
 
     const conversations = await this.prisma.conversation.findMany({
       take:
