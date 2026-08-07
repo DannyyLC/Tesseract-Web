@@ -351,7 +351,10 @@
     "granularityWeek": "Per week",
     "granularityMonth": "Per month",
     "executionsPrev": "Previous",
-    "executionsNext": "Next"
+    "executionsNext": "Next",
+    "timezoneLabel": "Timezone",
+    "timezoneInherit": "Inherit from organization ({timezone})",
+    "timezoneHelp": "Drives this workflow's charts and the local time the agent uses when it replies."
   },
   "LegalLayout": {
     "backAriaLabel": "Go back",

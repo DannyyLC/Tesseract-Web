@@ -12,4 +12,16 @@ import { CreateWorkflowDto } from './create-workflow.dto';
  * - Actualizar nombre y descripción: { "name": "...", "description": "..." }
  * - Actualizar todo: { ...todos los campos... }
  */
+/**
+ * Ojo con los tres estados de `timezone`, que son lo que hace funcionar la herencia:
+ *
+ * - `undefined` → Prisma no toca la columna, así que editar solo el nombre no borra
+ *   la zona configurada.
+ * - `null` → limpia el override y el workflow vuelve a heredar la de la organización.
+ * - string → override explícito.
+ *
+ * `@IsOptional()` salta la validación con `null` y `undefined`, de modo que el `null`
+ * pasa limpio. Una cadena vacía **no**: llegaría a `@IsTimezone()` y daría un 400. Por
+ * eso el selector del front manda `null` y nunca `''`.
+ */
 export class UpdateWorkflowDto extends PartialType(CreateWorkflowDto) {}

@@ -59,10 +59,10 @@ export class CreateWorkflowDto {
   @IsOptional()
   schedule?: string;
 
-  // Zona horaria IANA. Omitirla hereda la de la organización.
+  // Zona horaria IANA. Omitirla —o mandar null— hereda la de la organización.
   @IsTimezone()
   @IsOptional()
-  timezone?: string;
+  timezone?: string | null;
 
   // Timeout en segundos (opcional, 30-3600)
   @IsInt()

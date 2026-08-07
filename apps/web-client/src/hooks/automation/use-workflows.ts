@@ -124,6 +124,10 @@ export function useWorkflowMutations() {
       queryClient.invalidateQueries({ queryKey: ['workflows', 'detail', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['workflows', 'list'] });
       queryClient.invalidateQueries({ queryKey: ['workflows', 'dashboard'] });
+      // Editar el workflow puede cambiar su zona horaria, y las series ya cargadas
+      // quedarían calculadas con la anterior sin ninguna señal de estar obsoletas.
+      queryClient.invalidateQueries({ queryKey: ['workflows', 'metrics', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['workflows', 'hourly-distribution', variables.id] });
     },
   });
 
