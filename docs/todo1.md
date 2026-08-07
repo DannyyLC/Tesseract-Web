@@ -6,8 +6,6 @@ Pagina de Facturacion. Integrar la facturacion automatica mediante la plataforma
 
 Ver la posibilidad de permitirles de alguna forma dejar a los clientes integrar sus catalogos ya que es un problema muy frecuente a la fecha
 
-Intergacion con messenger
-
 Crons con recordatorios automaticos, tal vez microservicio aparte para no tener problemas de varias contestaciones a un mismo request debido a la arquitectura distribuida
 
 Ver la posibilidad de mostrar cuando una credencial ejemplo de google calendar va a expirar para que el agente no pierda acceso a la tool.

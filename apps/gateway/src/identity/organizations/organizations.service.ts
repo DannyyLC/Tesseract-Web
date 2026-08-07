@@ -188,6 +188,7 @@ export class OrganizationsService {
         where: { id: id },
         data: {
           name: dto.name ?? organization.name,
+          timezone: dto.timezone ?? organization.timezone,
           // El plan solo puede ser actualizado por super admins
           // Por ahora no permitimos cambiar el plan desde aquí
         },
@@ -852,6 +853,7 @@ export class OrganizationsService {
         overageLimit: true,
         isActive: true,
         createdAt: true,
+        timezone: true,
         customMaxUsers: true,
         customMaxApiKeys: true,
         customMaxWorkflows: true,
@@ -1099,7 +1101,6 @@ export class OrganizationsService {
             lastLoginAt: existingUser.lastLoginAt,
             createdAt: existingUser.createdAt,
             avatar: existingUser.avatar,
-            timezone: existingUser.timezone,
             emailVerified: existingUser.emailVerified,
           },
         };
@@ -1138,7 +1139,6 @@ export class OrganizationsService {
           lastLoginAt: newUser.lastLoginAt,
           createdAt: newUser.createdAt,
           avatar: newUser.avatar,
-          timezone: newUser.timezone,
           emailVerified: newUser.emailVerified,
         },
       };

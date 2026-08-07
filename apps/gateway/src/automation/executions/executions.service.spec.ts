@@ -24,6 +24,12 @@ describe('ExecutionsService', () => {
       update: jest.fn(),
       groupBy: jest.fn(),
     },
+    // Las series temporales se agrupan en la zona de la organización, así que getStats
+    // y getHourlyDistribution la consultan antes de calcular nada.
+    organization: {
+      findUnique: jest.fn().mockResolvedValue({ timezone: 'America/Mexico_City' }),
+    },
+    $queryRaw: jest.fn().mockResolvedValue([]),
   };
 
   const mockEventEmitter2 = {
@@ -50,6 +56,13 @@ describe('ExecutionsService', () => {
     eventEmitter = module.get<EventEmitter2>(EventEmitter2);
 
     jest.clearAllMocks();
+
+    // clearAllMocks borra también las respuestas por defecto, y sin zona horaria
+    // getStats no puede agrupar. Se reinstalan aquí, después de limpiar.
+    mockPrismaService.organization.findUnique.mockResolvedValue({
+      timezone: 'America/Mexico_City',
+    });
+    mockPrismaService.$queryRaw.mockResolvedValue([]);
   });
 
   describe('create', () => {
@@ -304,6 +317,68 @@ describe('ExecutionsService', () => {
       expect(result.byApiKey[0].avgDuration).toBe(8);
       expect(result.byApiKey[0].successRate).toBe(50);
       expect(result.byUser[0].successRate).toBe(50);
+    });
+  });
+
+  describe('getHourlyDistribution', () => {
+    it('devuelve las 24 franjas aunque la consulta traiga solo algunas', async () => {
+      // Las horas sin actividad son el dato interesante ("a las 3am no me escribe
+      // nadie"); si se omitieran, la gráfica dibujaría huecos en vez de ceros.
+      mockPrismaService.$queryRaw.mockResolvedValue([
+        { hour: 9, count: 4 },
+        { hour: 17, count: 11 },
+      ]);
+
+      const result = await service.getHourlyDistribution('org-1', '30d');
+
+      expect(result.buckets).toHaveLength(24);
+      expect(result.buckets.map((b) => b.hour)).toEqual([...Array(24).keys()]);
+      expect(result.buckets[9]).toEqual({ hour: 9, count: 4 });
+      expect(result.buckets[17]).toEqual({ hour: 17, count: 11 });
+      expect(result.buckets[3]).toEqual({ hour: 3, count: 0 });
+      expect(result.total).toBe(15);
+      expect(result.timezone).toBe('America/Mexico_City');
+    });
+
+    it('usa la zona de la organización por defecto, no la del workflow', async () => {
+      mockPrismaService.workflow.findFirst.mockResolvedValue({ timezone: 'America/Monterrey' });
+      mockPrismaService.$queryRaw.mockResolvedValue([]);
+
+      const result = await service.getHourlyDistribution('org-1', '30d', { workflowId: 'wf-1' });
+
+      expect(result.timezone).toBe('America/Mexico_City');
+    });
+
+    it('usa la del workflow solo cuando se pide explícitamente', async () => {
+      mockPrismaService.workflow.findFirst.mockResolvedValue({ timezone: 'America/Monterrey' });
+      mockPrismaService.$queryRaw.mockResolvedValue([]);
+
+      const result = await service.getHourlyDistribution('org-1', '30d', {
+        workflowId: 'wf-1',
+        useWorkflowTimezone: true,
+      });
+
+      expect(result.timezone).toBe('America/Monterrey');
+    });
+
+    it('hereda la de la organización cuando el workflow no define zona', async () => {
+      mockPrismaService.workflow.findFirst.mockResolvedValue({ timezone: null });
+      mockPrismaService.$queryRaw.mockResolvedValue([]);
+
+      const result = await service.getHourlyDistribution('org-1', '30d', {
+        workflowId: 'wf-1',
+        useWorkflowTimezone: true,
+      });
+
+      expect(result.timezone).toBe('America/Mexico_City');
+    });
+
+    it('rechaza un workflow de otra organización', async () => {
+      mockPrismaService.workflow.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.getHourlyDistribution('org-1', '30d', { workflowId: 'ajeno' }),
+      ).rejects.toThrow('Workflow no encontrado');
     });
   });
 

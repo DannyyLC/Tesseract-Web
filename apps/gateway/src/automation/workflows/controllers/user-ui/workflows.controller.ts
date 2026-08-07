@@ -18,6 +18,7 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { WorkflowsService } from '../../workflows.service';
+import { ExecutionsService } from '@/automation/executions/executions.service';
 import { UpdateWorkflowDto, ExecuteWorkflowDto } from '../../dto';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
@@ -41,7 +42,10 @@ import { Roles } from '@/identity/auth/decorators/roles.decorator';
 @Controller('workflows')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class WorkflowsController {
-  constructor(private readonly workflowsService: WorkflowsService) {}
+  constructor(
+    private readonly workflowsService: WorkflowsService,
+    private readonly executionsService: ExecutionsService,
+  ) {}
 
   /**
    * GET /workflows/node-catalog
@@ -228,6 +232,10 @@ export class WorkflowsController {
   /**
    * GET /workflows/:id/metrics
    * Obtiene métricas detalladas de un workflow (Charts, KPIs)
+   *
+   * `tz` elige la zona de las series: por defecto la de la organización, que es la que
+   * usan todas las gráficas del producto. `workflow` solo tiene sentido cuando ese
+   * workflow define una zona propia distinta.
    */
   @Get(':id/metrics')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
@@ -235,7 +243,26 @@ export class WorkflowsController {
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
     @Query('period', new DefaultValuePipe('30d')) period?: string,
+    @Query('tz', new DefaultValuePipe('organization')) tz?: string,
   ) {
-    return this.workflowsService.getMetrics(user.organizationId, id, period);
+    return this.workflowsService.getMetrics(user.organizationId, id, period, tz === 'workflow');
+  }
+
+  /**
+   * GET /workflows/:id/hourly-distribution
+   * Distribución de ejecuciones del workflow por hora del día. Devuelve las 24 franjas.
+   */
+  @Get(':id/hourly-distribution')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
+  async getHourlyDistribution(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Query('period', new DefaultValuePipe('30d')) period?: string,
+    @Query('tz', new DefaultValuePipe('organization')) tz?: string,
+  ) {
+    return this.executionsService.getHourlyDistribution(user.organizationId, period, {
+      workflowId: id,
+      useWorkflowTimezone: tz === 'workflow',
+    });
   }
 }

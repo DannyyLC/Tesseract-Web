@@ -1,6 +1,10 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useWorkflowMetrics } from '@/hooks/automation/use-workflows';
+import {
+  useWorkflowHourlyDistribution,
+  useWorkflowMetrics,
+} from '@/hooks/automation/use-workflows';
+import HourlyDistributionChart from './hourly-distribution-chart';
 import { DashboardWorkflowDto } from '@tesseract/types';
 import {
   AreaChart,
@@ -16,9 +20,15 @@ import { formatDateByGranularity } from '@/utils/date-formatters';
 import { useTranslations } from 'next-intl';
 
 interface WorkflowAnalyticsPanelProps {
-  workflow: DashboardWorkflowDto;
+  /** El detalle trae además `timezone` y `organization.timezone` (ver findOne). */
+  workflow: DashboardWorkflowDto & {
+    timezone?: string | null;
+    organization?: { timezone?: string | null } | null;
+  };
   period: string;
   onPeriodChange: (period: string) => void;
+  tzSource: 'organization' | 'workflow';
+  onTzSourceChange: (source: 'organization' | 'workflow') => void;
 }
 
 const PERIODS = [
@@ -40,8 +50,11 @@ export default function WorkflowAnalyticsPanel({
   workflow,
   period,
   onPeriodChange,
+  tzSource,
+  onTzSourceChange,
 }: WorkflowAnalyticsPanelProps) {
   const t = useTranslations('WorkflowDetail');
+  const tHourly = useTranslations('HourlyDistribution');
 
   const granularityLabels: Record<string, string> = {
     hour: t('granularityHour'),
@@ -50,8 +63,41 @@ export default function WorkflowAnalyticsPanel({
     month: t('granularityMonth'),
   };
 
+  // El selector de zona solo aparece cuando el workflow define una propia y además
+  // difiere de la de la organización. Tras la migración, `timezone` en null significa
+  // "hereda", así que un valor explícito ya es una decisión deliberada; mostrar el
+  // selector en todos los workflows sería ruido que se aprende a ignorar.
+  const canSwitchTimezone =
+    !!workflow.timezone && workflow.timezone !== workflow.organization?.timezone;
+
   // Fetch detailed metrics in parallel
-  const { data: metrics, isLoading } = useWorkflowMetrics(workflow.id, period);
+  const { data: metrics, isLoading } = useWorkflowMetrics(workflow.id, period, tzSource);
+  const { data: hourly, isLoading: isHourlyLoading } = useWorkflowHourlyDistribution(
+    workflow.id,
+    period,
+    tzSource,
+  );
+
+  const timezoneToggle = canSwitchTimezone ? (
+    <div className="flex items-center gap-2">
+      <span className="text-[11px] text-text-tertiary">{tHourly('tzSourceLabel')}</span>
+      <div className="flex gap-1 rounded-lg bg-surface-secondary p-1">
+        {(['organization', 'workflow'] as const).map((source) => (
+          <button
+            key={source}
+            onClick={() => onTzSourceChange(source)}
+            className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
+              tzSource === source
+                ? 'bg-surface-primary text-text-primary shadow-sm'
+                : 'text-text-tertiary hover:text-text-secondary'
+            }`}
+          >
+            {source === 'organization' ? tHourly('tzOrganization') : tHourly('tzWorkflow')}
+          </button>
+        ))}
+      </div>
+    </div>
+  ) : null;
 
   const chartData = useMemo(() => metrics?.executionHistoryChart ?? [], [metrics]);
   const errors = metrics?.errorDistribution ?? {};
@@ -308,7 +354,14 @@ export default function WorkflowAnalyticsPanel({
           </div>
         </motion.div>
 
-        {/* 3. Error Distribution */}
+        {/* 3. Hourly Distribution */}
+        <HourlyDistributionChart
+          data={hourly}
+          isLoading={isHourlyLoading}
+          action={timezoneToggle}
+        />
+
+        {/* 4. Error Distribution */}
         {Object.keys(errors).length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}

@@ -20,6 +20,12 @@ import WhatsappNumberCard from '../_components/whatsapp-number-card';
 import WorkflowAnalyticsPanel from '../_components/workflow-analytics-panel';
 import WorkflowExecutionsTable from '../_components/workflow-executions-table';
 import { useTranslations } from 'next-intl';
+import {
+  DEFAULT_TIMEZONE,
+  SUPPORTED_TIMEZONES,
+  TIMEZONE_GROUPS,
+  formatTimezoneLabel,
+} from '@tesseract/types';
 
 const WHATSAPP_PHONE_REGEX = /^\+\d{8,15}$/;
 
@@ -28,6 +34,8 @@ export default function WorkflowDetailPage() {
   const router = useRouter();
   const id = params.id as string;
   const t = useTranslations('WorkflowDetail');
+  // Los nombres de región se comparten con el selector de la organización.
+  const tSettings = useTranslations('Settings');
 
   // Queries
   const { data: workflow, isLoading } = useWorkflow(id);
@@ -35,6 +43,9 @@ export default function WorkflowDetailPage() {
 
   // UI State
   const [period, setPeriod] = useState('30d');
+  // Vive aquí, junto al periodo, para que al cambiar la zona cambien a la vez todas
+  // las gráficas del panel: si solo cambiara una, la página mostraría dos husos.
+  const [tzSource, setTzSource] = useState<'organization' | 'workflow'>('organization');
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
@@ -42,10 +53,17 @@ export default function WorkflowDetailPage() {
   const [whatsappNumber, setWhatsappNumber] = useState('');
 
   // Form State
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;
+    isActive: boolean;
+    // null = hereda la zona de la organización, que es el caso normal.
+    timezone: string | null;
+  }>({
     name: '',
     description: '',
     isActive: false,
+    timezone: null,
   });
 
   const { data: whatsappNumbers, isLoading: isWhatsappNumbersLoading } = useWhatsappNumbers(id);
@@ -60,6 +78,7 @@ export default function WorkflowDetailPage() {
         name: workflow.name,
         description: workflow.description || '',
         isActive: workflow.isActive,
+        timezone: workflow.timezone ?? null,
       });
     }
   }, [workflow]);
@@ -80,6 +99,9 @@ export default function WorkflowDetailPage() {
           name: formData.name,
           description: formData.description,
           isActive: formData.isActive,
+          // `null` (no '') limpia el override y devuelve el workflow a heredar; una
+          // cadena vacía no pasaría la validación IANA del gateway.
+          timezone: formData.timezone,
         },
       });
       toast.success(t('updateSuccess'));
@@ -308,7 +330,13 @@ export default function WorkflowDetailPage() {
             <h2 className="text-xl font-bold">{t('performanceAnalysis')}</h2>
           </div>
 
-          <WorkflowAnalyticsPanel workflow={workflow} period={period} onPeriodChange={setPeriod} />
+          <WorkflowAnalyticsPanel
+            workflow={workflow}
+            period={period}
+            onPeriodChange={setPeriod}
+            tzSource={tzSource}
+            onTzSourceChange={setTzSource}
+          />
         </div>
 
         <div className="space-y-4 px-8 pb-8">
@@ -443,6 +471,43 @@ export default function WorkflowDetailPage() {
               className="min-h-[100px] w-full rounded-xl border border-transparent bg-[var(--surface-tint)] px-3 py-2 text-text-primary outline-none transition-all focus:border-info-500 focus:bg-surface"
               placeholder={t('descriptionPlaceholder')}
             />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-primary">{t('timezoneLabel')}</label>
+            <select
+              value={formData.timezone ?? ''}
+              onChange={(e) =>
+                // La opción "heredar" vale '' en el DOM porque un <option> no puede
+                // tener null; se traduce aquí para que al gateway le llegue null.
+                setFormData({ ...formData, timezone: e.target.value || null })
+              }
+              className="w-full rounded-xl border border-transparent bg-[var(--surface-tint)] px-3 py-2 text-text-primary outline-none transition-all focus:border-info-500 focus:bg-surface"
+            >
+              <option value="">
+                {t('timezoneInherit', {
+                  timezone: formatTimezoneLabel(
+                    workflow.organization?.timezone ?? DEFAULT_TIMEZONE,
+                  ),
+                })}
+              </option>
+              {/* Zona fijada por API que no esté en el catálogo: se conserva. */}
+              {formData.timezone && !SUPPORTED_TIMEZONES.includes(formData.timezone) && (
+                <option value={formData.timezone}>
+                  {formatTimezoneLabel(formData.timezone)}
+                </option>
+              )}
+              {TIMEZONE_GROUPS.map((group) => (
+                <optgroup key={group.region} label={tSettings(`timezoneRegion.${group.region}`)}>
+                  {group.zones.map((tz) => (
+                    <option key={tz} value={tz}>
+                      {formatTimezoneLabel(tz)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <p className="text-xs text-text-tertiary">{t('timezoneHelp')}</p>
           </div>
 
           <div className="flex items-center justify-between rounded-xl bg-[var(--surface-tint)] p-3">

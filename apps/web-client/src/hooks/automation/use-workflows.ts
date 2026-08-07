@@ -67,12 +67,32 @@ export function useWorkflowStats() {
 }
 
 // Hook para obtener métricas de un workflow
-export function useWorkflowMetrics(workflowId: string, period: string = '30d') {
+export function useWorkflowMetrics(
+  workflowId: string,
+  period: string = '30d',
+  tzSource: 'organization' | 'workflow' = 'organization',
+) {
   return useQuery({
-    queryKey: ['workflows', 'metrics', workflowId, period],
+    queryKey: ['workflows', 'metrics', workflowId, period, tzSource],
     queryFn: async () => {
       const api = RootApi.getInstance().getWorkflowsApi();
-      return await api.getMetrics(workflowId, period);
+      return await api.getMetrics(workflowId, period, tzSource);
+    },
+    enabled: !!workflowId,
+  });
+}
+
+// Hook para la distribución horaria de un workflow (24 franjas)
+export function useWorkflowHourlyDistribution(
+  workflowId: string,
+  period: string = '30d',
+  tzSource: 'organization' | 'workflow' = 'organization',
+) {
+  return useQuery({
+    queryKey: ['workflows', 'hourly-distribution', workflowId, period, tzSource],
+    queryFn: async () => {
+      const api = RootApi.getInstance().getWorkflowsApi();
+      return await api.getHourlyDistribution(workflowId, period, tzSource);
     },
     enabled: !!workflowId,
   });
@@ -104,6 +124,10 @@ export function useWorkflowMutations() {
       queryClient.invalidateQueries({ queryKey: ['workflows', 'detail', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['workflows', 'list'] });
       queryClient.invalidateQueries({ queryKey: ['workflows', 'dashboard'] });
+      // Editar el workflow puede cambiar su zona horaria, y las series ya cargadas
+      // quedarían calculadas con la anterior sin ninguna señal de estar obsoletas.
+      queryClient.invalidateQueries({ queryKey: ['workflows', 'metrics', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['workflows', 'hourly-distribution', variables.id] });
     },
   });
 

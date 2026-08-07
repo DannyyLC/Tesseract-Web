@@ -5,6 +5,7 @@ import {
   WorkflowCategory,
   WorkflowsResponse,
   ApiResponse,
+  HourlyDistributionDto,
 } from '@tesseract/types';
 
 class WorkflowsApi {
@@ -53,10 +54,32 @@ class WorkflowsApi {
 
   /**
    * Obtiene métricas detalladas de un workflow
+   *
+   * `tzSource` elige la zona de las series. Por defecto la de la organización, que es
+   * la que usan todas las gráficas; 'workflow' solo aplica si ese workflow define una
+   * zona propia.
    */
-  public async getMetrics(workflowId: string, period: string = '30d'): Promise<WorkflowMetricsDto> {
+  public async getMetrics(
+    workflowId: string,
+    period: string = '30d',
+    tzSource: 'organization' | 'workflow' = 'organization',
+  ): Promise<WorkflowMetricsDto> {
     const result = await this.apiRequestManager.get<WorkflowMetricsDto>(
-      `${WorkflowsApi.BASE_URL}/${workflowId}/metrics?period=${period}`,
+      `${WorkflowsApi.BASE_URL}/${workflowId}/metrics?period=${period}&tz=${tzSource}`,
+    );
+    return result.data;
+  }
+
+  /**
+   * Distribución de ejecuciones del workflow por hora del día (24 franjas)
+   */
+  public async getHourlyDistribution(
+    workflowId: string,
+    period: string = '30d',
+    tzSource: 'organization' | 'workflow' = 'organization',
+  ): Promise<HourlyDistributionDto> {
+    const result = await this.apiRequestManager.get<HourlyDistributionDto>(
+      `${WorkflowsApi.BASE_URL}/${workflowId}/hourly-distribution?period=${period}&tz=${tzSource}`,
     );
     return result.data;
   }

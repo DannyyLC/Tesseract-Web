@@ -11,7 +11,4 @@ export class UpdateProfileDto implements IUpdateProfileDto {
   @IsOptional()
   avatar?: string;
 
-  @IsString()
-  @IsOptional()
-  timezone?: string;
 }

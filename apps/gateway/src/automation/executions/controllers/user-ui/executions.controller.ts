@@ -17,7 +17,13 @@ import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { DashboardExecutionDto, ExecutionStatsQueryDto } from '../../dto';
-import { ApiResponse, ApiResponseBuilder, PaginatedResponse, UserRole } from '@tesseract/types';
+import {
+  ApiResponse,
+  ApiResponseBuilder,
+  HourlyDistributionDto,
+  PaginatedResponse,
+  UserRole,
+} from '@tesseract/types';
 import { Response } from 'express';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
@@ -78,6 +84,28 @@ export class ExecutionsController {
       .setMessage('Dashboard executions data retrieved successfully')
       .setSuccess(true);
     return res.status(200).json(apiResponse.build());
+  }
+
+  /**
+   * GET /executions/hourly-distribution
+   * Distribución de ejecuciones por hora del día, en la zona de la organización.
+   *
+   * Responde "¿a qué hora recibo mensajes?". Devuelve siempre las 24 franjas.
+   */
+  @Get('hourly-distribution')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
+  async getHourlyDistribution(
+    @CurrentUser() user: UserPayload,
+    @Query('period', new DefaultValuePipe('30d')) period: string,
+    @Res() res: Response,
+  ) {
+    const apiResponse = new ApiResponseBuilder<HourlyDistributionDto>();
+    const data = await this.executionsService.getHourlyDistribution(user.organizationId, period);
+    apiResponse
+      .setData(data)
+      .setMessage('Hourly distribution retrieved successfully')
+      .setSuccess(true);
+    return res.status(HttpStatus.OK).json(apiResponse.build());
   }
 
   /**

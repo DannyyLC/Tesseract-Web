@@ -184,7 +184,6 @@ export class UsersService {
         data: {
           ...(data.name && { name: data.name }),
           ...(data.avatar && { avatar: data.avatar }),
-          ...(data.timezone && { timezone: data.timezone }),
         },
       });
     } catch (error) {
@@ -582,7 +581,6 @@ export class UsersService {
         lastLoginAt: true,
         createdAt: true,
         avatar: true,
-        timezone: true,
         emailVerified: true,
       },
       orderBy: {

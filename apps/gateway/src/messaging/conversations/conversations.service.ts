@@ -257,11 +257,40 @@ export class ConversationsService {
         messageCount: 0,
         totalTokens: 0,
         totalCost: 0,
+        // El listado ordena por `lastMessageAt`: dejarlo en NULL mandaria la
+        // conversacion al tope. Hasta que llegue el primer mensaje vale su creacion.
+        lastMessageAt: new Date(),
       },
     });
 
     this.logger.log(`Nueva conversación creada: ${newConversation.id}`);
     return newConversation;
+  }
+
+  /**
+   * Conversación activa de un número de WhatsApp, sin crearla si no existe.
+   *
+   * Es el mismo predicado que usa `findOrCreateConversationFromWhatsAppMessage`, y por eso
+   * vive aquí en vez de duplicarse: el worker consulta esta conversación *antes* de procesar
+   * la ventana para saber si está intervenida, y si los dos `where` se separaran, el worker
+   * decidiría sobre una conversación distinta de la que después se ejecuta.
+   *
+   * El filtro `deletedAt: null` no es opcional: sin él se reutiliza una conversación borrada
+   * desde la UI, y como `findOne` sí descarta las borradas, el flujo del webhook terminaba
+   * lanzando NotFoundException y no enviando la respuesta. En la práctica, borrar una
+   * conversación dejaba ese número sin servicio para siempre.
+   */
+  async findActiveWhatsappConversation(whatsappConfigId: string, userNumber: string) {
+    return this.prisma.conversation.findFirst({
+      where: {
+        channel: ConversationChannel.WHATSAPP,
+        whatsappConfigId,
+        phoneNumberSender: userNumber,
+        status: ConversationStatus.ACTIVE,
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   async findOrCreateConversationFromWhatsAppMessage(
@@ -276,22 +305,7 @@ export class ConversationsService {
       throw new Error(`WhatsApp config no encontrada para número: ${phoneNumber}`);
     }
 
-    // Buscar si ya existe una conversación para este número de WhatsApp y configuración.
-    //
-    // El filtro `deletedAt: null` no es opcional: sin él se reutiliza una conversación
-    // borrada desde la UI, y como `findOne` sí descarta las borradas, el flujo del
-    // webhook terminaba lanzando NotFoundException y no enviando la respuesta. En la
-    // práctica, borrar una conversación dejaba ese número sin servicio para siempre.
-    const existing = await this.prisma.conversation.findFirst({
-      where: {
-        channel: ConversationChannel.WHATSAPP,
-        whatsappConfigId: whatsappConfig.id,
-        phoneNumberSender: userNumber,
-        status: ConversationStatus.ACTIVE,
-        deletedAt: null,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const existing = await this.findActiveWhatsappConversation(whatsappConfig.id, userNumber);
 
     if (existing) {
       this.logger.debug(
@@ -341,6 +355,8 @@ export class ConversationsService {
         messageCount: 0,
         totalTokens: 0,
         totalCost: 0,
+        // Ver nota en findOrCreateConversation: NULL flotaria al tope del listado.
+        lastMessageAt: new Date(),
       },
     });
 
@@ -556,6 +572,17 @@ export class ConversationsService {
       userId,
     } = params;
 
+    // Recencia real de la conversacion: manda el ultimo mensaje, no cuando se creo.
+    // Los NULL van explicitamente al final porque Postgres los pondria primero en un
+    // DESC, y eso empujaba al tope las conversaciones que nunca recibieron mensajes.
+    // El `id` cierra el orden: sin un desempate unico la paginacion por cursor puede
+    // saltarse o repetir filas cuando dos conversaciones empatan en todo lo demas.
+    const recency = [
+      { lastMessageAt: { sort: 'desc' as const, nulls: 'last' as const } },
+      { createdAt: 'desc' as const },
+      { id: 'desc' as const },
+    ];
+
     // Las que piden accion humana van primero: intervenidas, luego pendientes de
     // seguimiento, y solo entonces el resto por recencia.
     const orderBy = prioritizeHitl
@@ -563,10 +590,9 @@ export class ConversationsService {
           { isHumanInTheLoop: 'desc' as const },
           { needsFollowUp: 'desc' as const },
           { status: 'asc' as const },
-          { lastMessageAt: 'desc' as const },
-          { createdAt: 'desc' as const },
+          ...recency,
         ]
-      : [{ createdAt: 'desc' as const }];
+      : recency;
 
     const conversations = await this.prisma.conversation.findMany({
       take:

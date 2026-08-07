@@ -156,7 +156,6 @@ export class UsersController {
       role: foundUser.role,
       isActive: foundUser.isActive,
       avatar: foundUser.avatar,
-      timezone: foundUser.timezone,
       lastLoginAt: foundUser.lastLoginAt,
       createdAt: foundUser.createdAt,
       emailVerified: foundUser.emailVerified,

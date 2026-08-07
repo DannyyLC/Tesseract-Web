@@ -28,6 +28,18 @@ import {
   WorkflowNotFoundException,
   WorkflowPausedException,
 } from '@/platform/common/exceptions';
+import { resolveTimezone } from '@/platform/common/utils/resolve-timezone';
+import {
+  addDaysInZone,
+  addMonthsInZone,
+  startOfDayInZone,
+  startOfMonthInZone,
+  startOfWeekInZone,
+  zonedDayKey,
+  zonedHourKey,
+  zonedIsoWeekKey,
+  zonedMonthKey,
+} from '@/platform/common/utils/zoned-dates';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
 import { ConversationsService } from '@/messaging/conversations/conversations.service';
 import { CreditsService } from '@/billing/credits/credits.service';
@@ -129,7 +141,8 @@ export class WorkflowsService {
         isActive: dto.isActive ?? true,
         isPaused: dto.isPaused ?? false,
         schedule: dto.schedule,
-        timezone: dto.timezone ?? 'UTC',
+        // null (no 'UTC') para que herede la zona de la organización.
+        timezone: dto.timezone ?? null,
         timeout: dto.timeout ?? 300,
         maxRetries: dto.maxRetries ?? 3,
         triggerType: dto.triggerType ? [dto.triggerType.toUpperCase() as any] : undefined,
@@ -305,6 +318,10 @@ export class WorkflowsService {
         version: true,
         createdAt: true,
         updatedAt: true,
+        // null = hereda de la organización. El front lo compara con la zona de la org
+        // para decidir si merece la pena ofrecer el selector en las gráficas.
+        timezone: true,
+        organization: { select: { timezone: true } },
         tenantTools: {
           select: {
             id: true,
@@ -335,25 +352,38 @@ export class WorkflowsService {
     organizationId: string,
     workflowId: string,
     period = '30d',
+    useWorkflowTimezone = false,
   ): Promise<WorkflowMetricsDto> {
     // Validate existence
     const wf = await this.prisma.workflow.findFirst({
       where: { id: workflowId, organizationId },
+      include: { organization: { select: { timezone: true } } },
     });
     if (!wf) throw new NotFoundException('Workflow no encontrado');
 
+    // Las series se cortan en la zona de la organización, no en la del proceso Node
+    // (UTC en Cloud Run). Es la misma zona que usa el histograma horario: si cada
+    // gráfica del panel eligiera la suya, la misma página mostraría dos husos.
+    const timezone = useWorkflowTimezone
+      ? resolveTimezone(wf.organization?.timezone, wf.timezone)
+      : resolveTimezone(wf.organization?.timezone);
+
+    // El primer AT TIME ZONE declara que el timestamp sin zona contiene UTC; el
+    // segundo lo lleva a `timezone`. Con uno solo Postgres leería el valor como hora
+    // local y desplazaría toda la serie el offset completo.
+    const localTimestamp = `("startedAt" AT TIME ZONE 'UTC') AT TIME ZONE $3`;
+
     // Determine granularity and date range
     const now = new Date();
-    let startDate = new Date();
+    let startDate: Date;
     let granularity: 'hour' | 'day' | 'week' | 'month';
     let groupByClause: string;
 
     if (period === '24h') {
       // Today from 00:00 to current hour (hourly granularity)
-      startDate = new Date(now);
-      startDate.setHours(0, 0, 0, 0);
+      startDate = startOfDayInZone(now, timezone);
       granularity = 'hour';
-      groupByClause = `TO_CHAR("startedAt", 'YYYY-MM-DD HH24:00:00')`;
+      groupByClause = `TO_CHAR(${localTimestamp}, 'YYYY-MM-DD HH24:00:00')`;
     } else if (period === 'all') {
       // Adaptive granularity based on workflow age
       const daysSinceCreation = Math.floor(
@@ -362,48 +392,29 @@ export class WorkflowsService {
 
       if (daysSinceCreation > 365) {
         granularity = 'month';
-        groupByClause = `TO_CHAR("startedAt", 'YYYY-MM')`;
-        // Normalize to start of month
-        startDate = new Date(wf.createdAt);
-        startDate.setDate(1);
-        startDate.setHours(0, 0, 0, 0);
+        groupByClause = `TO_CHAR(${localTimestamp}, 'YYYY-MM')`;
+        startDate = startOfMonthInZone(wf.createdAt, timezone);
       } else if (daysSinceCreation > 90) {
         granularity = 'week';
-        groupByClause = `TO_CHAR("startedAt", 'IYYY-"W"IW')`;
-        // Normalize to start of week (Monday)
-        startDate = new Date(wf.createdAt);
-        const day = startDate.getDay();
-        const diff = startDate.getDate() - day + (day === 0 ? -6 : 1);
-        startDate.setDate(diff);
-        startDate.setHours(0, 0, 0, 0);
+        groupByClause = `TO_CHAR(${localTimestamp}, 'IYYY-"W"IW')`;
+        startDate = startOfWeekInZone(wf.createdAt, timezone);
       } else {
         granularity = 'day';
-        groupByClause = `TO_CHAR("startedAt", 'YYYY-MM-DD')`;
-        // Normalize to start of day
-        startDate = new Date(wf.createdAt);
-        startDate.setHours(0, 0, 0, 0);
+        groupByClause = `TO_CHAR(${localTimestamp}, 'YYYY-MM-DD')`;
+        startDate = startOfDayInZone(wf.createdAt, timezone);
       }
     } else {
       // 7d, 30d, 90d - daily granularity
       granularity = 'day';
-      groupByClause = `TO_CHAR("startedAt", 'YYYY-MM-DD')`;
+      groupByClause = `TO_CHAR(${localTimestamp}, 'YYYY-MM-DD')`;
 
-      if (period === '7d') {
-        startDate.setDate(startDate.getDate() - 6);
-      } else if (period === '90d') {
-        startDate.setDate(startDate.getDate() - 89);
-      } else {
-        startDate.setDate(startDate.getDate() - 29);
-      }
+      const daysBack = period === '7d' ? 6 : period === '90d' ? 89 : 29;
+      startDate = addDaysInZone(startOfDayInZone(now, timezone), -daysBack, timezone);
 
       // Clamp to createdAt if workflow is newer than the requested period
-      const workflowCreatedAt = new Date(wf.createdAt);
-      if (workflowCreatedAt > startDate) {
-        startDate = workflowCreatedAt;
+      if (wf.createdAt > startDate) {
+        startDate = startOfDayInZone(wf.createdAt, timezone);
       }
-
-      // Normalize to start of day
-      startDate.setHours(0, 0, 0, 0);
     }
 
     // Parallel Queries for Efficiency
@@ -433,26 +444,27 @@ export class WorkflowsService {
       }),
 
       // C. Dynamic History (Raw SQL with adaptive grouping)
-      // Using TO_CHAR consistently to ensure string format matches JavaScript
-      // C. Dynamic History (Raw SQL with adaptive grouping)
-      // Using TO_CHAR consistently to ensure string format matches JavaScript
+      // Using TO_CHAR consistently to ensure string format matches JavaScript.
+      // `groupByClause` solo se construye a partir de literales de este método; la
+      // zona viaja como parámetro ($3) y nunca se interpola en el SQL.
       this.prisma.$queryRawUnsafe<
         { date: string; success: number; failed: number; count: number }[]
       >(
         `
-        SELECT 
+        SELECT
           ${groupByClause} as date,
           COUNT(CASE WHEN status = 'COMPLETED' THEN 1 END)::int as success,
           COUNT(CASE WHEN status = 'FAILED' THEN 1 END)::int as failed,
           COUNT(*)::int as count
-        FROM executions 
-        WHERE "workflowId" = $1 
+        FROM executions
+        WHERE "workflowId" = $1
           AND "startedAt" >= $2
         GROUP BY ${groupByClause}
         ORDER BY date ASC
       `,
         workflowId,
         startDate,
+        timezone,
       ),
     ]);
 
@@ -501,7 +513,13 @@ export class WorkflowsService {
     }
 
     // Fill gaps in execution history
-    const executionHistoryChart = this.fillHistoryGaps(historyRaw, startDate, now, granularity);
+    const executionHistoryChart = this.fillHistoryGaps(
+      historyRaw,
+      startDate,
+      now,
+      granularity,
+      timezone,
+    );
 
     return {
       workflowId,
@@ -511,17 +529,25 @@ export class WorkflowsService {
       granularity,
       executionHistoryChart,
       errorDistribution,
+      timezone,
     };
   }
 
   /**
-   * Fill gaps in execution history to ensure complete chart data
+   * Fill gaps in execution history to ensure complete chart data.
+   *
+   * Las claves se generan en `timezone`, la misma que usa el `TO_CHAR` de la consulta.
+   * Antes se construían con los getters locales de `Date` (`getFullYear`, `getHours`,
+   * …), que leen la zona del proceso Node: en cuanto el SQL pasó a agrupar en hora de
+   * la organización, esas claves habrían dejado de coincidir y la gráfica entera
+   * habría salido en ceros sin ningún error visible.
    */
   private fillHistoryGaps(
     rawData: { date: string; success: number; failed: number; count: number }[],
     startDate: Date,
     endDate: Date,
     granularity: 'hour' | 'day' | 'week' | 'month',
+    timezone: string,
   ): { date: string; count: number; success: number; failed: number }[] {
     // Create a map from raw data (normalize keys to match our format)
     const dataMap = new Map<string, { count: number; success: number; failed: number }>();
@@ -535,40 +561,27 @@ export class WorkflowsService {
       });
     });
 
+    const keyFor = (date: Date): string => {
+      if (granularity === 'hour') return zonedHourKey(date, timezone);
+      if (granularity === 'day') return zonedDayKey(date, timezone);
+      if (granularity === 'week') return zonedIsoWeekKey(date, timezone);
+      return zonedMonthKey(date, timezone);
+    };
+
+    const advance = (date: Date): Date => {
+      if (granularity === 'hour') return new Date(date.getTime() + 3600000);
+      if (granularity === 'day') return addDaysInZone(date, 1, timezone);
+      if (granularity === 'week') return addDaysInZone(date, 7, timezone);
+      return addMonthsInZone(date, 1, timezone);
+    };
+
     // Generate all time slots
     const result: { date: string; count: number; success: number; failed: number }[] = [];
-    const current = new Date(startDate);
+    let current = startDate;
 
     // Loop until we reach the current period (not including incomplete future periods)
     while (current < endDate) {
-      let dateKey: string;
-      let shouldBreak = false;
-
-      if (granularity === 'hour') {
-        dateKey = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')} ${String(current.getHours()).padStart(2, '0')}:00:00`;
-        current.setHours(current.getHours() + 1);
-        // Stop if we've passed the current hour
-        if (current > endDate) shouldBreak = true;
-      } else if (granularity === 'day') {
-        dateKey = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
-        current.setDate(current.getDate() + 1);
-        // Stop if we've passed today
-        if (current > endDate) shouldBreak = true;
-      } else if (granularity === 'week') {
-        // ISO week format: YYYY-WNN
-        const year = current.getFullYear();
-        const weekNum = this.getISOWeek(current);
-        dateKey = `${year}-W${String(weekNum).padStart(2, '0')}`;
-        current.setDate(current.getDate() + 7);
-        // Stop if we've passed the current week
-        if (current > endDate) shouldBreak = true;
-      } else {
-        // month
-        dateKey = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
-        current.setMonth(current.getMonth() + 1);
-        // Stop if we've passed the current month
-        if (current > endDate) shouldBreak = true;
-      }
+      const dateKey = keyFor(current);
 
       result.push({
         date: dateKey,
@@ -577,25 +590,10 @@ export class WorkflowsService {
         failed: dataMap.get(dateKey)?.failed ?? 0,
       });
 
-      if (shouldBreak) break;
+      current = advance(current);
     }
 
     return result;
-  }
-
-  /**
-   * Get ISO week number for a date
-   */
-  private getISOWeek(date: Date): number {
-    const target = new Date(date.valueOf());
-    const dayNr = (date.getDay() + 6) % 7;
-    target.setDate(target.getDate() - dayNr + 3);
-    const firstThursday = target.valueOf();
-    target.setMonth(0, 1);
-    if (target.getDay() !== 4) {
-      target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
-    }
-    return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
   }
 
   /**
@@ -708,6 +706,9 @@ export class WorkflowsService {
             id: true,
             name: true,
             plan: true,
+            // Zona por defecto del tenant: la hereda el payload del agente cuando el
+            // workflow no define la suya.
+            timezone: true,
           },
         },
         // Incluir tenantTools desde el inicio (evita query duplicado)
@@ -947,6 +948,10 @@ export class WorkflowsService {
       await this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
         result: {
           messages: [],
+          // Marca por qué no hay respuesta. Sin ella, quien consuma la ejecución no puede
+          // distinguir este silencio deliberado de un fallo que dejó la ejecución vacía, y
+          // los dos casos se ven iguales en logs y en la base.
+          skipped: 'hitl',
           conversationId: conversation.id,
         },
         cost: 0,
@@ -1007,7 +1012,11 @@ export class WorkflowsService {
       const lastMessage = messages[messages.length - 1]; // Último mensaje = respuesta del asistente
       let assistantMessageSaved = false;
 
-      if ((lastMessage?.role as string).toUpperCase() === ChatRole.ASSISTANT) {
+      // El `?.` del rol no es decorativo: si el servicio de agentes no devuelve ningún
+      // mensaje, `lastMessage` es undefined y la versión anterior reventaba con TypeError.
+      // La ejecución quedaba FAILED, Cloud Tasks reintentaba la ventana completa y se volvía
+      // a pagar el LLM en cada intento, en vez de caer en el `else` que ya existe aquí.
+      if (lastMessage?.role?.toUpperCase() === ChatRole.ASSISTANT) {
         await this.conversationsService.addMessage(
           conversation.id,
           lastMessage.role.toUpperCase() as any,
@@ -1202,6 +1211,9 @@ export class WorkflowsService {
             id: true,
             name: true,
             plan: true,
+            // Zona por defecto del tenant: la hereda el payload del agente cuando el
+            // workflow no define la suya.
+            timezone: true,
           },
         },
         tenantTools: {
@@ -1334,6 +1346,8 @@ export class WorkflowsService {
       await this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
         result: {
           messages: [],
+          // Ver la rama equivalente de `execute()`: marca el silencio como deliberado.
+          skipped: 'hitl',
           conversationId: conversation.id,
         },
         cost: 0,
@@ -1827,7 +1841,11 @@ export class WorkflowsService {
 
       // Historial y metadata
       message_history: composedHistory,
-      timezone: workflow.timezone ?? 'UTC',
+      // Alimenta `build_time_context` en apps/agents, que le dice al LLM qué hora es.
+      // Antes iba 'UTC' fijo porque `workflows.timezone` traía ese default y nadie lo
+      // cambiaba: los agentes respondían con seis horas de desfase a cualquier
+      // pregunta de horarios o de agenda.
+      timezone: resolveTimezone(workflow.organization?.timezone, workflow.timezone),
       user_metadata: {
         variables: persistedVariables,
         // Contexto del canal accesible vía {{context.user_metadata.*}} en el motor

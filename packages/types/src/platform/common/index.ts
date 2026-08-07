@@ -14,3 +14,4 @@ export const NOTIFICATIONSENUM = {
 };
 
 export * from './errors.enum';
+export * from './timezones';

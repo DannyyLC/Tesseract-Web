@@ -351,7 +351,10 @@
     "granularityWeek": "Por semana",
     "granularityMonth": "Por mes",
     "executionsPrev": "Anterior",
-    "executionsNext": "Siguiente"
+    "executionsNext": "Siguiente",
+    "timezoneLabel": "Zona horaria",
+    "timezoneInherit": "Heredar de la organización ({timezone})",
+    "timezoneHelp": "Afecta a las gráficas de este workflow y a la hora local que usa el agente al responder."
   },
   "LegalLayout": {
     "backAriaLabel": "Volver atrás",
@@ -977,7 +980,16 @@
     "mustAgreedError": "Debes aceptar que esta acción es irreversible",
     "code2FARequired": "Por favor ingresa el código 2FA de 6 dígitos",
     "deleteSuccess": "Organización eliminada correctamente",
-    "deleteError": "Error al eliminar la organización"
+    "deleteError": "Error al eliminar la organización",
+    "timezoneLabel": "Zona horaria",
+    "timezoneHelp": "Define la hora de las gráficas y la hora local que usan tus agentes al responder.",
+    "timezoneRegion": {
+      "mexico": "México",
+      "latam": "Latinoamérica",
+      "northAmerica": "Norteamérica",
+      "europe": "Europa",
+      "other": "Otras"
+    }
   },
   "Users": {
     "heading": "Miembros",
@@ -1298,5 +1310,15 @@
     "emptyTranscription": "No se entendió el audio. Inténtalo de nuevo.",
     "transcriptionFailed": "No se pudo transcribir el audio.",
     "waveformLabel": "Grabando audio"
+  },
+  "HourlyDistribution": {
+    "title": "Horario de actividad",
+    "subtitle": "Ejecuciones por hora del día en los últimos 30 días",
+    "empty": "Todavía no hay actividad en este periodo",
+    "tooltipExecutions": "{count} ejecuciones",
+    "timezoneLabel": "Hora local — {timezone}",
+    "tzOrganization": "Organización",
+    "tzWorkflow": "Workflow",
+    "tzSourceLabel": "Zona horaria"
   }
 }

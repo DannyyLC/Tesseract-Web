@@ -50,6 +50,8 @@ export interface WorkflowMetricsDto {
     failed: number;
   }[];
   errorDistribution: Record<string, number>;
+  /** Zona IANA con la que se agruparon las series. El front etiqueta el eje con ella. */
+  timezone: string;
 }
 
 /**

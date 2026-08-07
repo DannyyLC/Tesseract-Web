@@ -15,6 +15,5 @@ export interface DashboardUserDataDto {
   lastLoginAt: Date | null;
   createdAt: Date;
   avatar: string | null;
-  timezone: string | null;
   emailVerified?: boolean;
 }

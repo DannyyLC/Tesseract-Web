@@ -20,7 +20,12 @@ import { Activity, ArrowUpRight, Loader2 } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { useAuth } from '@/hooks/identity/use-auth';
 import { useWorkflowStats } from '@/hooks/automation/use-workflows';
-import { useExecutionsStats, useDashboardExecutions } from '@/hooks/automation/use-executions';
+import {
+  useExecutionsStats,
+  useDashboardExecutions,
+  useHourlyDistribution,
+} from '@/hooks/automation/use-executions';
+import HourlyDistributionChart from '../workflows/_components/hourly-distribution-chart';
 import { useBillingDashboard } from '@/hooks/billing/use-billing';
 import { useUserStats } from '@/hooks/identity/use-users';
 import PermissionGuard from '@/components/auth/permission-guard';
@@ -110,6 +115,7 @@ export default function DashboardPage() {
   });
   const { data: userStats, isLoading: loadingUsers } = useUserStats({ enabled: hasUsers });
   const { data: recentExecs, isLoading: loadingExecs } = useDashboardExecutions({ pageSize: 5 });
+  const { data: hourly, isLoading: loadingHourly } = useHourlyDistribution('30d');
 
   // ── Area chart data — executions last 7 days ────────────────────────────────
   const areaData = useMemo(() => {
@@ -426,6 +432,12 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* Horario de actividad — siempre en la zona de la organización: mezclar
+            varios workflows con zonas distintas en un solo histograma no diría nada. */}
+        <PermissionGuard permissions="executions:read">
+          <HourlyDistributionChart data={hourly} isLoading={loadingHourly} />
+        </PermissionGuard>
 
         {/* Top Workflows (executions:read) */}
         <PermissionGuard permissions="executions:read">

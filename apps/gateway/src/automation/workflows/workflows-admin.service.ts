@@ -482,7 +482,8 @@ export class WorkflowsAdminService {
         isActive: rest.isActive ?? true,
         isPaused: rest.isPaused ?? false,
         schedule: rest.schedule,
-        timezone: rest.timezone ?? 'UTC',
+        // null (no 'UTC') para que herede la zona de la organización.
+        timezone: rest.timezone ?? null,
         timeout: rest.timeout ?? 300,
         maxRetries: rest.maxRetries ?? 3,
         triggerType: rest.triggerType ? [rest.triggerType.toUpperCase() as any] : undefined,

@@ -16,6 +16,12 @@ import {
 } from '@/components/ui/two-factor-code-input';
 import { useAuth } from '@/hooks/identity/use-auth';
 import PermissionGuard from '@/components/auth/permission-guard';
+import {
+  DEFAULT_TIMEZONE,
+  SUPPORTED_TIMEZONES,
+  TIMEZONE_GROUPS,
+  formatTimezoneLabel,
+} from '@tesseract/types';
 
 export default function SettingsPage() {
   const t = useTranslations('Settings');
@@ -24,6 +30,7 @@ export default function SettingsPage() {
   const { updateOrganization, deleteOrganization } = useOrganizationMutations();
 
   const [name, setName] = useState('');
+  const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [code2FA, setCode2FA] = useState('');
@@ -33,6 +40,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (orgData) {
       setName(orgData.name);
+      if (orgData.timezone) setTimezone(orgData.timezone);
     }
   }, [orgData]);
 
@@ -44,7 +52,7 @@ export default function SettingsPage() {
     }
 
     try {
-      await updateOrganization.mutateAsync({ name });
+      await updateOrganization.mutateAsync({ name, timezone });
       toast.success(t('updateSuccess'));
       refetch();
     } catch (error: any) {
@@ -137,11 +145,42 @@ export default function SettingsPage() {
               />
             </div>
 
+            <div className="space-y-2">
+              <label htmlFor="orgTimezone" className="text-sm font-medium leading-none">
+                {t('timezoneLabel')}
+              </label>
+              <select
+                id="orgTimezone"
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {/* Si la organización tiene guardada una zona fuera del selector
+                    (se puede fijar por API), se añade para no perderla al guardar. */}
+                {timezone && !SUPPORTED_TIMEZONES.includes(timezone) && (
+                  <option value={timezone}>{formatTimezoneLabel(timezone)}</option>
+                )}
+                {TIMEZONE_GROUPS.map((group) => (
+                  <optgroup key={group.region} label={t(`timezoneRegion.${group.region}`)}>
+                    {group.zones.map((tz) => (
+                      <option key={tz} value={tz}>
+                        {formatTimezoneLabel(tz)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <p className="text-muted-foreground text-xs">{t('timezoneHelp')}</p>
+            </div>
+
             <div className="flex justify-end pt-2">
               <PermissionGuard permissions="organization:update">
                 <button
                   type="submit"
-                  disabled={updateOrganization.isPending || name === orgData.name}
+                  disabled={
+                    updateOrganization.isPending ||
+                    (name === orgData.name && timezone === orgData.timezone)
+                  }
                   className="inline-flex h-8 items-center justify-center rounded-xl bg-accent px-4 text-sm font-semibold text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {updateOrganization.isPending ? (
