@@ -75,28 +75,68 @@ describe('MessengerConfigService', () => {
   });
 
   describe('verifySignature', () => {
-    const sign = (payload: string, secret = APP_SECRET) =>
+    const PAGE_SECRET = 'secreto-de-la-pagina';
+    const sign = (payload: string, secret: string) =>
       `sha256=${crypto.createHmac('sha256', secret).update(payload).digest('hex')}`;
 
-    it('accepts a signature computed over the raw body', () => {
+    /** Config con su propio app secret cifrado, como quedaría en la base. */
+    const withOwnSecret: any = { ...config, appSecret: `enc(${PAGE_SECRET})` };
+    /** Config sin app secret propio: debe caer al MESSENGER_APP_SECRET del entorno. */
+    const withoutOwnSecret: any = { ...config, appSecret: null };
+
+    it('accepts a signature computed with the secret stored on the config', async () => {
       const payload = '{"object":"page"}';
-      expect(service.verifySignature(payload, sign(payload))).toBe(true);
+      expect(await service.verifySignature(payload, sign(payload, PAGE_SECRET), withOwnSecret)).toBe(
+        true,
+      );
+      expect(mockKmsService.decrypt).toHaveBeenCalledWith(`enc(${PAGE_SECRET})`);
     });
 
-    it('rejects a signature from another secret', () => {
+    it('does NOT accept the env secret when the config carries its own', async () => {
+      // Es el punto del cambio: cada tenant se valida contra SU secreto, así que el
+      // del entorno no debe servir de comodín para una página que ya tiene el suyo.
       const payload = '{"object":"page"}';
-      expect(service.verifySignature(payload, sign(payload, 'otro'))).toBe(false);
+      expect(await service.verifySignature(payload, sign(payload, APP_SECRET), withOwnSecret)).toBe(
+        false,
+      );
     });
 
-    it('rejects a tampered body', () => {
-      const signature = sign('{"object":"page"}');
-      expect(service.verifySignature('{"object":"instagram"}', signature)).toBe(false);
+    it('falls back to the env secret when the config has none', async () => {
+      const payload = '{"object":"page"}';
+      expect(
+        await service.verifySignature(payload, sign(payload, APP_SECRET), withoutOwnSecret),
+      ).toBe(true);
+      expect(mockKmsService.decrypt).not.toHaveBeenCalled();
     });
 
-    it('rejects malformed or missing headers instead of throwing', () => {
-      expect(service.verifySignature('{}', '')).toBe(false);
-      expect(service.verifySignature('{}', 'garbage')).toBe(false);
-      expect(service.verifySignature('{}', 'sha1=abc')).toBe(false);
+    it('rejects a signature from another secret', async () => {
+      const payload = '{"object":"page"}';
+      expect(await service.verifySignature(payload, sign(payload, 'otro'), withOwnSecret)).toBe(
+        false,
+      );
+    });
+
+    it('rejects a tampered body', async () => {
+      const signature = sign('{"object":"page"}', PAGE_SECRET);
+      expect(await service.verifySignature('{"object":"instagram"}', signature, withOwnSecret)).toBe(
+        false,
+      );
+    });
+
+    it('rejects malformed or missing headers instead of throwing', async () => {
+      expect(await service.verifySignature('{}', '', withOwnSecret)).toBe(false);
+      expect(await service.verifySignature('{}', 'garbage', withOwnSecret)).toBe(false);
+      expect(await service.verifySignature('{}', 'sha1=abc', withOwnSecret)).toBe(false);
+    });
+
+    it('fails closed when the stored secret cannot be decrypted', async () => {
+      // Caer al secreto del entorno aquí validaría a un tenant con la llave de otro.
+      mockKmsService.decrypt.mockRejectedValueOnce(new Error('kms down'));
+      const payload = '{"object":"page"}';
+      expect(await service.verifySignature(payload, sign(payload, APP_SECRET), withOwnSecret)).toBe(
+        false,
+      );
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 

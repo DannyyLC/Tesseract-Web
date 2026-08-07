@@ -5,3 +5,9 @@ export class UpdatePageAccessTokenDto {
   @IsString()
   pageAccessToken: string;
 }
+
+export class UpdateAppSecretDto {
+  @IsNotEmpty()
+  @IsString()
+  appSecret: string;
+}

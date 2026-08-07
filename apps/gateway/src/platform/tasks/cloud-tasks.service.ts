@@ -51,7 +51,14 @@ export class CloudTasksService {
   private readonly workerBaseUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.projectId = this.configService.get<string>('GCP_PROJECT_ID', '');
+    // La cola no tiene por qué vivir en el mismo proyecto que el resto (KMS usa
+    // `GCP_PROJECT_ID`). En desarrollo es habitual encolar con la service account
+    // que uno ya tiene a mano, en su propio proyecto, mientras KMS sigue apuntando
+    // al de la plataforma. Sin este override, un solo valor tendría que servir para
+    // los dos y uno de los dos quedaría roto.
+    this.projectId =
+      this.configService.get<string>('GCP_TASKS_PROJECT_ID', '') ||
+      this.configService.get<string>('GCP_PROJECT_ID', '');
     this.location = this.configService.get<string>('GCP_TASKS_LOCATION', 'us-central1');
     this.queue = this.configService.get<string>('GCP_TASKS_QUEUE', '');
     this.serviceAccountEmail = this.configService.get<string>('GCP_TASKS_SERVICE_ACCOUNT', '');

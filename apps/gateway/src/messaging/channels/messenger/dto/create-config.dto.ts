@@ -21,4 +21,13 @@ export class CreateConfigDto {
   @IsOptional()
   @IsString()
   pageAccessToken?: string;
+
+  /**
+   * App secret de Meta, con el que se valida la firma de los webhooks de esta página.
+   * Se cifra antes de guardarse y nunca se devuelve. Opcional: sin él se usa
+   * MESSENGER_APP_SECRET.
+   */
+  @IsOptional()
+  @IsString()
+  appSecret?: string;
 }

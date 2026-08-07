@@ -27,8 +27,8 @@ const MESSENGER_MAX_TEXT_LENGTH = 2000;
 
 @Injectable()
 export class MessengerConfigService {
-  /** Secreto de la app de Meta: firma todos los webhooks de todas las páginas. */
-  private readonly appSecret: string = process.env.MESSENGER_APP_SECRET ?? '';
+  /** App secret de respaldo, para despliegues de una sola app; ver `resolveAppSecret`. */
+  private readonly fallbackAppSecret: string = process.env.MESSENGER_APP_SECRET ?? '';
   /** Token del challenge de verificación (GET /webhook). */
   private readonly verifyToken: string = process.env.MESSENGER_VERIFY_TOKEN ?? '';
   /** Token de página para despliegues de una sola página; ver `resolvePageAccessToken`. */
@@ -68,12 +68,18 @@ export class MessengerConfigService {
 
   // ─── Config CRUD ──────────────────────────────────────────────────────
 
-  async createRecordAndgenerateWebhookSecret(
+  /**
+   * Da de alta una página. No genera ningún secreto: a diferencia de WhatsApp, aquí
+   * las dos credenciales las emite Meta —el token de página y el app secret— y la URL
+   * del webhook se configura en el panel de la app, no se deriva de la fila.
+   */
+  async createRecord(
     organizationId: string,
     workflowId: string,
     pageId: string,
     pageName?: string,
     pageAccessToken?: string,
+    appSecret?: string,
   ): Promise<MessengerConfig | null> {
     try {
       return await this.prismaService.messengerConfig.create({
@@ -85,7 +91,7 @@ export class MessengerConfigService {
           pageAccessToken: pageAccessToken
             ? await this.kmsService.encrypt(pageAccessToken)
             : undefined,
-          webhookUrl: `${process.env.DOMAIN_BASE_URL}/messenger/webhook`,
+          appSecret: appSecret ? await this.kmsService.encrypt(appSecret) : undefined,
           defaultWorkflowId: workflowId,
           isActive: true,
         },
@@ -168,6 +174,26 @@ export class MessengerConfigService {
     }
   }
 
+  /**
+   * Rota el app secret. Se guarda cifrado; el valor en claro no se persiste.
+   *
+   * Rotarlo en Meta invalida el anterior al instante, así que entre el reset allá y
+   * este PATCH las firmas no validan y los webhooks devuelven 401. Meta reintenta, de
+   * modo que la ventana se traduce en retraso, no en mensajes perdidos.
+   */
+  async updateAppSecret(configId: string, appSecret: string): Promise<boolean> {
+    try {
+      await this.prismaService.messengerConfig.update({
+        where: { id: configId },
+        data: { appSecret: await this.kmsService.encrypt(appSecret) },
+      });
+      return true;
+    } catch (error) {
+      this.logger.error('Error updating Messenger app secret:', error);
+      return false;
+    }
+  }
+
   // ─── Webhook verification ─────────────────────────────────────────────
 
   /**
@@ -199,21 +225,70 @@ export class MessengerConfigService {
    * A diferencia de YCloud no hay timestamp, así que no se puede acotar la frescura;
    * lo que cierra la puerta al replay es la deduplicación por `mid`.
    *
+   * El secreto sale de la config de la página, no del entorno: cada cliente puede
+   * traer su propia app de Meta. Eso obliga a resolver la config ANTES de validar,
+   * es decir, a mirar el `pageId` de un cuerpo todavía sin verificar. Es aceptable
+   * porque ese dato solo elige QUÉ LLAVE se usa, nunca da acceso por sí mismo: quien
+   * no tenga el secreto de esa página no pasa la comprobación. Y por eso el
+   * controlador valida **una página a la vez** en vez de aceptar el lote entero al
+   * primer acierto — si no, conocer el secreto de un tenant serviría para colar
+   * eventos de otro en el mismo POST.
+   *
    * @param payload Cuerpo crudo de la petición.
    * @param signatureHeader Contenido del header `x-hub-signature-256`.
+   * @param config Config de la página cuyos eventos se están validando.
    */
-  verifySignature(payload: string, signatureHeader: string): boolean {
-    if (!this.appSecret || !signatureHeader) return false;
+  async verifySignature(
+    payload: string,
+    signatureHeader: string,
+    config: MessengerConfig,
+  ): Promise<boolean> {
+    if (!signatureHeader) return false;
 
     const [algorithm, signature] = signatureHeader.split('=');
     if (algorithm !== 'sha256' || !signature) return false;
 
-    const expectedSignature = crypto
-      .createHmac('sha256', this.appSecret)
-      .update(payload)
-      .digest('hex');
+    const secret = await this.resolveAppSecret(config);
+    if (!secret) return false;
+
+    const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
 
     return this.safeEquals(signature, expectedSignature);
+  }
+
+  /**
+   * App secret con el que se valida la firma de una página.
+   *
+   * Se prefiere el guardado en la config (cifrado con KMS, uno por app, que es lo que
+   * exige un despliegue multi-tenant). El env es la salida para despliegues de una
+   * sola app, donde dar de alta una página no debería obligar a montar KMS.
+   *
+   * Mismo criterio que `resolvePageAccessToken`, con una diferencia: aquí un fallo al
+   * descifrar NO se cae al entorno. Validar la firma de un tenant con el secreto de
+   * otro es exactamente lo que esta función existe para impedir, así que ante la duda
+   * se devuelve vacío y la verificación falla.
+   */
+  private async resolveAppSecret(config: MessengerConfig): Promise<string> {
+    if (config.appSecret) {
+      try {
+        return await this.kmsService.decrypt(config.appSecret);
+      } catch (error) {
+        this.logger.error(
+          `No se pudo descifrar el app secret de la página ${config.pageId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        return '';
+      }
+    }
+
+    if (!this.fallbackAppSecret) {
+      this.logger.error(
+        `No hay app secret para la página ${config.pageId}: ni en la config ni en MESSENGER_APP_SECRET`,
+      );
+    }
+
+    return this.fallbackAppSecret;
   }
 
   // ─── Outbound messaging ───────────────────────────────────────────────
@@ -290,7 +365,9 @@ export class MessengerConfigService {
 
   private async callSendApi(config: MessengerConfig, body: Record<string, unknown>): Promise<void> {
     const accessToken = await this.resolvePageAccessToken(config);
-
+    this.logger.info("enviando url: " + `${GRAPH_API_BASE}/me/messages`);
+    this.logger.info("enviando body: " + JSON.stringify(body));
+    this.logger.info("enviando accessToken: " + accessToken);
     await firstValueFrom(
       this.httpService.post(`${GRAPH_API_BASE}/me/messages`, body, {
         params: { access_token: accessToken },

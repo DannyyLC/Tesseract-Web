@@ -1433,14 +1433,25 @@ model MessengerConfig {
   // Proveedor (meta)
   provider String @default("meta")
 
-  // Token de página, cifrado con KMS (nunca en claro). Se usa para responder por la
-  // Send API. Si viene vacío se cae a MESSENGER_PAGE_ACCESS_TOKEN, para despliegues
-  // de una sola página.
+  /// Credencial con la que la página HABLA: autoriza a responder por la Send API en
+  /// nombre de esta página. Se emite en Meta (Messenger API settings → Access tokens)
+  /// y es por página, no por app: dos páginas de la misma app tienen tokens distintos.
+  /// Se guarda cifrado con KMS, nunca en claro, y no sale nunca por la API.
+  /// Si viene vacío se cae a MESSENGER_PAGE_ACCESS_TOKEN, para despliegues de una
+  /// sola página.
   pageAccessToken String?
 
-  // Webhook
-  webhookSecret String  @default(uuid())
-  webhookUrl    String?
+  /// Credencial con la que la página ESCUCHA: es el App Secret de Meta, con el que se
+  /// firma el header `x-hub-signature-256` de cada webhook y por tanto lo que permite
+  /// distinguir una entrega legítima de un POST cualquiera contra la URL pública.
+  /// A diferencia del token de página es por APP, así que varias páginas de la misma
+  /// app comparten valor; esta columna existe para el caso multi-tenant, donde cada
+  /// cliente trae su propia app de Meta.
+  /// Se guarda cifrado con KMS, nunca en claro, y no sale nunca por la API. Si viene
+  /// vacío se cae a MESSENGER_APP_SECRET, para despliegues de una sola app.
+  /// Leerlo obliga a resolver esta fila ANTES de validar la firma, con el `pageId` de
+  /// un cuerpo todavía sin verificar; ese dato solo elige la llave, nunca da acceso.
+  appSecret String?
 
   // Estado de conexión
   connectionStatus MessengerConnectionStatus @default(DISCONNECTED)

@@ -26,7 +26,12 @@ import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { CloudTasksService } from '@/platform/tasks/cloud-tasks.service';
 import { WebhookDedupService } from '@/platform/webhooks/webhook-dedup.service';
-import { CreateConfigDto, MessengerInboundEvent, UpdatePageAccessTokenDto } from '../../dto';
+import {
+  CreateConfigDto,
+  MessengerInboundEvent,
+  UpdateAppSecretDto,
+  UpdatePageAccessTokenDto,
+} from '../../dto';
 import { MessengerWebhookPayload } from '../../dto/messenger-inbound-event.dto';
 import { MessengerConfigService } from '../../messenger-config.service';
 import {
@@ -38,6 +43,12 @@ import {
   MESSENGER_WORKER_PATH,
   WEBHOOK_PROVIDER_MESSENGER,
 } from '../../messenger-worker.constants';
+
+/** Config de una página más el veredicto de firma para el cuerpo de ESTA request. */
+interface ResolvedPage {
+  config: MessengerConfig | null;
+  signatureValid: boolean;
+}
 
 @Controller('messenger')
 export class MessengerController {
@@ -100,8 +111,6 @@ export class MessengerController {
   async handleWebhook(@Body() body: any, @Res() res: Response, @Headers() headers: any) {
     const parsedBody = body as MessengerWebhookPayload;
 
-    // 1. Firma primero, antes de tocar la base de datos.
-    //
     // Se firma sobre el body crudo: Meta escapa los caracteres no-ASCII a su manera y
     // `JSON.stringify(body)` no reproduce esos bytes, así que la firma no cuadraría.
     const signatureHeader = headers['x-hub-signature-256'] || '';
@@ -109,11 +118,6 @@ export class MessengerController {
 
     if (!rawBody) {
       this.logger.error('Webhook de Messenger sin raw body; no se puede validar la firma');
-      return res.status(HttpStatus.UNAUTHORIZED).send({ received: false });
-    }
-
-    if (!this.messengerConfigService.verifySignature(rawBody.toString('utf8'), signatureHeader)) {
-      this.logger.warn('Firma inválida en webhook de Messenger');
       return res.status(HttpStatus.UNAUTHORIZED).send({ received: false });
     }
 
@@ -130,14 +134,45 @@ export class MessengerController {
       return res.status(HttpStatus.OK).send({ received: true, ignored: 'no-messages' });
     }
 
-    // 2. Cada evento se reclama, resuelve y encola por separado. Si uno falla se
-    //    devuelve 500 y Meta reintenta el POST completo; los que sí se procesaron
-    //    conservan su claim, así que el reintento solo retoma el que quedó pendiente.
+    // Cada evento se autentica, reclama y encola por separado. Si uno falla por algo
+    // transitorio se devuelve 500 y Meta reintenta el POST completo; los que sí se
+    // procesaron conservan su claim, así que el reintento solo retoma el pendiente.
     const results: Record<string, unknown>[] = [];
+    let authenticated = 0;
+    let rejected = 0;
+
+    // Memo por request, NO del controlador: Nest reutiliza la instancia entre
+    // peticiones, y un veredicto de firma cacheado ahí valdría para un cuerpo
+    // distinto del que lo produjo.
+    const pageCache = new Map<string, ResolvedPage>();
 
     for (const event of events) {
+      // El app secret vive en la config de la página, así que hay que resolverla antes
+      // de poder validar. Es una LECTURA y nada más: no se toca la base hasta que la
+      // firma cuadra, que es justo lo que evitaba el orden anterior.
+      const account = await this.resolvePage(event.pageId, rawBody, signatureHeader, pageCache);
+
+      if (!account.config) {
+        this.logger.warn(`No Messenger config found for page: ${event.pageId}`);
+        results.push({ messageId: event.messageId, ignored: 'unknown-config' });
+        continue;
+      }
+
+      if (!account.signatureValid) {
+        // Se valida por página, no por lote: aceptar el POST entero al primer acierto
+        // dejaría que quien conoce el secreto de un tenant colase eventos de otro.
+        this.logger.warn(
+          `Firma inválida en webhook de Messenger para la página ${event.pageId}`,
+        );
+        rejected++;
+        results.push({ messageId: event.messageId, ignored: 'invalid-signature' });
+        continue;
+      }
+
+      authenticated++;
+
       try {
-        results.push(await this.scheduleEvent(event));
+        results.push(await this.scheduleEvent(event, account.config));
       } catch (error) {
         await this.webhookDedup.release(WEBHOOK_PROVIDER_MESSENGER, event.messageId);
 
@@ -153,7 +188,47 @@ export class MessengerController {
       }
     }
 
+    // Si NADA se autenticó y hubo rechazos, el POST entero era ilegítimo o la config
+    // tiene el secreto cambiado: 401, como antes. Un lote mixto sí responde 200, con
+    // el detalle por evento, porque parte del trabajo sí quedó agendado.
+    if (authenticated === 0 && rejected > 0) {
+      return res.status(HttpStatus.UNAUTHORIZED).send({ received: false, events: results });
+    }
+
     return res.status(HttpStatus.OK).send({ received: true, events: results });
+  }
+
+  /**
+   * Resuelve la config de una página y valida la firma del cuerpo con SU app secret.
+   *
+   * `cache` memoriza el resultado por `pageId` dentro de UNA request: un POST trae
+   * varios eventos de la misma página y no hay por qué repetir la consulta ni el
+   * descifrado de KMS. El mapa lo crea quien llama, precisamente para que no
+   * sobreviva a la request que lo produjo.
+   */
+  private async resolvePage(
+    pageId: string,
+    rawBody: Buffer,
+    signatureHeader: string,
+    cache: Map<string, ResolvedPage>,
+  ): Promise<ResolvedPage> {
+    const cached = cache.get(pageId);
+    if (cached) {
+      return cached;
+    }
+
+    const config = await this.messengerConfigService.getMessengerConfigByPageId(pageId);
+    const signatureValid = config
+      ? await this.messengerConfigService.verifySignature(
+          rawBody.toString('utf8'),
+          signatureHeader,
+          config,
+        )
+      : false;
+
+    const resolved: ResolvedPage = { config, signatureValid };
+    cache.set(pageId, resolved);
+    return resolved;
   }
 
   /**
@@ -194,15 +269,23 @@ export class MessengerController {
   /**
    * Deduplica, valida la config y agenda el procesamiento de un evento.
    *
+   * Recibe la config ya resuelta y con la firma comprobada: quien llama tuvo que
+   * cargarla para poder validar, y repetir la consulta aquí solo añadiría una lectura
+   * y la posibilidad de que las dos difieran.
+   *
    * Devuelve el detalle de lo que pasó con ese mensaje. Lanza solo ante fallos
    * transitorios (base de datos, Redis, Cloud Tasks), que son los que sí ameritan que
    * Meta reintente.
    */
-  private async scheduleEvent(event: MessengerInboundEvent): Promise<Record<string, unknown>> {
+  private async scheduleEvent(
+    event: MessengerInboundEvent,
+    account: MessengerConfig,
+  ): Promise<Record<string, unknown>> {
     const { messageId, pageId, senderId } = event;
 
     // Deduplicación: Meta reintenta, y reprocesar dispara el workflow dos veces (y con
-    // él, el cobro de créditos al tenant).
+    // él, el cobro de créditos al tenant). Va después de la firma: reclamar antes
+    // dejaría que un POST sin autenticar quemase el id y silenciase el mensaje bueno.
     const isNew = await this.webhookDedup.claim(
       WEBHOOK_PROVIDER_MESSENGER,
       messageId,
@@ -211,12 +294,6 @@ export class MessengerController {
     if (!isNew) {
       this.logger.warn(`Mensaje de Messenger ${messageId} duplicado, se omite`);
       return { messageId, duplicate: true };
-    }
-
-    const account = await this.messengerConfigService.getMessengerConfigByPageId(pageId);
-    if (!account) {
-      this.logger.warn(`No Messenger config found for page: ${pageId}`);
-      return { messageId, ignored: 'unknown-config' };
     }
 
     if (!account.isActive) {
@@ -229,6 +306,10 @@ export class MessengerController {
         `Received message for Messenger config with no associated workflow: ${account.id}`,
       );
       return { messageId, ignored: 'no-workflow' };
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.debug('Webhook de Messenger recibido, payload completo', JSON.stringify(event, null, 2));
     }
 
     // Un workflow borrado deja `findOne` lanzando. No es transitorio: reintentar no lo
@@ -317,12 +398,13 @@ export class MessengerController {
       return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
     }
 
-    const response = await this.messengerConfigService.createRecordAndgenerateWebhookSecret(
+    const response = await this.messengerConfigService.createRecord(
       currUser.organizationId,
       body.workflowId,
       body.pageId,
       body.pageName,
       body.pageAccessToken,
+      body.appSecret,
     );
     if (response) {
       apiResponse
@@ -377,8 +459,12 @@ export class MessengerController {
     );
     apiResponse
       .setStatusCode(HttpStatus.OK)
-      // El token de página nunca sale del backend, ni cifrado.
-      .setData(records.map(({ pageAccessToken: _omitted, ...config }) => config as MessengerConfig))
+      // Ninguna de las dos credenciales sale del backend, ni cifrada.
+      .setData(
+        records.map(
+          ({ pageAccessToken: _token, appSecret: _secret, ...config }) => config as MessengerConfig,
+        ),
+      )
       .setMessage('Messenger configs retrieved');
     return res.status(HttpStatus.OK).json(apiResponse.build());
   }
@@ -433,6 +519,31 @@ export class MessengerController {
       .setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
       .setData(false)
       .setMessage('Failed to update page access token');
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
+  }
+
+  @Patch(':id/app-secret')
+  @UseGuards(JwtAuthGuard)
+  async updateAppSecret(
+    @CurrentUser() _currUser: UserPayload,
+    @Param('id') id: string,
+    @Body() body: UpdateAppSecretDto,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponse<boolean>>> {
+    const apiResponse = new ApiResponseBuilder<boolean>();
+    const success = await this.messengerConfigService.updateAppSecret(id, body.appSecret);
+    if (success) {
+      apiResponse
+        .setStatusCode(HttpStatus.OK)
+        .setData(true)
+        .setMessage('Messenger app secret updated');
+      return res.status(HttpStatus.OK).json(apiResponse.build());
+    }
+
+    apiResponse
+      .setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
+      .setData(false)
+      .setMessage('Failed to update app secret');
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
   }
 }
