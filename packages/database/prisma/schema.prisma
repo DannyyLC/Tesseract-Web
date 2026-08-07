@@ -573,6 +573,9 @@ model Conversation {
   @@index([compactingLockedAt])
   @@index([workflowId, status, lastMessageAt])
   @@index([channel, whatsappConfigId, phoneNumberSender, status, createdAt])
+  // Cubre el orden del listado del dashboard: filtra por organizacion y ordena
+  // intervenidas -> seguimiento -> estatus -> ultimo mensaje.
+  @@index([organizationId, isHumanInTheLoop(sort: Desc), needsFollowUp(sort: Desc), status, lastMessageAt(sort: Desc)])
   @@map("conversations")
 }
 

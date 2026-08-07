@@ -111,6 +111,8 @@ describe('ConversationsService', () => {
           messageCount: 0,
           totalTokens: 0,
           totalCost: 0,
+          // Se puebla al crear para que la conversación no flote al tope del listado
+          lastMessageAt: expect.any(Date),
         },
       });
       expect(result).toEqual(mockNewConversation);
@@ -251,6 +253,52 @@ describe('ConversationsService', () => {
 
       expect(mockBuild).toHaveBeenCalled();
       expect(result.items[0].isInternal).toBe(true);
+    });
+
+    it('ordena por último mensaje con los NULL al final y el id como desempate', async () => {
+      mockPrismaService.conversation.findMany.mockResolvedValue([]);
+      mockBuild.mockReturnValue({ items: [], nextCursor: null });
+
+      await service.findAll({
+        paginationAction: 'next',
+        organizationId: 'org-1',
+        take: 10,
+      });
+
+      expect(mockPrismaService.conversation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [
+            { isHumanInTheLoop: 'desc' },
+            { needsFollowUp: 'desc' },
+            { status: 'asc' },
+            { lastMessageAt: { sort: 'desc', nulls: 'last' } },
+            { createdAt: 'desc' },
+            { id: 'desc' },
+          ],
+        }),
+      );
+    });
+
+    it('sin priorización ordena por último mensaje, no por fecha de creación', async () => {
+      mockPrismaService.conversation.findMany.mockResolvedValue([]);
+      mockBuild.mockReturnValue({ items: [], nextCursor: null });
+
+      await service.findAll({
+        paginationAction: 'next',
+        organizationId: 'org-1',
+        take: 10,
+        prioritizeHitl: false,
+      });
+
+      expect(mockPrismaService.conversation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [
+            { lastMessageAt: { sort: 'desc', nulls: 'last' } },
+            { createdAt: 'desc' },
+            { id: 'desc' },
+          ],
+        }),
+      );
     });
   });
 
