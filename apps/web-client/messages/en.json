@@ -977,7 +977,9 @@
     "mustAgreedError": "You must confirm that this action is irreversible",
     "code2FARequired": "Please enter the 6-digit 2FA code",
     "deleteSuccess": "Organization deleted successfully",
-    "deleteError": "Error deleting the organization"
+    "deleteError": "Error deleting the organization",
+    "timezoneLabel": "Timezone",
+    "timezoneHelp": "Drives the charts and the local time your agents use when they reply."
   },
   "Users": {
     "heading": "Members",
@@ -1298,5 +1300,15 @@
     "emptyTranscription": "The audio could not be understood. Try again.",
     "transcriptionFailed": "The audio could not be transcribed.",
     "waveformLabel": "Recording audio"
+  },
+  "HourlyDistribution": {
+    "title": "Activity by hour",
+    "subtitle": "Executions per hour of day over the last 30 days",
+    "empty": "No activity in this period yet",
+    "tooltipExecutions": "{count} executions",
+    "timezoneLabel": "Local time — {timezone}",
+    "tzOrganization": "Organization",
+    "tzWorkflow": "Workflow",
+    "tzSourceLabel": "Timezone"
   }
 }

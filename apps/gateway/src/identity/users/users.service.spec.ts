@@ -145,7 +145,7 @@ describe('UsersService', () => {
   });
 
   describe('Mutations (updateProfile, updateRole, activate, deactivate, transferOwnership, updateLastLogin)', () => {
-    it('updateProfile should modify name and timezone', async () => {
+    it('updateProfile should modify name', async () => {
       jest.spyOn(service, 'findOne').mockResolvedValue({ id: 'u1' } as any);
       const mockUpdated = { id: 'u1', name: 'New Name' };
       prisma.user.update = jest.fn().mockResolvedValue(mockUpdated);

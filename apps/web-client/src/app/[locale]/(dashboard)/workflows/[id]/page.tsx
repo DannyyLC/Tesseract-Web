@@ -35,6 +35,9 @@ export default function WorkflowDetailPage() {
 
   // UI State
   const [period, setPeriod] = useState('30d');
+  // Vive aquí, junto al periodo, para que al cambiar la zona cambien a la vez todas
+  // las gráficas del panel: si solo cambiara una, la página mostraría dos husos.
+  const [tzSource, setTzSource] = useState<'organization' | 'workflow'>('organization');
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
@@ -308,7 +311,13 @@ export default function WorkflowDetailPage() {
             <h2 className="text-xl font-bold">{t('performanceAnalysis')}</h2>
           </div>
 
-          <WorkflowAnalyticsPanel workflow={workflow} period={period} onPeriodChange={setPeriod} />
+          <WorkflowAnalyticsPanel
+            workflow={workflow}
+            period={period}
+            onPeriodChange={setPeriod}
+            tzSource={tzSource}
+            onTzSourceChange={setTzSource}
+          />
         </div>
 
         <div className="space-y-4 px-8 pb-8">

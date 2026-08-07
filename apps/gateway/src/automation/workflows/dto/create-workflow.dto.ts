@@ -13,6 +13,7 @@ import {
   IsArray,
   IsUUID,
 } from 'class-validator';
+import { IsTimezone } from '../../../platform/common/utils/resolve-timezone';
 
 /**
  * DTO para crear un nuevo workflow
@@ -58,8 +59,8 @@ export class CreateWorkflowDto {
   @IsOptional()
   schedule?: string;
 
-  // Zona horaria (opcional, por defecto UTC)
-  @IsString()
+  // Zona horaria IANA. Omitirla hereda la de la organización.
+  @IsTimezone()
   @IsOptional()
   timezone?: string;
 

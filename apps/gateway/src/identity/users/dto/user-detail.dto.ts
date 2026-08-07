@@ -7,7 +7,6 @@ export class UserDetailDto implements IUserDetailDto {
   role: string;
   isActive: boolean;
   readonly avatar: string | null;
-  readonly timezone: string | null;
   readonly lastLoginAt: Date | null;
   readonly createdAt: Date;
   readonly emailVerified: boolean;

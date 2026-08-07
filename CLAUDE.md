@@ -75,6 +75,16 @@ avisar; se verifica con `SELECT indisvalid FROM pg_index WHERE indexrelid = '<no
 
 ## Convenciones
 
+- Zonas horarias: la fuente de verdad es `Organization.timezone` (IANA, default
+  `America/Mexico_City`). `Workflow.timezone` en NULL significa "hereda de la organización";
+  un valor explícito es un override. Resuelve siempre con `resolveTimezone()`
+  (`platform/common/utils/resolve-timezone.ts`), nunca con `?? 'UTC'`.
+- Agrupar por día/hora local: las columnas `DateTime` son `timestamp(3)` **sin** zona, así que
+  hace falta la doble conversión `("startedAt" AT TIME ZONE 'UTC') AT TIME ZONE $tz`. Con una
+  sola, Postgres lee el valor como hora local y desplaza la serie el offset entero. En TS, las
+  claves equivalentes se generan con `platform/common/utils/zoned-dates.ts`; los getters nativos
+  de `Date` usan la zona del proceso (UTC en Cloud Run) y no coinciden con el SQL.
+
 - Emails: se normalizan a minúsculas y sin espacios en el borde (transform del DTO), no en
   cada consulta. Util: `platform/common/utils/normalize-email.ts`.
 - Segundo factor: toda verificación pasa por `TwoFactorService.verifySecondFactor()`. No

@@ -17,6 +17,38 @@ import {
 import { useAuth } from '@/hooks/identity/use-auth';
 import PermissionGuard from '@/components/auth/permission-guard';
 
+/**
+ * Zonas ofrecidas en el selector.
+ *
+ * Lista corta en vez de `Intl.supportedValuesOf('timeZone')`, que devuelve más de
+ * cuatrocientas: la base de clientes está en México y LatAm, y un desplegable de ese
+ * tamaño convierte una decisión de un segundo en una búsqueda. UTC queda al final como
+ * salida para quien opere fuera de la región.
+ */
+const TIMEZONES = [
+  'America/Mexico_City',
+  'America/Monterrey',
+  'America/Cancun',
+  'America/Chihuahua',
+  'America/Tijuana',
+  'America/Hermosillo',
+  'America/Mazatlan',
+  'America/Bogota',
+  'America/Lima',
+  'America/Santiago',
+  'America/Argentina/Buenos_Aires',
+  'America/Sao_Paulo',
+  'America/Guatemala',
+  'America/Costa_Rica',
+  'America/Panama',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'Europe/Madrid',
+  'UTC',
+];
+
 export default function SettingsPage() {
   const t = useTranslations('Settings');
   const { data: orgData, isLoading, refetch } = useOrganizationDashboard();
@@ -24,6 +56,7 @@ export default function SettingsPage() {
   const { updateOrganization, deleteOrganization } = useOrganizationMutations();
 
   const [name, setName] = useState('');
+  const [timezone, setTimezone] = useState('America/Mexico_City');
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [code2FA, setCode2FA] = useState('');
@@ -33,6 +66,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (orgData) {
       setName(orgData.name);
+      if (orgData.timezone) setTimezone(orgData.timezone);
     }
   }, [orgData]);
 
@@ -44,7 +78,7 @@ export default function SettingsPage() {
     }
 
     try {
-      await updateOrganization.mutateAsync({ name });
+      await updateOrganization.mutateAsync({ name, timezone });
       toast.success(t('updateSuccess'));
       refetch();
     } catch (error: any) {
@@ -137,11 +171,33 @@ export default function SettingsPage() {
               />
             </div>
 
+            <div className="space-y-2">
+              <label htmlFor="orgTimezone" className="text-sm font-medium leading-none">
+                {t('timezoneLabel')}
+              </label>
+              <select
+                id="orgTimezone"
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {TIMEZONES.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz.replace(/_/g, ' ')}
+                  </option>
+                ))}
+              </select>
+              <p className="text-muted-foreground text-xs">{t('timezoneHelp')}</p>
+            </div>
+
             <div className="flex justify-end pt-2">
               <PermissionGuard permissions="organization:update">
                 <button
                   type="submit"
-                  disabled={updateOrganization.isPending || name === orgData.name}
+                  disabled={
+                    updateOrganization.isPending ||
+                    (name === orgData.name && timezone === orgData.timezone)
+                  }
                   className="inline-flex h-8 items-center justify-center rounded-xl bg-accent px-4 text-sm font-semibold text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {updateOrganization.isPending ? (

@@ -24,6 +24,12 @@ export class DashboardOrganizationDto {
   @ApiProperty({ description: 'Date the organization was created.' })
   createdAt: Date;
 
+  @ApiProperty({
+    description: 'IANA timezone driving the hourly charts and the agents local time.',
+    example: 'America/Mexico_City',
+  })
+  timezone: string;
+
   @ApiProperty({ description: 'Custom maximum number of users allowed, or null if not set.' })
   customMaxUsers: number | null;
 

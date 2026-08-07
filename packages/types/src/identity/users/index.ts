@@ -14,7 +14,6 @@ export interface DashboardUserDataDto {
   lastLoginAt: Date | null;
   createdAt: Date;
   avatar: string | null;
-  timezone: string | null;
   emailVerified?: boolean;
 }
 
@@ -57,7 +56,6 @@ export interface User {
   deletedAt?: Date | null;
   lastLoginAt?: Date | null;
   avatar?: string | null;
-  timezone?: string | null;
   organizationId: string;
 }
 
@@ -68,7 +66,6 @@ export interface UserDetailDto {
   role: string;
   isActive: boolean;
   avatar: string | null;
-  timezone: string | null;
   lastLoginAt: Date | null;
   createdAt: Date;
   emailVerified: boolean;
@@ -77,7 +74,6 @@ export interface UserDetailDto {
 export interface UpdateProfileDto {
   name?: string;
   avatar?: string;
-  timezone?: string;
 }
 
 export interface LeaveOrganizationDto {

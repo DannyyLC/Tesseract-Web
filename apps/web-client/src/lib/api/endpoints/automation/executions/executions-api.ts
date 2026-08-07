@@ -4,6 +4,7 @@ import {
   ExecutionsStatsDto,
   ExecutionDto,
   ApiResponse,
+  HourlyDistributionDto,
   PaginatedResponse,
 } from '@tesseract/types';
 
@@ -70,6 +71,19 @@ class ExecutionsApi {
 
     const result = await this.apiRequestManager.get<ApiResponse<ExecutionsStatsDto>>(
       `${ExecutionsApi.BASE_URL}/stats?${queryParams.toString()}`,
+    );
+    return result.data.data ?? null;
+  }
+
+  /**
+   * Get hourly distribution of executions across the organization
+   * Endpoint: GET /executions/hourly-distribution
+   */
+  public async getHourlyDistribution(
+    period: '24h' | '7d' | '30d' | '90d' | 'all' = '30d',
+  ): Promise<HourlyDistributionDto | null> {
+    const result = await this.apiRequestManager.get<ApiResponse<HourlyDistributionDto>>(
+      `${ExecutionsApi.BASE_URL}/hourly-distribution?period=${period}`,
     );
     return result.data.data ?? null;
   }

@@ -3,6 +3,8 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { TriggerType, WorkflowCronTrigger } from '@tesseract/database';
 import { CronJob } from 'cron';
 import { PrismaService } from '../../platform/database/prisma.service';
+import { InvalidTimezoneException } from '../../platform/common/exceptions';
+import { isValidTimezone } from '../../platform/common/utils/resolve-timezone';
 import { WorkflowsService } from '../workflows/workflows.service';
 import { CreateCronTriggerDto, UpdateCronTriggerDto } from './dto';
 
@@ -251,10 +253,6 @@ export class CronTriggersService implements OnModuleInit {
   }
 
   private validateTimezone(tz: string): void {
-    try {
-      Intl.DateTimeFormat(undefined, { timeZone: tz });
-    } catch {
-      throw new Error(`Invalid timezone: "${tz}"`);
-    }
+    if (!isValidTimezone(tz)) throw new InvalidTimezoneException(tz);
   }
 }

@@ -12,6 +12,8 @@ export interface Organization {
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;
+  /** Zona IANA. Fuente de verdad para las gráficas y la hora local de los agentes. */
+  timezone: string;
   shardKey?: string;
   region?: string;
   metadata?: any;
@@ -45,6 +47,7 @@ export interface DashboardOrganizationDto {
   overageLimit: number | null;
   isActive: boolean;
   createdAt: Date;
+  timezone: string;
   customMaxUsers: number | null;
   customMaxApiKeys: number | null;
   customMaxWorkflows: number | null;
@@ -53,6 +56,7 @@ export interface DashboardOrganizationDto {
 
 export interface UpdateOrganizationDto {
   name?: string;
+  timezone?: string;
 }
 
 export interface InviteUserDto {

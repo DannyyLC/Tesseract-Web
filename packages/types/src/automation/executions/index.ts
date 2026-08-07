@@ -43,6 +43,29 @@ export interface ExecutionsStatsDto {
     date: string;
     count: number;
   }[];
+  /** Zona IANA con la que se agruparon `dailyStats`. */
+  timezone?: string;
+}
+
+/**
+ * Distribución de ejecuciones por hora del día, para responder "¿a qué hora recibo
+ * actividad?".
+ *
+ * `buckets` trae siempre las 24 franjas, con `count: 0` donde no hubo nada: si se
+ * omitieran, la gráfica dibujaría huecos y las horas muertas —que son justo el dato
+ * interesante— desaparecerían del eje.
+ */
+export interface HourlyDistributionDto {
+  period: string;
+  /** Zona IANA en la que se calcularon las horas. El front la muestra junto al eje. */
+  timezone: string;
+  /** Total de ejecuciones del periodo, para distinguir "sin datos" de "todo en ceros". */
+  total: number;
+  buckets: {
+    /** 0-23 en la zona indicada. */
+    hour: number;
+    count: number;
+  }[];
 }
 
 export interface ExecutionDto {

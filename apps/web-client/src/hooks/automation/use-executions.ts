@@ -35,6 +35,17 @@ export function useExecutionsStats(period: '24h' | '7d' | '30d' | '90d' | 'all' 
   });
 }
 
+// Hook para la distribución horaria de toda la organización (24 franjas)
+export function useHourlyDistribution(period: '24h' | '7d' | '30d' | '90d' | 'all' = '30d') {
+  return useQuery({
+    queryKey: ['executions', 'hourly-distribution', period],
+    queryFn: async () => {
+      const api = RootApi.getInstance().getExecutionsApi();
+      return await api.getHourlyDistribution(period);
+    },
+  });
+}
+
 // Hook para obtener detalle de una ejecución
 export function useExecution(id: string) {
   return useQuery({

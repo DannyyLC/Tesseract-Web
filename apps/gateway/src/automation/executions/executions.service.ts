@@ -3,8 +3,10 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { DashboardExecutionDto } from './dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
-import { PaginatedResponse } from '@tesseract/types';
-import { ExecutionStatus, TriggerType } from '@tesseract/database';
+import { HourlyDistributionDto, PaginatedResponse } from '@tesseract/types';
+import { ExecutionStatus, Prisma, TriggerType } from '@tesseract/database';
+import { resolveTimezone } from '@/platform/common/utils/resolve-timezone';
+import { addDaysInZone, startOfDayInZone, zonedDayKey } from '@/platform/common/utils/zoned-dates';
 
 /**
  * Service que maneja el historial de ejecuciones
@@ -760,6 +762,111 @@ export class ExecutionsService {
   }
 
   /**
+   * Zona horaria con la que se agrupan las series temporales de una organización.
+   *
+   * Siempre la de la organización, nunca la del workflow: las gráficas responden "¿a
+   * qué hora recibe mensajes este negocio?", que es una pregunta del tenant. En la
+   * página de detalle se puede pedir la del workflow explícitamente
+   * (`getHourlyDistribution`), pero el default no cambia.
+   */
+  private async getOrganizationTimezone(organizationId: string): Promise<string> {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { timezone: true },
+    });
+    return resolveTimezone(organization?.timezone);
+  }
+
+  /**
+   * Instante desde el que arranca un periodo, alineado a medianoche local.
+   *
+   * Ojo con `24h`: antes era una ventana móvil de 24 horas, de modo que el KPI
+   * "Ejecuciones Hoy" a las 10:00 contaba desde las 10:00 del día anterior. Ahora
+   * corta a medianoche de la organización, que es lo que la etiqueta promete y lo
+   * mismo que ya hacía `WorkflowsService.getMetrics` para ese periodo.
+   */
+  private periodStartDate(period: string, timezone: string): Date | undefined {
+    const now = new Date();
+    const days: Record<string, number> = { '24h': 0, '7d': 6, '30d': 29, '90d': 89 };
+    if (period === 'all') return undefined;
+    const back = days[period] ?? 6;
+    return addDaysInZone(startOfDayInZone(now, timezone), -back, timezone);
+  }
+
+  /**
+   * Distribución de ejecuciones por hora del día.
+   *
+   * Responde "¿a qué hora recibo actividad?" agregando en Postgres, no en Node: la
+   * tabla `executions` crece una fila por mensaje entrante y no tiene política de
+   * retención, así que traerse el periodo a memoria no escala.
+   *
+   * La doble conversión `AT TIME ZONE` no es redundante. `startedAt` es
+   * `timestamp(3)` sin zona: el primer `AT TIME ZONE 'UTC'` declara que lo almacenado
+   * es UTC y produce un `timestamptz`; el segundo lo lleva a la zona pedida. Con uno
+   * solo, Postgres interpretaría el valor como hora local y el histograma saldría
+   * desplazado el offset completo (seis horas en México).
+   *
+   * @param workflowId - Si se indica, restringe al workflow y valida que sea de la organización.
+   * @param useWorkflowTimezone - Solo para la página de detalle, cuando el workflow tiene override.
+   */
+  async getHourlyDistribution(
+    organizationId: string,
+    period = '30d',
+    options: { workflowId?: string; useWorkflowTimezone?: boolean } = {},
+  ): Promise<HourlyDistributionDto> {
+    const { workflowId, useWorkflowTimezone = false } = options;
+
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { timezone: true },
+    });
+
+    let workflowTimezone: string | null = null;
+    if (workflowId) {
+      const workflow = await this.prisma.workflow.findFirst({
+        where: { id: workflowId, organizationId, deletedAt: null },
+        select: { timezone: true },
+      });
+      if (!workflow) throw new NotFoundException('Workflow no encontrado');
+      workflowTimezone = workflow.timezone;
+    }
+
+    const timezone = useWorkflowTimezone
+      ? resolveTimezone(organization?.timezone, workflowTimezone)
+      : resolveTimezone(organization?.timezone);
+
+    const startDate = this.periodStartDate(period, timezone);
+
+    const rows = await this.prisma.$queryRaw<{ hour: number; count: number }[]>`
+      SELECT
+        EXTRACT(HOUR FROM ("startedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone})::int AS hour,
+        COUNT(*)::int AS count
+      FROM executions
+      WHERE "organizationId" = ${organizationId}
+        AND "deletedAt" IS NULL
+        ${workflowId ? Prisma.sql`AND "workflowId" = ${workflowId}` : Prisma.empty}
+        ${startDate ? Prisma.sql`AND "startedAt" >= ${startDate}` : Prisma.empty}
+      GROUP BY 1
+      ORDER BY 1
+    `;
+
+    // Las 24 franjas siempre presentes: las horas sin actividad son parte de la
+    // respuesta, y omitirlas dejaría huecos en el eje justo donde está el dato útil.
+    const counts = new Map(rows.map((row) => [Number(row.hour), Number(row.count)]));
+    const buckets = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      count: counts.get(hour) ?? 0,
+    }));
+
+    return {
+      period,
+      timezone,
+      total: buckets.reduce((sum, bucket) => sum + bucket.count, 0),
+      buckets,
+    };
+  }
+
+  /**
    * Obtener estadísticas de ejecuciones de la organización
    * Incluye información de créditos y categorías de workflow
    *
@@ -767,29 +874,11 @@ export class ExecutionsService {
    * @param period - Periodo de tiempo (24h, 7d, 30d, 90d, all)
    */
   async getStats(organizationId: string, period = '7d') {
-    // Calcular fecha de inicio según el periodo
-    const now = new Date();
-    let startDate: Date | undefined;
-
-    switch (period) {
-      case '24h':
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        break;
-      case '7d':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case '30d':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case '90d':
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case 'all':
-        startDate = undefined;
-        break;
-      default:
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    }
+    // Los días de `dailyStats` se cortan a medianoche de la organización, no del
+    // servidor: agrupar por día UTC mientras el front etiqueta en zona del navegador
+    // desplazaba al día siguiente todo lo ocurrido a partir de las 18:00 en México.
+    const timezone = await this.getOrganizationTimezone(organizationId);
+    const startDate = this.periodStartDate(period, timezone);
 
     const where: any = {
       deletedAt: null,
@@ -861,17 +950,17 @@ export class ExecutionsService {
 
     // Inicializar mapa de fechas para dailyStats
     const dailyStatsMap = new Map<string, number>();
-    const msInDay = 24 * 60 * 60 * 1000;
 
     if (startDate) {
-      // Si hay fecha de inicio definida (todos los casos menos 'all'), rellenar huecos
-      let currentDate = new Date(startDate);
-      const endDateStats = new Date(); // Hoy
+      // Si hay fecha de inicio definida (todos los casos menos 'all'), rellenar huecos.
+      // Se avanza por días de calendario de la organización y no sumando 24 h, para que
+      // los días de cambio de horario (de 23 o 25 h) no desplacen el resto de la serie.
+      let currentDate = startDate;
+      const endDateStats = new Date();
 
       while (currentDate <= endDateStats) {
-        const dateStr = currentDate.toISOString().split('T')[0];
-        dailyStatsMap.set(dateStr, 0);
-        currentDate = new Date(currentDate.getTime() + msInDay);
+        dailyStatsMap.set(zonedDayKey(currentDate, timezone), 0);
+        currentDate = addDaysInZone(currentDate, 1, timezone);
       }
     }
 
@@ -914,7 +1003,7 @@ export class ExecutionsService {
 
       // Daily Stats
       if (e.startedAt) {
-        const dateStr = new Date(e.startedAt).toISOString().split('T')[0];
+        const dateStr = zonedDayKey(new Date(e.startedAt), timezone);
         // Si el periodo es 'all', inicializamos dinámicamente. Si es fijo, ya está inicializado (o ignoramos si cae fuera por alguna razón rara)
         if (!dailyStatsMap.has(dateStr)) {
           if (period === 'all') {
@@ -960,6 +1049,7 @@ export class ExecutionsService {
       avgDuration: parseFloat(avgDuration.toFixed(2)),
       totalDuration,
       dailyStats, // [NUEVO]
+      timezone, // Zona con la que se agruparon los días; el front etiqueta con ella.
       byStatus,
       byTrigger,
       topWorkflows, // [EXISTENTE] Confirmado formato

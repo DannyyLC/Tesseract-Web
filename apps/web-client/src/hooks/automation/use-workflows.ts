@@ -67,12 +67,32 @@ export function useWorkflowStats() {
 }
 
 // Hook para obtener métricas de un workflow
-export function useWorkflowMetrics(workflowId: string, period: string = '30d') {
+export function useWorkflowMetrics(
+  workflowId: string,
+  period: string = '30d',
+  tzSource: 'organization' | 'workflow' = 'organization',
+) {
   return useQuery({
-    queryKey: ['workflows', 'metrics', workflowId, period],
+    queryKey: ['workflows', 'metrics', workflowId, period, tzSource],
     queryFn: async () => {
       const api = RootApi.getInstance().getWorkflowsApi();
-      return await api.getMetrics(workflowId, period);
+      return await api.getMetrics(workflowId, period, tzSource);
+    },
+    enabled: !!workflowId,
+  });
+}
+
+// Hook para la distribución horaria de un workflow (24 franjas)
+export function useWorkflowHourlyDistribution(
+  workflowId: string,
+  period: string = '30d',
+  tzSource: 'organization' | 'workflow' = 'organization',
+) {
+  return useQuery({
+    queryKey: ['workflows', 'hourly-distribution', workflowId, period, tzSource],
+    queryFn: async () => {
+      const api = RootApi.getInstance().getWorkflowsApi();
+      return await api.getHourlyDistribution(workflowId, period, tzSource);
     },
     enabled: !!workflowId,
   });
