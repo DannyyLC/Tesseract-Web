@@ -830,6 +830,29 @@ export class WorkflowsService {
           ];
         }
       }
+    } else if (channel === 'MESSENGER') {
+      // El canal viaja por metadata en lugar de por un parámetro propio como
+      // `whatsappData`: el worker de Messenger ya dejó los adjuntos procesados, así que
+      // lo único que hace falta aquí es identificar la conversación (página + PSID).
+      const messengerData = metadata?.messengerData as
+        | { pageId?: string; senderId?: string }
+        | undefined;
+
+      if (!messengerData?.pageId || !messengerData?.senderId) {
+        this.logger.error(
+          `Messenger channel requires messengerData for conversation management. Workflow: ${workflowId}, Execution: ${execution.id}`,
+        );
+        throw new InvalidWorkflowConfigException(
+          'Messenger channel requires messengerData for conversation management',
+          { workflowId, executionId: execution.id },
+        );
+      }
+
+      conversation = await this.conversationsService.findOrCreateConversationFromMessengerMessage(
+        workflowId,
+        messengerData.pageId,
+        messengerData.senderId,
+      );
     } else {
       conversation = await this.conversationsService.findOrCreateConversation(
         workflowId,

@@ -9,6 +9,6 @@ import { ToolsOauthService } from './tools-oauth.service';
   imports: [DatabaseModule],
   controllers: [ToolsOauthController],
   providers: [ToolsService, KmsService, ToolsOauthService],
-  exports: [ToolsService],
+  exports: [ToolsService, KmsService],
 })
 export class ToolsModule {}

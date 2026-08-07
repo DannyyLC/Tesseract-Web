@@ -65,6 +65,7 @@ export class ConversationsService {
       WEB: ConversationChannel.WEB,
       API: ConversationChannel.API,
       CRON: ConversationChannel.CRON,
+      MESSENGER: ConversationChannel.MESSENGER,
     };
     return map[channel?.toUpperCase()] ?? ConversationChannel.API;
   }
@@ -335,6 +336,94 @@ export class ConversationsService {
         channel: ConversationChannel.WHATSAPP,
         whatsappConfigId: whatsappConfig.id,
         phoneNumberSender: userNumber,
+        endUserId: endUser.id, // Requerido por constraint conversations_user_xor_enduser
+        status: ConversationStatus.ACTIVE,
+        messageCount: 0,
+        totalTokens: 0,
+        totalCost: 0,
+      },
+    });
+
+    return newConversation;
+  }
+
+  /**
+   * Busca o crea la conversación de un usuario de Messenger.
+   *
+   * Gemelo de `findOrCreateConversationFromWhatsAppMessage`: la pareja (página, PSID)
+   * hace el papel de (número propio, número del cliente). El PSID solo tiene sentido
+   * dentro de su página, así que ambos hacen falta para identificar a una persona.
+   */
+  async findOrCreateConversationFromMessengerMessage(
+    workflowId: string,
+    pageId: string,
+    senderId: string,
+  ) {
+    const messengerConfig = await this.prisma.messengerConfig.findUnique({
+      where: { pageId },
+    });
+    if (!messengerConfig) {
+      throw new Error(`Messenger config no encontrada para la página: ${pageId}`);
+    }
+
+    // El filtro `deletedAt: null` no es opcional: sin él se reutiliza una conversación
+    // borrada desde la UI y, como `findOne` sí descarta las borradas, el flujo del
+    // webhook termina lanzando NotFoundException y sin enviar la respuesta.
+    const existing = await this.prisma.conversation.findFirst({
+      where: {
+        channel: ConversationChannel.MESSENGER,
+        messengerConfigId: messengerConfig.id,
+        messengerSenderId: senderId,
+        status: ConversationStatus.ACTIVE,
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (existing) {
+      this.logger.debug(
+        `Usando conversación existente para Messenger ${senderId} -> ${pageId} (config ${messengerConfig.id})`,
+      );
+      return existing;
+    }
+
+    // Obtener la organización del workflow para asignarla a la conversación
+    const workflow = await this.prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { organizationId: true },
+    });
+
+    if (!workflow) {
+      throw new Error(`Workflow no encontrado: ${workflowId}`);
+    }
+
+    // El PSID no es un teléfono ni un email: encaja en `externalId`, que es el
+    // identificador libre del EndUser. Se prefija con la página porque el mismo PSID
+    // puede repetirse entre páginas distintas.
+    const endUser = await this.prisma.endUser.upsert({
+      where: {
+        organizationId_externalId: {
+          organizationId: workflow.organizationId,
+          externalId: `messenger:${pageId}:${senderId}`,
+        },
+      },
+      create: {
+        organizationId: workflow.organizationId,
+        externalId: `messenger:${pageId}:${senderId}`,
+        lastSeenAt: new Date(),
+      },
+      update: {
+        lastSeenAt: new Date(),
+      },
+    });
+
+    const newConversation = await this.prisma.conversation.create({
+      data: {
+        workflowId,
+        organizationId: workflow.organizationId,
+        channel: ConversationChannel.MESSENGER,
+        messengerConfigId: messengerConfig.id,
+        messengerSenderId: senderId,
         endUserId: endUser.id, // Requerido por constraint conversations_user_xor_enduser
         status: ConversationStatus.ACTIVE,
         messageCount: 0,

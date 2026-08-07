@@ -101,6 +101,7 @@ enum ConversationChannel {
   WEB
   API
   CRON
+  MESSENGER
 }
 
 enum ChatRole {
@@ -147,6 +148,12 @@ enum DangerLevel {
 }
 
 enum WhatsAppConnectionStatus {
+  DISCONNECTED
+  CONNECTED
+  ERROR
+}
+
+enum MessengerConnectionStatus {
   DISCONNECTED
   CONNECTED
   ERROR
@@ -202,6 +209,7 @@ model Organization {
   executions      Execution[]
   tenantTools     TenantTool[]
   whatsappConfigs WhatsAppConfig[]
+  messengerConfigs MessengerConfig[]
   auditLogs       AuditLog[]
   endUsers        EndUser[]
   cronTriggers    WorkflowCronTrigger[]
@@ -517,6 +525,13 @@ model Conversation {
   whatsappConfig    WhatsAppConfig? @relation(fields: [whatsappConfigId], references: [id])
   phoneNumberSender String?
 
+  // Configuración de Messenger (opcional - solo si el canal es messenger)
+  messengerConfigId String?
+  messengerConfig   MessengerConfig? @relation(fields: [messengerConfigId], references: [id])
+  // PSID: identificador del usuario, único por página. Es el equivalente a
+  // `phoneNumberSender` en WhatsApp y lo que permite reencontrar la conversación.
+  messengerSenderId String?
+
   // Metadata de la conversación
   title   String? // "Consulta sobre productos", "Testing agente ventas"
   channel ConversationChannel
@@ -562,6 +577,7 @@ model Conversation {
   @@index([endUserId])
   @@index([workflowId])
   @@index([whatsappConfigId])
+  @@index([messengerConfigId])
   @@index([status])
   @@index([channel])
   @@index([needsFollowUp]) // El listado ordena y filtra por esto
@@ -1135,6 +1151,7 @@ model Workflow {
   // Relaciones
   executions      Execution[]
   whatsappConfigs WhatsAppConfig[]
+  messengerConfigs MessengerConfig[]
   tags            Tag[]            @relation("TagToWorkflow")
   conversations   Conversation[]
   apiKeys         ApiKey[]
@@ -1329,6 +1346,62 @@ model WhatsAppTemplate {
 
   @@index([whatsAppConfigId])
   @@map("whatsapp_templates")
+}
+
+// ============================================
+// MESSENGER (Página de Facebook)
+// ============================================
+model MessengerConfig {
+  id String @id @default(uuid())
+
+  // Identificación: la página de Facebook es la "cuenta" del canal, el equivalente
+  // al número de teléfono en WhatsApp. Meta la manda en cada webhook (`entry[].id`),
+  // así que es la llave con la que se resuelve la config del mensaje entrante.
+  pageId      String  @unique
+  pageName    String?
+  description String?
+
+  // Proveedor (meta)
+  provider String @default("meta")
+
+  // Token de página, cifrado con KMS (nunca en claro). Se usa para responder por la
+  // Send API. Si viene vacío se cae a MESSENGER_PAGE_ACCESS_TOKEN, para despliegues
+  // de una sola página.
+  pageAccessToken String?
+
+  // Webhook
+  webhookSecret String  @default(uuid())
+  webhookUrl    String?
+
+  // Estado de conexión
+  connectionStatus MessengerConnectionStatus @default(DISCONNECTED)
+  lastConnectedAt  DateTime?
+  connectionError  String?
+
+  // Estado
+  isActive Boolean @default(true)
+
+  // Workflow por defecto para mensajes entrantes
+  defaultWorkflowId String?
+  defaultWorkflow   Workflow? @relation(fields: [defaultWorkflowId], references: [id])
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relación
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Conversaciones por esta página de Messenger
+  conversations Conversation[]
+
+  @@index([pageId])
+  @@index([connectionStatus])
+  @@index([organizationId])
+  @@index([deletedAt])
+  @@map("messenger_configs")
 }
 
 // ============================================
