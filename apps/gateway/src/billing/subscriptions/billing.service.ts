@@ -17,6 +17,7 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { BillingDashboardDto } from './dto/billing-dashboard.dto';
 import Stripe from 'stripe';
 import { UtilityService } from '@/platform/utility/utility.service';
+import { maskEmail } from '@/platform/common/utils/mask-email';
 
 @Injectable()
 export class BillingService {
@@ -56,7 +57,7 @@ export class BillingService {
       });
       return customer.id;
     } catch (error) {
-      this.logger.error(`Failed to create Stripe customer for ${dto.email}`, error);
+      this.logger.error(`Failed to create Stripe customer for ${maskEmail(dto.email)}`, error);
       throw error;
     }
   }

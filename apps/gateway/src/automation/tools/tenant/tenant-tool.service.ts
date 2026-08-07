@@ -60,7 +60,7 @@ export class TenantToolService {
         orderBy: { createdAt: 'desc' },
       });
       return await CursorPaginatedResponseUtils.getInstance().build(
-        tenantTools as unknown as DashboardTenantToolDto[],
+        tenantTools,
         pageSize,
         paginationAction,
       );

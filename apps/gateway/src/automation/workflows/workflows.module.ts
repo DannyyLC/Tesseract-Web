@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { WorkflowsController } from './controllers/user-ui/workflows.controller';
+import { WorkflowsAdminController } from './controllers/admin/workflows.admin.controller';
 import { WorkflowsService } from './workflows.service';
+import { WorkflowsAdminService } from './workflows-admin.service';
+import { WorkflowConfigValidator } from './workflow-config.validator';
 import { ExecutionsModule } from '@/automation/executions/executions.module';
 import { OrganizationsModule } from '@/identity/organizations/organizations.module';
 import { AgentsModule } from '../agents/agents.module';
@@ -28,8 +31,8 @@ import { MediaProcessingModule } from '@/automation/media-processing/media-proce
     ToolsModule,
     MediaProcessingModule,
   ],
-  controllers: [WorkflowsController, ExternalWorkflowsController],
-  providers: [WorkflowsService],
-  exports: [WorkflowsService],
+  controllers: [WorkflowsController, ExternalWorkflowsController, WorkflowsAdminController],
+  providers: [WorkflowsService, WorkflowsAdminService, WorkflowConfigValidator],
+  exports: [WorkflowsService, WorkflowsAdminService],
 })
 export class WorkflowsModule {}

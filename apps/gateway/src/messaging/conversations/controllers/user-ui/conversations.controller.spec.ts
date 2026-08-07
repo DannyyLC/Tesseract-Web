@@ -6,6 +6,7 @@ import { Response } from 'express';
 import { UpdateConversationDto } from '../../dto';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { UserRole } from '@tesseract/types';
+import { MediaProcessingService } from '@/automation/media-processing/media-processing.service';
 
 const mockConversationsService = {
   findAll: jest.fn(),
@@ -13,6 +14,11 @@ const mockConversationsService = {
   findOne: jest.fn(),
   update: jest.fn(),
   remove: jest.fn(),
+  resolveWorkflowMediaPolicy: jest.fn(),
+};
+
+const mockMediaProcessingService = {
+  transcribeDictation: jest.fn(),
 };
 
 describe('ConversationsController', () => {
@@ -36,7 +42,10 @@ describe('ConversationsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ConversationsController],
-      providers: [{ provide: ConversationsService, useValue: mockConversationsService }],
+      providers: [
+        { provide: ConversationsService, useValue: mockConversationsService },
+        { provide: MediaProcessingService, useValue: mockMediaProcessingService },
+      ],
     }).compile();
 
     controller = module.get<ConversationsController>(ConversationsController);
@@ -127,6 +136,76 @@ describe('ConversationsController', () => {
       const res = mockResponse();
 
       await expect(controller.getById(mockUser, 'c-1', res)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('transcribe', () => {
+    const audioRequest = (body: unknown) =>
+      ({ body, headers: { 'content-type': 'audio/webm' } }) as any;
+
+    it('devuelve la transcripción del dictado', async () => {
+      mockMediaProcessingService.transcribeDictation.mockResolvedValue({
+        status: 'PROCESSED',
+        text: 'hola',
+      });
+      const res = mockResponse();
+
+      await controller.transcribe(audioRequest(Buffer.from('audio')), res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { text: 'hola' }, success: true }),
+      );
+    });
+
+    it('transcribe con el audio siempre habilitado, sin mirar la política del workflow', async () => {
+      mockMediaProcessingService.transcribeDictation.mockResolvedValue({
+        status: 'PROCESSED',
+        text: 'hola',
+      });
+      const res = mockResponse();
+
+      await controller.transcribe(audioRequest(Buffer.from('audio')), res);
+
+      // Dictar es una comodidad del operador: lo que se envía al workflow es texto,
+      // así que no depende de lo que el agente sepa escuchar por WhatsApp.
+      expect(mockMediaProcessingService.transcribeDictation).toHaveBeenCalledWith(
+        expect.objectContaining({ policy: expect.objectContaining({ audio: { enabled: true, maxSeconds: 300 } }) }),
+      );
+      // Y tampoco consulta la conversación, para que funcione en /conversations/new
+      expect(mockConversationsService.findOne).not.toHaveBeenCalled();
+    });
+
+    it('devuelve 502 cuando falla el proveedor de transcripción', async () => {
+      mockMediaProcessingService.transcribeDictation.mockResolvedValue({
+        status: 'FAILED',
+        message: 'No pude escuchar tu audio',
+      });
+      const res = mockResponse();
+
+      await controller.transcribe(audioRequest(Buffer.from('audio')), res);
+
+      expect(res.status).toHaveBeenCalledWith(502);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: false, message: 'No pude escuchar tu audio' }),
+      );
+    });
+
+    it('tolera un cuerpo que no es Buffer sin reventar', async () => {
+      mockMediaProcessingService.transcribeDictation.mockResolvedValue({
+        status: 'REJECTED',
+        reason: 'EMPTY_AUDIO',
+        message: 'vacío',
+      });
+      const res = mockResponse();
+
+      // Si el Content-Type no casa con el parser raw, Express deja un objeto vacío
+      await controller.transcribe(audioRequest({}), res);
+
+      expect(mockMediaProcessingService.transcribeDictation).toHaveBeenCalledWith(
+        expect.objectContaining({ buffer: Buffer.alloc(0) }),
+      );
+      expect(res.status).toHaveBeenCalledWith(400);
     });
   });
 

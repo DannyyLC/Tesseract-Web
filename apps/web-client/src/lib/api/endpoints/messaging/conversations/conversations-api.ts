@@ -99,6 +99,25 @@ class ConversationsApi {
     );
     return result.data.success;
   }
+
+  /**
+   * Transcribe un dictado y devuelve solo el texto.
+   * Endpoint: POST /conversations/transcribe
+   *
+   * No lleva id de conversación: el dictado también tiene que funcionar en
+   * `/conversations/new`, donde todavía no existe ninguna.
+   *
+   * El audio viaja como cuerpo binario, no como multipart: es un archivo suelto y el
+   * servidor no lo guarda, así que no hay nada que nombrar ni campos que acompañar.
+   */
+  public async transcribe(audio: Blob): Promise<string> {
+    const result = await this.apiRequestManager.post<ApiResponse<{ text: string }>>(
+      `${ConversationsApi.BASE_URL}/transcribe`,
+      audio,
+      { headers: { 'Content-Type': audio.type || 'audio/webm' } },
+    );
+    return result.data.data?.text ?? '';
+  }
 }
 
 export default ConversationsApi;

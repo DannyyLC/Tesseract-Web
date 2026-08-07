@@ -1,9 +1,11 @@
 import { IsEmail, IsNotEmpty, IsString, MinLength, IsEnum, IsOptional } from 'class-validator';
 import { UserRole } from '@tesseract/types';
+import { NormalizeEmail } from '@/platform/common/utils/normalize-email';
 
 export class InviteUserDto {
   @IsEmail({}, { message: 'Invalid email format' })
   @IsNotEmpty()
+  @NormalizeEmail()
   email: string;
 
   @IsString()

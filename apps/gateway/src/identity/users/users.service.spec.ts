@@ -4,13 +4,7 @@ import { UsersService } from './users.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { EmailService } from '@/messaging/notifications/email/email.service';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-
-jest.mock('speakeasy', () => ({
-  totp: {
-    verify: jest.fn(),
-  },
-  generateSecret: jest.fn(),
-}));
+import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -51,6 +45,10 @@ describe('UsersService', () => {
     info: jest.fn(),
   };
 
+  const mockTwoFactorService = {
+    verifySecondFactor: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -66,6 +64,10 @@ describe('UsersService', () => {
         {
           provide: WINSTON_MODULE_PROVIDER,
           useValue: mockLogger,
+        },
+        {
+          provide: TwoFactorService,
+          useValue: mockTwoFactorService,
         },
       ],
     }).compile();

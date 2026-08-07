@@ -126,5 +126,5 @@ function pickNonEmptyStrings(
     Object.entries(messages).filter(
       ([, value]) => typeof value === 'string' && value.trim().length > 0,
     ),
-  ) as Partial<MediaPolicy['messages']>;
+  );
 }

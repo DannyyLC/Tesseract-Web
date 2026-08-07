@@ -48,6 +48,7 @@ import {
   StepThreeErrors,
   VerificationCodeDto,
   Verify2FACodeDto,
+  Optional2FACodeDto,
 } from '../../dto';
 import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
 import { TempTokenGuard } from '../../guards/temp-token.guard';
@@ -287,10 +288,14 @@ export class AuthController {
     summary: 'Start 2FA setup',
     description: setup2FASwaggerDesc,
   })
-  async setup2FA(@CurrentUser() user: UserPayload, @Res() response: Response) {
+  async setup2FA(
+    @CurrentUser() user: UserPayload,
+    @Body() body: Optional2FACodeDto,
+    @Res() response: Response,
+  ) {
     const responseBuilder = new ApiResponseBuilder();
     try {
-      const result = await this.authService.setup2FA(user.sub);
+      const result = await this.authService.setup2FA(user.sub, body?.code2FA);
 
       responseBuilder
         .setSuccess(true)
@@ -300,7 +305,28 @@ export class AuthController {
 
       response.statusCode = HttpStatus.OK;
       return response.send(responseBuilder.build());
-    } catch {
+    } catch (error) {
+      // Rearmar un 2FA activo exige el factor vigente: hay que distinguir ese
+      // caso del fallo genérico para que el front pueda pedir el código.
+      if (error instanceof ForbiddenException && error.message === '2FA_REQUIRED') {
+        responseBuilder
+          .setSuccess(false)
+          .setStatusCode(HttpStatusCode.Forbidden)
+          .setMessage('2FA_REQUIRED')
+          .setErrors(['2FA code is required to regenerate the secret']);
+        response.statusCode = HttpStatus.FORBIDDEN;
+        return response.send(responseBuilder.build());
+      }
+
+      if (error instanceof UnauthorizedException) {
+        responseBuilder
+          .setSuccess(false)
+          .setStatusCode(HttpStatusCode.Unauthorized)
+          .setMessage('Invalid 2FA code');
+        response.statusCode = HttpStatus.UNAUTHORIZED;
+        return response.send(responseBuilder.build());
+      }
+
       responseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.InternalServerError)
@@ -322,15 +348,16 @@ export class AuthController {
     @CurrentUser() user: UserPayload,
     @Body() verificationCode: Verify2FACodeDto,
     @Res() response: Response,
-  ): Promise<Response<ApiResponseBuilder<boolean>>> {
-    const responseBuilder = new ApiResponseBuilder<boolean>();
-    const isEnabled = await this.authService.enable2FA(user.sub, verificationCode.code2FA);
+  ) {
+    const responseBuilder = new ApiResponseBuilder<{ backupCodes: string[] }>();
+    const result = await this.authService.enable2FA(user.sub, verificationCode.code2FA);
 
-    if (isEnabled) {
+    if (result) {
+      // Única vez que los códigos viajan en claro: a partir de aquí solo existe su hash.
       responseBuilder
         .setSuccess(true)
         .setStatusCode(HttpStatusCode.Ok)
-        .setData(true)
+        .setData(result)
         .setMessage('2FA enabled successfully');
       response.statusCode = HttpStatus.OK;
       return response.send(responseBuilder.build());
@@ -338,11 +365,47 @@ export class AuthController {
       responseBuilder
         .setSuccess(false)
         .setStatusCode(HttpStatusCode.BadRequest)
-        .setData(false)
         .setMessage('Invalid 2FA code or 2FA not set up');
       response.statusCode = HttpStatus.BAD_REQUEST;
       return response.send(responseBuilder.build());
     }
+  }
+
+  @Post('2fa/backup-codes/regenerate')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Regenerate 2FA backup codes',
+    description:
+      'Issues a fresh set of single-use backup codes and invalidates the previous ones. Requires a valid TOTP or backup code.',
+  })
+  async regenerateBackupCodes(
+    @CurrentUser() user: UserPayload,
+    @Body() verificationCode: Verify2FACodeDto,
+    @Res() response: Response,
+  ) {
+    const responseBuilder = new ApiResponseBuilder<{ backupCodes: string[] }>();
+    const backupCodes = await this.authService.regenerateBackupCodes(
+      user.sub,
+      verificationCode.code2FA,
+    );
+
+    if (!backupCodes) {
+      responseBuilder
+        .setSuccess(false)
+        .setStatusCode(HttpStatusCode.Unauthorized)
+        .setMessage('Invalid 2FA code');
+      response.statusCode = HttpStatus.UNAUTHORIZED;
+      return response.send(responseBuilder.build());
+    }
+
+    responseBuilder
+      .setSuccess(true)
+      .setStatusCode(HttpStatusCode.Ok)
+      .setData({ backupCodes })
+      .setMessage('Backup codes regenerated successfully');
+    response.statusCode = HttpStatus.OK;
+    return response.send(responseBuilder.build());
   }
 
   /**

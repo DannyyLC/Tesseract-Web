@@ -7,6 +7,8 @@ import {
   ResetPasswordDto,
   ChangePasswordDto,
   Verify2FACodeDto,
+  Setup2FAResponse,
+  BackupCodesResponse,
   ForgotPassDto,
   ApiResponse,
 } from '@tesseract/types';
@@ -67,27 +69,45 @@ class AuthApi {
     return result.data;
   }
 
-  public async setup2FA(): Promise<ApiResponse<any>> {
-    const result = await this.apiRequestManager.post<ApiResponse<any>>(
+  /**
+   * Inicia el alta de 2FA. El `code2FA` solo hace falta cuando el usuario ya
+   * tiene 2FA activo y quiere sustituir su autenticador.
+   */
+  public async setup2FA(code2FA?: string): Promise<ApiResponse<Setup2FAResponse>> {
+    const result = await this.apiRequestManager.post<ApiResponse<Setup2FAResponse>>(
       `${AuthApi.BASE_URL}/2fa/setup`,
+      code2FA ? { code2FA } : {},
     );
     return result.data;
   }
 
-  public async enable2FA(verify2FACodeDto: Verify2FACodeDto): Promise<ApiResponse<boolean>> {
-    const result = await this.apiRequestManager.post<ApiResponse<boolean>>(
+  public async enable2FA(
+    verify2FACodeDto: Verify2FACodeDto,
+  ): Promise<ApiResponse<BackupCodesResponse>> {
+    const result = await this.apiRequestManager.post<ApiResponse<BackupCodesResponse>>(
       `${AuthApi.BASE_URL}/2fa/enable`,
       verify2FACodeDto,
     );
     return result.data;
   }
 
-  public async disable2FA(verify2FACodeDto: Verify2FACodeDto): Promise<boolean> {
+  public async disable2FA(verify2FACodeDto: Verify2FACodeDto): Promise<ApiResponse<boolean>> {
     const result = await this.apiRequestManager.post<ApiResponse<boolean>>(
       `${AuthApi.BASE_URL}/2fa/disable`,
       verify2FACodeDto,
     );
-    return result.data?.data ?? false;
+    return result.data;
+  }
+
+  /** Emite un juego nuevo de códigos de respaldo e invalida los anteriores. */
+  public async regenerateBackupCodes(
+    verify2FACodeDto: Verify2FACodeDto,
+  ): Promise<ApiResponse<BackupCodesResponse>> {
+    const result = await this.apiRequestManager.post<ApiResponse<BackupCodesResponse>>(
+      `${AuthApi.BASE_URL}/2fa/backup-codes/regenerate`,
+      verify2FACodeDto,
+    );
+    return result.data;
   }
 
   public async resetPasswordStepOne(dto: ForgotPassDto): Promise<ApiResponse<boolean>> {

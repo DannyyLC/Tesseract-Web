@@ -13,7 +13,6 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import * as qrcode from 'qrcode';
-import * as speakeasy from 'speakeasy';
 import { Logger } from 'winston';
 import { UserPayload } from '@/platform/common/types/user-payload.type';
 import { PrismaService } from '@/platform/database/prisma.service';
@@ -31,6 +30,9 @@ import {
   VerificationCodeDto,
 } from './dto';
 import { Prisma, UserRole } from '@tesseract/database';
+import { maskEmail } from '@/platform/common/utils/mask-email';
+import { normalizeEmail } from '@/platform/common/utils/normalize-email';
+import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
@@ -46,6 +48,7 @@ export class AuthService {
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
     private readonly emailService: EmailService,
     private readonly utilityService: UtilityService,
+    private readonly twoFactorService: TwoFactorService,
   ) {}
 
   //==============================================================
@@ -58,7 +61,9 @@ export class AuthService {
    * @returns qrCode, tempToken
    */
   async login(dto: LoginDto) {
-    this.logger.info(`Intentando login: ${dto.email}`);
+    // Enmascarado: esto se escribe ANTES de validar credenciales, así que también
+    // registra emails tecleados por quien no tiene cuenta.
+    this.logger.info(`Intentando login: ${maskEmail(dto.email)}`);
 
     // 1. Validar credenciales y obtener usuario con organización
     const { user, organization } = await this.validateUser(dto.email, dto.password);
@@ -87,7 +92,8 @@ export class AuthService {
         data: { lastLoginAt: new Date() },
       });
 
-      this.logger.info(`Login directo exitoso: ${user.email}`);
+      // Ya hay usuario validado: el id identifica la cuenta sin exponer el email.
+      this.logger.info(`Login directo exitoso: userId=${user.id}`);
       return {
         status: 'complete',
         user: {
@@ -159,7 +165,7 @@ export class AuthService {
             },
           });
 
-          this.logger.info(`Sesión cerrada para: ${payload.email}`);
+          this.logger.info(`Sesión cerrada para: userId=${payload.sub}`);
           return { message: 'Sesión cerrada exitosamente' };
         }
       }
@@ -207,9 +213,13 @@ export class AuthService {
     googleId: string;
     avatar?: string;
   }) {
+    // Google entrega el email en minúsculas. Sin normalizar, quien se registró a mano
+    // con mayúsculas no se encontraría aquí y acabaría con una segunda cuenta.
+    const email = normalizeEmail(details.email);
+
     // 1. Buscar usuario por email
     let user = await this.prisma.user.findUnique({
-      where: { email: details.email },
+      where: { email },
       include: { organization: true },
     });
 
@@ -252,7 +262,7 @@ export class AuthService {
               where: { id: userId },
               data: {
                 deletedAt: null, // Reactivar
-                email: details.email, // Confirmar email
+                email, // Confirmar email
                 name: `${details.firstName} ${details.lastName}`,
                 googleId: details.googleId,
                 avatar: details.avatar,
@@ -321,7 +331,7 @@ export class AuthService {
       // 3.3 Crear Usuario
       const newUser = await tx.user.create({
         data: {
-          email: details.email,
+          email,
           name: `${details.firstName} ${details.lastName}`,
           googleId: details.googleId,
           avatar: details.avatar,
@@ -355,36 +365,36 @@ export class AuthService {
     });
 
     if (!user) {
-      this.logger.warn(`Usuario no encontrado: ${email}`);
+      this.logger.warn(`Usuario no encontrado: ${maskEmail(email)}`);
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
     // 2. Verificar que tenga organización
     if (!user.organization) {
-      this.logger.warn(`Usuario sin organización: ${email}`);
+      this.logger.warn(`Usuario sin organización: userId=${user.id}`);
       throw new UnauthorizedException('Usuario sin organización asignada');
     }
 
     // 3. Verificar contraseña
     if (!user.password) {
-      this.logger.warn(`Usuario sin contraseña intentando login con password: ${email}`);
+      this.logger.warn(`Usuario sin contraseña intentando login con password: userId=${user.id}`);
       throw new UnauthorizedException('Debe iniciar sesión con Google');
     }
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      this.logger.warn(`Contraseña inválida para: ${email}`);
+      this.logger.warn(`Contraseña inválida para: userId=${user.id}`);
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
     // 4. Verificar que el usuario esté activo
     if (!user.isActive) {
-      this.logger.warn(`Usuario inactivo: ${email}`);
+      this.logger.warn(`Usuario inactivo: userId=${user.id}`);
       throw new UnauthorizedException('Cuenta inactiva');
     }
 
     // 5. Verificar que no esté eliminado
     if (user.deletedAt) {
-      this.logger.warn(`Usuario eliminado: ${email}`);
+      this.logger.warn(`Usuario eliminado: userId=${user.id}`);
       throw new UnauthorizedException('Cuenta eliminada');
     }
 
@@ -544,7 +554,7 @@ export class AuthService {
         payload.rememberMe,
       );
 
-      this.logger.info(`Tokens refrescados para: ${payload.email}`);
+      this.logger.info(`Tokens refrescados para: userId=${payload.sub}`);
 
       return {
         ...tokens,
@@ -646,49 +656,111 @@ export class AuthService {
   //==============================================================
   // TOKENS
   //==============================================================
-  async setup2FA(userId: string) {
-    //Now we are wrapping the userId in a text, optionally we could add a complex secret here
-    const secret = speakeasy.generateSecret({ name: `Tesseract (${userId})` });
-    // Guarda secret.base32 en user.twoFactorSecret y twoFactorEnabled=false
+  /**
+   * Inicia el alta de 2FA: emite un secreto nuevo y su QR.
+   *
+   * El secreto se guarda en `twoFactorPendingSecret` y no se activa hasta que el
+   * usuario confirma un código en `enable2FA`. Eso deja el 2FA vigente intacto
+   * mientras dure el proceso: un alta abandonada ya no puede desproteger la cuenta.
+   *
+   * @param userId - Usuario que da de alta el 2FA
+   * @param code2FA - Obligatorio si ya tiene 2FA activo, para poder re-emitir el secreto
+   */
+  async setup2FA(userId: string, code2FA?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, twoFactorEnabled: true },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Rearmar un 2FA ya activo equivale a sustituirlo: exige el factor vigente.
+    if (user.twoFactorEnabled) {
+      if (!code2FA) {
+        throw new ForbiddenException('2FA_REQUIRED');
+      }
+      const verified = await this.twoFactorService.verifySecondFactor(userId, code2FA);
+      if (!verified) {
+        throw new UnauthorizedException('Invalid 2FA code');
+      }
+    }
+
+    // La etiqueta lleva el email para que la app autenticadora muestre algo legible.
+    const { otpauthUrl, base32Secret } = this.twoFactorService.generateSetup(user.email);
+
     await this.prisma.user.update({
       where: { id: userId },
-      data: { twoFactorSecret: secret.base32, twoFactorEnabled: false },
+      data: { twoFactorPendingSecret: base32Secret },
     });
-    const qr = await qrcode.toDataURL(secret.otpauth_url ?? '');
-    return { qr };
+
+    const qr = await qrcode.toDataURL(otpauthUrl);
+    return { qr, secret: base32Secret };
   }
 
   /**
-   * Enable 2FA after setup (first-time activation)
-   * Used when user is already authenticated and wants to activate 2FA
+   * Confirma el alta de 2FA promoviendo el secreto en pruebas al secreto activo.
+   *
    * @param userId - User ID
-   * @param authCode - 6-digit code from authenticator app
-   * @returns true if enabled successfully, false if code is invalid
+   * @param authCode - Código de 6 dígitos de la app autenticadora
+   * @returns Los códigos de respaldo recién emitidos, o `null` si el código no es válido
    */
-  async enable2FA(userId: string, authCode: string): Promise<boolean> {
+  async enable2FA(userId: string, authCode: string): Promise<{ backupCodes: string[] } | null> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      select: { twoFactorPendingSecret: true },
     });
 
-    if (!user?.twoFactorSecret) {
-      return false;
+    if (!user?.twoFactorPendingSecret) {
+      return null;
     }
 
-    const verified = speakeasy.totp.verify({
-      secret: user.twoFactorSecret,
-      encoding: 'base32',
-      token: authCode,
+    // Se valida contra el secreto en pruebas: el activo todavía no existe, y un
+    // código de respaldo no puede dar de alta un autenticador nuevo.
+    const delta = this.twoFactorService.verifyTotp(user.twoFactorPendingSecret, authCode);
+    if (delta === null) {
+      return null;
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        twoFactorSecret: user.twoFactorPendingSecret,
+        twoFactorEnabled: true,
+        twoFactorPendingSecret: null,
+        // El código del alta queda gastado: no vale para volver a entrar.
+        twoFactorLastUsedStep: Math.floor(Date.now() / 1000 / 30) + delta,
+      },
     });
 
-    if (verified) {
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { twoFactorEnabled: true },
-      });
-      return true;
+    const backupCodes = await this.twoFactorService.generateBackupCodes(userId);
+    this.logger.info(`2FA activado para userId=${userId}`);
+
+    return { backupCodes };
+  }
+
+  /**
+   * Emite un juego nuevo de códigos de respaldo e invalida los anteriores.
+   *
+   * @param userId - Usuario dueño de los códigos
+   * @param code2FA - Código TOTP o de respaldo vigente
+   */
+  async regenerateBackupCodes(userId: string, code2FA: string): Promise<string[] | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { twoFactorEnabled: true },
+    });
+
+    if (!user?.twoFactorEnabled) {
+      throw new BadRequestException('El usuario no tiene 2FA activo');
     }
 
-    return false;
+    const verified = await this.twoFactorService.verifySecondFactor(userId, code2FA);
+    if (!verified) {
+      return null;
+    }
+
+    return this.twoFactorService.generateBackupCodes(userId);
   }
 
   async verify2FACode(userPayload: UserPayload, authCode: string) {
@@ -700,17 +772,8 @@ export class AuthService {
     });
     if (!user?.twoFactorSecret) return null;
     if (!organization) return null;
-    const verified = speakeasy.totp.verify({
-      secret: user.twoFactorSecret,
-      encoding: 'base32',
-      token: authCode,
-    });
+    const verified = await this.twoFactorService.verifySecondFactor(userPayload.sub, authCode);
     if (verified) {
-      await this.prisma.user.update({
-        where: { id: userPayload.sub },
-        data: { twoFactorEnabled: true },
-      });
-
       // 2. Generar tokens
       const tokens = await this.generateTokens(
         userPayload.sub,
@@ -733,7 +796,7 @@ export class AuthService {
         select: { name: true, slug: true, plan: true },
       });
 
-      this.logger.info(`Login exitoso: ${userPayload.email} (${organization?.name})`);
+      this.logger.info(`Login exitoso: userId=${userPayload.sub} (${organization?.name})`);
       return {
         user: {
           id: userPayload.sub,
@@ -779,7 +842,7 @@ export class AuthService {
       await this.emailService.sendVerificationCodeByEmail(payload);
 
     if (!sentMessageInfo || sentMessageInfo.success === false) {
-      this.logger.error(`authService >> signupStepOne >> Email no aceptado para ${payload.email}`);
+      this.logger.error(`authService >> signupStepOne >> Email no aceptado para ${maskEmail(payload.email)}`);
       return StepOneErrors.TRANSPORTER_ERROR;
     }
 
@@ -978,25 +1041,26 @@ export class AuthService {
   }
 
   async disable2FA(userId: string, codeVerification: string): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (user?.twoFactorSecret) {
-      const verified = speakeasy.totp.verify({
-        secret: user.twoFactorSecret,
-        encoding: 'base32',
-        token: codeVerification,
-      });
-      if (verified) {
-        await this.prisma.user.update({
-          where: { id: userId },
-          data: { twoFactorEnabled: false, twoFactorSecret: null },
-        });
-        return true;
-      }
+    const verified = await this.twoFactorService.verifySecondFactor(userId, codeVerification);
+    if (!verified) {
+      return false;
     }
-    return false;
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+        twoFactorPendingSecret: null,
+        twoFactorLastUsedStep: null,
+      },
+    });
+    // Sin 2FA no hay nada que respaldar: los códigos sobrantes solo serían
+    // credenciales vivas olvidadas en la base de datos.
+    await this.twoFactorService.deleteBackupCodes(userId);
+
+    this.logger.info(`2FA desactivado para userId=${userId}`);
+    return true;
   }
 
   async resetPasswordStepOne(email: string): Promise<ForgotPassErrors | object> {
@@ -1116,11 +1180,7 @@ export class AuthService {
         throw new BadRequestException('El usuario no tiene un secreto 2FA configurado');
       }
 
-      const verified = speakeasy.totp.verify({
-        secret: user.twoFactorSecret,
-        encoding: 'base32',
-        token: dto.code2FA,
-      });
+      const verified = await this.twoFactorService.verifySecondFactor(userId, dto.code2FA);
 
       if (!verified) {
         throw new UnauthorizedException('Invalid 2FA code');
@@ -1147,9 +1207,14 @@ export class AuthService {
       where: { id: userId },
       select: { password: true, twoFactorEnabled: true },
     });
+    const twoFactorEnabled = user?.twoFactorEnabled ?? false;
+
     return {
       hasPassword: !!user?.password,
-      twoFactorEnabled: user?.twoFactorEnabled ?? false,
+      twoFactorEnabled,
+      backupCodesRemaining: twoFactorEnabled
+        ? await this.twoFactorService.countRemainingBackupCodes(userId)
+        : 0,
     };
   }
 }

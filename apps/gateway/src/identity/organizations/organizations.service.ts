@@ -16,7 +16,7 @@ import {
 } from '@tesseract/types';
 import { Organization, SubscriptionStatus, UserRole } from '@tesseract/database';
 import { randomBytes } from 'crypto';
-import * as speakeasy from 'speakeasy';
+import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { PrismaService } from '@/platform/database/prisma.service';
@@ -32,7 +32,9 @@ import {
   UpdateOrganizationDto,
   UpdateOverageSettingsDto,
   UpdateSettingsDto,
+  QueryOrganizationsAdminDto,
 } from './dto';
+import { maskEmail } from '@/platform/common/utils/mask-email';
 
 /**
  * Servicio para gestionar organizaciones
@@ -45,6 +47,7 @@ export class OrganizationsService {
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
     private readonly emailService: EmailService,
     private readonly utilityService: UtilityService,
+    private readonly twoFactorService: TwoFactorService,
   ) {}
 
   // ============================================
@@ -86,6 +89,52 @@ export class OrganizationsService {
   // ============================================
   // READ
   // ============================================
+  /**
+   * Lista todas las organizaciones, paginado. Solo para super admin: es la única
+   * lectura del sistema que cruza organizaciones, así que su acceso lo restringe el
+   * controlador de admin, no un filtro por tenancy.
+   *
+   * Devuelve lo mínimo para poblar un selector; el detalle se pide con findOne().
+   */
+  async findAllForAdmin(query: QueryOrganizationsAdminDto) {
+    const { search, isActive, page = 1, limit = 20 } = query;
+    const skip = (page - 1) * limit;
+
+    const where = {
+      ...(isActive !== undefined && { isActive }),
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' as const } },
+          { slug: { contains: search, mode: 'insensitive' as const } },
+        ],
+      }),
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.organization.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          plan: true,
+          isActive: true,
+          createdAt: true,
+          _count: { select: { workflows: true } },
+        },
+      }),
+      this.prisma.organization.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
   /**
    * Obtiene la información de una organización
    */
@@ -687,11 +736,7 @@ export class OrganizationsService {
       if (!code2FA) {
         throw new ForbiddenException('Código 2FA requerido');
       }
-      const verified = speakeasy.totp.verify({
-        secret: user.twoFactorSecret!,
-        encoding: 'base32',
-        token: code2FA,
-      });
+      const verified = await this.twoFactorService.verifySecondFactor(userId, code2FA);
 
       if (!verified) {
         throw new BadRequestException('Código 2FA inválido');
@@ -1130,7 +1175,7 @@ export class OrganizationsService {
       organizationId,
     );
     if (!emailSentInfo) {
-      this.logger.error(`resendInvitation >> Error sending invitation email to ${userEmail}`);
+      this.logger.error(`resendInvitation >> Error sending invitation email to ${maskEmail(userEmail)}`);
       return { success: false, error: ErrorStrings[OPERATIONS.RESEND_INVITATION].SERVER_ERROR };
     }
 
@@ -1144,7 +1189,7 @@ export class OrganizationsService {
       },
     });
     if (modifiedRecords.count === 0) {
-      this.logger.error(`resendInvitation >> Error updating verification record for ${userEmail}`);
+      this.logger.error(`resendInvitation >> Error updating verification record for ${maskEmail(userEmail)}`);
       return { success: false, error: ErrorStrings[OPERATIONS.RESEND_INVITATION].SERVER_ERROR };
     }
 
@@ -1172,7 +1217,7 @@ export class OrganizationsService {
       },
     });
     if (deletedRecords.count === 0) {
-      this.logger.error(`cancelInvitation >> No pending invitation found for ${userEmail}`);
+      this.logger.error(`cancelInvitation >> No pending invitation found for ${maskEmail(userEmail)}`);
       return { success: false, error: ErrorStrings[OPERATIONS.CANCEL_INVITATION].CANCEL_FAILED };
     }
 

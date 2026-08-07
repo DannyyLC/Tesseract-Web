@@ -1000,8 +1000,7 @@ export class ConversationsService {
     const compaction = conversation?.currentCompaction;
 
     if (
-      !compaction ||
-      compaction.status !== CompactionStatus.SUCCEEDED ||
+      compaction?.status !== CompactionStatus.SUCCEEDED ||
       !compaction.summary
     ) {
       return null;

@@ -1,0 +1,239 @@
+'use client';
+
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { AnimatePresence } from 'framer-motion';
+import { RotateCcw, Anchor, GitCompare } from 'lucide-react';
+import { Modal } from '@/components/ui/modal';
+import { LogoLoader } from '@/components/ui/logo-loader';
+import {
+  useAdminWorkflowMutations,
+  useVersionDiff,
+  useWorkflowVersions,
+} from '@/hooks/automation/use-admin-workflows';
+import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+
+interface Props {
+  workflowId: string;
+  currentVersion: number;
+  hasUnsavedChanges: boolean;
+}
+
+const SOURCE_LABEL: Record<string, string> = {
+  BASELINE: 'estado previo',
+  ADMIN_UI: 'edición',
+  RESTORE: 'restauración',
+  CLONE: 'clonado',
+};
+
+export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Props) {
+  const [page, setPage] = useState(1);
+  const [diffVersionId, setDiffVersionId] = useState<string | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<{ id: string; version: number } | null>(null);
+  const [restoreNote, setRestoreNote] = useState('');
+
+  const { data, isLoading } = useWorkflowVersions(workflowId, page);
+  const { data: diff, isLoading: diffLoading } = useVersionDiff(workflowId, diffVersionId);
+  const { restoreVersion } = useAdminWorkflowMutations();
+
+  const handleRestore = () => {
+    if (!restoreTarget) return;
+    restoreVersion.mutate(
+      {
+        id: workflowId,
+        versionId: restoreTarget.id,
+        expectedVersion: currentVersion,
+        note: restoreNote.trim() || undefined,
+      },
+      {
+        onSuccess: (result) => {
+          toast.success(
+            result.changed
+              ? `Restaurado a la versión ${restoreTarget.version} (guardado como v${result.workflow?.version})`
+              : 'Esa versión ya era la vigente',
+          );
+          setRestoreTarget(null);
+          setRestoreNote('');
+        },
+        onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo restaurar'),
+      },
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <LogoLoader text="Cargando historial" />
+      </div>
+    );
+  }
+
+  if (!data?.data.length) {
+    return (
+      <p className="p-8 text-center text-sm text-text-secondary">
+        Todavía no hay versiones guardadas. La primera vez que guardes se conservará también el
+        estado previo.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-text-secondary">
+        Se conservan las últimas 30 versiones. El estado previo a la primera edición nunca se borra.
+      </p>
+
+      <ul className="divide-y divide-border rounded-lg border border-border">
+        {data.data.map((v) => (
+          <li key={v.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-sm text-text-primary">v{v.version}</span>
+                {v.isBaseline && (
+                  <span className="inline-flex items-center gap-1 rounded bg-surface-secondary px-1.5 py-0.5 text-[10px] text-text-secondary">
+                    <Anchor size={10} /> permanente
+                  </span>
+                )}
+                <span className="text-[11px] text-text-secondary">
+                  {SOURCE_LABEL[v.source] ?? v.source}
+                </span>
+                {v.version === currentVersion && (
+                  <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[10px] text-accent">
+                    vigente
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-[11px] text-text-secondary">
+                {new Date(v.createdAt).toLocaleString('es')}
+                {v.createdByEmail && ` · ${v.createdByEmail}`}
+                {` · ${Math.round(v.sizeBytes / 1024)} KB`}
+              </p>
+              {v.note && <p className="mt-0.5 text-xs text-text-primary">{v.note}</p>}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                className={btnGhost}
+                onClick={() => setDiffVersionId(v.id)}
+                title="Comparar con el config vigente"
+              >
+                <GitCompare size={13} /> Comparar
+              </button>
+              <button
+                className={btnGhost}
+                disabled={v.version === currentVersion}
+                onClick={() => setRestoreTarget({ id: v.id, version: v.version })}
+              >
+                <RotateCcw size={13} /> Restaurar
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {data.meta.totalPages > 1 && (
+        <div className="flex items-center justify-between text-xs text-text-secondary">
+          <span>
+            Página {data.meta.page} de {data.meta.totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button className={btnGhost} disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              Anterior
+            </button>
+            <button
+              className={btnGhost}
+              disabled={page >= data.meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
+
+      <AnimatePresence>
+        {diffVersionId && (
+          <Modal isOpen onClose={() => setDiffVersionId(null)} title="Comparar con el vigente">
+            {diffLoading ? (
+              <div className="flex justify-center py-8">
+                <LogoLoader text="Calculando diferencias" />
+              </div>
+            ) : !diff?.entries.length ? (
+              <p className="py-6 text-center text-sm text-text-secondary">
+                No hay diferencias con el config vigente.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-text-secondary">
+                  v{diff.fromVersion} → v{diff.toVersion} · {diff.entries.length} cambio(s)
+                </p>
+                {diff.entries.map((entry, i) => (
+                  <div key={i} className="rounded-lg border border-border p-2">
+                    <p className="font-mono text-[11px] text-text-primary">{entry.path}</p>
+                    <p className="text-[10px] uppercase text-text-secondary">{entry.op}</p>
+                    {entry.op !== 'added' && (
+                      <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-surface-secondary p-2 font-mono text-[11px] text-text-secondary">
+                        − {typeof entry.before === 'string' ? entry.before : JSON.stringify(entry.before)}
+                      </pre>
+                    )}
+                    {entry.op !== 'removed' && (
+                      <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-surface-secondary p-2 font-mono text-[11px] text-text-primary">
+                        + {typeof entry.after === 'string' ? entry.after : JSON.stringify(entry.after)}
+                      </pre>
+                    )}
+                    {entry.truncated && (
+                      <p className="mt-1 text-[10px] text-text-secondary">
+                        (valor recortado para la vista)
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Modal>
+        )}
+
+        {restoreTarget && (
+          <Modal
+            isOpen
+            onClose={() => setRestoreTarget(null)}
+            title={`Restaurar la versión ${restoreTarget.version}`}
+          >
+            <div className="space-y-4">
+              <p className="text-sm text-text-secondary">
+                El config de la versión {restoreTarget.version} pasará a ser el vigente. No se borra
+                nada: queda registrado como una versión nueva, así que puedes deshacerlo.
+              </p>
+              {hasUnsavedChanges && (
+                <p className="rounded-lg border border-danger/40 px-3 py-2 text-xs text-danger">
+                  Tienes cambios sin guardar en el editor. Si restauras, se perderán.
+                </p>
+              )}
+              <div>
+                <label className={labelClass}>Nota (opcional)</label>
+                <input
+                  className={inputClass}
+                  value={restoreNote}
+                  onChange={(e) => setRestoreNote(e.target.value)}
+                  placeholder="Revertir cambio de tono"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button className={btnGhost} onClick={() => setRestoreTarget(null)}>
+                  Cancelar
+                </button>
+                <button
+                  className={btnPrimary}
+                  onClick={handleRestore}
+                  disabled={restoreVersion.isPending}
+                >
+                  {restoreVersion.isPending ? 'Restaurando…' : 'Restaurar'}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

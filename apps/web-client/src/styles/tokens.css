@@ -414,8 +414,15 @@
     --not-found-desc-color: rgba(255, 255, 255, 0.6);
   }
 
-  /* Equivalente a dark:prose-invert — invierte colores de tipografía en modo oscuro */
-  .prose {
+  /* Equivalente a dark:prose-invert — invierte colores de tipografía en modo oscuro.
+     Selector duplicado (".prose.prose") a propósito: como este bloque se importa
+     ANTES de "@tailwind components", el CSS que genera @tailwindcss/typography para
+     su propio ".prose" (paleta gris pensada para fondo claro, --tw-prose-bold casi
+     negro) termina más abajo en el bundle final y gana el empate de especificidad,
+     dejando el texto en negrita casi invisible sobre fondo oscuro. Duplicar la clase
+     sube la especificidad (0,2,0) por encima de la del plugin (0,1,0) sin depender
+     del orden de aparición en el CSS ni usar !important. */
+  .prose.prose {
     --tw-prose-body: #d1d5db;
     --tw-prose-headings: #ffffff;
     --tw-prose-lead: #9ca3af;

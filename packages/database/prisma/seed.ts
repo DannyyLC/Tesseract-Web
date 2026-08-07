@@ -351,7 +351,7 @@ const toolCatalogs: ToolCatalogSeed[] = [
     description: 'Gestión y manipulación de hojas de cálculo en Google Sheets.',
     provider: 'google',
     category: 'productivity',
-    icon: 'logos:google-sheets',
+    icon: 'selfhst:google-sheets',
     isActive: true,
     isInBeta: false,
     functions: [

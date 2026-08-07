@@ -81,7 +81,7 @@ export default function LlmModelsAdminPage() {
   const meta = data?.meta;
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="w-full">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-text-primary">Modelos LLM</h1>

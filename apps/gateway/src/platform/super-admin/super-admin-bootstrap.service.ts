@@ -4,6 +4,8 @@ import { UserRole } from '@tesseract/database';
 import { SubscriptionPlan } from '@tesseract/types';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { UtilityService } from '@/platform/utility/utility.service';
+import { maskEmail } from '@/platform/common/utils/mask-email';
+import { normalizeEmail } from '@/platform/common/utils/normalize-email';
 
 /**
  * Crea (o actualiza de forma idempotente) la cuenta super admin a partir de
@@ -33,7 +35,7 @@ export class SuperAdminBootstrapService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    const email = this.config.get<string>('SUPER_ADMIN_EMAIL')?.trim().toLowerCase();
+    const email = normalizeEmail(this.config.get<string>('SUPER_ADMIN_EMAIL'));
     const password = this.config.get<string>('SUPER_ADMIN_PASSWORD');
     const name = this.config.get<string>('SUPER_ADMIN_NAME')?.trim() || 'Super Admin';
 
@@ -83,7 +85,9 @@ export class SuperAdminBootstrapService implements OnApplicationBootstrap {
         },
       });
 
-      this.logger.log(`Super admin listo: ${email} (organización de plataforma "${platformOrg.slug}").`);
+      this.logger.log(
+        `Super admin listo: ${maskEmail(email)} (organización de plataforma "${platformOrg.slug}").`,
+      );
     } catch (error) {
       // No abortamos el arranque de la app por un fallo aquí; solo lo registramos.
       this.logger.error(

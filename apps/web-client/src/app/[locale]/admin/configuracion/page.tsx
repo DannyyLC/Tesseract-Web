@@ -32,7 +32,7 @@ export default function AdminConfiguracionPage() {
   const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState<LlmCategory | null>(null);
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="w-full">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-text-primary">Configuración</h1>
         <p className="text-sm text-text-secondary">

@@ -169,13 +169,13 @@ describe('WhatsappConfigService', () => {
   describe('updateConnectionStatus', () => {
     it('returns true when update succeeds', async () => {
       mockPrisma.whatsAppConfig.update.mockResolvedValue({});
-      const res = await service.updateConnectionStatus('c1', 'CONNECTED' as any);
+      const res = await service.updateConnectionStatus('c1', 'CONNECTED');
       expect(res).toBe(true);
     });
 
     it('returns false and logs when update fails', async () => {
       mockPrisma.whatsAppConfig.update.mockRejectedValue(new Error('err'));
-      const res = await service.updateConnectionStatus('c1', 'DISCONNECTED' as any);
+      const res = await service.updateConnectionStatus('c1', 'DISCONNECTED');
       expect(res).toBe(false);
       expect(mockLogger.error).toHaveBeenCalled();
     });

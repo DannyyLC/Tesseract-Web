@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { NormalizeEmail } from '@/platform/common/utils/normalize-email';
 
 export class StartVerificationFlowDto {
   @ApiProperty({ description: 'Nombre de usuario que inicia el flujo de verificación' })
@@ -9,6 +10,7 @@ export class StartVerificationFlowDto {
 
   @ApiProperty({ description: 'Correo electrónico del usuario' })
   @IsEmail()
+  @NormalizeEmail()
   email: string;
 
   @ApiProperty({ description: 'Nombre de la organización asociada al usuario' })

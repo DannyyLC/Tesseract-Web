@@ -3,6 +3,10 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Modal } from '@/components/ui/modal';
+import {
+  TwoFactorCodeInput,
+  isTwoFactorCodeComplete,
+} from '@/components/ui/two-factor-code-input';
 import { useDisable2FA } from '@/hooks/identity/use-auth';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -20,7 +24,7 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
   const disable2FA = useDisable2FA();
 
   const handleDisable = async () => {
-    if (!verificationCode || verificationCode.length !== 6) {
+    if (!isTwoFactorCodeComplete(verificationCode)) {
       toast.error(t('codeRequired'));
       return;
     }
@@ -55,23 +59,12 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-text-primary">{t('codeLabel')}</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            maxLength={6}
-            value={verificationCode}
-            onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && verificationCode.length === 6) {
-                handleDisable();
-              }
-            }}
-            placeholder={t('codePlaceholder')}
-            className="focus:ring-border-focus/5 w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4"
-          />
-        </div>
+        <TwoFactorCodeInput
+          value={verificationCode}
+          onChange={setVerificationCode}
+          onSubmit={handleDisable}
+          label={t('codeLabel')}
+        />
 
         <div className="flex gap-3 pt-4">
           <button
@@ -82,7 +75,7 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
           </button>
           <button
             onClick={handleDisable}
-            disabled={disable2FA.isPending || verificationCode.length !== 6}
+            disabled={disable2FA.isPending || !isTwoFactorCodeComplete(verificationCode)}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-3 font-medium text-brand-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {disable2FA.isPending ? (

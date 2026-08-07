@@ -7,7 +7,7 @@ import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor
 const mockBuild = jest.fn();
 jest.spyOn(CursorPaginatedResponseUtils, 'getInstance').mockReturnValue({
   build: mockBuild,
-} as unknown as CursorPaginatedResponseUtils);
+});
 
 // ─── Mock de PrismaService ─────────────────────────────────────────
 const mockPrismaService = {

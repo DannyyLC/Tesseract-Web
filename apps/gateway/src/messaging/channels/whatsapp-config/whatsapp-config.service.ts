@@ -430,7 +430,7 @@ export class WhatsappConfigService {
       return;
     }
 
-    const variables = (((executionMetadata ?? {}) as JsonObject)?.variables ?? {}) as Record<string, unknown>;
+    const variables = (((executionMetadata ?? {}))?.variables ?? {}) as Record<string, unknown>;
     if (Object.keys(variables).length === 0) {
       return;
     }
@@ -503,7 +503,7 @@ export class WhatsappConfigService {
     };
 
     const previousFlags =
-      ((executionMetadata as JsonObject)?.postTurnActions as Record<string, boolean>) ?? {};
+      ((executionMetadata)?.postTurnActions as Record<string, boolean>) ?? {};
 
     const updatedFlags = await runPostTurnActions({
       actions: declaredActions,
@@ -531,8 +531,8 @@ export class WhatsappConfigService {
     ownerNumber: string,
     clientNumber: string,
   ): Promise<void> {
-    const variables = ((executionMetadata ?? {}) as JsonObject)?.variables;
-    if ((variables as JsonObject)?.media_url && !(executionMetadata as JsonObject)?.media_url_sent) {
+    const variables = ((executionMetadata ?? {}))?.variables;
+    if ((variables as JsonObject)?.media_url && !(executionMetadata)?.media_url_sent) {
       const mediaUrlValue = (variables as JsonObject)?.media_url;
       const mediaUrls = Array.isArray(mediaUrlValue)
         ? mediaUrlValue

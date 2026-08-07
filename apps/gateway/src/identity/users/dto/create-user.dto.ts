@@ -1,10 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsNotEmpty, IsString, MinLength, Matches } from 'class-validator';
+import { NormalizeEmail } from '@/platform/common/utils/normalize-email';
 
 export class CreateUserDto {
   @ApiProperty({ description: 'Correo electrónico del usuario', example: 'user@example.com' })
   @IsEmail({}, { message: 'Invalid email format' })
   @IsNotEmpty()
+  @NormalizeEmail()
   email: string;
 
   @ApiProperty({
