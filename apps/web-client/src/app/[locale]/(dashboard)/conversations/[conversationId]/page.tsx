@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Phone,
   BellRing,
+  Mic,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useWorkflow, useExecuteStream } from '@/hooks/automation/use-workflows';
@@ -28,6 +29,8 @@ import PermissionGuard from '@/components/auth/permission-guard';
 import { useAuth } from '@/hooks/identity/use-auth';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
 import { useTranslations } from 'next-intl';
+import RecordingBar from '../_components/recording-bar';
+import { useDictation } from '@/hooks/use-dictation';
 
 interface Message {
   id: string;
@@ -36,8 +39,36 @@ interface Message {
   timestamp: string;
 }
 
+/**
+ * En móvil el composer se queda bajo a propósito: el teclado virtual ya ocupa media
+ * pantalla y crecer más dejaría la conversación sin sitio.
+ */
+const COMPOSER_MAX_HEIGHT_MOBILE = 120;
+
+/**
+ * En escritorio sobra sitio y poder releer lo que escribiste antes de enviarlo importa,
+ * sobre todo dictando. Se limita además al 40% de la ventana para no comerse el chat en
+ * portátiles de pantalla corta, donde 280px fijos serían demasiado.
+ */
+const COMPOSER_MAX_HEIGHT_DESKTOP = 280;
+const COMPOSER_MAX_VIEWPORT_RATIO = 0.4;
+
+/** Coincide con el breakpoint `md` de Tailwind, para que CSS y JS no discrepen. */
+const DESKTOP_MEDIA_QUERY = '(min-width: 768px)';
+
+function composerMaxHeight(): number {
+  if (typeof window === 'undefined') return COMPOSER_MAX_HEIGHT_MOBILE;
+  if (!window.matchMedia(DESKTOP_MEDIA_QUERY).matches) return COMPOSER_MAX_HEIGHT_MOBILE;
+
+  return Math.min(
+    COMPOSER_MAX_HEIGHT_DESKTOP,
+    Math.round(window.innerHeight * COMPOSER_MAX_VIEWPORT_RATIO),
+  );
+}
+
 export default function WorkflowChatPage() {
   const t = useTranslations('Conversations');
+  const tDictation = useTranslations('Dictation');
 
   const THINKING_WORDS = [
     t('thinkingWord1'),
@@ -293,15 +324,6 @@ export default function WorkflowChatPage() {
     lastScrollTop.current = scrollTop;
   };
 
-  // Ajuste de altura del textarea
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'inherit';
-      const scrollHeight = textareaRef.current.scrollHeight;
-      textareaRef.current.style.height = `${Math.min(scrollHeight, 120)}px`;
-    }
-  }, [input]);
-
   // Efecto para actualizar la URL SOLO cuando termine el streaming
   useEffect(() => {
     if (!isStreaming && pendingConversationId.current) {
@@ -310,6 +332,47 @@ export default function WorkflowChatPage() {
       pendingConversationId.current = null;
     }
   }, [isStreaming, router]);
+
+  /**
+   * Coloca la transcripción en el composer en vez de enviarla.
+   *
+   * Se añade a lo que ya hubiera escrito para no pisar texto, y devuelve el foco al
+   * final para poder corregir de inmediato lo que el reconocimiento haya fallado.
+   */
+  const handleTranscribed = (text: string) => {
+    setInput((previous) => (previous.trim() ? `${previous.trim()} ${text}` : text));
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    });
+  };
+
+  const dictation = useDictation(handleTranscribed);
+
+  /**
+   * Ajusta la altura del composer al contenido.
+   *
+   * Depende también del estado del dictado porque el `textarea` se desmonta mientras se
+   * graba: al volver, el texto ya creció y hay que remedirlo aunque `input` no cambie en
+   * ese instante.
+   */
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const fitToContent = () => {
+      textarea.style.height = 'inherit';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, composerMaxHeight())}px`;
+    };
+
+    fitToContent();
+    // El tope de escritorio depende del alto de la ventana, así que hay que remedirlo
+    // si se redimensiona.
+    window.addEventListener('resize', fitToContent);
+    return () => window.removeEventListener('resize', fitToContent);
+  }, [input, dictation.isActive]);
 
   const handleSend = async () => {
     if (!input.trim() || isStreaming) return;
@@ -573,9 +636,7 @@ export default function WorkflowChatPage() {
                             }
                           >
                             <BellRing size={13} className="shrink-0" />
-                            <span className="hidden lg:inline">
-                              {t('statusNeedsFollowUp')}
-                            </span>
+                            <span className="hidden lg:inline">{t('statusNeedsFollowUp')}</span>
                           </button>
                         </PermissionGuard>
 
@@ -879,62 +940,89 @@ export default function WorkflowChatPage() {
                     : ''
                 }`}
               >
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={
-                    conversationData && !conversationData.userId
-                      ? conversationData.isHumanInTheLoop
-                        ? t('writeResponse')
-                        : t('takeControlToRespond')
-                      : t('sendMessagePlaceholder', { name: workflow?.name ?? '' })
-                  }
-                  className="scrollbar-hide max-h-[200px] min-h-[44px] flex-1 resize-none overflow-y-auto bg-transparent py-3 text-[15px] leading-relaxed text-text-primary outline-none placeholder:text-input-placeholder disabled:cursor-not-allowed"
-                  autoFocus
-                  disabled={
-                    (conversationData &&
-                      !conversationData.userId &&
-                      !conversationData.isHumanInTheLoop) ||
-                    (!!error &&
-                      (error?.errorCode === 'WORKFLOW_2005' ||
-                        error?.message?.includes('paused') ||
-                        error?.message?.includes('Conflict') ||
-                        error?.errorCode === 'WORKFLOW_2003' ||
-                        error?.message?.includes('inactivo') ||
-                        error?.message?.includes('Bad Request')))
-                  }
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={
-                    (conversationData &&
-                      !conversationData.userId &&
-                      !conversationData.isHumanInTheLoop) ||
-                    !input.trim() ||
-                    isStreaming ||
-                    (!!error &&
-                      (error?.errorCode === 'WORKFLOW_2005' ||
-                        error?.message?.includes('paused') ||
-                        error?.message?.includes('Conflict') ||
-                        error?.errorCode === 'WORKFLOW_2003' ||
-                        error?.message?.includes('inactivo') ||
-                        error?.message?.includes('Bad Request')))
-                  }
-                  className="mb-1 mr-1 flex-shrink-0 rounded-full bg-accent p-2 text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20"
-                >
-                  {isStreaming ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : (
-                    <Send size={18} />
-                  )}
-                </button>
+                {dictation.isActive ? (
+                  <RecordingBar
+                    analyser={dictation.analyser}
+                    seconds={dictation.seconds}
+                    isProcessing={dictation.state === 'processing'}
+                    isTranscribingSegment={dictation.isTranscribingSegment}
+                    transcript={input}
+                    onStop={dictation.stop}
+                    onCancel={dictation.cancel}
+                  />
+                ) : (
+                  <>
+                    <textarea
+                      ref={textareaRef}
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder={
+                        conversationData && !conversationData.userId
+                          ? conversationData.isHumanInTheLoop
+                            ? t('writeResponse')
+                            : t('takeControlToRespond')
+                          : t('sendMessagePlaceholder', { name: workflow?.name ?? '' })
+                      }
+                      className="scrollbar-hide max-h-[120px] min-h-[44px] flex-1 resize-none overflow-y-auto bg-transparent py-3 text-[15px] leading-relaxed text-text-primary outline-none placeholder:text-input-placeholder disabled:cursor-not-allowed md:max-h-[280px]"
+                      autoFocus
+                      disabled={
+                        (conversationData &&
+                          !conversationData.userId &&
+                          !conversationData.isHumanInTheLoop) ||
+                        (!!error &&
+                          (error?.errorCode === 'WORKFLOW_2005' ||
+                            error?.message?.includes('paused') ||
+                            error?.message?.includes('Conflict') ||
+                            error?.errorCode === 'WORKFLOW_2003' ||
+                            error?.message?.includes('inactivo') ||
+                            error?.message?.includes('Bad Request')))
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={dictation.start}
+                      title={tDictation('startTitle')}
+                      aria-label={tDictation('startTitle')}
+                      disabled={
+                        isStreaming ||
+                        (!!conversationData &&
+                          !conversationData.userId &&
+                          !conversationData.isHumanInTheLoop)
+                      }
+                      className="mb-1 flex-shrink-0 rounded-full p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      <Mic size={18} />
+                    </button>
+                    <button
+                      onClick={handleSend}
+                      disabled={
+                        (conversationData &&
+                          !conversationData.userId &&
+                          !conversationData.isHumanInTheLoop) ||
+                        !input.trim() ||
+                        isStreaming ||
+                        (!!error &&
+                          (error?.errorCode === 'WORKFLOW_2005' ||
+                            error?.message?.includes('paused') ||
+                            error?.message?.includes('Conflict') ||
+                            error?.errorCode === 'WORKFLOW_2003' ||
+                            error?.message?.includes('inactivo') ||
+                            error?.message?.includes('Bad Request')))
+                      }
+                      className="mb-1 mr-1 flex-shrink-0 rounded-full bg-accent p-2 text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20"
+                    >
+                      {isStreaming ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        <Send size={18} />
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
               <div className="mt-2 text-center">
-                <p className="text-[10px] text-text-tertiary">
-                  {t('aiDisclaimer')}
-                </p>
+                <p className="text-[10px] text-text-tertiary">{t('aiDisclaimer')}</p>
               </div>
             </div>
           </div>

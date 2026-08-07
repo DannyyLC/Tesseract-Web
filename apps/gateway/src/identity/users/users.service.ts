@@ -13,9 +13,10 @@ import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor
 import { PrismaService } from '@/platform/database/prisma.service';
 import { NotificationEventDto } from './dto/notification.dto';
 import { EmailService } from '@/messaging/notifications/email/email.service';
-import * as speakeasy from 'speakeasy';
+import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
 import { DashboardUserDataDto, UpdateProfileDto, UserFiltersDto } from './dto';
 import { PendingInvitationDto } from './dto/pending-invitation.dto';
+import { maskEmail } from '@/platform/common/utils/mask-email';
 
 interface PaginatedUsers {
   data: User[];
@@ -58,6 +59,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
     private readonly emailService: EmailService,
+    private readonly twoFactorService: TwoFactorService,
   ) {}
 
   async validateEmailUnique(email: string): Promise<boolean> {
@@ -418,15 +420,11 @@ export class UsersService {
     // Transformar byRole a objeto
     const roleStats = byRole.reduce(
       (acc, item) => {
-        const role = roleMap[item.role as UserRole];
+        const role = roleMap[item.role];
         if (role) acc[role] = item._count;
         return acc;
       },
-      { viewer: 0, admin: 0, owner: 0 } as {
-        viewer: number;
-        admin: number;
-        owner: number;
-      },
+      { viewer: 0, admin: 0, owner: 0 },
     );
 
     return {
@@ -609,7 +607,7 @@ export class UsersService {
       // Create a clean object conforming to DashboardUserDataDto
       // Note: user here has exact fields from select above.
       // We are no longer removing ID as it is now required in the DTO
-      return user as DashboardUserDataDto;
+      return user;
     });
 
     return {
@@ -661,7 +659,7 @@ export class UsersService {
     });
 
     // 1. Validar que el usuario existe
-    if (!user || user.organizationId !== organizationId) {
+    if (user?.organizationId !== organizationId) {
       throw new NotFoundException('Usuario no encontrado');
     }
 
@@ -687,11 +685,7 @@ export class UsersService {
         throw new BadRequestException('El usuario no tiene un secreto 2FA configurado');
       }
 
-      const verified = speakeasy.totp.verify({
-        secret: user.twoFactorSecret,
-        encoding: 'base32',
-        token: code2FA,
-      });
+      const verified = await this.twoFactorService.verifySecondFactor(userId, code2FA);
 
       if (!verified) {
         throw new BadRequestException('Código 2FA inválido');
@@ -708,7 +702,7 @@ export class UsersService {
     });
 
     // 6. Log de auditoría
-    this.logger.info(`User ${user.email} left organization ${user.organization.name} voluntarily`);
+    this.logger.info(`User userId=${user.id} left organization ${user.organization.name} voluntarily`);
 
     return {
       message: 'Has abandonado la organización exitosamente.',
@@ -864,7 +858,7 @@ export class UsersService {
         dateTime,
       );
       if (!emailResult) {
-        this.logger.error(`Failed to send service information request email for user ${email}`);
+        this.logger.error(`Failed to send service information request email for user ${maskEmail(email)}`);
         return false;
       }
       return true;

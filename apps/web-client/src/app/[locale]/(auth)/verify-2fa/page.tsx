@@ -9,6 +9,10 @@ import { useRouter, Link } from '@/i18n/routing';
 import Image from 'next/image';
 import { useVerify2FA, useAuth } from '@/hooks/identity/use-auth';
 import { LogoLoader } from '@/components/ui/logo-loader';
+import {
+  TwoFactorCodeInput,
+  isTwoFactorCodeComplete,
+} from '@/components/ui/two-factor-code-input';
 
 export default function Verify2FAPage() {
   const t = useTranslations('Verify2FA');
@@ -27,7 +31,7 @@ export default function Verify2FAPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (code.length !== 6) {
+    if (!isTwoFactorCodeComplete(code)) {
       toast.error(t('codeLengthError'));
       return;
     }
@@ -192,29 +196,19 @@ export default function Verify2FAPage() {
                 )}
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-text-primary">
-                    {t('codeLabel')}
-                  </label>
-                  <input
-                    type="text"
+                  <TwoFactorCodeInput
                     value={code}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                      setCode(value);
-                    }}
-                    placeholder={t('codePlaceholder')}
-                    className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-center font-mono text-2xl tracking-widest text-text-primary outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover"
-                    required
-                    maxLength={6}
+                    onChange={setCode}
+                    label={t('codeLabel')}
+                    variant="auth"
                     autoFocus
-                    autoComplete="one-time-code"
                   />
                   <p className="text-xs text-text-secondary">{t('codeHelper')}</p>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={isPending || code.length !== 6}
+                  disabled={isPending || !isTwoFactorCodeComplete(code)}
                   className="group flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-4 font-semibold text-text-inverse transition-all hover:bg-accent-hover"
                 >
                   {isPending ? (

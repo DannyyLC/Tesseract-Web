@@ -45,6 +45,7 @@ import {
 } from '@/automation/media-processing/media-processing.service';
 import { MediaPolicy, resolveMediaPolicy } from '@/automation/media-processing/media-policy';
 import { selectMessagesToArchive } from './compaction-window';
+import { WorkflowConfigValidator } from './workflow-config.validator';
 
 /**
  * Variables reservadas de la plataforma. Un workflow las deja en sus variables
@@ -84,6 +85,7 @@ export class WorkflowsService {
     private readonly toolsService: ToolsService,
     private readonly mediaProcessingService: MediaProcessingService,
     private readonly configService: ConfigService,
+    private readonly configValidator: WorkflowConfigValidator,
   ) {
     this.compactionApiBaseUrl = this.configService
       .get<string>('COMPACTION_API_BASE_URL', 'https://api.openai.com/v1')
@@ -468,8 +470,8 @@ export class WorkflowsService {
       {} as Record<string, number>,
     );
 
-    const successfulCount = statusCounts['COMPLETED'] || 0;
-    const failedCount = statusCounts['FAILED'] || 0;
+    const successfulCount = statusCounts.COMPLETED || 0;
+    const failedCount = statusCounts.FAILED || 0;
     const successRate = totalExecutions > 0 ? (successfulCount / totalExecutions) * 100 : 0;
 
     // Error Distribution Processing
@@ -1665,7 +1667,7 @@ export class WorkflowsService {
       // Enriquecer send_bulk_whatsapp con config del sistema (el modelo nunca elige el remitente)
       if (toolName === 'send_bulk_whatsapp') {
         const configId =
-          (tenantTool.config as any)?.whatsapp_config_id ?? whatsAppConfigId ?? undefined;
+          (tenantTool.config)?.whatsapp_config_id ?? whatsAppConfigId ?? undefined;
 
         if (configId) {
           const wac = await this.prisma.whatsAppConfig.findFirst({
@@ -1891,10 +1893,10 @@ export class WorkflowsService {
   private async prepareHistoryForPayload(
     conversationId: string,
     maxTokensPerExecution: number,
-    messageHistory: Array<{ role: string; content?: string | null }>,
+    messageHistory: { role: string; content?: string | null }[],
     userMessage: string,
   ): Promise<{
-    historyForPayload: Array<{ role: string; content?: string | null }>;
+    historyForPayload: { role: string; content?: string | null }[];
     activeSummary: string | null;
   }> {
     const historyForCompaction = [...messageHistory, { role: 'user', content: userMessage }];
@@ -1940,7 +1942,7 @@ export class WorkflowsService {
   private async compactConversationIfThresholdReached(
     conversationId: string,
     maxTokensPerExecution: number,
-    messageHistory: Array<{ role: string; content?: string | null }>,
+    messageHistory: { role: string; content?: string | null }[],
   ): Promise<{ compactionApplied: boolean; activeSummary: string | null }> {
     const historyTokens = this.estimateMessageHistoryTokens(messageHistory);
     const threshold = Math.floor(maxTokensPerExecution * this.compactionThresholdRatio);
@@ -2035,7 +2037,7 @@ export class WorkflowsService {
     }
   }
 
-  private estimateMessageHistoryTokens(messageHistory: Array<{ content?: string | null }>): number {
+  private estimateMessageHistoryTokens(messageHistory: { content?: string | null }[]): number {
     return messageHistory.reduce((acc, msg) => {
       const content = String(msg.content ?? '');
       return acc + Math.max(1, Math.ceil(content.length / 4));
@@ -2043,9 +2045,9 @@ export class WorkflowsService {
   }
 
   private calculateAdaptiveRecentMessages(
-    historyForPayload: Array<{ role: string; content?: string | null }>,
+    historyForPayload: { role: string; content?: string | null }[],
     absoluteLimit: number,
-  ): Array<{ role: string; content?: string | null }> {
+  ): { role: string; content?: string | null }[] {
     const ratio = this.estimateMessageHistoryTokens(historyForPayload) / absoluteLimit;
 
     let keep: number;
@@ -2059,7 +2061,7 @@ export class WorkflowsService {
 
   private async summarizeArchivedConversation(
     existingSummary: string | null,
-    archivedMessages: Array<{ role: string; content: string }>,
+    archivedMessages: { role: string; content: string }[],
   ): Promise<string> {
     if (!this.compactionApiKey) {
       throw new Error('COMPACTION_API_KEY is not configured');
@@ -2113,7 +2115,7 @@ export class WorkflowsService {
     }
 
     const payload = (await response.json()) as {
-      choices?: { message?: { content?: string | Array<{ type?: string; text?: string }> } }[];
+      choices?: { message?: { content?: string | { type?: string; text?: string }[] } }[];
     };
 
     const content = payload.choices?.[0]?.message?.content;
@@ -2187,146 +2189,7 @@ export class WorkflowsService {
   }
 
   private async validateConfig(config: any) {
-    if (!config || typeof config !== 'object') {
-      throw new InvalidWorkflowConfigException('Config must be an object');
-    }
-
-    if (!config.type) {
-      throw new InvalidWorkflowConfigException('Config must have a "type" field');
-    }
-
-    // Validación para workflows tipo 'agent' (LangGraph)
-    if (config.type === 'agent') {
-      if (!config.graph?.type) {
-        throw new InvalidWorkflowConfigException(
-          'Agent workflows must have graph.type (react, supervisor, router, sequential, parallel)',
-        );
-      }
-      if (!config.agents || typeof config.agents !== 'object') {
-        throw new InvalidWorkflowConfigException('Agent workflows must have agents config');
-      }
-      // Validar que al menos exista un agente
-      if (Object.keys(config.agents).length === 0) {
-        throw new InvalidWorkflowConfigException('Agent workflows must have at least one agent');
-      }
-
-      // Validar que los modelos especificados existen en la BD
-      await this.validateModelsInConfig(config.agents);
-
-      // Validación estructural del grafo pipeline contra el catálogo del motor
-      if (config.graph?.type === 'pipeline') {
-        await this.validatePipelineGraph(config.graph);
-      }
-    }
-  }
-
-  /**
-   * Valida un graph_config de pipeline contra el catálogo autodescriptivo del
-   * motor (GetNodeCatalog): tipos de nodo soportados, ids únicos y aristas que
-   * referencian nodos existentes. Si el motor no está disponible, la validación
-   * de catálogo se omite (con warning) pero la estructural corre igual.
-   */
-  private async validatePipelineGraph(graph: any) {
-    const nodes: any[] = Array.isArray(graph.nodes) ? graph.nodes : [];
-    const edges: any[] = Array.isArray(graph.edges) ? graph.edges : [];
-
-    if (nodes.length === 0) {
-      throw new InvalidWorkflowConfigException('Pipeline graph must have a non-empty "nodes" list');
-    }
-    if (edges.length === 0) {
-      throw new InvalidWorkflowConfigException('Pipeline graph must have a non-empty "edges" list');
-    }
-
-    const nodeIds = new Set<string>();
-    for (const node of nodes) {
-      if (!node?.id || !node?.type) {
-        throw new InvalidWorkflowConfigException('Every pipeline node needs "id" and "type"');
-      }
-      if (nodeIds.has(node.id)) {
-        throw new InvalidWorkflowConfigException(`Duplicate node id: "${node.id}"`);
-      }
-      nodeIds.add(node.id);
-    }
-
-    for (const edge of edges) {
-      const from = edge?.from;
-      const to = edge?.to;
-      if (!from || !to) {
-        throw new InvalidWorkflowConfigException('Every edge needs "from" and "to"');
-      }
-      if (from !== 'START' && !nodeIds.has(from)) {
-        throw new InvalidWorkflowConfigException(`Edge references unknown node: "${from}"`);
-      }
-      if (to !== 'END' && !nodeIds.has(to)) {
-        throw new InvalidWorkflowConfigException(`Edge references unknown node: "${to}"`);
-      }
-    }
-
-    // Tipos de nodo contra el catálogo del motor (best-effort si el motor está caído)
-    try {
-      const catalog = await this.agentsService.getNodeCatalog('pipeline');
-      const supportedTypes = new Set(Object.keys(catalog?.node_types ?? {}));
-      if (supportedTypes.size > 0) {
-        for (const node of nodes) {
-          if (!supportedTypes.has(node.type)) {
-            throw new InvalidWorkflowConfigException(
-              `Unknown node type "${node.type}" (node "${node.id}"). ` +
-                `Supported: ${Array.from(supportedTypes).join(', ')}`,
-            );
-          }
-        }
-      }
-    } catch (error) {
-      if (error instanceof InvalidWorkflowConfigException) throw error;
-      this.logger.warn(
-        `Node catalog unavailable, skipping catalog validation: ${(error as Error).message}`,
-      );
-    }
-  }
-
-  /**
-   * Valida que todos los modelos especificados en agents_config existen en LlmModel
-   */
-  private async validateModelsInConfig(agentsConfig: Record<string, any>) {
-    const modelsToValidate = new Set<string>();
-
-    // Recolectar todos los modelos (principal + fallbacks)
-    for (const agentConfig of Object.values(agentsConfig)) {
-      if (agentConfig.model) {
-        modelsToValidate.add(agentConfig.model);
-      }
-      if (agentConfig.fallbacks && Array.isArray(agentConfig.fallbacks)) {
-        agentConfig.fallbacks.forEach((model: string) => modelsToValidate.add(model));
-      }
-    }
-
-    if (modelsToValidate.size === 0) {
-      throw new InvalidWorkflowConfigException('At least one agent must have a model specified');
-    }
-
-    // Obtener modelos activos de la BD
-    const activeModels = await this.prisma.llmModel.findMany({
-      where: { isActive: true },
-      select: { modelName: true },
-    });
-
-    const activeModelNames = new Set(activeModels.map((m) => m.modelName));
-    const invalidModels: string[] = [];
-
-    // Verificar que cada modelo existe
-    for (const model of modelsToValidate) {
-      if (!activeModelNames.has(model)) {
-        invalidModels.push(model);
-      }
-    }
-
-    if (invalidModels.length > 0) {
-      const availableModels = Array.from(activeModelNames).slice(0, 10).join(', ');
-      throw new InvalidWorkflowConfigException(
-        `Invalid models: ${invalidModels.join(', ')}. ` +
-          `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
-      );
-    }
+    await this.configValidator.assert(config);
   }
 
   /**

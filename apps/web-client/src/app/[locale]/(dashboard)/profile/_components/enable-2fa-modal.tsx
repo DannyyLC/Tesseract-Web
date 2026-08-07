@@ -3,8 +3,11 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Modal } from '@/components/ui/modal';
+import { BackupCodesPanel } from '@/components/ui/backup-codes-panel';
+import { CopyButton } from '@/components/ui/copy-button';
+import { TwoFactorCodeInput } from '@/components/ui/two-factor-code-input';
 import { useSetup2FA, useEnable2FA } from '@/hooks/identity/use-auth';
-import { Loader2, ShieldCheck, Copy, Check } from 'lucide-react';
+import { Loader2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
@@ -14,13 +17,17 @@ interface Enable2FAModalProps {
   onClose: () => void;
 }
 
+/** 1: explicación · 2: escanear y verificar · 3: guardar códigos de respaldo. */
+type Step = 1 | 2 | 3;
+
 export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps) {
   const t = useTranslations('Enable2FAModal');
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<Step>(1);
   const [qrCode, setQrCode] = useState<string>('');
   const [secret, setSecret] = useState<string>('');
   const [verificationCode, setVerificationCode] = useState('');
-  const [copiedSecret, setCopiedSecret] = useState(false);
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [codesSaved, setCodesSaved] = useState(false);
 
   const queryClient = useQueryClient();
   const setup2FA = useSetup2FA();
@@ -28,21 +35,14 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
 
   const handleSetup = async () => {
     try {
-      const response = await setup2FA.mutateAsync();
+      const response = await setup2FA.mutateAsync(undefined);
 
-      if (response.data) {
-        const qrCode = response.data.qr || response.data.qrCode;
-        const secret = response.data.secret || '';
-
-        if (qrCode) {
-          setQrCode(qrCode);
-          setSecret(secret);
-          setStep(2);
-        } else {
-          toast.error(t('noQrError'));
-        }
+      if (response.data?.qr) {
+        setQrCode(response.data.qr);
+        setSecret(response.data.secret ?? '');
+        setStep(2);
       } else {
-        toast.error(t('noDataError'));
+        toast.error(t('noQrError'));
       }
     } catch (error: any) {
       toast.error(error.message || t('setupError'));
@@ -50,28 +50,24 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
   };
 
   const handleVerify = async () => {
-    if (!verificationCode || verificationCode.length !== 6) {
+    if (verificationCode.length !== 6) {
       toast.error(t('codeRequired'));
       return;
     }
 
     try {
-      await enable2FA.mutateAsync(verificationCode);
+      const response = await enable2FA.mutateAsync(verificationCode);
       // Invalidate user queries to refresh 2FA status
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
       toast.success(t('activated'));
-      handleClose();
+
+      // Los códigos solo llegan aquí: si no se muestran ahora, se pierden.
+      setBackupCodes(response.data?.backupCodes ?? []);
+      setStep(3);
     } catch (error: any) {
       toast.error(error.message || t('invalidCode'));
     }
-  };
-
-  const handleCopySecret = () => {
-    navigator.clipboard.writeText(secret);
-    setCopiedSecret(true);
-    toast.success(t('codeCopied'));
-    setTimeout(() => setCopiedSecret(false), 2000);
   };
 
   const handleClose = () => {
@@ -79,13 +75,19 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
     setQrCode('');
     setSecret('');
     setVerificationCode('');
-    setCopiedSecret(false);
+    setBackupCodes([]);
+    setCodesSaved(false);
     onClose();
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={t('title')}>
-      {step === 1 ? (
+    <Modal
+      isOpen={isOpen}
+      onClose={step === 3 ? () => undefined : handleClose}
+      title={t('title')}
+      size={step === 3 ? 'lg' : 'md'}
+    >
+      {step === 1 && (
         <div className="space-y-4">
           <div className="bg-info-500/10 rounded-xl p-4 text-info-500">
             <div className="flex gap-3">
@@ -130,7 +132,9 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
             </button>
           </div>
         </div>
-      ) : (
+      )}
+
+      {step === 2 && (
         <div className="space-y-4">
           <div className="space-y-3">
             <p className="text-sm font-medium text-text-primary">{t('step1Title')}</p>
@@ -153,41 +157,28 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
             <div className="space-y-2">
               <p className="text-sm font-medium text-text-primary">{t('manualCode')}</p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 rounded-lg bg-surface-secondary px-3 py-2 font-mono text-sm text-text-primary">
+                <code className="flex-1 break-all rounded-lg bg-surface-secondary px-3 py-2 font-mono text-sm text-text-primary">
                   {secret}
                 </code>
-                <button
-                  onClick={handleCopySecret}
-                  className="rounded-lg bg-surface-secondary p-2 transition-colors hover:bg-surface-elevated"
+                <CopyButton
+                  text={secret}
                   title={t('copyCode')}
-                >
-                  {copiedSecret ? (
-                    <Check size={18} className="text-success-500" />
-                  ) : (
-                    <Copy size={18} className="text-text-secondary" />
-                  )}
-                </button>
+                  successMessage={t('codeCopied')}
+                  size={18}
+                  className="rounded-lg bg-surface-secondary p-2 text-text-secondary transition-colors hover:bg-surface-elevated"
+                />
               </div>
             </div>
           )}
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-text-primary">{t('step2Title')}</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={verificationCode}
-              onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && verificationCode.length === 6) {
-                  handleVerify();
-                }
-              }}
-              placeholder={t('codePlaceholder')}
-              className="focus:ring-border-focus/5 w-full rounded-xl border border-input-border bg-input-bg px-4 py-3 text-center font-mono text-lg tracking-widest text-text-primary outline-none focus:border-input-border-focus focus:ring-4"
-            />
-          </div>
+          {/* En el alta no se admite código de respaldo: todavía no existe ninguno. */}
+          <TwoFactorCodeInput
+            value={verificationCode}
+            onChange={setVerificationCode}
+            onSubmit={handleVerify}
+            label={t('step2Title')}
+            allowBackupCode={false}
+          />
 
           <div className="flex gap-3 pt-4">
             <button
@@ -211,6 +202,30 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
               )}
             </button>
           </div>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className="space-y-4">
+          <BackupCodesPanel codes={backupCodes} />
+
+          <label className="flex cursor-pointer items-start gap-3 text-sm text-text-primary">
+            <input
+              type="checkbox"
+              checked={codesSaved}
+              onChange={(e) => setCodesSaved(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
+            />
+            <span>{t('codesSavedConfirm')}</span>
+          </label>
+
+          <button
+            onClick={handleClose}
+            disabled={!codesSaved}
+            className="w-full rounded-xl bg-accent px-4 py-3 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t('finishButton')}
+          </button>
         </div>
       )}
     </Modal>

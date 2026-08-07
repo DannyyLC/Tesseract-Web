@@ -124,7 +124,7 @@ export class WhatsappWorkerController {
       );
 
       if (account.connectionStatus !== 'CONNECTED') {
-        await this.whatsappConfigService.updateConnectionStatus(account.id, 'CONNECTED' as any);
+        await this.whatsappConfigService.updateConnectionStatus(account.id, 'CONNECTED');
       }
 
       if (account.phoneNumber == null || account.phoneNumber === '') {

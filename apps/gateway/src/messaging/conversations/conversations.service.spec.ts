@@ -9,7 +9,7 @@ import { UtilityService } from '@/platform/utility/utility.service';
 const mockBuild = jest.fn();
 jest.spyOn(CursorPaginatedResponseUtils, 'getInstance').mockReturnValue({
   build: mockBuild,
-} as unknown as CursorPaginatedResponseUtils);
+});
 
 // Mock PrismaService
 const mockPrismaService = {

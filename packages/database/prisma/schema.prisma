@@ -140,6 +140,14 @@ enum ToolConnectionStatus {
   EXPIRED_AUTH
 }
 
+// Qué originó un snapshot de config en workflow_config_versions.
+enum WorkflowVersionSource {
+  BASELINE // Estado previo a la primera edición por UI. Nunca se poda.
+  ADMIN_UI
+  RESTORE
+  CLONE
+}
+
 enum DangerLevel {
   SAFE
   WARNING
@@ -419,6 +427,12 @@ model User {
   // 2FA
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
+  // Secreto en pruebas: se llena al iniciar el alta y solo se promueve a
+  // twoFactorSecret cuando el usuario confirma un código. Así un alta abandonada
+  // nunca deja la cuenta sin segundo factor.
+  twoFactorPendingSecret String?
+  // Último paso TOTP consumido (epoch/30). Impide reusar un código dentro de su ventana.
+  twoFactorLastUsedStep  Int?
 
   // Rol y estado
   role     UserRole @default(VIEWER)
@@ -445,12 +459,30 @@ model User {
   auditLogs        AuditLog[]
   notifications    UserNotification[]
   tenantTools      TenantTool[]
+  backupCodes      UserBackupCode[]
 
   @@index([organizationId])
   @@index([role])
   @@index([deletedAt])
   @@index([isActive])
   @@map("users")
+}
+
+/// Códigos de respaldo de 2FA: permiten entrar cuando se pierde el autenticador.
+/// Se guardan hasheados con SHA-256 (determinista, para búsqueda indexada) porque
+/// son aleatorios de alta entropía y no contraseñas elegidas por el usuario.
+model UserBackupCode {
+  id       String    @id @default(uuid())
+  codeHash String    @unique
+  usedAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_backup_codes")
 }
 
 // ============================================
@@ -1139,6 +1171,7 @@ model Workflow {
   conversations   Conversation[]
   apiKeys         ApiKey[]
   cronTriggers    WorkflowCronTrigger[]
+  configVersions  WorkflowConfigVersion[]
 
   @@index([organizationId])
   @@index([isActive])
@@ -1147,6 +1180,42 @@ model Workflow {
   @@index([triggerType])
   @@index([category])
   @@map("workflows")
+}
+
+/// Historial de configs de un workflow. Antes de esto, `workflows.config` se
+/// sobrescribía y el estado anterior se perdía (`workflows.version` es solo un
+/// contador).
+///
+/// Se guardan snapshots COMPLETOS, no diffs: restaurar es un solo SELECT y una fila
+/// corrupta no invalida el resto de la historia. Postgres los TOAST-comprime solo
+/// (~300 KB de config quedan en ~100 KB en disco), así que el costo es marginal.
+/// Los diffs se calculan al vuelo para mostrarlos, igual que `git diff`.
+model WorkflowConfigVersion {
+  id         String   @id @default(uuid())
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  /// Valor de `workflows.version` que representa este snapshot.
+  version Int
+  config  Json
+
+  /// sha256 del JSON canónico (claves ordenadas). Evita escribir una fila cuando
+  /// se guarda sin cambios reales.
+  configHash String
+  sizeBytes  Int
+
+  /// El baseline es el estado previo a la primera edición por UI: nunca se poda.
+  isBaseline Boolean               @default(false)
+  note       String?
+  source     WorkflowVersionSource @default(ADMIN_UI)
+
+  createdById    String?
+  createdByEmail String?
+  createdAt      DateTime @default(now())
+
+  @@unique([workflowId, version])
+  @@index([workflowId, createdAt])
+  @@map("workflow_config_versions")
 }
 
 // ============================================

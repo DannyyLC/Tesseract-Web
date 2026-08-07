@@ -8,7 +8,7 @@ describe('InvoiceService', () => {
   // Spy CursorPaginatedResponseUtils.getInstance().build
   jest
     .spyOn(CursorPaginatedResponseUtils, 'getInstance')
-    .mockReturnValue({ build: mockBuild } as any);
+    .mockReturnValue({ build: mockBuild });
 
   const mockPrismaService = {
     invoice: {

@@ -39,6 +39,7 @@ import {
   WEBHOOK_PROVIDER_YCLOUD,
   WHATSAPP_WORKER_PATH,
 } from '../../whatsapp-worker.constants';
+import { WorkflowsService } from '@/automation/workflows/workflows.service';
 
 @Controller('whatsapp-config')
 export class WhatsappConfigController {
@@ -48,6 +49,7 @@ export class WhatsappConfigController {
     private readonly whatsappMessageQueueService: WhatsappMessageQueueService,
     private readonly cloudTasks: CloudTasksService,
     private readonly webhookDedup: WebhookDedupService,
+    private readonly workflowsService: WorkflowsService,
   ) {}
 
   // ─── Webhook ──────────────────────────────────────────────────────────
@@ -144,7 +146,6 @@ export class WhatsappConfigController {
     //    ANTES de responder: si algo falla, devolvemos un no-2xx y YCloud reintenta.
     try {
       const account = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(phoneNumber);
-
       if (!account) {
         this.logger.warn(`No WhatsApp config found for phone number: ${phoneNumber}`);
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'unknown-config' });
@@ -155,6 +156,23 @@ export class WhatsappConfigController {
           `Received message for inactive WhatsApp config with phone number: ${phoneNumber}`,
         );
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'inactive-config' });
+      }
+
+      if (!account.defaultWorkflowId) {
+        this.logger.warn(
+          `Received message for WhatsApp config with no associated workflow: ${account.id}`,
+        );
+        return res.status(HttpStatus.OK).send({ received: true, ignored: 'no-workflow' });
+      }
+
+      if (account.defaultWorkflowId) {
+        const workFlowAssociated = await this.workflowsService.findOne(account.organizationId, account.defaultWorkflowId);
+        if (!workFlowAssociated.isActive) {
+          this.logger.warn(
+            `Received message for WhatsApp config with inactive workflow: ${account.defaultWorkflowId}`,
+          );
+          return res.status(HttpStatus.OK).send({ received: true, ignored: 'inactive-workflow' });
+        }
       }
 
       const bufferedAt = Date.now();

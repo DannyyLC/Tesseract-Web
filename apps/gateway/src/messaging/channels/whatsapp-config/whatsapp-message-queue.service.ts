@@ -18,20 +18,20 @@ export const WHATSAPP_MAX_WINDOW_SECONDS = Number(
   process.env.WHATSAPP_MAX_WINDOW_SECONDS ?? 40,
 );
 
-export type BufferedMessage = {
+export interface BufferedMessage {
   messageId: string;
   sendTime: string;
   /** Hora de llegada según nuestro reloj. La ventana se mide con esto, no con
    *  `sendTime`, que viene del proveedor y puede traer desfase. */
   bufferedAt: number;
   event: WhatsAppInboundEvent;
-};
+}
 
-export type DrainedWindow = {
+export interface DrainedWindow {
   messages: BufferedMessage[];
   /** Clave temporal que sostiene los mensajes hasta confirmar el procesamiento. */
   processingKey: string | null;
-};
+}
 
 /**
  * Buffer compartido de mensajes entrantes de WhatsApp.

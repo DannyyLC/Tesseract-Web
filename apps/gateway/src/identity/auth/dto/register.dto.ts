@@ -1,4 +1,5 @@
 import { IsEmail, IsString, IsNotEmpty, MinLength } from 'class-validator';
+import { NormalizeEmail } from '@/platform/common/utils/normalize-email';
 
 /**
  * DTO para el registro de nuevos usuarios
@@ -10,6 +11,7 @@ export class RegisterDto {
 
   @IsEmail()
   @IsNotEmpty()
+  @NormalizeEmail()
   email: string;
 
   @IsString()

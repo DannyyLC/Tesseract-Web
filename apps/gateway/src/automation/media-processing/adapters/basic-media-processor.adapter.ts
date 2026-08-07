@@ -45,4 +45,23 @@ export class BasicMediaProcessorAdapter implements MediaProcessorAdapter {
       },
     };
   }
+
+  async transcribeBuffer(audio: {
+    buffer: Buffer;
+    mimeType: string;
+    metadata?: Record<string, any>;
+  }): Promise<MediaProcessResult> {
+    return {
+      status: 'PROCESSED',
+      processedText: 'Audio recibido del usuario.',
+      processor: 'basic-media-processor',
+      processorVersion: '1.0.0',
+      sizeBytes: audio.buffer.length,
+      metadata: {
+        ...(audio.metadata ?? {}),
+        strategy: 'placeholder-stt',
+        mimeType: audio.mimeType,
+      },
+    };
+  }
 }

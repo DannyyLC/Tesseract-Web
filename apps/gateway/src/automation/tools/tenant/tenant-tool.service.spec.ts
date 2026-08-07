@@ -8,7 +8,7 @@ describe('TenantToolService', () => {
   const mockBuild = jest.fn();
   jest
     .spyOn(CursorPaginatedResponseUtils, 'getInstance')
-    .mockReturnValue({ build: mockBuild } as any);
+    .mockReturnValue({ build: mockBuild });
 
   const mockPrismaService: any = {
     tenantTool: {
@@ -133,7 +133,7 @@ describe('TenantToolService', () => {
           allowedFunctions: [],
           config: {},
           workflowId: null,
-        } as any,
+        },
         'org-1',
         'user-1',
       );
@@ -183,7 +183,7 @@ describe('TenantToolService', () => {
       mockPrismaService.tenantTool.update.mockResolvedValue(updated);
       const res = await service.updateTenantTool('u1', 'org-1', 'user-1', 'owner', {
         displayName: 'U',
-      } as any);
+      });
       expect(res).toEqual(updated);
     });
 
@@ -195,7 +195,7 @@ describe('TenantToolService', () => {
       mockPrismaService.tenantTool.update.mockRejectedValue(new Error('bomb'));
       const res = await service.updateTenantTool('u1', 'org-1', 'user-1', 'owner', {
         displayName: 'U',
-      } as any);
+      });
       expect(mockLogger.error).toHaveBeenCalled();
       expect(res).toBeNull();
     });

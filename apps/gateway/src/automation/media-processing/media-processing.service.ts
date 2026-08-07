@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { MEDIA_PROCESSOR_ADAPTER, MediaProcessorAdapter } from './adapters/media-processor.adapter';
 import { PrismaService } from '@/platform/database/prisma.service';
+import { MediaPolicy, maxAudioBytes } from './media-policy';
 
 export interface IncomingAttachment {
   type: 'IMAGE' | 'AUDIO';
@@ -50,6 +51,14 @@ export function toAttachmentInput(attachment: ProcessedAttachment) {
     metadata: attachment.metadata,
   };
 }
+
+/** Motivos por los que un dictado se rechaza sin llegar a costar una transcripción. */
+export type DictationRejection = 'AUDIO_DISABLED' | 'AUDIO_TOO_LONG' | 'EMPTY_AUDIO';
+
+export type DictationResult =
+  | { status: 'PROCESSED'; text: string }
+  | { status: 'REJECTED'; reason: DictationRejection; message: string }
+  | { status: 'FAILED'; message: string };
 
 @Injectable()
 export class MediaProcessingService {
@@ -185,5 +194,53 @@ export class MediaProcessingService {
       attachments: processed,
       derivedText: derivedText || undefined,
     };
+  }
+
+  /**
+   * Transcribe un dictado grabado en el navegador.
+   *
+   * A diferencia de una nota de voz de WhatsApp, aquí el audio es solo un método de
+   * entrada: se transcribe, se devuelve el texto y el binario se descarta. No se
+   * almacena ni se cachea —cada grabación es un archivo distinto, así que la caché
+   * por hash nunca acertaría— y nunca llega a existir como adjunto de un mensaje.
+   *
+   * El límite de duración de la política se aplica sobre el tamaño, igual que en
+   * WhatsApp: es una estimación, pero evita pagar una transcripción larga que el
+   * cliente no contrató.
+   */
+  async transcribeDictation(input: {
+    buffer: Buffer;
+    mimeType: string;
+    policy: MediaPolicy;
+  }): Promise<DictationResult> {
+    const { buffer, mimeType, policy } = input;
+
+    if (!policy.audio.enabled) {
+      return {
+        status: 'REJECTED',
+        reason: 'AUDIO_DISABLED',
+        message: policy.messages.audioDisabled,
+      };
+    }
+
+    if (buffer.length === 0) {
+      return { status: 'REJECTED', reason: 'EMPTY_AUDIO', message: policy.messages.audioFailed };
+    }
+
+    if (buffer.length > maxAudioBytes(policy)) {
+      return { status: 'REJECTED', reason: 'AUDIO_TOO_LONG', message: policy.messages.audioTooLong };
+    }
+
+    const result = await this.adapter.transcribeBuffer({
+      buffer,
+      mimeType,
+      metadata: { source: 'web-dictation' },
+    });
+
+    if (result.status !== 'PROCESSED' || !result.processedText?.trim()) {
+      return { status: 'FAILED', message: policy.messages.audioFailed };
+    }
+
+    return { status: 'PROCESSED', text: result.processedText.trim() };
   }
 }

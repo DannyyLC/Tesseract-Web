@@ -5,14 +5,21 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 
+const SIZE_CLASSES = {
+  md: 'max-w-md',
+  lg: 'max-w-lg',
+} as const;
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  /** Ancho máximo. `lg` da aire a contenidos anchos como la rejilla de códigos de respaldo. */
+  size?: keyof typeof SIZE_CLASSES;
 }
 
-export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
+export const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps) => {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -51,7 +58,7 @@ export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2, type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative z-10 flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-lg"
+            className={`relative z-10 flex max-h-[90vh] w-full ${SIZE_CLASSES[size]} flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-lg`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border p-4">

@@ -58,7 +58,7 @@ export class RolesGuard implements CanActivate {
       );
     }
 
-    this.logger.debug(`Usuario ${user.email} con rol ${user.role} autorizado para endpoint`);
+    this.logger.debug(`Usuario userId=${user.sub} con rol ${user.role} autorizado para endpoint`);
 
     return true;
   }

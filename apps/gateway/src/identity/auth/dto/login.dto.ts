@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsString, IsNotEmpty, IsBoolean, IsOptional } from 'class-validator';
+import { NormalizeEmail } from '@/platform/common/utils/normalize-email';
 
 /**
  * DTO para el login de usuarios
@@ -11,6 +12,7 @@ export class LoginDto {
     description: 'Correo electrónico del usuario',
     example: 'admin@acme.com',
   })
+  @NormalizeEmail()
   email: string;
 
   @IsString()

@@ -43,7 +43,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * @returns UserPayload que se inyecta en request.user
    */
   async validate(payload: UserPayload): Promise<UserPayload> {
-    this.logger.debug(`Validando JWT para usuario: ${payload.email}`);
+    this.logger.debug(`Validando JWT para usuario: userId=${payload.sub}`);
 
     // 1. Buscar el usuario en la base de datos con su organización
     const user = await this.prisma.user.findUnique({
@@ -65,13 +65,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     // 4. Validar que el usuario esté activo
     if (!user.isActive) {
-      this.logger.warn(`Usuario inactivo: ${user.email}`);
+      this.logger.warn(`Usuario inactivo: userId=${user.id}`);
       throw new UnauthorizedException('Cuenta inactiva');
     }
 
     // 5. Validar que el usuario no esté eliminado (soft delete)
     if (user.deletedAt) {
-      this.logger.warn(`Usuario eliminado: ${user.email}`);
+      this.logger.warn(`Usuario eliminado: userId=${user.id}`);
       throw new UnauthorizedException('Cuenta eliminada');
     }
 

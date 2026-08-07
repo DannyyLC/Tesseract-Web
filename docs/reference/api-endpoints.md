@@ -43,9 +43,10 @@ Base path: `/auth`
 | POST   | `/auth/logout`                 | Cerrar sesion actual                           | JWT       |
 | POST   | `/auth/logout-all`             | Cerrar todas las sesiones                      | JWT       |
 | POST   | `/auth/2fa/setup`              | Generar QR para configurar 2FA                 | JWT       |
-| POST   | `/auth/2fa/enable`             | Activar 2FA con codigo de verificacion         | JWT       |
+| POST   | `/auth/2fa/enable`             | Activar 2FA y emitir codigos de respaldo       | JWT       |
 | POST   | `/auth/2fa/verify`             | Verificar codigo 2FA durante login             | TempToken |
 | POST   | `/auth/2fa/disable`            | Desactivar 2FA                                 | JWT       |
+| POST   | `/auth/2fa/backup-codes/regenerate` | Regenerar codigos de respaldo             | JWT       |
 | POST   | `/auth/forgot-password/step-1` | Enviar email de recuperacion                   | No        |
 | POST   | `/auth/forgot-password/step-2` | Resetear password con codigo                   | No        |
 | POST   | `/auth/change-password`        | Cambiar password (autenticado)                 | JWT       |

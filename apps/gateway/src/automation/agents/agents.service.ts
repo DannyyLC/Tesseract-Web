@@ -62,7 +62,7 @@ export class AgentsService implements OnModuleInit {
     const agentToolInstances: Record<string, { tools: Record<string, any> }> = {};
     for (const [agentName, tools] of Object.entries(request.agent_tool_instances ?? {})) {
       const wrappedTools: Record<string, any> = {};
-      for (const [toolId, tool] of Object.entries(tools as Record<string, any>)) {
+      for (const [toolId, tool] of Object.entries(tools)) {
         wrappedTools[toolId] = {
           ...tool,
           config: toJson(tool.config),

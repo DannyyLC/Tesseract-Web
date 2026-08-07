@@ -1,6 +1,6 @@
 ---
 title: 'TODO — Deuda técnica detectada'
-description: 'Hallazgos pendientes de corregir: cálculo de costos en fan-out, límites de categoría no aplicados, guarda de ventana de contexto, riesgos de despliegue y secretos en el historial.'
+description: 'Hallazgos pendientes de corregir: cálculo de costos en fan-out, límites de categoría no aplicados, guarda de ventana de contexto, riesgos de despliegue, secretos en el historial, campos inertes en la config de WhatsApp y reintento infinito cuando el workflow del webhook no existe.'
 ---
 
 Levantado durante la preparación del despliegue del workflow RGM (julio 2026), y ampliado con
@@ -243,3 +243,103 @@ Levantado al migrar a Cloud Tasks. Nada urgente.
   `maxTokensPerExecution`, que en el workflow del RGM son ~80 000 tokens (~320 000 caracteres
   de historial). Sus cuatro defectos ya están corregidos, pero conviene revisar el umbral
   cuando haya conversaciones reales que medir. Está relacionado con los puntos 3 y 5.
+
+---
+
+## 11. Campos inertes en `whatsapp_configs`
+
+**Severidad: baja — no rompe nada, pero engaña a quien lee el esquema.**
+
+Levantado el 31 de julio de 2026 al poner los números reales del RGM en producción.
+
+De las 20 columnas de `whatsapp_configs`, el runtime solo lee cuatro: `phoneNumber` (el único
+lookup del webhook, `getWhatsappConfigByPhoneNumber` → `findFirst` por match exacto de string),
+`isActive`, `defaultWorkflowId` y `organizationId`. `connectionStatus` solo se escribe. El resto
+está inerte.
+
+**Importante: nada de esto se debe borrar todavía.** Casi todos los campos muertos son
+exactamente los que hacen falta para los dos pendientes de producto —verificación con Meta y
+onboarding self-service vía Facebook Login / Embedded Signup— donde el cliente conecta su propio
+número sin pasarnos credenciales a mano. Conviene revisarlos cuando eso se implemente, no antes.
+
+| Campo | Estado hoy | Por qué se queda |
+|---|---|---|
+| `credentialPath` | Solo existe en un DTO, nunca se lee | Destino natural del token por tenant que devuelve el Embedded Signup |
+| `webhookUrl` | Se escribe al crear, nunca se lee | Meta exige callback URL por app/número al registrar el webhook |
+| `provider` | Nunca se compara | Hoy todo es YCloud; si se conecta la Cloud API de Meta directo, este campo es el discriminante |
+| `qrCode` / `qrCodeExpiry` / `sessionData` | Siempre `NULL` | Vienen del diseño para un proveedor tipo Baileys. Son los únicos candidatos reales a borrarse si se confirma que solo habrá proveedores por API oficial |
+| `displayName` / `description` | Estaban `NULL`; ya se poblaron para el RGM | Útiles ya: sin esto no se distingue de quién es cada número al consultar la DB |
+
+**El caso aparte es `webhookSecret`.** No es solo inerte: es engañoso. La columna existe con
+`@default(uuid())` en [`schema.prisma`](https://github.com/FractalOps-Dev/Tesseract/blob/main/packages/database/prisma/schema.prisma),
+o sea que el diseño original era **un secreto por config** (multi-tenant), pero la verificación
+real usa `process.env.Y_CLOUD_WEBHOOK_SECRET` en
+[`whatsapp-config.service.ts`](https://github.com/FractalOps-Dev/Tesseract/blob/main/apps/gateway/src/messaging/channels/whatsapp-config/whatsapp-config.service.ts):
+**un único secreto global para todos los tenants**. Consecuencias:
+
+- Si ese secreto se filtra, cualquiera puede firmar webhooks válidos haciéndose pasar por
+  cualquier organización. Con un cliente en producción el riesgo es acotado; con onboarding
+  self-service deja de serlo.
+- El valor que hay hoy en la fila del RGM (`whsec_b167…`) trae prefijo de Stripe y ya está
+  rotado — o sea que nunca fue un secreto de YCloud. Nadie lo notó porque nada lo consulta.
+  Esto relativiza el punto 9: el `webhookSecret` que quedó en el historial de git no protegía
+  nada.
+
+**Arreglo propuesto (cuando se haga el multi-tenant):** que `verifySignature` resuelva el config
+por `phoneNumber` y use `account.webhookSecret`, con fallback a la env var para no romper lo que
+ya existe. Mientras tanto, dejar la columna documentada como no usada para que nadie asuma que
+está protegiendo algo.
+
+**Riesgo operativo a tener presente:** como `phoneNumber` es el único lookup y es match exacto de
+string, el formato con el que YCloud manda el número tiene que coincidir carácter por carácter
+con lo guardado (con `+`, sin espacios). Si no coincide, `account` sale `null` y el mensaje se
+descarta silenciosamente con `reason: 'inactive-config'` — un 200 y nada en la conversación.
+Vale la pena normalizar el número en el lookup en vez de confiar en que ambos lados coincidan.
+
+---
+
+## 12. Las guardas de workflow del webhook fallan cuando el workflow no existe
+
+**Severidad: media — un mensaje entrante puede quedar en reintento infinito.**
+
+Levantado el 5 de agosto de 2026 al revisar el commit `b66eb168` ("Inactive Workflow - Whatsapp
+Channel", 29 de julio de 2026), que agregó dos guardas al webhook en
+[`whatsapp-config.controller.ts`](https://github.com/FractalOps-Dev/Tesseract/blob/main/apps/gateway/src/messaging/channels/whatsapp-config/controllers/user-ui/whatsapp-config.controller.ts):
+si la config no tiene `defaultWorkflowId` responde 200 con `ignored: 'no-workflow'`, y si el
+workflow asociado está inactivo responde 200 con `ignored: 'inactive-workflow'`. En ambos casos
+el mensaje no se bufferea ni se encola. La intención es correcta; la implementación tiene un
+hueco.
+
+**El bug.** La segunda guarda resuelve el workflow con `workflowsService.findOne(organizationId,
+defaultWorkflowId)`, que lanza `NotFoundException` cuando el workflow no existe, fue borrado en
+suave (el query filtra por `deletedAt: null`) o pertenece a otra organización. Ese throw cae en
+el `catch` del webhook, que libera el claim de deduplicación y responde **500 para que YCloud
+reintente**. Resultado: una fila de `whatsapp_configs` que apunte a un workflow eliminado
+convierte cada mensaje entrante en un ciclo de reintentos, en vez de ignorarlo limpiamente —
+justo lo contrario de lo que la guarda pretendía. El caso "workflow inactivo" sí funciona bien;
+el que falla es "workflow inexistente".
+
+**Arreglo propuesto:** envolver la resolución del workflow en su propio `try/catch`, o usar una
+consulta que devuelva `null` en vez de lanzar, y tratar el workflow ausente igual que el
+inactivo: 200 con `ignored: 'missing-workflow'`. La distinción importa para el log, pero ninguno
+de los dos casos justifica un reintento: son estados de configuración, no fallas transitorias.
+
+**Deuda menor del mismo bloque:**
+
+- El `if (account.defaultWorkflowId)` de la segunda guarda es redundante: el bloque inmediatamente
+  anterior ya retorna cuando ese campo es falsy, así que la condición siempre es verdadera.
+- `findOne` es un método pensado para la UI — trae `tenantTools` con joins anidados a
+  `toolCatalog` — y se está usando en la ruta caliente del webhook para leer un solo booleano.
+  Conviene un `select` mínimo de `isActive`, o cachear el estado del workflow.
+
+**El mensaje del commit no describe el cambio.** Dice "Added a guard to prevent from sending read
+acknowledgments to the whatsapp server", pero no hay código de read receipts en `apps/gateway`
+(no existe `markAsRead`, `read_receipt` ni equivalente) y las guardas sí responden 200, que es
+precisamente un acuse a YCloud. Lo que hacen es cortar el ingreso al pipeline. Vale anotarlo
+porque quien busque el cambio por el mensaje no lo va a encontrar.
+
+**Relación con el punto 11.** Estas dos guardas suman dos caminos más de descarte silencioso a
+los que ya existían (`unknown-config` e `inactive-config`): ahora son cuatro rutas por las que un
+mensaje del cliente termina en un 200 sin dejar rastro en la conversación. El riesgo operativo
+señalado al final del punto 11 aplica igual aquí. Si se agrega observabilidad para los descartes,
+conviene cubrir las cuatro de una vez.
