@@ -16,38 +16,12 @@ import {
 } from '@/components/ui/two-factor-code-input';
 import { useAuth } from '@/hooks/identity/use-auth';
 import PermissionGuard from '@/components/auth/permission-guard';
-
-/**
- * Zonas ofrecidas en el selector.
- *
- * Lista corta en vez de `Intl.supportedValuesOf('timeZone')`, que devuelve más de
- * cuatrocientas: la base de clientes está en México y LatAm, y un desplegable de ese
- * tamaño convierte una decisión de un segundo en una búsqueda. UTC queda al final como
- * salida para quien opere fuera de la región.
- */
-const TIMEZONES = [
-  'America/Mexico_City',
-  'America/Monterrey',
-  'America/Cancun',
-  'America/Chihuahua',
-  'America/Tijuana',
-  'America/Hermosillo',
-  'America/Mazatlan',
-  'America/Bogota',
-  'America/Lima',
-  'America/Santiago',
-  'America/Argentina/Buenos_Aires',
-  'America/Sao_Paulo',
-  'America/Guatemala',
-  'America/Costa_Rica',
-  'America/Panama',
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-  'Europe/Madrid',
-  'UTC',
-];
+import {
+  DEFAULT_TIMEZONE,
+  SUPPORTED_TIMEZONES,
+  TIMEZONE_GROUPS,
+  formatTimezoneLabel,
+} from '@tesseract/types';
 
 export default function SettingsPage() {
   const t = useTranslations('Settings');
@@ -56,7 +30,7 @@ export default function SettingsPage() {
   const { updateOrganization, deleteOrganization } = useOrganizationMutations();
 
   const [name, setName] = useState('');
-  const [timezone, setTimezone] = useState('America/Mexico_City');
+  const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [code2FA, setCode2FA] = useState('');
@@ -181,10 +155,19 @@ export default function SettingsPage() {
                 onChange={(e) => setTimezone(e.target.value)}
                 className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {TIMEZONES.map((tz) => (
-                  <option key={tz} value={tz}>
-                    {tz.replace(/_/g, ' ')}
-                  </option>
+                {/* Si la organización tiene guardada una zona fuera del selector
+                    (se puede fijar por API), se añade para no perderla al guardar. */}
+                {timezone && !SUPPORTED_TIMEZONES.includes(timezone) && (
+                  <option value={timezone}>{formatTimezoneLabel(timezone)}</option>
+                )}
+                {TIMEZONE_GROUPS.map((group) => (
+                  <optgroup key={group.region} label={t(`timezoneRegion.${group.region}`)}>
+                    {group.zones.map((tz) => (
+                      <option key={tz} value={tz}>
+                        {formatTimezoneLabel(tz)}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
               <p className="text-muted-foreground text-xs">{t('timezoneHelp')}</p>

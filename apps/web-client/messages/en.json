@@ -979,7 +979,14 @@
     "deleteSuccess": "Organization deleted successfully",
     "deleteError": "Error deleting the organization",
     "timezoneLabel": "Timezone",
-    "timezoneHelp": "Drives the charts and the local time your agents use when they reply."
+    "timezoneHelp": "Drives the charts and the local time your agents use when they reply.",
+    "timezoneRegion": {
+      "mexico": "Mexico",
+      "latam": "Latin America",
+      "northAmerica": "North America",
+      "europe": "Europe",
+      "other": "Other"
+    }
   },
   "Users": {
     "heading": "Members",

@@ -979,7 +979,14 @@
     "deleteSuccess": "Organización eliminada correctamente",
     "deleteError": "Error al eliminar la organización",
     "timezoneLabel": "Zona horaria",
-    "timezoneHelp": "Define la hora de las gráficas y la hora local que usan tus agentes al responder."
+    "timezoneHelp": "Define la hora de las gráficas y la hora local que usan tus agentes al responder.",
+    "timezoneRegion": {
+      "mexico": "México",
+      "latam": "Latinoamérica",
+      "northAmerica": "Norteamérica",
+      "europe": "Europa",
+      "other": "Otras"
+    }
   },
   "Users": {
     "heading": "Miembros",
