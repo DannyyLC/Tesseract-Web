@@ -16,6 +16,7 @@ import {
   CompactionStatus,
 } from '@tesseract/database';
 import { UtilityService } from '@/platform/utility/utility.service';
+import { buildConversationTitle } from './conversation-title';
 
 interface CreateCompactionInput {
   conversationId: string;
@@ -781,6 +782,7 @@ export class ConversationsService {
         where: { id: conversationId },
         select: {
           organizationId: true,
+          title: true,
           workflow: {
             select: {
               inactivityHours: true,
@@ -826,9 +828,18 @@ export class ConversationsService {
         conversation.organization?.defaultInactivityHours,
       );
 
+      // Título automático con el primer mensaje del usuario. Aquí y no en cada canal
+      // porque `addMessage` es por donde pasan todos: mientras esto vivió en el
+      // navegador, solo las conversaciones creadas desde el panel llegaban a tener
+      // nombre. Solo el primero: los siguientes renombrarían la conversación sola, y un
+      // título puesto a mano se respeta siempre.
+      const generatedTitle =
+        !conversation.title && role === ChatRole.USER ? buildConversationTitle(content) : null;
+
       await tx.conversation.update({
         where: { id: conversationId },
         data: {
+          ...(generatedTitle && { title: generatedTitle }),
           lastMessageAt: messageTimestamp,
           lastMessageRole: role === ChatRole.USER ? ChatRole.USER : role, // Normalize 'human' to 'user' if needed by schema enum, or keep string
           autoCloseAt: this.calculateAutoCloseAt(messageTimestamp, inactivityHours),

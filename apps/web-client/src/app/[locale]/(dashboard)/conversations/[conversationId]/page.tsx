@@ -398,9 +398,10 @@ export default function WorkflowChatPage() {
     // Ejecutar workflow
     const currentWorkflowId = conversationData?.workflowId || workflowIdFromUrl;
 
-    // Generar título tentativo (primeras 5 palabras)
-    const generatedTitle = input.trim().split(/\s+/).slice(0, 5).join(' ');
-
+    // El título ya no se calcula aquí: lo pone el gateway al guardar el primer mensaje
+    // (`buildConversationTitle`), que es el único punto por el que pasan todos los
+    // canales. Cuando el stream termina, la navegación a la conversación nueva la trae
+    // ya con nombre.
     if (currentWorkflowId) {
       execute(
         currentWorkflowId,
@@ -416,14 +417,6 @@ export default function WorkflowChatPage() {
               // Migrar borrador si venimos de 'new'
               if (isNewConversation) {
                 migrateDraft(data);
-              }
-
-              // Actualizar el título automáticamente si venimos de 'new'
-              if (isNewConversation) {
-                updateConversation.mutate({
-                  id: data,
-                  data: { title: generatedTitle },
-                });
               }
             }
 

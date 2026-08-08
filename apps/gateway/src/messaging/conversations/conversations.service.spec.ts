@@ -433,6 +433,73 @@ describe('ConversationsService', () => {
       expect(result).toEqual(mockMessage);
       expect(mockPrismaService.$transaction).toHaveBeenCalled();
     });
+
+    /**
+     * Corre de verdad el callback de la transacción y devuelve el `data` del update, que
+     * es donde se decide si la conversación se renombra.
+     */
+    const runAddMessage = async (opts: {
+      title: string | null;
+      role: string;
+      content: string;
+    }) => {
+      const tx = {
+        conversation: {
+          findUnique: jest.fn().mockResolvedValue({
+            organizationId: 'org-1',
+            title: opts.title,
+            workflow: null,
+            organization: null,
+          }),
+          update: jest.fn().mockResolvedValue({}),
+        },
+        message: { create: jest.fn().mockResolvedValue({ id: 'm-1' }) },
+      };
+      mockPrismaService.$transaction.mockImplementation((fn: any) => fn(tx));
+
+      await service.addMessage('conv-1', opts.role as any, opts.content);
+
+      return tx.conversation.update.mock.calls[0][0].data;
+    };
+
+    it('nombra la conversación con el primer mensaje del usuario, venga del canal que venga', async () => {
+      const data = await runAddMessage({
+        title: null,
+        role: 'USER',
+        content: 'hola quiero información sobre los precios',
+      });
+
+      expect(data.title).toBe('hola quiero información sobre los');
+    });
+
+    it('no renombra una conversación que ya tiene título', async () => {
+      // El segundo mensaje del cliente no debe pisar el nombre, y menos uno puesto a mano.
+      const data = await runAddMessage({
+        title: 'Pedido de tacos',
+        role: 'USER',
+        content: 'y también unas quesadillas por favor',
+      });
+
+      expect(data).not.toHaveProperty('title');
+    });
+
+    it('no deja que el agente bautice la conversación', async () => {
+      const data = await runAddMessage({
+        title: null,
+        role: 'ASSISTANT',
+        content: '¡Hola! ¿En qué puedo ayudarte?',
+      });
+
+      expect(data).not.toHaveProperty('title');
+    });
+
+    it('deja el título vacío si el mensaje no trae texto aprovechable', async () => {
+      // Un adjunto sin transcribir: se reintenta con el mensaje siguiente en vez de
+      // guardar una cadena en blanco.
+      const data = await runAddMessage({ title: null, role: 'USER', content: '   ' });
+
+      expect(data).not.toHaveProperty('title');
+    });
   });
 
   describe('count', () => {
