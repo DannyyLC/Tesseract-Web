@@ -111,7 +111,6 @@ class UsersApi {
     const result = await this.apiRequestManager.get<ApiResponse<any>>(
       `${UsersApi.BASE_URL}/pending-invitations`,
     );
-    console.log('Pending invitations:', result.data.data);
     return result.data.data;
   }
 }

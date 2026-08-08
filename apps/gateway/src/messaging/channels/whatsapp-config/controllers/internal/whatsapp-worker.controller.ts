@@ -17,6 +17,7 @@ import {
 } from '@/automation/media-processing/media-processing.service';
 import { WorkflowsService } from '@/automation/workflows/workflows.service';
 import { ConversationsService } from '@/messaging/conversations/conversations.service';
+import { maskPhone } from '@/platform/common/utils/mask-phone';
 import { CloudTasksOidcGuard } from '@/platform/tasks/cloud-tasks-oidc.guard';
 import { CloudTasksService } from '@/platform/tasks/cloud-tasks.service';
 import { JsonObject } from '@prisma/client/runtime/client';
@@ -72,7 +73,11 @@ export class WhatsappWorkerController {
   @Post('process-window')
   async processWindow(@Body() body: ProcessWindowBody, @Res() res: Response) {
     const { organizationId, phoneNumber, userNumber, windowId } = body;
-    const logContext = { organizationId, phoneNumber, userNumber, windowId };
+    // `userNumber` es el teléfono del cliente y se arrastra a todas las líneas de log de
+    // este worker, así que se enmascara aquí una sola vez. `phoneNumber` es el número del
+    // tenant —no es dato personal de nadie— y se deja entero para poder identificar la
+    // cuenta. El enmascarado es determinista: se puede seguir buscando en Cloud Logging.
+    const logContext = { organizationId, phoneNumber, userNumber: maskPhone(userNumber), windowId };
 
     // Ventana deslizante: si el último mensaje es más reciente que el silencio
     // requerido, la persona sigue escribiendo. Se reagenda sin tocar el buffer para
@@ -190,10 +195,14 @@ export class WhatsappWorkerController {
         return res.status(HttpStatus.OK).send({ processed: false, reason: 'no-text' });
       }
 
+      // El texto agregado es el mensaje literal del cliente y no se loguea: Cloud Logging
+      // lo retiene 30 días y lo lee cualquiera con Logs Viewer. La longitud basta para
+      // seguir el pipeline (ventana vacía, ráfaga larga, media sin transcribir); el
+      // contenido se consulta en la conversación, que es donde ya está guardado.
       this.logger.info('Ventana de WhatsApp agregada', {
         ...logContext,
         messageCount: drained.messages.length,
-        text: interpreted.aggregatedText,
+        textLength: interpreted.aggregatedText.length,
       });
 
       const execution = await this.workflowsService.execute(

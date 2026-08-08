@@ -2,7 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { validateEnv } from './platform/config/env-validation';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { GlobalExceptionFilter } from './platform/common/exceptions';
 import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -11,7 +12,22 @@ import helmet from 'helmet';
 async function bootstrap() {
   validateEnv();
   try {
-    const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+    // `bufferLogs` retiene los logs de arranque del propio Nest hasta que se instala
+    // el logger de abajo. Sin esto, todo lo que Nest emite antes de `useLogger` sale
+    // por su ConsoleLogger: texto multilínea y sin `severity`, que es justo lo que
+    // Cloud Logging no sabe clasificar.
+    const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+      rawBody: true,
+      bufferLogs: true,
+    });
+
+    // Winston está configurado en AppModule, pero `WinstonModule.forRoot()` solo lo
+    // deja disponible por inyección: el `Logger` de @nestjs/common sigue colgando del
+    // ConsoleLogger de Nest hasta que se hace este reemplazo. Sin esta línea, todo lo
+    // que loguean los servicios con `new Logger(X.name)` —incluido el filtro global de
+    // excepciones— sale sin `severity` y no se puede filtrar como ERROR en Cloud Run.
+    // Va antes de `useGlobalFilters` para que el filtro nazca ya con el logger bueno.
+    app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
     // Cloud Run coloca un proxy delante del contenedor. Confiamos en 1 salto para
     // que Express lea la IP real del cliente desde X-Forwarded-For (req.ip). Sin esto,
@@ -82,8 +98,10 @@ async function bootstrap() {
 
     const port = process.env.PORT ?? 3000;
     await app.listen(port);
-    console.log(`Gateway corriendo en http://localhost:${port}/api`);
+    new Logger('Bootstrap').log(`Gateway corriendo en http://localhost:${port}/api`);
   } catch (error) {
+    // A partir de aquí no se puede asumir que el logger exista: si `NestFactory.create`
+    // falló, nunca se llegó a `useLogger`. `console.error` es lo único garantizado.
     console.error('Error fatal al iniciar la aplicación:', error);
     process.exit(1);
   }

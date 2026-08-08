@@ -5,7 +5,6 @@ gRPC server entry point.
 import asyncio
 import logging
 import signal
-import sys
 from pathlib import Path
 from dotenv import load_dotenv
 root_dir = Path(__file__).parent.parent.parent.parent
@@ -15,13 +14,11 @@ import grpc.aio
 from grpc_health.v1 import health_pb2, health_pb2_grpc
 from grpc_health.v1.health import HealthServicer
 from agents.v1 import agents_pb2_grpc
+from core.logging_config import configure_logging
 from grpc_servicer import AgentsServicer
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
+# Después de `load_dotenv`, para que LOG_LEVEL del .env cuente en local.
+configure_logging()
 logger = logging.getLogger(__name__)
 
 _GRPC_PORT = 50051

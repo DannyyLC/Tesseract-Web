@@ -4,8 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { WinstonModule } from 'nest-winston';
-import * as winston from 'winston';
-import 'winston-daily-rotate-file';
+import { buildWinstonOptions } from './platform/logging/winston.config';
 import { IdentityModule } from './identity/identity.module';
 import { BillingModule } from './billing/billing.module';
 import { AutomationModule } from './automation/automation.module';
@@ -15,82 +14,11 @@ import { GoogleDriveModule } from './platform/cloud/google-drive/google-drive.mo
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Cloud Logging clasifica cada entrada por el campo `severity`. Winston escribe
-// `level`, que Cloud Logging ignora, así que sin este mapeo TODO el JSON entra
-// como INFO —- incluidos los logger.error— y filtrar por severidad en Cloud Run
-// no devuelve nada.
-const GCP_SEVERITY_BY_LEVEL: Record<string, string> = {
-  error: 'ERROR',
-  warn: 'WARNING',
-  info: 'INFO',
-  http: 'INFO',
-  verbose: 'DEBUG',
-  debug: 'DEBUG',
-  silly: 'DEBUG',
-};
-
-const gcpSeverity = winston.format((info) => {
-  info.severity = GCP_SEVERITY_BY_LEVEL[info.level] ?? 'DEFAULT';
-  return info;
-});
-
-const readableLogFormatter = winston.format.printf(
-  ({ timestamp, level, message, context, stack, ...meta }) => {
-    const base = `${timestamp} [${level}]${context ? ` [${context}]` : ''} ${stack ?? message}`;
-    const metaKeys = Object.keys(meta);
-    if (metaKeys.length === 0) {
-      return base;
-    }
-
-    return `${base} ${JSON.stringify(meta)}`;
-  },
-);
-
 @Module({
   imports: [
-    WinstonModule.forRoot({
-      transports: [
-        // En produccion (Cloud Run) los logs van a stdout -> Cloud Logging los
-        // captura automaticamente. El filesystem del contenedor es efimero y en
-        // memoria, asi que NO escribimos archivos en prod.
-        new winston.transports.Console({
-          format: isProduction
-            ? winston.format.combine(
-                winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-                winston.format.errors({ stack: true }),
-                winston.format.splat(),
-                gcpSeverity(),
-                winston.format.json(),
-              )
-            : winston.format.combine(
-                winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-                winston.format.errors({ stack: true }),
-                winston.format.splat(),
-                winston.format.colorize({ all: true }),
-                readableLogFormatter,
-              ),
-        }),
-        // Solo en desarrollo: archivos rotados en ./logs para inspeccion local.
-        ...(!isProduction
-          ? [
-              new winston.transports.DailyRotateFile({
-                filename: 'logs/app-%DATE%.log',
-                datePattern: 'YYYY-MM-DD',
-                zippedArchive: false,
-                maxSize: '20m',
-                maxFiles: '14d',
-                level: 'info',
-                format: winston.format.combine(
-                  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-                  winston.format.errors({ stack: true }),
-                  winston.format.splat(),
-                  readableLogFormatter,
-                ),
-              }),
-            ]
-          : []),
-      ],
-    }),
+    // La config vive en platform/logging para poder cubrirla con un spec: que exista y
+    // sea correcta no basta, hay que comprobar que la aplicación pasa por ella.
+    WinstonModule.forRoot(buildWinstonOptions(isProduction)),
     ThrottlerModule.forRoot([
       {
         ttl: 60000,

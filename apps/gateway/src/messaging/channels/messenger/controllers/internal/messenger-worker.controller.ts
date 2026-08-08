@@ -157,10 +157,12 @@ export class MessengerWorkerController {
         return res.status(HttpStatus.OK).send({ processed: false, reason: 'no-text' });
       }
 
+      // Mismo criterio que en el worker de WhatsApp: la longitud sirve para seguir el
+      // pipeline, el contenido del mensaje del cliente no se escribe en los logs.
       this.logger.info('Ventana de Messenger agregada', {
         ...logContext,
         messageCount: drained.messages.length,
-        text: interpreted.aggregatedText,
+        textLength: interpreted.aggregatedText.length,
       });
 
       const execution = await this.workflowsService.execute(

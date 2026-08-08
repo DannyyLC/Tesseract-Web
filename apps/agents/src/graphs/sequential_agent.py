@@ -147,9 +147,12 @@ def _make_step_node(step_index: int, agent_name: str, output_variable: str | Non
             variables = dict(state.get("variables", {}))
             variables[output_variable] = response.content.strip()
             updates["variables"] = variables
+            # Sin el valor: es la respuesta del agente, derivada de la conversación del
+            # cliente, y acaba en Cloud Logging. Qué variable se pobló y cuánto midió
+            # basta para seguir el flujo; el contenido está en la ejecución.
             logger.info(
                 f"[{ctx.workflow_id}] Step {step_index} stored response in "
-                f"variables.{output_variable}: '{response.content.strip()[:100]}'"
+                f"variables.{output_variable} ({len(response.content.strip())} chars)"
             )
 
         return updates
