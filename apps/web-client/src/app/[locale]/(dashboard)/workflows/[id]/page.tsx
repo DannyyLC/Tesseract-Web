@@ -228,6 +228,11 @@ export default function WorkflowDetailPage() {
     }
   };
 
+  // La zona que el workflow usa cuando no tiene override. En el selector se pinta como
+  // una zona más (la opción por defecto), sin hablar de herencia: al cliente le importa
+  // qué hora se usa, no de dónde sale. El valor '' sigue guardando null en el gateway.
+  const inheritedTimezone = workflow.organization?.timezone ?? DEFAULT_TIMEZONE;
+
   return (
     <PermissionGuard permissions="workflows:read" redirect={true} fallbackRoute="/workflows">
       <div className="flex h-full flex-col overflow-y-auto">
@@ -516,28 +521,28 @@ export default function WorkflowDetailPage() {
               }
               className="w-full rounded-xl border border-transparent bg-[var(--surface-tint)] px-3 py-2 text-text-primary outline-none transition-all focus:border-info-500 focus:bg-surface"
             >
-              <option value="">
-                {t('timezoneInherit', {
-                  timezone: formatTimezoneLabel(
-                    workflow.organization?.timezone ?? DEFAULT_TIMEZONE,
-                  ),
-                })}
-              </option>
+              <option value="">{formatTimezoneLabel(inheritedTimezone)}</option>
               {/* Zona fijada por API que no esté en el catálogo: se conserva. */}
               {formData.timezone && !SUPPORTED_TIMEZONES.includes(formData.timezone) && (
                 <option value={formData.timezone}>
                   {formatTimezoneLabel(formData.timezone)}
                 </option>
               )}
-              {TIMEZONE_GROUPS.map((group) => (
-                <optgroup key={group.region} label={tSettings(`timezoneRegion.${group.region}`)}>
-                  {group.zones.map((tz) => (
-                    <option key={tz} value={tz}>
-                      {formatTimezoneLabel(tz)}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
+              {TIMEZONE_GROUPS.map((group) => {
+                // Sin el filtro, la zona de la organización saldría dos veces con la misma
+                // etiqueta (arriba y en su región) y no habría forma de distinguirlas.
+                const zones = group.zones.filter((tz) => tz !== inheritedTimezone);
+                if (zones.length === 0) return null;
+                return (
+                  <optgroup key={group.region} label={tSettings(`timezoneRegion.${group.region}`)}>
+                    {zones.map((tz) => (
+                      <option key={tz} value={tz}>
+                        {formatTimezoneLabel(tz)}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
             </select>
             <p className="text-xs text-text-tertiary">{t('timezoneHelp')}</p>
           </div>
