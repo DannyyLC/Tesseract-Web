@@ -365,9 +365,9 @@ export class MessengerConfigService {
 
   private async callSendApi(config: MessengerConfig, body: Record<string, unknown>): Promise<void> {
     const accessToken = await this.resolvePageAccessToken(config);
-    this.logger.info("enviando url: " + `${GRAPH_API_BASE}/me/messages`);
-    this.logger.info("enviando body: " + JSON.stringify(body));
-    this.logger.info("enviando accessToken: " + accessToken);
+    // Nada de logs aquí: el token de página va descifrado en esta variable y el body
+    // lleva el texto de la conversación. Si la llamada falla, el error de axios ya
+    // trae URL y estado, que es lo único que hace falta para diagnosticar.
     await firstValueFrom(
       this.httpService.post(`${GRAPH_API_BASE}/me/messages`, body, {
         params: { access_token: accessToken },
