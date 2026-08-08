@@ -127,12 +127,39 @@ class TestLoadSpecificTool:
         config = {"calendar_id": "primary"}
         mock_tools = [make_tool("check_calendar_availability")]
         mock_loader.return_value = mock_tools
-        ctx = make_ctx()
+        ctx = make_ctx(timezone="America/Mexico_City")
 
         result = load_specific_tool("google_calendar", creds, config, ctx)
 
-        mock_loader.assert_called_once_with(creds, config)
+        mock_loader.assert_called_once_with(
+            creds, {"calendar_id": "primary", "timezone": "America/Mexico_City"}
+        )
         assert result == mock_tools
+
+    @patch("tools.google.calendar.load_google_calendar_tools")
+    def test_google_calendar_inherits_workflow_timezone(self, mock_loader):
+        """Sin timezone en el config, la tool usa la del workflow (no UTC)."""
+        mock_loader.return_value = []
+        ctx = make_ctx(timezone="America/Mexico_City")
+
+        load_specific_tool("google_calendar", {}, {"calendar_id": "primary"}, ctx)
+
+        _, passed_config = mock_loader.call_args[0]
+        assert passed_config["timezone"] == "America/Mexico_City"
+        assert passed_config["calendar_id"] == "primary"
+
+    @patch("tools.google.calendar.load_google_calendar_tools")
+    def test_google_calendar_config_timezone_overrides_workflow(self, mock_loader):
+        """Un calendario que vive en otra zona conserva su override explícito."""
+        mock_loader.return_value = []
+        ctx = make_ctx(timezone="America/Mexico_City")
+
+        load_specific_tool(
+            "google_calendar", {}, {"timezone": "America/Tijuana"}, ctx
+        )
+
+        _, passed_config = mock_loader.call_args[0]
+        assert passed_config["timezone"] == "America/Tijuana"
 
     def test_unknown_tool_returns_empty_list(self):
         ctx = make_ctx()

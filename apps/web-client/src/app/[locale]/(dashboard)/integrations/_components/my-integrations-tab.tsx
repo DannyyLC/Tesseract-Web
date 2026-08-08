@@ -17,6 +17,7 @@ import { DisconnectIntegrationModal } from './disconnect-integration-modal';
 import { DeleteIntegrationModal } from './delete-integration-modal';
 import { ConnectIntegrationModal } from './connect-integration-modal';
 import PermissionGuard from '@/components/auth/permission-guard';
+import { BrokenIntegrationsBanner } from '@/components/integrations/broken-integrations-banner';
 
 interface MyIntegrationsTabProps {
   onAddTool?: () => void;
@@ -164,6 +165,8 @@ export function MyIntegrationsTab({ onAddTool, onCountChange }: MyIntegrationsTa
   return (
     <>
       <div className="space-y-3">
+        <BrokenIntegrationsBanner />
+
         {tools.map((tool, i) => (
           <ConnectedIntegrationCard
             key={tool.id}

@@ -530,6 +530,15 @@ const notifications: NotificationSeed[] = [
     isActive: true,
   },
   {
+    code: '0000-0116',
+    version: 1,
+    titleTemplate: 'Integracion Sin Acceso.',
+    messageTemplate:
+      'La integracion %s (%s) perdio el acceso y tu agente ya no puede usarla. Alguien revoco el permiso o cambio la contrasena de la cuenta. La conecto %s; para restablecerla hay que volver a conectarla desde Integraciones.',
+    targetRoles: ['OWNER', 'ADMIN'],
+    isActive: true,
+  },
+  {
     code: '0000-1000',
     version: 1,
     titleTemplate: 'Aceptacion De Invitacion.',

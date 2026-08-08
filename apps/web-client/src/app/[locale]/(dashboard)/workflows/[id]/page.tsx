@@ -11,7 +11,15 @@ import {
   useWhatsappNumbers,
 } from '@/hooks/messaging/use-whatsapp-config';
 import { useWorkflow, useWorkflowMutations } from '@/hooks/automation/use-workflows';
-import { ArrowLeft, BarChart2, Edit3, Loader2, MessageSquare, Trash2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  BarChart2,
+  Edit3,
+  Loader2,
+  MessageSquare,
+  Trash2,
+} from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useRouter, Link } from '@/i18n/routing';
 import { useEffect, useState } from 'react';
@@ -29,6 +37,10 @@ import {
 
 const WHATSAPP_PHONE_REGEX = /^\+\d{8,15}$/;
 
+/** Una tool sin acceso (token revocado) o con permisos incompletos hará fallar al agente. */
+const isToolBroken = (tool: { status?: string }) =>
+  tool.status === 'EXPIRED_AUTH' || tool.status === 'ERROR';
+
 export default function WorkflowDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -39,6 +51,8 @@ export default function WorkflowDetailPage() {
 
   // Queries
   const { data: workflow, isLoading } = useWorkflow(id);
+
+  const brokenToolCount = (workflow?.tenantTools ?? []).filter(isToolBroken).length;
   const { updateWorkflow, deleteWorkflow } = useWorkflowMutations();
 
   // UI State
@@ -348,15 +362,27 @@ export default function WorkflowDetailPage() {
 
         <div className="border-t border-[var(--border-subtle)] px-8 py-8">
           <div className="mb-8 rounded-2xl border border-border bg-[var(--surface-subtle)] p-4">
-            <h3 className="ml-1 text-sm font-semibold text-text-primary">
-              {t('connectedIntegrations')}
-            </h3>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="ml-1 text-sm font-semibold text-text-primary">
+                {t('connectedIntegrations')}
+              </h3>
+              {brokenToolCount > 0 && (
+                <span className="flex items-center gap-1.5 rounded-full bg-[var(--badge-danger-bg-solid)] px-2.5 py-1 text-xs font-medium text-[var(--badge-danger-text-solid)]">
+                  <AlertTriangle size={12} />
+                  {t('toolsWithoutAccess', { count: brokenToolCount })}
+                </span>
+              )}
+            </div>
             <div className="mt-4 flex flex-wrap gap-4">
               {workflow.tenantTools && workflow.tenantTools.length > 0 ? (
                 workflow.tenantTools.map((tool: any) => (
                   <div
                     key={tool.id}
-                    className="flex min-w-[250px] flex-1 items-center gap-3 rounded-xl border border-border bg-surface-elevated p-4 shadow-sm transition-all hover:border-border-hover hover:shadow-md"
+                    className={`flex min-w-[250px] flex-1 items-center gap-3 rounded-xl border bg-surface-elevated p-4 shadow-sm transition-all hover:shadow-md ${
+                      isToolBroken(tool)
+                        ? 'border-[var(--danger-banner-border)]'
+                        : 'border-border hover:border-border-hover'
+                    }`}
                   >
                     {tool.toolCatalog?.icon ? (
                       <DynamicIcon
@@ -377,9 +403,15 @@ export default function WorkflowDetailPage() {
                       <span className="truncate text-sm font-semibold text-text-primary">
                         {tool.displayName}
                       </span>
-                      <span className="truncate text-xs text-text-secondary">
-                        {tool.toolCatalog?.displayName || 'Integración'}
-                      </span>
+                      {isToolBroken(tool) ? (
+                        <span className="truncate text-xs font-medium text-[var(--danger-text-adaptive)]">
+                          {t('toolNoAccess')}
+                        </span>
+                      ) : (
+                        <span className="truncate text-xs text-text-secondary">
+                          {tool.toolCatalog?.displayName || 'Integración'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))

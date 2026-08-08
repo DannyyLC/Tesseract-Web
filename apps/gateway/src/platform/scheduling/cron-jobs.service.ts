@@ -2,12 +2,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../database/prisma.service';
 import { ConversationStatus, ChatRole } from '@tesseract/database';
+import { ToolsService } from '@/automation/tools/core/tools.service';
 
 @Injectable()
 export class CronJobsService {
   private readonly logger = new Logger(CronJobsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly toolsService: ToolsService,
+  ) {}
 
   // Runs every hour
   @Cron('0 * * * *')
@@ -106,6 +110,20 @@ export class CronJobsService {
       this.logger.log(
         `Daily Notification Auto-Archive: Soft-deleted ${result.count} old read notifications`,
       );
+    }
+  }
+
+  // Runs every day at 03:00
+  @Cron('0 3 * * *')
+  async handleToolCredentialProbe() {
+    // Detecta credenciales revocadas antes de que las descubra un cliente a
+    // media conversación. `probeAllCredentials` marca EXPIRED_AUTH y notifica
+    // por su cuenta; aquí solo se dispara y se registra el barrido.
+    try {
+      const probed = await this.toolsService.probeAllCredentials();
+      this.logger.log(`Daily Tool Credential Probe: checked ${probed} connected tool(s)`);
+    } catch (error) {
+      this.logger.error(`Daily Tool Credential Probe failed: ${(error as Error).message}`);
     }
   }
 }

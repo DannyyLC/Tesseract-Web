@@ -29,6 +29,7 @@ import HourlyDistributionChart from '../workflows/_components/hourly-distributio
 import { useBillingDashboard } from '@/hooks/billing/use-billing';
 import { useUserStats } from '@/hooks/identity/use-users';
 import PermissionGuard from '@/components/auth/permission-guard';
+import { BrokenIntegrationsBanner } from '@/components/integrations/broken-integrations-banner';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -203,6 +204,9 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
+
+      {/* ── Integraciones sin acceso (no renderiza nada si todo está sano) ──── */}
+      <BrokenIntegrationsBanner />
 
       {/* ── Stats ──────────────────────────────────────────────────────────── */}
       <div

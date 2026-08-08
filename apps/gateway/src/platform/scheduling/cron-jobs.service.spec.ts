@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CronJobsService } from './cron-jobs.service';
 import { PrismaService } from '../database/prisma.service';
+import { ToolsService } from '@/automation/tools/core/tools.service';
 
 describe('CronJobsService', () => {
   let service: CronJobsService;
@@ -23,9 +24,17 @@ describe('CronJobsService', () => {
     },
   };
 
+  const mockToolsService = {
+    probeAllCredentials: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [CronJobsService, { provide: PrismaService, useValue: mockPrismaService }],
+      providers: [
+        CronJobsService,
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: ToolsService, useValue: mockToolsService },
+      ],
     }).compile();
 
     service = module.get<CronJobsService>(CronJobsService);
@@ -92,6 +101,19 @@ describe('CronJobsService', () => {
       expect(mockPrismaService.processedWebhookEvent.deleteMany).toHaveBeenCalledWith({
         where: { processedAt: { lt: expect.any(Date) } },
       });
+    });
+  });
+
+  describe('handleToolCredentialProbe', () => {
+    it('should probe connected tool credentials', async () => {
+      mockToolsService.probeAllCredentials.mockResolvedValue(12);
+      await service.handleToolCredentialProbe();
+      expect(mockToolsService.probeAllCredentials).toHaveBeenCalled();
+    });
+
+    it('should swallow probe failures so the scheduler keeps running', async () => {
+      mockToolsService.probeAllCredentials.mockRejectedValue(new Error('kms down'));
+      await expect(service.handleToolCredentialProbe()).resolves.toBeUndefined();
     });
   });
 });

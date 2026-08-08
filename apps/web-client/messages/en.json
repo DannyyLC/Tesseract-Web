@@ -367,7 +367,9 @@
     "executionsNext": "Next",
     "timezoneLabel": "Timezone",
     "timezoneInherit": "Inherit from organization ({timezone})",
-    "timezoneHelp": "Drives this workflow's charts and the local time the agent uses when it replies."
+    "timezoneHelp": "Drives this workflow's charts and the local time the agent uses when it replies.",
+    "toolsWithoutAccess": "{count, plural, one {1 without access} other {{count} without access}}",
+    "toolNoAccess": "No access — reconnect it"
   },
   "LegalLayout": {
     "backAriaLabel": "Go back",
@@ -733,9 +735,9 @@
     "connectAnother": "Connect another instance",
     "connectButton": "Connect",
     "connectedStatus": "Connected",
-    "errorStatus": "Error",
+    "errorStatus": "Incomplete permissions",
     "disconnectedStatus": "Disconnected",
-    "expiredAuth": "Auth expired",
+    "expiredAuth": "No access",
     "connectedOn": "Connected on {date}",
     "configureCredentials": "Configure credentials",
     "rename": "Rename",
@@ -779,7 +781,13 @@
     "renameNameLabel": "Name",
     "renameSuccess": "Name updated successfully.",
     "renameError": "Could not update the name. Please try again.",
-    "saveButton": "Save"
+    "saveButton": "Save",
+    "reconnect": "Reconnect",
+    "noAccessConsequence": "Your agent cannot use this integration until you reconnect it.",
+    "missingScopesConsequence": "No permission for: {functions}. Reconnect to authorize it.",
+    "brokenBannerTitle": "{count, plural, one {An integration lost access} other {{count} integrations lost access}}",
+    "brokenBannerDesc": "Your agents cannot use {names}. Reconnect them to restore access.",
+    "brokenBannerCta": "Review"
   },
   "Billing": {
     "heading": "Billing Summary",

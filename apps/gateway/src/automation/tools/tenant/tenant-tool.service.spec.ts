@@ -25,6 +25,10 @@ describe('TenantToolService', () => {
 
   const mockLogger = { error: jest.fn() } as any;
 
+  const mockToolHealthService = {
+    findScopeGap: jest.fn().mockReturnValue({ missingScopes: [], blockedFunctions: [] }),
+  } as any;
+
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -37,7 +41,12 @@ describe('TenantToolService', () => {
       return fn(tx);
     });
 
-    service = new TenantToolService(mockPrismaService, mockLogger);
+    mockToolHealthService.findScopeGap.mockReturnValue({
+      missingScopes: [],
+      blockedFunctions: [],
+    });
+
+    service = new TenantToolService(mockPrismaService, mockLogger, mockToolHealthService);
   });
 
   it('should be defined', () => {
@@ -67,13 +76,28 @@ describe('TenantToolService', () => {
 
   describe('getTenantToolById', () => {
     it('returns tenant tool when found', async () => {
-      const tool = { id: 'tt-1' };
+      const tool = {
+        id: 'tt-1',
+        displayName: 'Calendario Ventas',
+        credential: { scopes: ['calendar.events'] },
+        toolCatalog: {
+          toolName: 'google_calendar',
+          displayName: 'Google Calendar',
+          functions: [{ functionName: 'create_event', oauthScopes: ['calendar.events'] }],
+        },
+      };
       mockPrismaService.tenantTool.findUnique.mockResolvedValue(tool);
       const res = await service.getTenantToolById('tt-1');
       expect(mockPrismaService.tenantTool.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: 'tt-1' } }),
       );
-      expect(res).toEqual(tool);
+      // Ni las credenciales ni los scopes del catálogo deben salir al front.
+      expect(res).toEqual({
+        id: 'tt-1',
+        displayName: 'Calendario Ventas',
+        toolCatalog: { toolName: 'google_calendar', displayName: 'Google Calendar' },
+        blockedFunctions: [],
+      });
     });
 
     it('logs and returns null when prisma throws', async () => {

@@ -13,6 +13,12 @@ export interface DashboardTenantToolDto {
     provider: string | null;
   };
   allowedFunctions?: any;
+  /**
+   * Funciones habilitadas cuyo scope el usuario no otorgó en la pantalla de
+   * consentimiento. Se calcula al leer (no se persiste) para que no envejezca
+   * cuando el catálogo cambia sus scopes requeridos. Vacío = nada bloqueado.
+   */
+  blockedFunctions?: string[];
 }
 
 export interface DashboardTenantToolCatalogDto {

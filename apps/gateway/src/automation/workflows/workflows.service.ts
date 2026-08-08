@@ -326,6 +326,9 @@ export class WorkflowsService {
           select: {
             id: true,
             displayName: true,
+            // El detalle del workflow es donde el usuario entiende el radio de
+            // impacto de una credencial rota: "este workflow usa 3 tools, 1 sin acceso".
+            status: true,
             toolCatalog: {
               select: {
                 id: true,
