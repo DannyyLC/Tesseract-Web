@@ -12,6 +12,8 @@ interface DashboardParams {
   workflowId?: string;
   userId?: string;
   prioritizeHitl?: boolean;
+  /** Valores del enum de canal. Vacío o ausente = todos. */
+  channels?: readonly string[];
 }
 
 // Hook para obtener el dashboard de conversaciones
@@ -20,17 +22,7 @@ export function useConversationsDashboard(params: DashboardParams = {}) {
     queryKey: ['conversations', 'dashboard', params],
     queryFn: async () => {
       const api = RootApi.getInstance().getConversationsApi();
-      return await api.getDashboardData(
-        params.cursor,
-        params.pageSize,
-        params.action,
-        params.status,
-        params.isIntervened,
-        params.workflowId,
-        params.userId,
-        params.prioritizeHitl,
-        params.needsFollowUp,
-      );
+      return await api.getDashboardData(params);
     },
   });
 }

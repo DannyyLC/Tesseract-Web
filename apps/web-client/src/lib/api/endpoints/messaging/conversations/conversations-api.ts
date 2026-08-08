@@ -20,18 +20,34 @@ class ConversationsApi {
   /**
    * Get dashboard conversations with cursor pagination
    * Endpoint: GET /conversations/dashboard
+   *
+   * Recibe un objeto y no argumentos posicionales: con nueve filtros opcionales del mismo
+   * tipo, la llamada era una fila de `undefined` en la que mover un filtro de sitio no
+   * daba error de compilación, solo un resultado equivocado.
    */
-  public async getDashboardData(
-    cursor: string | null = null,
-    pageSize: number = 10,
-    action: 'next' | 'prev' | null = null,
-    status?: string,
-    isIntervened?: boolean,
-    workflowId?: string,
-    userId?: string,
-    prioritizeHitl: boolean = true,
-    needsFollowUp?: boolean,
-  ): Promise<PaginatedResponse<DashboardConversationDto>> {
+  public async getDashboardData({
+    cursor = null,
+    pageSize = 10,
+    action = null,
+    status,
+    isIntervened,
+    workflowId,
+    userId,
+    prioritizeHitl = true,
+    needsFollowUp,
+    channels,
+  }: {
+    cursor?: string | null;
+    pageSize?: number;
+    action?: 'next' | 'prev' | null;
+    status?: string;
+    isIntervened?: boolean;
+    workflowId?: string;
+    userId?: string;
+    prioritizeHitl?: boolean;
+    needsFollowUp?: boolean;
+    channels?: readonly string[];
+  } = {}): Promise<PaginatedResponse<DashboardConversationDto>> {
     const queryParams = new URLSearchParams();
     if (cursor) queryParams.append('cursor', cursor);
     queryParams.append('pageSize', pageSize.toString());
@@ -45,6 +61,7 @@ class ConversationsApi {
     }
     if (workflowId) queryParams.append('workflowId', workflowId);
     if (userId) queryParams.append('userId', userId);
+    if (channels?.length) queryParams.append('channels', channels.join(','));
     queryParams.append('prioritizeHitl', prioritizeHitl ? 'true' : 'false');
 
     const result = await this.apiRequestManager.get<

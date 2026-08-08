@@ -4,6 +4,7 @@ import {
   ConversationsStatsDto as ConversationStatsDto,
 } from '@tesseract/types';
 import { ConversationsService } from '../../conversations.service';
+import { ConversationChannel } from '@tesseract/database';
 import {
   Body,
   Controller,
@@ -36,6 +37,28 @@ const WEB_DICTATION_POLICY: MediaPolicy = {
   ...DEFAULT_MEDIA_POLICY,
   audio: { ...DEFAULT_MEDIA_POLICY.audio, enabled: true },
 };
+
+/**
+ * Traduce el `?channels=WHATSAPP,MESSENGER` de la query a valores del enum.
+ *
+ * Descarta en silencio lo que no sea un canal conocido en vez de responder 400: el valor
+ * llega de la URL, que el usuario puede editar a mano o conservar de una versión anterior
+ * del panel, y un filtro roto no debería tumbar la lista entera. Filtrar es obligatorio
+ * porque un string cualquiera dentro de un `in` de Prisma revienta la consulta.
+ */
+function parseChannels(raw: string | undefined): ConversationChannel[] | undefined {
+  if (!raw) return undefined;
+
+  const valid = raw
+    .split(',')
+    .map((value) => value.trim().toUpperCase())
+    .filter((value): value is ConversationChannel =>
+      Object.prototype.hasOwnProperty.call(ConversationChannel, value),
+    );
+
+  // Sin coincidencias válidas equivale a no filtrar: devolver [] daría una lista vacía.
+  return valid.length > 0 ? Array.from(new Set(valid)) : undefined;
+}
 import { ApiResponse, ApiResponseBuilder, PaginatedResponse, UserRole } from '@tesseract/types';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
@@ -118,6 +141,7 @@ export class ConversationsController {
     @Query('workflowId') workflowId: string | undefined,
     @Query('userId') userId: string | undefined,
     @Query('prioritizeHitl', new DefaultValuePipe('true')) prioritizeHitl: string,
+    @Query('channels') channels: string | undefined,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<PaginatedResponse<DashboardConversationDto>>>> {
     const apiResponse = new ApiResponseBuilder<PaginatedResponse<DashboardConversationDto>>();
@@ -135,6 +159,7 @@ export class ConversationsController {
       workflowId,
       userId,
       prioritizeHitl: prioritizeHitl !== 'false',
+      channels: parseChannels(channels),
     });
 
     const items: DashboardConversationDto[] = paginatedResponse.items.map((c: any) => ({
@@ -146,6 +171,8 @@ export class ConversationsController {
       needsFollowUp: c.needsFollowUp,
       followUpReason: c.followUpReason,
       endUserPhoneNumber: c.endUserPhoneNumber ?? null,
+      endUserName: c.endUserName ?? null,
+      messengerPageName: c.messengerPageName ?? null,
       messageCount: c.messageCount,
       lastMessageAt: c.lastMessageAt,
       closedAt: c.closedAt,
@@ -203,6 +230,8 @@ export class ConversationsController {
       needsFollowUp: conversation.needsFollowUp,
       followUpReason: conversation.followUpReason,
       endUserPhoneNumber: conversation.endUserPhoneNumber ?? null,
+      endUserName: conversation.endUserName ?? null,
+      messengerPageName: conversation.messengerPageName ?? null,
       messageCount: conversation.messageCount,
       lastMessageAt: conversation.lastMessageAt,
       createdAt: conversation.createdAt,

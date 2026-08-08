@@ -13,7 +13,6 @@ import {
   Archive,
   RefreshCw,
   AlertCircle,
-  Phone,
   BellRing,
   Mic,
 } from 'lucide-react';
@@ -30,6 +29,7 @@ import { useAuth } from '@/hooks/identity/use-auth';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
 import { useTranslations } from 'next-intl';
 import RecordingBar from '../_components/recording-bar';
+import ConversationChannelMeta from '../_components/conversation-channel-meta';
 import { useDictation } from '@/hooks/use-dictation';
 
 interface Message {
@@ -541,19 +541,16 @@ export default function WorkflowChatPage() {
                             <span className="font-medium text-text-secondary">
                               {workflow?.name}
                             </span>
-                            {conversationData?.channel === 'WHATSAPP' &&
-                              conversationData?.endUserPhoneNumber && (
-                                <>
-                                  <span className="text-text-tertiary">•</span>
-                                  <span
-                                    className="flex items-center gap-1 text-text-secondary"
-                                    title={t('phoneNumberTitle')}
-                                  >
-                                    <Phone size={11} className="shrink-0" />
-                                    {conversationData.endUserPhoneNumber}
-                                  </span>
-                                </>
-                              )}
+                            {conversationData && (
+                              <ConversationChannelMeta
+                                channel={conversationData.channel}
+                                endUserPhoneNumber={conversationData.endUserPhoneNumber}
+                                endUserName={conversationData.endUserName}
+                                messengerPageName={conversationData.messengerPageName}
+                                size="sm"
+                                showChannel={false}
+                              />
+                            )}
                           </span>
                         )}
                       </p>

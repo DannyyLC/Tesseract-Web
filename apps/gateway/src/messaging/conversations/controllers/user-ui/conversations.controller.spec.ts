@@ -79,6 +79,7 @@ describe('ConversationsController', () => {
         undefined,
         undefined,
         'true',
+        undefined,
         res,
       );
 
@@ -93,9 +94,65 @@ describe('ConversationsController', () => {
         workflowId: undefined,
         userId: undefined,
         prioritizeHitl: true,
+        channels: undefined,
       });
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalled();
+    });
+
+    /** Llama al endpoint con `channels` y devuelve lo que recibió el servicio. */
+    const callWithChannels = async (channels: string | undefined) => {
+      mockConversationsService.findAll.mockResolvedValue({
+        items: [],
+        nextCursor: null,
+        prevCursor: null,
+        pageSize: 10,
+        nextPageAvailable: false,
+      });
+
+      await controller.getDashboardData(
+        mockUser,
+        null,
+        10,
+        null,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'true',
+        channels,
+        mockResponse(),
+      );
+
+      return mockConversationsService.findAll.mock.calls.at(-1)?.[0].channels;
+    };
+
+    it('convierte la lista separada por comas en valores del enum', async () => {
+      expect(await callWithChannels('WHATSAPP,MESSENGER')).toEqual(['WHATSAPP', 'MESSENGER']);
+    });
+
+    it('acepta un grupo entero de canales', async () => {
+      expect(await callWithChannels('DASHBOARD,WEB,API,CRON')).toEqual([
+        'DASHBOARD',
+        'WEB',
+        'API',
+        'CRON',
+      ]);
+    });
+
+    it('normaliza mayúsculas y espacios, y quita duplicados', async () => {
+      expect(await callWithChannels(' whatsapp , WHATSAPP ')).toEqual(['WHATSAPP']);
+    });
+
+    it('descarta los canales desconocidos en vez de pasárselos a Prisma', async () => {
+      expect(await callWithChannels('WHATSAPP,TELEGRAM')).toEqual(['WHATSAPP']);
+    });
+
+    it('sin ningún canal válido no filtra, en vez de devolver una lista vacía', async () => {
+      // `channel: { in: [] }` no devolvería nada: un filtro basura vaciaría la pantalla.
+      expect(await callWithChannels('TELEGRAM,SIGNAL')).toBeUndefined();
+      expect(await callWithChannels('')).toBeUndefined();
     });
   });
 

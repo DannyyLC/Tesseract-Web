@@ -168,6 +168,7 @@
   --brand-black: #000000;
   --brand-google: #4285f4;
   --brand-whatsapp: #67c15e;
+  --brand-messenger: #0084ff;
 
   /* Avatares determinísticos */
   --avatar-blue: #3b82f6;
@@ -500,6 +501,7 @@
   --color-brand-black: var(--brand-black);
   --color-brand-google: var(--brand-google);
   --color-brand-whatsapp: var(--brand-whatsapp);
+  --color-brand-messenger: var(--brand-messenger);
   --color-avatar-blue: var(--avatar-blue);
   --color-avatar-success: var(--avatar-success);
   --color-avatar-purple: var(--avatar-purple);

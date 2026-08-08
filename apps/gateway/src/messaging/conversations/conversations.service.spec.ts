@@ -4,6 +4,8 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { UtilityService } from '@/platform/utility/utility.service';
+import { ConversationChannel } from '@tesseract/database';
+import { CHANNEL_FILTER_GROUPS } from '@tesseract/types';
 
 // Mock CursorPaginatedResponseUtils
 const mockBuild = jest.fn();
@@ -175,8 +177,13 @@ describe('ConversationsService', () => {
           where: { id: 'c-1', organizationId: 'org-1', deletedAt: null },
         }),
       );
-      // El telefono del cliente se aplana para que la UI no tenga que navegar la relacion
-      expect(result).toEqual({ ...mockConversation, endUserPhoneNumber: null });
+      // La identidad del cliente se aplana para que la UI no tenga que navegar relaciones
+      expect(result).toEqual({
+        ...mockConversation,
+        endUserPhoneNumber: null,
+        endUserName: null,
+        messengerPageName: null,
+      });
     });
 
     it('should expose the end user phone number when present', async () => {
@@ -275,6 +282,71 @@ describe('ConversationsService', () => {
             { createdAt: 'desc' },
             { id: 'desc' },
           ],
+        }),
+      );
+    });
+
+    it('filtra por los canales recibidos', async () => {
+      mockPrismaService.conversation.findMany.mockResolvedValue([]);
+      mockBuild.mockReturnValue({ items: [], nextCursor: null });
+
+      await service.findAll({
+        paginationAction: 'next',
+        organizationId: 'org-1',
+        take: 10,
+        channels: [ConversationChannel.WHATSAPP, ConversationChannel.MESSENGER],
+      });
+
+      expect(mockPrismaService.conversation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            channel: { in: [ConversationChannel.WHATSAPP, ConversationChannel.MESSENGER] },
+          }),
+        }),
+      );
+    });
+
+    it.each([
+      ['sin la clave', undefined],
+      ['con una lista vacía', [] as ConversationChannel[]],
+    ])('%s no añade el filtro de canal', async (_caso, channels) => {
+      // Una lista vacía dentro de un `in` no devolvería nada: tiene que significar lo
+      // mismo que no filtrar, o el listado se vaciaría.
+      mockPrismaService.conversation.findMany.mockResolvedValue([]);
+      mockBuild.mockReturnValue({ items: [], nextCursor: null });
+
+      await service.findAll({
+        paginationAction: 'next',
+        organizationId: 'org-1',
+        take: 10,
+        channels,
+      });
+
+      const where = mockPrismaService.conversation.findMany.mock.calls.at(-1)?.[0].where;
+      expect(where).not.toHaveProperty('channel');
+    });
+
+    it('expone el nombre del cliente y la página de Messenger', async () => {
+      const row = {
+        id: 'c-1',
+        userId: null,
+        endUser: { name: 'Juan Pérez', phoneNumber: null },
+        messengerConfig: { pageName: 'Tacos El Fractal' },
+      };
+      mockPrismaService.conversation.findMany.mockResolvedValue([row]);
+      mockBuild.mockReturnValue({ items: [row], nextCursor: null });
+
+      const result = await service.findAll({
+        paginationAction: 'next',
+        organizationId: 'org-1',
+        take: 10,
+      });
+
+      expect(result.items[0]).toEqual(
+        expect.objectContaining({
+          endUserName: 'Juan Pérez',
+          messengerPageName: 'Tacos El Fractal',
+          endUserPhoneNumber: null,
         }),
       );
     });
@@ -405,5 +477,25 @@ describe('ConversationsService', () => {
         totalMessagesMonth: 20,
       });
     });
+  });
+});
+
+/**
+ * Este es el único sitio donde conviven el enum de Prisma y los grupos que pinta el
+ * filtro: el web-client no importa `@tesseract/database`, así que allí no se puede
+ * comprobar. Sin esta prueba, añadir un séptimo canal al schema lo dejaría sin grupo y,
+ * por tanto, imposible de filtrar desde el panel, sin que nada avisara.
+ */
+describe('CHANNEL_FILTER_GROUPS', () => {
+  it('cubre todos los valores de ConversationChannel', () => {
+    const agrupados = Object.values(CHANNEL_FILTER_GROUPS).flat();
+
+    expect([...agrupados].sort()).toEqual(Object.values(ConversationChannel).sort());
+  });
+
+  it('no repite un canal en dos grupos', () => {
+    const agrupados = Object.values(CHANNEL_FILTER_GROUPS).flat();
+
+    expect(agrupados).toHaveLength(new Set(agrupados).size);
   });
 });

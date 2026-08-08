@@ -445,6 +445,10 @@ export class ConversationsService {
         messageCount: 0,
         totalTokens: 0,
         totalCost: 0,
+        // Igual que el alta genérica y la de WhatsApp: el listado ordena por
+        // `lastMessageAt` con los NULL al final, así que dejarlo vacío mandaría la
+        // conversación recién creada al fondo y la pintaría como "hora desconocida".
+        lastMessageAt: new Date(),
       },
     });
 
@@ -471,7 +475,8 @@ export class ConversationsService {
             attachments: true,
           },
         },
-        endUser: { select: { phoneNumber: true } },
+        endUser: { select: { phoneNumber: true, name: true } },
+        messengerConfig: { select: { pageName: true } },
       },
     });
 
@@ -482,6 +487,8 @@ export class ConversationsService {
     return {
       ...conversation,
       endUserPhoneNumber: conversation.endUser?.phoneNumber ?? null,
+      endUserName: conversation.endUser?.name ?? null,
+      messengerPageName: conversation.messengerConfig?.pageName ?? null,
     };
   }
 
@@ -558,6 +565,8 @@ export class ConversationsService {
     organizationId: string;
     workflowId?: string;
     userId?: string;
+    /** Lista ya validada contra el enum. Vacía o ausente = todos los canales. */
+    channels?: ConversationChannel[];
   }): Promise<PaginatedResponse<DashboardConversationDto>> {
     const {
       cursor,
@@ -570,6 +579,7 @@ export class ConversationsService {
       organizationId,
       workflowId,
       userId,
+      channels,
     } = params;
 
     // Recencia real de la conversacion: manda el ultimo mensaje, no cuando se creo.
@@ -605,6 +615,9 @@ export class ConversationsService {
         isHumanInTheLoop,
         needsFollowUp,
         ...(status && { status: status.toUpperCase() as any }),
+        // Una lista vacía en un `in` no devolveria nada, asi que ausente y vacia tienen
+        // que significar lo mismo: sin filtro de canal.
+        ...(channels?.length && { channel: { in: channels } }),
         organizationId,
         workflowId,
         userId,
@@ -612,12 +625,9 @@ export class ConversationsService {
       },
       orderBy,
       include: {
-        messages: {
-          take: 10,
-          orderBy: { createdAt: 'desc' },
-        },
         user: { select: { name: true, email: true, avatar: true } },
         endUser: { select: { name: true, email: true, avatar: true, phoneNumber: true } },
+        messengerConfig: { select: { pageName: true } },
       },
     });
 
@@ -633,6 +643,8 @@ export class ConversationsService {
         ...c,
         isInternal: !!c.userId,
         endUserPhoneNumber: c.endUser?.phoneNumber ?? null,
+        endUserName: c.endUser?.name ?? null,
+        messengerPageName: c.messengerConfig?.pageName ?? null,
       })) as DashboardConversationDto[],
     };
   }

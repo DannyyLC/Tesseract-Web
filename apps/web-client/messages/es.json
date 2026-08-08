@@ -366,7 +366,6 @@
     "executionsPrev": "Anterior",
     "executionsNext": "Siguiente",
     "timezoneLabel": "Zona horaria",
-    "timezoneInherit": "Heredar de la organización ({timezone})",
     "timezoneHelp": "Afecta a las gráficas de este workflow y a la hora local que usa el agente al responder.",
     "toolsWithoutAccess": "{count, plural, one {1 sin acceso} other {{count} sin acceso}}",
     "toolNoAccess": "Sin acceso — reconéctala"
@@ -850,6 +849,15 @@
     "monthlyTotal": "Total mensual",
     "historicTotal": "Total Histórico",
     "conversationsBadge": "Conversaciones",
+    "channelLabel": "Canal",
+    "allChannels": "Todos los canales",
+    "channelWhatsapp": "WhatsApp",
+    "channelMessenger": "Messenger",
+    "channelAppApi": "App y API",
+    "channelDashboard": "Panel",
+    "channelWeb": "Web",
+    "channelApi": "API",
+    "channelCron": "Programado",
     "statusLabel": "Estado",
     "allStatuses": "Todos los estados",
     "interventionLabel": "Intervencion",
@@ -922,7 +930,9 @@
     "followUpBadgeTitle": "Requiere seguimiento del equipo",
     "markFollowUp": "Marcar para seguimiento",
     "clearFollowUp": "Marcar como atendida",
-    "phoneNumberTitle": "Telefono del cliente"
+    "phoneNumberTitle": "Telefono del cliente",
+    "customerNameTitle": "Nombre del cliente",
+    "messengerPageTitle": "Pagina de Facebook"
   },
   "ApiKeys": {
     "heading": "API Keys",
