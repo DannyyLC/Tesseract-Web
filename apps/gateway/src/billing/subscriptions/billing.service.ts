@@ -6,13 +6,14 @@ import { CreditsService } from '../credits/credits.service';
 import { TransactionType, SubscriptionPlan, SubscriptionStatus } from '@tesseract/database';
 import {
   PLANS,
+  canUpgradePlan,
   getPlanLimits,
   SubscriptionPlan as SharedSubscriptionPlan,
   UserRole,
   NOTIFICATIONSENUM,
 } from '@tesseract/types';
 import { ConfigService } from '@nestjs/config';
-import { SUBSCRIPTION_PLANS } from './billing.constants';
+import { PriceCatalogService } from './price-catalog.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { BillingDashboardDto } from './dto/billing-dashboard.dto';
 import Stripe from 'stripe';
@@ -29,6 +30,7 @@ export class BillingService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly utilityService: UtilityService,
+    private readonly priceCatalog: PriceCatalogService,
   ) {}
 
   /**
@@ -70,6 +72,9 @@ export class BillingService {
       const session = await this.stripeClient.stripe.checkout.sessions.create({
         customer: dto.customerId,
         mode: 'subscription',
+        // Selecciona qué entrada de `currency_options` del precio se aplica. Sin esto, Stripe
+        // usaría la moneda base del Price (USD) para todo el mundo.
+        currency: dto.currency,
         line_items: [
           {
             price: dto.priceId,
@@ -189,13 +194,10 @@ export class BillingService {
       if (creditBalance.balance < 0) {
         const overageCredits = Math.abs(creditBalance.balance);
 
-        // Use Stripe Product Price for Overage
-        const overagePriceId = this.configService.get('STRIPE_PRICE_OVERAGE');
-
-        if (!overagePriceId) {
-          this.logger.error('STRIPE_PRICE_OVERAGE not configured in environment');
-          return;
-        }
+        // El Price del overage lleva sus propios `currency_options`, así que Stripe toma el
+        // importe de la moneda de esta factura. Un invoice item en otra moneda que su factura
+        // es un error duro de la API, no un descuadre silencioso.
+        const overagePriceId = await this.priceCatalog.overagePriceId();
 
         if (overageCredits > 0) {
           this.logger.log(
@@ -320,44 +322,39 @@ export class BillingService {
 
     const amountPaidCents = invoice.amount_paid;
 
-    // Find Plan based on Price ID or Amount
+    // Find Plan based on Price ID
     let creditsToAdd = 0;
     let planName = 'UNKNOWN';
 
-    // 1. Prioritize looking up by Price ID from line items
+    // 1. Resolver el plan por el Price ID de las líneas de la factura.
+    //
+    // Es determinista y no depende de la moneda: `currency_options` añade importes al mismo
+    // objeto `Price`, así que un cobro en pesos y uno en dólares traen idéntico identificador.
+    //
+    // Aquí había además un fallback que comparaba `amount_paid` contra el precio mensual de
+    // cada plan en centavos. Se eliminó porque es incorrecto en cuanto hay dos monedas: PRO
+    // cuesta $499 USD, o sea 49900, y un STARTER de $499 MXN llega exactamente igual — esa
+    // organización habría recibido 5000 créditos en vez de 200. Si el Price ID no resuelve, es
+    // preferible no abonar nada y que el webhook falle: Stripe reintenta y el error queda a la
+    // vista, en vez de repartir créditos sobre una suposición.
     let priceId: string | undefined;
 
     for (const line of invoice.lines?.data ?? []) {
       const linePriceId = this.getLineItemPriceId(line);
       if (!linePriceId) continue;
 
-      const planByPriceId = Object.values(SUBSCRIPTION_PLANS).find(
-        (p: any) => this.configService.get(p.priceIdEnvKey) === linePriceId,
-      );
+      const plan = await this.priceCatalog.planFor(linePriceId);
 
-      if (planByPriceId) {
-        creditsToAdd = planByPriceId.limits.monthlyCredits;
-        planName = planByPriceId.type;
+      if (plan) {
+        creditsToAdd = PLANS[plan].limits.monthlyCredits;
+        planName = plan;
         priceId = linePriceId;
         this.logger.log(`Matched invoice line to plan ${planName} via priceId ${linePriceId}`);
         break; // Found the subscription plan
       }
     }
 
-    // 2. Fallback to amount if price ID match failed or wasn't available
-    if (creditsToAdd === 0 && amountPaidCents > 0) {
-      const planByAmount = Object.values(SUBSCRIPTION_PLANS).find(
-        (p: any) => p.price.monthly * 100 === amountPaidCents,
-      );
-
-      if (planByAmount) {
-        creditsToAdd = planByAmount.limits.monthlyCredits;
-        planName = planByAmount.type;
-        this.logger.log(`Matched invoice to plan ${planName} via amount ${amountPaidCents}`);
-      }
-    }
-
-    // 3. Fallback for custom/Enterprise plans that don't match standard Price IDs and standard amounts
+    // 2. Fallback for custom/Enterprise plans that don't match standard Price IDs
     if (creditsToAdd === 0) {
       const existingSub = await this.prisma.subscription.findUnique({
         where: { organizationId },
@@ -366,7 +363,8 @@ export class BillingService {
       if (existingSub?.plan === 'ENTERPRISE') {
         // Use custom monthly credits if defined, otherwise -1 (unlimited)
         creditsToAdd =
-          existingSub.customMonthlyCredits ?? SUBSCRIPTION_PLANS.ENTERPRISE.limits.monthlyCredits;
+          existingSub.customMonthlyCredits ??
+          PLANS[SharedSubscriptionPlan.ENTERPRISE].limits.monthlyCredits;
         planName = 'ENTERPRISE';
         this.logger.log(`Using custom ENTERPRISE plan limits for Org ${organizationId}`);
       }
@@ -406,22 +404,18 @@ export class BillingService {
 
       // If there is a gap, we bill it for NEXT month
       if (gapCredits > 0) {
-        const overagePriceId = this.configService.get('STRIPE_PRICE_OVERAGE');
+        const overagePriceId = await this.priceCatalog.overagePriceId();
 
-        if (overagePriceId) {
-          this.logger.log(
-            `Org ${organizationId} has gap of ${gapCredits} credits. Billing for next month via Price ID.`,
-          );
+        this.logger.log(
+          `Org ${organizationId} has gap of ${gapCredits} credits. Billing for next month via Price ID.`,
+        );
 
-          await this.stripeClient.stripe.invoiceItems.create({
-            customer: invoice.customer as string,
-            price: overagePriceId,
-            quantity: gapCredits,
-            description: `Overage Adjustment (Prev Month: ${gapCredits} credits)`,
-          } as any);
-        } else {
-          this.logger.error('STRIPE_PRICE_OVERAGE missing during reconciliation gap billing');
-        }
+        await this.stripeClient.stripe.invoiceItems.create({
+          customer: invoice.customer as string,
+          price: overagePriceId,
+          quantity: gapCredits,
+          description: `Overage Adjustment (Prev Month: ${gapCredits} credits)`,
+        } as any);
       }
 
       // SYNC DB STATE
@@ -442,6 +436,11 @@ export class BillingService {
       const periodEnd = new Date(stripeSubForDates.current_period_end * 1000);
       const upsertPriceId = this.getLineItemPriceId(invoice.lines?.data?.[0]);
 
+      // La moneda se toma de la factura, que es la que Stripe congeló en el Customer. No se
+      // deriva de `organization.country` a propósito: si alguna vez discreparan, la verdad es
+      // lo que se cobró.
+      const invoiceCurrency = (invoice.currency as string | undefined) ?? 'usd';
+
       const dbSubscription = await this.prisma.subscription.upsert({
         where: { organizationId },
         create: {
@@ -452,10 +451,12 @@ export class BillingService {
           currentPeriodEnd: periodEnd,
           stripeSubscriptionId: subscriptionId,
           stripePriceId: upsertPriceId,
+          currency: invoiceCurrency,
         },
         update: {
           plan: planName as SubscriptionPlan,
           status: SubscriptionStatus.ACTIVE,
+          currency: invoiceCurrency,
           currentPeriodStart: periodStart,
           currentPeriodEnd: periodEnd,
           stripeSubscriptionId: subscriptionId,
@@ -465,19 +466,31 @@ export class BillingService {
       });
 
       // 3. Update Balance
-      // Logic: We want user to start with `creditsToAdd`.
-      // Formula: NewBalance = creditsToAdd.
-      // Why? Because we billed the gap. So effectively we cleared the debt.
-      // Wait, if we use `creditsService.addCredits`, it adds to existing balance.
-      // Existing: -110.
-      // We want result: 1000.
-      // So we need to add: 1110.
-      // Breakdown: 100 (Payback Invoiced) + 10 (Payback Gap) + 1000 (New).
-
+      //
+      // Los créditos **se acumulan**: `addCredits` suma al saldo existente y eso es lo buscado.
+      // A quien le sobraron 3.000 y renueva un plan de 5.000 le quedan 8.000; lo pagado no
+      // caduca. Por eso tampoco se prorratea al subir de plan (`proration_behavior: 'none'`):
+      // los días no consumidos del plan anterior no se pierden, siguen dentro del saldo.
+      //
+      // A eso se le suma la corrección del overage, que devuelve al saldo lo que ya se cobró:
+      //   - `invoicedOverage`: los créditos en negativo que se facturaron en ESTA factura.
+      //   - `gapCredits`: los que se consumieron después de emitirla y se cobrarán en la
+      //     siguiente (ver el `invoiceItems.create` de arriba).
+      //
+      // Ejemplo: saldo -110, de los cuales 100 iban en esta factura y 10 quedaron fuera.
+      // Se abonan 100 + 10 + los del plan, así que el negativo desaparece y el cliente arranca
+      // el periodo con los créditos íntegros de su plan.
       const correctionAmount = invoicedOverage + gapCredits;
       const totalGrant = creditsToAdd + correctionAmount;
 
-      // We record the transaction
+      // We record the transaction.
+      //
+      // `costUSD` queda en undefined cuando el cobro no fue en dólares: la columna se llama USD
+      // y se agrega junto a los costos reales de los modelos, que sí son dólares. Meter pesos
+      // ahí inflaría cualquier suma por el tipo de cambio sin que nada lo delate. El importe
+      // real viaja en la metadata con su moneda al lado, que es donde se puede interpretar.
+      const paidInUsd = invoiceCurrency === 'usd';
+
       await this.creditsService.addCredits(
         organizationId,
         totalGrant,
@@ -488,14 +501,16 @@ export class BillingService {
           plan: planName,
           invoicedOverage,
           gapCredits,
+          currency: invoiceCurrency,
+          amountPaidMinor: amountPaidCents,
           stripeLineItems:
             invoice.lines?.data?.map((l: any) => ({
               description: l.description,
-              amountUSD: l.amount / 100,
+              amountMinor: l.amount,
               quantity: l.quantity,
             })) ?? [],
         },
-        amountPaidCents / 100,
+        paidInUsd ? amountPaidCents / 100 : undefined,
         dbSubscription.id,
         undefined, // invoiceId: Stripe ID is already stored in metadata.stripeInvoiceId
       );
@@ -614,14 +629,17 @@ export class BillingService {
     }
 
     // 2. Resolve new Price ID configuration
-    const planConfig = SUBSCRIPTION_PLANS[newPlan];
-    if (!planConfig) {
+    if (!PLANS[newPlan]) {
       throw new BadRequestException(`Invalid plan configuration for: ${newPlan}`);
     }
 
-    // 3. Get Real Price ID from Config (or fallback to Mock)
-    const priceId =
-      this.configService.get(planConfig.priceIdEnvKey) ?? 'price_MISSING_CONFIG_' + newPlan;
+    // 3. Resolver el Price ID desde el catálogo de Stripe.
+    // Si el plan no tiene precio, esto lanza con el detalle. Antes caía a
+    // `'price_MISSING_CONFIG_' + newPlan`, un identificador inventado que Stripe rechazaba con
+    // un error genérico sin mencionar la configuración que faltaba.
+    const priceId = await this.priceCatalog.priceIdFor(
+      newPlan as unknown as SharedSubscriptionPlan,
+    );
 
     // 4. Retrieve Stripe Subscription to get the Item ID (required for update)
     const stripeSub = await this.stripeClient.stripe.subscriptions.retrieve(
@@ -643,8 +661,13 @@ export class BillingService {
     const itemId = stripeSub.items.data[0].id;
 
     // 5. Determine if Upgrade or Downgrade
-    const currentPlanConfig = SUBSCRIPTION_PLANS[sub.plan];
-    const isUpgrade = planConfig.price.monthly > (currentPlanConfig?.price.monthly ?? 0);
+    // Se decide por el orden del catálogo, no comparando importes. Con dos monedas en juego un
+    // precio ya no ordena nada: 499 pesos y 499 dólares son el mismo número. Y el orden entre
+    // planes no depende de en cuál se cobre.
+    const isUpgrade = canUpgradePlan(
+      sub.plan as unknown as SharedSubscriptionPlan,
+      newPlan as unknown as SharedSubscriptionPlan,
+    );
 
     if (isUpgrade) {
       // UPGRADE: Immediate change + Charge difference now
@@ -812,23 +835,12 @@ export class BillingService {
       return;
     }
 
-    // Determine Plan from Price ID
+    // Determine Plan from Price ID.
+    // Aquí había además un `priceId.includes(config.name)`, heredado de cuando se trabajaba
+    // contra Price IDs de mentira que llevaban el nombre del plan dentro. Con identificadores
+    // reales no acierta nunca, y si acertara sería por coincidencia.
     const priceId = sub.items.data[0].price.id;
-    let planName: SubscriptionPlan | null = null;
-
-    // reverse lookup
-    for (const [key, config] of Object.entries(SUBSCRIPTION_PLANS)) {
-      // In real app compare against configService.get(config.priceIdEnvKey)
-      // For now we might not have it.
-      // Fallback: checks if priceId contains plan name (due to our mock logic)
-      if (
-        priceId.includes(config.name) ||
-        priceId === this.configService.get(config.priceIdEnvKey)
-      ) {
-        planName = key as SubscriptionPlan;
-        break;
-      }
-    }
+    let planName = (await this.priceCatalog.planFor(priceId)) as SubscriptionPlan | null;
 
     if (!planName) {
       // Last resort: check metadata

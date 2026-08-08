@@ -1,6 +1,6 @@
 ---
 title: 'TODO — Deuda técnica detectada'
-description: 'Hallazgos pendientes de corregir: cálculo de costos en fan-out, límites de categoría no aplicados, guarda de ventana de contexto, riesgos de despliegue, secretos en el historial, campos inertes en la config de WhatsApp y reintento infinito cuando el workflow del webhook no existe.'
+description: 'Hallazgos pendientes de corregir: cálculo de costos en fan-out, límites de categoría no aplicados, guarda de ventana de contexto, riesgos de despliegue, secretos en el historial, campos inertes en la config de WhatsApp, reintento infinito cuando el workflow del webhook no existe y la imposibilidad deliberada de cambiar el país de facturación de una organización.'
 ---
 
 Levantado durante la preparación del despliegue del workflow RGM (julio 2026), y ampliado con
@@ -343,3 +343,41 @@ los que ya existían (`unknown-config` e `inactive-config`): ahora son cuatro ru
 mensaje del cliente termina en un 200 sin dejar rastro en la conversación. El riesgo operativo
 señalado al final del punto 11 aplica igual aquí. Si se agrega observabilidad para los descartes,
 conviene cubrir las cuatro de una vez.
+
+---
+
+## 13. No se puede cambiar el país (ni la moneda) de una organización
+
+**Severidad: baja — decisión deliberada, no un olvido.**
+
+Desde la facturación regionalizada, `organizations.country` determina la moneda de cobro. Se
+escribe una sola vez, al crear la sesión de checkout, y **no hay ninguna vía en la aplicación para
+cambiarlo**: no aparece en `UpdateOrganizationDto`, la página de configuración lo muestra como
+texto de solo lectura y `organizations.service.update()` ni lo toca.
+
+**Por qué está cerrado.** Stripe congela la moneda del `Customer` en su primera factura y es
+irreversible. Cambiarla obliga a:
+
+1. Cancelar la suscripción y crear un `Customer` nuevo — las suscripciones no se pueden mover
+   entre clientes.
+2. Volver a contratar, lo que reinicia el ciclo de facturación y cobra de inmediato.
+3. Dejar al cliente sin acceso desde el portal a sus facturas anteriores, que quedan colgando del
+   cliente viejo (siguen existiendo en el panel de Stripe, pero él ya no las ve).
+
+Y lo que de verdad pesa: **con saldo negativo se pierde dinero**. La deuda de overage quedó
+fotografiada en `credit_balances.invoicedOverageCredits` para cobrarse en la siguiente factura del
+cliente viejo, factura que ya nunca llega porque se canceló su suscripción. La deuda se evapora
+sin que nada lo señale.
+
+**Por qué no se automatizó.** Una organización no cambia de país; a la fecha el caso tiene cero
+ocurrencias. Construir el flujo —cancelar, recrear, reconciliar deuda y manejar los fallos a mitad
+de camino— cuesta bastante más que atender a mano los casos que haya.
+
+**Arreglo manual, mientras el volumen sea el de hoy:** liquidar el saldo (que `balance >= 0`),
+cancelar la suscripción en el panel de Stripe, poner `organizations.country` y
+`organizations.stripeCustomerId` en NULL por SQL, y pedirle al cliente que vuelva a contratar. El
+checkout creará un `Customer` nuevo con la moneda correcta.
+
+**Si algún día se automatiza**, lo mínimo sería: exigir saldo no negativo, cobrar el overage
+pendiente en la factura final del cliente viejo antes de cancelar, y avisar en la UI de la pérdida
+de acceso a las facturas anteriores.

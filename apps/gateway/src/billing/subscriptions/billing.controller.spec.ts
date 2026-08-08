@@ -7,15 +7,25 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
+import { SubscriptionPlan } from '@tesseract/types';
 import { BillingController } from './billing.controller';
 import { BillingService } from './billing.service';
 import { StripeClient } from './stripe.client';
+import { PriceCatalogService } from './price-catalog.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { OrganizationsService } from '@/identity/organizations/organizations.service';
 import { WebhookDedupService } from '@/platform/webhooks/webhook-dedup.service';
 
 const mockBillingService = {
   handleWebhookEvent: jest.fn(),
+  createCustomer: jest.fn(),
+  createCheckoutSession: jest.fn(),
+};
+
+const mockPriceCatalog = {
+  priceIdFor: jest.fn(),
+  pricesFor: jest.fn(),
+  overagePrices: jest.fn(),
 };
 
 const mockStripeClient = {
@@ -35,7 +45,10 @@ const mockConfigService = {
   ),
 };
 
-const mockPrismaService = {};
+const mockPrismaService = {
+  subscription: { findUnique: jest.fn() },
+  organization: { findUnique: jest.fn(), update: jest.fn() },
+};
 const mockOrganizationsService = {};
 
 /** Petición mínima con el rawBody que exige la verificación de firma. */
@@ -55,6 +68,7 @@ describe('BillingController - Stripe webhook', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: StripeClient, useValue: mockStripeClient },
+        { provide: PriceCatalogService, useValue: mockPriceCatalog },
         { provide: OrganizationsService, useValue: mockOrganizationsService },
         { provide: WebhookDedupService, useValue: mockWebhookDedup },
       ],
@@ -143,5 +157,95 @@ describe('BillingController - Stripe webhook', () => {
     await expect(controller.handleWebhook('sig', requestWithRawBody())).rejects.not.toBeInstanceOf(
       BadRequestException,
     );
+  });
+
+  describe('checkout: país y moneda', () => {
+    const request = {
+      user: { sub: 'usr_1', organizationId: 'org_1', email: 'a@b.com', name: 'Ada', role: 'OWNER' },
+    } as unknown as Parameters<BillingController['createCheckoutSession']>[0];
+
+    /** Organización con Customer ya creado, para aislar lo que se está probando. */
+    const organization = (country: string | null) => ({
+      id: 'org_1',
+      name: 'Acme',
+      country,
+      stripeCustomerId: 'cus_1',
+    });
+
+    beforeEach(() => {
+      mockPrismaService.subscription.findUnique.mockResolvedValue(null);
+      mockPriceCatalog.priceIdFor.mockResolvedValue('price_starter');
+      mockBillingService.createCheckoutSession.mockResolvedValue('https://checkout.stripe.com/x');
+    });
+
+    it('usa el país guardado e ignora el del cuerpo', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue(organization('MX'));
+
+      await controller.createCheckoutSession(request, {
+        plan: SubscriptionPlan.STARTER,
+        country: 'US',
+      });
+
+      // Stripe congela la moneda del Customer en la primera factura: aceptar 'US' aquí solo
+      // conseguiría que el checkout muestre dólares y el cobro salga en pesos.
+      expect(mockBillingService.createCheckoutSession).toHaveBeenCalledWith(
+        expect.objectContaining({ currency: 'mxn' }),
+      );
+      expect(mockPrismaService.organization.update).not.toHaveBeenCalled();
+    });
+
+    it('acepta el país del cuerpo cuando la organización no tiene, y lo persiste', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue(organization(null));
+
+      await controller.createCheckoutSession(request, {
+        plan: SubscriptionPlan.STARTER,
+        country: 'MX',
+      });
+
+      expect(mockBillingService.createCheckoutSession).toHaveBeenCalledWith(
+        expect.objectContaining({ currency: 'mxn' }),
+      );
+      expect(mockPrismaService.organization.update).toHaveBeenCalledWith({
+        where: { id: 'org_1' },
+        data: { country: 'MX' },
+      });
+    });
+
+    it('responde COUNTRY_REQUIRED si no hay país por ningún lado', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue(organization(null));
+
+      await expect(
+        controller.createCheckoutSession(request, { plan: SubscriptionPlan.STARTER }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockBillingService.createCheckoutSession).not.toHaveBeenCalled();
+      expect(mockPrismaService.organization.update).not.toHaveBeenCalled();
+    });
+
+    it('no escribe el país si Stripe falla al crear la sesión', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue(organization(null));
+      mockBillingService.createCheckoutSession.mockRejectedValue(new Error('Stripe caído'));
+
+      await expect(
+        controller.createCheckoutSession(request, {
+          plan: SubscriptionPlan.STARTER,
+          country: 'MX',
+        }),
+      ).rejects.toThrow('Stripe caído');
+
+      // El campo no se puede corregir desde la aplicación, así que escribirlo antes de tener la
+      // sesión dejaría a la organización anclada a una moneda que nunca llegó a usar.
+      expect(mockPrismaService.organization.update).not.toHaveBeenCalled();
+    });
+
+    it('cobra en dólares a los países que no son México', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue(organization('CO'));
+
+      await controller.createCheckoutSession(request, { plan: SubscriptionPlan.STARTER });
+
+      expect(mockBillingService.createCheckoutSession).toHaveBeenCalledWith(
+        expect.objectContaining({ currency: 'usd' }),
+      );
+    });
   });
 });

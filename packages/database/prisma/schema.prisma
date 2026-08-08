@@ -212,6 +212,11 @@ model Organization {
   metadata Json?
 
   // Billing (Stripe)
+  // País de facturación (ISO 3166-1 alpha-2). Determina la moneda de cobro; nada que ver con
+  // `region`, que es infraestructura. NULL = aún no contrata. Se escribe una sola vez, en el
+  // checkout: Stripe congela la moneda del Customer en su primera factura, así que cambiarlo
+  // después exigiría un Customer nuevo y dejaría huérfana cualquier deuda de overage.
+  country          String?
   stripeCustomerId String? @unique
 
   // Relaciones
@@ -268,6 +273,11 @@ model Subscription {
   // Stripe
   stripeSubscriptionId String? @unique
   stripePriceId        String?
+
+  // Moneda en la que se cobra, tomada de la factura. El default cubre a las suscripciones
+  // anteriores a la facturación regionalizada, que eran todas en USD. Es informativa: la
+  // fuente de verdad es el Customer de Stripe, que la congela en su primera factura.
+  currency String @default("usd")
 
   // Campos personalizables para ENTERPRISE
   customMonthlyPrice   Decimal? @db.Decimal(19, 4) // null = usar precio estándar del plan

@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    // La raíz del monorepo, no `scripts/`. Sin esto TypeScript infiere `rootDir` como el
+    // directorio común de los archivos incluidos —o sea `scripts/`— y entonces los fuentes de
+    // `@tesseract/types`, que el mapeo de `paths` resuelve a `packages/types/src`, quedan
+    // fuera. `tsc` lo tolera porque no emitimos nada, pero el servidor de TypeScript del editor
+    // lo marca como error.
+    "rootDir": "..",
+    "noEmit": true
+  },
+  "include": ["**/*.ts"]
+}

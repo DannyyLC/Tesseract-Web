@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import { Shield, CreditCard, AlertTriangle, ArrowDownRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { SubscriptionPlan, OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
+import { SubscriptionPlan } from '@tesseract/types';
+import { useOveragePrice } from '@/hooks/billing/use-overage-price';
 
 interface BillingHeroProps {
   plan: SubscriptionPlan;
@@ -28,6 +29,7 @@ export default function BillingHero({
   pendingPlanChange = null,
 }: BillingHeroProps) {
   const t = useTranslations('BillingHero');
+  const { formatted: overagePrice } = useOveragePrice();
   const isNegative = credits.available < 0;
   const formattedBalance = Math.abs(credits.available).toLocaleString();
   const nextDateFormatted = nextBillingDate
@@ -117,7 +119,7 @@ export default function BillingHero({
           {/* Negative Balance Helper Text */}
           {isNegative && (
             <p className="max-w-md text-sm text-danger-500">
-              {t('overdraftText', { price: OVERAGE_PRICE_PER_CREDIT })}
+              {t('overdraftText', { price: overagePrice })}
             </p>
           )}
         </div>

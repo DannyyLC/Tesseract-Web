@@ -854,6 +854,7 @@ export class OrganizationsService {
         isActive: true,
         createdAt: true,
         timezone: true,
+        country: true,
         customMaxUsers: true,
         customMaxApiKeys: true,
         customMaxWorkflows: true,

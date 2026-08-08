@@ -1,12 +1,13 @@
 'use client';
 
 import { Check, Loader2, Zap, TrendingUp, Crown, Rocket, Building2 } from 'lucide-react';
-import { BillingPlan, SubscriptionPlan } from '@tesseract/types';
+import { BillingPlanWithPrices, PLAN_ORDER, SubscriptionPlan } from '@tesseract/types';
+import { useBillingCurrency } from '@/hooks/billing/use-billing-currency';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { useTranslations } from 'next-intl';
 
 interface PlanGridProps {
-  plans: BillingPlan[];
+  plans: BillingPlanWithPrices[];
   currentPlan: string;
   onUpgrade: (planName: string) => void;
   upgradingPlan: string | null;
@@ -29,6 +30,7 @@ const getPlanIcon = (type: string) => {
 
 export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan }: PlanGridProps) {
   const t = useTranslations('BillingPlanGrid');
+  const { currency, format } = useBillingCurrency();
 
   const planContent: Record<string, { desc: string; features: string[]; highlight?: string }> = {
     [SubscriptionPlan.FREE]: { desc: t('freeDesc'), features: [] },
@@ -39,8 +41,11 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
     [SubscriptionPlan.ENTERPRISE]: { desc: t('enterpriseDesc'), features: [t('enterpriseFeature0'), t('enterpriseFeature1')] },
   };
 
-  // Sort plans by price to ensure order
-  const sortedPlans = [...(plans || [])].sort((a, b) => a.price.monthly - b.price.monthly);
+  // Se ordenan por el orden declarado del catálogo, no por precio: con dos monedas un importe
+  // ya no ordena nada (499 pesos y 499 dólares son el mismo número).
+  const sortedPlans = [...(plans || [])].sort(
+    (a, b) => PLAN_ORDER.indexOf(a.type) - PLAN_ORDER.indexOf(b.type),
+  );
 
   return (
     <div className="flex flex-wrap justify-center gap-6">
@@ -67,9 +72,11 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
 
             <div className="mt-4 flex items-baseline gap-1">
               <span className="font-geist-mono text-3xl font-bold text-text-primary">
-                ${plan.price.monthly}
+                {format(plan.price[currency])}
               </span>
-              <span className="text-sm font-medium text-text-tertiary">/{plan.price.currency}</span>
+              <span className="text-sm font-medium text-text-tertiary">
+                {currency.toUpperCase()}
+              </span>
             </div>
 
             {/* Limits */}

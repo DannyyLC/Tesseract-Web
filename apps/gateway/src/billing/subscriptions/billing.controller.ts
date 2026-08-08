@@ -22,12 +22,20 @@ import { Stripe } from 'stripe';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { Logger } from '@nestjs/common';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
-import { SUBSCRIPTION_PLANS } from './billing.constants';
 import { StripeClient } from './stripe.client';
+import { PriceCatalogService } from './price-catalog.service';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
+import { CreateCheckoutRequestDto } from './dto/create-checkout-request.dto';
 import { BillingDashboardDto } from './dto/billing-dashboard.dto';
 import { OrganizationsService } from '@/identity/organizations/organizations.service';
-import { ApiResponseBuilder, UserRole } from '@tesseract/types';
+import {
+  ApiResponseBuilder,
+  BillingPlansResponse,
+  PLANS,
+  SubscriptionPlan as SharedSubscriptionPlan,
+  UserRole,
+  resolveBillingCurrency,
+} from '@tesseract/types';
 import { Organization, SubscriptionPlan, SubscriptionStatus } from '@tesseract/database';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
@@ -46,6 +54,7 @@ export class BillingController {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly stripeClient: StripeClient,
+    private readonly priceCatalog: PriceCatalogService,
     private readonly organizationsService: OrganizationsService,
     private readonly webhookDedup: WebhookDedupService,
   ) {}
@@ -56,7 +65,7 @@ export class BillingController {
   @Roles(UserRole.OWNER)
   async createCheckoutSession(
     @Req() req: Request & { user: UserPayload },
-    @Body() body: { plan: string },
+    @Body() body: CreateCheckoutRequestDto,
   ) {
     const organizationId = req.user.organizationId;
     const userEmail = req.user.email;
@@ -66,10 +75,7 @@ export class BillingController {
       throw new BadRequestException('User does not belong to an organization');
     }
 
-    const planName = body.plan as SubscriptionPlan;
-    if (!SUBSCRIPTION_PLANS[planName]) {
-      throw new BadRequestException(`Invalid plan: ${planName}`);
-    }
+    const planName = body.plan;
 
     // Guard: Prevent creating a new subscription if one already exists
     const existingSub = await this.prisma.subscription.findUnique({
@@ -91,9 +97,24 @@ export class BillingController {
       throw new BadRequestException('Organization not found');
     }
 
+    // 2. Resolve the billing country.
+    // El país guardado manda: Stripe congela la moneda del Customer en su primera factura, así
+    // que aceptar uno distinto aquí solo serviría para que el checkout muestre pesos y el cobro
+    // salga en dólares. Solo se acepta del cuerpo cuando la organización todavía no tiene.
+    const country = organization.country ?? body.country;
+
+    if (!country) {
+      throw new BadRequestException({
+        code: 'COUNTRY_REQUIRED',
+        message: 'A billing country is required before the first checkout.',
+      });
+    }
+
+    const currency = resolveBillingCurrency(country);
+
     let customerId = organization.stripeCustomerId;
 
-    // 2. Create Stripe Customer if not exists
+    // 3. Create Stripe Customer if not exists
     if (!customerId) {
       customerId = await this.billingService.createCustomer({
         email: userEmail,
@@ -110,20 +131,16 @@ export class BillingController {
       });
     }
 
-    // 3. Resolve Price ID
-    const planConfig = SUBSCRIPTION_PLANS[planName];
-    const priceId = this.configService.get(planConfig.priceIdEnvKey);
+    // 4. Resolve Price ID. Es el mismo para todas las monedas; `currency` decide el importe.
+    const priceId = await this.priceCatalog.priceIdFor(planName);
 
-    if (!priceId) {
-      throw new BadRequestException(`Price ID for plan ${planName} is not configured`);
-    }
-
-    // 4. Create Checkout Session
+    // 5. Create Checkout Session
     const frontendUrl = this.configService.get('FRONTEND_URL') ?? 'http://localhost:3000';
 
     const sessionUrl = await this.billingService.createCheckoutSession({
       customerId,
       priceId,
+      currency,
       successUrl: `${frontendUrl}/billing?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${frontendUrl}/billing?canceled=true`,
       metadata: {
@@ -132,6 +149,17 @@ export class BillingController {
       },
       allowPromotionCodes: true,
     });
+
+    // 6. Persistir el país solo ahora, con la sesión ya creada.
+    // Si se escribiera antes, un fallo de Stripe —o un modal que el usuario abandona— dejaría a
+    // la organización anclada a una moneda que nunca llegó a usar, y el campo no se puede
+    // corregir desde la aplicación.
+    if (!organization.country) {
+      await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: { country },
+      });
+    }
 
     return { url: sessionUrl };
   }
@@ -183,11 +211,34 @@ export class BillingController {
     return { url };
   }
 
+  /**
+   * Catálogo de planes con sus importes vigentes.
+   *
+   * La configuración del plan (límites, features) sale de `PLANS`; los importes salen de Stripe
+   * en el momento. Esa es la razón de que subir un precio no requiera un despliegue: no hay
+   * ninguna cifra de dinero compilada en el bundle que haya que actualizar.
+   *
+   * Ruta pública, así que el `PriceCatalogService` cachea la respuesta de Stripe y no se sale a
+   * la red en cada visita a la página de precios.
+   */
   @Get('plans')
-  getPlans() {
-    return Object.values(SUBSCRIPTION_PLANS).map(
-      ({ priceIdEnvKey: _priceIdEnvKey, ...plan }) => plan,
+  async getPlans(): Promise<BillingPlansResponse> {
+    const plans = await Promise.all(
+      Object.values(PLANS).map(async (plan) => ({
+        ...plan,
+        // FREE no tiene precio en Stripe pero sí tiene un importe conocido, y es el único: cero
+        // en cualquier moneda. Sin esto la tarjeta mostraría un guion en vez de "$0".
+        // ENTERPRISE sí queda sin importes a propósito, porque se negocia caso por caso.
+        price:
+          plan.type === SharedSubscriptionPlan.FREE
+            ? { usd: 0, mxn: 0 }
+            : await this.priceCatalog.pricesFor(plan.type),
+      })),
     );
+
+    // El precio del overage no pertenece a ningún plan pero la UI lo necesita para el aviso de
+    // consumo, así que viaja en la misma respuesta en vez de en un endpoint aparte.
+    return { plans, overagePerCredit: await this.priceCatalog.overagePrices() };
   }
 
   @Get('subscription')
@@ -236,7 +287,7 @@ export class BillingController {
     }
 
     // Validate Plan exists
-    if (!SUBSCRIPTION_PLANS[body.plan]) {
+    if (!PLANS[body.plan]) {
       throw new BadRequestException(`Invalid plan: ${body.plan}`);
     }
 

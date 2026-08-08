@@ -6,6 +6,8 @@ import { CreditsService } from '../credits/credits.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { UtilityService } from '@/platform/utility/utility.service';
+import { PriceCatalogService } from './price-catalog.service';
+import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 
 const mockStripeClient = {
   stripe: {
@@ -68,14 +70,30 @@ const mockPrismaService = {
 };
 
 const mockConfigService = {
-  get: jest.fn((key) => {
-    const configMap: Record<string, string> = {
-      STRIPE_PRICE_OVERAGE: 'price_overage_123',
-      STRIPE_PRICE_PRO: 'price_pro_m_123',
-      STRIPE_PRICE_ADVANCED: 'price_adv_m_123',
-    };
-    return configMap[key] || null;
-  }),
+  get: jest.fn(() => null),
+};
+
+/**
+ * Catálogo de Stripe. Los Price IDs ya no salen de variables de entorno, así que el mock
+ * refleja lo mismo que la resolución real: un identificador por lookup key, idéntico sea cual
+ * sea la moneda del cobro.
+ */
+const PLAN_PRICE_IDS: Record<string, string> = {
+  STARTER: 'price_starter_123',
+  GROWTH: 'price_growth_123',
+  BUSINESS: 'price_business_123',
+  PRO: 'price_pro_123',
+};
+
+const mockPriceCatalog = {
+  priceIdFor: jest.fn(async (plan: string) => PLAN_PRICE_IDS[plan]),
+  planFor: jest.fn(
+    async (priceId: string) =>
+      Object.entries(PLAN_PRICE_IDS).find(([, id]) => id === priceId)?.[0] ?? null,
+  ),
+  pricesFor: jest.fn(async () => ({ usd: 2500, mxn: 49900 })),
+  overagePriceId: jest.fn(async () => 'price_overage_123'),
+  overagePrices: jest.fn(async () => ({ usd: 16, mxn: 320 })),
 };
 
 const mockUtilityService = {
@@ -94,6 +112,7 @@ describe('BillingService', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: UtilityService, useValue: mockUtilityService },
+        { provide: PriceCatalogService, useValue: mockPriceCatalog },
       ],
     }).compile();
 
@@ -155,9 +174,10 @@ describe('BillingService', () => {
         url: 'https://checkout.stripe.com/123',
       });
 
-      const dto = {
+      const dto: CreateCheckoutSessionDto = {
         customerId: 'cus_123',
         priceId: 'price_123',
+        currency: 'usd',
         successUrl: 'http://localhost/success',
         cancelUrl: 'http://localhost/cancel',
         metadata: { orgId: 'org-1' },
@@ -285,7 +305,7 @@ describe('BillingService', () => {
       expect(mockStripeClient.stripe.subscriptions.update).toHaveBeenCalledWith(
         'sub_stripe_1',
         expect.objectContaining({
-          items: [{ id: 'item_1', price: 'price_pro_m_123' }],
+          items: [{ id: 'item_1', price: 'price_pro_123' }],
           proration_behavior: 'none',
           billing_cycle_anchor: 'now',
         }),
@@ -325,7 +345,7 @@ describe('BillingService', () => {
             },
             {
               start_date: 2000,
-              items: [{ price: 'price_MISSING_CONFIG_STARTER' }],
+              items: [{ price: 'price_starter_123' }],
             },
           ],
         }),
@@ -433,7 +453,7 @@ describe('BillingService', () => {
       amount_paid: 49900,
       metadata: { organizationId: 'org-1' },
       subscription: 'sub_1',
-      lines: { data: [{ price: { id: 'price_pro_m_123' } }] },
+      lines: { data: [{ price: { id: 'price_pro_123' } }] },
       ...overrides,
     });
 
@@ -555,6 +575,91 @@ describe('BillingService', () => {
         'sub-db-1',
         undefined,
       );
+    });
+
+    it('acumula sobre el saldo que sobró en vez de reemplazarlo', async () => {
+      // Comportamiento buscado: los créditos no caducan. A quien le sobraron 3.000 y renueva un
+      // plan de 5.000 le quedan 8.000. Es también la razón de que al subir de plan no se
+      // prorratee: los días no consumidos siguen dentro del saldo.
+      mockPrismaService.creditBalance.findUnique.mockResolvedValue({
+        balance: 3000,
+        invoicedOverageCredits: 0,
+      });
+
+      await service.handleWebhookEvent({
+        type: 'invoice.payment_succeeded',
+        data: { object: proInvoice() },
+      } as any);
+
+      // addCredits suma al saldo existente, así que el monto abonado es el del plan a secas.
+      expect(addCreditsAmount()).toBe(PRO_MONTHLY_CREDITS);
+    });
+
+    describe('facturación en varias monedas', () => {
+      /** Renovación de STARTER cobrada en pesos: $499 MXN, o sea 49900 centavos. */
+      const starterMxnInvoice = () => ({
+        id: 'inv_starter_mxn',
+        customer: 'cus_1',
+        currency: 'mxn',
+        amount_paid: 49900,
+        metadata: { organizationId: 'org-1' },
+        subscription: 'sub_1',
+        lines: { data: [{ price: { id: 'price_starter_123' } }] },
+      });
+
+      it('no confunde $499 MXN de STARTER con los $499 USD de PRO', async () => {
+        // Este es el bug que motivó el cambio. El fallback anterior comparaba `amount_paid`
+        // contra el precio de cada plan en centavos, sin mirar la moneda: 49900 coincidía con
+        // PRO y esta organización habría recibido 5000 créditos en vez de 200.
+        mockPrismaService.subscription.findUnique.mockResolvedValue({ plan: 'STARTER' });
+
+        await service.handleWebhookEvent({
+          type: 'invoice.payment_succeeded',
+          data: { object: starterMxnInvoice() },
+        } as any);
+
+        expect(addCreditsAmount()).toBe(200);
+        expect(addCreditsAmount()).not.toBe(PRO_MONTHLY_CREDITS);
+      });
+
+      it('persiste la moneda de la factura en la suscripción', async () => {
+        await service.handleWebhookEvent({
+          type: 'invoice.payment_succeeded',
+          data: { object: starterMxnInvoice() },
+        } as any);
+
+        expect(mockPrismaService.subscription.upsert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            create: expect.objectContaining({ currency: 'mxn' }),
+            update: expect.objectContaining({ currency: 'mxn' }),
+          }),
+        );
+      });
+
+      it('no guarda pesos en costUSD', async () => {
+        await service.handleWebhookEvent({
+          type: 'invoice.payment_succeeded',
+          data: { object: starterMxnInvoice() },
+        } as any);
+
+        // La columna se agrega junto a los costos reales de los modelos, que son dólares.
+        // Meter pesos ahí inflaría cualquier suma por el tipo de cambio sin que nada lo delate.
+        const [, , , , metadata, costUSD] = mockCreditsService.addCredits.mock.calls[0];
+        expect(costUSD).toBeUndefined();
+        expect(metadata).toEqual(
+          expect.objectContaining({ currency: 'mxn', amountPaidMinor: 49900 }),
+        );
+      });
+
+      it('sí registra costUSD cuando el cobro fue en dólares', async () => {
+        await service.handleWebhookEvent({
+          type: 'invoice.payment_succeeded',
+          data: { object: proInvoice({ currency: 'usd' }) },
+        } as any);
+
+        const [, , , , , costUSD] = mockCreditsService.addCredits.mock.calls[0];
+        expect(costUSD).toBe(499);
+      });
     });
   });
 });

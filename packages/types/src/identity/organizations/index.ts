@@ -15,8 +15,15 @@ export interface Organization {
   /** Zona IANA. Fuente de verdad para las gráficas y la hora local de los agentes. */
   timezone: string;
   shardKey?: string;
+  /** Infraestructura (sharding), no facturación. Para la moneda de cobro es `country`. */
   region?: string;
   metadata?: any;
+  /**
+   * País de facturación (ISO 3166-1 alpha-2). Determina la moneda de cobro.
+   * Ausente mientras la organización no haya contratado; se escribe en el checkout y no
+   * vuelve a cambiar (ver `UpdateOrganizationDto`).
+   */
+  country?: string;
   stripeCustomerId?: string;
 }
 
@@ -30,6 +37,8 @@ export interface Subscription {
   cancelAtPeriodEnd: boolean;
   stripeSubscriptionId?: string;
   stripePriceId?: string;
+  /** Moneda en la que se cobra esta suscripción, tomada de la factura de Stripe. */
+  currency: string;
   customMonthlyPrice?: number;
   customMonthlyCredits?: number;
   customMaxWorkflows?: number;
@@ -48,12 +57,21 @@ export interface DashboardOrganizationDto {
   isActive: boolean;
   createdAt: Date;
   timezone: string;
+  /** Solo lectura: se define al contratar y no se edita desde la aplicación. */
+  country: string | null;
   customMaxUsers: number | null;
   customMaxApiKeys: number | null;
   customMaxWorkflows: number | null;
   subscriptionData?: DashboardSubscriptionDto | null;
 }
 
+/**
+ * Campos editables de la organización.
+ *
+ * `country` **no** está aquí a propósito: Stripe congela la moneda del Customer en su primera
+ * factura, así que cambiarlo después obligaría a crear un Customer nuevo y dejaría huérfana
+ * cualquier deuda de overage pendiente. Se escribe una sola vez, en el checkout.
+ */
 export interface UpdateOrganizationDto {
   name?: string;
   timezone?: string;

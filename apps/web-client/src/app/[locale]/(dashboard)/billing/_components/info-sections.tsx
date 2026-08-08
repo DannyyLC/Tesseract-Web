@@ -1,11 +1,12 @@
 'use client';
 
-import { OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
+import { useOveragePrice } from '@/hooks/billing/use-overage-price';
 import { Headphones, Mail, Cpu, Sparkles, MessageSquare, Zap } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 export default function InfoSections() {
   const t = useTranslations('BillingInfoSections');
+  const { formatted: overagePrice } = useOveragePrice();
 
   const TIERS = [
     {
@@ -67,7 +68,7 @@ export default function InfoSections() {
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-text-primary">{t('creditHeading')}</h2>
           <p className="max-w-2xl leading-relaxed text-text-secondary">
-            {t('creditDesc', { price: OVERAGE_PRICE_PER_CREDIT })}
+            {t('creditDesc', { price: overagePrice })}
           </p>
         </div>
 

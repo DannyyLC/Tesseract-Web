@@ -10,7 +10,9 @@ export function usePlans() {
       const api = RootApi.getInstance().getBillingApi();
       return await api.getPlans();
     },
-    staleTime: 1000 * 60 * 60, // 1 hour
+    // Cinco minutos, en línea con la caché del gateway: los precios salen de Stripe y un
+    // cambio debe verse pronto, pero no hace falta consultarlo en cada navegación.
+    staleTime: 1000 * 60 * 5,
   });
 }
 
@@ -42,9 +44,15 @@ export function useBillingMutations() {
   const queryClient = useQueryClient();
 
   const createCheckoutSession = useMutation({
-    mutationFn: async (plan: string | SubscriptionPlan) => {
+    mutationFn: async ({
+      plan,
+      country,
+    }: {
+      plan: string | SubscriptionPlan;
+      country?: string;
+    }) => {
       const api = RootApi.getInstance().getBillingApi();
-      return await api.createCheckoutSession(plan);
+      return await api.createCheckoutSession(plan, country);
     },
     // No invalidation needed here as it redirects
   });

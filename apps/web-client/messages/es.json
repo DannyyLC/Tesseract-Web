@@ -119,7 +119,7 @@
   },
   "BillingInfoSections": {
     "creditHeading": "¿Qué es un Crédito?",
-    "creditDesc": "Es nuestra unidad de medida. No cobramos por ejecución, sino por la complejidad del razonamiento requerido. El precio por crédito de overage es de ${price} USD.",
+    "creditDesc": "Es nuestra unidad de medida. No cobramos por ejecución, sino por la complejidad del razonamiento requerido. El precio por crédito de overage es de {price}.",
     "t1Name": "Ligero",
     "t1Cost": "1 Crédito",
     "t1Context": "20,000 tokens",
@@ -154,7 +154,7 @@
     "noSubscriptionDesc": "Debes tener un plan activo para habilitar excedentes.",
     "toggleError": "Error al cambiar configuración",
     "heading": "Excedentes de Créditos",
-    "enabledDesc": "El consumo extra se cobrará a ${price}/crédito.",
+    "enabledDesc": "El consumo extra se cobrará a {price}/crédito.",
     "disabledDesc": "Los workflows se detendrán al agotar créditos.",
     "deactivateTitle": "Desactivar uso adicional",
     "activateTitle": "Activar uso adicional",
@@ -277,7 +277,20 @@
     "resumeSuccessText": "Tu suscripción ha sido reactivada exitosamente. Seguirás disfrutando de todos tus beneficios sin interrupción.",
     "continueButton": "¡Continuar!",
     "eliteServicesHeading": "Servicios de Élite",
-    "eliteServicesDesc": "Capacidad ilimitada y acompañamiento experto para escalar tu transformación digital."
+    "eliteServicesDesc": "Capacidad ilimitada y acompañamiento experto para escalar tu transformación digital.",
+    "countryModalTitle": "Elige tu país de facturación",
+    "countryModalIntro": "Determina la moneda en la que se te cobrará.",
+    "countryModalWarning": "No se puede cambiar después de tu primer pago, así que revísalo bien.",
+    "countryModalLabel": "País",
+    "countryModalConfirm": "Continuar al pago",
+    "countryModalCancel": "Cancelar",
+    "countryRegion": {
+      "mexico": "México",
+      "latam": "Latinoamérica",
+      "northAmerica": "Norteamérica",
+      "europe": "Europa"
+    },
+    "genericError": "No se pudo iniciar el pago. Inténtalo de nuevo."
   },
   "WorkflowDetail": {
     "emptyNameError": "El nombre no puede estar vacío",
@@ -375,7 +388,7 @@
     "negativeBalance": "Balance Negativo",
     "availableCredits": "Créditos Disponibles",
     "creditsUnit": "créditos",
-    "overdraftText": "Has excedido tu límite. El consumo extra (${price}/crédito) se cargará en tu próxima factura.",
+    "overdraftText": "Has excedido tu límite. El consumo extra ({price}/crédito) se cargará en tu próxima factura.",
     "pendingCancellation": "Cancelación Pendiente",
     "scheduledChange": "Cambio programado → {plan}",
     "paymentFailedText": "No pudimos procesar tu último pago. Usa el <bold>Portal de Pagos</bold> para actualizar tu método de pago.",
@@ -532,7 +545,7 @@
     "s4Cost1Title": "Suscripción Mensual",
     "s4Cost1Text": "Cargo recurrente que incluye el saldo de créditos del Plan contratado.",
     "s4Cost2Title": "Excedentes (Overage)",
-    "s4Cost2Text": "Al agotar el saldo mensual, el sistema puede continuar operando en modo overage, sujeto al límite del Plan. Los créditos consumidos en exceso se facturan al final del mes a <bold>${price} USD por crédito</bold>. El Plan Free no permite overages.",
+    "s4Cost2Text": "Al agotar el saldo mensual, el sistema puede continuar operando en modo overage, sujeto al límite del Plan. Los créditos consumidos en exceso se facturan al final del mes a <bold>{price} por crédito</bold>. El Plan Free no permite overages.",
     "s4Sub1Title": "Créditos mensuales incluidos por plan",
     "s4Row1Label": "Free",
     "s4Row1Value": "0 créditos (sin overage)",
@@ -590,7 +603,8 @@
     "s9Bullet2": "El Cliente no puede ceder este acuerdo sin consentimiento escrito de Fractal.",
     "s9Bullet3": "Si alguna cláusula resulta inválida, el resto permanece vigente.",
     "s9Bullet4": "No ejercer un derecho no constituye renuncia al mismo.",
-    "finalNote": "Para consultas sobre estos Términos, contáctanos a través de nuestro panel de soporte."
+    "finalNote": "Para consultas sobre estos Términos, contáctanos a través de nuestro panel de soporte.",
+    "s4Cost2TextNoPrice": "Al agotar el saldo mensual, el sistema puede continuar operando en modo overage, sujeto al límite del Plan. Los créditos consumidos en exceso se facturan al final del mes al <bold>precio por crédito vigente publicado en la página de planes</bold>. El Plan Free no permite overages."
   },
   "Policies": {
     "heading": "Políticas",
@@ -989,7 +1003,9 @@
       "northAmerica": "Norteamérica",
       "europe": "Europa",
       "other": "Otras"
-    }
+    },
+    "countryLabel": "País de facturación",
+    "countryHelp": "Define la moneda de tus cobros. Se establece al contratar y no puede cambiarse; escríbenos si necesitas corregirlo."
   },
   "Users": {
     "heading": "Miembros",

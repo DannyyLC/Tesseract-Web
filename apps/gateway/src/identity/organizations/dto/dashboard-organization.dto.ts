@@ -30,6 +30,16 @@ export class DashboardOrganizationDto {
   })
   timezone: string;
 
+  @ApiProperty({
+    description:
+      'ISO 3166-1 alpha-2 billing country, or null if the organization has not subscribed yet. ' +
+      'Determines the billing currency. Read-only: it is set once during checkout and cannot be ' +
+      'changed afterwards, because Stripe locks the customer currency on the first invoice.',
+    example: 'MX',
+    nullable: true,
+  })
+  country: string | null;
+
   @ApiProperty({ description: 'Custom maximum number of users allowed, or null if not set.' })
   customMaxUsers: number | null;
 

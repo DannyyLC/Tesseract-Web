@@ -3,7 +3,12 @@
  *
  * Define los planes disponibles, sus límites, y configuración de créditos.
  * Sistema de pre-pago: créditos mensuales con renovación automática.
+ *
+ * **Los precios no están aquí.** Stripe es la única fuente de verdad de cuánto cuesta cada
+ * plan; este archivo describe qué otorga. Ver `BillingPlan`.
  */
+
+import type { BillingCurrency } from '../../platform/common/countries';
 
 // ============================================
 // ENUMS
@@ -65,23 +70,51 @@ export interface PlanLimits {
 }
 
 /**
- * Información completa de un plan
+ * Información de un plan: qué otorga, no cuánto cuesta.
+ *
+ * **Aquí no hay importes a propósito.** El precio de cada plan vive únicamente en Stripe, y
+ * `GET /billing/plans` lo resuelve en vivo para devolverlo junto con esta configuración (ver
+ * `BillingPlanWithPrices`). Tener el importe también aquí obligaría a un redeploy para cambiar
+ * un precio, y dejaría dos cifras que pueden discrepar en silencio: la que se muestra y la que
+ * se cobra.
  */
 export interface BillingPlan {
   type: SubscriptionPlan;
   name: string;
   description: string;
-  price: {
-    monthly: number; // USD por mes
-    currency: string;
-  };
   limits: PlanLimits;
-  stripePriceId?: string; // Stripe Price ID (opcional hasta integrar)
 
   // UI
   features: string[]; // Lista de características para mostrar en pricing
   highlightFeature?: string; // Feature destacado (ej: "+1 Workflow de regalo")
   popular?: boolean; // Si es el plan recomendado
+}
+
+/**
+ * Importes de un plan por moneda, en **unidades mínimas** (centavos), tal como los entrega
+ * Stripe. Se formatean con `formatMoney`.
+ *
+ * Es parcial porque no todos los planes tienen precio en Stripe: `FREE` no cobra y
+ * `ENTERPRISE` se negocia por `Subscription.customMonthlyPrice`.
+ */
+export type PlanPrices = Partial<Record<BillingCurrency, number>>;
+
+/** Lo que devuelve `GET /billing/plans`: la config del plan más sus importes vigentes. */
+export interface BillingPlanWithPrices extends BillingPlan {
+  price: PlanPrices;
+}
+
+/**
+ * Respuesta de `GET /billing/plans`.
+ *
+ * El precio del overage viaja aquí y no en un endpoint aparte porque sale del mismo catálogo de
+ * Stripe y la UI lo necesita en las mismas pantallas: pedirlo por separado duplicaría la
+ * consulta para mostrar dos cifras de la misma página.
+ */
+export interface BillingPlansResponse {
+  plans: BillingPlanWithPrices[];
+  /** Precio por crédito de overage, por moneda, en unidades mínimas. */
+  overagePerCredit: PlanPrices;
 }
 
 /**
@@ -129,9 +162,21 @@ export const WORKFLOW_CATEGORIES: Record<WorkflowCategory, WorkflowCategoryConfi
 // CONFIGURACIÓN DE PLANES
 // ============================================
 /**
- * Precio por crédito en overage
+ * Orden de los planes, de menor a mayor.
+ *
+ * Es la única definición de "cuál está por encima de cuál". Antes esa relación se deducía
+ * comparando `price.monthly`, lo cual dejó de ser posible al sacar los importes del archivo —
+ * y de todas formas era incorrecto en cuanto hay dos monedas: el orden entre planes no depende
+ * de en cuál se cobre.
  */
-export const OVERAGE_PRICE_PER_CREDIT = 0.16; // $0.16 USD por crédito
+export const PLAN_ORDER: SubscriptionPlan[] = [
+  SubscriptionPlan.FREE,
+  SubscriptionPlan.STARTER,
+  SubscriptionPlan.GROWTH,
+  SubscriptionPlan.BUSINESS,
+  SubscriptionPlan.PRO,
+  SubscriptionPlan.ENTERPRISE,
+];
 
 /**
  * Configuración completa de todos los planes
@@ -141,10 +186,6 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
     type: SubscriptionPlan.FREE,
     name: 'Free',
     description: 'Plan gratuito con límites básicos',
-    price: {
-      monthly: 0,
-      currency: 'USD',
-    },
     limits: {
       maxUsers: 1,
       maxWorkflows: 3,
@@ -161,10 +202,6 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
     type: SubscriptionPlan.STARTER,
     name: 'Starter',
     description: 'Perfecto para empezar a automatizar tareas',
-    price: {
-      monthly: 25,
-      currency: 'USD',
-    },
     limits: {
       maxUsers: 10,
       maxWorkflows: 10,
@@ -181,10 +218,6 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
     type: SubscriptionPlan.GROWTH,
     name: 'Growth',
     description: 'Para equipos que escalan sus operaciones',
-    price: {
-      monthly: 79,
-      currency: 'USD',
-    },
     limits: {
       maxUsers: 25,
       maxWorkflows: 25,
@@ -202,10 +235,6 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
     type: SubscriptionPlan.BUSINESS,
     name: 'Business',
     description: 'Para empresas con alta demanda',
-    price: {
-      monthly: 199,
-      currency: 'USD',
-    },
     limits: {
       maxUsers: 50,
       maxWorkflows: 100,
@@ -223,10 +252,6 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
     type: SubscriptionPlan.PRO,
     name: 'Pro',
     description: 'Para organizaciones que necesitan máxima capacidad',
-    price: {
-      monthly: 499,
-      currency: 'USD',
-    },
     limits: {
       maxUsers: 100,
       maxWorkflows: 250,
@@ -244,10 +269,6 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
     type: SubscriptionPlan.ENTERPRISE,
     name: 'Enterprise',
     description: 'Solución personalizada para grandes organizaciones',
-    price: {
-      monthly: 0, // Custom pricing
-      currency: 'USD',
-    },
     limits: {
       maxUsers: -1, // Ilimitado (se configura custom)
       maxWorkflows: -1, // Ilimitado (se configura custom)
@@ -365,24 +386,21 @@ export function canUseModelInWorkflow(
 }
 
 /**
- * Calcula el costo de overage en USD
+ * Costo del overage en unidades mínimas de la moneda de cobro.
+ *
+ * `unitAmountMinor` es el precio por crédito tal como lo entrega Stripe (centavos). Se recibe
+ * como parámetro en vez de leerse de una constante porque el importe depende de la moneda y
+ * vive únicamente en Stripe; quien llame ya lo tiene, vía `GET /billing/plans`.
  */
-export function calculateOverageCost(overageCredits: number): number {
-  return Math.abs(overageCredits) * OVERAGE_PRICE_PER_CREDIT;
+export function calculateOverageCost(overageCredits: number, unitAmountMinor: number): number {
+  return Math.abs(overageCredits) * unitAmountMinor;
 }
 
 /**
- * Obtiene todos los planes ordenados por precio
+ * Obtiene todos los planes en orden ascendente
  */
 export function getOrderedPlans(): BillingPlan[] {
-  return [
-    PLANS[SubscriptionPlan.FREE],
-    PLANS[SubscriptionPlan.STARTER],
-    PLANS[SubscriptionPlan.GROWTH],
-    PLANS[SubscriptionPlan.BUSINESS],
-    PLANS[SubscriptionPlan.PRO],
-    PLANS[SubscriptionPlan.ENTERPRISE],
-  ];
+  return PLAN_ORDER.map((plan) => PLANS[plan]);
 }
 
 /**
@@ -392,19 +410,7 @@ export function canUpgradePlan(
   currentPlan: SubscriptionPlan,
   targetPlan: SubscriptionPlan,
 ): boolean {
-  const planOrder = [
-    SubscriptionPlan.FREE,
-    SubscriptionPlan.STARTER,
-    SubscriptionPlan.GROWTH,
-    SubscriptionPlan.BUSINESS,
-    SubscriptionPlan.PRO,
-    SubscriptionPlan.ENTERPRISE,
-  ];
-
-  const currentIndex = planOrder.indexOf(currentPlan);
-  const targetIndex = planOrder.indexOf(targetPlan);
-
-  return targetIndex > currentIndex;
+  return PLAN_ORDER.indexOf(targetPlan) > PLAN_ORDER.indexOf(currentPlan);
 }
 
 /**

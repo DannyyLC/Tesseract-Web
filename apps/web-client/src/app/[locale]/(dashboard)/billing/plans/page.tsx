@@ -7,7 +7,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useBillingDashboard, useBillingMutations } from '@/hooks/billing/use-billing';
 import { usePlans } from '@/hooks/billing/use-billing';
 import { useWorkflowStats } from '@/hooks/automation/use-workflows';
-import { SubscriptionPlan, BillingPlan } from '@tesseract/types';
+import {
+  BillingPlanWithPrices,
+  COUNTRY_GROUPS,
+  SubscriptionPlan,
+  canUpgradePlan,
+  formatCountryName,
+} from '@tesseract/types';
+import { useBillingCurrency } from '@/hooks/billing/use-billing-currency';
+import { useOrganizationDashboard } from '@/hooks/identity/use-organizations';
 import PlanGrid from '../_components/plan-grid';
 import InfoSections from '../_components/info-sections';
 import SpecializedCards from '../_components/specialized-cards';
@@ -24,13 +32,14 @@ import { toast } from 'sonner';
 import Loading from '@/app/[locale]/(dashboard)/loading';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { triggerWowConfetti } from '@/lib/confetti';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 export default function PlansPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const t = useTranslations('BillingPlans');
+  const locale = useLocale();
 
   useEffect(() => {
     // Cuando el portal/checkout de Stripe redirige de vuelta, refrescar datos y limpiar la URL.
@@ -54,7 +63,10 @@ export default function PlansPage() {
   }, []);
 
   const { data: dashboardData, isLoading: isLoadingDashboard } = useBillingDashboard();
-  const { data: plansData, isLoading: isLoadingPlans } = usePlans();
+  const { data: plansResponse, isLoading: isLoadingPlans } = usePlans();
+  const plansData = plansResponse?.plans;
+  const { data: organization } = useOrganizationDashboard();
+  const { currency, format } = useBillingCurrency();
   const { data: workflowStats } = useWorkflowStats();
   const {
     updateSubscription,
@@ -65,7 +77,13 @@ export default function PlansPage() {
     createPortalSession,
   } = useBillingMutations();
 
-  const [selectedPlan, setSelectedPlan] = useState<BillingPlan | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<BillingPlanWithPrices | null>(null);
+  // El país solo se pide cuando la organización todavía no tiene uno. Una vez contratada no se
+  // puede cambiar: Stripe congela la moneda del cliente en su primera factura.
+  const [chosenCountry, setChosenCountry] = useState('MX');
+  // Plan a contratar en cuanto se elija país. Es estado propio y no `selectedPlan` porque el
+  // modal de confirmación se cierra —y lo limpia— al ceder el paso a este.
+  const [countryPendingPlan, setCountryPendingPlan] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showAdviceModal, setShowAdviceModal] = useState(false);
   const [pendingPlanType, setPendingPlanType] = useState<string | null>(null);
@@ -130,6 +148,40 @@ export default function PlansPage() {
     }
   };
 
+  /**
+   * Único camino hacia el checkout de Stripe.
+   *
+   * Si la organización aún no tiene país, abre el selector en vez de redirigir: el país decide
+   * la moneda y se escribe de forma definitiva al crear la sesión, así que no puede quedar a
+   * merced de un valor por defecto que nadie eligió.
+   */
+  const startCheckout = async (planType: string): Promise<boolean> => {
+    if (!organization?.country) {
+      setCountryPendingPlan(planType);
+      return false;
+    }
+    const { url } = await createCheckoutSession.mutateAsync({ plan: planType });
+    goToStripe(url);
+    return true;
+  };
+
+  const confirmCountryAndCheckout = async () => {
+    if (!countryPendingPlan) return;
+    try {
+      setUpgradingPlan(countryPendingPlan);
+      const { url } = await createCheckoutSession.mutateAsync({
+        plan: countryPendingPlan,
+        country: chosenCountry,
+      });
+      setCountryPendingPlan(null);
+      goToStripe(url);
+    } catch {
+      toast.error(t('genericError'));
+    } finally {
+      setUpgradingPlan(null);
+    }
+  };
+
   const confirmChange = async () => {
     if (!selectedPlan) return;
     try {
@@ -147,8 +199,9 @@ export default function PlansPage() {
       const isFreeOrCanceled = planState === SubscriptionPlan.FREE || subStatus === 'CANCELED';
 
       if (isFreeOrCanceled) {
-        const { url } = await createCheckoutSession.mutateAsync(selectedPlan.type);
-        goToStripe(url);
+        // Si falta el país, `startCheckout` abre el selector y el modal de confirmación se
+        // queda abierto para retomar el flujo desde ahí.
+        if (!(await startCheckout(selectedPlan.type))) return;
       } else {
         try {
           await updateSubscription.mutateAsync(selectedPlan.type as SubscriptionPlan);
@@ -157,8 +210,7 @@ export default function PlansPage() {
           triggerWowConfetti();
         } catch (updateError: any) {
           if (updateError?.response?.status === 409) {
-            const { url } = await createCheckoutSession.mutateAsync(selectedPlan.type);
-            goToStripe(url);
+            await startCheckout(selectedPlan.type);
             return;
           }
           if (updateError?.response?.data?.message === 'SUBSCRIPTION_PAST_DUE') {
@@ -206,10 +258,9 @@ export default function PlansPage() {
   };
 
   const currentPlanDetails = plansData?.find((p) => p.type === subscription.plan);
+  // Por el orden declarado del catálogo: con dos monedas un importe ya no ordena planes.
   const isUpgrade =
-    selectedPlan &&
-    currentPlanDetails &&
-    selectedPlan.price.monthly > currentPlanDetails.price.monthly;
+    !!selectedPlan && canUpgradePlan(subscription.plan as SubscriptionPlan, selectedPlan.type);
 
   if (isLoadingDashboard || isLoadingPlans) {
     return <Loading />;
@@ -368,8 +419,9 @@ export default function PlansPage() {
             <div className="space-y-4">
               <p className="text-sm text-text-primary">
                 {t('changeIntroBefore')}{' '}
-                <strong className="text-text-primary">{selectedPlan.name}</strong> ($
-                {selectedPlan.price.monthly}/{selectedPlan.price.currency}){t('changeIntroAfter')}
+                <strong className="text-text-primary">{selectedPlan.name}</strong> (
+                {format(selectedPlan.price[currency])} {currency.toUpperCase()})
+                {t('changeIntroAfter')}
               </p>
 
               {isUpgrade ? (
@@ -415,6 +467,61 @@ export default function PlansPage() {
             </div>
           </Modal>
         )}
+
+        {/* Country Modal — solo aparece la primera vez, antes del primer pago */}
+        <Modal
+          isOpen={!!countryPendingPlan}
+          onClose={() => setCountryPendingPlan(null)}
+          title={t('countryModalTitle')}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-text-secondary">{t('countryModalIntro')}</p>
+
+            <div className="flex items-start gap-2 rounded-lg bg-warning-500/10 p-3 text-sm text-warning-600">
+              <AlertCircle size={16} className="mt-0.5 shrink-0" />
+              <span>{t('countryModalWarning')}</span>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="billingCountry" className="text-sm font-medium text-text-primary">
+                {t('countryModalLabel')}
+              </label>
+              <select
+                id="billingCountry"
+                value={chosenCountry}
+                onChange={(e) => setChosenCountry(e.target.value)}
+                className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-text-primary outline-none transition-all focus:border-accent"
+              >
+                {COUNTRY_GROUPS.map((group) => (
+                  <optgroup key={group.region} label={t(`countryRegion.${group.region}`)}>
+                    {group.countries.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {formatCountryName(country.code, locale)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setCountryPendingPlan(null)}
+                className="rounded-xl px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary"
+              >
+                {t('countryModalCancel')}
+              </button>
+              <button
+                onClick={confirmCountryAndCheckout}
+                disabled={!!upgradingPlan}
+                className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-text-inverse transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {upgradingPlan && <Loader2 size={16} className="animate-spin" />}
+                {t('countryModalConfirm')}
+              </button>
+            </div>
+          </div>
+        </Modal>
 
         {/* Advice Modal */}
         <Modal

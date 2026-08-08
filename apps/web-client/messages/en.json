@@ -119,7 +119,7 @@
   },
   "BillingInfoSections": {
     "creditHeading": "What is a Credit?",
-    "creditDesc": "It's our unit of measurement. We don't charge per execution, but by the complexity of reasoning required. The overage price per credit is ${price} USD.",
+    "creditDesc": "It's our unit of measurement. We don't charge per execution, but by the complexity of reasoning required. The overage price per credit is {price}.",
     "t1Name": "Light",
     "t1Cost": "1 Credit",
     "t1Context": "20,000 tokens",
@@ -154,7 +154,7 @@
     "noSubscriptionDesc": "You must have an active plan to enable overages.",
     "toggleError": "Error changing configuration",
     "heading": "Credit Overages",
-    "enabledDesc": "Extra usage will be billed at ${price}/credit.",
+    "enabledDesc": "Extra usage will be billed at {price}/credit.",
     "disabledDesc": "Workflows will stop when credits run out.",
     "deactivateTitle": "Disable additional usage",
     "activateTitle": "Enable additional usage",
@@ -277,7 +277,20 @@
     "resumeSuccessText": "Your subscription has been successfully reactivated. You will continue to enjoy all your benefits without interruption.",
     "continueButton": "Continue!",
     "eliteServicesHeading": "Elite Services",
-    "eliteServicesDesc": "Unlimited capacity and expert guidance to scale your digital transformation."
+    "eliteServicesDesc": "Unlimited capacity and expert guidance to scale your digital transformation.",
+    "countryModalTitle": "Choose your billing country",
+    "countryModalIntro": "It determines the currency you will be charged in.",
+    "countryModalWarning": "It cannot be changed after your first payment, so double-check it.",
+    "countryModalLabel": "Country",
+    "countryModalConfirm": "Continue to payment",
+    "countryModalCancel": "Cancel",
+    "countryRegion": {
+      "mexico": "Mexico",
+      "latam": "Latin America",
+      "northAmerica": "North America",
+      "europe": "Europe"
+    },
+    "genericError": "Could not start the payment. Please try again."
   },
   "WorkflowDetail": {
     "emptyNameError": "Name cannot be empty",
@@ -375,7 +388,7 @@
     "negativeBalance": "Negative Balance",
     "availableCredits": "Available Credits",
     "creditsUnit": "credits",
-    "overdraftText": "You have exceeded your limit. Extra usage (${price}/credit) will be charged on your next invoice.",
+    "overdraftText": "You have exceeded your limit. Extra usage ({price}/credit) will be charged on your next invoice.",
     "pendingCancellation": "Cancellation Pending",
     "scheduledChange": "Scheduled change → {plan}",
     "paymentFailedText": "We could not process your last payment. Use the <bold>Payment Portal</bold> to update your payment method.",
@@ -532,7 +545,7 @@
     "s4Cost1Title": "Monthly Subscription",
     "s4Cost1Text": "Recurring charge that includes the credit balance of the contracted Plan.",
     "s4Cost2Title": "Overages",
-    "s4Cost2Text": "When the monthly balance is exhausted, the system can continue operating in overage mode, subject to the Plan limit. Credits consumed in excess are billed at the end of the month at <bold>${price} USD per credit</bold>. The Free Plan does not allow overages.",
+    "s4Cost2Text": "When the monthly balance is exhausted, the system can continue operating in overage mode, subject to the Plan limit. Credits consumed in excess are billed at the end of the month at <bold>{price} per credit</bold>. The Free Plan does not allow overages.",
     "s4Sub1Title": "Monthly credits included per plan",
     "s4Row1Label": "Free",
     "s4Row1Value": "0 credits (no overage)",
@@ -590,7 +603,8 @@
     "s9Bullet2": "The Client may not assign this agreement without Fractal's written consent.",
     "s9Bullet3": "If any clause is found to be invalid, the remainder remains in force.",
     "s9Bullet4": "Failure to exercise a right does not constitute a waiver of that right.",
-    "finalNote": "For inquiries about these Terms, contact us through our support panel."
+    "finalNote": "For inquiries about these Terms, contact us through our support panel.",
+    "s4Cost2TextNoPrice": "When the monthly balance is exhausted, the system can continue operating in overage mode, subject to the Plan limit. Credits consumed in excess are billed at the end of the month at the <bold>current per-credit price published on the plans page</bold>. The Free Plan does not allow overages."
   },
   "Policies": {
     "heading": "Policies",
@@ -989,7 +1003,9 @@
       "northAmerica": "North America",
       "europe": "Europe",
       "other": "Other"
-    }
+    },
+    "countryLabel": "Billing country",
+    "countryHelp": "Sets the currency you are charged in. It is defined when you subscribe and cannot be changed; contact us if you need it corrected."
   },
   "Users": {
     "heading": "Members",

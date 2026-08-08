@@ -32,14 +32,12 @@ const REQUIRED_IN_PRODUCTION: string[] = [
   'DOMAIN_BASE_URL',
   'AGENTS_GRPC_URL',
 
-  // Stripe billing
+  // Stripe billing.
+  // Los Price IDs ya no son variables de entorno: el gateway los resuelve por lookup key
+  // contra la API de Stripe, así que cambiar un precio no requiere redeploy. El catálogo se
+  // administra con `pnpm stripe:catalog`.
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
-  'STRIPE_PRICE_STARTER',
-  'STRIPE_PRICE_GROWTH',
-  'STRIPE_PRICE_BUSINESS',
-  'STRIPE_PRICE_PRO',
-  'STRIPE_PRICE_OVERAGE',
 
   // Email / SMTP
   'SMTP_HOST',

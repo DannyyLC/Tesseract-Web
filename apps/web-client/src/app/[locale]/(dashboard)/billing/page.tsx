@@ -26,7 +26,7 @@ export default function BillingPage() {
   const t = useTranslations('Billing');
   const { isLoading: isLoadingAuth } = useAuth();
   const { data: dashboardData, isLoading } = useBillingDashboard();
-  const { data: plans } = usePlans();
+  const { data: plansResponse } = usePlans();
   useSubscription();
   const { createPortalSession } = useBillingMutations();
 
@@ -85,7 +85,7 @@ export default function BillingPage() {
     cancelAtPeriodEnd: dashboardData?.cancelAtPeriodEnd || false,
   };
 
-  const currentPlan = plans?.find((p) => p.type === subscription.plan);
+  const currentPlan = plansResponse?.plans.find((p) => p.type === subscription.plan);
   const maxOverageLimit = currentPlan?.limits.overageLimit || 0;
   const currentOverageLimit = dashboardData?.overageLimit ?? 0;
   const isPaidPlan = subscription.plan !== SubscriptionPlan.FREE;

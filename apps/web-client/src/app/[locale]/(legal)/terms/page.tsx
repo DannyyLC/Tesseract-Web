@@ -2,7 +2,7 @@ import React from 'react';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import LegalToc from '../_components/legal-toc';
-import { OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
+import { fetchOveragePriceLabel } from '@/lib/billing/fetch-overage-price';
 
 export const metadata: Metadata = {
   title: 'Términos y Condiciones · Fractal',
@@ -77,6 +77,9 @@ const bold = (chunks: React.ReactNode) => (
 
 export default async function TermsPage() {
   const t = await getTranslations('Terms');
+  // Se consulta a Stripe en vez de escribirlo aquí: el precio puede cambiar corriendo el script
+  // de catálogo, y una cifra fija en un documento legal empezaría a mentir sin avisar.
+  const overagePrice = await fetchOveragePriceLabel();
 
   const sections = [
     { id: t('s1Id'), label: t('s1Label') },
@@ -161,7 +164,11 @@ export default async function TermsPage() {
                 <div>
                   <p className="font-medium text-[var(--text-primary)]">{t('s4Cost2Title')}</p>
                   <p className="text-sm">
-                    {t.rich('s4Cost2Text', { bold, price: OVERAGE_PRICE_PER_CREDIT })}
+                    {/* Sin precio disponible se usa la redacción que remite a la página de
+                        planes: mejor omitir la cifra que publicar una equivocada. */}
+                    {overagePrice
+                      ? t.rich('s4Cost2Text', { bold, price: overagePrice })
+                      : t.rich('s4Cost2TextNoPrice', { bold })}
                   </p>
                 </div>
               </div>

@@ -2,7 +2,7 @@ import ApiRequestManager from '../../api-request-manager';
 import {
   CheckoutResponse,
   PortalResponse,
-  BillingPlan,
+  BillingPlansResponse,
   SubscriptionDetails,
   UpdateSubscriptionDto,
   BillingDashboardData,
@@ -22,10 +22,15 @@ class BillingApi {
    * Creates a Stripe Checkout Session for a subscription.
    * Endpoint: POST /billing/checkout
    */
-  public async createCheckoutSession(plan: string | SubscriptionPlan): Promise<CheckoutResponse> {
+  public async createCheckoutSession(
+    plan: string | SubscriptionPlan,
+    country?: string,
+  ): Promise<CheckoutResponse> {
     const response = await this.apiRequestManager.post<CheckoutResponse>(
       `${BillingApi.BASE_URL}/checkout`,
-      { plan },
+      // El país solo se manda la primera vez; si la organización ya tiene uno, el gateway lo
+      // ignora. No es editable después porque Stripe congela la moneda del cliente.
+      country ? { plan, country } : { plan },
     );
     return response.data;
   }
@@ -42,11 +47,14 @@ class BillingApi {
   }
 
   /**
-   * Retrieves the list of available subscription plans.
+   * Retrieves the list of available subscription plans with their live prices.
    * Endpoint: GET /billing/plans
+   *
+   * Los importes vienen de Stripe en el momento, no del bundle: por eso cambiar un precio no
+   * requiere desplegar el front.
    */
-  public async getPlans(): Promise<BillingPlan[]> {
-    const response = await this.apiRequestManager.get<BillingPlan[]>(
+  public async getPlans(): Promise<BillingPlansResponse> {
+    const response = await this.apiRequestManager.get<BillingPlansResponse>(
       `${BillingApi.BASE_URL}/plans`,
     );
     return response.data;

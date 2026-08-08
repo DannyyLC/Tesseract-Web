@@ -136,7 +136,14 @@ _Solo si vas a probar el flujo de Login o Registro usando "Continuar con Google"
 _Solo requieres estas variables si vas a hacer cambios en el código de cobros, suscripciones o overages._
 
 - `STRIPE_SECRET_KEY` & `STRIPE_WEBHOOK_SECRET`: API Keys de prueba de tu panel de desarrollador de Stripe.
-- **Price IDs**: `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_GROWTH`, `STRIPE_PRICE_BUSINESS`, `STRIPE_PRICE_PRO` y `STRIPE_PRICE_OVERAGE`. Son los IDs de los productos configurados en tu panel de Stripe. (Si no los pones, fallará al intentar crear una suscripción).
+- **Price IDs**: ya no son variables de entorno. El gateway los resuelve por _lookup key_ contra la API de Stripe, así que basta con crear el catálogo una vez en tu cuenta de prueba:
+
+  ```bash
+  pnpm stripe:catalog            # muestra qué haría, sin escribir
+  pnpm stripe:catalog --apply    # lo crea
+  ```
+
+  Si te saltas este paso, el checkout falla con un error que nombra la lookup key que falta.
 
 ### Agentes e Inteligencia Artificial (Opcionales)
 

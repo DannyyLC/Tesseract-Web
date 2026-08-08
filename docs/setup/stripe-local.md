@@ -38,6 +38,24 @@ Para que tu entorno de desarrollo reciba notificaciones de pagos exitosos, cance
 
 **Nota:** Recuerda siempre dejar la terminal de `stripe listen` abierta mientras estés haciendo pruebas de pagos en local, de lo contrario los webhooks no llegarán a tu backend.
 
+## Catálogo de precios
+
+El gateway no lee Price IDs de variables de entorno: los resuelve por _lookup key_ (`starter_monthly`,
+`pro_monthly`, `overage_credit`…) contra la API de Stripe. Antes de probar un cobro hay que crear
+ese catálogo en tu cuenta de prueba:
+
+```bash
+pnpm stripe:catalog            # dry-run: imprime qué crearía o cambiaría
+pnpm stripe:catalog --apply    # lo aplica
+```
+
+Cada precio lleva sus importes en USD y en MXN dentro del mismo objeto (`currency_options`), así
+que el **Price ID es el mismo en ambas monedas** y la organización paga en la suya según su país.
+
+Para cambiar un precio se edita `CATALOG` en `scripts/stripe/sync-catalog.ts` y se vuelve a correr:
+no hace falta redeploy, porque no hay ninguna cifra de dinero compilada en el código. El gateway
+cachea el catálogo cinco minutos, así que un cambio tarda eso en verse.
+
 ## Tarjetas de Prueba (Test Cards)
 
 Mientras tu cuenta de Stripe esté en **Modo de Prueba (Test Mode)**, puedes usar estas tarjetas ficticias en lugar de una real:

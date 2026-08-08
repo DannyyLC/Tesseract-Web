@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   useOrganizationDashboard,
   useOrganizationMutations,
@@ -20,11 +20,13 @@ import {
   DEFAULT_TIMEZONE,
   SUPPORTED_TIMEZONES,
   TIMEZONE_GROUPS,
+  formatCountryName,
   formatTimezoneLabel,
 } from '@tesseract/types';
 
 export default function SettingsPage() {
   const t = useTranslations('Settings');
+  const locale = useLocale();
   const { data: orgData, isLoading, refetch } = useOrganizationDashboard();
   const { data: authUser, isLoading: isLoadingAuth } = useAuth();
   const { updateOrganization, deleteOrganization } = useOrganizationMutations();
@@ -172,6 +174,20 @@ export default function SettingsPage() {
               </select>
               <p className="text-muted-foreground text-xs">{t('timezoneHelp')}</p>
             </div>
+
+            {/* País de facturación — solo lectura.
+                No hay selector a propósito: Stripe congela la moneda del cliente en su primera
+                factura, así que cambiarlo obligaría a crear un cliente nuevo y dejaría huérfana
+                cualquier deuda de overage pendiente. Se elige una sola vez, al contratar. */}
+            {orgData.country && (
+              <div className="space-y-2">
+                <span className="text-sm font-medium leading-none">{t('countryLabel')}</span>
+                <p className="flex h-10 items-center rounded-md border border-border bg-surface-muted px-3 text-sm text-text-secondary">
+                  {formatCountryName(orgData.country, locale)}
+                </p>
+                <p className="text-muted-foreground text-xs">{t('countryHelp')}</p>
+              </div>
+            )}
 
             <div className="flex justify-end pt-2">
               <PermissionGuard permissions="organization:update">

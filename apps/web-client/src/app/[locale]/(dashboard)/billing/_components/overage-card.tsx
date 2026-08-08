@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Minus, Plus } from 'lucide-react';
 import { useBillingMutations } from '@/hooks/billing/use-billing';
 import { toast } from 'sonner';
-import { OVERAGE_PRICE_PER_CREDIT } from '@tesseract/types';
+import { useOveragePrice } from '@/hooks/billing/use-overage-price';
+import { useBillingCurrency } from '@/hooks/billing/use-billing-currency';
 import { useTranslations } from 'next-intl';
 
 interface OverageCardProps {
@@ -21,6 +22,8 @@ export default function OverageCard({
   currentOverageLimit,
 }: OverageCardProps) {
   const t = useTranslations('BillingOverage');
+  const { formatted: overagePrice, unitAmount } = useOveragePrice();
+  const { format } = useBillingCurrency();
   const { toggleOverages } = useBillingMutations();
   const [isToggling, setIsToggling] = useState(false);
   const [localLimit, setLocalLimit] = useState(currentOverageLimit);
@@ -125,7 +128,8 @@ export default function OverageCard({
     }
   };
 
-  const estimatedCost = (localLimit * OVERAGE_PRICE_PER_CREDIT).toFixed(2);
+  // Importe estimado si se agotara todo el límite de overage configurado.
+  const estimatedCost = unitAmount === undefined ? '' : format(localLimit * unitAmount);
 
   return (
     <div className="rounded-2xl border border-border bg-surface p-6 transition-shadow hover:shadow-sm">
@@ -135,7 +139,7 @@ export default function OverageCard({
           <h3 className="text-sm font-bold text-text-primary">{t('heading')}</h3>
           <p className="text-xs text-text-secondary">
             {allowOverages
-              ? t('enabledDesc', { price: OVERAGE_PRICE_PER_CREDIT })
+              ? t('enabledDesc', { price: overagePrice })
               : t('disabledDesc')}
           </p>
         </div>
@@ -215,7 +219,7 @@ export default function OverageCard({
               <div className="mt-3 flex items-center justify-between rounded-xl bg-surface-muted px-4 py-2.5">
                 <span className="text-xs text-text-tertiary">{t('estimatedCost')}</span>
                 <span className="font-geist-mono text-sm font-medium text-text-primary">
-                  ${estimatedCost} USD
+                  {estimatedCost}
                 </span>
               </div>
             </div>
