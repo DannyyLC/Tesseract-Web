@@ -17,6 +17,11 @@ import { LogoLoader } from '@/components/ui/logo-loader';
 import DashboardConversationItem from './_components/dashboard-conversation-item';
 import FilterDropdown from './_components/filter-dropdown';
 import PermissionGuard from '@/components/auth/permission-guard';
+import {
+  CHANNEL_FILTER_GROUPS,
+  isChannelFilterGroup,
+  type ChannelFilterGroup,
+} from '@tesseract/types';
 
 const formatNumber = (num: number): string => {
   if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -38,6 +43,9 @@ export default function ConversationsPage() {
   const selectedFollowUp = searchParams.get('needsFollowUp') || undefined;
   const selectedWorkflow = searchParams.get('workflowId') || undefined;
   const selectedUser = searchParams.get('userId') || undefined;
+  // La URL guarda el grupo ('whatsapp', 'appApi'…), no la lista de canales: es más corta
+  // y sigue siendo válida si mañana cambia qué canales cubre un grupo.
+  const selectedChannelGroup = searchParams.get('channel') || undefined;
 
   const pageSize = 10;
 
@@ -110,11 +118,21 @@ export default function ConversationsPage() {
     workflowId: selectedWorkflow,
     userId: selectedUser,
     prioritizeHitl: true,
+    channels:
+      selectedChannelGroup && isChannelFilterGroup(selectedChannelGroup)
+        ? CHANNEL_FILTER_GROUPS[selectedChannelGroup]
+        : undefined,
   });
 
   const statusOptions = [
     { label: t('statusActive'), value: 'ACTIVE' },
     { label: t('statusClosed'), value: 'CLOSED' },
+  ];
+
+  const channelOptions = [
+    { label: t('channelWhatsapp'), value: 'whatsapp' satisfies ChannelFilterGroup },
+    { label: t('channelMessenger'), value: 'messenger' satisfies ChannelFilterGroup },
+    { label: t('channelAppApi'), value: 'appApi' satisfies ChannelFilterGroup },
   ];
 
   const interventionOptions = [
@@ -193,6 +211,10 @@ export default function ConversationsPage() {
 
   const handleFollowUpChange = (value: string) => {
     updateUrl({ needsFollowUp: value || null, cursor: null, action: null });
+  };
+
+  const handleChannelChange = (value: string) => {
+    updateUrl({ channel: value || null, cursor: null, action: null });
   };
 
   return (
@@ -284,6 +306,14 @@ export default function ConversationsPage() {
         {/* Filters */}
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
+            <FilterDropdown
+              label={t('channelLabel')}
+              options={channelOptions}
+              value={selectedChannelGroup}
+              onChange={handleChannelChange}
+              placeholder={t('allChannels')}
+            />
+
             <FilterDropdown
               label={t('statusLabel')}
               options={statusOptions}

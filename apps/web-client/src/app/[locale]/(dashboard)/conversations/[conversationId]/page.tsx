@@ -13,7 +13,6 @@ import {
   Archive,
   RefreshCw,
   AlertCircle,
-  Phone,
   BellRing,
   Mic,
 } from 'lucide-react';
@@ -30,6 +29,7 @@ import { useAuth } from '@/hooks/identity/use-auth';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
 import { useTranslations } from 'next-intl';
 import RecordingBar from '../_components/recording-bar';
+import ConversationChannelMeta from '../_components/conversation-channel-meta';
 import { useDictation } from '@/hooks/use-dictation';
 
 interface Message {
@@ -398,9 +398,10 @@ export default function WorkflowChatPage() {
     // Ejecutar workflow
     const currentWorkflowId = conversationData?.workflowId || workflowIdFromUrl;
 
-    // Generar título tentativo (primeras 5 palabras)
-    const generatedTitle = input.trim().split(/\s+/).slice(0, 5).join(' ');
-
+    // El título ya no se calcula aquí: lo pone el gateway al guardar el primer mensaje
+    // (`buildConversationTitle`), que es el único punto por el que pasan todos los
+    // canales. Cuando el stream termina, la navegación a la conversación nueva la trae
+    // ya con nombre.
     if (currentWorkflowId) {
       execute(
         currentWorkflowId,
@@ -416,14 +417,6 @@ export default function WorkflowChatPage() {
               // Migrar borrador si venimos de 'new'
               if (isNewConversation) {
                 migrateDraft(data);
-              }
-
-              // Actualizar el título automáticamente si venimos de 'new'
-              if (isNewConversation) {
-                updateConversation.mutate({
-                  id: data,
-                  data: { title: generatedTitle },
-                });
               }
             }
 
@@ -541,19 +534,16 @@ export default function WorkflowChatPage() {
                             <span className="font-medium text-text-secondary">
                               {workflow?.name}
                             </span>
-                            {conversationData?.channel === 'WHATSAPP' &&
-                              conversationData?.endUserPhoneNumber && (
-                                <>
-                                  <span className="text-text-tertiary">•</span>
-                                  <span
-                                    className="flex items-center gap-1 text-text-secondary"
-                                    title={t('phoneNumberTitle')}
-                                  >
-                                    <Phone size={11} className="shrink-0" />
-                                    {conversationData.endUserPhoneNumber}
-                                  </span>
-                                </>
-                              )}
+                            {conversationData && (
+                              <ConversationChannelMeta
+                                channel={conversationData.channel}
+                                endUserPhoneNumber={conversationData.endUserPhoneNumber}
+                                endUserName={conversationData.endUserName}
+                                messengerPageName={conversationData.messengerPageName}
+                                size="sm"
+                                showChannel={false}
+                              />
+                            )}
                           </span>
                         )}
                       </p>

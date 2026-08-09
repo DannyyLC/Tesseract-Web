@@ -132,9 +132,6 @@ export function WhatsappNumberCard({
                 <button
                   onClick={() => {
                     setMenuOpen(false);
-                    console.log(
-                      `Toggling active status for WhatsApp number with id: ${number.id}. Current status: ${isActive}`,
-                    );
                     const targetState = !isActive;
 
                     if (onSetActiveStatus) {

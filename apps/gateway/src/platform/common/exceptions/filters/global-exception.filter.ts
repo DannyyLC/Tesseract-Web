@@ -128,7 +128,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // ============================================
     // Errores desconocidos (bugs, errores de sistema)
     // ============================================
-    this.logger.error('Unexpected error:', exception);
+    // No se loguea aquí: `logError()` ya registra este mismo error, con stack y con el
+    // contexto de la petición. Hacerlo en los dos sitios duplicaba cada entrada.
 
     return {
       success: false,
@@ -243,7 +244,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // Obtener el clientId si existe en el request (agregado por AuthGuard)
     const clientId = (request as any).client?.id ?? 'anonymous';
 
-    // Contexto del error para logging
+    // Contexto del error para logging.
+    //
+    // `ip` y `userAgent` se conservan a propósito: son la forma de distinguir un bug de
+    // un abuso, y sin ellos una ráfaga de 4xx no se puede atribuir a nadie. Aplica el
+    // mismo criterio que `maskEmail`: se guarda lo justo para poder investigar. Lo que
+    // no entra aquí es el cuerpo de la petición, que sí traería datos del cliente.
     const logContext = {
       method,
       url,

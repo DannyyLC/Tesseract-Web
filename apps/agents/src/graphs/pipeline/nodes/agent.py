@@ -233,7 +233,14 @@ def make_agent_node(node_id: str, agent_name: str, output_variable: str | None, 
                     try:
                         if tool:
                             tool_result = tool.invoke(tc["args"])
+                            # El resultado de la tool puede traer datos del cliente. A
+                            # INFO queda qué tool respondió y cuánto; el contenido sale
+                            # con LOG_LEVEL=debug.
                             logger.info(
+                                f"[{ctx.workflow_id}] Node '{node_id}' tool '{tc['name']}' "
+                                f"ok ({len(str(tool_result))} chars)"
+                            )
+                            logger.debug(
                                 f"[{ctx.workflow_id}] Node '{node_id}' tool '{tc['name']}' "
                                 f"result: {str(tool_result)[:200]}"
                             )
@@ -317,9 +324,12 @@ def make_agent_node(node_id: str, agent_name: str, output_variable: str | None, 
                     )
         elif output_variable and not silent:
             variables_delta[output_variable] = content.strip()
+            # Sin el valor: es la respuesta del agente, derivada de la conversación del
+            # cliente, y acaba en Cloud Logging. Qué variable se pobló y cuánto midió
+            # basta para seguir el flujo; el contenido está en la ejecución.
             logger.info(
                 f"[{ctx.workflow_id}] Node '{node_id}' stored response in "
-                f"variables.{output_variable}: '{content.strip()[:100]}'"
+                f"variables.{output_variable} ({len(content.strip())} chars)"
             )
 
         # ------------------------------------------------------------------

@@ -100,7 +100,6 @@ export default function WorkflowAnalyticsPanel({
   ) : null;
 
   const chartData = useMemo(() => metrics?.executionHistoryChart ?? [], [metrics]);
-  const errors = metrics?.errorDistribution ?? {};
   const failedFromChart = useMemo(
     () => chartData.reduce((sum, point) => sum + point.failed, 0),
     [chartData],
@@ -216,7 +215,7 @@ export default function WorkflowAnalyticsPanel({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className={`${Object.keys(errors).length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} flex flex-col rounded-2xl border border-border bg-surface p-6`}
+          className="flex flex-col rounded-2xl border border-border bg-surface p-6 lg:col-span-2"
         >
           <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <h3 className="flex items-center gap-2 font-semibold text-text-primary">
@@ -361,66 +360,9 @@ export default function WorkflowAnalyticsPanel({
           action={timezoneToggle}
         />
 
-        {/* 4. Error Distribution */}
-        {Object.keys(errors).length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="rounded-2xl border border-border bg-surface p-6"
-          >
-            <h3 className="mb-6 flex items-center gap-2 font-semibold text-text-primary">
-              {t('frequentErrors')}
-            </h3>
-
-            <div className="space-y-5">
-              {Object.entries(errors)
-                .sort(([, a], [, b]) => b - a)
-                .map(([errorName, count], idx) => {
-                  // Format name: API_ERROR -> API Error
-                  const formattedName = errorName
-                    .split('_')
-                    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
-                    .join(' ');
-
-                  const totalErrors = Object.values(errors).reduce((a, b) => a + b, 0);
-                  const percentage = (count / totalErrors) * 100;
-
-                  return (
-                    <div key={idx} className="group space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-text-primary">{formattedName}</span>
-                          <span className="rounded-md bg-[var(--surface-tint)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">
-                            {percentage.toFixed(0)}%
-                          </span>
-                        </div>
-                        <span className="font-mono text-xs text-text-secondary">{count}</span>
-                      </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-surface-secondary">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${percentage}%` }}
-                          transition={{ duration: 1, delay: 0.5 + idx * 0.1 }}
-                          className={`h-full rounded-full ${
-                            errorName === 'TIMEOUT'
-                              ? 'bg-[var(--chart-timeout)]'
-                              : errorName === 'API_ERROR'
-                                ? 'bg-danger-400'
-                                : errorName === 'RATE_LIMIT'
-                                  ? 'bg-[var(--chart-rate-limit)]'
-                                  : errorName === 'HALLUCINATION'
-                                    ? 'bg-[var(--chart-hallucination)]'
-                                    : 'bg-neutral-400'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </motion.div>
-        )}
+        {/* La distribución de errores (`metrics.errorDistribution`) ya no se pinta aquí.
+            El gateway la sigue devolviendo; para recuperarla, ver el bloque que estaba en
+            esta posición en el historial de este archivo. */}
       </div>
     </div>
   );

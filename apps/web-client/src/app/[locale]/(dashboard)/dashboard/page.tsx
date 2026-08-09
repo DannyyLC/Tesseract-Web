@@ -29,6 +29,7 @@ import HourlyDistributionChart from '../workflows/_components/hourly-distributio
 import { useBillingDashboard } from '@/hooks/billing/use-billing';
 import { useUserStats } from '@/hooks/identity/use-users';
 import PermissionGuard from '@/components/auth/permission-guard';
+import { BrokenIntegrationsBanner } from '@/components/integrations/broken-integrations-banner';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -203,6 +204,9 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
+
+      {/* ── Integraciones sin acceso (no renderiza nada si todo está sano) ──── */}
+      <BrokenIntegrationsBanner />
 
       {/* ── Stats ──────────────────────────────────────────────────────────── */}
       <div
@@ -439,9 +443,10 @@ export default function DashboardPage() {
           <HourlyDistributionChart data={hourly} isLoading={loadingHourly} />
         </PermissionGuard>
 
-        {/* Top Workflows (executions:read) */}
+        {/* Top Workflows (executions:read) — ocupa la fila completa: es una lista, no una
+            gráfica, y a media columna el nombre del workflow se trunca casi siempre. */}
         <PermissionGuard permissions="executions:read">
-          <div className="rounded-2xl border border-border bg-surface">
+          <div className="rounded-2xl border border-border bg-surface lg:col-span-2">
             <SectionTitle>{t('topWorkflows7Days')}</SectionTitle>
             <div className="divide-y divide-border">
               {loading7d ? (
@@ -458,21 +463,27 @@ export default function DashboardPage() {
                         ? 'bg-warning-400'
                         : 'bg-danger-500';
                   return (
-                    <div key={wf.workflowId} className="flex items-center gap-4 px-5 py-4">
+                    <div
+                      key={wf.workflowId}
+                      className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-surface-secondary"
+                    >
                       {/* Rank */}
                       <span className="w-6 flex-shrink-0 text-center text-lg leading-none">
                         <span className="text-sm font-light text-text-tertiary">{i + 1}</span>
                       </span>
 
-                      {/* Name + bar */}
-                      <div className="min-w-0 flex-1">
+                      {/* Nombre y barra: apilados en móvil, en columnas cuando la tarjeta
+                          ocupa la fila entera y hay ancho de sobra para ambos. */}
+                      <div className="min-w-0 flex-1 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:items-center lg:gap-6">
                         <p className="truncate text-sm font-medium text-text-primary">
                           {wf.workflowName}
                         </p>
                         {/* Success rate bar */}
-                        <div className="mt-1.5 flex items-center gap-2">
+                        <div className="mt-1.5 flex items-center gap-2 lg:mt-0">
                           <span className="text-xs text-text-tertiary">{t('successRate')}</span>
-                          <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-secondary">
+                          {/* Riel translúcido, no `surface-secondary`: ese es el color del
+                              hover de la fila y la parte vacía de la barra desaparecería. */}
+                          <div className="h-1 flex-1 overflow-hidden rounded-full bg-border">
                             <div
                               className={`h-full rounded-full ${barColor} transition-all duration-500`}
                               style={{ width: `${successPct}%` }}

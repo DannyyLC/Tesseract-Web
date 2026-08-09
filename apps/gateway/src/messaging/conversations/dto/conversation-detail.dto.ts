@@ -10,6 +10,8 @@ export class ConversationDetailDto implements IConversationDetailDto {
   needsFollowUp: boolean;
   followUpReason: string | null;
   endUserPhoneNumber: string | null;
+  endUserName: string | null;
+  messengerPageName: string | null;
   messageCount: number;
   lastMessageAt: Date | null;
   createdAt: Date;

@@ -11,7 +11,15 @@ import {
   useWhatsappNumbers,
 } from '@/hooks/messaging/use-whatsapp-config';
 import { useWorkflow, useWorkflowMutations } from '@/hooks/automation/use-workflows';
-import { ArrowLeft, BarChart2, Edit3, Loader2, MessageSquare, Trash2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  BarChart2,
+  Edit3,
+  Loader2,
+  MessageSquare,
+  Trash2,
+} from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useRouter, Link } from '@/i18n/routing';
 import { useEffect, useState } from 'react';
@@ -30,6 +38,10 @@ import {
 
 const WHATSAPP_PHONE_REGEX = /^\+\d{8,15}$/;
 
+/** Una tool sin acceso (token revocado) o con permisos incompletos hará fallar al agente. */
+const isToolBroken = (tool: { status?: string }) =>
+  tool.status === 'EXPIRED_AUTH' || tool.status === 'ERROR';
+
 export default function WorkflowDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -40,6 +52,8 @@ export default function WorkflowDetailPage() {
 
   // Queries
   const { data: workflow, isLoading } = useWorkflow(id);
+
+  const brokenToolCount = (workflow?.tenantTools ?? []).filter(isToolBroken).length;
   const { updateWorkflow, deleteWorkflow } = useWorkflowMutations();
 
   // UI State
@@ -215,6 +229,11 @@ export default function WorkflowDetailPage() {
     }
   };
 
+  // La zona que el workflow usa cuando no tiene override. En el selector se pinta como
+  // una zona más (la opción por defecto), sin hablar de herencia: al cliente le importa
+  // qué hora se usa, no de dónde sale. El valor '' sigue guardando null en el gateway.
+  const inheritedTimezone = workflow.organization?.timezone ?? DEFAULT_TIMEZONE;
+
   return (
     <PermissionGuard permissions="workflows:read" redirect={true} fallbackRoute="/workflows">
       <div className="flex h-full flex-col overflow-y-auto">
@@ -361,15 +380,27 @@ export default function WorkflowDetailPage() {
 
         <div className="border-t border-[var(--border-subtle)] px-8 py-8">
           <div className="mb-8 rounded-2xl border border-border bg-[var(--surface-subtle)] p-4">
-            <h3 className="ml-1 text-sm font-semibold text-text-primary">
-              {t('connectedIntegrations')}
-            </h3>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="ml-1 text-sm font-semibold text-text-primary">
+                {t('connectedIntegrations')}
+              </h3>
+              {brokenToolCount > 0 && (
+                <span className="flex items-center gap-1.5 rounded-full bg-[var(--badge-danger-bg-solid)] px-2.5 py-1 text-xs font-medium text-[var(--badge-danger-text-solid)]">
+                  <AlertTriangle size={12} />
+                  {t('toolsWithoutAccess', { count: brokenToolCount })}
+                </span>
+              )}
+            </div>
             <div className="mt-4 flex flex-wrap gap-4">
               {workflow.tenantTools && workflow.tenantTools.length > 0 ? (
                 workflow.tenantTools.map((tool: any) => (
                   <div
                     key={tool.id}
-                    className="flex min-w-[250px] flex-1 items-center gap-3 rounded-xl border border-border bg-surface-elevated p-4 shadow-sm transition-all hover:border-border-hover hover:shadow-md"
+                    className={`flex min-w-[250px] flex-1 items-center gap-3 rounded-xl border bg-surface-elevated p-4 shadow-sm transition-all hover:shadow-md ${
+                      isToolBroken(tool)
+                        ? 'border-[var(--danger-banner-border)]'
+                        : 'border-border hover:border-border-hover'
+                    }`}
                   >
                     {tool.toolCatalog?.icon ? (
                       <DynamicIcon
@@ -390,9 +421,15 @@ export default function WorkflowDetailPage() {
                       <span className="truncate text-sm font-semibold text-text-primary">
                         {tool.displayName}
                       </span>
-                      <span className="truncate text-xs text-text-secondary">
-                        {tool.toolCatalog?.displayName || 'Integración'}
-                      </span>
+                      {isToolBroken(tool) ? (
+                        <span className="truncate text-xs font-medium text-[var(--danger-text-adaptive)]">
+                          {t('toolNoAccess')}
+                        </span>
+                      ) : (
+                        <span className="truncate text-xs text-text-secondary">
+                          {tool.toolCatalog?.displayName || 'Integración'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))
@@ -497,28 +534,28 @@ export default function WorkflowDetailPage() {
               }
               className="w-full rounded-xl border border-transparent bg-[var(--surface-tint)] px-3 py-2 text-text-primary outline-none transition-all focus:border-info-500 focus:bg-surface"
             >
-              <option value="">
-                {t('timezoneInherit', {
-                  timezone: formatTimezoneLabel(
-                    workflow.organization?.timezone ?? DEFAULT_TIMEZONE,
-                  ),
-                })}
-              </option>
+              <option value="">{formatTimezoneLabel(inheritedTimezone)}</option>
               {/* Zona fijada por API que no esté en el catálogo: se conserva. */}
               {formData.timezone && !SUPPORTED_TIMEZONES.includes(formData.timezone) && (
                 <option value={formData.timezone}>
                   {formatTimezoneLabel(formData.timezone)}
                 </option>
               )}
-              {TIMEZONE_GROUPS.map((group) => (
-                <optgroup key={group.region} label={tSettings(`timezoneRegion.${group.region}`)}>
-                  {group.zones.map((tz) => (
-                    <option key={tz} value={tz}>
-                      {formatTimezoneLabel(tz)}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
+              {TIMEZONE_GROUPS.map((group) => {
+                // Sin el filtro, la zona de la organización saldría dos veces con la misma
+                // etiqueta (arriba y en su región) y no habría forma de distinguirlas.
+                const zones = group.zones.filter((tz) => tz !== inheritedTimezone);
+                if (zones.length === 0) return null;
+                return (
+                  <optgroup key={group.region} label={tSettings(`timezoneRegion.${group.region}`)}>
+                    {zones.map((tz) => (
+                      <option key={tz} value={tz}>
+                        {formatTimezoneLabel(tz)}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
             </select>
             <p className="text-xs text-text-tertiary">{t('timezoneHelp')}</p>
           </div>

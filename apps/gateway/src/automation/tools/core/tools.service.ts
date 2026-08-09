@@ -3,6 +3,7 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { KmsService } from './kms.service';
 import { UpsertCredentialsDto } from './dto/upsert-credentials.dto';
 import { ToolsOauthService } from './tools-oauth.service';
+import { ToolHealthService } from './tool-health.service';
 import { ToolConnectionStatus } from '@tesseract/database';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class ToolsService {
     private readonly kmsService: KmsService,
     @Inject(forwardRef(() => ToolsOauthService))
     private readonly toolsOauthService: ToolsOauthService,
+    private readonly toolHealthService: ToolHealthService,
   ) {}
 
   /**
@@ -69,12 +71,22 @@ export class ToolsService {
               this.logger.log(
                 `Successfully refreshed and re-encrypted token for tool ${tenantTool.id}`,
               );
+
+              // El refresh funciona => si la habíamos marcado rota, ya no lo está.
+              await this.toolHealthService.markHealthy(tenantTool.id);
             } catch {
               this.logger.error(
                 `Failed to refresh token for tool ${tenantTool.id}. Manual re-auth might be required.`,
               );
-              // Si falla el refresh, mandamos el viejo de todas formas. Python fallará y manejará el 401.
+              // Un refresh que falla es acceso perdido, no un tropiezo: el token
+              // viejo ya venció. Se marca la tool para que la UI lo muestre y se
+              // avise, en vez de dejar que Python coma un 401 en silencio.
+              await this.toolHealthService.markAuthExpired(tenantTool.id);
             }
+          } else if (isExpired && !refreshToken) {
+            // Sin refresh token no hay recuperación posible: el access token ya
+            // venció y nadie puede renovarlo. Muerte anunciada, no un aviso.
+            await this.toolHealthService.markAuthExpired(tenantTool.id);
           }
 
           credentialsMap[tenantTool.id] = {
@@ -94,6 +106,44 @@ export class ToolsService {
     }
 
     return credentialsMap;
+  }
+
+  /**
+   * Sondeo diario de todas las credenciales conectadas.
+   *
+   * Sin esto el estado sano miente: `populateDecryptedCredentials` solo corre
+   * cuando alguien usa la herramienta, así que una credencial revocada el viernes
+   * se ve "Conectada" hasta que un cliente escriba el lunes. El sondeo reusa esa
+   * misma ruta —incluido el refresh y el marcado— porque a las 24h el access
+   * token siempre está vencido y el refresh se dispara solo.
+   *
+   * @returns Cuántas herramientas se revisaron.
+   */
+  async probeAllCredentials(batchSize = 100): Promise<number> {
+    let cursor: string | undefined;
+    let probed = 0;
+
+    for (;;) {
+      const batch = await this.prisma.tenantTool.findMany({
+        where: { deletedAt: null, isConnected: true, credential: { isNot: null } },
+        include: { credential: true },
+        orderBy: { id: 'asc' },
+        take: batchSize,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      });
+
+      if (batch.length === 0) break;
+
+      // Una credencial rota no debe impedir sondear las demás.
+      await this.populateDecryptedCredentials(batch);
+
+      probed += batch.length;
+      cursor = batch[batch.length - 1].id;
+
+      if (batch.length < batchSize) break;
+    }
+
+    return probed;
   }
 
   /**
@@ -164,10 +214,16 @@ export class ToolsService {
         data: {
           status: ToolConnectionStatus.CONNECTED,
           isConnected: true,
+          connectionError: null,
           config: updatedConfig,
           ...(tool.createdByUserId ? {} : { createdByUserId: userId }),
         },
       });
     });
+
+    // Google deja desmarcar permisos individuales en la pantalla de consentimiento,
+    // así que "conectado" no implica "puede hacer todo lo que habilitaste". Este es
+    // el único momento en que sabemos con certeza qué otorgó el usuario.
+    await this.toolHealthService.syncScopeHealth(tenantToolId);
   }
 }

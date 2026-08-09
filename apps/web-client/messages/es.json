@@ -366,8 +366,9 @@
     "executionsPrev": "Anterior",
     "executionsNext": "Siguiente",
     "timezoneLabel": "Zona horaria",
-    "timezoneInherit": "Heredar de la organización ({timezone})",
-    "timezoneHelp": "Afecta a las gráficas de este workflow y a la hora local que usa el agente al responder."
+    "timezoneHelp": "Afecta a las gráficas de este workflow y a la hora local que usa el agente al responder.",
+    "toolsWithoutAccess": "{count, plural, one {1 sin acceso} other {{count} sin acceso}}",
+    "toolNoAccess": "Sin acceso — reconéctala"
   },
   "LegalLayout": {
     "backAriaLabel": "Volver atrás",
@@ -733,9 +734,9 @@
     "connectAnother": "Conectar otra instancia",
     "connectButton": "Conectar",
     "connectedStatus": "Conectado",
-    "errorStatus": "Error",
+    "errorStatus": "Permisos incompletos",
     "disconnectedStatus": "Desconectado",
-    "expiredAuth": "Auth expirado",
+    "expiredAuth": "Sin acceso",
     "connectedOn": "Conectado el {date}",
     "configureCredentials": "Configurar credenciales",
     "rename": "Renombrar",
@@ -779,7 +780,13 @@
     "renameNameLabel": "Nombre",
     "renameSuccess": "Nombre actualizado correctamente.",
     "renameError": "No se pudo actualizar el nombre. Intenta de nuevo.",
-    "saveButton": "Guardar"
+    "saveButton": "Guardar",
+    "reconnect": "Reconectar",
+    "noAccessConsequence": "Tu agente no puede usar esta integración hasta que la reconectes.",
+    "missingScopesConsequence": "Sin permiso para: {functions}. Reconecta para autorizarlo.",
+    "brokenBannerTitle": "{count, plural, one {Una integración perdió el acceso} other {{count} integraciones perdieron el acceso}}",
+    "brokenBannerDesc": "Tus agentes no pueden usar {names}. Reconéctalas para que vuelvan a funcionar.",
+    "brokenBannerCta": "Revisar"
   },
   "Billing": {
     "heading": "Resumen de Facturación",
@@ -842,6 +849,15 @@
     "monthlyTotal": "Total mensual",
     "historicTotal": "Total Histórico",
     "conversationsBadge": "Conversaciones",
+    "channelLabel": "Canal",
+    "allChannels": "Todos los canales",
+    "channelWhatsapp": "WhatsApp",
+    "channelMessenger": "Messenger",
+    "channelAppApi": "App y API",
+    "channelDashboard": "Panel",
+    "channelWeb": "Web",
+    "channelApi": "API",
+    "channelCron": "Programado",
     "statusLabel": "Estado",
     "allStatuses": "Todos los estados",
     "interventionLabel": "Intervencion",
@@ -914,7 +930,9 @@
     "followUpBadgeTitle": "Requiere seguimiento del equipo",
     "markFollowUp": "Marcar para seguimiento",
     "clearFollowUp": "Marcar como atendida",
-    "phoneNumberTitle": "Telefono del cliente"
+    "phoneNumberTitle": "Telefono del cliente",
+    "customerNameTitle": "Nombre del cliente",
+    "messengerPageTitle": "Pagina de Facebook"
   },
   "ApiKeys": {
     "heading": "API Keys",

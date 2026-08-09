@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MoreVertical, Unplug, Pencil, KeyRound, Trash2 } from 'lucide-react';
+import { MoreVertical, Unplug, Pencil, KeyRound, Trash2, AlertTriangle, RotateCw } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { DashboardTenantToolDto } from '@tesseract/types';
@@ -65,6 +65,18 @@ export function ConnectedIntegrationCard({
   const provider = tool.toolCatalog.provider || 'none';
   const hasCredentials = provider !== 'none';
 
+  // Una credencial rota es el estado más urgente del sistema: el agente ya está
+  // fallando frente a un cliente. Por eso se anuncia en la card y la reconexión
+  // sale del menú de tres puntos, en vez de esconderse a cuatro clics.
+  const isBroken = tool.status === 'EXPIRED_AUTH' || tool.status === 'ERROR';
+  const blockedFunctions = tool.blockedFunctions ?? [];
+  const consequence =
+    tool.status === 'EXPIRED_AUTH'
+      ? t('noAccessConsequence')
+      : tool.status === 'ERROR' && blockedFunctions.length > 0
+        ? t('missingScopesConsequence', { functions: blockedFunctions.join(', ') })
+        : null;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -83,9 +95,19 @@ export function ConnectedIntegrationCard({
         <p className="text-xs text-text-tertiary">
           {tool.toolCatalog.displayName} · {tool.toolCatalog.category}
         </p>
-        <p className="mt-0.5 text-xs text-text-tertiary">
-          {t('connectedOn', { date: connectedDate })}
-        </p>
+        {consequence ? (
+          // Sustituye la fecha de conexión: cuando algo está roto, "conectado el
+          // 12 de julio" no le sirve a nadie. Habla de lo que dejó de funcionar,
+          // no del protocolo que falló.
+          <p className="mt-0.5 flex items-start gap-1.5 text-xs text-[var(--danger-text-adaptive)]">
+            <AlertTriangle size={13} className="mt-px flex-shrink-0" />
+            <span>{consequence}</span>
+          </p>
+        ) : (
+          <p className="mt-0.5 text-xs text-text-tertiary">
+            {t('connectedOn', { date: connectedDate })}
+          </p>
+        )}
       </div>
 
       {/* Status badge */}
@@ -95,6 +117,19 @@ export function ConnectedIntegrationCard({
         <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
         {status.text}
       </span>
+
+      {/* Reconexión en un clic: solo aparece cuando hay algo que arreglar */}
+      {isBroken && hasCredentials && canManageTool && (
+        <PermissionGuard permissions="tenant_tools:update">
+          <button
+            onClick={() => onConfigCredentials?.(tool.id)}
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-text-inverse transition-opacity hover:opacity-80"
+          >
+            <RotateCw size={13} />
+            {t('reconnect')}
+          </button>
+        </PermissionGuard>
+      )}
 
       {/* Actions menu */}
       {canManageTool && (
@@ -140,7 +175,11 @@ export function ConnectedIntegrationCard({
                   </button>
                 </PermissionGuard>
                 <div className="mx-3 my-1 h-px bg-surface-secondary" />
-                {tool.isConnected && hasCredentials && (
+                {/* Perder el acceso NO borra los tokens de la bóveda: si aquí se
+                    exigiera `isConnected`, una credencial caída dejaría al usuario
+                    sin forma de purgar su PII salvo eliminando la integración
+                    entera (y con ella los workflows que la usan). */}
+                {(tool.isConnected || isBroken) && hasCredentials && (
                   <PermissionGuard permissions="tenant_tools:disconnect">
                     <button
                       onClick={() => {

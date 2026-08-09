@@ -1,18 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import {
-  MessageSquare,
-  User,
-  Calendar,
-  Globe,
-  Smartphone,
-  Terminal,
-  Trash2,
-  Loader2,
-  Phone,
-  BellRing,
-} from 'lucide-react';
+import { MessageSquare, User, Calendar, Trash2, Loader2, BellRing } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { useState } from 'react';
 import { DashboardConversationDto } from '@tesseract/types';
@@ -22,24 +11,11 @@ import PermissionGuard from '@/components/auth/permission-guard';
 import { useAuth } from '@/hooks/identity/use-auth';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
 import { useTranslations } from 'next-intl';
+import ConversationChannelMeta from './conversation-channel-meta';
 
 interface DashboardConversationItemProps {
   conversation: DashboardConversationDto;
 }
-
-const getChannelIcon = (channel: string) => {
-  if (!channel) return <Terminal size={12} />;
-
-  switch (channel.toLowerCase()) {
-    case 'whatsapp':
-      return <Smartphone size={12} />;
-    case 'web':
-    case 'chat':
-      return <Globe size={12} />;
-    default:
-      return <MessageSquare size={12} />;
-  }
-};
 
 export default function DashboardConversationItem({
   conversation,
@@ -209,26 +185,13 @@ export default function DashboardConversationItem({
                 </div>
 
                 {/* Metadata Row */}
-                <div className="mb-3 flex items-center gap-3 pl-8 text-sm text-text-secondary">
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className={`rounded-full p-1 ${conversation.channel === 'WHATSAPP' ? 'bg-success-500/10 text-success-600' : 'bg-info/10 text-info-600'}`}
-                    >
-                      {getChannelIcon(conversation.channel)}
-                    </div>
-                    <span className="text-xs font-medium capitalize">
-                      {conversation.channel?.toLowerCase()}
-                    </span>
-                  </div>
-                  {conversation.channel === 'WHATSAPP' && conversation.endUserPhoneNumber && (
-                    <>
-                      <span className="text-text-tertiary">•</span>
-                      <div className="flex items-center gap-1.5" title={t('phoneNumberTitle')}>
-                        <Phone size={12} />
-                        <span className="text-xs">{conversation.endUserPhoneNumber}</span>
-                      </div>
-                    </>
-                  )}
+                <div className="mb-3 flex flex-wrap items-center gap-3 pl-8 text-sm text-text-secondary">
+                  <ConversationChannelMeta
+                    channel={conversation.channel}
+                    endUserPhoneNumber={conversation.endUserPhoneNumber}
+                    endUserName={conversation.endUserName}
+                    messengerPageName={conversation.messengerPageName}
+                  />
                   <span className="text-text-tertiary">•</span>
                   <div className="flex items-center gap-1.5">
                     <Calendar size={12} />

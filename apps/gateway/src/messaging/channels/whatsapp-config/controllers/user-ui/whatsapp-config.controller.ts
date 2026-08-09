@@ -21,6 +21,7 @@ import { Logger } from 'winston';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
+import { maskPhone } from '@/platform/common/utils/mask-phone';
 import { WhatsappConfigService } from '../../whatsapp-config.service';
 import {
   WHATSAPP_WINDOW_SECONDS,
@@ -121,12 +122,14 @@ export class WhatsappConfigController {
     }
 
     if (!isValidSignature) {
-      this.logger.warn(`Invalid signature for message from ${userNumber} to ${phoneNumber}`);
+      this.logger.warn(
+        `Invalid signature for message from ${maskPhone(userNumber)} to ${phoneNumber}`,
+      );
       return res.status(HttpStatus.UNAUTHORIZED).send({ received: false });
     }
 
     if (!whatsappInboundMessageId) {
-      this.logger.warn(`Webhook de YCloud sin id de mensaje desde ${userNumber}`);
+      this.logger.warn(`Webhook de YCloud sin id de mensaje desde ${maskPhone(userNumber)}`);
       return res.status(HttpStatus.OK).send({ received: true });
     }
 
@@ -223,7 +226,7 @@ export class WhatsappConfigController {
       this.logger.error('No se pudo encolar el mensaje de WhatsApp', {
         whatsappInboundMessageId,
         phoneNumber,
-        userNumber,
+        userNumber: maskPhone(userNumber),
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });

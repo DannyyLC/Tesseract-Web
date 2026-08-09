@@ -1,8 +1,21 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Global, Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { SchedulingModule } from './scheduling.module';
 import { DatabaseModule } from '../database/database.module';
 import { PrismaService } from '../database/prisma.service';
+
+// En la app real el logger lo registra AppModule con WinstonModule.forRoot(),
+// que nest-winston marca @Global(). Este grafo aislado no incluye AppModule, así
+// que se replica el mismo alcance global para los servicios que lo inyectan.
+@Global()
+@Module({
+  providers: [{ provide: WINSTON_MODULE_PROVIDER, useValue: { error: jest.fn(), log: jest.fn() } }],
+  exports: [WINSTON_MODULE_PROVIDER],
+})
+class FakeWinstonModule {}
 
 // Verifica que, con ScheduleModule.forRoot() viviendo dentro de SchedulingModule
 // (y no en AppModule), el discovery global de @nestjs/schedule sigue encontrando
@@ -13,7 +26,14 @@ describe('SchedulingModule cron discovery', () => {
 
   beforeAll(async () => {
     moduleRef = await Test.createTestingModule({
-      imports: [DatabaseModule, SchedulingModule],
+      // ConfigModule global replica AppModule: SchedulingModule ahora arrastra
+      // ToolsModule (por el sondeo de credenciales) y sus servicios leen env vars.
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+        FakeWinstonModule,
+        DatabaseModule,
+        SchedulingModule,
+      ],
     })
       .overrideProvider(PrismaService)
       .useValue({})
@@ -26,9 +46,9 @@ describe('SchedulingModule cron discovery', () => {
     await moduleRef?.close();
   });
 
-  it('registers all 5 cron jobs', () => {
+  it('registers all 6 cron jobs', () => {
     const registry = moduleRef.get(SchedulerRegistry);
     const crons = registry.getCronJobs();
-    expect(crons.size).toBe(5);
+    expect(crons.size).toBe(6);
   });
 });

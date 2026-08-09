@@ -371,7 +371,14 @@ def load_tools(ctx: TenantContext, agent_name: str = "default") -> List[BaseTool
 
 def _load_google_calendar(credentials, config, ctx):
     from tools.google.calendar import load_google_calendar_tools
-    return load_google_calendar_tools(credentials, config)
+    # La zona la hereda del workflow (misma convención que Workflow.timezone:
+    # ausente = hereda, explícita = override). Sin esto la tool caía a UTC
+    # mientras el system prompt sí traía la hora local, y el modelo agendaba
+    # con el offset entero de desfase.
+    return load_google_calendar_tools(
+        credentials,
+        {**config, "timezone": config.get("timezone") or ctx.timezone},
+    )
 
 
 def _load_google_sheets(credentials, config, ctx):

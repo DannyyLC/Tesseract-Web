@@ -35,6 +35,8 @@ import httpx
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 
+from core.redaction import mask_phone
+
 logger = logging.getLogger(__name__)
 
 YCLOUD_API_BASE = "https://api.ycloud.com/v2"
@@ -97,19 +99,11 @@ def _build_template_payload(
         })
 
 
-    logger.info(
-        "calling template %s",
-        {
-            "from": from_number,
-            "to": to,
-            "type": "template",
-            "template": {
-                "name": template_name,
-                "language": {"code": language, "policy": "deterministic"},
-                "components": components,
-            }
-        }
-    )
+    # El payload trae el número destino y los `components`, o sea las variables de la
+    # plantilla: nombres, montos, lo que lleve el template. Eso es dato del cliente y no
+    # va a Cloud Logging, donde se retiene 30 días. Para depurar basta saber qué plantilla
+    # se armó; el detalle se ve en local subiendo LOG_LEVEL.
+    logger.debug("calling template %s with %d component(s)", template_name, len(components))
 
     return {
         "from": from_number,
@@ -137,12 +131,12 @@ def _send_single_message(api_key: str, payload: dict, timeout: float = 15.0) -> 
         logger.error(
             "YCloud API error %s for to=%s: %s",
             exc.response.status_code,
-            payload.get("to"),
+            mask_phone(payload.get("to")),
             error_body,
         )
         return {"ok": False, "error": f"HTTP {exc.response.status_code}: {error_body}"}
     except httpx.RequestError as exc:
-        logger.error("Network error sending to %s: %s", payload.get("to"), exc)
+        logger.error("Network error sending to %s: %s", mask_phone(payload.get("to")), exc)
         return {"ok": False, "error": f"Network error: {str(exc)}"}
 
 
@@ -202,7 +196,7 @@ def load_whatsapp_outbound_tools(
                     "send_bulk_whatsapp: template_id '%s' no encontrado en available_templates. "
                     "Omitiendo destinatario %s.",
                     msg.template_id,
-                    msg.to,
+                    mask_phone(msg.to),
                 )
                 results.append({
                     "to": msg.to,
@@ -235,13 +229,14 @@ def load_whatsapp_outbound_tools(
             result = _send_single_message(api_key, payload)
             results.append({"to": msg.to, **result})
 
+            # Sin `to` ni `variables`: son el teléfono del destinatario y el contenido
+            # personalizado del mensaje. Lo que hace falta para operar es si el envío
+            # salió y con qué plantilla; a quién se le mandó queda en la ejecución.
             logger.info(
-                "send_bulk_whatsapp: from=%s to=%s template=%s ok=%s, variables=%s",
+                "send_bulk_whatsapp: from=%s template=%s ok=%s",
                 from_number,
-                msg.to,
                 tpl["name"],
                 result["ok"],
-                msg.variables,
             )
 
         sent = sum(1 for r in results if r.get("ok"))

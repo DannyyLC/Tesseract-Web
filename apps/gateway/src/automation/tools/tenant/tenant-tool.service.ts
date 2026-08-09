@@ -13,13 +13,50 @@ import { UpdateTenantToolDto } from './dto/update-tenant-tool.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { Prisma, ToolConnectionStatus } from '@tesseract/database';
+import { ToolHealthService } from '../core/tool-health.service';
+
+/**
+ * Campos extra que necesita el cálculo de salud de la credencial. Se piden en el
+ * select pero no se devuelven al front: `scopes` y los scopes del catálogo son
+ * ruido para la UI, que solo necesita saber qué funciones quedaron bloqueadas.
+ */
+const HEALTH_SELECT = {
+  credential: { select: { scopes: true } },
+  toolCatalog: {
+    select: {
+      toolName: true,
+      displayName: true,
+      icon: true,
+      category: true,
+      provider: true,
+      functions: { select: { functionName: true, displayName: true, oauthScopes: true } },
+    },
+  },
+} as const;
 
 @Injectable()
 export class TenantToolService {
   constructor(
     private readonly prismaService: PrismaService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+    private readonly toolHealthService: ToolHealthService,
   ) {}
+
+  /** Quita del payload lo que solo servía para calcular la salud. */
+  private toDashboardDto(tool: any): DashboardTenantToolDto {
+    const { credential, toolCatalog, ...rest } = tool;
+    const { functions = [], ...catalog } = toolCatalog ?? {};
+
+    return {
+      ...rest,
+      toolCatalog: catalog,
+      blockedFunctions: this.toolHealthService.findScopeGap({
+        allowedFunctions: tool.allowedFunctions,
+        credential,
+        toolCatalog: { functions },
+      }).blockedFunctions,
+    };
+  }
 
   async getDashboardData(
     organizationId: string,
@@ -47,20 +84,12 @@ export class TenantToolService {
           createdAt: true,
           createdByUserId: true,
           allowedFunctions: true,
-          toolCatalog: {
-            select: {
-              toolName: true,
-              displayName: true,
-              icon: true,
-              category: true,
-              provider: true,
-            },
-          },
+          ...HEALTH_SELECT,
         },
         orderBy: { createdAt: 'desc' },
       });
       return await CursorPaginatedResponseUtils.getInstance().build(
-        tenantTools,
+        tenantTools.map((tool) => this.toDashboardDto(tool)),
         pageSize,
         paginationAction,
       );
@@ -82,18 +111,10 @@ export class TenantToolService {
           createdAt: true,
           createdByUserId: true,
           allowedFunctions: true,
-          toolCatalog: {
-            select: {
-              toolName: true,
-              displayName: true,
-              icon: true,
-              category: true,
-              provider: true,
-            },
-          },
+          ...HEALTH_SELECT,
         },
       });
-      return tenantTool;
+      return tenantTool ? this.toDashboardDto(tenantTool) : null;
     } catch (error: any) {
       this.logger.error(
         `Error fetching tenant tool with ID ${id}: ${error?.message ?? 'Unknown error'}`,
