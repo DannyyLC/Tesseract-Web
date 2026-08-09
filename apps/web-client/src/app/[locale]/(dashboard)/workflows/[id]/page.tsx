@@ -20,6 +20,7 @@ import WhatsappNumberCard from '../_components/whatsapp-number-card';
 import WorkflowAnalyticsPanel from '../_components/workflow-analytics-panel';
 import WorkflowExecutionsTable from '../_components/workflow-executions-table';
 import { useTranslations } from 'next-intl';
+import { FaFacebookMessenger } from 'react-icons/fa6';
 import {
   DEFAULT_TIMEZONE,
   SUPPORTED_TIMEZONES,
@@ -298,6 +299,18 @@ export default function WorkflowDetailPage() {
                 </PermissionGuard>
 
                 <button
+                  type="button"
+                  onClick={() => undefined}
+                  className="group flex h-11 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-border bg-surface-elevated px-5 text-sm font-medium text-text-primary transition-all hover:bg-[var(--surface-tint)] active:scale-95 xl:w-auto xl:min-w-[230px]"
+                >
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-tint)] text-[#0084FF] transition-colors group-hover:bg-surface-secondary">
+                    <FaFacebookMessenger className="h-4 w-4 text-[#0084FF]" />
+                  </span>
+                  Link to Messenger
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setIsWhatsappModalOpen(true)}
                   className="group flex h-11 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-border bg-surface-elevated px-5 text-sm font-medium text-text-primary transition-all hover:bg-[var(--surface-tint)] active:scale-95 xl:w-auto xl:min-w-[230px]"
                 >
