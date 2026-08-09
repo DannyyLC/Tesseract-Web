@@ -233,7 +233,14 @@ def make_agent_node(node_id: str, agent_name: str, output_variable: str | None, 
                     try:
                         if tool:
                             tool_result = tool.invoke(tc["args"])
+                            # El resultado de la tool puede traer datos del cliente. A
+                            # INFO queda qué tool respondió y cuánto; el contenido sale
+                            # con LOG_LEVEL=debug.
                             logger.info(
+                                f"[{ctx.workflow_id}] Node '{node_id}' tool '{tc['name']}' "
+                                f"ok ({len(str(tool_result))} chars)"
+                            )
+                            logger.debug(
                                 f"[{ctx.workflow_id}] Node '{node_id}' tool '{tc['name']}' "
                                 f"result: {str(tool_result)[:200]}"
                             )

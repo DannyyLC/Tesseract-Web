@@ -151,10 +151,14 @@ def _parse_supervisor_decision(content: str, available_workers: List[str], workf
             return option
 
     # ── 4. Fallback seguro ───────────────────────────────────────────────────
+    # Sin el contenido: es salida del LLM y puede arrastrar lo que dijo el cliente. Un
+    # WARNING sobrevive al filtro de nivel, así que aquí no puede ir. Para diagnosticar
+    # el parseo hace falta verlo, y eso sale con LOG_LEVEL=debug.
     logger.warning(
-        f"[{workflow_id}] Could not parse supervisor decision from: '{content[:200]}'. "
+        f"[{workflow_id}] Could not parse supervisor decision ({len(content)} chars). "
         f"Valid options: {valid_options}. Defaulting to FINISH."
     )
+    logger.debug(f"[{workflow_id}] Supervisor decision sin parsear: '{content[:200]}'")
     return FINISH
 
 

@@ -91,14 +91,24 @@ def make_tool_node(node_id: str, config: Dict[str, Any], ctx: TenantContext):
         # Renderizar parámetros con valores del estado y del contexto
         rendered_params = render_params(raw_params, state, ctx)
 
+        # Los parámetros ya vienen resueltos desde el estado, así que traen los datos del
+        # cliente que el workflow le pase a la tool: teléfono, nombre, montos. A INFO
+        # queda solo qué se llamó; el detalle sale con LOG_LEVEL=debug cuando se está
+        # investigando algo concreto.
         logger.info(
             f"[{ctx.workflow_id}] Pipeline node '{node_id}' executing "
-            f"{tool_name}.{function_name} with params: {rendered_params}"
+            f"{tool_name}.{function_name}"
         )
+        logger.debug(f"[{ctx.workflow_id}] Node '{node_id}' params: {rendered_params}")
 
         try:
             result = target_tool.invoke(rendered_params)
-            logger.info(f"[{ctx.workflow_id}] Node '{node_id}' tool result: {str(result)[:200]}")
+            # Mismo criterio con la respuesta: puede ser una fila de Sheets o un evento
+            # de calendario. A INFO basta con que salió y cuánto midió.
+            logger.info(
+                f"[{ctx.workflow_id}] Node '{node_id}' tool ok ({len(str(result))} chars)"
+            )
+            logger.debug(f"[{ctx.workflow_id}] Node '{node_id}' tool result: {str(result)[:200]}")
         except Exception as e:
             logger.error(f"[{ctx.workflow_id}] Node '{node_id}' tool error: {e}", exc_info=True)
             result = {"error": str(e)}

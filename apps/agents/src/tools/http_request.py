@@ -23,6 +23,7 @@ CREDENTIALS (descifradas por el Gateway, nunca visibles al modelo):
 import json
 import logging
 from typing import Any, Optional
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 from langchain_core.tools import BaseTool, tool
@@ -50,6 +51,12 @@ class HttpRequestInput(BaseModel):
     headers: Optional[dict] = Field(
         default=None, description="Headers adicionales (no pueden sobrescribir los de autenticación)"
     )
+
+
+def _strip_query(url: str) -> str:
+    """Deja la URL sin query string ni fragmento, para poder loguearla sin datos."""
+    parts = urlsplit(url)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
 
 
 def _build_auth_headers(credentials: dict[str, Any]) -> dict[str, str]:
@@ -136,17 +143,23 @@ def load_http_request_tools(
                 timeout=timeout,
             )
             body = response.text[:max_response_chars]
+            # Sin query string: es una tool genérica y nada impide que un workflow meta
+            # datos del cliente en los parámetros. El endpoint sin query basta para saber
+            # contra qué se llamó; la URL completa sale con LOG_LEVEL=debug.
             logger.info(
                 "http_request: %s %s → %s (%d chars)",
-                method, full_url, response.status_code, len(body),
+                method, _strip_query(full_url), response.status_code, len(body),
             )
+            logger.debug("http_request: URL completa %s (params=%s)", full_url, query_params)
             return json.dumps({
                 "ok": response.is_success,
                 "status_code": response.status_code,
                 "body": body,
             }, ensure_ascii=False)
         except httpx.RequestError as exc:
-            logger.error("http_request network error: %s %s: %s", method, full_url, exc)
+            logger.error(
+                "http_request network error: %s %s: %s", method, _strip_query(full_url), exc
+            )
             return json.dumps(
                 {"ok": False, "error": f"Network error: {exc}"}, ensure_ascii=False
             )
