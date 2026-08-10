@@ -1,9 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { HttpService } from '@nestjs/axios';
 import { ConversationsService } from './conversations.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { UtilityService } from '@/platform/utility/utility.service';
+import { KmsService } from '@/automation/tools/core/kms.service';
 import { ConversationChannel } from '@tesseract/database';
 import { CHANNEL_FILTER_GROUPS } from '@tesseract/types';
 
@@ -47,6 +49,16 @@ const mockUtilityService = {
   sendNotificationToAppClients: jest.fn(),
 };
 
+// Solo los usa la resolución del nombre de quien escribe por Messenger (Graph API y
+// descifrado del token de la página), que ningún caso de este archivo ejercita todavía.
+const mockHttpService = {
+  get: jest.fn(),
+};
+
+const mockKmsService = {
+  decrypt: jest.fn(),
+};
+
 describe('ConversationsService', () => {
   let service: ConversationsService;
 
@@ -56,6 +68,8 @@ describe('ConversationsService', () => {
         ConversationsService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: UtilityService, useValue: mockUtilityService },
+        { provide: HttpService, useValue: mockHttpService },
+        { provide: KmsService, useValue: mockKmsService },
       ],
     }).compile();
 
@@ -438,11 +452,7 @@ describe('ConversationsService', () => {
      * Corre de verdad el callback de la transacción y devuelve el `data` del update, que
      * es donde se decide si la conversación se renombra.
      */
-    const runAddMessage = async (opts: {
-      title: string | null;
-      role: string;
-      content: string;
-    }) => {
+    const runAddMessage = async (opts: { title: string | null; role: string; content: string }) => {
       const tx = {
         conversation: {
           findUnique: jest.fn().mockResolvedValue({

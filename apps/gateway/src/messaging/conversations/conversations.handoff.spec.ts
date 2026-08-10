@@ -1,8 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
 import { ConversationsService } from './conversations.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { UtilityService } from '@/platform/utility/utility.service';
+import { KmsService } from '@/automation/tools/core/kms.service';
 import { NOTIFICATIONSENUM, UserRole } from '@tesseract/types';
 
 const mockPrismaService = {
@@ -16,16 +18,30 @@ const mockUtilityService = {
   sendNotificationToAppClients: jest.fn(),
 };
 
+// Solo los usa la resolución del nombre de quien escribe por Messenger, ajena al handoff.
+const mockHttpService = {
+  get: jest.fn(),
+};
+
+const mockKmsService = {
+  decrypt: jest.fn(),
+};
+
+/** El servicio pide cuatro dependencias; los dos bloques de este archivo montan el mismo módulo. */
+const conversationsTestProviders = [
+  ConversationsService,
+  { provide: PrismaService, useValue: mockPrismaService },
+  { provide: UtilityService, useValue: mockUtilityService },
+  { provide: HttpService, useValue: mockHttpService },
+  { provide: KmsService, useValue: mockKmsService },
+];
+
 describe('ConversationsService - Human Handoff', () => {
   let service: ConversationsService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ConversationsService,
-        { provide: PrismaService, useValue: mockPrismaService },
-        { provide: UtilityService, useValue: mockUtilityService },
-      ],
+      providers: conversationsTestProviders,
     }).compile();
 
     service = module.get<ConversationsService>(ConversationsService);
@@ -99,11 +115,7 @@ describe('ConversationsService - Follow up', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ConversationsService,
-        { provide: PrismaService, useValue: mockPrismaService },
-        { provide: UtilityService, useValue: mockUtilityService },
-      ],
+      providers: conversationsTestProviders,
     }).compile();
 
     service = module.get<ConversationsService>(ConversationsService);
