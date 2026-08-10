@@ -12,6 +12,7 @@ import ToolCatalogApi from './automation/tools/tool-catalog-api';
 import TenantToolsApi from './automation/tools/tenant-tools-api';
 import ToolsOauthApi from './automation/tools/tools-oauth-api';
 import WhatsappConfigApi from './messaging/whatsapp-config/whatsapp-config';
+import MessengerConfigApi from './messaging/messenger-config/messenger-config';
 import LlmModelsApi from './automation/llm-models/llm-models-api';
 import WorkflowsAdminApi from './automation/workflows/workflows-admin-api';
 import OrganizationsAdminApi from './identity/organizations/organizations-admin-api';
@@ -33,6 +34,7 @@ class RootApi {
   private tenantToolsApi: TenantToolsApi;
   private toolsOauthApi: ToolsOauthApi;
   private whatsappConfigApi: WhatsappConfigApi;
+  private messengerConfigApi: MessengerConfigApi;
   private llmModelsApi: LlmModelsApi;
   private workflowsAdminApi: WorkflowsAdminApi;
   private organizationsAdminApi: OrganizationsAdminApi;
@@ -53,6 +55,7 @@ class RootApi {
     this.tenantToolsApi = new TenantToolsApi();
     this.toolsOauthApi = new ToolsOauthApi();
     this.whatsappConfigApi = new WhatsappConfigApi();
+    this.messengerConfigApi = new MessengerConfigApi();
     this.llmModelsApi = new LlmModelsApi();
     this.workflowsAdminApi = new WorkflowsAdminApi();
     this.organizationsAdminApi = new OrganizationsAdminApi();
@@ -120,6 +123,10 @@ class RootApi {
 
   public getWhatsappConfigApi(): WhatsappConfigApi {
     return this.whatsappConfigApi;
+  }
+
+  public getMessengerConfigApi(): MessengerConfigApi {
+    return this.messengerConfigApi;
   }
 
   public getWorkflowsAdminApi(): WorkflowsAdminApi {

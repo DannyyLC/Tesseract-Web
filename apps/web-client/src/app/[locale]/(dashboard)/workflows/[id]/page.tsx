@@ -10,6 +10,7 @@ import {
   useWhatsappMutations,
   useWhatsappNumbers,
 } from '@/hooks/messaging/use-whatsapp-config';
+import { useMessengerMutations, useMessengerPages } from '@/hooks/messaging/use-messenger-config';
 import { useWorkflow, useWorkflowMutations } from '@/hooks/automation/use-workflows';
 import {
   AlertTriangle,
@@ -24,6 +25,7 @@ import { useParams } from 'next/navigation';
 import { useRouter, Link } from '@/i18n/routing';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import MessengerPageCard from '../_components/messenger-page-card';
 import WhatsappNumberCard from '../_components/whatsapp-number-card';
 import WorkflowAnalyticsPanel from '../_components/workflow-analytics-panel';
 import WorkflowExecutionsTable from '../_components/workflow-executions-table';
@@ -82,8 +84,11 @@ export default function WorkflowDetailPage() {
   });
 
   const { data: whatsappNumbers, isLoading: isWhatsappNumbersLoading } = useWhatsappNumbers(id);
+  const { data: messengerPages, isLoading: isMessengerPagesLoading } = useMessengerPages(id);
   const { deleteWhatsappConfig, setisActiveStatus, addWhatsappConfiguration } =
     useWhatsappMutations();
+  const { deleteMessengerConfig, setisActiveStatus: setMessengerActiveStatus } =
+    useMessengerMutations();
   useWhatsappConfigSubscriptions();
 
   // Initialize form when workflow loads
@@ -162,6 +167,38 @@ export default function WorkflowDetailPage() {
       }
     } catch (error) {
       toast.error(isActive ? t('whatsappActivateError') : t('whatsappDeactivateError'));
+      console.error(error);
+    }
+  };
+
+  const handleMessengerDelete = async (id: string) => {
+    try {
+      const success = await deleteMessengerConfig.mutateAsync(id);
+      if (success) {
+        toast.success('Messenger page removed successfully');
+      } else {
+        toast.error('Failed to remove Messenger page');
+      }
+    } catch (error) {
+      toast.error('Failed to remove Messenger page');
+      console.error(error);
+    }
+  };
+
+  const handleSetMessengerActiveStatus = async (id: string, isActive: boolean) => {
+    try {
+      const success = await setMessengerActiveStatus.mutateAsync({ id, data: isActive });
+      if (success) {
+        toast.success(isActive ? 'Messenger page connected' : 'Messenger page disconnected');
+      } else {
+        toast.error(
+          isActive ? 'Failed to connect Messenger page' : 'Failed to disconnect Messenger page',
+        );
+      }
+    } catch (error) {
+      toast.error(
+        isActive ? 'Failed to connect Messenger page' : 'Failed to disconnect Messenger page',
+      );
       console.error(error);
     }
   };
@@ -317,16 +354,15 @@ export default function WorkflowDetailPage() {
                   </Link>
                 </PermissionGuard>
 
-                <button
-                  type="button"
-                  onClick={() => undefined}
+                <Link
+                  href={`/workflows/${workflow.id}/messenger`}
                   className="group flex h-11 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-border bg-surface-elevated px-5 text-sm font-medium text-text-primary transition-all hover:bg-[var(--surface-tint)] active:scale-95 xl:w-auto xl:min-w-[230px]"
                 >
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-tint)] text-[#0084FF] transition-colors group-hover:bg-surface-secondary">
                     <FaFacebookMessenger className="h-4 w-4 text-[#0084FF]" />
                   </span>
                   Link to Messenger
-                </button>
+                </Link>
 
                 <button
                   type="button"
@@ -435,6 +471,44 @@ export default function WorkflowDetailPage() {
                 ))
               ) : (
                 <p className="ml-1 text-sm text-[var(--text-muted)]">{t('noIntegrations')}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="mb-8 rounded-2xl border border-border bg-[var(--surface-subtle)] p-4">
+            <h3 className="ml-1 text-sm font-semibold text-text-primary">Associated Messenger Pages</h3>
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {isMessengerPagesLoading ? (
+                <div className="flex min-h-28 items-center justify-center rounded-2xl border border-border bg-surface-elevated">
+                  <Loader2 size={20} className="animate-spin text-text-secondary" />
+                </div>
+              ) : messengerPages && messengerPages.length > 0 ? (
+                messengerPages.map((page, index) => (
+                  <div
+                    key={page.id}
+                    className={
+                      messengerPages.length % 2 !== 0 && index === messengerPages.length - 1
+                        ? 'lg:col-span-2'
+                        : ''
+                    }
+                  >
+                    <MessengerPageCard
+                      page={{
+                        id: page.id,
+                        pageId: page.pageId,
+                        pageName: page.pageName,
+                        connectionStatus: page.connectionStatus,
+                        createdAt: page.createdAt,
+                      }}
+                      index={index}
+                      onDelete={handleMessengerDelete}
+                      onSetActiveStatus={handleSetMessengerActiveStatus}
+                      isActive={page.isActive}
+                    />
+                  </div>
+                ))
+              ) : (
+                <p className="ml-1 text-sm text-[var(--text-muted)]">No Messenger pages associated yet.</p>
               )}
             </div>
           </div>

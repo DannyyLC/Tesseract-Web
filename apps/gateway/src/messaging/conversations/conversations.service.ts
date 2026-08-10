@@ -1,4 +1,5 @@
 import { Injectable, Logger, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
 import { PrismaService } from '@/platform/database/prisma.service';
 import {
   DashboardConversationDto,
@@ -14,9 +15,14 @@ import {
   ChatRole,
   Conversation,
   CompactionStatus,
+  MessengerConfig,
 } from '@tesseract/database';
 import { UtilityService } from '@/platform/utility/utility.service';
 import { buildConversationTitle } from './conversation-title';
+import { KmsService } from '@/automation/tools/core/kms.service';
+import { firstValueFrom } from 'rxjs';
+
+const GRAPH_API_BASE = process.env.MESSENGER_GRAPH_API_BASE ?? 'https://graph.facebook.com/v21.0';
 
 interface CreateCompactionInput {
   conversationId: string;
@@ -118,7 +124,68 @@ export class ConversationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly utilityService: UtilityService,
+    private readonly httpService: HttpService,
+    private readonly kmsService: KmsService,
   ) {}
+
+  private readonly fallbackMessengerPageAccessToken =
+    process.env.MESSENGER_PAGE_ACCESS_TOKEN ?? '';
+
+  private async resolveMessengerPageAccessToken(config: {
+    pageId: string;
+    pageAccessToken: string | null;
+  }): Promise<string> {
+    if (config.pageAccessToken) {
+      try {
+        return await this.kmsService.decrypt(config.pageAccessToken);
+      } catch (error) {
+        this.logger.error(
+          `No se pudo descifrar el token de Messenger de la página ${config.pageId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
+    if (!this.fallbackMessengerPageAccessToken) {
+      throw new Error(
+        `No hay token de acceso para la página ${config.pageId}: ni en la config ni en MESSENGER_PAGE_ACCESS_TOKEN`,
+      );
+    }
+
+    return this.fallbackMessengerPageAccessToken;
+  }
+
+  private async fetchMessengerSenderName(
+    config: { pageId: string; pageAccessToken: string | null },
+    senderId: string,
+  ): Promise<string | null> {
+    try {
+      const accessToken = await this.resolveMessengerPageAccessToken(config);
+      const { data } = await firstValueFrom(
+        this.httpService.get<{ name?: string; first_name?: string; last_name?: string }>(
+          `${GRAPH_API_BASE}/${senderId}`,
+          {
+            params: {
+              fields: 'name,first_name,last_name',
+              access_token: accessToken,
+            },
+          },
+        ),
+      );
+
+      const fullName = data?.name?.trim();
+      if (fullName) return fullName;
+
+      const joinedName = [data?.first_name, data?.last_name].filter(Boolean).join(' ').trim();
+      return joinedName || null;
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo resolver el nombre del remitente ${senderId} para la página ${config.pageId}`,
+      );
+      return null;
+    }
+  }
 
   async requestHumanIntervention(
     organizationId: string,
@@ -627,8 +694,9 @@ export class ConversationsService {
       orderBy,
       include: {
         user: { select: { name: true, email: true, avatar: true } },
-        endUser: { select: { name: true, email: true, avatar: true, phoneNumber: true } },
-        messengerConfig: { select: { pageName: true } },
+        endUser: { select: { id: true, name: true, email: true, avatar: true, phoneNumber: true } },
+        messengerConfig: { select: { pageName: true, pageId: true, pageAccessToken: true } },
+        whatsappConfig: { select: { phoneNumber: true } },
       },
     });
 
@@ -638,15 +706,47 @@ export class ConversationsService {
       paginationAction,
     );
 
+    const items = await Promise.all(
+      paginatedResult.items.map(async (c: any) => {
+        let endUserName = c.endUser?.name ?? null;
+
+        if (
+          c.channel === ConversationChannel.MESSENGER &&
+          !endUserName &&
+          c.messengerSenderId &&
+          c.messengerConfig
+        ) {
+          const fetchedName = await this.fetchMessengerSenderName(c.messengerConfig, c.messengerSenderId);
+          if (fetchedName) {
+            endUserName = fetchedName;
+            if (c.endUser?.id) {
+              try {
+                await this.prisma.endUser.update({
+                  where: { id: c.endUser.id },
+                  data: { name: fetchedName },
+                });
+              } catch (error) {
+                this.logger.warn(`No se pudo persistir el nombre del remitente ${c.messengerSenderId}`);
+              }
+            }
+          }
+        }
+
+        return {
+          ...c,
+          isInternal: !!c.userId,
+          endUserPhoneNumber: c.endUser?.phoneNumber ?? null,
+          whatsappBusinessPhoneNumber: c.whatsappConfig?.phoneNumber ?? null,
+          endUserName,
+          messengerPageName: c.messengerConfig?.pageName ?? null,
+          messengerSenderId: c.messengerSenderId ?? null,
+        };
+      }),
+    );
+
     return {
       ...paginatedResult,
-      items: paginatedResult.items.map((c: any) => ({
-        ...c,
-        isInternal: !!c.userId,
-        endUserPhoneNumber: c.endUser?.phoneNumber ?? null,
-        endUserName: c.endUser?.name ?? null,
-        messengerPageName: c.messengerConfig?.pageName ?? null,
-      })) as DashboardConversationDto[],
+      items: items as DashboardConversationDto[],
     };
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { Calendar, Globe, MessageSquare, Phone, Terminal, User, Users } from 'lucide-react';
+import { ArrowRight, Calendar, Globe, MessageSquare, Phone, Terminal, User, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { MessengerIcon, WhatsappIcon } from '@/components/icons';
 
@@ -18,8 +18,10 @@ import { MessengerIcon, WhatsappIcon } from '@/components/icons';
 interface ConversationChannelMetaProps {
   channel: string;
   endUserPhoneNumber?: string | null;
+  whatsappBusinessPhoneNumber?: string | null;
   endUserName?: string | null;
   messengerPageName?: string | null;
+  messengerSenderId?: string | null;
   /** El detalle usa iconos un punto más pequeños que la lista. */
   size?: 'sm' | 'md';
   /** El detalle solo quiere la identidad: el canal ya se deduce del propio chat. */
@@ -77,8 +79,10 @@ const FALLBACK = {
 export default function ConversationChannelMeta({
   channel,
   endUserPhoneNumber,
+  whatsappBusinessPhoneNumber,
   endUserName,
   messengerPageName,
+  messengerSenderId,
   size = 'md',
   showChannel = true,
 }: ConversationChannelMetaProps) {
@@ -86,32 +90,63 @@ export default function ConversationChannelMeta({
 
   const iconSize = size === 'sm' ? 11 : 12;
   const textClass = size === 'sm' ? 'text-[11px]' : 'text-xs';
+  const routeTextClass = size === 'sm' ? 'text-[11px]' : 'text-xs';
 
   const style = CHANNEL_STYLES[channel?.toUpperCase()];
 
   /** Los datos que identifican a quien escribe, según lo que sepamos de cada canal. */
-  const identity: { key: string; title: string; icon: React.ReactNode; value: string }[] = [];
+  const identity: {
+    key: string;
+    title: string;
+    icon: React.ReactNode;
+    value: string;
+    variant?: 'default' | 'route';
+  }[] = [];
 
-  if (channel === 'WHATSAPP' && endUserPhoneNumber) {
-    identity.push({
-      key: 'phone',
-      title: t('phoneNumberTitle'),
-      icon: <Phone size={iconSize} className="shrink-0" />,
-      value: endUserPhoneNumber,
-    });
+  if (channel === 'WHATSAPP') {
+    if (endUserPhoneNumber && whatsappBusinessPhoneNumber) {
+      identity.push({
+        key: 'route',
+        title: t('phoneNumberTitle'),
+        icon: <Phone size={iconSize} className="shrink-0" />,
+        value: `From ${endUserPhoneNumber} to ${whatsappBusinessPhoneNumber}`,
+        variant: 'route',
+      });
+    } else if (endUserPhoneNumber) {
+      identity.push({
+        key: 'phone',
+        title: t('phoneNumberTitle'),
+        icon: <Phone size={iconSize} className="shrink-0" />,
+        value: endUserPhoneNumber,
+      });
+    } else if (whatsappBusinessPhoneNumber) {
+      identity.push({
+        key: 'business-phone',
+        title: t('phoneNumberTitle'),
+        icon: <Phone size={iconSize} className="shrink-0" />,
+        value: whatsappBusinessPhoneNumber,
+      });
+    }
   }
 
   if (channel === 'MESSENGER') {
-    // El nombre llega del perfil de Facebook y puede faltar; la página siempre está.
-    if (endUserName) {
+    const senderLabel = endUserName || messengerSenderId;
+    if (senderLabel && messengerPageName) {
+      identity.push({
+        key: 'route',
+        title: t('messengerPageTitle'),
+        icon: <Users size={iconSize} className="shrink-0" />,
+        value: `From ${senderLabel} to ${messengerPageName}`,
+        variant: 'route',
+      });
+    } else if (senderLabel) {
       identity.push({
         key: 'name',
         title: t('customerNameTitle'),
         icon: <User size={iconSize} className="shrink-0" />,
-        value: endUserName,
+        value: senderLabel,
       });
-    }
-    if (messengerPageName) {
+    } else if (messengerPageName) {
       identity.push({
         key: 'page',
         title: t('messengerPageTitle'),
@@ -141,10 +176,21 @@ export default function ConversationChannelMeta({
       {identity.map((item) => (
         <span key={item.key} className="inline-flex items-center gap-1.5" title={item.title}>
           <span className="text-text-tertiary">•</span>
-          <span className="inline-flex items-center gap-1.5">
-            {item.icon}
-            <span className={`${textClass} max-w-[200px] truncate`}>{item.value}</span>
-          </span>
+          {item.variant === 'route' ? (
+            <span className="inline-flex max-w-full items-start gap-1.5 text-text-secondary">
+              <span className="mt-0.5 shrink-0">{item.icon}</span>
+              <span className={`inline-flex min-w-0 flex-wrap items-center gap-1 ${routeTextClass} whitespace-normal break-words leading-relaxed text-text-primary`}>
+                <span className="break-all font-medium">{item.value.split(' to ')[0]?.replace(/^From /, '')}</span>
+                <ArrowRight size={12} className="mt-px shrink-0 text-text-tertiary" />
+                <span className="break-all text-text-secondary">{item.value.split(' to ')[1] ?? ''}</span>
+              </span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5">
+              {item.icon}
+              <span className={`${textClass} max-w-[200px] truncate`}>{item.value}</span>
+            </span>
+          )}
         </span>
       ))}
     </>

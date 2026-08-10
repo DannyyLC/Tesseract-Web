@@ -189,8 +189,10 @@ export default function DashboardConversationItem({
                   <ConversationChannelMeta
                     channel={conversation.channel}
                     endUserPhoneNumber={conversation.endUserPhoneNumber}
+                    whatsappBusinessPhoneNumber={conversation.whatsappBusinessPhoneNumber}
                     endUserName={conversation.endUserName}
                     messengerPageName={conversation.messengerPageName}
+                    messengerSenderId={conversation.messengerSenderId}
                   />
                   <span className="text-text-tertiary">•</span>
                   <div className="flex items-center gap-1.5">

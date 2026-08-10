@@ -120,6 +120,8 @@ export interface DashboardConversationDto {
   followUpReason: string | null;
   /** Telefono del cliente final. Solo en conversaciones de WhatsApp. */
   endUserPhoneNumber: string | null;
+  /** Número de WhatsApp Business al que llegó el mensaje. Solo en conversaciones de WhatsApp. */
+  whatsappBusinessPhoneNumber: string | null;
   /**
    * Nombre del cliente final, cuando el canal permite conocerlo. En Messenger llega del
    * perfil de Facebook y puede ser null: si Meta no lo devuelve, la conversación se crea
@@ -128,6 +130,8 @@ export interface DashboardConversationDto {
   endUserName: string | null;
   /** Página de Facebook por la que entró. Solo en conversaciones de Messenger. */
   messengerPageName: string | null;
+  /** PSID del remitente en Messenger. Solo en conversaciones de Messenger. */
+  messengerSenderId: string | null;
   messageCount: number;
   lastMessageAt: Date | null;
   workflowId: string;

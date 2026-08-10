@@ -268,7 +268,9 @@ export class MessengerConfigService {
    * otro es exactamente lo que esta función existe para impedir, así que ante la duda
    * se devuelve vacío y la verificación falla.
    */
-  private async resolveAppSecret(config: MessengerConfig): Promise<string> {
+  private async resolveAppSecret(
+    config: Pick<MessengerConfig, 'pageId' | 'appSecret'>,
+  ): Promise<string> {
     if (config.appSecret) {
       try {
         return await this.kmsService.decrypt(config.appSecret);
@@ -297,7 +299,11 @@ export class MessengerConfigService {
    * Envía un texto al usuario. Se sanea a texto plano (Messenger no interpreta
    * Markdown) y se parte en trozos que quepan en el límite de la Send API.
    */
-  async sendTextMessage(config: MessengerConfig, recipientId: string, message: string): Promise<void> {
+  async sendTextMessage(
+    config: Pick<MessengerConfig, 'pageId' | 'pageAccessToken'>,
+    recipientId: string,
+    message: string,
+  ): Promise<void> {
     const sanitized = await this.sanitizeOutput(message);
 
     for (const chunk of this.splitIntoChunks(sanitized, MESSENGER_MAX_TEXT_LENGTH)) {
@@ -316,7 +322,7 @@ export class MessengerConfigService {
    * si falla se registra y se sigue, porque la respuesta importa más que el aviso.
    */
   async markSeenAndSendTypingIndicator(
-    config: MessengerConfig,
+    config: Pick<MessengerConfig, 'pageId' | 'pageAccessToken'>,
     recipientId: string,
   ): Promise<void> {
     const results = await Promise.allSettled(
@@ -341,7 +347,9 @@ export class MessengerConfigService {
    * que exige un despliegue multi-tenant). El env es la salida para despliegues de una
    * sola página, donde crear la config no debería obligar a montar KMS.
    */
-  private async resolvePageAccessToken(config: MessengerConfig): Promise<string> {
+  private async resolvePageAccessToken(
+    config: Pick<MessengerConfig, 'pageId' | 'pageAccessToken'>,
+  ): Promise<string> {
     if (config.pageAccessToken) {
       try {
         return await this.kmsService.decrypt(config.pageAccessToken);
@@ -363,7 +371,10 @@ export class MessengerConfigService {
     return this.fallbackPageAccessToken;
   }
 
-  private async callSendApi(config: MessengerConfig, body: Record<string, unknown>): Promise<void> {
+  private async callSendApi(
+    config: Pick<MessengerConfig, 'pageId' | 'pageAccessToken'>,
+    body: Record<string, unknown>,
+  ): Promise<void> {
     const accessToken = await this.resolvePageAccessToken(config);
     // Nada de logs aquí: el token de página va descifrado en esta variable y el body
     // lleva el texto de la conversación. Si la llamada falla, el error de axios ya
@@ -391,7 +402,7 @@ export class MessengerConfigService {
     conversationId: string,
     organizationId: string,
     executionMetadata: JsonObject,
-    config: MessengerConfig,
+    config: Pick<MessengerConfig, 'pageId' | 'pageAccessToken'>,
     recipientId: string,
     workflowId?: string,
   ): Promise<void> {
@@ -497,7 +508,7 @@ export class MessengerConfigService {
    */
   private async sendFolderMediaToUser(
     folderUrl: string,
-    config: MessengerConfig,
+    config: Pick<MessengerConfig, 'pageId' | 'pageAccessToken'>,
     recipientId: string,
   ): Promise<void> {
     const files = await this.driveService.getFilesFromPublicFolder(folderUrl);
