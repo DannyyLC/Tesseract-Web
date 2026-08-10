@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Search, Loader2 } from 'lucide-react';
+import { useColumnCount } from '@/hooks/use-column-count';
 import { useToolCatalog, flattenToolCatalog } from '@/hooks/automation/use-tool-catalog';
 import {
   useInfiniteTenantToolsDashboard,
@@ -42,6 +43,19 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
 
   const allCatalogTools = flattenToolCatalog(catalogData);
   const connectedTools = flattenTenantTools(tenantToolsData);
+
+  // ─── Reparto en columnas ──────────────────────────────────────────────
+  // Cada columna fluye por su cuenta, así que expandir una carta no abre el hueco que
+  // dejaba la rejilla. El reparto es alterno (la carta i va a la columna i % n), no por
+  // bloques, y eso compra dos cosas: de izquierda a derecha se sigue leyendo 1, 2, 3 en el
+  // orden del catálogo, y al cargar más páginas cada carta nueva se añade al final de su
+  // columna sin mover ninguna de las que ya estaban.
+  const columnCount = useColumnCount();
+  const toolColumns = useMemo(() => {
+    const columns: GetToolsDto[][] = Array.from({ length: columnCount }, () => []);
+    allCatalogTools.forEach((tool, i) => columns[i % columnCount].push(tool));
+    return columns;
+  }, [allCatalogTools, columnCount]);
 
   // Build a map: toolName → count of connected instances
   const connectedCountMap = connectedTools.reduce<Record<string, number>>((acc, t) => {
@@ -106,17 +120,23 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
         </div>
       )}
 
-      {/* Grid */}
       {!catalogLoading && allCatalogTools.length > 0 && (
-        <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {allCatalogTools.map((tool, i) => (
-            <CatalogIntegrationCard
-              key={tool.id}
-              tool={tool}
-              index={i}
-              connectedCount={connectedCountMap[tool.toolName] ?? 0}
-              onConnect={handleConnectClick}
-            />
+        <div className="flex items-start gap-4">
+          {toolColumns.map((column, columnIndex) => (
+            <div key={columnIndex} className="flex min-w-0 flex-1 flex-col">
+              {column.map((tool, i) => (
+                <CatalogIntegrationCard
+                  key={tool.id}
+                  tool={tool}
+                  // La entrada se escalona por posición dentro de la columna, no por índice
+                  // global: con el scroll infinito el índice global crece sin límite y las
+                  // cartas de la cuarta página tardaban segundos en aparecer.
+                  index={i}
+                  connectedCount={connectedCountMap[tool.toolName] ?? 0}
+                  onConnect={handleConnectClick}
+                />
+              ))}
+            </div>
           ))}
         </div>
       )}

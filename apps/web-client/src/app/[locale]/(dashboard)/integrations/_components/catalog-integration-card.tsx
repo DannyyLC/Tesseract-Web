@@ -35,10 +35,13 @@ export function CatalogIntegrationCard({
     <motion.div
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: index * 0.05 }}
+      // El escalonado se limita: pasado el noveno el retardo deja de crecer. Sin el tope, una
+      // columna larga acababa haciendo esperar segundos a sus últimas cartas.
+      transition={{ delay: Math.min(index, 8) * 0.05 }}
       layout
       onClick={() => setIsExpanded(!isExpanded)}
-      className={`group flex cursor-pointer flex-col rounded-2xl border border-[var(--border-subtle)] bg-surface-elevated p-5 transition-all hover:shadow-md ${!tool.isActive ? 'opacity-50' : ''}`}
+      // El `mb-4` hace de separación vertical dentro de la columna.
+      className={`group mb-4 flex w-full cursor-pointer flex-col rounded-2xl border border-[var(--border-subtle)] bg-surface-elevated p-5 transition-shadow hover:shadow-md ${!tool.isActive ? 'opacity-50' : ''}`}
     >
       {/* Header */}
       <div className="mb-4 flex items-start justify-between">
