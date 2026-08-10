@@ -177,12 +177,12 @@ export default function WorkflowDetailPage() {
     try {
       const success = await deleteMessengerConfig.mutateAsync(id);
       if (success) {
-        toast.success('Messenger page removed successfully');
+        toast.success(t('messengerDeleteSuccess'));
       } else {
-        toast.error('Failed to remove Messenger page');
+        toast.error(t('messengerDeleteError'));
       }
     } catch (error) {
-      toast.error('Failed to remove Messenger page');
+      toast.error(t('messengerDeleteError'));
       console.error(error);
     }
   };
@@ -191,16 +191,12 @@ export default function WorkflowDetailPage() {
     try {
       const success = await setMessengerActiveStatus.mutateAsync({ id, data: isActive });
       if (success) {
-        toast.success(isActive ? 'Messenger page connected' : 'Messenger page disconnected');
+        toast.success(isActive ? t('messengerConnected') : t('messengerDisconnected'));
       } else {
-        toast.error(
-          isActive ? 'Failed to connect Messenger page' : 'Failed to disconnect Messenger page',
-        );
+        toast.error(isActive ? t('messengerConnectError') : t('messengerDisconnectError'));
       }
     } catch (error) {
-      toast.error(
-        isActive ? 'Failed to connect Messenger page' : 'Failed to disconnect Messenger page',
-      );
+      toast.error(isActive ? t('messengerConnectError') : t('messengerDisconnectError'));
       console.error(error);
     }
   };
@@ -470,7 +466,7 @@ export default function WorkflowDetailPage() {
 
           <div className="mb-8 rounded-2xl border border-border bg-[var(--surface-subtle)] p-4">
             <h3 className="ml-1 text-sm font-semibold text-text-primary">
-              Associated Messenger Pages
+              {t('messengerPagesTitle')}
             </h3>
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
               {isMessengerPagesLoading ? (
@@ -503,9 +499,7 @@ export default function WorkflowDetailPage() {
                   </div>
                 ))
               ) : (
-                <p className="ml-1 text-sm text-[var(--text-muted)]">
-                  No Messenger pages associated yet.
-                </p>
+                <p className="ml-1 text-sm text-[var(--text-muted)]">{t('noMessengerPages')}</p>
               )}
             </div>
           </div>

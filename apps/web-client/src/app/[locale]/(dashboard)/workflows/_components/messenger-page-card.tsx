@@ -3,6 +3,7 @@
 import PermissionGuard from '@/components/auth/permission-guard';
 import { motion } from 'framer-motion';
 import { MoreVertical, Unplug, Trash2 } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { FaFacebookMessenger } from 'react-icons/fa6';
 import { useState } from 'react';
 
@@ -22,21 +23,23 @@ interface MessengerPageCardProps {
   isActive?: boolean;
 }
 
-const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }> = {
+// El mapa vive fuera del componente, donde no hay hooks: guarda la clave de traducción
+// y el texto se resuelve ya dentro, con `t`.
+const STATUS_STYLES: Record<string, { dot: string; label: string; textKey: string }> = {
   CONNECTED: {
     dot: 'bg-success-500',
     label: 'border border-success-500/25 bg-success-500/10 text-[var(--badge-success-text-strong)]',
-    text: 'Configurado',
+    textKey: 'statusConfigured',
   },
   ERROR: {
     dot: 'bg-danger',
     label: 'border border-danger-500/25 bg-danger/10 text-[var(--badge-danger-text-strong)]',
-    text: 'Error',
+    textKey: 'statusError',
   },
   DISCONNECTED: {
     dot: 'bg-warning-500',
     label: 'border border-warning-500/25 bg-warning-500/10 text-[var(--badge-warning-text-strong)]',
-    text: 'No Configurado',
+    textKey: 'statusNotConfigured',
   },
 };
 
@@ -47,6 +50,8 @@ export function MessengerPageCard({
   onSetActiveStatus,
   isActive,
 }: MessengerPageCardProps) {
+  const t = useTranslations('MessengerPageCard');
+  const locale = useLocale();
   const [menuOpen, setMenuOpen] = useState(false);
   const status =
     STATUS_STYLES[page.connectionStatus ?? 'DISCONNECTED'] ?? STATUS_STYLES.DISCONNECTED;
@@ -54,8 +59,9 @@ export function MessengerPageCard({
     ? 'border border-success-500/25 bg-success-500/10 text-[var(--badge-success-text-strong)]'
     : 'border border-danger-500/25 bg-danger/10 text-[var(--badge-danger-text-strong)]';
   const connectionDot = isActive ? 'bg-success-500' : 'bg-danger';
-  const connectionText = isActive ? 'Conectado' : 'Desconectado';
-  const createdDate = new Date(page.createdAt).toLocaleDateString('es-MX', {
+  const connectionText = isActive ? t('connected') : t('disconnected');
+  // La fecha sigue al idioma elegido, no a un 'es-MX' fijo.
+  const createdDate = new Date(page.createdAt).toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -74,15 +80,15 @@ export function MessengerPageCard({
 
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold text-text-primary">{page.pageName || page.pageId}</p>
-        <p className="text-xs text-text-tertiary">Página de Messenger</p>
-        <p className="mt-0.5 text-xs text-text-tertiary">Agregado el {createdDate}</p>
+        <p className="text-xs text-text-tertiary">{t('subtitle')}</p>
+        <p className="mt-0.5 text-xs text-text-tertiary">{t('addedOn', { date: createdDate })}</p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span
             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${status.label}`}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
-            {status.text}
+            {t(status.textKey)}
           </span>
 
           <span
@@ -97,6 +103,7 @@ export function MessengerPageCard({
       <div className="relative">
         <button
           onClick={() => setMenuOpen((v) => !v)}
+          aria-label={t('menuAriaLabel')}
           className="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-secondary"
         >
           <MoreVertical size={16} />
@@ -125,7 +132,7 @@ export function MessengerPageCard({
                   }`}
                 >
                   <Unplug size={14} />
-                  {!isActive ? 'Conectar' : 'Desconectar'}
+                  {!isActive ? t('connect') : t('disconnect')}
                 </button>
               </PermissionGuard>
 
@@ -138,7 +145,7 @@ export function MessengerPageCard({
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[var(--danger-text-adaptive)] transition-colors hover:bg-[var(--danger-tint-hover)]"
                 >
                   <Trash2 size={14} />
-                  Eliminar
+                  {t('delete')}
                 </button>
               </PermissionGuard>
             </div>
