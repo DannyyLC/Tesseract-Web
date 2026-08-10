@@ -1,15 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
-import { CreateApiKeyDto, UpdateApiKeyDto } from '@tesseract/types';
+import { ApiKeysQuery, CreateApiKeyDto, UpdateApiKeyDto } from '@tesseract/types';
 
-// Hook para obtener la listas de api-keys
-export function useApiKeysList() {
+/**
+ * Listado paginado de api-keys. Con `workflowId` sirve a la sección del detalle de
+ * un workflow; sin él, a la página global.
+ */
+export function useApiKeys(query: ApiKeysQuery = {}) {
+  const { cursor = null, action = null, pageSize = 10, workflowId, search } = query;
+
   return useQuery({
-    queryKey: ['api-keys', 'list'],
+    queryKey: ['api-keys', 'list', { cursor, action, pageSize, workflowId, search }],
     queryFn: async () => {
       const api = RootApi.getInstance().getApiKeysApi();
-      return await api.findAll();
+      return await api.findAll({ cursor, action, pageSize, workflowId, search });
     },
+    // Sin esto, cada cambio de página vacía la lista y la sección da un salto.
+    placeholderData: (previous) => previous,
   });
 }
 
@@ -29,14 +36,16 @@ export function useApiKey(apiKeyId: string) {
 export function useApiKeyMutations() {
   const queryClient = useQueryClient();
 
+  // Se invalida `['api-keys']` entero, sin afinar por página ni por workflow: la misma key
+  // aparece en la vista global y en la sección de su workflow, y las dos tienen que refrescarse.
+  const invalidateAll = () => queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+
   const createApiKey = useMutation({
     mutationFn: async (data: CreateApiKeyDto) => {
       const api = RootApi.getInstance().getApiKeysApi();
       return await api.create(data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api-keys', 'list'] });
-    },
+    onSuccess: invalidateAll,
   });
 
   const updateApiKey = useMutation({
@@ -44,10 +53,7 @@ export function useApiKeyMutations() {
       const api = RootApi.getInstance().getApiKeysApi();
       return await api.update(id, data);
     },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['api-keys', 'detail', variables.id] });
-      queryClient.invalidateQueries({ queryKey: ['api-keys', 'list'] });
-    },
+    onSuccess: invalidateAll,
   });
 
   const deleteApiKey = useMutation({
@@ -55,9 +61,7 @@ export function useApiKeyMutations() {
       const api = RootApi.getInstance().getApiKeysApi();
       return await api.delete(id);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api-keys', 'list'] });
-    },
+    onSuccess: invalidateAll,
   });
 
   return {

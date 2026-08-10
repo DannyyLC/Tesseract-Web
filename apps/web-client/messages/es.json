@@ -368,7 +368,8 @@
     "timezoneLabel": "Zona horaria",
     "timezoneHelp": "Afecta a las gráficas de este workflow y a la hora local que usa el agente al responder.",
     "toolsWithoutAccess": "{count, plural, one {1 sin acceso} other {{count} sin acceso}}",
-    "toolNoAccess": "Sin acceso — reconéctala"
+    "toolNoAccess": "Sin acceso — reconéctala",
+    "linkMessenger": "Vincular a Messenger"
   },
   "LegalLayout": {
     "backAriaLabel": "Volver atrás",
@@ -941,7 +942,6 @@
     "searchPlaceholder": "Buscar API Keys...",
     "statusActive": "Activa",
     "statusInactive": "Inactiva",
-    "unknownWorkflow": "Workflow desconocido",
     "copyTitle": "Copiar",
     "copied": "Copiado",
     "copiedToast": "Copiado al portapapeles",
@@ -976,7 +976,12 @@
     "updateSuccess": "API Key actualizada",
     "updateError": "Error al actualizar la API Key",
     "deleteSuccess": "API Key eliminada correctamente",
-    "deleteError": "Error al eliminar la API Key"
+    "deleteError": "Error al eliminar la API Key",
+    "sectionTitle": "API Keys de este Workflow",
+    "noKeysForWorkflow": "Este workflow no tiene API Keys. Crea una para ejecutarlo desde fuera.",
+    "workflowPlaceholder": "Selecciona un workflow",
+    "prev": "Anterior",
+    "next": "Siguiente"
   },
   "Settings": {
     "heading": "Configuración",

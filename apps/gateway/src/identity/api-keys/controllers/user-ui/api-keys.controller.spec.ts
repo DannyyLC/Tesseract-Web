@@ -71,15 +71,38 @@ describe('ApiKeysController', () => {
   });
 
   describe('findAll', () => {
-    it('should return a list of API keys', async () => {
-      const expectedResult = [{ id: '1', name: 'Test', isActive: true, createdAt: new Date() }];
+    const expectedResult = {
+      items: [{ id: '1', name: 'Test', isActive: true, createdAt: new Date() }],
+      nextCursor: null,
+      prevCursor: null,
+      nextPageAvailable: false,
+      pageSize: 10,
+    };
 
+    it('should return a paginated list of API keys', async () => {
       mockApiKeysService.findAll.mockResolvedValue(expectedResult as any);
 
-      const result = await controller.findAll(mockUserPayload);
+      const result = await controller.findAll(mockUserPayload, null, 10, null);
 
-      expect(service.findAll).toHaveBeenCalledWith(mockUserPayload.organizationId);
+      expect(service.findAll).toHaveBeenCalledWith(mockUserPayload.organizationId, null, 10, null, {
+        workflowId: undefined,
+        search: undefined,
+      });
       expect(result).toEqual(expectedResult);
+    });
+
+    it('should forward the workflow and search filters', async () => {
+      mockApiKeysService.findAll.mockResolvedValue(expectedResult as any);
+
+      await controller.findAll(mockUserPayload, 'key-9', 5, 'next', 'wf-1', 'prod');
+
+      expect(service.findAll).toHaveBeenCalledWith(
+        mockUserPayload.organizationId,
+        'key-9',
+        5,
+        'next',
+        { workflowId: 'wf-1', search: 'prod' },
+      );
     });
   });
 

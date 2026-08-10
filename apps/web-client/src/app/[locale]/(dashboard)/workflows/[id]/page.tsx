@@ -2,6 +2,7 @@
 
 import { WhatsappIcon } from '@/components/icons/whatsapp-icon';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
+import { ExpandingActionButton } from '@/components/ui/expanding-action-button';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
@@ -28,6 +29,7 @@ import { toast } from 'sonner';
 import MessengerPageCard from '../_components/messenger-page-card';
 import WhatsappNumberCard from '../_components/whatsapp-number-card';
 import WorkflowAnalyticsPanel from '../_components/workflow-analytics-panel';
+import WorkflowApiKeysSection from '../_components/workflow-api-keys-section';
 import WorkflowExecutionsTable from '../_components/workflow-executions-table';
 import { useTranslations } from 'next-intl';
 import { FaFacebookMessenger } from 'react-icons/fa6';
@@ -343,7 +345,9 @@ export default function WorkflowDetailPage() {
                 </div>
               </div>
 
-              <div className="flex w-full flex-col gap-3 xl:w-auto xl:flex-row xl:items-center">
+              {/* Las acciones secundarias van colapsadas a icono en escritorio y se despliegan
+                  al hover: con cuatro botones enteros no quedaba ancho para nada más. */}
+              <div className="flex w-full flex-col gap-3 xl:w-auto xl:flex-row xl:items-center xl:justify-end">
                 <PermissionGuard permissions="workflows:execute">
                   <Link
                     href={`/conversations/new?workflowId=${workflow.id}`}
@@ -354,35 +358,24 @@ export default function WorkflowDetailPage() {
                   </Link>
                 </PermissionGuard>
 
-                <Link
+                <ExpandingActionButton
                   href={`/workflows/${workflow.id}/messenger`}
-                  className="group flex h-11 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-border bg-surface-elevated px-5 text-sm font-medium text-text-primary transition-all hover:bg-[var(--surface-tint)] active:scale-95 xl:w-auto xl:min-w-[230px]"
-                >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-tint)] text-[#0084FF] transition-colors group-hover:bg-surface-secondary">
-                    <FaFacebookMessenger className="h-4 w-4 text-[#0084FF]" />
-                  </span>
-                  Link to Messenger
-                </Link>
+                  label={t('linkMessenger')}
+                  icon={<FaFacebookMessenger className="h-4 w-4 text-[#0084FF]" />}
+                />
 
-                <button
-                  type="button"
+                <ExpandingActionButton
                   onClick={() => setIsWhatsappModalOpen(true)}
-                  className="group flex h-11 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-border bg-surface-elevated px-5 text-sm font-medium text-text-primary transition-all hover:bg-[var(--surface-tint)] active:scale-95 xl:w-auto xl:min-w-[230px]"
-                >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-tint)] text-text-secondary transition-colors group-hover:bg-surface-secondary">
-                    <WhatsappIcon className="h-4 w-4" />
-                  </span>
-                  {t('linkWhatsapp')}
-                </button>
+                  label={t('linkWhatsapp')}
+                  icon={<WhatsappIcon className="h-4 w-4" />}
+                />
 
                 <PermissionGuard permissions="workflows:update">
-                  <button
+                  <ExpandingActionButton
                     onClick={() => setIsEditOpen(true)}
-                    className="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-border bg-surface-elevated px-4 text-sm font-medium text-text-primary transition-all hover:bg-[var(--surface-tint)] active:scale-95 xl:w-auto"
-                  >
-                    <Edit3 size={17} className="shrink-0" />
-                    {t('editButton')}
-                  </button>
+                    label={t('editButton')}
+                    icon={<Edit3 size={16} />}
+                  />
                 </PermissionGuard>
               </div>
             </div>
@@ -476,7 +469,9 @@ export default function WorkflowDetailPage() {
           </div>
 
           <div className="mb-8 rounded-2xl border border-border bg-[var(--surface-subtle)] p-4">
-            <h3 className="ml-1 text-sm font-semibold text-text-primary">Associated Messenger Pages</h3>
+            <h3 className="ml-1 text-sm font-semibold text-text-primary">
+              Associated Messenger Pages
+            </h3>
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
               {isMessengerPagesLoading ? (
                 <div className="flex min-h-28 items-center justify-center rounded-2xl border border-border bg-surface-elevated">
@@ -508,7 +503,9 @@ export default function WorkflowDetailPage() {
                   </div>
                 ))
               ) : (
-                <p className="ml-1 text-sm text-[var(--text-muted)]">No Messenger pages associated yet.</p>
+                <p className="ml-1 text-sm text-[var(--text-muted)]">
+                  No Messenger pages associated yet.
+                </p>
               )}
             </div>
           </div>
@@ -551,6 +548,8 @@ export default function WorkflowDetailPage() {
               )}
             </div>
           </div>
+
+          <WorkflowApiKeysSection workflowId={id} />
 
           <div className="bg-danger-500/5 rounded-2xl border border-danger-500 p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -611,9 +610,7 @@ export default function WorkflowDetailPage() {
               <option value="">{formatTimezoneLabel(inheritedTimezone)}</option>
               {/* Zona fijada por API que no esté en el catálogo: se conserva. */}
               {formData.timezone && !SUPPORTED_TIMEZONES.includes(formData.timezone) && (
-                <option value={formData.timezone}>
-                  {formatTimezoneLabel(formData.timezone)}
-                </option>
+                <option value={formData.timezone}>{formatTimezoneLabel(formData.timezone)}</option>
               )}
               {TIMEZONE_GROUPS.map((group) => {
                 // Sin el filtro, la zona de la organización saldría dos veces con la misma

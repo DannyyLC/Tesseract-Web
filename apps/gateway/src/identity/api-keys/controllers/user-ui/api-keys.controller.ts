@@ -6,9 +6,12 @@ import {
   Patch,
   Body,
   Param,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ApiKeysService } from '../../api-keys.service';
 import { CreateApiKeyDto } from '../../dto/create-api-key.dto';
@@ -19,7 +22,7 @@ import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { UserPayload } from '@/platform/common/types/user-payload.type';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
-import { UserRole } from '@tesseract/types';
+import { PaginatedResponse, UserRole } from '@tesseract/types';
 
 /**
  * Controller de API Keys
@@ -46,12 +49,23 @@ export class ApiKeysController {
 
   /**
    * GET /api-keys
-   * Lista todos los API Keys de la organización
+   * Lista los API Keys de la organización, paginados por cursor.
+   * Con `workflowId` se acota a los de un workflow, que es lo que consume su página de detalle.
    */
   @Get()
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
-  async findAll(@CurrentUser() user: UserPayload): Promise<ApiKeyListDto[]> {
-    return this.apiKeysService.findAll(user.organizationId);
+  async findAll(
+    @CurrentUser() user: UserPayload,
+    @Query('cursor') cursor: string | null = null,
+    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
+    @Query('action') action: 'next' | 'prev' | null = null,
+    @Query('workflowId') workflowId?: string,
+    @Query('search') search?: string,
+  ): Promise<PaginatedResponse<ApiKeyListDto>> {
+    return this.apiKeysService.findAll(user.organizationId, cursor, pageSize, action, {
+      workflowId,
+      search,
+    });
   }
 
   /**

@@ -5,6 +5,7 @@ export class ApiKeyResponseDto {
   apiKey: string;
   isActive: boolean;
   workflowId: string;
+  workflowName: string;
   expiresAt?: Date;
   lastUsedAt?: Date;
   createdAt: Date;
@@ -19,5 +20,7 @@ export class ApiKeyListDto {
   lastUsedAt?: Date;
   expiresAt?: Date;
   workflowId: string;
+  /** Nombre del workflow enlazado, resuelto en el gateway. */
+  workflowName: string;
   createdAt: Date;
 }

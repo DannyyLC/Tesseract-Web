@@ -1,188 +1,58 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Search,
-  Plus,
-  Key,
-  Trash2,
-  Copy,
-  Check,
-  Loader2,
-  AlertTriangle,
-  Workflow,
-  Edit2,
-  Power,
-} from 'lucide-react';
-import { useApiKeysList, useApiKeyMutations } from '@/hooks/identity/use-api-key';
-import { useInfiniteDashboardWorkflows } from '@/hooks/automation/use-workflows';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Key, Plus, Search } from 'lucide-react';
+import { useApiKeys } from '@/hooks/identity/use-api-key';
 import { ApiKeyListDto } from '@tesseract/types';
 import PermissionGuard from '@/components/auth/permission-guard';
-import { toast } from 'sonner';
-import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
+import {
+  ApiKeyCreatedModal,
+  ApiKeyRow,
+  ApiKeysPager,
+  CreateApiKeyModal,
+  DeleteApiKeyModal,
+  EditApiKeyModal,
+} from '@/components/api-keys';
 
-// --- Helper Components ---
-const CopyButton = ({ text, className = '' }: { text: string; className?: string }) => {
-  const t = useTranslations('ApiKeys');
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    toast.success(t('copiedToast'));
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <button onClick={handleCopy} className={className} title={t('copyTitle')}>
-      {copied ? (
-        <div className="flex items-center gap-1.5 text-success-500">
-          <Check size={14} />
-          <span className="text-xs font-medium">{t('copied')}</span>
-        </div>
-      ) : (
-        <Copy size={14} />
-      )}
-    </button>
-  );
-};
+const PAGE_SIZE = 10;
 
 export default function ApiKeysPage() {
   const t = useTranslations('ApiKeys');
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [action, setAction] = useState<'next' | 'prev' | null>(null);
 
-  // Modal States
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [keyToEdit, setKeyToEdit] = useState<ApiKeyListDto | null>(null);
+  const [keyToDelete, setKeyToDelete] = useState<ApiKeyListDto | null>(null);
+  const [createdToken, setCreatedToken] = useState<string | null>(null);
 
-  // Selected Data
-  const [selectedKey, setSelectedKey] = useState<ApiKeyListDto | null>(null);
-  const [createdKeyToken, setCreatedKeyToken] = useState<string>('');
+  // La búsqueda se resuelve en el servidor, así que al cambiarla hay que volver a la
+  // primera página: el cursor anterior apunta a una fila que quizá ya no está en el filtro.
+  useEffect(() => {
+    setCursor(null);
+    setAction(null);
+  }, [searchQuery]);
 
-  // Form States
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    workflowId: '',
-    isActive: true,
+  const { data, isLoading } = useApiKeys({
+    cursor,
+    action,
+    pageSize: PAGE_SIZE,
+    search: searchQuery || undefined,
   });
 
-  // Hooks
-  const { data: apiKeys = [], isLoading: isLoadingKeys } = useApiKeysList();
+  const apiKeys = data?.items ?? [];
 
-  // Infinite Scroll Hook
-  const {
-    data: workflowsData,
-    isLoading: isLoadingWorkflows,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteDashboardWorkflows(10);
-
-  const workflows = workflowsData?.pages.flatMap((page) => page.items) ?? [];
-
-  // Observer for infinite scroll
-  const observer = useRef<IntersectionObserver | null>(null);
-  const lastWorkflowElementRef = useCallback(
-    (node: HTMLButtonElement | null) => {
-      if (isLoadingWorkflows || isFetchingNextPage) return;
-      if (observer.current) observer.current.disconnect();
-
-      observer.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasNextPage) {
-          fetchNextPage();
-        }
-      });
-
-      if (node) observer.current.observe(node);
-    },
-    [isLoadingWorkflows, isFetchingNextPage, hasNextPage, fetchNextPage],
-  );
-  const { createApiKey, updateApiKey, deleteApiKey } = useApiKeyMutations();
-
-  // Filtered Keys
-  const filteredKeys = apiKeys.filter((key) =>
-    key.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
-  // --- Handlers ---
-
-  const openCreateModal = () => {
-    setFormData({ name: '', description: '', workflowId: '', isActive: true });
-    setIsCreateModalOpen(true);
+  const handleNavigate = (nextCursor: string, nextAction: 'next' | 'prev') => {
+    setCursor(nextCursor);
+    setAction(nextAction);
   };
 
-  const openEditModal = (key: ApiKeyListDto) => {
-    setSelectedKey(key);
-    setFormData({
-      name: key.name,
-      description: key.description || '',
-      workflowId: key.workflowId,
-      isActive: key.isActive,
-    });
-    setIsEditModalOpen(true);
-  };
-
-  const handleCreate = async () => {
-    if (!formData.name.trim() || !formData.workflowId) return;
-
-    try {
-      const response = await createApiKey.mutateAsync({
-        name: formData.name,
-        description: formData.description,
-        workflowId: formData.workflowId,
-      });
-
-      // Store the token to show it ONCE
-      setCreatedKeyToken(response.apiKey);
-
-      setIsCreateModalOpen(false);
-      setIsSuccessModalOpen(true);
-      toast.success(t('createSuccess'));
-    } catch (error) {
-      toast.error(t('createError'));
-    }
-  };
-
-  const handleUpdate = async () => {
-    if (!selectedKey || !formData.name.trim()) return;
-
-    try {
-      await updateApiKey.mutateAsync({
-        id: selectedKey.id,
-        data: {
-          name: formData.name,
-          description: formData.description,
-          isActive: formData.isActive,
-        },
-      });
-      setIsEditModalOpen(false);
-      setSelectedKey(null);
-      toast.success(t('updateSuccess'));
-    } catch (error) {
-      toast.error(t('updateError'));
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!selectedKey) return;
-
-    try {
-      await deleteApiKey.mutateAsync(selectedKey.id);
-      setIsDeleteModalOpen(false);
-      setSelectedKey(null);
-      toast.success(t('deleteSuccess'));
-    } catch (error) {
-      toast.error(t('deleteError'));
-    }
-  };
-
-  if (isLoadingKeys) {
+  if (isLoading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <LogoLoader />
@@ -200,7 +70,7 @@ export default function ApiKeysPage() {
         </div>
         <PermissionGuard permissions="api_keys:create">
           <button
-            onClick={openCreateModal}
+            onClick={() => setIsCreateOpen(true)}
             className="flex items-center gap-2 self-start rounded-full bg-accent px-6 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90 sm:self-auto"
           >
             <Plus size={16} />
@@ -224,84 +94,18 @@ export default function ApiKeysPage() {
       {/* Keys List */}
       <div className="space-y-2">
         <AnimatePresence mode="popLayout">
-          {filteredKeys.map((key, index) => (
-            <motion.div
+          {apiKeys.map((key, index) => (
+            <ApiKeyRow
               key={key.id}
-              layout
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ delay: index * 0.05 }}
-              className={`group flex flex-col gap-4 rounded-xl border border-transparent bg-transparent p-4 transition-all duration-200 hover:border-border hover:bg-surface-panel hover:shadow-sm md:flex-row md:items-start ${!key.isActive ? 'opacity-60' : ''}`}
-            >
-              <div
-                className={`flex-shrink-0 rounded-lg p-2 ${key.isActive ? 'bg-surface-secondary text-text-secondary' : 'bg-surface-secondary text-text-tertiary'}`}
-              >
-                <Key size={18} />
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="mb-1 flex items-center gap-3">
-                  <h3
-                    className={`truncate text-base font-semibold ${key.isActive ? 'text-text-primary' : 'text-text-tertiary line-through'}`}
-                  >
-                    {key.name}
-                  </h3>
-
-                  {/* Minimal Status Dot */}
-                  <div className="flex items-center gap-1.5 rounded-full bg-surface-secondary px-2 py-0.5">
-                    <div
-                      className={`h-1.5 w-1.5 rounded-full ${key.isActive ? 'bg-success-500' : 'bg-neutral-400'}`}
-                    />
-                    <span
-                      className={`text-[10px] font-medium uppercase tracking-wide ${key.isActive ? 'text-success-600' : 'text-neutral-500'}`}
-                    >
-                      {key.isActive ? t('statusActive') : t('statusInactive')}
-                    </span>
-                  </div>
-                </div>
-
-                {key.description && (
-                  <p className="mb-2 line-clamp-1 text-sm text-text-secondary">{key.description}</p>
-                )}
-
-                <div className="mt-1 flex items-center gap-2 text-xs text-text-tertiary">
-                  <Workflow size={12} />
-                  <span className="truncate font-medium">
-                    {workflows.find((w) => w.id === key.workflowId)?.name || t('unknownWorkflow')}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-2 flex items-center gap-1 self-start opacity-0 transition-opacity group-hover:opacity-100 md:mt-0 md:self-center">
-                <PermissionGuard permissions="api_keys:update">
-                  <button
-                    onClick={() => openEditModal(key)}
-                    className="rounded-full p-2 text-text-tertiary transition-colors hover:bg-surface-secondary hover:text-text-primary"
-                    title={t('editTitle')}
-                  >
-                    <Edit2 size={16} />
-                  </button>
-                </PermissionGuard>
-
-                <PermissionGuard permissions="api_keys:delete">
-                  <button
-                    onClick={() => {
-                      setSelectedKey(key);
-                      setIsDeleteModalOpen(true);
-                    }}
-                    className="hover:bg-danger/10 rounded-full p-2 text-text-tertiary transition-colors hover:text-danger"
-                    title={t('deleteTitle')}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </PermissionGuard>
-              </div>
-            </motion.div>
+              apiKey={key}
+              index={index}
+              onEdit={setKeyToEdit}
+              onDelete={setKeyToDelete}
+            />
           ))}
         </AnimatePresence>
 
-        {filteredKeys.length === 0 && (
+        {apiKeys.length === 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -314,280 +118,23 @@ export default function ApiKeysPage() {
             <p className="text-text-secondary">{t('noApiKeysDesc')}</p>
           </motion.div>
         )}
+
+        <ApiKeysPager
+          prevCursor={data?.prevCursor ?? null}
+          nextCursor={data?.nextCursor ?? null}
+          nextPageAvailable={data?.nextPageAvailable ?? false}
+          onNavigate={handleNavigate}
+        />
       </div>
 
-      {/* Create Modal */}
-      <AnimatePresence>
-        {isCreateModalOpen && (
-          <Modal
-            isOpen={isCreateModalOpen}
-            onClose={() => setIsCreateModalOpen(false)}
-            title={t('newModalTitle')}
-          >
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-text-primary">
-                  {t('nameLabel')}
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder={t('namePlaceholder')}
-                  className="w-full rounded-xl border border-border bg-surface-secondary px-4 py-2 text-text-primary transition-colors focus:border-border-hover focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-text-primary">
-                  {t('descriptionLabel')}
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder={t('descriptionPlaceholder')}
-                  rows={2}
-                  className="w-full resize-none rounded-xl border border-border bg-surface-secondary px-4 py-2 text-text-primary transition-colors focus:border-border-hover focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-text-primary">
-                  {t('workflowLabel')}
-                </label>
-                <div className="overflow-hidden rounded-xl border border-border">
-                  {isLoadingWorkflows ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="animate-spin text-text-tertiary" size={20} />
-                    </div>
-                  ) : (
-                    <div className="max-h-48 overflow-y-auto overflow-x-hidden">
-                      {workflows.map((wf, index) => {
-                        const isLastElement = workflows.length === index + 1;
-                        return (
-                          <button
-                            ref={isLastElement ? lastWorkflowElementRef : null}
-                            key={wf.id}
-                            onClick={() => setFormData({ ...formData, workflowId: wf.id })}
-                            className={`flex w-full items-center border-b border-border p-3 text-left transition-colors last:border-0 ${
-                              formData.workflowId === wf.id
-                                ? 'bg-surface-secondary text-text-primary'
-                                : 'bg-surface text-text-secondary hover:bg-surface-secondary'
-                            }`}
-                          >
-                            <div className="flex-1 truncate pr-2">
-                              <div className="truncate text-sm font-medium">{wf.name}</div>
-                            </div>
-                            {formData.workflowId === wf.id && (
-                              <Check size={16} className="shrink-0 text-text-primary" />
-                            )}
-                          </button>
-                        );
-                      })}
-                      {isFetchingNextPage && (
-                        <div className="flex justify-center p-2">
-                          <Loader2 className="animate-spin text-text-tertiary" size={16} />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setIsCreateModalOpen(false)}
-                  className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
-                >
-                  {t('cancelButton')}
-                </button>
-                <button
-                  onClick={handleCreate}
-                  disabled={createApiKey.isPending || !formData.name.trim() || !formData.workflowId}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {createApiKey.isPending ? (
-                    <Loader2 className="animate-spin" size={18} />
-                  ) : (
-                    t('createButton')
-                  )}
-                </button>
-              </div>
-            </div>
-          </Modal>
-        )}
-      </AnimatePresence>
-
-      {/* Success Modal (Show Token) */}
-      <AnimatePresence>
-        {isSuccessModalOpen && (
-          <Modal
-            isOpen={isSuccessModalOpen}
-            onClose={() => {
-              setIsSuccessModalOpen(false);
-              setCreatedKeyToken('');
-            }}
-            title={t('createdModalTitle')}
-          >
-            <div className="space-y-4">
-              <div className="bg-success-500/10 flex items-start gap-3 rounded-xl p-4 text-success-600">
-                <Check className="mt-0.5 shrink-0" size={18} />
-                <p className="text-sm">{t('createdWarning')}</p>
-              </div>
-
-              <div className="group/key relative">
-                <div className="w-full break-all rounded-xl border border-border bg-surface-secondary p-4 pr-12 font-mono text-sm text-text-primary">
-                  {createdKeyToken}
-                </div>
-                <CopyButton
-                  text={createdKeyToken}
-                  className="absolute right-2 top-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-text-primary shadow-sm transition-transform hover:scale-105"
-                />
-              </div>
-
-              <button
-                onClick={() => {
-                  setIsSuccessModalOpen(false);
-                  setCreatedKeyToken('');
-                }}
-                className="w-full rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90"
-              >
-                {t('acknowledgeButton')}
-              </button>
-            </div>
-          </Modal>
-        )}
-      </AnimatePresence>
-
-      {/* Edit Modal */}
-      <AnimatePresence>
-        {isEditModalOpen && selectedKey && (
-          <Modal
-            isOpen={isEditModalOpen}
-            onClose={() => setIsEditModalOpen(false)}
-            title={t('editModalTitle')}
-          >
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-text-primary">
-                  {t('nameLabel')}
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full rounded-xl border border-border bg-surface-secondary px-4 py-2 text-text-primary transition-colors focus:border-border-hover focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-text-primary">
-                  {t('descriptionEditLabel')}
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={2}
-                  className="w-full resize-none rounded-xl border border-border bg-surface-secondary px-4 py-2 text-text-primary transition-colors focus:border-border-hover focus:outline-none"
-                />
-              </div>
-
-              <div className="py-2">
-                <div className="flex items-center justify-between rounded-xl border border-border p-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`rounded-lg p-2 ${formData.isActive ? 'bg-success-500/10 text-success-500' : 'bg-surface-secondary text-text-tertiary'}`}
-                    >
-                      <Power size={18} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-text-primary">{t('statusLabel')}</p>
-                      <p className="text-xs text-text-secondary">
-                        {formData.isActive ? t('keyActive') : t('keyInactive')}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      formData.isActive ? 'bg-success-500' : 'bg-border-hover'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-surface-elevated transition-transform ${
-                        formData.isActive ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
-                >
-                  {t('cancelButton')}
-                </button>
-                <button
-                  onClick={handleUpdate}
-                  disabled={updateApiKey.isPending || !formData.name.trim()}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {updateApiKey.isPending ? (
-                    <Loader2 className="animate-spin" size={18} />
-                  ) : (
-                    t('saveButton')
-                  )}
-                </button>
-              </div>
-            </div>
-          </Modal>
-        )}
-      </AnimatePresence>
-
-      {/* Delete Confirmation Modal */}
-      <AnimatePresence>
-        {isDeleteModalOpen && (
-          <Modal
-            isOpen={isDeleteModalOpen}
-            onClose={() => setIsDeleteModalOpen(false)}
-            title={t('deleteModalTitle')}
-          >
-            <div className="space-y-4">
-              <div className="bg-danger/10 flex items-center gap-3 rounded-xl p-4 text-danger-600">
-                <AlertTriangle size={24} />
-                <p className="text-sm font-medium">{t('deleteWarning')}</p>
-              </div>
-
-              <p className="text-center text-sm text-text-secondary">
-                {t('deleteConfirmBefore')} <strong>{selectedKey?.name}</strong>
-                {t('deleteConfirmAfter')}
-              </p>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setIsDeleteModalOpen(false)}
-                  className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
-                >
-                  {t('cancelButton')}
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={deleteApiKey.isPending}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2 font-medium text-brand-white transition-colors hover:bg-danger-600 disabled:opacity-50"
-                >
-                  {deleteApiKey.isPending ? (
-                    <Loader2 className="animate-spin" size={18} />
-                  ) : (
-                    t('confirmDeleteButton')
-                  )}
-                </button>
-              </div>
-            </div>
-          </Modal>
-        )}
-      </AnimatePresence>
+      <CreateApiKeyModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onCreated={(created) => setCreatedToken(created.apiKey)}
+      />
+      <ApiKeyCreatedModal token={createdToken} onClose={() => setCreatedToken(null)} />
+      <EditApiKeyModal apiKey={keyToEdit} onClose={() => setKeyToEdit(null)} />
+      <DeleteApiKeyModal apiKey={keyToDelete} onClose={() => setKeyToDelete(null)} />
     </div>
   );
 }

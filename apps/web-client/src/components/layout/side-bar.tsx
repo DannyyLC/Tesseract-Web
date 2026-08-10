@@ -15,7 +15,6 @@ import {
   HelpCircle,
   ChevronLeft,
   MessageSquare,
-  Key,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -51,7 +50,10 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
       title: t('sectionAdmin'),
       items: [
         { label: t('navMembers'), href: '/users', icon: <Users size={20} /> },
-        { label: t('navApiKeys'), href: '/api-keys', icon: <Key size={20} /> },
+        // `/api-keys` no aparece en la navegación a propósito. Es el concepto más técnico del
+        // producto y confunde a quien no programa; además su única función propia —verlas todas
+        // juntas— se acaba usando filtrando por workflow, que es justo lo que hace la sección
+        // del detalle del workflow. La ruta sigue viva y accesible escribiendo la URL.
         { label: t('navBilling'), href: '/billing', icon: <Coins size={20} /> },
         { label: t('navSettings'), href: '/settings', icon: <Settings size={20} /> },
       ],

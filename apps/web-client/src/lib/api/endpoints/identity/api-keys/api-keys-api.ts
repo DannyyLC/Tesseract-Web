@@ -4,6 +4,8 @@ import {
   UpdateApiKeyDto,
   ApiKeyListDto,
   ApiKeyResponseDto,
+  ApiKeysQuery,
+  ApiKeysResponse,
 } from '@tesseract/types';
 
 class ApiKeysApi {
@@ -27,11 +29,21 @@ class ApiKeysApi {
   }
 
   /**
-   * Obtiene todas las API Keys de una organización.
+   * Obtiene las API Keys de la organización, paginadas por cursor.
+   * Con `workflowId` se acotan a las de un workflow.
    * Endpoint: GET /api-keys
    */
-  public async findAll(): Promise<ApiKeyListDto[]> {
-    const response = await this.apiRequestManager.get<ApiKeyListDto[]>(`${ApiKeysApi.BASE_URL}`);
+  public async findAll(query: ApiKeysQuery = {}): Promise<ApiKeysResponse> {
+    const params = new URLSearchParams();
+    if (query.cursor) params.append('cursor', query.cursor);
+    if (query.pageSize) params.append('pageSize', query.pageSize.toString());
+    if (query.action) params.append('action', query.action);
+    if (query.workflowId) params.append('workflowId', query.workflowId);
+    if (query.search) params.append('search', query.search);
+
+    const response = await this.apiRequestManager.get<ApiKeysResponse>(
+      `${ApiKeysApi.BASE_URL}?${params.toString()}`,
+    );
     return response.data;
   }
 

@@ -1,3 +1,5 @@
+import { PaginatedResponse } from '../../platform/api/api_response';
+
 // ============================================================
 // API Keys
 // ============================================================
@@ -23,10 +25,24 @@ export interface ApiKeyListDto {
   description?: string;
   isActive: boolean;
   workflowId: string;
+  /** Nombre del workflow enlazado. Viaja resuelto para no tener que cruzarlo en cliente. */
+  workflowName: string;
   lastUsedAt?: Date;
   expiresAt?: Date;
   createdAt: Date;
 }
+
+/** Filtros y cursor que acepta el listado de API Keys */
+export interface ApiKeysQuery {
+  cursor?: string | null;
+  action?: 'next' | 'prev' | null;
+  pageSize?: number;
+  /** Acota el listado a las keys de un workflow. */
+  workflowId?: string;
+  search?: string;
+}
+
+export type ApiKeysResponse = PaginatedResponse<ApiKeyListDto>;
 
 /**
  * Shape de un API Key recién creado.

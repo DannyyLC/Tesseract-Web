@@ -9,7 +9,14 @@ import { ApiKeyUtil } from '../auth/utils/api-key.util';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { UpdateApiKeyDto } from './dto/update-api-key.dto';
 import { ApiKeyResponseDto, ApiKeyListDto } from './dto/response-api-key.dto';
-import { PLANS, SubscriptionPlan } from '@tesseract/types';
+import { PaginatedResponse, PLANS, SubscriptionPlan } from '@tesseract/types';
+import { ApiKey, Prisma } from '@tesseract/database';
+import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
+
+/** El nombre del workflow viaja en el DTO para no obligar al cliente a cruzarlo por su cuenta. */
+const WORKFLOW_NAME_INCLUDE = { workflow: { select: { name: true } } } as const;
+
+type ApiKeyWithWorkflowName = ApiKey & { workflow: { name: string } };
 
 @Injectable()
 export class ApiKeysService {
@@ -62,45 +69,60 @@ export class ApiKeysService {
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
         isActive: true,
       },
+      include: WORKFLOW_NAME_INCLUDE,
     });
 
     // Retornar DTO
     return {
-      id: created.id,
-      name: created.name,
-      description: created.description ?? undefined,
+      ...this.toListDto(created),
       apiKey,
-      isActive: created.isActive,
-      workflowId: created.workflowId,
-      expiresAt: created.expiresAt ?? undefined,
-      lastUsedAt: created.lastUsedAt ?? undefined,
-      createdAt: created.createdAt,
       updatedAt: created.updatedAt,
     };
   }
 
   /**
-   * Lista todos los API Keys de una organización
+   * Lista los API Keys de una organización, paginados por cursor.
+   *
+   * `filters.workflowId` es lo que permite reutilizar este listado tanto en la página
+   * global de API Keys como en la sección del detalle de un workflow.
    */
-  async findAll(organizationId: string): Promise<ApiKeyListDto[]> {
+  async findAll(
+    organizationId: string,
+    cursor: string | null = null,
+    take = 10,
+    paginationAction: 'next' | 'prev' | null = null,
+    filters?: { workflowId?: string; search?: string },
+  ): Promise<PaginatedResponse<ApiKeyListDto>> {
+    const where: Prisma.ApiKeyWhereInput = {
+      organizationId,
+      deletedAt: null,
+      ...(filters?.workflowId && { workflowId: filters.workflowId }),
+      ...(filters?.search && {
+        name: { contains: filters.search, mode: 'insensitive' as const },
+      }),
+    };
+
     const keys = await this.prisma.apiKey.findMany({
-      where: {
-        organizationId,
-        deletedAt: null,
-      },
-      orderBy: { createdAt: 'desc' },
+      take: paginationAction === 'prev' ? -(take + 1) : take + 1,
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
+      where,
+      include: WORKFLOW_NAME_INCLUDE,
+      // El desempate por id es lo que hace estable al cursor: sin él, dos keys creadas
+      // en el mismo milisegundo pueden repetirse o saltarse entre páginas.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
 
-    return keys.map((key) => ({
-      id: key.id,
-      name: key.name,
-      description: key.description ?? undefined,
-      isActive: key.isActive,
-      lastUsedAt: key.lastUsedAt ?? undefined,
-      expiresAt: key.expiresAt ?? undefined,
-      workflowId: key.workflowId,
-      createdAt: key.createdAt,
-    }));
+    const paginated = await CursorPaginatedResponseUtils.getInstance().build(
+      keys,
+      take,
+      paginationAction,
+    );
+
+    return {
+      ...paginated,
+      items: paginated.items.map((key) => this.toListDto(key)),
+    };
   }
 
   /**
@@ -181,18 +203,10 @@ export class ApiKeysService {
     const updated = await this.prisma.apiKey.update({
       where: { id: apiKeyId },
       data: dataToUpdate,
+      include: WORKFLOW_NAME_INCLUDE,
     });
 
-    return {
-      id: updated.id,
-      name: updated.name,
-      description: updated.description ?? undefined,
-      isActive: updated.isActive,
-      lastUsedAt: updated.lastUsedAt ?? undefined,
-      expiresAt: updated.expiresAt ?? undefined,
-      workflowId: updated.workflowId,
-      createdAt: updated.createdAt,
-    };
+    return this.toListDto(updated);
   }
 
   /**
@@ -201,6 +215,7 @@ export class ApiKeysService {
   async findOne(organizationId: string, apiKeyId: string): Promise<ApiKeyListDto> {
     const key = await this.prisma.apiKey.findUnique({
       where: { id: apiKeyId },
+      include: WORKFLOW_NAME_INCLUDE,
     });
 
     if (!key) {
@@ -211,6 +226,11 @@ export class ApiKeysService {
       throw new ForbiddenException('No tienes permiso para ver esta API Key');
     }
 
+    return this.toListDto(key);
+  }
+
+  /** Mapea la fila de Prisma al DTO público. El `keyHash` nunca sale de aquí. */
+  private toListDto(key: ApiKeyWithWorkflowName): ApiKeyListDto {
     return {
       id: key.id,
       name: key.name,
@@ -219,6 +239,7 @@ export class ApiKeysService {
       lastUsedAt: key.lastUsedAt ?? undefined,
       expiresAt: key.expiresAt ?? undefined,
       workflowId: key.workflowId,
+      workflowName: key.workflow.name,
       createdAt: key.createdAt,
     };
   }

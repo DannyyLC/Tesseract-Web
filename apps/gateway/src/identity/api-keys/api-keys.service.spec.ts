@@ -25,6 +25,8 @@ describe('ApiKeysService', () => {
 
   const organizationId = 'org-123';
   const apiKeyId = 'key-123';
+  /** El `include` con el que todas las consultas resuelven `workflowName`. */
+  const workflowNameInclude = { workflow: { select: { name: true } } };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -74,7 +76,8 @@ describe('ApiKeysService', () => {
         keyHash: hashedKey,
         organizationId,
         isActive: true,
-        workflowId: null,
+        workflowId: createDto.workflowId,
+        workflow: { name: 'Workflow 1' },
         expiresAt: null,
         lastUsedAt: null,
         createdAt: new Date(),
@@ -101,6 +104,7 @@ describe('ApiKeysService', () => {
           expiresAt: undefined,
           isActive: true,
         },
+        include: workflowNameInclude,
       });
 
       expect(result).toEqual({
@@ -110,6 +114,7 @@ describe('ApiKeysService', () => {
         apiKey: generatedKey,
         isActive: createdKey.isActive,
         workflowId: createdKey.workflowId,
+        workflowName: 'Workflow 1',
         expiresAt: undefined,
         lastUsedAt: undefined,
         createdAt: createdKey.createdAt,
@@ -140,44 +145,51 @@ describe('ApiKeysService', () => {
   });
 
   describe('findAll', () => {
-    it('should return a list of API keys', async () => {
-      const keys = [
-        {
-          id: 'key-1',
-          name: 'Key 1',
-          description: 'Desc 1',
-          isActive: true,
-          lastUsedAt: new Date(),
-          expiresAt: null,
-          workflowId: null,
-          createdAt: new Date(),
-        },
-        {
-          id: 'key-2',
-          name: 'Key 2',
-          description: null,
-          isActive: false,
-          lastUsedAt: null,
-          expiresAt: new Date(),
-          workflowId: 'wf-1',
-          createdAt: new Date(),
-        },
-      ];
+    const keys = [
+      {
+        id: 'key-1',
+        name: 'Key 1',
+        description: 'Desc 1',
+        isActive: true,
+        lastUsedAt: new Date(),
+        expiresAt: null,
+        workflowId: 'wf-1',
+        workflow: { name: 'Workflow 1' },
+        createdAt: new Date(),
+      },
+      {
+        id: 'key-2',
+        name: 'Key 2',
+        description: null,
+        isActive: false,
+        lastUsedAt: null,
+        expiresAt: new Date(),
+        workflowId: 'wf-2',
+        workflow: { name: 'Workflow 2' },
+        createdAt: new Date(),
+      },
+    ];
 
+    it('should return a paginated list of API keys with the workflow name resolved', async () => {
       mockPrismaService.apiKey.findMany.mockResolvedValue(keys);
 
       const result = await service.findAll(organizationId);
 
       expect(mockPrismaService.apiKey.findMany).toHaveBeenCalledWith({
+        take: 11,
+        skip: 0,
+        cursor: undefined,
         where: {
           organizationId,
           deletedAt: null,
         },
-        orderBy: { createdAt: 'desc' },
+        include: workflowNameInclude,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       });
 
-      expect(result).toHaveLength(2);
-      expect(result[0]).toEqual({
+      expect(result.items).toHaveLength(2);
+      expect(result.nextPageAvailable).toBe(false);
+      expect(result.items[0]).toEqual({
         id: keys[0].id,
         name: keys[0].name,
         description: keys[0].description ?? undefined,
@@ -185,9 +197,10 @@ describe('ApiKeysService', () => {
         lastUsedAt: keys[0].lastUsedAt,
         expiresAt: undefined,
         workflowId: keys[0].workflowId,
+        workflowName: 'Workflow 1',
         createdAt: keys[0].createdAt,
       });
-      expect(result[1]).toEqual({
+      expect(result.items[1]).toEqual({
         id: keys[1].id,
         name: keys[1].name,
         description: undefined,
@@ -195,8 +208,57 @@ describe('ApiKeysService', () => {
         lastUsedAt: undefined,
         expiresAt: keys[1].expiresAt,
         workflowId: keys[1].workflowId,
+        workflowName: 'Workflow 2',
         createdAt: keys[1].createdAt,
       });
+    });
+
+    it('should narrow the query when filtering by workflow and search', async () => {
+      mockPrismaService.apiKey.findMany.mockResolvedValue([keys[0]]);
+
+      await service.findAll(organizationId, null, 10, null, {
+        workflowId: 'wf-1',
+        search: 'prod',
+      });
+
+      expect(mockPrismaService.apiKey.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            organizationId,
+            deletedAt: null,
+            workflowId: 'wf-1',
+            name: { contains: 'prod', mode: 'insensitive' },
+          },
+        }),
+      );
+    });
+
+    it('should page forward with a cursor and report the next page', async () => {
+      // Una fila de más que el `take`: así es como el util detecta que hay página siguiente.
+      mockPrismaService.apiKey.findMany.mockResolvedValue(keys);
+
+      const result = await service.findAll(organizationId, 'key-0', 1, 'next');
+
+      expect(mockPrismaService.apiKey.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 2,
+          skip: 1,
+          cursor: { id: 'key-0' },
+        }),
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.nextPageAvailable).toBe(true);
+      expect(result.nextCursor).toBe('key-1');
+    });
+
+    it('should use a negative take when paging backwards', async () => {
+      mockPrismaService.apiKey.findMany.mockResolvedValue([keys[0]]);
+
+      await service.findAll(organizationId, 'key-9', 10, 'prev');
+
+      expect(mockPrismaService.apiKey.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: -11, skip: 1, cursor: { id: 'key-9' } }),
+      );
     });
   });
 
@@ -277,7 +339,8 @@ describe('ApiKeysService', () => {
         isActive: updateDto.isActive,
         lastUsedAt: null,
         expiresAt: null,
-        workflowId: null,
+        workflowId: 'wf-1',
+        workflow: { name: 'Workflow 1' },
         createdAt: new Date(),
       };
 
@@ -292,9 +355,16 @@ describe('ApiKeysService', () => {
       expect(mockPrismaService.apiKey.update).toHaveBeenCalledWith({
         where: { id: apiKeyId },
         data: updateDto,
+        include: workflowNameInclude,
       });
 
-      expect(result).toEqual({ ...updatedKey, lastUsedAt: undefined, expiresAt: undefined });
+      const { workflow, ...expected } = updatedKey;
+      expect(result).toEqual({
+        ...expected,
+        lastUsedAt: undefined,
+        expiresAt: undefined,
+        workflowName: workflow.name,
+      });
     });
 
     it('should throw BadRequestException if no fields provided to update', async () => {
@@ -351,7 +421,8 @@ describe('ApiKeysService', () => {
         isActive: true,
         lastUsedAt: new Date(),
         expiresAt: null,
-        workflowId: null,
+        workflowId: 'wf-1',
+        workflow: { name: 'Workflow 1' },
         createdAt: new Date(),
       };
 
@@ -361,6 +432,7 @@ describe('ApiKeysService', () => {
 
       expect(mockPrismaService.apiKey.findUnique).toHaveBeenCalledWith({
         where: { id: apiKeyId },
+        include: workflowNameInclude,
       });
 
       expect(result).toEqual({
@@ -371,6 +443,7 @@ describe('ApiKeysService', () => {
         lastUsedAt: mockKey.lastUsedAt,
         expiresAt: undefined,
         workflowId: mockKey.workflowId,
+        workflowName: 'Workflow 1',
         createdAt: mockKey.createdAt,
       });
     });
