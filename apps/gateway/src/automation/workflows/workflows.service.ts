@@ -22,6 +22,7 @@ import {
 import { PassThrough } from 'stream';
 import { AgentsService } from '../agents/agents.service';
 import { ToolsService } from '../tools/core/tools.service';
+import { DatasetTokenService } from '../datasets/core/dataset-token.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
 import {
   InvalidWorkflowConfigException,
@@ -98,6 +99,7 @@ export class WorkflowsService {
     private readonly mediaProcessingService: MediaProcessingService,
     private readonly configService: ConfigService,
     private readonly configValidator: WorkflowConfigValidator,
+    private readonly datasetTokenService: DatasetTokenService,
   ) {
     this.compactionApiBaseUrl = this.configService
       .get<string>('COMPACTION_API_BASE_URL', 'https://api.openai.com/v1')
@@ -1742,6 +1744,56 @@ export class WorkflowsService {
           this.logger.warn(
             `send_bulk_whatsapp tool ${toolId}: no whatsapp_config_id in TenantTool.config or execution metadata`,
           );
+        }
+      }
+
+      // Enriquecer la tool de datasets con el SCHEMA del catálogo y su credencial de consulta.
+      //
+      // Viaja el schema (30 columnas como mucho) y no las filas, que llegan a decenas de miles: con
+      // él la tool arma su firma tipada sin ida y vuelta, y las filas las pide al Gateway en tiempo
+      // de llamada. De paso el dato queda vivo — si el cliente corrige un precio, el siguiente
+      // mensaje ya lo usa.
+      if (toolName === 'dataset') {
+        const datasetId = (tenantTool.config)?.dataset_id;
+
+        if (datasetId) {
+          const dataset = await this.prisma.dataset.findFirst({
+            where: {
+              id: datasetId,
+              organizationId: workflow.organizationId,
+              deletedAt: null,
+            },
+            select: { id: true, name: true, description: true, fields: true },
+          });
+
+          if (dataset) {
+            const fields = (dataset.fields as any[]).filter((field) => !field?.deletedAt);
+
+            toolInstances[toolId].config = {
+              ...toolInstances[toolId].config,
+              dataset_id: dataset.id,
+              dataset_name: dataset.name,
+              dataset_description: dataset.description ?? '',
+              fields,
+              api_base: this.configService.get<string>('GATEWAY_INTERNAL_URL', ''),
+            };
+
+            // El token va por `credentials` para que la redacción de logs ya existente lo tape.
+            toolInstances[toolId].credentials = {
+              access_token: await this.datasetTokenService.sign(
+                {
+                  organizationId: workflow.organizationId,
+                  datasetId: dataset.id,
+                  workflowId: workflow.id,
+                },
+                workflow.timeout ?? 300,
+              ),
+            };
+          } else {
+            this.logger.warn(`dataset tool ${toolId}: dataset ${datasetId} no encontrado o borrado`);
+          }
+        } else {
+          this.logger.warn(`dataset tool ${toolId}: falta dataset_id en TenantTool.config`);
         }
       }
     }

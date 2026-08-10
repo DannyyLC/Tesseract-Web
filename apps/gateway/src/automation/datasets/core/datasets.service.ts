@@ -1,0 +1,721 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  DatasetDto,
+  DatasetField,
+  DatasetFieldValuesResponse,
+  DatasetImportResultDto,
+  DatasetImportRowError,
+  DatasetRecordDto,
+  DatasetSearchRequest,
+  DatasetSearchResponse,
+  DatasetSummaryDto,
+  DatasetUsageDto,
+  SubscriptionPlan as SharedSubscriptionPlan,
+  getPlanLimits,
+} from '@tesseract/types';
+import { ToolConnectionStatus } from '@tesseract/database';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
+import { PrismaService } from '../../../platform/database/prisma.service';
+import { parseCsv } from './csv.util';
+import { DatasetQueryService } from './dataset-query.service';
+import {
+  liveFields,
+  mergeFields,
+  slugifyKey,
+  validateFields,
+  validateRecord,
+} from './dataset-schema.validator';
+
+/** Techo por importación. Evita que un archivo enorme monopolice una petición. */
+const MAX_IMPORT_ROWS = 5000;
+
+/** `toolName` con el que la tool de datasets vive en `ToolCatalog`. */
+export const DATASET_TOOL_NAME = 'dataset';
+
+@Injectable()
+export class DatasetsService {
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly datasetQueryService: DatasetQueryService,
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+  ) {}
+
+  // ==========================================
+  // Límites de plan
+  // ==========================================
+
+  /**
+   * Límites vigentes de la organización.
+   *
+   * Lee los overrides desde `organizations.customMax*`, que es de donde los toma
+   * `BillingService.enforceLimits()`; usar otra fuente dejaría dos verdades sobre el mismo límite.
+   */
+  private async resolveLimits(organizationId: string) {
+    const organization = await this.prismaService.organization.findUnique({
+      where: { id: organizationId },
+      select: { plan: true, customMaxDatasets: true, customMaxDatasetRows: true },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    const planLimits = getPlanLimits(organization.plan as unknown as SharedSubscriptionPlan);
+
+    return {
+      maxDatasets: organization.customMaxDatasets ?? planLimits.maxDatasets,
+      maxDatasetRows: organization.customMaxDatasetRows ?? planLimits.maxDatasetRows,
+    };
+  }
+
+  private async countRows(organizationId: string): Promise<number> {
+    return this.prismaService.datasetRecord.count({
+      where: { dataset: { organizationId, deletedAt: null } },
+    });
+  }
+
+  async getUsage(organizationId: string): Promise<DatasetUsageDto> {
+    const limits = await this.resolveLimits(organizationId);
+
+    const [datasets, rows] = await Promise.all([
+      this.prismaService.dataset.count({ where: { organizationId, deletedAt: null } }),
+      this.countRows(organizationId),
+    ]);
+
+    return {
+      datasets,
+      maxDatasets: limits.maxDatasets,
+      rows,
+      maxDatasetRows: limits.maxDatasetRows,
+      writesBlocked: limits.maxDatasetRows !== -1 && rows >= limits.maxDatasetRows,
+    };
+  }
+
+  /**
+   * Verifica que quepan `rowsToAdd` filas más.
+   *
+   * **Solo se consulta al escribir.** Si la organización quedó por encima del límite —lo típico es
+   * que haya bajado de plan— conserva sus filas y su agente las sigue consultando; lo único que se
+   * bloquea es agregar más. Recortar aquí, como se hace con workflows y API keys, significaría
+   * borrar datos que el cliente capturó a mano.
+   */
+  private async assertRowsFit(organizationId: string, rowsToAdd: number): Promise<void> {
+    const limits = await this.resolveLimits(organizationId);
+
+    if (limits.maxDatasetRows === -1) {
+      return;
+    }
+
+    const current = await this.countRows(organizationId);
+
+    if (current + rowsToAdd > limits.maxDatasetRows) {
+      throw new ForbiddenException(
+        `Tu plan permite ${limits.maxDatasetRows} filas en total y ya tienes ${current}. ` +
+          'Tus datos siguen intactos y tu agente los sigue consultando; para agregar más, ' +
+          'libera espacio o sube de plan.',
+      );
+    }
+  }
+
+  // ==========================================
+  // Datasets
+  // ==========================================
+
+  async list(organizationId: string): Promise<DatasetSummaryDto[]> {
+    const datasets = await this.prismaService.dataset.findMany({
+      where: { organizationId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        workflows: { select: { id: true } },
+        _count: { select: { records: true } },
+      },
+    });
+
+    return datasets.map((dataset) => ({
+      id: dataset.id,
+      name: dataset.name,
+      description: dataset.description,
+      fieldCount: liveFields(dataset.fields as unknown as DatasetField[]).length,
+      recordCount: dataset._count.records,
+      workflowIds: dataset.workflows.map((workflow) => workflow.id),
+      createdAt: dataset.createdAt,
+      updatedAt: dataset.updatedAt,
+    }));
+  }
+
+  /** Carga un dataset asegurando que pertenece a la organización que lo pide. */
+  private async loadOwned(organizationId: string, datasetId: string) {
+    const dataset = await this.prismaService.dataset.findFirst({
+      where: { id: datasetId, organizationId, deletedAt: null },
+      include: {
+        // Con nombre: el detalle lista los workflows conectados, y resolverlos contra el catálogo
+        // completo desde el front obligaría a traérselo entero solo para pintar unos cuantos.
+        workflows: { select: { id: true, name: true } },
+        _count: { select: { records: true } },
+      },
+    });
+
+    if (!dataset) {
+      throw new NotFoundException('Dataset no encontrado');
+    }
+
+    return dataset;
+  }
+
+  async getById(organizationId: string, datasetId: string): Promise<DatasetDto> {
+    const dataset = await this.loadOwned(organizationId, datasetId);
+
+    return {
+      id: dataset.id,
+      name: dataset.name,
+      description: dataset.description,
+      fields: liveFields(dataset.fields as unknown as DatasetField[]),
+      recordCount: dataset._count.records,
+      workflows: dataset.workflows.map((workflow) => ({ id: workflow.id, name: workflow.name })),
+      createdAt: dataset.createdAt,
+      updatedAt: dataset.updatedAt,
+    };
+  }
+
+  async create(
+    organizationId: string,
+    userId: string,
+    input: { name: string; description?: string | null; fields: DatasetField[] },
+  ): Promise<DatasetDto> {
+    const limits = await this.resolveLimits(organizationId);
+
+    if (limits.maxDatasets !== -1) {
+      const current = await this.prismaService.dataset.count({
+        where: { organizationId, deletedAt: null },
+      });
+
+      if (current >= limits.maxDatasets) {
+        throw new ForbiddenException(
+          `Tu plan permite ${limits.maxDatasets} ${limits.maxDatasets === 1 ? 'dataset' : 'datasets'} ` +
+            'y ya lo alcanzaste. Sube de plan para crear otro.',
+        );
+      }
+    }
+
+    const fields = this.normalizeIncomingFields(input.fields);
+    validateFields(fields);
+
+    const dataset = await this.prismaService.dataset.create({
+      data: {
+        organizationId,
+        createdByUserId: userId,
+        name: input.name.trim(),
+        description: input.description?.trim() || null,
+        fields: fields as unknown as object,
+      },
+    });
+
+    this.logger.info(
+      `Dataset creado: ${dataset.id} (${fields.length} columnas) para org ${organizationId}`,
+    );
+
+    return {
+      id: dataset.id,
+      name: dataset.name,
+      description: dataset.description,
+      fields,
+      recordCount: 0,
+      workflows: [],
+      createdAt: dataset.createdAt,
+      updatedAt: dataset.updatedAt,
+    };
+  }
+
+  /** Rellena `key` y `order` cuando la UI no los manda, para que el cliente solo escriba el label. */
+  private normalizeIncomingFields(fields: DatasetField[]): DatasetField[] {
+    return fields.map((field, index) => ({
+      ...field,
+      key: field.key?.trim() || slugifyKey(field.label ?? ''),
+      label: field.label?.trim() ?? '',
+      order: index,
+      options:
+        field.type === 'select'
+          ? [...new Set((field.options ?? []).map((option) => option.trim()).filter(Boolean))]
+          : undefined,
+    }));
+  }
+
+  async updateMeta(
+    organizationId: string,
+    datasetId: string,
+    input: { name?: string; description?: string | null },
+  ): Promise<DatasetDto> {
+    await this.loadOwned(organizationId, datasetId);
+
+    await this.prismaService.dataset.update({
+      where: { id: datasetId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description?.trim() || null }
+          : {}),
+      },
+    });
+
+    return this.getById(organizationId, datasetId);
+  }
+
+  /**
+   * Reemplaza la definición de columnas respetando la regla aditiva: las que el cliente ya no
+   * manda se marcan como borradas en lugar de desaparecer, y sus valores siguen en las filas.
+   */
+  async updateFields(
+    organizationId: string,
+    datasetId: string,
+    fields: DatasetField[],
+  ): Promise<DatasetDto> {
+    const dataset = await this.loadOwned(organizationId, datasetId);
+    const current = dataset.fields as unknown as DatasetField[];
+    const merged = mergeFields(current, this.normalizeIncomingFields(fields));
+
+    await this.prismaService.dataset.update({
+      where: { id: datasetId },
+      data: { fields: merged as unknown as object },
+    });
+
+    return this.getById(organizationId, datasetId);
+  }
+
+  /**
+   * Borrado lógico. Desenlaza el dataset de sus workflows para que ningún agente siga anunciando
+   * una tool que ya no responde, pero las filas se conservan.
+   */
+  async remove(organizationId: string, datasetId: string): Promise<void> {
+    await this.loadOwned(organizationId, datasetId);
+
+    // La instancia de tool se va con el dataset: dejarla viva anunciaría al agente una búsqueda
+    // que ya no responde. El soft delete conserva el histórico de ejecuciones que la usaron.
+    await this.prismaService.$transaction([
+      this.prismaService.dataset.update({
+        where: { id: datasetId },
+        data: { deletedAt: new Date(), workflows: { set: [] } },
+      }),
+      this.prismaService.tenantTool.updateMany({
+        where: {
+          organizationId,
+          deletedAt: null,
+          toolCatalog: { toolName: DATASET_TOOL_NAME },
+          config: { path: ['dataset_id'], equals: datasetId },
+        },
+        data: {
+          deletedAt: new Date(),
+          isConnected: false,
+          status: ToolConnectionStatus.DISCONNECTED,
+        },
+      }),
+    ]);
+
+    this.logger.info(`Dataset ${datasetId} borrado (lógico) en org ${organizationId}`);
+  }
+
+  // ==========================================
+  // Enlace con workflows
+  // ==========================================
+
+  /**
+   * Encuentra —o crea— la `TenantTool` que representa este dataset.
+   *
+   * El dataset se le entrega al agente como una tool más, así que hereda gratis el pool de tools
+   * por workflow, la asignación por agente, `allowedFunctions` y el filtrado del registry: el motor
+   * no necesita saber que existen los datasets.
+   *
+   * El cliente nunca ve esta instancia ni la palabra "tool": para él solo enlazó un catálogo a un
+   * workflow.
+   */
+  private async ensureTenantTool(organizationId: string, datasetId: string, name: string) {
+    const existing = await this.prismaService.tenantTool.findFirst({
+      where: {
+        organizationId,
+        deletedAt: null,
+        toolCatalog: { toolName: DATASET_TOOL_NAME },
+        config: { path: ['dataset_id'], equals: datasetId },
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      return existing.id;
+    }
+
+    const catalog = await this.prismaService.toolCatalog.findUnique({
+      where: { toolName: DATASET_TOOL_NAME },
+      select: { id: true, functions: { select: { functionName: true } } },
+    });
+
+    if (!catalog) {
+      throw new BadRequestException(
+        'La tool de datasets no está registrada en el catálogo. Corre el seed de tool catalogs.',
+      );
+    }
+
+    // `tenant_tools` tiene un índice único parcial sobre (organizationId, displayName) entre las
+    // activas: dos datasets con el mismo nombre chocarían al enlazarse.
+    const displayName = await this.uniqueToolDisplayName(organizationId, name);
+
+    const created = await this.prismaService.tenantTool.create({
+      data: {
+        organizationId,
+        toolCatalogId: catalog.id,
+        displayName,
+        config: { dataset_id: datasetId },
+        allowedFunctions: catalog.functions.map((fn) => fn.functionName),
+        // No hay OAuth que completar: la credencial es un token con alcance que el Gateway firma
+        // al construir el payload de cada ejecución.
+        isConnected: true,
+        status: ToolConnectionStatus.CONNECTED,
+        connectedAt: new Date(),
+      },
+      select: { id: true },
+    });
+
+    return created.id;
+  }
+
+  private async uniqueToolDisplayName(organizationId: string, name: string): Promise<string> {
+    const base = `Datos: ${name}`.slice(0, 80);
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const candidate = attempt === 0 ? base : `${base} (${attempt + 1})`;
+      const clash = await this.prismaService.tenantTool.findFirst({
+        where: { organizationId, displayName: candidate, deletedAt: null },
+        select: { id: true },
+      });
+
+      if (!clash) {
+        return candidate;
+      }
+    }
+
+    return `${base} ${Date.now()}`;
+  }
+
+  /** Conecta el dataset a un workflow: el agente pasa a poder consultarlo. */
+  async linkWorkflow(organizationId: string, datasetId: string, workflowId: string): Promise<void> {
+    const dataset = await this.loadOwned(organizationId, datasetId);
+
+    const workflow = await this.prismaService.workflow.findFirst({
+      where: { id: workflowId, organizationId, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (!workflow) {
+      throw new NotFoundException('Workflow no encontrado');
+    }
+
+    const tenantToolId = await this.ensureTenantTool(organizationId, datasetId, dataset.name);
+
+    await this.prismaService.$transaction([
+      this.prismaService.dataset.update({
+        where: { id: datasetId },
+        data: { workflows: { connect: { id: workflowId } } },
+      }),
+      this.prismaService.tenantTool.update({
+        where: { id: tenantToolId },
+        data: { workflows: { connect: { id: workflowId } } },
+      }),
+    ]);
+
+    this.logger.info(`Dataset ${datasetId} enlazado al workflow ${workflowId}`);
+  }
+
+  async unlinkWorkflow(
+    organizationId: string,
+    datasetId: string,
+    workflowId: string,
+  ): Promise<void> {
+    await this.loadOwned(organizationId, datasetId);
+
+    const tenantTool = await this.prismaService.tenantTool.findFirst({
+      where: {
+        organizationId,
+        deletedAt: null,
+        toolCatalog: { toolName: DATASET_TOOL_NAME },
+        config: { path: ['dataset_id'], equals: datasetId },
+      },
+      select: { id: true },
+    });
+
+    await this.prismaService.$transaction([
+      this.prismaService.dataset.update({
+        where: { id: datasetId },
+        data: { workflows: { disconnect: { id: workflowId } } },
+      }),
+      ...(tenantTool
+        ? [
+            this.prismaService.tenantTool.update({
+              where: { id: tenantTool.id },
+              data: { workflows: { disconnect: { id: workflowId } } },
+            }),
+          ]
+        : []),
+    ]);
+  }
+
+  // ==========================================
+  // Consulta
+  // ==========================================
+
+  /**
+   * Búsqueda con verificación de pertenencia. Es la misma que ejecuta la tool del agente: así lo
+   * que el cliente prueba desde el dashboard es exactamente lo que su bot va a encontrar.
+   */
+  async search(
+    organizationId: string,
+    datasetId: string,
+    request: DatasetSearchRequest,
+  ): Promise<DatasetSearchResponse> {
+    const dataset = await this.loadOwned(organizationId, datasetId);
+
+    return this.datasetQueryService.search(
+      datasetId,
+      dataset.fields as unknown as DatasetField[],
+      request,
+    );
+  }
+
+  async fieldValues(
+    organizationId: string,
+    datasetId: string,
+    field: string,
+    limit = 100,
+  ): Promise<DatasetFieldValuesResponse> {
+    const dataset = await this.loadOwned(organizationId, datasetId);
+
+    return this.datasetQueryService.fieldValues(
+      datasetId,
+      dataset.fields as unknown as DatasetField[],
+      field,
+      limit,
+    );
+  }
+
+  // ==========================================
+  // Filas
+  // ==========================================
+
+  async listRecords(
+    organizationId: string,
+    datasetId: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<{ total: number; items: DatasetRecordDto[] }> {
+    await this.loadOwned(organizationId, datasetId);
+
+    const [total, records] = await Promise.all([
+      this.prismaService.datasetRecord.count({ where: { datasetId } }),
+      this.prismaService.datasetRecord.findMany({
+        where: { datasetId },
+        orderBy: { createdAt: 'desc' },
+        take: Math.min(limit, 200),
+        skip: offset,
+      }),
+    ]);
+
+    return {
+      total,
+      items: records.map((record) => ({
+        id: record.id,
+        data: record.data as Record<string, string | number | null>,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+      })),
+    };
+  }
+
+  /** Una fila por id. La usa `get_dataset_item` para devolver la ficha completa. */
+  async getRecord(
+    organizationId: string,
+    datasetId: string,
+    recordId: string,
+  ): Promise<DatasetRecordDto | null> {
+    const record = await this.prismaService.datasetRecord.findFirst({
+      where: { id: recordId, datasetId, dataset: { organizationId, deletedAt: null } },
+    });
+
+    if (!record) {
+      return null;
+    }
+
+    return {
+      id: record.id,
+      data: record.data as Record<string, string | number | null>,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    };
+  }
+
+  async createRecord(
+    organizationId: string,
+    datasetId: string,
+    data: Record<string, unknown>,
+  ): Promise<DatasetRecordDto> {
+    const dataset = await this.loadOwned(organizationId, datasetId);
+    await this.assertRowsFit(organizationId, 1);
+
+    const normalized = validateRecord(dataset.fields as unknown as DatasetField[], data);
+
+    const record = await this.prismaService.datasetRecord.create({
+      data: { datasetId, data: normalized },
+    });
+
+    return {
+      id: record.id,
+      data: normalized,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    };
+  }
+
+  /**
+   * Editar no consume cupo: no aumenta el conteo de filas, así que una organización por encima de
+   * su límite puede seguir corrigiendo lo que ya tiene (y depurarlo para volver a estar debajo).
+   */
+  async updateRecord(
+    organizationId: string,
+    datasetId: string,
+    recordId: string,
+    data: Record<string, unknown>,
+  ): Promise<DatasetRecordDto> {
+    const dataset = await this.loadOwned(organizationId, datasetId);
+    const existing = await this.prismaService.datasetRecord.findFirst({
+      where: { id: recordId, datasetId },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Fila no encontrada');
+    }
+
+    const normalized = validateRecord(dataset.fields as unknown as DatasetField[], data);
+
+    const record = await this.prismaService.datasetRecord.update({
+      where: { id: recordId },
+      data: { data: normalized },
+    });
+
+    return {
+      id: record.id,
+      data: normalized,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    };
+  }
+
+  async deleteRecord(organizationId: string, datasetId: string, recordId: string): Promise<void> {
+    await this.loadOwned(organizationId, datasetId);
+
+    const deleted = await this.prismaService.datasetRecord.deleteMany({
+      where: { id: recordId, datasetId },
+    });
+
+    if (deleted.count === 0) {
+      throw new NotFoundException('Fila no encontrada');
+    }
+  }
+
+  /**
+   * Importación desde CSV.
+   *
+   * El archivo llega como texto en el body: el navegador lo lee y lo manda, así que no hace falta
+   * infraestructura de subida de archivos que el Gateway hoy no tiene.
+   *
+   * Las filas válidas se guardan y las inválidas se reportan con su número de línea, en vez de
+   * abortar todo el archivo por un dato mal escrito en la fila 180.
+   */
+  async importCsv(
+    organizationId: string,
+    datasetId: string,
+    csv: string,
+  ): Promise<DatasetImportResultDto> {
+    const dataset = await this.loadOwned(organizationId, datasetId);
+    const fields = liveFields(dataset.fields as unknown as DatasetField[]);
+    const rows = parseCsv(csv);
+
+    if (rows.length < 2) {
+      throw new BadRequestException(
+        'El archivo necesita una fila de encabezados y al menos una fila de datos',
+      );
+    }
+
+    const [header, ...body] = rows;
+
+    if (body.length > MAX_IMPORT_ROWS) {
+      throw new BadRequestException(
+        `El archivo trae ${body.length} filas y el máximo por importación es ${MAX_IMPORT_ROWS}. ` +
+          'Divídelo en varios archivos.',
+      );
+    }
+
+    // El encabezado puede venir con la `key` o con el nombre visible de la columna: pedirle al
+    // cliente que conozca las keys internas sería absurdo cuando la UI se las esconde.
+    const byHeader = new Map<string, DatasetField>();
+    for (const field of fields) {
+      byHeader.set(field.key.toLowerCase(), field);
+      byHeader.set(field.label.toLowerCase(), field);
+    }
+
+    const columns = header.map((name) => byHeader.get(name.trim().toLowerCase()) ?? null);
+
+    if (columns.every((column) => column === null)) {
+      throw new BadRequestException(
+        `Ninguna columna del archivo coincide con el dataset. Se esperaba alguna de: ${fields
+          .map((field) => field.label)
+          .join(', ')}`,
+      );
+    }
+
+    const errors: DatasetImportRowError[] = [];
+    const valid: Record<string, string | number | null>[] = [];
+
+    body.forEach((cells, index) => {
+      const raw: Record<string, unknown> = {};
+
+      columns.forEach((field, columnIndex) => {
+        if (field) {
+          raw[field.key] = cells[columnIndex] ?? '';
+        }
+      });
+
+      try {
+        valid.push(validateRecord(dataset.fields as unknown as DatasetField[], raw));
+      } catch (error) {
+        errors.push({
+          // +2: el encabezado es la fila 1 y el índice arranca en 0.
+          row: index + 2,
+          message: error instanceof Error ? error.message : 'Fila inválida',
+        });
+      }
+    });
+
+    if (valid.length > 0) {
+      await this.assertRowsFit(organizationId, valid.length);
+
+      await this.prismaService.datasetRecord.createMany({
+        data: valid.map((data) => ({ datasetId, data })),
+      });
+    }
+
+    this.logger.info(
+      `Importación en dataset ${datasetId}: ${valid.length} filas, ${errors.length} rechazadas`,
+    );
+
+    return {
+      imported: valid.length,
+      failed: errors.length,
+      // Un archivo mal mapeado genera un error por fila; mostrar las primeras basta para
+      // entender qué se rompió sin devolver 5000 mensajes iguales.
+      errors: errors.slice(0, 50),
+    };
+  }
+}

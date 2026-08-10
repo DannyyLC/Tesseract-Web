@@ -15,6 +15,7 @@ import {
   HelpCircle,
   ChevronLeft,
   MessageSquare,
+  Database,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -43,6 +44,7 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
         { label: t('navDashboard'), href: '/dashboard', icon: <LayoutDashboard size={20} /> },
         { label: t('navWorkflows'), href: '/workflows', icon: <Workflow size={20} /> },
         { label: t('navIntegrations'), href: '/integrations', icon: <Blocks size={20} /> },
+        { label: t('navDatasets'), href: '/datasets', icon: <Database size={20} /> },
         { label: t('navConversations'), href: '/conversations', icon: <MessageSquare size={20} /> },
       ],
     },

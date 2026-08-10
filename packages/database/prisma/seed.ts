@@ -280,6 +280,50 @@ const toolCatalogs: ToolCatalogSeed[] = [
     ],
   },
   {
+    // Los nombres de funcion son ESTATICOS a proposito. El registry de agents les agrega el
+    // sufijo del displayName de cada instancia (search_dataset -> search_dataset_Datos_Vehiculos),
+    // asi que un solo juego de funciones sirve para todos los datasets y `allowedFunctions` sigue
+    // funcionando sin tocarse. Lo que cambia por instancia es el esquema de argumentos, que se
+    // genera de las columnas del dataset al construir el payload.
+    toolName: 'dataset',
+    displayName: 'Datos propios',
+    description:
+      'Consulta los catalogos que la organizacion captura en Tesseract: productos, vehiculos, servicios o cualquier tabla propia.',
+    provider: 'platform',
+    category: 'data',
+    icon: 'mdi:database-search',
+    isActive: true,
+    isInBeta: false,
+    functions: [
+      {
+        functionName: 'search_dataset',
+        displayName: 'Buscar en el catalogo',
+        description:
+          'Busca filas del catalogo combinando filtros por columna y texto libre. Devuelve el total de coincidencias y las primeras filas.',
+        icon: 'mdi:table-search',
+        category: 'read',
+        dangerLevel: 'SAFE',
+      },
+      {
+        functionName: 'get_dataset_item',
+        displayName: 'Ver una ficha completa',
+        description: 'Devuelve todos los datos de una fila del catalogo a partir de su id.',
+        icon: 'mdi:card-account-details-outline',
+        category: 'read',
+        dangerLevel: 'SAFE',
+      },
+      {
+        functionName: 'list_dataset_values',
+        displayName: 'Listar valores de una columna',
+        description:
+          'Devuelve los valores distintos de una columna con su conteo. Sirve para responder que opciones existen cuando son demasiadas para caber en la firma de la busqueda.',
+        icon: 'mdi:format-list-bulleted',
+        category: 'read',
+        dangerLevel: 'SAFE',
+      },
+    ],
+  },
+  {
     toolName: 'google_calendar',
     displayName: 'Google Calendar',
     description: 'Gestion de agenda y eventos en Google Calendar.',

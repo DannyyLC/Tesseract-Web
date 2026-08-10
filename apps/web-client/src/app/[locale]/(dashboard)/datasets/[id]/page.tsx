@@ -1,0 +1,231 @@
+'use client';
+
+import { use, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { FileUp, Settings2, Trash2 } from 'lucide-react';
+import { DatasetField } from '@tesseract/types';
+import { useRouter } from '@/i18n/routing';
+import PermissionGuard from '@/components/auth/permission-guard';
+import { Modal } from '@/components/ui/modal';
+import { useAuth } from '@/hooks/identity/use-auth';
+import { useDataset, useDatasetMutations, useDatasetRecords } from '@/hooks/automation/use-datasets';
+import { ConnectedWorkflowsSection } from '../_components/connected-workflows-section';
+import { ImportCsvModal } from '../_components/import-csv-modal';
+import { RecordsGrid } from '../_components/records-grid';
+import { SchemaBuilder } from '../_components/schema-builder';
+
+const PAGE_SIZE = 50;
+
+export default function DatasetDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const t = useTranslations('Datasets');
+  const router = useRouter();
+
+  const { data: user } = useAuth();
+  const canEdit = user?.role === 'OWNER' || user?.role === 'ADMIN';
+
+  const { data: dataset, isLoading } = useDataset(id);
+  const [page, setPage] = useState(0);
+  const { data: records } = useDatasetRecords(id, PAGE_SIZE, page * PAGE_SIZE);
+  const {
+    updateFields,
+    deleteDataset,
+    createRecord,
+    updateRecord,
+    deleteRecord,
+    importCsv,
+  } = useDatasetMutations();
+
+  const [isEditingSchema, setIsEditingSchema] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [draftFields, setDraftFields] = useState<DatasetField[]>([]);
+  const [schemaError, setSchemaError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (dataset) setDraftFields(dataset.fields);
+  }, [dataset]);
+
+  if (isLoading || !dataset) {
+    return <p className="text-sm text-text-tertiary">{t('loading')}</p>;
+  }
+
+  // Las columnas que ya existen tienen el tipo congelado: cambiarlo con filas guardadas dejaría
+  // valores que no encajan con su propia definición.
+  const lockedKeys = new Set(dataset.fields.map((field) => field.key));
+
+  const saveSchema = async () => {
+    setSchemaError(null);
+
+    try {
+      await updateFields.mutateAsync({ id, fields: draftFields });
+      setIsEditingSchema(false);
+    } catch (caught) {
+      setSchemaError(caught instanceof Error ? caught.message : t('saveError'));
+    }
+  };
+
+  const totalPages = Math.max(1, Math.ceil((records?.total ?? 0) / PAGE_SIZE));
+
+  return (
+    <PermissionGuard permissions="datasets:read" redirect fallbackRoute="/dashboard">
+      <div className="space-y-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-text-primary">{dataset.name}</h1>
+            {dataset.description && (
+              <p className="mt-1 max-w-2xl text-sm text-text-secondary">{dataset.description}</p>
+            )}
+          </div>
+
+          {canEdit && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setIsEditingSchema(true)}
+                className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-[var(--surface-tint)]"
+              >
+                <Settings2 size={16} />
+                {t('editColumns')}
+              </button>
+              <button
+                onClick={() => setIsImporting(true)}
+                className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-[var(--surface-tint)]"
+              >
+                <FileUp size={16} />
+                {t('import')}
+              </button>
+              <button
+                onClick={() => setIsDeleting(true)}
+                className="hover:bg-danger/10 flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-danger-600"
+              >
+                <Trash2 size={16} />
+                {t('delete')}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <ConnectedWorkflowsSection
+          datasetId={id}
+          workflows={dataset.workflows}
+          canEdit={canEdit}
+        />
+
+        {/* ─── Filas ───────────────────────────────────────────────────────── */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-text-primary">
+              {t('rowsHeading', { count: records?.total ?? 0 })}
+            </h2>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2 text-sm">
+                <button
+                  onClick={() => setPage((current) => Math.max(0, current - 1))}
+                  disabled={page === 0}
+                  className="rounded-lg px-3 py-1 text-text-secondary hover:bg-[var(--surface-tint)] disabled:opacity-40"
+                >
+                  {t('previous')}
+                </button>
+                <span className="text-text-tertiary">
+                  {page + 1} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))}
+                  disabled={page >= totalPages - 1}
+                  className="rounded-lg px-3 py-1 text-text-secondary hover:bg-[var(--surface-tint)] disabled:opacity-40"
+                >
+                  {t('next')}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <RecordsGrid
+            fields={dataset.fields}
+            records={records?.items ?? []}
+            readOnly={!canEdit}
+            onCreate={async (data) => {
+              await createRecord.mutateAsync({ id, data });
+            }}
+            onUpdate={async (recordId, data) => {
+              await updateRecord.mutateAsync({ id, recordId, data });
+            }}
+            onDelete={async (recordId) => {
+              await deleteRecord.mutateAsync({ id, recordId });
+            }}
+          />
+        </section>
+      </div>
+
+      {/* ─── Editor de columnas ─────────────────────────────────────────────── */}
+      <Modal
+        isOpen={isEditingSchema}
+        onClose={() => setIsEditingSchema(false)}
+        title={t('editColumns')}
+        size="lg"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">{t('editColumnsHint')}</p>
+
+          <SchemaBuilder fields={draftFields} onChange={setDraftFields} lockedKeys={lockedKeys} />
+
+          {schemaError && (
+            <div className="bg-danger/10 rounded-xl px-4 py-3 text-sm text-danger-600">
+              {schemaError}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setIsEditingSchema(false)}
+              className="rounded-xl px-4 py-2 text-sm font-medium text-text-secondary hover:bg-[var(--surface-tint)]"
+            >
+              {t('cancel')}
+            </button>
+            <button
+              onClick={saveSchema}
+              disabled={updateFields.isPending}
+              className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-text-inverse disabled:opacity-50"
+            >
+              {t('save')}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <ImportCsvModal
+        isOpen={isImporting}
+        onClose={() => setIsImporting(false)}
+        fields={dataset.fields}
+        onImport={(csv) => importCsv.mutateAsync({ id, csv })}
+      />
+
+      <Modal isOpen={isDeleting} onClose={() => setIsDeleting(false)} title={t('deleteTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            {t('deleteBody', { name: dataset.name, count: records?.total ?? 0 })}
+          </p>
+
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setIsDeleting(false)}
+              className="rounded-xl px-4 py-2 text-sm font-medium text-text-secondary hover:bg-[var(--surface-tint)]"
+            >
+              {t('cancel')}
+            </button>
+            <button
+              onClick={async () => {
+                await deleteDataset.mutateAsync(id);
+                router.push('/datasets');
+              }}
+              className="rounded-xl bg-danger-600 px-4 py-2 text-sm font-medium text-white"
+            >
+              {t('delete')}
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </PermissionGuard>
+  );
+}

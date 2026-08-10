@@ -31,6 +31,8 @@ const REQUIRED_IN_PRODUCTION: string[] = [
   'FRONTEND_URL',
   'DOMAIN_BASE_URL',
   'AGENTS_GRPC_URL',
+  // URL con la que el servicio de agentes alcanza al Gateway para consultar datasets.
+  'GATEWAY_INTERNAL_URL',
 
   // Stripe billing.
   // Los Price IDs ya no son variables de entorno: el gateway los resuelve por lookup key

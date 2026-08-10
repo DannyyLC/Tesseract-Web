@@ -64,10 +64,20 @@ export interface PlanLimits {
   maxUsers: number; // Usuarios permitidos en la organización
   maxWorkflows: number; // Workflows activos simultáneos
   maxApiKeys: number; // API keys permitidas
+  maxDatasets: number; // Datasets (mini bases de datos) de la organización
+  maxDatasetRows: number; // Filas sumadas entre TODOS los datasets de la organización
   monthlyCredits: number; // Créditos incluidos por mes
   overageLimit: number; // Límite de créditos en negativo (overage)
   allowOverages: boolean; // Si permite balance negativo
 }
+
+/**
+ * Columnas máximas por dataset. **Plano en todos los planes, a propósito**: no es una palanca
+ * comercial sino el punto en el que la herramienta empieza a rendir mal. Cada columna filtrable se
+ * convierte en un parámetro de la firma de la tool que ve el LLM, y pasadas ~30 el modelo empieza a
+ * elegir mal los filtros. Quien necesita 60 columnas casi siempre tiene dos datasets fusionados.
+ */
+export const MAX_DATASET_FIELDS = 30;
 
 /**
  * Información de un plan: qué otorga, no cuánto cuesta.
@@ -124,6 +134,8 @@ export interface EnterprisePlanConfig {
   customMonthlyPrice?: number;
   customMonthlyCredits?: number;
   customMaxWorkflows?: number;
+  customMaxDatasets?: number;
+  customMaxDatasetRows?: number;
   customOverageLimit?: number;
   customFeatures?: Record<string, any>;
 }
@@ -190,6 +202,8 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxUsers: 1,
       maxWorkflows: 3,
       maxApiKeys: 3,
+      maxDatasets: 1,
+      maxDatasetRows: 100,
       monthlyCredits: 0,
       overageLimit: 0,
       allowOverages: false,
@@ -206,6 +220,8 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxUsers: 10,
       maxWorkflows: 10,
       maxApiKeys: 50,
+      maxDatasets: 1,
+      maxDatasetRows: 1000,
       monthlyCredits: 200,
       overageLimit: 200,
       allowOverages: true,
@@ -222,6 +238,8 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxUsers: 25,
       maxWorkflows: 25,
       maxApiKeys: 100,
+      maxDatasets: 3,
+      maxDatasetRows: 5000,
       monthlyCredits: 650,
       overageLimit: 650,
       allowOverages: true,
@@ -239,6 +257,8 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxUsers: 50,
       maxWorkflows: 100,
       maxApiKeys: 250,
+      maxDatasets: 5,
+      maxDatasetRows: 15000,
       monthlyCredits: 1800,
       overageLimit: 1800,
       allowOverages: true,
@@ -256,6 +276,8 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxUsers: 100,
       maxWorkflows: 250,
       maxApiKeys: 500,
+      maxDatasets: 10,
+      maxDatasetRows: 50000,
       monthlyCredits: 5000,
       overageLimit: 5000,
       allowOverages: true,
@@ -273,6 +295,8 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxUsers: -1, // Ilimitado (se configura custom)
       maxWorkflows: -1, // Ilimitado (se configura custom)
       maxApiKeys: -1, // Ilimitado (se configura custom)
+      maxDatasets: -1, // Ilimitado (se configura custom)
+      maxDatasetRows: -1, // Ilimitado (se configura custom)
       monthlyCredits: -1, // Ilimitado (se configura custom)
       overageLimit: -1, // Ilimitado (se configura custom)
       allowOverages: true,
@@ -308,6 +332,8 @@ export function getPlanLimits(
       maxUsers: plan.limits.maxUsers,
       maxWorkflows: enterpriseConfig.customMaxWorkflows ?? plan.limits.maxWorkflows,
       maxApiKeys: plan.limits.maxApiKeys,
+      maxDatasets: enterpriseConfig.customMaxDatasets ?? plan.limits.maxDatasets,
+      maxDatasetRows: enterpriseConfig.customMaxDatasetRows ?? plan.limits.maxDatasetRows,
       monthlyCredits: enterpriseConfig.customMonthlyCredits ?? plan.limits.monthlyCredits,
       overageLimit: enterpriseConfig.customOverageLimit ?? plan.limits.overageLimit,
       allowOverages: plan.limits.allowOverages,
@@ -333,6 +359,46 @@ export function canCreateWorkflow(
   }
 
   return currentWorkflows < limits.maxWorkflows;
+}
+
+/**
+ * Verifica si la organización puede crear otro dataset.
+ */
+export function canCreateDataset(
+  planType: SubscriptionPlan,
+  currentDatasets: number,
+  enterpriseConfig?: EnterprisePlanConfig,
+): boolean {
+  const limits = getPlanLimits(planType, enterpriseConfig);
+
+  if (limits.maxDatasets === -1) {
+    return true;
+  }
+
+  return currentDatasets < limits.maxDatasets;
+}
+
+/**
+ * Verifica si caben `rowsToAdd` filas más entre todos los datasets de la organización.
+ *
+ * **Solo se consulta al escribir.** Pasar del límite no borra ni oculta nada: si una organización
+ * baja de plan con más filas de las que su plan nuevo permite, conserva sus datos y su agente
+ * sigue consultándolos; lo único que se bloquea es agregar más. Recortar aquí como se hace con
+ * workflows y API keys significaría borrar datos que el cliente capturó a mano.
+ */
+export function canAddDatasetRows(
+  planType: SubscriptionPlan,
+  currentRows: number,
+  rowsToAdd: number,
+  enterpriseConfig?: EnterprisePlanConfig,
+): boolean {
+  const limits = getPlanLimits(planType, enterpriseConfig);
+
+  if (limits.maxDatasetRows === -1) {
+    return true;
+  }
+
+  return currentRows + rowsToAdd <= limits.maxDatasetRows;
 }
 
 /**

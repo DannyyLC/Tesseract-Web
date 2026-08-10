@@ -30,6 +30,10 @@ export type AppPermission =
   | 'tenant_tools:add_workflows'
   | 'tenant_tools:remove_workflows'
   | 'tenant_tools:disconnect'
+  | 'datasets:read'
+  | 'datasets:create'
+  | 'datasets:update'
+  | 'datasets:delete'
   | 'notifications:read'
   | 'notifications:update'
   | 'notifications:delete'
@@ -84,6 +88,11 @@ export const ROLE_PERMISSIONS: Record<string, AppPermission[]> = {
     'tenant_tools:add_workflows',
     'tenant_tools:remove_workflows',
     'tenant_tools:disconnect',
+
+    'datasets:read',
+    'datasets:create',
+    'datasets:update',
+    'datasets:delete',
 
     'notifications:read',
     'notifications:update',
@@ -141,6 +150,11 @@ export const ROLE_PERMISSIONS: Record<string, AppPermission[]> = {
     'tenant_tools:remove_workflows',
     'tenant_tools:disconnect',
 
+    'datasets:read',
+    'datasets:create',
+    'datasets:update',
+    'datasets:delete',
+
     'notifications:read',
     'notifications:update',
     'notifications:delete',
@@ -171,6 +185,8 @@ export const ROLE_PERMISSIONS: Record<string, AppPermission[]> = {
     'organization:read',
 
     'tenant_tools:read',
+
+    'datasets:read',
 
     'notifications:read',
     'notifications:update',

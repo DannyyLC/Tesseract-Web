@@ -8,11 +8,12 @@ import { ToolsModule } from './tools/core/tools.module';
 import { ToolsCatalogModule } from './tools/catalog/tools-catalog.module';
 import { TenantToolModule } from './tools/tenant/tenant-tool.module';
 import { CronTriggersModule } from './cron-triggers/cron-triggers.module';
+import { DatasetsModule } from './datasets/datasets.module';
 
 /**
  * Dominio del motor de ejecución. Agrupa y reexporta sus submódulos:
  * workflows, ejecuciones, agentes, modelos LLM, procesamiento de medios,
- * herramientas (core/catálogo/tenant) y cron-triggers.
+ * herramientas (core/catálogo/tenant), datasets y cron-triggers.
  */
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { CronTriggersModule } from './cron-triggers/cron-triggers.module';
     ToolsCatalogModule,
     TenantToolModule,
     CronTriggersModule,
+    DatasetsModule,
   ],
   exports: [
     WorkflowsModule,
@@ -36,6 +38,7 @@ import { CronTriggersModule } from './cron-triggers/cron-triggers.module';
     ToolsCatalogModule,
     TenantToolModule,
     CronTriggersModule,
+    DatasetsModule,
   ],
 })
 export class AutomationModule {}

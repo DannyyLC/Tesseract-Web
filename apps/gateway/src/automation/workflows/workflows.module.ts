@@ -14,6 +14,7 @@ import { ExternalWorkflowsController } from './controllers/external/workflows.co
 import { UtilityModule } from '@/platform/utility/utility.module';
 import { ToolsModule } from '../tools/core/tools.module';
 import { MediaProcessingModule } from '@/automation/media-processing/media-processing.module';
+import { DatasetsModule } from '../datasets/datasets.module';
 
 /**
  * WorkflowsModule
@@ -30,6 +31,7 @@ import { MediaProcessingModule } from '@/automation/media-processing/media-proce
     LlmModelsModule,
     ToolsModule,
     MediaProcessingModule,
+    DatasetsModule,
   ],
   controllers: [WorkflowsController, ExternalWorkflowsController, WorkflowsAdminController],
   providers: [WorkflowsService, WorkflowsAdminService, WorkflowConfigValidator],

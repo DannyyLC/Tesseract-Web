@@ -1,6 +1,6 @@
 ---
 title: 'TODO — Deuda técnica detectada'
-description: 'Hallazgos pendientes de corregir: cálculo de costos en fan-out, límites de categoría no aplicados, guarda de ventana de contexto, riesgos de despliegue, secretos en el historial, campos inertes en la config de WhatsApp, reintento infinito cuando el workflow del webhook no existe y la imposibilidad deliberada de cambiar el país de facturación de una organización.'
+description: 'Hallazgos pendientes de corregir: cálculo de costos en fan-out, límites de categoría no aplicados, guarda de ventana de contexto, riesgos de despliegue, secretos en el historial, campos inertes en la config de WhatsApp, reintento infinito cuando el workflow del webhook no existe, la imposibilidad deliberada de cambiar el país de facturación de una organización y el trato que debe recibir un downgrade de plan cuando lo que sobra son datos del cliente.'
 ---
 
 Levantado durante la preparación del despliegue del workflow RGM (julio 2026), y ampliado con
@@ -381,3 +381,32 @@ checkout creará un `Customer` nuevo con la moneda correcta.
 **Si algún día se automatiza**, lo mínimo sería: exigir saldo no negativo, cobrar el overage
 pendiente en la factura final del cliente viejo antes de cancelar, y avisar en la UI de la pérdida
 de acceso a las facturas anteriores.
+
+---
+
+## 14. El downgrade de plan no puede tratar los datos del cliente como a los workflows
+
+**Severidad: media — a definir antes de implementar Datasets.**
+
+Cuando una organización baja de plan, `enforceLimits()` en
+[`apps/gateway/src/billing/subscriptions/billing.service.ts`](https://github.com/FractalOps-Dev/Tesseract/blob/main/apps/gateway/src/billing/subscriptions/billing.service.ts)
+recorta lo que sobra: **desactiva** workflows, API keys y usuarios por encima del nuevo límite. Es
+correcto para esos tres, porque desactivar es reversible y no destruye nada.
+
+Ese patrón **no se puede extender a los Datasets** (las mini bases de datos que el cliente captura
+para que su agente las consulte). Ahí lo que sobra son filas suyas: si Growth permite 5 000 y baja a
+Starter con 1 000, "recortar" significa borrar 4 000 registros que él cargó a mano o importó por CSV.
+Eso es pérdida de datos del cliente provocada por un cambio de plan, y no hay forma de deshacerlo.
+
+**Propuesta a discutir con el equipo:** al bajar de plan, en lugar de recortar, **bloquear la
+escritura** — no se pueden crear filas nuevas ni importar CSV hasta que el conteo vuelva a estar bajo
+el límite— pero **no borrar nada y dejar la lectura intacta**. Así:
+
+- El cliente conserva sus datos y decide él qué depurar.
+- El agente sigue funcionando: la tool de búsqueda sigue viendo el dataset completo, así que una baja
+  de plan no rompe conversaciones en producción.
+- El incentivo comercial se mantiene: para volver a cargar datos hay que subir de plan o depurar.
+
+Queda por acordar: si el bloqueo aplica también a **editar** filas existentes (yo lo dejaría pasar,
+editar no aumenta el conteo), si conviene un periodo de gracia antes de bloquear, y cómo se le avisa
+en la UI —porque un botón de "agregar fila" deshabilitado sin explicación es peor que el límite.

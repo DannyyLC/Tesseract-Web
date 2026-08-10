@@ -406,6 +406,11 @@ def _load_http_request(credentials, config, ctx):
     return load_http_request_tools(credentials, config)
 
 
+def _load_dataset(credentials, config, ctx):
+    from tools.dataset import load_dataset_tools
+    return load_dataset_tools(credentials, config)
+
+
 TOOL_LOADERS = {
     "google_calendar": _load_google_calendar,
     "google_sheets": _load_google_sheets,
@@ -413,6 +418,7 @@ TOOL_LOADERS = {
     "human_handoff": _load_human_handoff,
     "send_bulk_whatsapp": _load_send_bulk_whatsapp,
     "http_request": _load_http_request,
+    "dataset": _load_dataset,
 }
 
 

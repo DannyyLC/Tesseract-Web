@@ -17,6 +17,7 @@ import LlmModelsApi from './automation/llm-models/llm-models-api';
 import WorkflowsAdminApi from './automation/workflows/workflows-admin-api';
 import OrganizationsAdminApi from './identity/organizations/organizations-admin-api';
 import LlmCategoriesApi from './automation/llm-models/llm-categories-api';
+import DatasetsApi from './automation/datasets/datasets-api';
 
 class RootApi {
   private static instance: RootApi;
@@ -39,6 +40,7 @@ class RootApi {
   private workflowsAdminApi: WorkflowsAdminApi;
   private organizationsAdminApi: OrganizationsAdminApi;
   private llmCategoriesApi: LlmCategoriesApi;
+  private datasetsApi: DatasetsApi;
 
   private constructor() {
     this.authApi = new AuthApi();
@@ -60,6 +62,7 @@ class RootApi {
     this.workflowsAdminApi = new WorkflowsAdminApi();
     this.organizationsAdminApi = new OrganizationsAdminApi();
     this.llmCategoriesApi = new LlmCategoriesApi();
+    this.datasetsApi = new DatasetsApi();
   }
 
   public static getInstance(): RootApi {
@@ -143,6 +146,10 @@ class RootApi {
 
   public getLlmCategoriesApi(): LlmCategoriesApi {
     return this.llmCategoriesApi;
+  }
+
+  public getDatasetsApi(): DatasetsApi {
+    return this.datasetsApi;
   }
 }
 

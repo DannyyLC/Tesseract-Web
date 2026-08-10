@@ -187,9 +187,11 @@ model Organization {
 
   // Overrides de límites del plan (para super admins)
   // null = usar valores por defecto del plan
-  customMaxUsers     Int? // Override del límite de usuarios
-  customMaxApiKeys   Int? // Override del límite de API keys
-  customMaxWorkflows Int? // Override del límite de workflows
+  customMaxUsers       Int? // Override del límite de usuarios
+  customMaxApiKeys     Int? // Override del límite de API keys
+  customMaxWorkflows   Int? // Override del límite de workflows
+  customMaxDatasets    Int? // Override del límite de datasets
+  customMaxDatasetRows Int? // Override del límite de filas (sumadas entre todos los datasets)
 
   // Estado
   isActive  Boolean   @default(true)
@@ -230,6 +232,7 @@ model Organization {
   auditLogs       AuditLog[]
   endUsers        EndUser[]
   cronTriggers    WorkflowCronTrigger[]
+  datasets        Dataset[]
 
   // Credit System Relations
   creditBalance      CreditBalance?
@@ -481,6 +484,7 @@ model User {
   notifications    UserNotification[]
   tenantTools      TenantTool[]
   backupCodes      UserBackupCode[]
+  datasets         Dataset[]
 
   @@index([organizationId])
   @@index([role])
@@ -991,6 +995,81 @@ model TenantToolCredential {
 }
 
 // ============================================
+// DATASET (Mini base de datos del tenant, consultable por el LLM)
+// ============================================
+/// Los datos propios del cliente que su agente necesita conocer: un catálogo de vehículos, de
+/// armas, de autos en venta. NO es la base de datos del cliente — es la vista que su agente
+/// consume. De ahí la regla de producto: todo lo que esté aquí lo ve el LLM; si no quiere que lo
+/// sepa, no sube esa columna.
+///
+/// La estructura la define el cliente desde la UI, así que el schema es DATO, no código — el mismo
+/// patrón que `ToolCatalog`/`ToolFunction` y que el `config_schema` del catálogo de nodos del
+/// pipeline. A partir de `fields` se genera la firma tipada de la tool que el modelo invoca.
+model Dataset {
+  id String @id @default(uuid())
+
+  name String
+  /// Se inyecta en la description de la tool: es lo que le dice al modelo para qué sirve.
+  description String?
+
+  /// Definición de columnas: `[{ key, label, type, options?, order, deletedAt? }]`.
+  ///
+  /// Va como JSON y no como tabla aparte porque el tope son 30 columnas y porque el borrado es
+  /// lógico: marcar `deletedAt` en un field lo saca de la UI y de la firma de la tool **sin tocar
+  /// los valores ya guardados en `DatasetRecord.data`**, así un borrado por error se deshace.
+  ///
+  /// Tipos soportados: `text`, `number`, `select`, `date`. El tipo no es decoración de UI — define
+  /// qué puede hacer el LLM con la columna: `select` filtra por valores conocidos (el modelo solo
+  /// ve los declarados, no puede inventar uno), `number` y `date` filtran por rango y ordenan,
+  /// `text` alimenta la búsqueda libre.
+  ///
+  /// La evolución es SOLO ADITIVA: `key` es inmutable una vez creada (el `label` se edita libre),
+  /// agregar columna siempre se puede, borrar es soft-delete y cambiar `type` con registros
+  /// existentes no se permite. Sin esta regla, el primer cliente que renombre una columna rompe su
+  /// propio agente en silencio.
+  fields Json @db.JsonB
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdByUserId String?
+  createdBy       User?   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  records   DatasetRecord[]
+  workflows Workflow[]      @relation("WorkflowToDataset")
+
+  @@index([organizationId, deletedAt])
+  @@map("datasets")
+}
+
+/// Una fila del dataset. `data` es un objeto plano cuyas claves son las `key` de los fields vivos.
+///
+/// Los números se guardan como números JSON y las fechas como `YYYY-MM-DD` (sin hora — un catálogo
+/// nunca la necesita, y así se esquiva por completo el problema de zonas horarias del resto del
+/// sistema). El validador lo garantiza en la escritura para que el filtro por rango pueda castear
+/// `(data->'precio')::numeric` sin reventar contra un string.
+model DatasetRecord {
+  id String @id @default(uuid())
+
+  datasetId String
+  dataset   Dataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  data Json @db.JsonB
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // NOTE: el índice GIN sobre `data` se crea en el SQL de la migración (Prisma no expresa
+  // `jsonb_path_ops`). Acelera los filtros por igualdad de los campos `select`.
+  @@index([datasetId])
+  @@map("dataset_records")
+}
+
+// ============================================
 // API KEY
 // ============================================
 model ApiKey {
@@ -1153,6 +1232,11 @@ model Workflow {
   // Tools habilitadas para este workflow (relación con TenantTools específicas)
   // Representa el POOL de tools disponibles - cada agente decide cuáles usar en config.agents[].tools
   tenantTools TenantTool[] @relation("WorkflowToTenantTool")
+
+  // Datasets que este workflow puede consultar. El enlace es N:M porque un workflow consume
+  // varios catálogos (RGM: vehículos, armas, simuladores) y un mismo catálogo sirve a varios
+  // workflows (WhatsApp y web). Cada enlace se materializa como un TenantTool de tipo `dataset`.
+  datasets Dataset[] @relation("WorkflowToDataset")
 
   // Credit System - Workflow Category
   category              WorkflowCategory // LIGHT (1cr), STANDARD (5cr), ADVANCED (25cr) - Asignado por admin
