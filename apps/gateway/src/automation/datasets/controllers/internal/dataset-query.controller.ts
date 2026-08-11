@@ -1,4 +1,5 @@
 import { Body, Controller, Get, NotFoundException, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import {
   DatasetFieldValuesResponse,
   DatasetRecordDto,
@@ -17,7 +18,16 @@ import { SearchDatasetDto } from '../../dto/search-dataset.dto';
  *
  * No hay `datasetId` en la ruta a propósito: sale del token, que es lo único que delimita a qué
  * organización y a qué catálogo puede llegar quien llama.
+ *
+ * El ThrottlerGuard global (20 req/60s por IP) no aplica: todas las llamadas salen del servicio de
+ * agentes, o sea de un puñado de IPs que comparten todas las organizaciones, y una sola conversación
+ * encadena una búsqueda, un listado de valores y varias fichas. Con el límite puesto, la ráfaga de un
+ * cliente le gasta la cuota a otro que no tiene nada que ver. El 429 además no falla ruidosamente: la
+ * tool lo devuelve como texto y el agente acaba diciéndole al cliente que no hay lo que sí hay, que es
+ * justo el fallo que la firma tipada de la tool existe para evitar. Lo que protege este endpoint es el
+ * token con alcance, no un límite por IP.
  */
+@SkipThrottle()
 @Controller('internal/datasets')
 @UseGuards(DatasetAccessGuard)
 export class DatasetQueryController {
