@@ -99,13 +99,24 @@ class TestEdgeOutputPorts:
 
 
 class TestGetNodeCatalogRpc:
+    """
+    El RPC autentica antes de responder, así que estos tests tienen que mandar el token igual
+    que el Gateway. Antes no hacía falta —el servicer dejaba pasar a todo el mundo cuando no
+    había secreto configurado— y por eso pasaban: se apoyaban sin querer en el fail-open.
+    """
+
+    SECRET = "test-secret"
 
     class FakeGrpcContext:
         def invocation_metadata(self):
-            return []
+            return [("x-internal-token", TestGetNodeCatalogRpc.SECRET)]
 
         async def abort(self, code, details):
             raise RuntimeError(f"aborted: {code} {details}")
+
+    @pytest.fixture(autouse=True)
+    def _internal_secret(self, monkeypatch):
+        monkeypatch.setenv("AGENTS_INTERNAL_SECRET", self.SECRET)
 
     @pytest.mark.asyncio
     async def test_returns_catalog_json(self):

@@ -28,10 +28,47 @@ logger = logging.getLogger(__name__)
 
 
 # ── Auth helper ───────────────────────────────────────────────────────────────
+
+_oidc_presence_logged = False
+
+
+def _note_oidc_once(metadata: dict) -> None:
+    """
+    Temporal: confirma en producción que el Gateway ya manda el ID token, antes de cerrar el
+    servicio con IAM.
+
+    Mientras el servicio siga aceptando tráfico anónimo no hay forma de saber si el Gateway
+    adjunta la cabecera: las conversaciones corren igual con token o sin él, así que un error
+    del lado emisor solo se manifestaría al cerrar, como caída total. Este renglón es la señal
+    que autoriza ese paso.
+
+    Una vez por instancia y no por llamada: como el servicio escala a cero, salen
+    confirmaciones a goteo en Cloud Logging en vez de una entrada suelta que se pierde.
+
+    Se borra junto con AGENTS_INTERNAL_SECRET, en el último paso de la migración a OIDC
+    (ver docs/setup/deployment.md).
+    """
+    global _oidc_presence_logged
+    if _oidc_presence_logged:
+        return
+    _oidc_presence_logged = True
+    logger.info(
+        "OIDC: cabecera authorization %s en la primera llamada de esta instancia",
+        "presente" if "authorization" in metadata else "AUSENTE",
+    )
+
+
 def _verify_token(context: grpc.aio.ServicerContext, expected: str) -> bool:
-    if not expected:
-        return True
     metadata = dict(context.invocation_metadata())
+    _note_oidc_once(metadata)
+
+    # Fallar cerrado. Antes, un `expected` vacío dejaba pasar a todo el mundo: si la variable
+    # se perdía al recrear el servicio, el único rastro era un warning en el arranque y nadie
+    # notaba que los agentes habían quedado abiertos. Ahora sin secreto no pasa nadie, y
+    # `validate_env()` impide de entrada que una revisión así llegue a servir tráfico.
+    if not expected:
+        return False
+
     token = metadata.get("x-internal-token", "")
     return hmac.compare_digest(token, expected)
 
@@ -171,7 +208,11 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
         if self._internal_secret:
             logger.info("Internal token auth enabled")
         else:
-            logger.warning("AGENTS_INTERNAL_SECRET not set — auth disabled")
+            # En producción no se llega aquí: `validate_env()` corta el arranque antes. Este
+            # aviso es para local, donde el servicio sí levanta pero rechaza todas las llamadas.
+            logger.warning(
+                "AGENTS_INTERNAL_SECRET not set — se rechazarán todas las llamadas (UNAUTHENTICATED)"
+            )
 
     async def GetNodeCatalog(
         self,

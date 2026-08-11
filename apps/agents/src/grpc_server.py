@@ -14,11 +14,18 @@ import grpc.aio
 from grpc_health.v1 import health_pb2, health_pb2_grpc
 from grpc_health.v1.health import HealthServicer
 from agents.v1 import agents_pb2_grpc
+from core.env_validation import validate_env
 from core.logging_config import configure_logging
 from grpc_servicer import AgentsServicer
 
 # Después de `load_dotenv`, para que LOG_LEVEL del .env cuente en local.
 configure_logging()
+
+# A nivel de módulo, no dentro de `serve()`: main.py es un segundo entrypoint que importa
+# `serve` desde aquí, y así los dos caminos validan sin duplicar la llamada. Si falta algo
+# obligatorio, el proceso muere aquí y la revisión de Cloud Run nunca recibe tráfico.
+validate_env()
+
 logger = logging.getLogger(__name__)
 
 _GRPC_PORT = 50051
