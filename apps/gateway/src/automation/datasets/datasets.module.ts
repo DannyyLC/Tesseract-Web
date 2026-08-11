@@ -9,7 +9,7 @@ import { DatasetsService } from './core/datasets.service';
 
 /**
  * `JwtModule.register({})` sin secreto a propósito: el token de consulta se firma con
- * `AGENTS_INTERNAL_SECRET`, que se pasa por llamada en `DatasetTokenService`. Registrar aquí el
+ * `DATASET_TOKEN_SECRET`, que se pasa por llamada en `DatasetTokenService`. Registrar aquí el
  * secreto de sesión haría que un token de dataset y uno de usuario fueran intercambiables.
  */
 @Module({

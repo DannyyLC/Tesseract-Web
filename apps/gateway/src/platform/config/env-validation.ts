@@ -26,6 +26,10 @@ const REQUIRED_IN_PRODUCTION: string[] = [
   // Auth & security
   'TURNSTILE_SECRET_KEY',
   'AGENTS_INTERNAL_SECRET',
+  // Firma los tokens con los que la tool de catálogos consulta al Gateway. Distinto de
+  // AGENTS_INTERNAL_SECRET a propósito, y solo aquí: el servicio de agentes recibe esos tokens,
+  // nunca los emite, y compartir la llave le daría poder para firmarse cualquier catálogo.
+  'DATASET_TOKEN_SECRET',
 
   // URLs
   'FRONTEND_URL',
