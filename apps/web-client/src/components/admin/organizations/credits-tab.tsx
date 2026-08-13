@@ -63,7 +63,7 @@ export function CreditsTab({ organizationId }: Props) {
   const { items, nextCursor, prevCursor, nextPageAvailable } = data.creditTransactions;
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="w-full space-y-6">
       <section className="rounded-xl border border-border bg-surface p-4">
         <div className="flex items-center justify-between">
           <div>

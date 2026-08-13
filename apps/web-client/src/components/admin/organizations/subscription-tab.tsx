@@ -69,12 +69,12 @@ export function SubscriptionTab({ org }: Props) {
 
   if (isStripeManaged) {
     return (
-      <div className="max-w-2xl space-y-4">
+      <div className="w-full space-y-4">
         <p className="rounded-lg border border-border bg-surface-secondary px-3 py-2 text-xs text-text-secondary">
           Esta organización factura por Stripe. La suscripción se gestiona desde ahí (o desde el
           flujo normal de cambio de plan) — editarla a mano se perdería en el próximo webhook.
         </p>
-        <dl className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-2">
+        <dl className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <dt className="text-xs text-text-secondary">Plan</dt>
             <dd className="text-sm text-text-primary">{org.subscription?.plan}</dd>
@@ -102,13 +102,13 @@ export function SubscriptionTab({ org }: Props) {
   }
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="w-full space-y-4">
       <p className="text-xs text-text-secondary">
         Organización de facturación manual (sin Stripe). Estos valores se guardan directo, sin
         pasar por ningún checkout.
       </p>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <label className={labelClass}>Plan</label>
           <select className={inputClass} value={form.plan} onChange={(e) => set('plan', e.target.value as Form['plan'])}>

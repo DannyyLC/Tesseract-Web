@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, Search } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 export interface InfiniteSelectProps {
@@ -15,6 +15,14 @@ export interface InfiniteSelectProps {
   isFetchingNextPage?: boolean;
   fetchNextPage?: () => void;
   className?: string;
+  /**
+   * Búsqueda por servidor: opcional. Sin `onSearchChange` el panel se comporta exactamente
+   * igual que antes (sin input). Con ella, aparece un buscador fijo arriba de las opciones —
+   * necesario cuando el listado tiene cientos/miles de filas y llegar por scroll no alcanza.
+   */
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
+  searchPlaceholder?: string;
 }
 
 /** Alto máximo del panel. También decide hacia qué lado abre cuando no cabe abajo. */
@@ -36,6 +44,9 @@ export function InfiniteSelect({
   isFetchingNextPage,
   fetchNextPage,
   className = '',
+  searchValue,
+  onSearchChange,
+  searchPlaceholder = 'Buscar...',
 }: InfiniteSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -50,6 +61,7 @@ export function InfiniteSelect({
   const panelRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -90,6 +102,11 @@ export function InfiniteSelect({
   useEffect(() => {
     if (isOpen) place();
   }, [isOpen, place]);
+
+  // Foco automático en el buscador al abrir, para no obligar a un click de más.
+  useEffect(() => {
+    if (isOpen && onSearchChange) searchInputRef.current?.focus();
+  }, [isOpen, onSearchChange]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -180,8 +197,25 @@ export function InfiniteSelect({
                   maxHeight: panel.maxHeight,
                 }}
                 // Por encima del modal, que vive en z-100.
-                className="fixed z-[200] overflow-y-auto rounded-xl border border-border bg-surface-elevated py-1 shadow-lg"
+                className="fixed z-[200] flex flex-col overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-lg"
               >
+                {onSearchChange && (
+                  <div className="relative shrink-0 border-b border-border p-2">
+                    <Search
+                      size={14}
+                      className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-text-secondary"
+                    />
+                    <input
+                      ref={searchInputRef}
+                      value={searchValue ?? ''}
+                      onChange={(e) => onSearchChange(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      placeholder={searchPlaceholder}
+                      className="w-full rounded-lg border border-border bg-surface py-1.5 pl-8 pr-2 text-sm text-text-primary outline-none focus:border-border-focus"
+                    />
+                  </div>
+                )}
+                <div className="overflow-y-auto py-1">
                 {options.length === 0 && !isLoading ? (
                   <div className="px-3 py-2 text-center text-sm text-text-secondary">
                     Sin opciones
@@ -211,6 +245,7 @@ export function InfiniteSelect({
                     {isFetchingNextPage ? 'Cargando más...' : ''}
                   </div>
                 )}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>,

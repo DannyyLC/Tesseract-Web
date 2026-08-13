@@ -93,7 +93,7 @@ export function LimitsTab({ org }: Props) {
   };
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="w-full space-y-6">
       <section className="rounded-xl border border-border bg-surface p-4">
         <h2 className="mb-1 text-sm font-semibold text-text-primary">Límites custom</h2>
         <p className="mb-4 text-xs text-text-secondary">
@@ -101,7 +101,7 @@ export function LimitsTab({ org }: Props) {
           que dejas vacío no se toca, aunque ya tenga un override.
         </p>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {LIMIT_FIELDS.map(({ key, label, planLimitKey }) => {
             const planDefault = org.planLimits.limits[planLimitKey];
             return (
