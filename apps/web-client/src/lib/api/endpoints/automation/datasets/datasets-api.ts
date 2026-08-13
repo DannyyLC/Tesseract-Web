@@ -77,6 +77,12 @@ class DatasetsApi {
    * Se manda la definición completa. Lo que se omita queda borrado lógicamente: sus valores siguen
    * guardados, así que volver a mandar la columna con la misma clave la restaura intacta.
    *
+   * `fields` viene tal cual lo devolvió el GET, que trae `deletedAt` explícito en cada columna viva
+   * (así se guarda el schema). El DTO de esta ruta no declara esa propiedad —el borrado lógico lo
+   * calcula el servidor comparando qué `key` faltan, no algo que el cliente deba mandar— y el
+   * ValidationPipe global rechaza cualquier propiedad extra, así que hay que descartarla aquí antes
+   * de reenviarla.
+   *
    * **Timeout propio, muy por encima del general.** Si el cambio toca una fórmula, el servidor
    * recalcula esa columna en todas las filas del catálogo dentro de la misma petición; con decenas
    * de miles de filas eso pasa de los 30 s que trae `ApiRequestManager` por defecto. Cortar aquí no
@@ -86,7 +92,16 @@ class DatasetsApi {
   public async updateFields(id: string, fields: DatasetField[]): Promise<DatasetDto | null> {
     const result = await this.apiRequestManager.put<ApiResponse<DatasetDto>>(
       `${DatasetsApi.BASE_URL}/${id}/fields`,
-      { fields },
+      {
+        fields: fields.map(({ key, label, type, options, formula, order }) => ({
+          key,
+          label,
+          type,
+          options,
+          formula,
+          order,
+        })),
+      },
       { timeout: 600_000 },
     );
     return result.data.data ?? null;
