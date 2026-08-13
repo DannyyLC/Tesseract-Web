@@ -28,4 +28,22 @@ export class UpdateCustomLimitsDto {
   @IsInt()
   @Min(-1)
   customMaxApiKeys?: number;
+
+  @ApiProperty({
+    description:
+      'Custom maximum number of datasets allowed in the organization. -1 means unlimited. Optional.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(-1)
+  customMaxDatasets?: number;
+
+  @ApiProperty({
+    description:
+      'Custom maximum number of rows across all datasets in the organization. -1 means unlimited. Optional.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(-1)
+  customMaxDatasetRows?: number;
 }
