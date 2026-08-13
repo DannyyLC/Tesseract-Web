@@ -644,4 +644,36 @@ export class WhatsappConfigService {
       }
     }
   } 
+
+  async updateConnectionStatusByPhoneNumber(
+    phoneNumber: string,
+    connectionStatus: WhatsAppConnectionStatus,
+  ): Promise<boolean> {
+    try {
+      await this.prismaService.whatsAppConfig.updateMany({
+        where: { phoneNumber: phoneNumber },
+        data: { connectionStatus: connectionStatus },
+      });
+      return true;
+    } catch (error) {
+      this.logger.error('Error updating WhatsApp config connection status by phone number:', error);
+      return false;
+    }
+  }
+
+  async updateConnectionErrorByPhoneNumber(
+    phoneNumber: string,
+    connectionError: string,
+  ): Promise<boolean> {
+    try {
+      await this.prismaService.whatsAppConfig.updateMany({
+        where: { phoneNumber: phoneNumber },
+        data: { connectionError: connectionError },
+      });
+      return true;
+    } catch (error) {
+      this.logger.error('Error updating WhatsApp config connection status by phone number:', error);
+      return false;
+    }
+  }
 }

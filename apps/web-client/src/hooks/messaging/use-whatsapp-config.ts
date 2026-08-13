@@ -12,6 +12,9 @@ export function useWhatsappMutations() {
       const api = RootApi.getInstance().getWhatsappConfigApi();
       return await api.updateIsActiveStatus(id, data);
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp', 'list'] });
+    },
   });
 
   const deleteWhatsappConfig = useMutation({

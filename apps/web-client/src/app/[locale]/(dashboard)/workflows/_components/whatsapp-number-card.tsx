@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { MoreVertical, Pencil, Unplug, Trash2 } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { WhatsappIcon } from '@/components/icons/whatsapp-icon';
@@ -25,26 +26,26 @@ interface WhatsappNumberCardProps {
   workflowId: string;
 }
 
-const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }> = {
+const STATUS_STYLES: Record<string, { dot: string; label: string; textKey: string }> = {
   CONNECTED: {
     dot: 'bg-success-500',
     label: 'border border-success-500/25 bg-success-500/10 text-[var(--badge-success-text-strong)]',
-    text: 'Configurado',
+    textKey: 'statusConfigured',
   },
   ERROR: {
     dot: 'bg-danger',
     label: 'border border-danger-500/25 bg-danger/10 text-[var(--badge-danger-text-strong)]',
-    text: 'Error',
+    textKey: 'statusError',
   },
   DISCONNECTED: {
     dot: 'bg-warning-500',
     label: 'border border-warning-500/25 bg-warning-500/10 text-[var(--badge-warning-text-strong)]',
-    text: 'No Configurado',
+    textKey: 'statusNotConfigured',
   },
   PENDING: {
     dot: 'bg-neutral-400',
     label: 'border border-neutral-500/20 bg-neutral-500/10 text-[var(--badge-neutral-text-strong)]',
-    text: 'Pendiente',
+    textKey: 'statusPending',
   },
 };
 
@@ -57,14 +58,16 @@ export function WhatsappNumberCard({
   workflowId,
 }: WhatsappNumberCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const t = useTranslations('WhatsappNumberCard');
+  const locale = useLocale();
   const status =
     STATUS_STYLES[number.connectionStatus ?? 'DISCONNECTED'] ?? STATUS_STYLES.DISCONNECTED;
   const connectionLabel = isActive
     ? 'border border-success-500/25 bg-success-500/10 text-[var(--badge-success-text-strong)]'
     : 'border border-danger-500/25 bg-danger/10 text-[var(--badge-danger-text-strong)]';
   const connectionDot = isActive ? 'bg-success-500' : 'bg-danger';
-  const connectionText = isActive ? 'Conectado' : 'Desconectado';
-  const createdDate = new Date(number.createdAt).toLocaleDateString('es-MX', {
+  const connectionText = isActive ? t('connected') : t('disconnected');
+  const createdDate = new Date(number.createdAt).toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -90,16 +93,16 @@ export function WhatsappNumberCard({
           {number.displayName || number.phoneNumber}
         </p>
         <p className="truncate text-xs text-text-tertiary">
-          {number.displayName ? number.phoneNumber : 'Número de Whatsapp'}
+          {number.displayName ? number.phoneNumber : t('subtitle')}
         </p>
-        <p className="mt-0.5 text-xs text-text-tertiary">Agregado el {createdDate}</p>
+        <p className="mt-0.5 text-xs text-text-tertiary">{t('addedOn', { date: createdDate })}</p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span
             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${status.label}`}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
-            {status.text}
+            {t(status.textKey)}
           </span>
 
           <span
@@ -115,6 +118,7 @@ export function WhatsappNumberCard({
       <div className="relative">
         <button
           onClick={() => setMenuOpen((v) => !v)}
+          aria-label={t('menuAriaLabel')}
           className="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-secondary"
         >
           <MoreVertical size={16} />
@@ -131,7 +135,7 @@ export function WhatsappNumberCard({
                   className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
                 >
                   <Pencil size={14} />
-                  Editar canal
+                  {t('edit')}
                 </Link>
               </PermissionGuard>
 
@@ -154,7 +158,7 @@ export function WhatsappNumberCard({
                   }`}
                 >
                   <Unplug size={14} />
-                  {!isActive ? 'Conectar' : 'Desconectar'}
+                  {!isActive ? t('connect') : t('disconnect')}
                 </button>
               </PermissionGuard>
 
@@ -167,7 +171,7 @@ export function WhatsappNumberCard({
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[var(--danger-text-adaptive)] transition-colors hover:bg-[var(--danger-tint-hover)]"
                 >
                   <Trash2 size={14} />
-                  Eliminar
+                  {t('delete')}
                 </button>
               </PermissionGuard>
             </div>

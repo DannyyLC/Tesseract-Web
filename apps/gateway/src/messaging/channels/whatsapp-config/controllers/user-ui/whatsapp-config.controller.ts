@@ -126,6 +126,8 @@ export class WhatsappConfigController {
       this.logger.warn(
         `Invalid signature for message from ${maskPhone(userNumber)} to ${phoneNumber}`,
       );
+      this.whatsappConfigService.updateConnectionStatusByPhoneNumber(phoneNumber, 'DISCONNECTED');
+      this.whatsappConfigService.updateConnectionErrorByPhoneNumber(phoneNumber, 'Invalid signature, contact Support Service');
       return res.status(HttpStatus.UNAUTHORIZED).send({ received: false });
     }
 

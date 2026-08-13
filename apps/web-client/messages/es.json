@@ -1431,6 +1431,21 @@
     "delete": "Eliminar",
     "menuAriaLabel": "Acciones de la página"
   },
+  "WhatsappNumberCard": {
+    "subtitle": "Número de WhatsApp",
+    "addedOn": "Agregado el {date}",
+    "statusConfigured": "Configurado",
+    "statusError": "Error",
+    "statusNotConfigured": "No Configurado",
+    "statusPending": "Pendiente",
+    "connected": "Conectado",
+    "disconnected": "Desconectado",
+    "edit": "Editar canal",
+    "connect": "Conectar",
+    "disconnect": "Desconectar",
+    "delete": "Eliminar",
+    "menuAriaLabel": "Acciones del número"
+  },
   "Datasets": {
     "heading": "Datos",
     "description": "Tus catálogos: lo que tu agente necesita conocer para responder. Define las columnas, captura las filas y conéctalos a un workflow.",

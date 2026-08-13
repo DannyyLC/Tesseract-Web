@@ -1431,6 +1431,21 @@
     "delete": "Delete",
     "menuAriaLabel": "Page actions"
   },
+  "WhatsappNumberCard": {
+    "subtitle": "WhatsApp number",
+    "addedOn": "Added on {date}",
+    "statusConfigured": "Configured",
+    "statusError": "Error",
+    "statusNotConfigured": "Not configured",
+    "statusPending": "Pending",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "edit": "Edit channel",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "delete": "Delete",
+    "menuAriaLabel": "Number actions"
+  },
   "Datasets": {
     "heading": "Data",
     "description": "Your catalogs: what your agent needs to know in order to answer. Define the columns, add the rows and connect them to a workflow.",
