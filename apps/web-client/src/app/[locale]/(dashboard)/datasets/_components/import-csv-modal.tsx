@@ -70,12 +70,21 @@ export function ImportCsvModal({ isOpen, onClose, fields, onImport }: ImportCsvM
         <p className="text-sm text-text-secondary">{t('importDescription')}</p>
 
         {/* El encabezado puede traer las claves internas o los nombres visibles: pedirle al
-            cliente que conozca las claves sería absurdo cuando la UI se las esconde. */}
+            cliente que conozca las claves sería absurdo cuando la UI se las esconde.
+
+            Las columnas calculadas no van: su valor sale de la fórmula al importar cada fila, así
+            que pedirlas en el archivo sería pedir un dato que se va a descartar. */}
         <div className="rounded-xl bg-[var(--surface-tint)] p-3">
           <p className="mb-1 text-xs font-medium text-text-secondary">{t('importExpectedHeader')}</p>
           <code className="block overflow-x-auto whitespace-nowrap text-xs text-text-primary">
-            {fields.map((field) => field.label).join(',')}
+            {fields
+              .filter((field) => !field.formula)
+              .map((field) => field.label)
+              .join(',')}
           </code>
+          {fields.some((field) => field.formula) && (
+            <p className="mt-2 text-xs text-text-tertiary">{t('importIgnoresCalculated')}</p>
+          )}
         </div>
 
         <input

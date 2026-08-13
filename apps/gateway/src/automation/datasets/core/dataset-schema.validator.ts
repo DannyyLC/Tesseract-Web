@@ -5,6 +5,7 @@ import {
   DatasetFieldType,
   MAX_DATASET_FIELDS,
 } from '@tesseract/types';
+import { FormulaNode, ROUND_FUNCTION, evaluateFormula, formulaDependencies, parseFormula } from './formula';
 
 /**
  * Reglas del schema de un dataset y validación de las filas contra él.
@@ -35,6 +36,9 @@ const RESERVED_KEYS = new Set([
   'total',
   'items',
   'field',
+  // Es el nombre de función del evaluador de fórmulas: una columna así se volvería inalcanzable
+  // desde cualquier fórmula, porque el parser leería la palabra como una llamada.
+  ROUND_FUNCTION,
 ]);
 
 const KEY_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -148,7 +152,108 @@ export function validateFields(fields: DatasetField[]): void {
         throw new BadRequestException(`La columna "${field.label}" tiene opciones repetidas`);
       }
     }
+
+    if (field.formula && field.type !== 'number') {
+      throw new BadRequestException(
+        `La columna "${field.label}" no puede tener fórmula porque no es numérica. ` +
+          'Solo una columna de tipo número se puede calcular.',
+      );
+    }
   }
+
+  // Compila las fórmulas y ordena las dependencias: es donde se detectan la sintaxis inválida, las
+  // referencias a columnas no numéricas y los ciclos. Se descarta el resultado porque aquí solo
+  // interesa que no lance.
+  buildComputePlan(fields);
+}
+
+/**
+ * Una columna calculada ya compilada, junto con el orden en el que hay que evaluarla.
+ *
+ * El orden es topológico: cuando le toca a una columna, las columnas de las que depende ya tienen
+ * valor. Sin esto, una fórmula que use otra calculada leería `null` la mitad de las veces según el
+ * orden en que el cliente haya acomodado las columnas en la UI.
+ */
+export interface ComputedColumn {
+  key: string;
+  node: FormulaNode;
+}
+
+export type ComputePlan = ComputedColumn[];
+
+/**
+ * Compila las fórmulas del schema una sola vez y las devuelve en orden de evaluación.
+ *
+ * Se construye aparte de `validateRecord` porque una importación de CSV valida hasta 5 000 filas
+ * contra el mismo schema: parsear las mismas fórmulas 5 000 veces sería puro desperdicio.
+ */
+export function buildComputePlan(fields: DatasetField[]): ComputePlan {
+  const live = liveFields(fields);
+  const byKey = new Map(live.map((field) => [field.key, field]));
+  const compiled = new Map<string, FormulaNode>();
+
+  for (const field of live) {
+    if (!field.formula) {
+      continue;
+    }
+
+    const node = parseFormula(field.formula);
+
+    for (const dependency of formulaDependencies(node)) {
+      const target = byKey.get(dependency);
+
+      // Una referencia a una columna que no existe NO es un error: es lo que pasa cuando el cliente
+      // borra una columna de la que otra dependía. La fórmula sigue viva y su resultado queda en
+      // `null` hasta que la restaure o corrija la fórmula.
+      if (target && target.type !== 'number') {
+        throw new BadRequestException(
+          `La fórmula de "${field.label}" usa la columna "${target.label}", que no es numérica. ` +
+            'Solo se puede calcular con columnas de tipo número.',
+        );
+      }
+    }
+
+    compiled.set(field.key, node);
+  }
+
+  const order: ComputePlan = [];
+  const state = new Map<string, 'visiting' | 'done'>();
+  const labelOf = (key: string) => byKey.get(key)?.label ?? key;
+
+  const visit = (key: string, trail: string[]): void => {
+    if (state.get(key) === 'done') {
+      return;
+    }
+
+    if (state.get(key) === 'visiting') {
+      throw new BadRequestException(
+        `Las fórmulas se referencian en círculo: ${[...trail, key].map(labelOf).join(' → ')}. ` +
+          'Una columna calculada no puede depender de sí misma, ni directa ni indirectamente.',
+      );
+    }
+
+    const node = compiled.get(key);
+
+    // Una columna que no es calculada es una hoja: su valor lo capturó el cliente.
+    if (!node) {
+      return;
+    }
+
+    state.set(key, 'visiting');
+
+    for (const dependency of formulaDependencies(node)) {
+      visit(dependency, [...trail, key]);
+    }
+
+    state.set(key, 'done');
+    order.push({ key, node });
+  };
+
+  for (const key of compiled.keys()) {
+    visit(key, []);
+  }
+
+  return order;
 }
 
 /**
@@ -201,10 +306,17 @@ export function mergeFields(current: DatasetField[], incoming: DatasetField[]): 
  *
  * Devuelve el objeto ya normalizado (números como números, fechas como `YYYY-MM-DD`, vacíos como
  * `null`) para guardarlo tal cual en `DatasetRecord.data`.
+ *
+ * **Aquí es donde se calculan las columnas con fórmula**, y por eso vale para los tres caminos de
+ * escritura —alta, edición e importación de CSV— sin que ninguno tenga que saberlo.
+ *
+ * `plan` se puede pasar ya construido para no recompilar las fórmulas en cada fila de una
+ * importación; si se omite se arma sobre la marcha.
  */
 export function validateRecord(
   fields: DatasetField[],
   data: Record<string, unknown>,
+  plan: ComputePlan = buildComputePlan(fields),
 ): Record<string, string | number | null> {
   const live = liveFields(fields);
   const byKey = new Map(live.map((field) => [field.key, field]));
@@ -219,6 +331,14 @@ export function validateRecord(
   const normalized: Record<string, string | number | null> = {};
 
   for (const field of live) {
+    // Una columna calculada ignora lo que traiga `data`: su valor sale de la fórmula, siempre.
+    // Se ignora en silencio en lugar de fallar porque la rejilla del front manda la fila completa,
+    // incluidas las celdas calculadas que ella misma pinta como solo lectura, y porque una columna
+    // de más en un CSV no debe tumbar la importación entera.
+    if (field.formula) {
+      continue;
+    }
+
     const raw = data[field.key];
 
     if (raw === undefined || raw === null || raw === '') {
@@ -227,6 +347,15 @@ export function validateRecord(
     }
 
     normalized[field.key] = normalizeValue(field, raw);
+  }
+
+  // Segundo pase, en orden topológico: cada fórmula ve ya calculadas las columnas de las que
+  // depende. Los operandos se leen de `normalized` —construido solo con las columnas VIVAS— y no
+  // de `data`: una columna borrada conserva su valor dentro del JSON de la fila, así que resolver
+  // contra `data` haría que una fórmula siguiera calculando con una columna que ya no existe para
+  // nadie más.
+  for (const { key, node } of plan) {
+    normalized[key] = evaluateFormula(node, normalized);
   }
 
   return normalized;

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check, Plus, Trash2, X } from 'lucide-react';
+import { Check, Plus, Sigma, Trash2, X } from 'lucide-react';
 import { DatasetField, DatasetRecordDto } from '@tesseract/types';
 
 /**
@@ -12,6 +12,9 @@ import { DatasetField, DatasetRecordDto } from '@tesseract/types';
  * opciones declaradas, un `number` es un campo numérico, una `date` es un date picker sin hora.
  * Es la misma regla que rige toda la funcionalidad — el tipo decide lo que se puede hacer con la
  * columna, aquí en la UI y allá en la firma de la tool.
+ *
+ * Una columna con fórmula no se captura: se muestra su valor y ya. El cálculo ocurre en el Gateway
+ * al guardar la fila, así que el valor nuevo aparece cuando la fila vuelve del servidor.
  */
 
 interface RecordsGridProps {
@@ -32,9 +35,18 @@ type RowDraft = Record<string, string>;
  */
 const CELL_MAX_WIDTH = 'max-w-[12rem]';
 
+/**
+ * Las columnas calculadas se quedan fuera del borrador: su valor lo pone la fórmula al guardar.
+ * El servidor las ignora de todos modos, pero mandarlas sería decir que se pueden capturar.
+ */
 const toDraft = (fields: DatasetField[], record?: DatasetRecordDto): RowDraft =>
   Object.fromEntries(
-    fields.map((field) => [field.key, record?.data?.[field.key] != null ? String(record.data[field.key]) : '']),
+    fields
+      .filter((field) => !field.formula)
+      .map((field) => [
+        field.key,
+        record?.data?.[field.key] != null ? String(record.data[field.key]) : '',
+      ]),
   );
 
 export function RecordsGrid({
@@ -92,11 +104,25 @@ export function RecordsGrid({
     }
   };
 
-  const renderEditor = (field: DatasetField) => {
+  const renderEditor = (field: DatasetField, record?: DatasetRecordDto) => {
     const value = draft[field.key] ?? '';
     const onChange = (next: string) => setDraft((current) => ({ ...current, [field.key]: next }));
     const className =
       'w-full min-w-[8rem] rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text-primary outline-none focus:border-accent';
+
+    // Una columna calculada no se edita: se muestra lo que hay y el valor nuevo aparece al guardar.
+    if (field.formula) {
+      const saved = record?.data?.[field.key];
+
+      return (
+        <span
+          className="block px-2 py-1 text-sm text-text-tertiary"
+          title={t('formulaReadonlyHint', { formula: field.formula })}
+        >
+          {saved != null ? String(saved) : '—'}
+        </span>
+      );
+    }
 
     if (field.type === 'select') {
       return (
@@ -140,7 +166,16 @@ export function RecordsGrid({
                   key={field.key}
                   className="whitespace-nowrap px-4 py-3 font-medium text-text-secondary"
                 >
-                  {field.label}
+                  <span className="inline-flex items-center gap-1">
+                    {field.label}
+                    {field.formula && (
+                      <Sigma
+                        size={12}
+                        className="text-text-tertiary"
+                        aria-label={t('formulaCalculated')}
+                      />
+                    )}
+                  </span>
                 </th>
               ))}
               {!readOnly && <th className="w-px whitespace-nowrap px-4 py-3" />}
@@ -159,7 +194,7 @@ export function RecordsGrid({
                   return (
                     <td key={field.key} className="px-4 py-2 align-middle text-text-primary">
                       {isEditingRow(record.id) ? (
-                        renderEditor(field)
+                        renderEditor(field, record)
                       ) : (
                         <span className={`block truncate ${CELL_MAX_WIDTH}`} title={value}>
                           {value}

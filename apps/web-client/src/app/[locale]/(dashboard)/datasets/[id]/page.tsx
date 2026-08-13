@@ -43,6 +43,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [draftFields, setDraftFields] = useState<DatasetField[]>([]);
   const [schemaError, setSchemaError] = useState<string | null>(null);
+  const [overwriteConfirmed, setOverwriteConfirmed] = useState(false);
 
   useEffect(() => {
     if (dataset) setDraftFields(dataset.fields);
@@ -52,16 +53,42 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
     return <p className="text-sm text-text-tertiary">{t('loading')}</p>;
   }
 
-  // Las columnas que ya existen tienen el tipo congelado: cambiarlo con filas guardadas dejaría
-  // valores que no encajan con su propia definición.
-  const lockedKeys = new Set(dataset.fields.map((field) => field.key));
+  /**
+   * Columnas que hoy se capturan a mano y a las que esta edición les pone fórmula.
+   *
+   * Guardar reemplaza lo capturado por el resultado del cálculo en todas las filas, y eso no se
+   * deshace. Editar una fórmula que ya existía no entra aquí: ahí lo que se sobrescribe son valores
+   * que la fórmula anterior había generado, que es justo lo que el cliente está pidiendo.
+   */
+  const columnsLosingManualValues = dataset.recordCount
+    ? draftFields
+        .filter((draft) => draft.formula)
+        .filter((draft) =>
+          dataset.fields.some((saved) => saved.key === draft.key && !saved.formula),
+        )
+        .map((draft) => draft.label || draft.key)
+    : [];
+
+  const closeSchemaEditor = () => {
+    setIsEditingSchema(false);
+    setOverwriteConfirmed(false);
+    setSchemaError(null);
+  };
 
   const saveSchema = async () => {
     setSchemaError(null);
 
+    // El primer clic solo avisa; el segundo guarda. Es la única barrera contra perder captura
+    // manual, y no hace falta más: el resto de las ediciones de fórmula reemplazan valores que
+    // generó una fórmula anterior, no trabajo de alguien.
+    if (columnsLosingManualValues.length > 0 && !overwriteConfirmed) {
+      setOverwriteConfirmed(true);
+      return;
+    }
+
     try {
       await updateFields.mutateAsync({ id, fields: draftFields });
-      setIsEditingSchema(false);
+      closeSchemaEditor();
     } catch (caught) {
       setSchemaError(caught instanceof Error ? caught.message : t('saveError'));
     }
@@ -183,14 +210,23 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
       {/* ─── Editor de columnas ─────────────────────────────────────────────── */}
       <Modal
         isOpen={isEditingSchema}
-        onClose={() => setIsEditingSchema(false)}
+        onClose={closeSchemaEditor}
         title={t('editColumns')}
         size="lg"
       >
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">{t('editColumnsHint')}</p>
 
-          <SchemaBuilder fields={draftFields} onChange={setDraftFields} lockedKeys={lockedKeys} />
+          <SchemaBuilder fields={draftFields} onChange={setDraftFields} savedFields={dataset.fields} />
+
+          {overwriteConfirmed && columnsLosingManualValues.length > 0 && (
+            <div className="bg-warning/10 rounded-xl px-4 py-3 text-sm text-warning-600">
+              {t('formulaOverwriteWarning', {
+                columns: columnsLosingManualValues.join(', '),
+                count: dataset.recordCount,
+              })}
+            </div>
+          )}
 
           {schemaError && (
             <div className="bg-danger/10 rounded-xl px-4 py-3 text-sm text-danger-600">
@@ -200,7 +236,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
 
           <div className="flex justify-end gap-2">
             <button
-              onClick={() => setIsEditingSchema(false)}
+              onClick={closeSchemaEditor}
               className="rounded-xl px-4 py-2 text-sm font-medium text-text-secondary hover:bg-[var(--surface-tint)]"
             >
               {t('cancel')}
@@ -210,7 +246,9 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
               disabled={updateFields.isPending}
               className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-text-inverse disabled:opacity-50"
             >
-              {t('save')}
+              {overwriteConfirmed && columnsLosingManualValues.length > 0
+                ? t('formulaOverwriteConfirm')
+                : t('save')}
             </button>
           </div>
         </div>

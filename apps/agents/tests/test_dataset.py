@@ -79,6 +79,23 @@ class TestFirma:
         # Un rango, no un valor suelto: el modelo confunde los operadores mucho más que los pares.
         assert "precio" not in properties
 
+    def test_una_columna_calculada_se_trata_como_cualquier_numero(self):
+        """
+        Una columna calculada llega como `type: number` con una clave extra que aquí no se lee: su
+        valor lo resuelve el Gateway al guardar la fila, así que para la tool es un número normal.
+
+        Es el candado de esa decisión. Si algún día la columna calculada viajara con un tipo propio,
+        se quedaría sin filtro por rango y sin `sort_by`, y el modelo perdería en silencio la
+        capacidad de buscar "el más barato" justo sobre la columna del precio final.
+        """
+        config = {**CONFIG, "fields": [*FIELDS, {"key": "precio_final", "label": "Precio final", "type": "number"}]}
+        properties = by_name(make_tools(config=config), "search_dataset").args_schema.model_json_schema()[
+            "properties"
+        ]
+
+        assert "precio_final_min" in properties and "precio_final_max" in properties
+        assert "precio_final" in properties["sort_by"]["description"]
+
     def test_el_texto_se_colapsa_en_un_solo_query(self):
         properties = by_name(make_tools(), "search_dataset").args_schema.model_json_schema()[
             "properties"

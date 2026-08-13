@@ -19,22 +19,44 @@ import {
   SubscriptionPlan as SharedSubscriptionPlan,
   getPlanLimits,
 } from '@tesseract/types';
-import { ToolConnectionStatus } from '@tesseract/database';
+import { Prisma, ToolConnectionStatus } from '@tesseract/database';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { PrismaService } from '../../../platform/database/prisma.service';
 import { parseCsv } from './csv.util';
 import { DatasetQueryService } from './dataset-query.service';
 import {
+  ComputePlan,
+  buildComputePlan,
   liveFields,
   mergeFields,
   slugifyKey,
   validateFields,
   validateRecord,
 } from './dataset-schema.validator';
+import { evaluateFormula, formulaDependencies, parseFormula } from './formula';
 
 /** Techo por importación. Evita que un archivo enorme monopolice una petición. */
 const MAX_IMPORT_ROWS = 5000;
+
+/**
+ * Filas por lote del recálculo de fórmulas.
+ *
+ * Se leen y se escriben de mil en mil en vez de fila por fila: con decenas de miles de registros,
+ * un `UPDATE` por fila son decenas de miles de viajes a la base. Mil filas son 2 000 parámetros,
+ * muy por debajo del techo de 65 535 de Postgres.
+ */
+const RECOMPUTE_BATCH_SIZE = 1000;
+
+/**
+ * Una transacción interactiva de Prisma expira **a los 5 segundos** por defecto, y `PrismaService`
+ * no configura otra cosa. Recalcular un catálogo grande se pasa de ahí sin despeinarse y moriría
+ * con `P2028` a media columna, así que el límite se sube explícitamente.
+ *
+ * Los 540 s quedan por debajo del `--timeout=600` con el que el Gateway se despliega en Cloud Run:
+ * de nada sirve una transacción que sobreviva a la request que la abrió.
+ */
+const RECOMPUTE_TRANSACTION_OPTIONS = { timeout: 540_000, maxWait: 10_000 };
 
 /** `toolName` con el que la tool de datasets vive en `ToolCatalog`. */
 export const DATASET_TOOL_NAME = 'dataset';
@@ -244,6 +266,9 @@ export class DatasetsService {
         field.type === 'select'
           ? [...new Set((field.options ?? []).map((option) => option.trim()).filter(Boolean))]
           : undefined,
+      // Solo un número se calcula; en cualquier otro tipo la fórmula se descarta, igual que las
+      // opciones fuera de un select.
+      formula: field.type === 'number' ? field.formula?.trim() || undefined : undefined,
     }));
   }
 
@@ -270,6 +295,10 @@ export class DatasetsService {
   /**
    * Reemplaza la definición de columnas respetando la regla aditiva: las que el cliente ya no
    * manda se marcan como borradas en lugar de desaparecer, y sus valores siguen en las filas.
+   *
+   * Si el cambio afecta a alguna fórmula, aquí se recalcula la columna entera. Es lo que mantiene
+   * honesto el diseño: el valor calculado vive guardado en cada fila, así que cambiar la regla
+   * obliga a reescribir lo que esa regla producía.
    */
   async updateFields(
     organizationId: string,
@@ -280,12 +309,181 @@ export class DatasetsService {
     const current = dataset.fields as unknown as DatasetField[];
     const merged = mergeFields(current, this.normalizeIncomingFields(fields));
 
-    await this.prismaService.dataset.update({
-      where: { id: datasetId },
-      data: { fields: merged as unknown as object },
-    });
+    if (!this.formulasNeedRecompute(current, merged)) {
+      await this.prismaService.dataset.update({
+        where: { id: datasetId },
+        data: { fields: merged as unknown as object },
+      });
+
+      return this.getById(organizationId, datasetId);
+    }
+
+    const plan = buildComputePlan(merged);
+    const startedAt = Date.now();
+    let updatedRows = 0;
+
+    // El schema nuevo y los valores recalculados se commitean juntos: si se guardaran por separado,
+    // entre una escritura y la otra el catálogo anunciaría una fórmula que sus filas todavía no
+    // reflejan. Y como los lectores no se bloquean (MVCC), el agente sigue cotizando con los
+    // valores viejos hasta el commit en vez de ver una mezcla de precios viejos y nuevos.
+    await this.prismaService.$transaction(async (tx) => {
+      await tx.dataset.update({
+        where: { id: datasetId },
+        data: { fields: merged as unknown as object },
+      });
+
+      updatedRows = await this.recomputeRecords(tx, datasetId, merged, plan);
+    }, RECOMPUTE_TRANSACTION_OPTIONS);
+
+    this.logger.info(
+      `Dataset ${datasetId}: fórmulas recalculadas, ${updatedRows} filas actualizadas en ` +
+        `${Date.now() - startedAt} ms`,
+    );
 
     return this.getById(organizationId, datasetId);
+  }
+
+  /**
+   * Decide si el cambio de schema obliga a recalcular.
+   *
+   * El diff se hace entre `current` y `merged`, nunca contra lo que mandó el cliente:
+   * `normalizeIncomingFields` reescribe key y order, y `mergeFields` agrega de vuelta las columnas
+   * borradas, así que solo esos dos arreglos son comparables entre sí.
+   *
+   * **Quitarle la fórmula a una columna no ensucia nada**: los últimos valores calculados se quedan
+   * y la columna vuelve a ser un número que se captura a mano. Recalcular ahí sería vaciar datos
+   * sin que nadie lo haya pedido.
+   */
+  private formulasNeedRecompute(current: DatasetField[], merged: DatasetField[]): boolean {
+    const isLive = (field?: DatasetField): boolean => !!field && !field.deletedAt;
+    const currentByKey = new Map(current.map((field) => [field.key, field]));
+    const mergedByKey = new Map(merged.map((field) => [field.key, field]));
+
+    for (const field of merged) {
+      if (!isLive(field) || !field.formula) {
+        continue;
+      }
+
+      const before = currentByKey.get(field.key);
+
+      // Fórmula nueva, restaurada, o editada sobre una columna que ya la tenía.
+      if (!isLive(before) || before?.formula !== field.formula) {
+        return true;
+      }
+
+      // La fórmula es la misma, pero alguna de las columnas que usa entró o salió del schema vivo.
+      // Sus valores no cambian dentro de un `updateFields`, pero su visibilidad sí, y una
+      // dependencia borrada vacía el resultado.
+      for (const dependency of formulaDependencies(parseFormula(field.formula))) {
+        if (isLive(currentByKey.get(dependency)) !== isLive(mergedByKey.get(dependency))) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Reescribe las columnas calculadas de todas las filas del dataset. Devuelve cuántas cambiaron.
+   *
+   * Se recalculan **todas** las fórmulas, no solo las que se editaron: con un tope de 30 columnas
+   * el costo de CPU es ruido frente al de la escritura, y a cambio desaparece toda una clase de
+   * errores —haber calculado mal qué columnas dependían de qué— además de repararse solas las filas
+   * que hayan quedado rancias por un fallo anterior.
+   *
+   * El evaluador es el mismo que usa `validateRecord` al guardar una fila. La fórmula NO se traduce
+   * a SQL: el `UPDATE` solo recibe pares (id, valores ya calculados). Dos evaluadores que pudieran
+   * discrepar entre sí son justo el fallo que las columnas calculadas existen para evitar.
+   */
+  private async recomputeRecords(
+    tx: Prisma.TransactionClient,
+    datasetId: string,
+    fields: DatasetField[],
+    plan: ComputePlan,
+  ): Promise<number> {
+    // Las columnas que alimentan las fórmulas son las VIVAS que se capturan a mano. No se puede
+    // evaluar contra `data` tal cual viene: el borrado de columna es lógico y su valor sigue
+    // físicamente dentro del JSON de la fila, así que una fórmula seguiría calculando con una
+    // columna que ya no existe para nadie. Es la misma regla que aplica `validateRecord` al guardar.
+    const inputKeys = liveFields(fields)
+      .filter((field) => !field.formula)
+      .map((field) => field.key);
+
+    let cursor = '';
+    let updated = 0;
+
+    for (;;) {
+      // Paginado por keyset y no con OFFSET: dentro de la transacción el snapshot es estable, así
+      // que avanzar por `id` es seguro y no degrada conforme se avanza. Traer las decenas de miles
+      // de filas de golpe no cabría cómodo en la memoria del proceso.
+      const page = await tx.$queryRaw<{ id: string; data: Record<string, unknown> }[]>(
+        Prisma.sql`
+          SELECT "id", "data"
+          FROM "dataset_records"
+          WHERE "datasetId" = ${datasetId} AND "id" > ${cursor}
+          ORDER BY "id"
+          LIMIT ${RECOMPUTE_BATCH_SIZE}
+        `,
+      );
+
+      if (page.length === 0) {
+        return updated;
+      }
+
+      cursor = page[page.length - 1].id;
+
+      const patches: { id: string; patch: Record<string, number | null> }[] = [];
+
+      for (const row of page) {
+        // Copia de trabajo con solo los operandos válidos. El plan viene en orden topológico, así
+        // que una fórmula encadenada lee el valor recién calculado de la anterior, no el que traía
+        // la fila.
+        const values: Record<string, unknown> = {};
+
+        for (const key of inputKeys) {
+          values[key] = row.data[key] ?? null;
+        }
+
+        const patch: Record<string, number | null> = {};
+        let changed = false;
+
+        for (const { key, node } of plan) {
+          const value = evaluateFormula(node, values);
+
+          values[key] = value;
+          patch[key] = value;
+
+          if (value !== (row.data[key] ?? null)) {
+            changed = true;
+          }
+        }
+
+        // Saltarse las filas cuyo resultado no cambió es la mayor economía disponible: `data` tiene
+        // un índice GIN, así que cada UPDATE reescribe su entrada e impide un HOT update.
+        if (changed) {
+          patches.push({ id: row.id, patch });
+        }
+      }
+
+      if (patches.length > 0) {
+        await tx.$executeRaw(
+          Prisma.sql`
+            UPDATE "dataset_records" AS r
+            SET "data" = r."data" || v."patch"::jsonb,
+                "updatedAt" = NOW()
+            FROM (VALUES ${Prisma.join(
+              patches.map(
+                ({ id, patch }) => Prisma.sql`(${id}::text, ${JSON.stringify(patch)}::jsonb)`,
+              ),
+            )}) AS v("id", "patch")
+            WHERE r."id" = v."id"
+          `,
+        );
+
+        updated += patches.length;
+      }
+    }
   }
 
   /**
@@ -657,10 +855,15 @@ export class DatasetsService {
       );
     }
 
+    // Las columnas calculadas no se mapean: su valor sale de la fórmula, así que si el archivo trae
+    // una, se ignora. Tienen que quedar fuera también del chequeo de más abajo, o un CSV cuyas
+    // únicas coincidencias fueran calculadas pasaría el filtro e importaría filas vacías.
+    const capturable = fields.filter((field) => !field.formula);
+
     // El encabezado puede venir con la `key` o con el nombre visible de la columna: pedirle al
     // cliente que conozca las keys internas sería absurdo cuando la UI se las esconde.
     const byHeader = new Map<string, DatasetField>();
-    for (const field of fields) {
+    for (const field of capturable) {
       byHeader.set(field.key.toLowerCase(), field);
       byHeader.set(field.label.toLowerCase(), field);
     }
@@ -669,11 +872,14 @@ export class DatasetsService {
 
     if (columns.every((column) => column === null)) {
       throw new BadRequestException(
-        `Ninguna columna del archivo coincide con el dataset. Se esperaba alguna de: ${fields
+        `Ninguna columna del archivo coincide con el dataset. Se esperaba alguna de: ${capturable
           .map((field) => field.label)
           .join(', ')}`,
       );
     }
+
+    // Las fórmulas se compilan una vez para todo el archivo, no una vez por fila.
+    const plan = buildComputePlan(dataset.fields as unknown as DatasetField[]);
 
     const errors: DatasetImportRowError[] = [];
     const valid: Record<string, string | number | null>[] = [];
@@ -688,7 +894,7 @@ export class DatasetsService {
       });
 
       try {
-        valid.push(validateRecord(dataset.fields as unknown as DatasetField[], raw));
+        valid.push(validateRecord(dataset.fields as unknown as DatasetField[], raw, plan));
       } catch (error) {
         errors.push({
           // +2: el encabezado es la fila 1 y el índice arranca en 0.

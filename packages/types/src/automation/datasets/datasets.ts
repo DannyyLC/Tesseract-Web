@@ -20,6 +20,12 @@ export const DATASET_FIELD_TYPES = ['text', 'number', 'select', 'date'] as const
 export type DatasetFieldType = (typeof DATASET_FIELD_TYPES)[number];
 
 /**
+ * Tope de longitud de una fórmula. No es una restricción de negocio sino un límite al trabajo del
+ * parser: una expresión más larga que esto casi siempre es un error de captura, no una fórmula.
+ */
+export const MAX_FORMULA_LENGTH = 500;
+
+/**
  * Definición de una columna.
  *
  * `key` es lo que viaja al LLM como nombre de parámetro de la tool, de ahí que sea `snake_case` e
@@ -33,6 +39,21 @@ export interface DatasetField {
   type: DatasetFieldType;
   /** Solo para `select`: las opciones válidas. Viajan dentro de la firma de la tool. */
   options?: string[];
+  /**
+   * Solo para `number`: expresión que deriva el valor a partir de otras columnas numéricas, en vez
+   * de capturarlo a mano. Ej. `redondear(precio_base * (1 + porcentaje / 100), 2)`.
+   *
+   * **Referencia columnas por su `key`, nunca por su `label`**: el label es editable y renombrarlo
+   * rompería la fórmula en silencio.
+   *
+   * Una columna calculada sigue siendo `type: 'number'` a propósito. Así el filtro por rango, el
+   * orden `::numeric` y la firma de la tool la tratan como cualquier otro número, sin que el motor
+   * de consultas ni el servicio de agentes tengan que saber que las fórmulas existen.
+   *
+   * El valor se resuelve al **escribir** la fila y se guarda en `DatasetRecord.data` como un número
+   * normal; nunca se calcula al consultar.
+   */
+  formula?: string;
   /** Orden de despliegue en la UI. */
   order: number;
   /**
