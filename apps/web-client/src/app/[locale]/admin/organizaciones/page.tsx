@@ -1,0 +1,146 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from '@/i18n/routing';
+import { Search } from 'lucide-react';
+import { LogoLoader } from '@/components/ui/logo-loader';
+import { useDebounce } from '@/hooks/use-debounce';
+import { useAdminOrganizations } from '@/hooks/identity/use-admin-organizations';
+import { btnGhost, inputClass } from '../_styles';
+
+const STATUS_FILTERS = [
+  { label: 'Todas', value: '' },
+  { label: 'Activas', value: 'true' },
+  { label: 'Inactivas', value: 'false' },
+] as const;
+
+export default function AdminOrganizationsPage() {
+  const router = useRouter();
+
+  const [searchInput, setSearchInput] = useState('');
+  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]['value']>('');
+  const [page, setPage] = useState(1);
+
+  const search = useDebounce(searchInput, 400);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  const { data, isLoading, error } = useAdminOrganizations({
+    search: search || undefined,
+    isActive: statusFilter === '' ? undefined : statusFilter === 'true',
+    page,
+    limit: 20,
+  });
+
+  return (
+    <div className="w-full">
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-text-primary">Organizaciones</h1>
+        <p className="mt-1 text-sm text-text-secondary">
+          Créditos, suscripción y límites de cada organización cliente.
+        </p>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-3">
+        <div className="relative min-w-[240px] flex-1">
+          <Search
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary"
+          />
+          <input
+            className={`${inputClass} pl-9`}
+            placeholder="Buscar por nombre o slug"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-1 rounded-lg border border-border p-1">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setStatusFilter(f.value)}
+              className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+                statusFilter === f.value
+                  ? 'bg-surface-secondary font-medium text-text-primary'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <section className="rounded-xl border border-border bg-surface">
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <LogoLoader text="Cargando organizaciones" />
+          </div>
+        ) : error ? (
+          <p className="px-4 py-10 text-center text-sm text-danger">
+            No se pudieron cargar las organizaciones.
+          </p>
+        ) : !data?.data.length ? (
+          <p className="px-4 py-10 text-center text-sm text-text-secondary">
+            No hay organizaciones que coincidan.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {data.data.map((org) => (
+              <li key={org.id}>
+                <button
+                  onClick={() => router.push(`/admin/organizaciones/${org.id}`)}
+                  className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-surface-secondary"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate font-medium text-text-primary">{org.name}</span>
+                      <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase text-text-secondary">
+                        {org.plan}
+                      </span>
+                      {!org.isActive && (
+                        <span className="rounded bg-danger/10 px-1.5 py-0.5 text-[10px] text-danger">
+                          inactiva
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
+                      <span>{org.slug}</span>
+                      <span>{org._count.workflows} workflows</span>
+                    </p>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {data && data.meta.totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-between text-sm text-text-secondary">
+          <span>
+            Página {data.meta.page} de {data.meta.totalPages} · {data.meta.total} organizaciones
+          </span>
+          <div className="flex gap-2">
+            <button
+              className={btnGhost}
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Anterior
+            </button>
+            <button
+              className={btnGhost}
+              disabled={page >= data.meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

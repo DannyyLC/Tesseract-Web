@@ -10,6 +10,14 @@ import * as grpc from '@grpc/grpc-js';
 import { AgentsService } from './agents.service';
 import { AgentExecutionRequestDto } from './dto';
 
+const mockGetIdTokenClient = jest.fn();
+
+jest.mock('google-auth-library', () => ({
+  GoogleAuth: jest.fn().mockImplementation(() => ({
+    getIdTokenClient: (...args: unknown[]) => mockGetIdTokenClient(...args),
+  })),
+}));
+
 describe('AgentsService', () => {
   let service: AgentsService;
 
@@ -104,6 +112,110 @@ describe('AgentsService', () => {
       await expect(service.execute(mockRequest)).rejects.toBeInstanceOf(
         InternalServerErrorException,
       );
+    });
+  });
+
+  /**
+   * El Gateway se identifica ante Cloud Run con un ID token de Google además del secreto
+   * compartido. Mientras el servicio de agentes siga aceptando tráfico anónimo la cabecera se
+   * ignora, así que nada de esto se nota en producción hasta que se cierra el servicio con
+   * IAM — momento en el que un error aquí deja al sistema entero sin agentes. De ahí que la
+   * spec cubra también el modo local (sin token) y el manejo del fallo al pedirlo.
+   */
+  describe('ID token de Cloud Run', () => {
+    const AGENTS_URL = 'https://agents-abc123-uc.a.run.app';
+    const SECRET = 'secreto-compartido';
+
+    const mockRequest = {
+      tenant_id: 'org1',
+      workflow_id: 'wf1',
+      conversation_id: 'conv1',
+    } as unknown as AgentExecutionRequestDto;
+
+    const buildService = async (url: string): Promise<AgentsService> => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          AgentsService,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string, defaultValue?: unknown) => {
+                if (key === 'AGENTS_GRPC_URL') return url;
+                if (key === 'AGENTS_INTERNAL_SECRET') return SECRET;
+                if (key === 'AGENTS_SERVICE_TIMEOUT') return 30000;
+                return defaultValue;
+              }),
+            },
+          },
+        ],
+      }).compile();
+
+      const built = module.get<AgentsService>(AgentsService);
+      (built as any).grpcClient = mockGrpcClient;
+      return built;
+    };
+
+    /** Corre un `execute` y devuelve la metadata con la que se llamó al cliente gRPC. */
+    const captureMetadata = async (svc: AgentsService): Promise<grpc.Metadata> => {
+      let captured!: grpc.Metadata;
+      mockGrpcClient.execute.mockImplementation((_req, meta, _opts, cb) => {
+        captured = meta;
+        cb(null, { conversation_id: 'conv1', messages: [] });
+      });
+      await svc.execute(mockRequest);
+      return captured;
+    };
+
+    beforeEach(() => {
+      mockGetIdTokenClient.mockResolvedValue({
+        getRequestHeaders: jest
+          .fn()
+          .mockResolvedValue(new Headers({ authorization: 'Bearer fake-id-token' })),
+      });
+    });
+
+    it('adjunta el ID token cuando la URL es https, con la audiencia normalizada', async () => {
+      const svc = await buildService(`${AGENTS_URL}/`);
+      const metadata = await captureMetadata(svc);
+
+      // El slash final no puede llegar a la audiencia: Cloud Run la compara literal.
+      expect(mockGetIdTokenClient).toHaveBeenCalledWith(AGENTS_URL);
+      expect(metadata.get('authorization')).toEqual(['Bearer fake-id-token']);
+      expect(metadata.get('x-internal-token')).toEqual([SECRET]);
+    });
+
+    it('no lo adjunta en local, donde no hay metadata server', async () => {
+      const svc = await buildService('localhost:50051');
+      const metadata = await captureMetadata(svc);
+
+      expect(mockGetIdTokenClient).not.toHaveBeenCalled();
+      expect(metadata.get('authorization')).toEqual([]);
+      // El secreto compartido sigue viajando en los dos modos.
+      expect(metadata.get('x-internal-token')).toEqual([SECRET]);
+    });
+
+    it('reutiliza el mismo cliente en llamadas sucesivas', async () => {
+      // Un cliente nuevo por llamada trae la caché vacía: sería un viaje al metadata server
+      // en cada mensaje de cada conversación.
+      const svc = await buildService(AGENTS_URL);
+      await captureMetadata(svc);
+      await captureMetadata(svc);
+      await captureMetadata(svc);
+
+      expect(mockGetIdTokenClient).toHaveBeenCalledTimes(1);
+    });
+
+    it('vuelve a intentarlo si el primer intento falla', async () => {
+      // Memorizar la promesa sin limpiarla al fallar convierte un parpadeo del metadata server
+      // en un Gateway que ya nunca manda token, hasta que alguien lo reinicie.
+      mockGetIdTokenClient.mockRejectedValueOnce(new Error('metadata server no disponible'));
+      const svc = await buildService(AGENTS_URL);
+
+      await expect(svc.execute(mockRequest)).rejects.toBeInstanceOf(InternalServerErrorException);
+
+      const metadata = await captureMetadata(svc);
+      expect(mockGetIdTokenClient).toHaveBeenCalledTimes(2);
+      expect(metadata.get('authorization')).toEqual(['Bearer fake-id-token']);
     });
   });
 });

@@ -9,6 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
+import { GoogleAuth, IdTokenClient } from 'google-auth-library';
 import { join } from 'path';
 import { AgentExecutionRequestDto, AgentExecutionResponseDto } from './dto';
 
@@ -21,13 +22,35 @@ export class AgentsService implements OnModuleInit {
   private readonly internalSecret: string;
   private grpcClient: any;
 
+  /**
+   * Identidad del Gateway frente a Cloud Run. Google emite un ID token firmado que dice a
+   * nombre de quién va (la service account del servicio) y para qué URL sirve; Cloud Run lo
+   * valida en el borde, antes de que la petición llegue al proceso de Python. Sustituye al
+   * secreto compartido, que es un string sin caducidad ni identidad detrás.
+   */
+  private readonly auth = new GoogleAuth();
+  private readonly agentsAudience: string;
+  private idTokenClient?: Promise<IdTokenClient>;
+
   constructor(private readonly configService: ConfigService) {
     const configuredUrl = this.configService.get<string>('AGENTS_GRPC_URL', 'localhost:50051');
     this.agentsGrpcUseTls = configuredUrl.startsWith('https://');
+    // La audiencia tiene que ser exactamente la URL del servicio: `origin` y no la cadena
+    // cruda, porque un `:443` o un slash final la invalidan y ese fallo no se nota hasta que
+    // se cierra el servicio con IAM (hasta entonces la cabecera de más se ignora).
+    this.agentsAudience = this.agentsGrpcUseTls ? new URL(configuredUrl).origin : '';
     this.agentsGrpcUrl = configuredUrl.replace(/^https?:\/\//, '');
     this.agentsServiceTimeout = Number(this.configService.get<string>('AGENTS_SERVICE_TIMEOUT', '30000'));
     this.internalSecret = this.configService.get<string>('AGENTS_INTERNAL_SECRET', '');
-    this.logger.log(`Agents gRPC URL: ${this.agentsGrpcUrl}`);
+    // Sin bandera aparte para local: si la URL no trae TLS es localhost, y ahí no hay metadata
+    // server al que pedirle el token. El log deja el modo por escrito para que no sea magia
+    // silenciosa, y la audiencia impresa es con la que se compara la URL real del servicio
+    // antes de cerrarlo (ver docs/setup/deployment.md).
+    this.logger.log(
+      this.agentsAudience
+        ? `Agents gRPC ${this.agentsGrpcUrl} — OIDC activo (audience: ${this.agentsAudience})`
+        : `Agents gRPC ${this.agentsGrpcUrl} — sin OIDC`,
+    );
   }
 
   onModuleInit() {
@@ -42,9 +65,27 @@ export class AgentsService implements OnModuleInit {
     );
   }
 
-  private buildMetadata(): grpc.Metadata {
+  private async buildMetadata(): Promise<grpc.Metadata> {
     const metadata = new grpc.Metadata();
     if (this.internalSecret) metadata.add('x-internal-token', this.internalSecret);
+    if (!this.agentsAudience) return metadata;
+
+    try {
+      // Un solo IdTokenClient para todo el proceso. `getIdTokenClient()` construye una
+      // instancia nueva en cada llamada y la caché del token vive en la instancia, así que
+      // pedirlo por petición sería un viaje al metadata server en cada mensaje. Memorizado,
+      // la librería refresca sola y no hace falta caché propia.
+      this.idTokenClient ??= this.auth.getIdTokenClient(this.agentsAudience);
+      const headers = await (await this.idTokenClient).getRequestHeaders();
+      const authorization = headers.get('authorization');
+      if (authorization) metadata.add('authorization', authorization);
+    } catch (error) {
+      // Sin esto, un tropiezo del metadata server en la primera llamada deja memorizada una
+      // promesa rechazada y el Gateway no vuelve a mandar token hasta que alguien lo reinicie.
+      this.idTokenClient = undefined;
+      throw error;
+    }
+
     return metadata;
   }
 
@@ -138,12 +179,13 @@ export class AgentsService implements OnModuleInit {
 
     const wireRequest = this.toWireRequest(request);
 
-    return this.withRetry(() => {
+    return this.withRetry(async () => {
+      const metadata = await this.buildMetadata();
       return new Promise<AgentExecutionResponseDto>((resolve, reject) => {
         const deadline = new Date(Date.now() + this.agentsServiceTimeout);
         this.grpcClient.execute(
           wireRequest,
-          this.buildMetadata(),
+          metadata,
           { deadline },
           (err: any, response: any) => {
             if (err) return reject(err);
@@ -160,7 +202,7 @@ export class AgentsService implements OnModuleInit {
     );
     return this.grpcClient.executeStream(
       this.toWireRequest(request),
-      this.buildMetadata(),
+      await this.buildMetadata(),
     ) as NodeJS.ReadableStream;
   }
 
@@ -170,12 +212,13 @@ export class AgentsService implements OnModuleInit {
    * y será la fuente del futuro editor visual.
    */
   async getNodeCatalog(graphType = 'pipeline'): Promise<Record<string, any>> {
-    return this.withRetry(() => {
+    return this.withRetry(async () => {
+      const metadata = await this.buildMetadata();
       return new Promise<Record<string, any>>((resolve, reject) => {
         const deadline = new Date(Date.now() + 10000);
         this.grpcClient.getNodeCatalog(
           { graph_type: graphType },
-          this.buildMetadata(),
+          metadata,
           { deadline },
           (err: any, response: any) => {
             if (err) return reject(err);

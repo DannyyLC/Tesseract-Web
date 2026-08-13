@@ -7,7 +7,7 @@ import { useRouter } from '@/i18n/routing';
 export default function AdminIndexPage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/admin/llm-models');
+    router.replace('/admin/organizaciones');
   }, [router]);
   return null;
 }

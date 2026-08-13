@@ -10,7 +10,7 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
-import { DATASET_FIELD_TYPES, DatasetFieldType } from '@tesseract/types';
+import { DATASET_FIELD_TYPES, DatasetFieldType, MAX_FORMULA_LENGTH } from '@tesseract/types';
 
 export class DatasetFieldDto {
   @IsOptional()
@@ -46,6 +46,18 @@ export class DatasetFieldDto {
     example: ['NIJ III', 'NIJ IV'],
   })
   options?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_FORMULA_LENGTH)
+  @ApiPropertyOptional({
+    description:
+      'Solo para type=number. Convierte la columna en calculada: su valor se deriva de otras ' +
+      'columnas numéricas al guardar la fila, en vez de capturarse. Referencia las columnas por su ' +
+      'key. Operadores: + - * / y paréntesis; función redondear(valor, decimales).',
+    example: 'redondear(precio_base * (1 + porcentaje / 100), 2)',
+  })
+  formula?: string;
 
   @IsOptional()
   @IsInt()

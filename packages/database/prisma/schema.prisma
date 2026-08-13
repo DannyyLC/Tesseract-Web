@@ -1012,7 +1012,7 @@ model Dataset {
   /// Se inyecta en la description de la tool: es lo que le dice al modelo para qué sirve.
   description String?
 
-  /// Definición de columnas: `[{ key, label, type, options?, order, deletedAt? }]`.
+  /// Definición de columnas: `[{ key, label, type, options?, formula?, order, deletedAt? }]`.
   ///
   /// Va como JSON y no como tabla aparte porque el tope son 30 columnas y porque el borrado es
   /// lógico: marcar `deletedAt` en un field lo saca de la UI y de la firma de la tool **sin tocar
@@ -1022,6 +1022,11 @@ model Dataset {
   /// qué puede hacer el LLM con la columna: `select` filtra por valores conocidos (el modelo solo
   /// ve los declarados, no puede inventar uno), `number` y `date` filtran por rango y ordenan,
   /// `text` alimenta la búsqueda libre.
+  ///
+  /// Un `number` con `formula` es una columna CALCULADA: su valor se deriva de otras columnas
+  /// numéricas al escribir la fila y se guarda en `DatasetRecord.data` como un número normal. Sigue
+  /// siendo `type: 'number'` a propósito, para que el filtro por rango, el orden `::numeric` y la
+  /// firma de la tool no tengan que saber que las fórmulas existen.
   ///
   /// La evolución es SOLO ADITIVA: `key` es inmutable una vez creada (el `label` se edita libre),
   /// agregar columna siempre se puede, borrar es soft-delete y cambiar `type` con registros

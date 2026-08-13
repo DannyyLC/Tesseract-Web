@@ -76,11 +76,18 @@ class DatasetsApi {
    *
    * Se manda la definición completa. Lo que se omita queda borrado lógicamente: sus valores siguen
    * guardados, así que volver a mandar la columna con la misma clave la restaura intacta.
+   *
+   * **Timeout propio, muy por encima del general.** Si el cambio toca una fórmula, el servidor
+   * recalcula esa columna en todas las filas del catálogo dentro de la misma petición; con decenas
+   * de miles de filas eso pasa de los 30 s que trae `ApiRequestManager` por defecto. Cortar aquí no
+   * cancelaría nada —la transacción se commitea igual— y el cliente vería un error sobre algo que
+   * sí se guardó, invitándolo a reintentar y a disparar un segundo recálculo.
    */
   public async updateFields(id: string, fields: DatasetField[]): Promise<DatasetDto | null> {
     const result = await this.apiRequestManager.put<ApiResponse<DatasetDto>>(
       `${DatasetsApi.BASE_URL}/${id}/fields`,
       { fields },
+      { timeout: 600_000 },
     );
     return result.data.data ?? null;
   }

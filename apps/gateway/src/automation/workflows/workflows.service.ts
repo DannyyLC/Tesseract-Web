@@ -1767,7 +1767,18 @@ export class WorkflowsService {
           });
 
           if (dataset) {
-            const fields = (dataset.fields as any[]).filter((field) => !field?.deletedAt);
+            // Se proyecta en vez de mandar el field completo: `formula` es la lógica de márgenes
+            // del cliente y no le sirve de nada a la tool —que solo necesita saber que la columna
+            // es un número—, así que no tiene por qué salir del Gateway ni acabar en los registros
+            // de lo que se le envía al servicio de agentes.
+            const fields = (dataset.fields as any[])
+              .filter((field) => !field?.deletedAt)
+              .map((field) => ({
+                key: field.key,
+                label: field.label,
+                type: field.type,
+                ...(field.options ? { options: field.options } : {}),
+              }));
 
             toolInstances[toolId].config = {
               ...toolInstances[toolId].config,

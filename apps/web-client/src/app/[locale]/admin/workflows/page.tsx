@@ -20,10 +20,12 @@ export default function AdminWorkflowsPage() {
 
   const [organizationId, setOrganizationId] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [orgSearchInput, setOrgSearchInput] = useState('');
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
 
   const search = useDebounce(searchInput, 400);
+  const orgSearch = useDebounce(orgSearchInput, 400);
 
   useEffect(() => {
     setPage(1);
@@ -35,7 +37,7 @@ export default function AdminWorkflowsPage() {
     hasNextPage,
     isFetchingNextPage,
     isLoading: orgsLoading,
-  } = useInfiniteAdminOrganizations();
+  } = useInfiniteAdminOrganizations({ search: orgSearch || undefined });
 
   const organizations = useMemo(
     () => orgPages?.pages.flatMap((p) => p.data) ?? [],
@@ -86,6 +88,9 @@ export default function AdminWorkflowsPage() {
             hasNextPage={hasNextPage}
             isFetchingNextPage={isFetchingNextPage}
             fetchNextPage={fetchNextPage}
+            searchValue={orgSearchInput}
+            onSearchChange={setOrgSearchInput}
+            searchPlaceholder="Buscar organización..."
           />
         </div>
         <div className="relative min-w-[240px] flex-1">

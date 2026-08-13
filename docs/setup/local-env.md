@@ -114,7 +114,9 @@ Estas deben estar siempre configuradas o el gateway no inicializa.
 - `FRONTEND_URL`: URL del frontend (típicamente `http://localhost:3001`).
 - `DOMAIN_BASE_URL`: URL base del dominio de la app.
 - `AGENTS_GRPC_URL`: Dirección del servicio de agentes gRPC (default `localhost:50051`).
-- `AGENTS_INTERNAL_SECRET`: Secreto compartido entre gateway y agents para autenticar la llamada interna gRPC. **Debe coincidir** en ambos lados.
+- `AGENTS_INTERNAL_SECRET`: Secreto compartido entre gateway y agents para autenticar la llamada interna gRPC. **Debe coincidir** en ambos lados. Si no la pones, agents levanta igual pero **rechaza todas las llamadas** con `UNAUTHENTICATED`: el síntoma es un error de gRPC a media conversación, no un mensaje que lo explique (el aviso sale una sola vez, al arrancar el servicio de Python). En producción el servicio directamente no arranca sin ella — ver `apps/agents/src/core/env_validation.py`.
+- `GATEWAY_INTERNAL_URL`: URL con la que agents alcanza al gateway (sentido inverso). Solo la usa la tool de catálogos, para consultar las filas en tiempo de llamada.
+- `DATASET_TOKEN_SECRET`: Firma los tokens de esa consulta. Al revés que `AGENTS_INTERNAL_SECRET`, **va solo en el gateway**: agents recibe el token ya firmado dentro del payload y lo reenvía, pero nunca lo emite. Compartir la llave le permitiría firmarse el acceso al catálogo de cualquier organización.
 
 ### Seguridad Front-End (Obligatorio para Sign Up / Login)
 

@@ -1,4 +1,10 @@
-import { Injectable, Logger, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { StripeClient } from './stripe.client';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
@@ -16,6 +22,7 @@ import { ConfigService } from '@nestjs/config';
 import { PriceCatalogService } from './price-catalog.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { BillingDashboardDto } from './dto/billing-dashboard.dto';
+import { AdminUpdateSubscriptionDto } from './dto/admin-update-subscription.dto';
 import Stripe from 'stripe';
 import { UtilityService } from '@/platform/utility/utility.service';
 import { maskEmail } from '@/platform/common/utils/mask-email';
@@ -782,6 +789,76 @@ export class BillingService {
 
       this.logger.log(`Scheduled downgrade to ${newPlan} for org ${organizationId}`);
     }
+  }
+
+  /**
+   * Edición manual de la suscripción por un super admin, para organizaciones que facturan por
+   * transferencia (sin `stripeSubscriptionId`). A diferencia de `changePlan`, no toca Stripe: es
+   * la contraparte de `handleSubscriptionUpdated` (el handler del webhook) pero sin nada de
+   * Stripe, para cuando no hay ningún webhook que vaya a sincronizar esto.
+   *
+   * Bloquea si la organización ya tiene una suscripción real en Stripe, para que un webhook
+   * posterior no pise el override en silencio.
+   */
+  async adminSetManualSubscription(organizationId: string, dto: AdminUpdateSubscriptionDto) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: { subscription: true },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    if (organization.subscription?.stripeSubscriptionId) {
+      throw new BadRequestException(
+        'Esta organización factura por Stripe; la suscripción no se edita a mano.',
+      );
+    }
+
+    const existing = organization.subscription;
+    if (!existing && !dto.plan) {
+      throw new BadRequestException('Se requiere un plan para crear la suscripción');
+    }
+
+    const plan = dto.plan ?? existing!.plan;
+    const now = new Date();
+    const defaultPeriodEnd = new Date(now);
+    defaultPeriodEnd.setMonth(defaultPeriodEnd.getMonth() + 1);
+
+    await this.prisma.$transaction([
+      this.prisma.organization.update({
+        where: { id: organizationId },
+        data: dto.plan ? { plan } : {},
+      }),
+      this.prisma.subscription.upsert({
+        where: { organizationId },
+        create: {
+          organizationId,
+          plan,
+          status: dto.status ?? SubscriptionStatus.ACTIVE,
+          currentPeriodStart: now,
+          currentPeriodEnd: dto.currentPeriodEnd
+            ? new Date(dto.currentPeriodEnd)
+            : defaultPeriodEnd,
+          cancelAtPeriodEnd: dto.cancelAtPeriodEnd ?? false,
+        },
+        update: {
+          ...(dto.plan && { plan }),
+          ...(dto.status && { status: dto.status }),
+          ...(dto.currentPeriodEnd && { currentPeriodEnd: new Date(dto.currentPeriodEnd) }),
+          ...(dto.cancelAtPeriodEnd !== undefined && { cancelAtPeriodEnd: dto.cancelAtPeriodEnd }),
+        },
+      }),
+    ]);
+
+    if (dto.plan) {
+      await this.enforceLimits(organizationId, plan);
+    }
+
+    this.logger.log(
+      `Suscripción de organización ${organizationId} editada a mano: ${JSON.stringify(dto)}`,
+    );
   }
 
   /**

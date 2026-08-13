@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import sys
+from core.env_validation import is_production
 
 GCP_SEVERITY_BY_LEVEL = {
     "DEBUG": "DEBUG",
@@ -54,19 +55,15 @@ def configure_logging() -> None:
     que en el gateway — las variables de entorno del servicio viven solo en la consola
     de GCP, así que el default tiene que ser el correcto.
 
-    El discriminante es `K_SERVICE`, que Cloud Run inyecta solo en cada revisión. A
-    diferencia del gateway no usamos `NODE_ENV`: el Dockerfile de agents no lo define, y
-    depender de una variable que hay que acordarse de poner a mano es justo la forma de
-    que el JSON no salga y nadie se entere. Se respeta igual si alguien la pone explícita,
-    para poder reproducir el formato de producción fuera de Cloud Run.
+    Qué cuenta como producción lo decide `is_production()` (core/env_validation.py), que
+    es la misma respuesta que usa la validación del arranque.
     """
-    is_production = bool(os.getenv("K_SERVICE")) or os.getenv("NODE_ENV") == "production"
     level = os.getenv("LOG_LEVEL", "INFO").upper()
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(
         GcpJsonFormatter()
-        if is_production
+        if is_production()
         else logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     )
 

@@ -18,6 +18,8 @@ import WorkflowsAdminApi from './automation/workflows/workflows-admin-api';
 import OrganizationsAdminApi from './identity/organizations/organizations-admin-api';
 import LlmCategoriesApi from './automation/llm-models/llm-categories-api';
 import DatasetsApi from './automation/datasets/datasets-api';
+import CreditsAdminApi from './billing/credits-admin-api';
+import SubscriptionAdminApi from './billing/subscription-admin-api';
 
 class RootApi {
   private static instance: RootApi;
@@ -41,6 +43,8 @@ class RootApi {
   private organizationsAdminApi: OrganizationsAdminApi;
   private llmCategoriesApi: LlmCategoriesApi;
   private datasetsApi: DatasetsApi;
+  private creditsAdminApi: CreditsAdminApi;
+  private subscriptionAdminApi: SubscriptionAdminApi;
 
   private constructor() {
     this.authApi = new AuthApi();
@@ -63,6 +67,8 @@ class RootApi {
     this.organizationsAdminApi = new OrganizationsAdminApi();
     this.llmCategoriesApi = new LlmCategoriesApi();
     this.datasetsApi = new DatasetsApi();
+    this.creditsAdminApi = new CreditsAdminApi();
+    this.subscriptionAdminApi = new SubscriptionAdminApi();
   }
 
   public static getInstance(): RootApi {
@@ -150,6 +156,14 @@ class RootApi {
 
   public getDatasetsApi(): DatasetsApi {
     return this.datasetsApi;
+  }
+
+  public getCreditsAdminApi(): CreditsAdminApi {
+    return this.creditsAdminApi;
+  }
+
+  public getSubscriptionAdminApi(): SubscriptionAdminApi {
+    return this.subscriptionAdminApi;
   }
 }
 

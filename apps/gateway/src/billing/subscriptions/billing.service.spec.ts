@@ -360,6 +360,88 @@ describe('BillingService', () => {
     });
   });
 
+  describe('adminSetManualSubscription', () => {
+    const orgId = 'org-1';
+
+    it('should throw NotFoundException if organization does not exist', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue(null);
+
+      await expect(service.adminSetManualSubscription(orgId, { plan: 'PRO' })).rejects.toThrow(
+        'Organización no encontrada',
+      );
+    });
+
+    it('should throw if the organization already bills through Stripe', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        id: orgId,
+        subscription: { stripeSubscriptionId: 'sub_stripe_1', plan: 'PRO' },
+      });
+
+      await expect(service.adminSetManualSubscription(orgId, { plan: 'GROWTH' })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('should throw if there is no subscription yet and no plan is provided', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        id: orgId,
+        subscription: null,
+      });
+
+      await expect(service.adminSetManualSubscription(orgId, { status: 'ACTIVE' })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should create the subscription when none exists yet', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        id: orgId,
+        subscription: null,
+      });
+      const enforceLimitsSpy = jest
+        .spyOn(service as any, 'enforceLimits')
+        .mockResolvedValue(undefined);
+
+      await service.adminSetManualSubscription(orgId, { plan: 'GROWTH' });
+
+      expect(mockPrismaService.organization.update).toHaveBeenCalledWith({
+        where: { id: orgId },
+        data: { plan: 'GROWTH' },
+      });
+      expect(mockPrismaService.subscription.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { organizationId: orgId },
+          create: expect.objectContaining({ organizationId: orgId, plan: 'GROWTH', status: 'ACTIVE' }),
+        }),
+      );
+      expect(enforceLimitsSpy).toHaveBeenCalledWith(orgId, 'GROWTH');
+    });
+
+    it('should update only the provided fields when a subscription already exists manually', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        id: orgId,
+        subscription: { plan: 'STARTER', stripeSubscriptionId: null },
+      });
+      const enforceLimitsSpy = jest
+        .spyOn(service as any, 'enforceLimits')
+        .mockResolvedValue(undefined);
+
+      await service.adminSetManualSubscription(orgId, { status: 'PAST_DUE' });
+
+      expect(mockPrismaService.organization.update).toHaveBeenCalledWith({
+        where: { id: orgId },
+        data: {},
+      });
+      expect(mockPrismaService.subscription.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: { status: 'PAST_DUE' },
+        }),
+      );
+      expect(enforceLimitsSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('cancelPendingDowngrade', () => {
     it('should cancel the downgrade if schedule exists', async () => {
       mockPrismaService.subscription.findUnique.mockResolvedValue({

@@ -31,7 +31,11 @@ describe('DatasetTokenService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    configService = { get: jest.fn().mockReturnValue(SECRET) };
+    // Mira la clave, no devuelve el secreto a cualquiera que pregunte: si no, el spec seguiría en
+    // verde aunque el servicio leyera la variable equivocada, que es justo lo que hay que impedir.
+    configService = {
+      get: jest.fn((key: string) => (key === 'DATASET_TOKEN_SECRET' ? SECRET : undefined)),
+    };
     service = new DatasetTokenService(
       new JwtService({}),
       configService as unknown as ConfigService,
@@ -105,7 +109,19 @@ describe('DatasetTokenService', () => {
     });
   });
 
-  describe('sin AGENTS_INTERNAL_SECRET', () => {
+  it('no recae en AGENTS_INTERNAL_SECRET', async () => {
+    // La llave de estos tokens es exclusiva del Gateway. `AGENTS_INTERNAL_SECRET` vive también en el
+    // servicio de agentes, y como HS256 firma y verifica igual, usarlo aquí le devolvería a ese
+    // servicio la capacidad de emitirse tokens para cualquier organización. Un respaldo "por si
+    // acaso" reabriría el agujero en silencio, así que este test existe para que no compile la idea.
+    configService.get.mockImplementation((key: string) =>
+      key === 'AGENTS_INTERNAL_SECRET' ? 'el-secreto-compartido' : undefined,
+    );
+
+    await expect(service.sign(claims, 300)).rejects.toThrow(InternalServerErrorException);
+  });
+
+  describe('sin DATASET_TOKEN_SECRET', () => {
     beforeEach(() => {
       configService.get.mockReturnValue(undefined);
     });

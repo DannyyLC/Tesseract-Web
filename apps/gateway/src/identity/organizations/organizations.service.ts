@@ -142,6 +142,7 @@ export class OrganizationsService {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
       include: {
+        subscription: true,
         _count: {
           select: {
             users: true,
@@ -430,6 +431,8 @@ export class OrganizationsService {
         customMaxUsers: dto.customMaxUsers,
         customMaxWorkflows: dto.customMaxWorkflows,
         customMaxApiKeys: dto.customMaxApiKeys,
+        customMaxDatasets: dto.customMaxDatasets,
+        customMaxDatasetRows: dto.customMaxDatasetRows,
       },
     });
 
