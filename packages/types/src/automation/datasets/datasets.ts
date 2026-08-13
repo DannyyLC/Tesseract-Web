@@ -26,6 +26,51 @@ export type DatasetFieldType = (typeof DATASET_FIELD_TYPES)[number];
 export const MAX_FORMULA_LENGTH = 500;
 
 /**
+ * El único nombre de función que existe en una fórmula de columna calculada: `redondear(valor,
+ * decimales)`. Está en `RESERVED_KEYS` del validador, así que ninguna columna puede llamarse igual.
+ *
+ * Vive aquí —no en el evaluador del Gateway— porque la UI también lo necesita: es lo que inserta el
+ * botón de "insertar función" al armar una fórmula, y tiene que ser el mismo texto que reconoce el
+ * parser o el botón insertaría una llamada que el Gateway no sabría interpretar.
+ */
+export const ROUND_FUNCTION = 'redondear';
+
+/**
+ * Tope de longitud de una `key`. `slugifyKey()` la recorta a esto, y es el mismo número que usa
+ * `validateFields()` en el Gateway para rechazar una `key` más larga —vive aquí junto a la función
+ * para que no se puedan desincronizar.
+ */
+export const DATASET_FIELD_KEY_MAX_LENGTH = 40;
+
+/**
+ * Deriva una `key` válida a partir del label que escribe el cliente.
+ *
+ * `"Nivel de blindaje (NIJ)"` → `nivel_de_blindaje_nij`.
+ *
+ * Vive en `@tesseract/types` en vez de en el Gateway o en la UI porque los dos la necesitan y tiene
+ * que ser exactamente el mismo algoritmo en ambos lados: el Gateway la usa para asignar la `key`
+ * definitiva al guardar (`normalizeIncomingFields`), y la UI la usa para proponerle al cliente, ya
+ * en el borrador y antes de guardar, la `key` con la que una fórmula puede referenciar una columna
+ * que el propio borrador acaba de crear. Si divergieran, un botón de la UI podría insertar en una
+ * fórmula una `key` distinta de la que el Gateway termina guardando, y la fórmula quedaría rota en
+ * silencio.
+ */
+export function slugifyKey(label: string): string {
+  const normalized = label
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // quita acentos: "años" -> "anos"
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, DATASET_FIELD_KEY_MAX_LENGTH);
+
+  // Una key debe empezar por letra: "2024_modelo" no es un identificador válido.
+  return /^[a-z]/.test(normalized)
+    ? normalized
+    : `campo_${normalized}`.slice(0, DATASET_FIELD_KEY_MAX_LENGTH);
+}
+
+/**
  * Definición de una columna.
  *
  * `key` es lo que viaja al LLM como nombre de parámetro de la tool, de ahí que sea `snake_case` e

@@ -3,7 +3,14 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, GripVertical, Plus, Sigma, Trash2 } from 'lucide-react';
-import { DATASET_FIELD_TYPES, DatasetField, DatasetFieldType, MAX_DATASET_FIELDS } from '@tesseract/types';
+import {
+  DATASET_FIELD_TYPES,
+  DatasetField,
+  DatasetFieldType,
+  MAX_DATASET_FIELDS,
+  ROUND_FUNCTION,
+  slugifyKey,
+} from '@tesseract/types';
 
 /**
  * Constructor de columnas.
@@ -70,9 +77,18 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
     onChange(next.map((field, i) => ({ ...field, order: i })));
   };
 
-  /** Columnas numéricas que una fórmula puede usar: las demás, ya guardadas y con nombre. */
+  /**
+   * Columnas numéricas que una fórmula puede usar: las demás, con nombre.
+   *
+   * Una columna recién creada en este mismo borrador todavía no tiene `key` —el Gateway se la
+   * asigna al guardar—, así que se deriva aquí con el mismo `slugifyKey` que usa el servidor. Tiene
+   * que ser idéntico en los dos lados: si el botón insertara una key distinta de la que el Gateway
+   * termina asignando, la fórmula quedaría apuntando a una columna que no existe, en silencio.
+   */
   const numericPeers = (index: number) =>
-    fields.filter((peer, i) => i !== index && peer.type === 'number' && !!peer.key);
+    fields
+      .filter((peer, i) => i !== index && peer.type === 'number' && !!peer.label.trim())
+      .map((peer) => ({ ...peer, key: peer.key || slugifyKey(peer.label) }));
 
   /**
    * Columnas guardadas que la fórmula usa y que este borrador ya no incluye: se están quitando en
@@ -226,6 +242,23 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                           ))}
                         </div>
                       )}
+
+                      {/* `redondear` es el único nombre de función que existe (ver formula.ts); el
+                          botón solo agrega la llamada vacía al final, el cliente escribe adentro lo
+                          que quiere redondear y a cuántos decimales. */}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs text-text-tertiary">{t('formulaFunctionsHint')}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            update(index, { formula: `${field.formula ?? ''}${ROUND_FUNCTION}()` })
+                          }
+                          title={t('formulaRoundTitle')}
+                          className="rounded-md border border-border px-2 py-0.5 font-mono text-xs text-text-secondary transition-colors hover:border-accent hover:text-text-primary"
+                        >
+                          {t('formulaRoundButton')}
+                        </button>
+                      </div>
 
                       <p className="text-xs text-text-tertiary">{t('formulaHint')}</p>
 

@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { MAX_FORMULA_LENGTH } from '@tesseract/types';
+import { MAX_FORMULA_LENGTH, ROUND_FUNCTION } from '@tesseract/types';
 
 /**
  * Evaluador de las fórmulas de las columnas calculadas.
@@ -31,8 +31,10 @@ import { MAX_FORMULA_LENGTH } from '@tesseract/types';
  * justo el fallo que las columnas calculadas existen para evitar.
  */
 
-/** El único nombre de función que existe. Está en `RESERVED_KEYS`, así que no choca con una columna. */
-export const ROUND_FUNCTION = 'redondear';
+// `ROUND_FUNCTION` vive en `@tesseract/types`: la UI también la necesita, para el botón que inserta
+// la llamada al armar una fórmula. Se reexporta aquí para no tocar a quien ya la importaba de este
+// archivo.
+export { ROUND_FUNCTION };
 
 /** Tope de anidamiento de paréntesis. Impide que una fórmula absurda agote la pila del proceso. */
 const MAX_DEPTH = 32;

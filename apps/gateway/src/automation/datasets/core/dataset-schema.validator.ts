@@ -1,9 +1,11 @@
 import { BadRequestException } from '@nestjs/common';
 import {
+  DATASET_FIELD_KEY_MAX_LENGTH,
   DATASET_FIELD_TYPES,
   DatasetField,
   DatasetFieldType,
   MAX_DATASET_FIELDS,
+  slugifyKey,
 } from '@tesseract/types';
 import { FormulaNode, ROUND_FUNCTION, evaluateFormula, formulaDependencies, parseFormula } from './formula';
 
@@ -42,7 +44,7 @@ const RESERVED_KEYS = new Set([
 ]);
 
 const KEY_PATTERN = /^[a-z][a-z0-9_]*$/;
-const KEY_MAX_LENGTH = 40;
+const KEY_MAX_LENGTH = DATASET_FIELD_KEY_MAX_LENGTH;
 const LABEL_MAX_LENGTH = 80;
 const SELECT_MAX_OPTIONS = 200;
 const TEXT_MAX_LENGTH = 4000;
@@ -57,24 +59,12 @@ export function fieldsOfType(fields: DatasetField[], type: DatasetFieldType): Da
   return liveFields(fields).filter((field) => field.type === type);
 }
 
-/**
- * Deriva una `key` válida a partir del label que escribió el cliente.
- *
- * `"Nivel de blindaje (NIJ)"` → `nivel_de_blindaje_nij`. La UI la propone y el cliente puede
- * corregirla, pero solo al crear la columna: después queda congelada.
- */
-export function slugifyKey(label: string): string {
-  const normalized = label
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // quita acentos: "años" → "anos"
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, KEY_MAX_LENGTH);
-
-  // Una key debe empezar por letra: "2024_modelo" no es un identificador válido.
-  return /^[a-z]/.test(normalized) ? normalized : `campo_${normalized}`.slice(0, KEY_MAX_LENGTH);
-}
+// `slugifyKey` vive en `@tesseract/types`: la UI la necesita para proponer, ya en el borrador y
+// antes de guardar, la `key` de una columna nueva (para poder referenciarla en una fórmula sin
+// haber guardado todavía), y tiene que ser exactamente el mismo algoritmo que usa este módulo al
+// asignar la `key` definitiva. Se reexporta aquí para no tocar a quien ya la importaba de este
+// archivo.
+export { slugifyKey };
 
 /**
  * Valida una definición completa de columnas.
