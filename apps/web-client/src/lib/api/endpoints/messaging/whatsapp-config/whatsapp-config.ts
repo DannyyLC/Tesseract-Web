@@ -1,6 +1,12 @@
 import { ApiResponse, CreateConfigDto, WhatsAppConfig } from '@tesseract/types';
 import ApiRequestManager from '../../../api-request-manager';
 
+/** Datos de presentación del número. El teléfono no se edita desde aquí. */
+export interface UpdateWhatsappConfigDto {
+  displayName?: string;
+  description?: string;
+}
+
 class WhatsappConfigApi {
   public apiRequestManager: ApiRequestManager;
   private static BASE_URL = '/whatsapp-config';
@@ -16,6 +22,17 @@ class WhatsappConfigApi {
         workflowId: whatsappConfig.workflowId,
         phoneNumber: whatsappConfig.phoneNumber,
       },
+    );
+    return result.data.data || false;
+  }
+
+  async updateWhatsappConfiguration(
+    id: string,
+    whatsappConfig: UpdateWhatsappConfigDto,
+  ): Promise<boolean> {
+    const result = await this.apiRequestManager.patch<ApiResponse<boolean>>(
+      `${WhatsappConfigApi.BASE_URL}/${id}`,
+      whatsappConfig,
     );
     return result.data.data || false;
   }

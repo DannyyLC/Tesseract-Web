@@ -14,6 +14,11 @@ export class CreateConfigDto {
   @IsString()
   pageName?: string;
 
+  /** Nota interna del equipo. No la ve Meta ni influye en el canal. */
+  @IsOptional()
+  @IsString()
+  description?: string;
+
   /**
    * Token de acceso de la página. Se cifra antes de guardarse y nunca se devuelve.
    * Opcional: sin él se usa MESSENGER_PAGE_ACCESS_TOKEN.

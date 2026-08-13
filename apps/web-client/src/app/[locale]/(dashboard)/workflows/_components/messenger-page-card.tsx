@@ -1,8 +1,9 @@
 'use client';
 
 import PermissionGuard from '@/components/auth/permission-guard';
+import { Link } from '@/i18n/routing';
 import { motion } from 'framer-motion';
-import { MoreVertical, Unplug, Trash2 } from 'lucide-react';
+import { MoreVertical, Pencil, Unplug, Trash2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { FaFacebookMessenger } from 'react-icons/fa6';
 import { useState } from 'react';
@@ -21,6 +22,8 @@ interface MessengerPageCardProps {
   onDelete?: (id: string) => Promise<void>;
   onSetActiveStatus?: (id: string, isActive: boolean) => Promise<void>;
   isActive?: boolean;
+  /** Necesario para armar la ruta de edición, que cuelga del workflow. */
+  workflowId: string;
 }
 
 // El mapa vive fuera del componente, donde no hay hooks: guarda la clave de traducción
@@ -49,6 +52,7 @@ export function MessengerPageCard({
   onDelete,
   onSetActiveStatus,
   isActive,
+  workflowId,
 }: MessengerPageCardProps) {
   const t = useTranslations('MessengerPageCard');
   const locale = useLocale();
@@ -113,6 +117,17 @@ export function MessengerPageCard({
           <>
             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
             <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-surface-popover shadow-xl">
+              <PermissionGuard permissions="workflows:update">
+                <Link
+                  href={`/workflows/${workflowId}/messenger/${page.id}/edit`}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
+                >
+                  <Pencil size={14} />
+                  {t('edit')}
+                </Link>
+              </PermissionGuard>
+
               <div className="mx-3 my-1 h-px bg-surface-secondary" />
 
               <PermissionGuard permissions="workflows:update">

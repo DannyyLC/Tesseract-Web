@@ -45,6 +45,7 @@ export default function WorkflowMessengerPage() {
         workflowId,
         pageId: normalizedPageName,
         pageName: normalizedPageName,
+        description: description.trim(),
         appSecret: normalizedAppSecret,
         pageAccessToken: normalizedPageAccessToken,
       });

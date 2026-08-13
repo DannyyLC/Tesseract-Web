@@ -29,12 +29,14 @@ export function useMessengerMutations() {
       workflowId,
       pageId,
       pageName,
+      description,
       pageAccessToken,
       appSecret,
     }: {
       workflowId: string;
       pageId: string;
       pageName?: string;
+      description?: string;
       pageAccessToken?: string;
       appSecret?: string;
     }) => {
@@ -43,9 +45,29 @@ export function useMessengerMutations() {
         workflowId,
         pageId,
         pageName,
+        description,
         pageAccessToken,
         appSecret,
       });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messenger', 'list'] });
+    },
+  });
+
+  const updateMessengerConfiguration = useMutation({
+    mutationFn: async ({
+      id,
+      ...data
+    }: {
+      id: string;
+      pageName?: string;
+      description?: string;
+      pageAccessToken?: string;
+      appSecret?: string;
+    }) => {
+      const api = RootApi.getInstance().getMessengerConfigApi();
+      return await api.updateMessengerConfiguration(id, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messenger', 'list'] });
@@ -56,6 +78,7 @@ export function useMessengerMutations() {
     setisActiveStatus,
     deleteMessengerConfig,
     addMessengerConfiguration,
+    updateMessengerConfiguration,
   };
 }
 

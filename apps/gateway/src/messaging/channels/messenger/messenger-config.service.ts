@@ -80,6 +80,7 @@ export class MessengerConfigService {
     pageName?: string,
     pageAccessToken?: string,
     appSecret?: string,
+    description?: string,
   ): Promise<MessengerConfig | null> {
     try {
       return await this.prismaService.messengerConfig.create({
@@ -88,6 +89,7 @@ export class MessengerConfigService {
           organizationId,
           pageId,
           pageName,
+          description,
           pageAccessToken: pageAccessToken
             ? await this.kmsService.encrypt(pageAccessToken)
             : undefined,
@@ -124,6 +126,60 @@ export class MessengerConfigService {
     } catch (error) {
       this.logger.error('Error fetching Messenger configs by organization and workflow:', error);
       return [];
+    }
+  }
+
+  /**
+   * Edita una página desde la pantalla de configuración del canal.
+   *
+   * Solo se escribe lo que llegó: un campo ausente se queda como estaba. Para las dos
+   * credenciales, además, una cadena vacía cuenta como ausente —el formulario las
+   * muestra en blanco porque el backend nunca las devuelve, y guardar sin tocarlas no
+   * puede borrar lo que ya funciona—. La descripción sí se puede vaciar: es texto
+   * interno y "sin nota" es un estado legítimo.
+   *
+   * `pageId` no se toca: es la llave con la que el webhook resuelve esta fila.
+   */
+  async updateConfig(
+    configId: string,
+    fields: {
+      pageName?: string;
+      description?: string;
+      appSecret?: string;
+      pageAccessToken?: string;
+    },
+  ): Promise<boolean> {
+    try {
+      const data: {
+        pageName?: string;
+        description?: string | null;
+        appSecret?: string;
+        pageAccessToken?: string;
+      } = {};
+
+      const pageName = fields.pageName?.trim();
+      if (pageName) data.pageName = pageName;
+
+      if (fields.description !== undefined) {
+        const description = fields.description.trim();
+        data.description = description || null;
+      }
+
+      const appSecret = fields.appSecret?.trim();
+      if (appSecret) data.appSecret = await this.kmsService.encrypt(appSecret);
+
+      const pageAccessToken = fields.pageAccessToken?.trim();
+      if (pageAccessToken) {
+        data.pageAccessToken = await this.kmsService.encrypt(pageAccessToken);
+      }
+
+      if (Object.keys(data).length === 0) return true;
+
+      await this.prismaService.messengerConfig.update({ where: { id: configId }, data });
+      return true;
+    } catch (error) {
+      this.logger.error('Error updating Messenger config:', error);
+      return false;
     }
   }
 

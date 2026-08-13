@@ -62,6 +62,69 @@ describe('MessengerConfigService', () => {
     });
   });
 
+  describe('updateConfig', () => {
+    it('cifra las credenciales y limpia los espacios de los textos', async () => {
+      mockPrisma.messengerConfig.update.mockResolvedValue(config);
+
+      expect(
+        await service.updateConfig('c1', {
+          pageName: '  Página nueva  ',
+          description: '  nota  ',
+          appSecret: ' secreto ',
+          pageAccessToken: ' token ',
+        }),
+      ).toBe(true);
+
+      expect(mockPrisma.messengerConfig.update).toHaveBeenCalledWith({
+        where: { id: 'c1' },
+        data: {
+          pageName: 'Página nueva',
+          description: 'nota',
+          appSecret: 'enc(secreto)',
+          pageAccessToken: 'enc(token)',
+        },
+      });
+    });
+
+    it('conserva las credenciales que llegan vacías', async () => {
+      mockPrisma.messengerConfig.update.mockResolvedValue(config);
+
+      await service.updateConfig('c1', {
+        pageName: 'Página',
+        appSecret: '',
+        pageAccessToken: '   ',
+      });
+
+      expect(mockPrisma.messengerConfig.update).toHaveBeenCalledWith({
+        where: { id: 'c1' },
+        data: { pageName: 'Página' },
+      });
+      expect(mockKmsService.encrypt).not.toHaveBeenCalled();
+    });
+
+    it('vacía la descripción a NULL, pero no el nombre', async () => {
+      mockPrisma.messengerConfig.update.mockResolvedValue(config);
+
+      await service.updateConfig('c1', { pageName: '   ', description: '' });
+
+      expect(mockPrisma.messengerConfig.update).toHaveBeenCalledWith({
+        where: { id: 'c1' },
+        data: { description: null },
+      });
+    });
+
+    it('no toca la base cuando no llega ningún campo', async () => {
+      expect(await service.updateConfig('c1', {})).toBe(true);
+      expect(mockPrisma.messengerConfig.update).not.toHaveBeenCalled();
+    });
+
+    it('devuelve false y lo registra si la escritura falla', async () => {
+      mockPrisma.messengerConfig.update.mockRejectedValue(new Error('db'));
+      expect(await service.updateConfig('c1', { pageName: 'Página' })).toBe(false);
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+  });
+
   describe('verifySubscription', () => {
     it('accepts the configured token', () => {
       expect(service.verifySubscription('subscribe', VERIFY_TOKEN)).toBe(true);

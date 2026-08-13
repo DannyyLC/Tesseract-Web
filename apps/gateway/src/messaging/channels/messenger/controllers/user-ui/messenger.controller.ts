@@ -30,6 +30,7 @@ import {
   CreateConfigDto,
   MessengerInboundEvent,
   UpdateAppSecretDto,
+  UpdateMessengerConfigDto,
   UpdatePageAccessTokenDto,
 } from '../../dto';
 import { MessengerWebhookPayload } from '../../dto/messenger-inbound-event.dto';
@@ -405,6 +406,7 @@ export class MessengerController {
       body.pageName,
       body.pageAccessToken,
       body.appSecret,
+      body.description,
     );
     if (response) {
       apiResponse
@@ -467,6 +469,49 @@ export class MessengerController {
       )
       .setMessage('Messenger configs retrieved');
     return res.status(HttpStatus.OK).json(apiResponse.build());
+  }
+
+  /**
+   * Edita los datos de una página desde la pantalla de configuración del canal.
+   *
+   * Convive con los dos PATCH de credenciales, que siguen sirviendo para rotar una sola
+   * cosa; este es el que respalda el formulario completo.
+   */
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  async updateConfig(
+    @CurrentUser() currUser: UserPayload,
+    @Param('id') id: string,
+    @Body() body: UpdateMessengerConfigDto,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponse<boolean>>> {
+    const apiResponse = new ApiResponseBuilder<boolean>();
+
+    // El id viene de la URL, así que hay que comprobar que la fila es de la
+    // organización de quien llama antes de escribir en ella.
+    const config = await this.messengerConfigService.getMessengerConfigById(id);
+    if (!config || config.organizationId !== currUser.organizationId) {
+      apiResponse
+        .setStatusCode(HttpStatus.NOT_FOUND)
+        .setData(false)
+        .setMessage('Messenger config not found');
+      return res.status(HttpStatus.NOT_FOUND).json(apiResponse.build());
+    }
+
+    const success = await this.messengerConfigService.updateConfig(id, body);
+    if (success) {
+      apiResponse
+        .setStatusCode(HttpStatus.OK)
+        .setData(true)
+        .setMessage('Messenger config updated successfully');
+      return res.status(HttpStatus.OK).json(apiResponse.build());
+    }
+
+    apiResponse
+      .setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
+      .setData(false)
+      .setMessage('Failed to update Messenger config');
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
   }
 
   @Patch(':id/isActive')

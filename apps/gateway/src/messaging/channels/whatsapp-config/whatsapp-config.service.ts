@@ -131,6 +131,39 @@ export class WhatsappConfigService {
     }
   }
 
+  /**
+   * Edita un número desde la pantalla de configuración del canal.
+   *
+   * Solo se escribe lo que llegó; un campo ausente se queda como estaba. Los dos son
+   * texto de presentación, así que vaciarlos es un estado legítimo y se guarda como
+   * NULL. `phoneNumber` no se toca: es la llave con la que el webhook resuelve la fila
+   * (para eso está `updatePhoneNumber`).
+   */
+  async updateConfig(
+    configId: string,
+    fields: { displayName?: string; description?: string },
+  ): Promise<boolean> {
+    try {
+      const data: { displayName?: string | null; description?: string | null } = {};
+
+      if (fields.displayName !== undefined) {
+        data.displayName = fields.displayName.trim() || null;
+      }
+
+      if (fields.description !== undefined) {
+        data.description = fields.description.trim() || null;
+      }
+
+      if (Object.keys(data).length === 0) return true;
+
+      await this.prismaService.whatsAppConfig.update({ where: { id: configId }, data });
+      return true;
+    } catch (error) {
+      this.logger.error('Error updating WhatsApp config:', error);
+      return false;
+    }
+  }
+
   async updateIsActive(configId: string, isActive: boolean): Promise<boolean> {
     try {
       await this.prismaService.whatsAppConfig.update({

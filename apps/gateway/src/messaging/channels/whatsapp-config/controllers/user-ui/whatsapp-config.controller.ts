@@ -32,6 +32,7 @@ import {
   WhatsAppInboundEvent,
   CreateTemplateDto,
   UpdateTemplateDto,
+  UpdateWhatsappConfigDto,
   SendTemplateDto,
 } from '../../dto';
 import { CloudTasksService } from '@/platform/tasks/cloud-tasks.service';
@@ -317,6 +318,44 @@ export class WhatsappConfigController {
       .setData(records)
       .setMessage('WhatsApp configs retrieved');
     return res.status(HttpStatus.OK).json(apiResponse.build());
+  }
+
+  /** Edita los datos de un número desde la pantalla de configuración del canal. */
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  async updateConfig(
+    @CurrentUser() currUser: UserPayload,
+    @Param('id') id: string,
+    @Body() body: UpdateWhatsappConfigDto,
+    @Res() res: Response,
+  ): Promise<Response<ApiResponse<boolean>>> {
+    const apiResponse = new ApiResponseBuilder<boolean>();
+
+    // El id viene de la URL, así que hay que comprobar que la fila es de la
+    // organización de quien llama antes de escribir en ella.
+    const config = await this.whatsappConfigService.getWhatsappConfigById(id);
+    if (!config || config.organizationId !== currUser.organizationId) {
+      apiResponse
+        .setStatusCode(HttpStatus.NOT_FOUND)
+        .setData(false)
+        .setMessage('WhatsApp config not found');
+      return res.status(HttpStatus.NOT_FOUND).json(apiResponse.build());
+    }
+
+    const success = await this.whatsappConfigService.updateConfig(id, body);
+    if (success) {
+      apiResponse
+        .setStatusCode(HttpStatus.OK)
+        .setData(true)
+        .setMessage('WhatsApp config updated successfully');
+      return res.status(HttpStatus.OK).json(apiResponse.build());
+    }
+
+    apiResponse
+      .setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
+      .setData(false)
+      .setMessage('Failed to update WhatsApp config');
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
   }
 
   @Patch(':id/isActive')

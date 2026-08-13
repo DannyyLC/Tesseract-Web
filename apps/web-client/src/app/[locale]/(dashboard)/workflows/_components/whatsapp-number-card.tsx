@@ -1,14 +1,16 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MoreVertical, Unplug, Trash2 } from 'lucide-react';
+import { MoreVertical, Pencil, Unplug, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { WhatsappIcon } from '@/components/icons/whatsapp-icon';
+import { Link } from '@/i18n/routing';
 
 interface WhatsappNumberDto {
   id: string;
   phoneNumber: string;
+  displayName?: string | null;
   connectionStatus?: 'CONNECTED' | 'DISCONNECTED' | 'ERROR' | 'PENDING';
   createdAt: string;
 }
@@ -19,6 +21,8 @@ interface WhatsappNumberCardProps {
   onDelete?: (id: string) => Promise<void>;
   onSetActiveStatus?: (id: string, isActive: boolean) => Promise<void>;
   isActive?: boolean;
+  /** Necesario para armar la ruta de edición, que cuelga del workflow. */
+  workflowId: string;
 }
 
 const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }> = {
@@ -50,6 +54,7 @@ export function WhatsappNumberCard({
   onDelete,
   onSetActiveStatus,
   isActive,
+  workflowId,
 }: WhatsappNumberCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const status =
@@ -79,8 +84,14 @@ export function WhatsappNumberCard({
 
       {/* Info */}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-text-primary">{number.phoneNumber}</p>
-        <p className="text-xs text-text-tertiary">Número de Whatsapp</p>
+        {/* Con nombre visible manda el nombre, como en la tarjeta de Messenger, y el
+            número baja al subtítulo para no perderlo de vista. */}
+        <p className="truncate font-semibold text-text-primary">
+          {number.displayName || number.phoneNumber}
+        </p>
+        <p className="truncate text-xs text-text-tertiary">
+          {number.displayName ? number.phoneNumber : 'Número de Whatsapp'}
+        </p>
         <p className="mt-0.5 text-xs text-text-tertiary">Agregado el {createdDate}</p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -113,18 +124,16 @@ export function WhatsappNumberCard({
           <>
             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
             <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-surface-popover shadow-xl">
-              {/* <PermissionGuard permissions="workflows:update">
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onEdit?.(number.id);
-                  }}
+              <PermissionGuard permissions="workflows:update">
+                <Link
+                  href={`/workflows/${workflowId}/whatsapp/${number.id}/edit`}
+                  onClick={() => setMenuOpen(false)}
                   className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
                 >
                   <Pencil size={14} />
-                  Editar número
-                </button>
-              </PermissionGuard> */}
+                  Editar canal
+                </Link>
+              </PermissionGuard>
 
               <div className="mx-3 my-1 h-px bg-surface-secondary" />
 

@@ -40,10 +40,28 @@ export function useWhatsappMutations() {
     },
   });
 
+  const updateWhatsappConfiguration = useMutation({
+    mutationFn: async ({
+      id,
+      ...data
+    }: {
+      id: string;
+      displayName?: string;
+      description?: string;
+    }) => {
+      const api = RootApi.getInstance().getWhatsappConfigApi();
+      return await api.updateWhatsappConfiguration(id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp', 'list'] });
+    },
+  });
+
   return {
     setisActiveStatus,
     deleteWhatsappConfig,
     addWhatsappConfiguration,
+    updateWhatsappConfiguration,
   };
 }
 

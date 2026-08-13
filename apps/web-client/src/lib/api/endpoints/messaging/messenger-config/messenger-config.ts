@@ -5,6 +5,19 @@ export interface CreateMessengerConfigDto {
   workflowId: string;
   pageId: string;
   pageName?: string;
+  description?: string;
+  pageAccessToken?: string;
+  appSecret?: string;
+}
+
+/**
+ * Edición de una página ya dada de alta. Todo es opcional: se manda lo que el
+ * formulario tenga. Las credenciales vacías significan "conserva la actual" —el
+ * backend nunca las devuelve, así que el formulario no puede mostrarlas.
+ */
+export interface UpdateMessengerConfigDto {
+  pageName?: string;
+  description?: string;
   pageAccessToken?: string;
   appSecret?: string;
 }
@@ -41,9 +54,22 @@ class MessengerConfigApi {
         workflowId: messengerConfig.workflowId,
         pageId: messengerConfig.pageId,
         pageName: messengerConfig.pageName,
+        description: messengerConfig.description,
         pageAccessToken: messengerConfig.pageAccessToken,
         appSecret: messengerConfig.appSecret,
       },
+    );
+
+    return result.data.data || false;
+  }
+
+  async updateMessengerConfiguration(
+    id: string,
+    messengerConfig: UpdateMessengerConfigDto,
+  ): Promise<boolean> {
+    const result = await this.apiRequestManager.patch<ApiResponse<boolean>>(
+      `${MessengerConfigApi.BASE_URL}/${id}`,
+      messengerConfig,
     );
 
     return result.data.data || false;

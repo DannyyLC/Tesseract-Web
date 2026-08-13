@@ -166,6 +166,34 @@ describe('WhatsappConfigService', () => {
     });
   });
 
+  describe('updateConfig', () => {
+    it('limpia los espacios y guarda como NULL lo que queda vacío', async () => {
+      mockPrisma.whatsAppConfig.update.mockResolvedValue({});
+
+      const res = await service.updateConfig('c1', {
+        displayName: '  Soporte  ',
+        description: '   ',
+      });
+
+      expect(res).toBe(true);
+      expect(mockPrisma.whatsAppConfig.update).toHaveBeenCalledWith({
+        where: { id: 'c1' },
+        data: { displayName: 'Soporte', description: null },
+      });
+    });
+
+    it('no toca la base cuando no llega ningún campo', async () => {
+      expect(await service.updateConfig('c1', {})).toBe(true);
+      expect(mockPrisma.whatsAppConfig.update).not.toHaveBeenCalled();
+    });
+
+    it('returns false and logs when update fails', async () => {
+      mockPrisma.whatsAppConfig.update.mockRejectedValue(new Error('err'));
+      expect(await service.updateConfig('c1', { displayName: 'Soporte' })).toBe(false);
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+  });
+
   describe('updateConnectionStatus', () => {
     it('returns true when update succeeds', async () => {
       mockPrisma.whatsAppConfig.update.mockResolvedValue({});

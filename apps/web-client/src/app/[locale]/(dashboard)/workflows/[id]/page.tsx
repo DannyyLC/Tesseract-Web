@@ -495,6 +495,7 @@ export default function WorkflowDetailPage() {
                       onDelete={handleMessengerDelete}
                       onSetActiveStatus={handleSetMessengerActiveStatus}
                       isActive={page.isActive}
+                      workflowId={id}
                     />
                   </div>
                 ))
@@ -527,6 +528,7 @@ export default function WorkflowDetailPage() {
                       number={{
                         id: number.id,
                         phoneNumber: number.phoneNumber,
+                        displayName: number.displayName,
                         connectionStatus: number.connectionStatus,
                         createdAt: number.createdAt.toString(),
                       }}
@@ -534,6 +536,7 @@ export default function WorkflowDetailPage() {
                       onDelete={handleWhatsappDelete}
                       onSetActiveStatus={handleSetWhatsappActiveStatus}
                       isActive={number.isActive}
+                      workflowId={id}
                     />
                   </div>
                 ))
