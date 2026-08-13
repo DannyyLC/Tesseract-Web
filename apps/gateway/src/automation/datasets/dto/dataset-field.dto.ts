@@ -54,8 +54,8 @@ export class DatasetFieldDto {
     description:
       'Solo para type=number. Convierte la columna en calculada: su valor se deriva de otras ' +
       'columnas numéricas al guardar la fila, en vez de capturarse. Referencia las columnas por su ' +
-      'key. Operadores: + - * / y paréntesis; función redondear(valor, decimales).',
-    example: 'redondear(precio_base * (1 + porcentaje / 100), 2)',
+      'key. Operadores: + - * / y paréntesis; función round(valor, decimales).',
+    example: 'round(precio_base * (1 + porcentaje / 100), 2)',
   })
   formula?: string;
 

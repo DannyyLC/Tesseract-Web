@@ -47,17 +47,17 @@ describe('formula', () => {
     });
 
     it('redondea con la mitad hacia afuera del cero, no como Math.round', () => {
-      expect(evaluate('redondear(2.5)')).toBe(3);
-      expect(evaluate('redondear(-2.5)')).toBe(-3);
+      expect(evaluate('round(2.5)')).toBe(3);
+      expect(evaluate('round(-2.5)')).toBe(-3);
     });
 
     it('redondea a los decimales pedidos sin el error de multiplicar', () => {
-      expect(evaluate('redondear(1.005, 2)')).toBe(1.01);
-      expect(evaluate('redondear(precio, 2)', { precio: 1234.5678 })).toBe(1234.57);
+      expect(evaluate('round(1.005, 2)')).toBe(1.01);
+      expect(evaluate('round(precio, 2)', { precio: 1234.5678 })).toBe(1234.57);
     });
 
     it('acota los decimales absurdos en vez de vaciar la celda', () => {
-      expect(evaluate('redondear(1.23456, 50)')).toBe(1.23456);
+      expect(evaluate('round(1.23456, 50)')).toBe(1.23456);
     });
   });
 
@@ -120,7 +120,7 @@ describe('formula', () => {
 
   describe('formulaDependencies', () => {
     it('devuelve las columnas sin repetir y sin el nombre de la función', () => {
-      const node = parseFormula('redondear(precio_base * (1 + precio_base / total), 2)');
+      const node = parseFormula('round(precio_base * (1 + precio_base / total), 2)');
 
       expect(formulaDependencies(node).sort()).toEqual(['precio_base', 'total']);
     });

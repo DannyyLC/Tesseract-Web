@@ -17,7 +17,7 @@ import { MAX_FORMULA_LENGTH, ROUND_FUNCTION } from '@tesseract/types';
  *     term    := factor (('*' | '/') factor)*
  *     factor  := '-'? primary
  *     primary := number | ident | call | '(' expr ')'
- *     call    := 'redondear' '(' expr (',' expr)? ')'
+ *     call    := 'round' '(' expr (',' expr)? ')'
  *
  * **Un valor que no se puede calcular es `null`, nunca un error.** Falta un operando, hay una
  * división entre cero, el resultado se desborda: en los tres casos la celda queda vacía y la fila
@@ -39,7 +39,7 @@ export { ROUND_FUNCTION };
 /** Tope de anidamiento de paréntesis. Impide que una fórmula absurda agote la pila del proceso. */
 const MAX_DEPTH = 32;
 
-/** Máximo de decimales que admite `redondear`. Más allá el double ya no distingue. */
+/** Máximo de decimales que admite `round`. Más allá el double ya no distingue. */
 const MAX_ROUND_DIGITS = 10;
 
 export type FormulaNode =
@@ -395,7 +395,7 @@ function evaluateNode(node: FormulaNode, values: Record<string, unknown>): numbe
           return null;
         }
 
-        // Se acota en vez de fallar: `redondear(x, 50)` es un error de captura, no una razón para
+        // Se acota en vez de fallar: `round(x, 50)` es un error de captura, no una razón para
         // dejar la celda vacía.
         digits = Math.min(Math.max(Math.trunc(raw), 0), MAX_ROUND_DIGITS);
       }

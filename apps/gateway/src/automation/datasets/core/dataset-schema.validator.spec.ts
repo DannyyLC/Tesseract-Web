@@ -182,7 +182,7 @@ describe('dataset-schema.validator', () => {
         type: 'number',
         label: 'Precio final',
         order: 2,
-        formula: 'redondear(precio_base * (1 + porcentaje / 100), 2)',
+        formula: 'round(precio_base * (1 + porcentaje / 100), 2)',
       }),
     ];
 
@@ -255,7 +255,7 @@ describe('dataset-schema.validator', () => {
       });
 
       it('reserva el nombre de la función de redondeo como key', () => {
-        expect(() => validateFields([field({ key: 'redondear', type: 'number' })])).toThrow(
+        expect(() => validateFields([field({ key: 'round', type: 'number' })])).toThrow(
           BadRequestException,
         );
       });

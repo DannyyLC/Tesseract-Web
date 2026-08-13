@@ -243,7 +243,8 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                         </div>
                       )}
 
-                      {/* `redondear` es el único nombre de función que existe (ver formula.ts); el
+                      {/* `round` (ROUND_FUNCTION) es el único nombre de función que existe —en
+                          inglés, como todos los nombres de función de fórmula (ver formula.ts)—; el
                           botón solo agrega la llamada vacía al final, el cliente escribe adentro lo
                           que quiere redondear y a cuántos decimales. */}
                       <div className="flex flex-wrap items-center gap-1.5">

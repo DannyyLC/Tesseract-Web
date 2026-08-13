@@ -26,14 +26,19 @@ export type DatasetFieldType = (typeof DATASET_FIELD_TYPES)[number];
 export const MAX_FORMULA_LENGTH = 500;
 
 /**
- * El único nombre de función que existe en una fórmula de columna calculada: `redondear(valor,
+ * El único nombre de función que existe en una fórmula de columna calculada: `round(valor,
  * decimales)`. Está en `RESERVED_KEYS` del validador, así que ninguna columna puede llamarse igual.
+ *
+ * En inglés a propósito, aunque el resto del producto esté en español: es la convención para
+ * nombres de función en las fórmulas, pensada para no chocar con el idioma de las columnas —que sí
+ * las nombra el cliente— y para que se lea igual que las funciones de Excel/Sheets que el cliente ya
+ * conoce.
  *
  * Vive aquí —no en el evaluador del Gateway— porque la UI también lo necesita: es lo que inserta el
  * botón de "insertar función" al armar una fórmula, y tiene que ser el mismo texto que reconoce el
  * parser o el botón insertaría una llamada que el Gateway no sabría interpretar.
  */
-export const ROUND_FUNCTION = 'redondear';
+export const ROUND_FUNCTION = 'round';
 
 /**
  * Tope de longitud de una `key`. `slugifyKey()` la recorta a esto, y es el mismo número que usa
@@ -86,7 +91,7 @@ export interface DatasetField {
   options?: string[];
   /**
    * Solo para `number`: expresión que deriva el valor a partir de otras columnas numéricas, en vez
-   * de capturarlo a mano. Ej. `redondear(precio_base * (1 + porcentaje / 100), 2)`.
+   * de capturarlo a mano. Ej. `round(precio_base * (1 + porcentaje / 100), 2)`.
    *
    * **Referencia columnas por su `key`, nunca por su `label`**: el label es editable y renombrarlo
    * rompería la fórmula en silencio.
