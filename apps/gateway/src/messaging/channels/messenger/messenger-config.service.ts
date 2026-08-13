@@ -138,11 +138,14 @@ export class MessengerConfigService {
    * puede borrar lo que ya funciona—. La descripción sí se puede vaciar: es texto
    * interno y "sin nota" es un estado legítimo.
    *
-   * `pageId` no se toca: es la llave con la que el webhook resuelve esta fila.
+   * `pageId` se puede actualizar porque es la llave con la que el webhook entrante
+   * resuelve la config. Se trimea antes de guardar para evitar que Meta envíe un
+   * valor con espacios extra que no casará con los eventos reales.
    */
   async updateConfig(
     configId: string,
     fields: {
+      pageId?: string;
       pageName?: string;
       description?: string;
       appSecret?: string;
@@ -151,11 +154,15 @@ export class MessengerConfigService {
   ): Promise<boolean> {
     try {
       const data: {
+        pageId?: string;
         pageName?: string;
         description?: string | null;
         appSecret?: string;
         pageAccessToken?: string;
       } = {};
+
+      const pageId = fields.pageId?.trim();
+      if (pageId) data.pageId = pageId;
 
       const pageName = fields.pageName?.trim();
       if (pageName) data.pageName = pageName;

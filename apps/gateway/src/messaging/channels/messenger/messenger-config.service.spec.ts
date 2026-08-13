@@ -102,6 +102,23 @@ describe('MessengerConfigService', () => {
       expect(mockKmsService.encrypt).not.toHaveBeenCalled();
     });
 
+    it('actualiza el pageId cuando llega un valor válido', async () => {
+      mockPrisma.messengerConfig.update.mockResolvedValue(config);
+
+      await service.updateConfig('c1', {
+        pageId: '  page-2  ',
+        pageName: 'Página nueva',
+      });
+
+      expect(mockPrisma.messengerConfig.update).toHaveBeenCalledWith({
+        where: { id: 'c1' },
+        data: {
+          pageId: 'page-2',
+          pageName: 'Página nueva',
+        },
+      });
+    });
+
     it('vacía la descripción a NULL, pero no el nombre', async () => {
       mockPrisma.messengerConfig.update.mockResolvedValue(config);
 

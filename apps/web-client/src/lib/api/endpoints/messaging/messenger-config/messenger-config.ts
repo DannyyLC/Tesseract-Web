@@ -16,6 +16,7 @@ export interface CreateMessengerConfigDto {
  * backend nunca las devuelve, así que el formulario no puede mostrarlas.
  */
 export interface UpdateMessengerConfigDto {
+  pageId?: string;
   pageName?: string;
   description?: string;
   pageAccessToken?: string;

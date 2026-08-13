@@ -21,6 +21,7 @@ export default function WorkflowMessengerPage() {
   const params = useParams();
   const workflowId = params.id as string;
   const t = useTranslations('MessengerSetup');
+  const [pageId, setPageId] = useState('');
   const [pageName, setPageName] = useState('');
   const [description, setDescription] = useState('');
   const [appSecret, setAppSecret] = useState('');
@@ -30,20 +31,27 @@ export default function WorkflowMessengerPage() {
   const { addMessengerConfiguration } = useMessengerMutations();
 
   const handleMessengerIntegration = async () => {
+    const normalizedPageId = pageId.trim();
     const normalizedPageName = pageName.trim();
     const normalizedAppSecret = appSecret.trim();
     const normalizedPageAccessToken = pageAccessToken.trim();
 
-    if (!normalizedPageName || !normalizedAppSecret || !normalizedPageAccessToken) {
+    if (
+      !normalizedPageId ||
+      !normalizedPageName ||
+      !normalizedAppSecret ||
+      !normalizedPageAccessToken
+    ) {
       toast.error(t('requiredFieldsError'));
       return;
     }
 
     try {
-      // El backend requiere pageId; por ahora usamos el valor capturado como Page's Name.
+      // `pageId` es la llave con la que el webhook entrante resuelve esta config, así que
+      // lo captura el usuario: es el id numérico que Meta da a la página, no su nombre.
       await addMessengerConfiguration.mutateAsync({
         workflowId,
-        pageId: normalizedPageName,
+        pageId: normalizedPageId,
         pageName: normalizedPageName,
         description: description.trim(),
         appSecret: normalizedAppSecret,
@@ -51,6 +59,7 @@ export default function WorkflowMessengerPage() {
       });
 
       toast.success(t('linkSuccess'));
+      setPageId('');
       setPageName('');
       setDescription('');
       setAppSecret('');
@@ -166,6 +175,20 @@ export default function WorkflowMessengerPage() {
               </div>
 
               <div className="space-y-2">
+                <label htmlFor="page-id" className="text-sm font-medium text-text-primary">
+                  {t('pageIdLabel')}
+                </label>
+                <input
+                  id="page-id"
+                  type="text"
+                  value={pageId}
+                  onChange={(e) => setPageId(e.target.value)}
+                  className={`font-mono ${INPUT_CLASSES}`}
+                  placeholder={t('pageIdPlaceholder')}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <label htmlFor="page-name" className="text-sm font-medium text-text-primary">
                   {t('pageNameLabel')}
                 </label>
@@ -256,6 +279,11 @@ export default function WorkflowMessengerPage() {
           <p className="text-text-primary">{t('helpIntro')}</p>
 
           <div className="space-y-3 rounded-xl border border-border bg-surface-secondary p-4">
+            <div>
+              <p className="font-semibold text-text-primary">{t('helpPageIdTitle')}</p>
+              <p>{t('helpPageIdBody')}</p>
+            </div>
+
             <div>
               <p className="font-semibold text-text-primary">{t('helpPageNameTitle')}</p>
               <p>{t('helpPageNameBody')}</p>

@@ -61,6 +61,7 @@ export function useMessengerMutations() {
       ...data
     }: {
       id: string;
+      pageId?: string;
       pageName?: string;
       description?: string;
       pageAccessToken?: string;

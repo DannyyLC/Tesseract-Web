@@ -27,6 +27,7 @@ export default function WorkflowMessengerEditPage() {
 
   const { updateMessengerConfiguration } = useMessengerMutations();
 
+  const [pageId, setPageId] = useState('');
   const [pageName, setPageName] = useState('');
   const [description, setDescription] = useState('');
   const [appSecret, setAppSecret] = useState('');
@@ -36,14 +37,16 @@ export default function WorkflowMessengerEditPage() {
   // quedan vacías a propósito: el backend no las devuelve ni cifradas.
   useEffect(() => {
     if (!config) return;
+    setPageId(config.pageId ?? '');
     setPageName(config.pageName ?? '');
     setDescription(config.description ?? '');
   }, [config]);
 
   const handleSave = async () => {
+    const normalizedPageId = pageId.trim();
     const normalizedPageName = pageName.trim();
 
-    if (!normalizedPageName) {
+    if (!normalizedPageId || !normalizedPageName) {
       toast.error(t('requiredFieldsError'));
       return;
     }
@@ -51,6 +54,7 @@ export default function WorkflowMessengerEditPage() {
     try {
       await updateMessengerConfiguration.mutateAsync({
         id: configId,
+        pageId: normalizedPageId,
         pageName: normalizedPageName,
         description: description.trim(),
         // Vacío significa "no la toques", así que ni se manda.
@@ -125,16 +129,19 @@ export default function WorkflowMessengerEditPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {/* La página se identifica por su id ante Meta: es lo que viaja en cada
-                    webhook, así que se muestra pero no se edita. */}
-                <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-tint)] p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-text-tertiary">
+                <div className="space-y-2">
+                  <label htmlFor="page-id" className="text-sm font-medium text-text-primary">
                     {t('pageIdLabel')}
-                  </p>
-                  <p className="mt-1 break-all rounded-lg bg-surface px-2.5 py-2 font-mono text-xs text-text-primary sm:text-sm">
-                    {config.pageId}
-                  </p>
-                  <p className="mt-2 text-xs text-text-secondary">{t('pageIdHint')}</p>
+                  </label>
+                  <input
+                    id="page-id"
+                    type="text"
+                    value={pageId}
+                    onChange={(e) => setPageId(e.target.value)}
+                    className={`font-mono ${INPUT_CLASSES}`}
+                    placeholder={t('pageIdPlaceholder')}
+                  />
+                  <p className="text-xs text-text-secondary">{t('pageIdHint')}</p>
                 </div>
 
                 <div className="space-y-2">
