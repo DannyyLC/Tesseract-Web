@@ -108,10 +108,50 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
       .map((saved) => saved.label || saved.key);
   };
 
+  /**
+   * Palabras de la fórmula que no coinciden con ninguna key válida ahora mismo: ni una
+   * columna numérica del borrador (`peers`, guardada o no), ni una ya guardada (esas las
+   * cubre `missingDependencies`, con su propio aviso).
+   *
+   * Es el caso que `missingDependencies` no ve: referenciar una columna todavía sin
+   * guardar y después renombrarla en la misma edición. La key predicha cambia
+   * (`slugifyKey` del label nuevo) y la referencia vieja queda apuntando a nada — sin
+   * este aviso, eso se descubre después de guardar, en silencio, con la columna
+   * calculada evaluando a null.
+   *
+   * Igual que `formulaUsesKey`, es una comprobación de UI para avisar antes de
+   * guardar, no el mecanismo que decide nada: un falso negativo solo significa que el
+   * aviso no sale.
+   */
+  const staleFormulaKeys = (
+    field: DatasetField,
+    peers: { key: string; label: string }[],
+  ): string[] => {
+    if (!field.formula) return [];
+
+    const validKeys = new Set([
+      ...peers.map((peer) => peer.key),
+      ...savedFields.map((saved) => saved.key),
+    ]);
+
+    const tokens = field.formula.match(/[a-z][a-z0-9_]*/g) ?? [];
+
+    return [
+      ...new Set(
+        tokens.filter((token) => token !== ROUND_FUNCTION && !validKeys.has(token)),
+      ),
+    ];
+  };
+
   return (
     <div className="space-y-3">
       {fields.map((field, index) => {
         const locked = !!field.key && lockedKeys.has(field.key);
+        // Una sola pasada: antes numericPeers(index) se recalculaba (filter +
+        // slugifyKey por cada peer) dos veces por render de cada campo numérico
+        // abierto, una para el guard y otra para el .map() de los chips.
+        const peers = field.type === 'number' ? numericPeers(index) : [];
+        const stale = field.type === 'number' ? staleFormulaKeys(field, peers) : [];
 
         return (
           <div
@@ -225,10 +265,10 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
 
                       {/* El chip enseña el nombre visible e inserta la key: así el cliente nunca
                           tiene que conocer las keys internas, que es lo que la UI le esconde. */}
-                      {numericPeers(index).length > 0 && (
+                      {peers.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-xs text-text-tertiary">{t('formulaColumnsHint')}</span>
-                          {numericPeers(index).map((peer) => (
+                          {peers.map((peer) => (
                             <button
                               key={peer.key}
                               type="button"
@@ -270,6 +310,16 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                         >
                           <AlertTriangle size={13} className="mt-0.5 shrink-0" />
                           {t('formulaMissingDependency', { column: missing })}
+                        </p>
+                      ))}
+
+                      {stale.map((label) => (
+                        <p
+                          key={label}
+                          className="flex items-start gap-1.5 text-xs text-warning-600"
+                        >
+                          <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                          {t('formulaStaleKey', { column: label })}
                         </p>
                       ))}
                     </div>

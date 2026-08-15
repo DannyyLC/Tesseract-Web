@@ -13,7 +13,6 @@ import {
   ConversationChannel,
   ConversationStatus,
   ChatRole,
-  Conversation,
   CompactionStatus,
   MessengerConfig,
 } from '@tesseract/database';
@@ -97,6 +96,10 @@ export class ConversationsService {
         id,
         organizationId,
         deletedAt: null,
+        // update() depende de esta consulta para el ownership check: sin este filtro,
+        // el cliente podría modificar una conversación de un workflow interno que ni
+        // siquiera puede ver en su listado o en findOne().
+        isInternalWorkflow: false,
       },
       select: {
         userId: true,
@@ -282,6 +285,9 @@ export class ConversationsService {
    * @param userId - ID del usuario interno (opcional)
    * @param endUserId - ID del usuario externo (opcional)
    * @param conversationId - ID de conversación existente (opcional)
+   * @param isInternalWorkflow - Copia congelada de `Workflow.isInternal` en el momento de
+   *   crear la conversación (la pasa `WorkflowsService`). No se recalcula: si el workflow se
+   *   publica después, esta fila sigue marcada como estaba cuando se creó.
    * @returns Conversación existente o nueva
    */
   async findOrCreateConversation(
@@ -290,6 +296,7 @@ export class ConversationsService {
     userId?: string,
     endUserId?: string,
     conversationId?: string,
+    isInternalWorkflow = false,
   ) {
     // Si viene un conversationId, buscar esa conversación
     if (conversationId) {
@@ -328,6 +335,7 @@ export class ConversationsService {
         // El listado ordena por `lastMessageAt`: dejarlo en NULL mandaria la
         // conversacion al tope. Hasta que llegue el primer mensaje vale su creacion.
         lastMessageAt: new Date(),
+        isInternalWorkflow,
       },
     });
 
@@ -365,6 +373,7 @@ export class ConversationsService {
     workflowId: string,
     phoneNumber: string,
     userNumber: string,
+    isInternalWorkflow = false,
   ) {
     const whatsappConfig = await this.prisma.whatsAppConfig.findUnique({
       where: { phoneNumber },
@@ -425,6 +434,7 @@ export class ConversationsService {
         totalCost: 0,
         // Ver nota en findOrCreateConversation: NULL flotaria al tope del listado.
         lastMessageAt: new Date(),
+        isInternalWorkflow,
       },
     });
 
@@ -442,6 +452,7 @@ export class ConversationsService {
     workflowId: string,
     pageId: string,
     senderId: string,
+    isInternalWorkflow = false,
   ) {
     const messengerConfig = await this.prisma.messengerConfig.findUnique({
       where: { pageId },
@@ -517,6 +528,7 @@ export class ConversationsService {
         // `lastMessageAt` con los NULL al final, así que dejarlo vacío mandaría la
         // conversación recién creada al fondo y la pintaría como "hora desconocida".
         lastMessageAt: new Date(),
+        isInternalWorkflow,
       },
     });
 
@@ -535,6 +547,9 @@ export class ConversationsService {
         id,
         organizationId,
         deletedAt: null,
+        // Igual que findAll(): una conversación de un workflow interno no debe ser
+        // legible por el cliente aunque conozca su id.
+        isInternalWorkflow: false,
       },
       include: {
         messages: {
@@ -690,8 +705,16 @@ export class ConversationsService {
         workflowId,
         userId,
         deletedAt: null,
+        // Un workflow interno de super admin no es del cliente: sin este filtro, una
+        // conversación de prueba aparecía en el dashboard del cliente mientras el
+        // workflow seguía oculto en todo lo demás.
+        isInternalWorkflow: false,
       },
       orderBy,
+      // El `where` ya fuerza `isInternalWorkflow: false`, pero igual no debe llegar sin
+      // tipar hasta `DashboardConversationDto` — se excluye aquí en vez de traerla y
+      // descartarla a mano después.
+      omit: { isInternalWorkflow: true },
       include: {
         user: { select: { name: true, email: true, avatar: true } },
         endUser: { select: { id: true, name: true, email: true, avatar: true, phoneNumber: true } },
@@ -700,7 +723,10 @@ export class ConversationsService {
       },
     });
 
-    const paginatedResult = await CursorPaginatedResponseUtils.getInstance().build<Conversation>(
+    // Sin el genérico explícito: `omit` cambia el tipo real de `conversations` (ya no
+    // trae `isInternalWorkflow`), y build() solo necesita `{ id: string }` — se infiere
+    // solo del argumento en vez de forzar el tipo completo de `Conversation`.
+    const paginatedResult = await CursorPaginatedResponseUtils.getInstance().build(
       conversations,
       take ?? 10,
       paginationAction,
@@ -981,6 +1007,7 @@ export class ConversationsService {
         organizationId,
         workflowId,
         userId,
+        isInternalWorkflow: false,
       },
     });
   }
@@ -1019,15 +1046,21 @@ export class ConversationsService {
 
     const [totalConversations, activeConversations, totalMessagesMonth] = await Promise.all([
       this.prisma.conversation.count({
-        where: { organizationId, deletedAt: null },
+        where: { organizationId, deletedAt: null, isInternalWorkflow: false },
       }),
       this.prisma.conversation.count({
-        where: { organizationId, status: ConversationStatus.ACTIVE, deletedAt: null },
+        where: {
+          organizationId,
+          status: ConversationStatus.ACTIVE,
+          deletedAt: null,
+          isInternalWorkflow: false,
+        },
       }),
       this.prisma.message.count({
         where: {
           conversation: {
             organizationId,
+            isInternalWorkflow: false,
           },
           createdAt: {
             gte: startOfPeriod,

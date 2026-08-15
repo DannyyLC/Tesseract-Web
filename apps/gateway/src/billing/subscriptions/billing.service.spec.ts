@@ -442,6 +442,61 @@ describe('BillingService', () => {
     });
   });
 
+  // Un workflow interno (super admin construyendo/probando dentro de la org del cliente)
+  // no debe restarle cupo de plan ni desactivarse como si fuera un workflow real del
+  // cliente al hacer downgrade.
+  describe('enforceLimits (privado, vía cast a any)', () => {
+    it('excluye workflows internos del conteo y de la desactivación al hacer downgrade', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        customMaxUsers: -1,
+        customMaxWorkflows: 1,
+        customMaxApiKeys: -1,
+      });
+      mockPrismaService.workflow.findMany.mockResolvedValue([
+        { id: 'wf-a', _count: { executions: 5 } },
+        { id: 'wf-b', _count: { executions: 1 } },
+      ]);
+
+      await (service as any).enforceLimits('org-1', 'FREE');
+
+      expect(mockPrismaService.workflow.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ organizationId: 'org-1', isInternal: false }),
+        }),
+      );
+      // Con 2 workflows "del cliente" y límite 1, se desactiva el de menos ejecuciones.
+      expect(mockPrismaService.workflow.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['wf-b'] } },
+        data: { isActive: false },
+      });
+    });
+  });
+
+  describe('getBillingDashboard', () => {
+    it('no incluye workflows internos en usage.workflows.used', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        plan: 'FREE',
+        allowOverages: false,
+        overageLimit: 0,
+        stripeCustomerId: null,
+      });
+      mockPrismaService.subscription.findUnique.mockResolvedValue(null);
+      mockPrismaService.creditBalance.findUnique.mockResolvedValue(null);
+      mockPrismaService.workflow.count.mockResolvedValue(2);
+      mockPrismaService.apiKey.count.mockResolvedValue(1);
+      mockPrismaService.user.count.mockResolvedValue(1);
+
+      const result = await service.getBillingDashboard('org-1');
+
+      expect(mockPrismaService.workflow.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ organizationId: 'org-1', isInternal: false }),
+        }),
+      );
+      expect(result.usage.workflows.used).toBe(2);
+    });
+  });
+
   describe('cancelPendingDowngrade', () => {
     it('should cancel the downgrade if schedule exists', async () => {
       mockPrismaService.subscription.findUnique.mockResolvedValue({

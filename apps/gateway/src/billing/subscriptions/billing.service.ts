@@ -1117,11 +1117,18 @@ export class BillingService {
           organizationId,
           isActive: true,
           deletedAt: null,
+          // Un workflow interno de super admin no es del cliente: no debe contar contra
+          // su límite de plan ni desactivarse en un downgrade.
+          isInternal: false,
         },
         select: {
           id: true,
           _count: {
-            select: { executions: true },
+            // Sin este filtro, un workflow recién publicado pero muy probado por
+            // super admin antes de publicarse (ejecuciones congeladas con
+            // isInternalWorkflow: true) ordenaría artificialmente alto y se
+            // desactivaría un workflow distinto, realmente más usado por el cliente.
+            select: { executions: { where: { isInternalWorkflow: false } } },
           },
         },
       });
@@ -1147,7 +1154,7 @@ export class BillingService {
     // ENFORCE API KEY LIMITS
     if (maxApiKeys !== -1) {
       const currentlyActiveWorkflows = await this.prisma.workflow.findMany({
-        where: { organizationId, isActive: true, deletedAt: null },
+        where: { organizationId, isActive: true, deletedAt: null, isInternal: false },
         select: { id: true },
       });
       const activeWorkflowIds = currentlyActiveWorkflows.map((w) => w.id);
@@ -1287,6 +1294,9 @@ export class BillingService {
             organizationId,
             isActive: true,
             deletedAt: null,
+            // Mismo dato que OrganizationsService.getStats(): un workflow interno de
+            // super admin no es del cliente, no debe aparecer en su uso de plan.
+            isInternal: false,
           },
         }),
         this.prisma.apiKey.count({

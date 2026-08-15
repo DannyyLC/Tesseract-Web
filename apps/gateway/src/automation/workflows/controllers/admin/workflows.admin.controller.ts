@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ApiResponse, ApiResponseBuilder, UserRole } from '@tesseract/types';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
@@ -172,5 +172,19 @@ export class WorkflowsAdminController {
       email: user?.email,
     });
     return new ApiResponseBuilder().setData(result).setMessage('Workflow clonado').build();
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar un workflow (soft delete)' })
+  async remove(@Param('id') id: string): Promise<ApiResponse> {
+    const workflow = await this.workflowsAdminService.remove(id);
+    return new ApiResponseBuilder().setData(workflow).setMessage('Workflow eliminado').build();
+  }
+
+  @Post(':id/restore')
+  @ApiOperation({ summary: 'Restaurar un workflow eliminado' })
+  async restore(@Param('id') id: string): Promise<ApiResponse> {
+    const workflow = await this.workflowsAdminService.restore(id);
+    return new ApiResponseBuilder().setData(workflow).setMessage('Workflow restaurado').build();
   }
 }

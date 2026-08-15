@@ -44,7 +44,10 @@ export class CronTriggersService implements OnModuleInit {
     if (dto.timezone) this.validateTimezone(dto.timezone);
 
     const workflow = await this.prisma.workflow.findFirst({
-      where: { id: dto.workflowId, organizationId, deletedAt: null },
+      // isInternal: false — un workflow interno de super admin no es del cliente; que no
+      // aparezca ni pueda programarse un cron trigger sobre él es solo fail-fast (UX), la
+      // barrera real está en WorkflowsService.execute()/executeStream().
+      where: { id: dto.workflowId, organizationId, deletedAt: null, isInternal: false },
     });
     if (!workflow) throw new NotFoundException('Workflow not found');
 

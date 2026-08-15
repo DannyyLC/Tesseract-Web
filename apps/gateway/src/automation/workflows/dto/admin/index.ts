@@ -5,3 +5,4 @@ export * from './update-workflow-meta.dto';
 export * from './create-workflow-admin.dto';
 export * from './clone-workflow.dto';
 export * from './restore-version.dto';
+export * from './test-execute-workflow.dto';

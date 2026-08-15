@@ -53,6 +53,15 @@ export class UpdateWorkflowMetaDto {
   @IsOptional()
   isPaused?: boolean;
 
+  @ApiPropertyOptional({
+    description:
+      'Workflow interno: oculto para el cliente, no gasta créditos ni cuenta en sus ' +
+      'estadísticas. Apagarlo (false) es "publicar" el workflow para el cliente.',
+  })
+  @IsBoolean()
+  @IsOptional()
+  isInternal?: boolean;
+
   @ApiPropertyOptional()
   @IsInt()
   @IsOptional()

@@ -491,12 +491,15 @@ export class UsersService {
         where: {
           userId,
           organizationId,
+          isInternalWorkflow: false,
         },
       }),
       this.prisma.conversation.count({
         where: {
           userId,
+          organizationId, // Faltaba: sin esto, contaba conversaciones activas de CUALQUIER organización con ese userId
           status: ConversationStatus.ACTIVE,
+          isInternalWorkflow: false,
         },
       }),
     ]);

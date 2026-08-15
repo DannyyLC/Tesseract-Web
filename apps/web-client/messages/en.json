@@ -1493,6 +1493,7 @@
     "formulaCalculated": "Calculated column",
     "formulaReadonlyHint": "Calculated automatically: {formula}",
     "formulaMissingDependency": "This formula uses \"{column}\", which you're removing. If you save it like this, the calculated column will be empty on every row.",
+    "formulaStaleKey": "This formula uses \"{column}\", which doesn't match any current column — did you rename it after referencing it? Check it before saving.",
     "formulaOverwriteWarning": "\"{columns}\" already has manually entered values. Saving will replace them with the formula across all {count} rows in the catalog, and that can't be undone.",
     "formulaOverwriteConfirm": "Save and recalculate",
     "importIgnoresCalculated": "Calculated columns don't go in the file: they're computed on import. If they're included, they're ignored.",

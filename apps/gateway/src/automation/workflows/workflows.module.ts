@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { WorkflowsController } from './controllers/user-ui/workflows.controller';
 import { WorkflowsAdminController } from './controllers/admin/workflows.admin.controller';
+import { WorkflowsExecutionAdminController } from './controllers/admin/workflows-execution.admin.controller';
+import { WorkflowsTestWorkerController } from './controllers/internal/workflows-test-worker.controller';
 import { WorkflowsService } from './workflows.service';
 import { WorkflowsAdminService } from './workflows-admin.service';
 import { WorkflowConfigValidator } from './workflow-config.validator';
@@ -15,6 +17,7 @@ import { UtilityModule } from '@/platform/utility/utility.module';
 import { ToolsModule } from '../tools/core/tools.module';
 import { MediaProcessingModule } from '@/automation/media-processing/media-processing.module';
 import { DatasetsModule } from '../datasets/datasets.module';
+import { CloudTasksModule } from '@/platform/tasks/cloud-tasks.module';
 
 /**
  * WorkflowsModule
@@ -32,8 +35,15 @@ import { DatasetsModule } from '../datasets/datasets.module';
     ToolsModule,
     MediaProcessingModule,
     DatasetsModule,
+    CloudTasksModule,
   ],
-  controllers: [WorkflowsController, ExternalWorkflowsController, WorkflowsAdminController],
+  controllers: [
+    WorkflowsController,
+    ExternalWorkflowsController,
+    WorkflowsAdminController,
+    WorkflowsExecutionAdminController,
+    WorkflowsTestWorkerController,
+  ],
   providers: [WorkflowsService, WorkflowsAdminService, WorkflowConfigValidator],
   exports: [WorkflowsService, WorkflowsAdminService],
 })

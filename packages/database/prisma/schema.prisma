@@ -597,6 +597,11 @@ model Conversation {
   needsFollowUp    Boolean   @default(false)
   followUpReason   String?   // Por qué se marcó (se muestra en la UI)
   isCompacting     Boolean   @default(false) // Lock de compactación por conversación
+  // Copia congelada de `Workflow.isInternal` al momento de crear la conversación. Igual
+  // razón que en `Execution.isInternalWorkflow`: no confundir con el `isInternal` calculado
+  // en el DTO de salida de `ConversationsService.findAll()` (`!!userId`, otro concepto —
+  // "atendida por alguien del equipo" vs. "del workflow interno de super admin").
+  isInternalWorkflow Boolean @default(false)
   compactingLockedAt DateTime? // Timestamp para TTL y recuperación de lock stale
   lastMessageAt    DateTime? // Último mensaje (para calcular inactividad)
   lastMessageRole  ChatRole? // Para auto-cierre eficiente
@@ -638,9 +643,10 @@ model Conversation {
   @@index([compactingLockedAt])
   @@index([workflowId, status, lastMessageAt])
   @@index([channel, whatsappConfigId, phoneNumberSender, status, createdAt])
-  // Cubre el orden del listado del dashboard: filtra por organizacion y ordena
-  // intervenidas -> seguimiento -> estatus -> ultimo mensaje.
-  @@index([organizationId, isHumanInTheLoop(sort: Desc), needsFollowUp(sort: Desc), status, lastMessageAt(sort: Desc)])
+  // Cubre el orden del listado del dashboard: filtra por organizacion, excluye
+  // conversaciones de workflows internos, y ordena intervenidas -> seguimiento ->
+  // estatus -> ultimo mensaje.
+  @@index([organizationId, isInternalWorkflow, isHumanInTheLoop(sort: Desc), needsFollowUp(sort: Desc), status, lastMessageAt(sort: Desc)])
   @@map("conversations")
 }
 
@@ -1258,6 +1264,12 @@ model Workflow {
   isActive Boolean @default(true)
   isPaused Boolean @default(false)
 
+  // Creado y editado solo por super admin (admin/workflows). Nunca lo ve ni lo ejecuta el
+  // cliente, no gasta créditos, no cuenta en sus estadísticas ni en el límite de workflows de
+  // su plan. Sirve para construir/probar un workflow dentro de la organización real del
+  // cliente antes de publicarlo (poner en false cuando esté listo).
+  isInternal Boolean @default(false)
+
   // Programación
   schedule    String? // Cron expression
   timezone    String? // null = hereda de Organization.timezone
@@ -1374,6 +1386,12 @@ model Execution {
   balanceBefore Int? // Snapshot del balance antes de la ejecución
   balanceAfter  Int? // Snapshot del balance después de la ejecución
   wasOverage    Boolean @default(false) // True si se ejecutó con balance negativo
+
+  // Copia congelada de `Workflow.isInternal` al momento de crear esta ejecución. No es un
+  // join: si el workflow se "publica" después (isInternal → false), esta fila sigue
+  // reflejando lo que era cuando corrió, para que las stats del cliente no la desentierren
+  // retroactivamente.
+  isInternalWorkflow Boolean @default(false)
 
   // Reintentos
   retryCount Int @default(0)

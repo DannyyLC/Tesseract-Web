@@ -88,6 +88,30 @@ describe('ExecutionsService', () => {
       expect(mockEventEmitter2.emit).toHaveBeenCalledWith('execution.created', mockResult);
       expect(result).toEqual(mockResult);
     });
+
+    it('congela isInternalWorkflow en la fila al crearla', async () => {
+      mockPrismaService.execution.create.mockResolvedValue({ id: 'exec-1', status: 'pending' });
+
+      await service.create('workflow-id', 'API', { organizationId: 'org-1' }, undefined, true);
+
+      expect(mockPrismaService.execution.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ isInternalWorkflow: true }),
+        }),
+      );
+    });
+
+    it('por defecto crea una ejecución no interna (isInternalWorkflow: false)', async () => {
+      mockPrismaService.execution.create.mockResolvedValue({ id: 'exec-1', status: 'pending' });
+
+      await service.create('workflow-id', 'API', { organizationId: 'org-1' });
+
+      expect(mockPrismaService.execution.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ isInternalWorkflow: false }),
+        }),
+      );
+    });
   });
 
   describe('updateStatus', () => {
@@ -154,6 +178,26 @@ describe('ExecutionsService', () => {
         NotFoundException,
       );
     });
+
+    // Un workflow interno (super admin probando dentro de la organización del cliente)
+    // no debe mover totalExecutions/avgExecutionTime/lastExecutedAt: son datos que el
+    // cliente ve en su dashboard.
+    it('should NOT update workflow stats when the execution belongs to an internal workflow', async () => {
+      const now = new Date();
+      const past = new Date(now.getTime() - 10000);
+
+      prisma.execution.findUnique = jest.fn().mockResolvedValue({
+        id: 'exec-1',
+        workflowId: 'wf-1',
+        startedAt: past,
+        isInternalWorkflow: true,
+      });
+      prisma.execution.update = jest.fn().mockResolvedValue({ id: 'exec-1', status: 'COMPLETED' });
+
+      await service.updateStatus('exec-1', 'COMPLETED', { result: { success: true } });
+
+      expect(prisma.workflow.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('Queries (findOneForClient, getByIdFull)', () => {
@@ -215,7 +259,7 @@ describe('ExecutionsService', () => {
       expect(result).toEqual(mockResult);
       expect(prisma.execution.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { workflowId: 'wf-1', status: 'COMPLETED' },
+          where: { workflowId: 'wf-1', status: 'COMPLETED', isInternalWorkflow: false },
           take: 10,
         }),
       );

@@ -138,6 +138,16 @@ export function useAdminWorkflowMutations() {
     onSuccess: invalidateList,
   });
 
+  const removeWorkflow = useMutation({
+    mutationFn: async (id: string) => api().remove(id),
+    onSuccess: (_data, id) => invalidateWorkflow(id),
+  });
+
+  const restoreWorkflow = useMutation({
+    mutationFn: async (id: string) => api().restore(id),
+    onSuccess: (_data, id) => invalidateWorkflow(id),
+  });
+
   return {
     saveConfig,
     validateConfig,
@@ -145,5 +155,7 @@ export function useAdminWorkflowMutations() {
     restoreVersion,
     createWorkflow,
     cloneWorkflow,
+    removeWorkflow,
+    restoreWorkflow,
   };
 }

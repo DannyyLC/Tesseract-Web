@@ -293,6 +293,11 @@ function WorkflowEditor() {
               <span>{workflow.category}</span>
               {!workflow.isActive && <span className="text-danger">inactivo</span>}
               {workflow.isPaused && <span className="text-danger">pausado</span>}
+              {workflow.deletedAt && (
+                <span className="font-medium text-danger">
+                  eliminado el {new Date(workflow.deletedAt).toLocaleDateString()}
+                </span>
+              )}
             </p>
           </div>
           {isDirty && (

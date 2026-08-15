@@ -129,9 +129,23 @@ describe('ConversationsService', () => {
           totalCost: 0,
           // Se puebla al crear para que la conversación no flote al tope del listado
           lastMessageAt: expect.any(Date),
+          isInternalWorkflow: false,
         },
       });
       expect(result).toEqual(mockNewConversation);
+    });
+
+    it('congela isInternalWorkflow en la fila al crearla', async () => {
+      mockPrismaService.workflow.findUnique.mockResolvedValue({ organizationId: 'org-1' });
+      mockPrismaService.conversation.create.mockResolvedValue({ id: 'new-conv-1' });
+
+      await service.findOrCreateConversation('wf-1', 'api', 'user-1', 'endUser-1', undefined, true);
+
+      expect(mockPrismaService.conversation.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ isInternalWorkflow: true }),
+        }),
+      );
     });
   });
 
@@ -188,7 +202,7 @@ describe('ConversationsService', () => {
       const result = await service.findOne('org-1', 'c-1');
       expect(mockPrismaService.conversation.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'c-1', organizationId: 'org-1', deletedAt: null },
+          where: { id: 'c-1', organizationId: 'org-1', deletedAt: null, isInternalWorkflow: false },
         }),
       );
       // La identidad del cliente se aplana para que la UI no tenga que navegar relaciones

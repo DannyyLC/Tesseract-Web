@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { AlertTriangle, Copy, FilePlus2 } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { InfiniteSelect } from '@/components/ui/infinite-select';
+import { Switch } from '@/components/ui/switch';
 import {
   useAdminWorkflowMutations,
   useAdminWorkflows,
@@ -52,6 +53,7 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
   const [name, setName] = useState('');
   const [category, setCategory] = useState<'LIGHT' | 'STANDARD' | 'ADVANCED'>('STANDARD');
   const [maxTokens, setMaxTokens] = useState(50000);
+  const [isInternal, setIsInternal] = useState(false);
 
   const { data: editorContext } = useEditorContext();
   const { createWorkflow, cloneWorkflow } = useAdminWorkflowMutations();
@@ -113,6 +115,7 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
         maxTokensPerExecution: maxTokens,
         config: blankConfig(model),
         note: 'Creado desde plantilla mínima',
+        isInternal,
       },
       {
         onSuccess: (workflow) => onCreated(workflow.id, 'Workflow creado'),
@@ -225,6 +228,14 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
                 min={1000}
                 max={200000}
                 onChange={(e) => setMaxTokens(Number(e.target.value))}
+              />
+            </div>
+            <div className="col-span-2 rounded-lg border border-border p-3">
+              <Switch
+                checked={isInternal}
+                onChange={setIsInternal}
+                label="Interno (oculto para el cliente)"
+                hint="No aparece en su panel, no gasta sus créditos ni cuenta en sus estadísticas. Solo lo puedes ejecutar tú, desde Test Execute."
               />
             </div>
           </div>

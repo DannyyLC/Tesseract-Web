@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, RotateCcw, Save, Trash2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAdminWorkflowMutations } from '@/hooks/automation/use-admin-workflows';
 import type { AdminWorkflowDetail } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
-import { btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 
 interface Props {
   workflow: AdminWorkflowDetail;
@@ -19,6 +19,7 @@ type Form = {
   maxTokensPerExecution: number;
   isActive: boolean;
   isPaused: boolean;
+  isInternal: boolean;
   timeout: number;
   maxRetries: number;
 };
@@ -30,6 +31,7 @@ const toForm = (w: AdminWorkflowDetail): Form => ({
   maxTokensPerExecution: w.maxTokensPerExecution,
   isActive: w.isActive,
   isPaused: w.isPaused,
+  isInternal: w.isInternal,
   timeout: w.timeout,
   maxRetries: w.maxRetries,
 });
@@ -40,7 +42,7 @@ const toForm = (w: AdminWorkflowDetail): Form => ({
  */
 export function SettingsTab({ workflow }: Props) {
   const [form, setForm] = useState<Form>(() => toForm(workflow));
-  const { updateMeta } = useAdminWorkflowMutations();
+  const { updateMeta, removeWorkflow, restoreWorkflow } = useAdminWorkflowMutations();
 
   // Si el workflow se recarga (p. ej. tras guardar el config), reflejar lo que llegó.
   useEffect(() => setForm(toForm(workflow)), [workflow]);
@@ -48,7 +50,45 @@ export function SettingsTab({ workflow }: Props) {
   const set = <K extends keyof Form>(key: K, value: Form[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  const setIsInternal = (value: boolean) => {
+    // Apagarlo es "publicar": el workflow se vuelve visible y ejecutable para el cliente,
+    // que hasta ahora no sabía que existía. Prendiéndolo (ocultarlo de nuevo) no hace
+    // falta confirmar: no hay nada que se le revele a nadie.
+    if (
+      !value &&
+      !window.confirm(
+        'Vas a publicar este workflow: el cliente lo va a ver en su panel y va a poder ' +
+          'ejecutarlo. ¿Ya está listo?',
+      )
+    ) {
+      return;
+    }
+    set('isInternal', value);
+  };
+
   const dirty = JSON.stringify(form) !== JSON.stringify(toForm(workflow));
+
+  const handleDelete = () => {
+    if (
+      !window.confirm(
+        'Vas a eliminar este workflow. Deja de ejecutarse de inmediato (cron, API, WhatsApp) y ' +
+          'se puede restaurar después desde aquí mismo.',
+      )
+    ) {
+      return;
+    }
+    removeWorkflow.mutate(workflow.id, {
+      onSuccess: () => toast.success('Workflow eliminado'),
+      onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo eliminar'),
+    });
+  };
+
+  const handleRestore = () => {
+    restoreWorkflow.mutate(workflow.id, {
+      onSuccess: () => toast.success('Workflow restaurado'),
+      onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo restaurar'),
+    });
+  };
 
   const handleSave = () => {
     if (form.name.trim().length < 3) return toast.error('El nombre debe tener al menos 3 caracteres');
@@ -152,6 +192,57 @@ export function SettingsTab({ workflow }: Props) {
             hint="Sigue activo pero rechaza ejecuciones temporalmente."
           />
         </div>
+        <div className="rounded-lg border border-border p-3 sm:col-span-2">
+          <Switch
+            checked={form.isInternal}
+            onChange={setIsInternal}
+            label="Interno (oculto para el cliente)"
+            hint="No aparece en su panel, no gasta sus créditos ni cuenta en sus estadísticas. Apagarlo lo publica."
+          />
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-danger/40 p-3">
+        <p className="text-xs font-medium text-danger">Zona de peligro</p>
+        {workflow.deletedAt ? (
+          <>
+            <p className="mt-1 text-xs text-text-secondary">
+              Este workflow está eliminado desde el {new Date(workflow.deletedAt).toLocaleString()}.
+              Restaurarlo no lo reactiva solo — sigue con "Activo" apagado hasta que lo prendas
+              aquí arriba.
+            </p>
+            <button
+              className={`${btnGhost} mt-2`}
+              onClick={handleRestore}
+              disabled={restoreWorkflow.isPending}
+            >
+              {restoreWorkflow.isPending ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <RotateCcw size={14} />
+              )}
+              Restaurar workflow
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="mt-1 text-xs text-text-secondary">
+              Deja de ejecutarse de inmediato (cron, API, WhatsApp). Se puede restaurar después.
+            </p>
+            <button
+              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
+              onClick={handleDelete}
+              disabled={removeWorkflow.isPending}
+            >
+              {removeWorkflow.isPending ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Trash2 size={14} />
+              )}
+              Eliminar workflow
+            </button>
+          </>
+        )}
       </div>
 
       <div className="flex justify-end pt-2">

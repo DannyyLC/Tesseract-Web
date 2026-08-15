@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from '@/i18n/routing';
 import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
-import { Search, Plus, Pause, PowerOff, History, Building2 } from 'lucide-react';
+import { Search, Plus, Pause, PowerOff, History, Building2, EyeOff, Trash2 } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { InfiniteSelect } from '@/components/ui/infinite-select';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -23,13 +23,14 @@ export default function AdminWorkflowsPage() {
   const [orgSearchInput, setOrgSearchInput] = useState('');
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
+  const [includeDeleted, setIncludeDeleted] = useState(false);
 
   const search = useDebounce(searchInput, 400);
   const orgSearch = useDebounce(orgSearchInput, 400);
 
   useEffect(() => {
     setPage(1);
-  }, [organizationId, search]);
+  }, [organizationId, search, includeDeleted]);
 
   const {
     data: orgPages,
@@ -58,6 +59,7 @@ export default function AdminWorkflowsPage() {
   const { data, isLoading, error } = useAdminWorkflows({
     organizationId: organizationId || undefined,
     search: search || undefined,
+    includeDeleted,
     page,
     limit: 20,
   });
@@ -105,6 +107,14 @@ export default function AdminWorkflowsPage() {
             onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
+        <label className="flex items-center gap-2 whitespace-nowrap text-sm text-text-secondary">
+          <input
+            type="checkbox"
+            checked={includeDeleted}
+            onChange={(e) => setIncludeDeleted(e.target.checked)}
+          />
+          Incluir eliminados
+        </label>
       </div>
 
       <section className="rounded-xl border border-border bg-surface">
@@ -142,6 +152,16 @@ export default function AdminWorkflowsPage() {
                       {w.isPaused && (
                         <span className="inline-flex items-center gap-1 rounded bg-surface-secondary px-1.5 py-0.5 text-[10px] text-text-secondary">
                           <Pause size={10} /> pausado
+                        </span>
+                      )}
+                      {w.isInternal && (
+                        <span className="inline-flex items-center gap-1 rounded bg-accent/10 px-1.5 py-0.5 text-[10px] text-accent">
+                          <EyeOff size={10} /> interno
+                        </span>
+                      )}
+                      {w.deletedAt && (
+                        <span className="inline-flex items-center gap-1 rounded bg-danger/10 px-1.5 py-0.5 text-[10px] text-danger">
+                          <Trash2 size={10} /> eliminado
                         </span>
                       )}
                     </div>

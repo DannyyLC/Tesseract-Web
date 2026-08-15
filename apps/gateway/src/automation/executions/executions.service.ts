@@ -33,11 +33,26 @@ export class ExecutionsService {
    * @param workflowId - ID del workflow que se ejecuta
    * @param trigger - Cómo se disparó (api, webhook, schedule, manual)
    * @param triggerData - Datos del trigger (IP, payload, metadata, organizationId, userId, apiKeyId, etc.)
+   * @param id - Opcional: id explícito para la ejecución. Lo usa el flujo de test-execute
+   *   asíncrono de super admin, que necesita devolver el id al llamador ANTES de encolar el
+   *   trabajo real, para que pueda hacer polling. Sin este parámetro el comportamiento no
+   *   cambia para ningún llamador existente (Prisma sigue generando el uuid por defecto).
+   * @param isInternalWorkflow - Copia congelada de `Workflow.isInternal` en el momento de
+   *   crear esta ejecución (la pasa `WorkflowsService`, que ya tiene el workflow cargado). No
+   *   se recalcula nunca: si el workflow se publica después, esta fila no cambia — así las
+   *   stats del cliente no "desentierran" retroactivamente ejecuciones de prueba.
    * @returns La ejecución creada con status="pending"
    */
-  async create(workflowId: string, trigger: TriggerType, triggerData?: any) {
+  async create(
+    workflowId: string,
+    trigger: TriggerType,
+    triggerData?: any,
+    id?: string,
+    isInternalWorkflow = false,
+  ) {
     const execution = await this.prisma.execution.create({
       data: {
+        ...(id ? { id } : {}),
         workflowId,
         status: ExecutionStatus.PENDING,
         trigger,
@@ -46,6 +61,7 @@ export class ExecutionsService {
         organizationId: triggerData?.organizationId,
         userId: triggerData?.userId,
         apiKeyId: triggerData?.apiKeyId,
+        isInternalWorkflow,
       },
       include: {
         workflow: {
@@ -93,7 +109,14 @@ export class ExecutionsService {
     const now = new Date();
     const execution = await this.prisma.execution.findUnique({
       where: { id: executionId },
-      select: { startedAt: true, workflowId: true },
+      select: {
+        startedAt: true,
+        workflowId: true,
+        // Columna propia, congelada al crear la ejecución — no un join a
+        // `Workflow.isInternal` (que es mutable): un workflow interno no debe mover sus
+        // estadísticas, ni siquiera si se "publica" después de que esta ejecución corrió.
+        isInternalWorkflow: true,
+      },
     });
 
     if (!execution) {
@@ -163,7 +186,11 @@ export class ExecutionsService {
     });
 
     // Si la ejecución terminó (completed o failed), actualizar estadísticas del workflow
-    if (status === ExecutionStatus.COMPLETED || status === ExecutionStatus.FAILED) {
+    // (nunca para workflows internos: no deben mover contadores que ve el cliente).
+    if (
+      (status === ExecutionStatus.COMPLETED || status === ExecutionStatus.FAILED) &&
+      !execution.isInternalWorkflow
+    ) {
       await this.updateWorkflowStats(execution.workflowId, status, duration);
     }
 
@@ -234,6 +261,7 @@ export class ExecutionsService {
       where: {
         id: executionId,
         deletedAt: null,
+        isInternalWorkflow: false,
         workflow: {
           organizationId,
           deletedAt: null,
@@ -410,12 +438,14 @@ export class ExecutionsService {
     limit = 50,
     status?: ExecutionStatus,
   ) {
-    // Verificar que el workflow pertenece a la organización
+    // Verificar que el workflow pertenece a la organización (isInternal: false — versión
+    // cliente, un workflow interno de super admin no es del cliente)
     const workflow = await this.prisma.workflow.findFirst({
       where: {
         id: workflowId,
         organizationId,
         deletedAt: null,
+        isInternal: false,
       },
     });
 
@@ -427,6 +457,7 @@ export class ExecutionsService {
     return this.prisma.execution.findMany({
       where: {
         workflowId,
+        isInternalWorkflow: false,
         ...(status && { status }),
       },
       select: {
@@ -507,8 +538,9 @@ export class ExecutionsService {
     // Limitar máximo a 100 registros por página
     const take = Math.min(limit, 100);
 
-    // Construir filtros dinámicos
+    // Construir filtros dinámicos (isInternalWorkflow: false — versión cliente)
     const where: any = {
+      isInternalWorkflow: false,
       workflow: {
         organizationId,
         deletedAt: null,
@@ -824,7 +856,9 @@ export class ExecutionsService {
     let workflowTimezone: string | null = null;
     if (workflowId) {
       const workflow = await this.prisma.workflow.findFirst({
-        where: { id: workflowId, organizationId, deletedAt: null },
+        // isInternal:false igual que getMetrics(): sin esto, un workflow interno no
+        // lanza 404 aquí como sí hace en /metrics, y de paso filtra su timezone.
+        where: { id: workflowId, organizationId, deletedAt: null, isInternal: false },
         select: { timezone: true },
       });
       if (!workflow) throw new NotFoundException('Workflow no encontrado');
@@ -844,6 +878,7 @@ export class ExecutionsService {
       FROM executions
       WHERE "organizationId" = ${organizationId}
         AND "deletedAt" IS NULL
+        AND "isInternalWorkflow" = false
         ${workflowId ? Prisma.sql`AND "workflowId" = ${workflowId}` : Prisma.empty}
         ${startDate ? Prisma.sql`AND "startedAt" >= ${startDate}` : Prisma.empty}
       GROUP BY 1
@@ -882,6 +917,7 @@ export class ExecutionsService {
 
     const where: any = {
       deletedAt: null,
+      isInternalWorkflow: false,
       workflow: {
         organizationId,
         deletedAt: null,
@@ -1077,6 +1113,7 @@ export class ExecutionsService {
         id: executionId,
         organizationId,
         deletedAt: null,
+        isInternalWorkflow: false,
       },
       select: { status: true },
     });
@@ -1106,6 +1143,7 @@ export class ExecutionsService {
         id: executionId,
         organizationId,
         deletedAt: null,
+        isInternalWorkflow: false,
       },
     });
 
@@ -1129,12 +1167,14 @@ export class ExecutionsService {
    * @param period - Periodo de tiempo (24h, 7d, 30d, 90d, all)
    */
   async getAnalyticsBySource(workflowId: string, organizationId: string, period = '30d') {
-    // Verificar que el workflow pertenece a la organización
+    // Verificar que el workflow pertenece a la organización (isInternal: false — versión
+    // cliente, un workflow interno de super admin no es del cliente)
     const workflow = await this.prisma.workflow.findFirst({
       where: {
         id: workflowId,
         organizationId,
         deletedAt: null,
+        isInternal: false,
       },
     });
 
@@ -1168,6 +1208,7 @@ export class ExecutionsService {
 
     const where: any = {
       workflowId,
+      isInternalWorkflow: false,
       ...(startDate && { startedAt: { gte: startDate } }),
     };
 
@@ -1335,6 +1376,7 @@ export class ExecutionsService {
     const where: any = {
       organizationId,
       deletedAt: null,
+      isInternalWorkflow: false,
     };
 
     if (workflowId) where.workflowId = workflowId;

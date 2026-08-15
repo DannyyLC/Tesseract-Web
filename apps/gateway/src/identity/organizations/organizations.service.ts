@@ -216,7 +216,10 @@ export class OrganizationsService {
         _count: {
           select: {
             users: true,
-            workflows: true,
+            // Igual que en canAddWorkflow: un workflow interno no es del cliente, no
+            // debe aparecer en su uso de plan. Tampoco uno eliminado: si no contara
+            // deletedAt, borrar un workflow nunca liberaría cupo del plan.
+            workflows: { where: { isInternal: false, deletedAt: null } },
             apiKeys: true,
           },
         },
@@ -238,9 +241,10 @@ export class OrganizationsService {
 
     const executionsThisMonth = await this.prisma.execution.count({
       where: {
-        workflow: {
-          organizationId,
-        },
+        organizationId,
+        // Columna propia congelada al crear la ejecución, no un join a
+        // `Workflow.isInternal` (mutable) — ver `Execution.isInternalWorkflow`.
+        isInternalWorkflow: false,
         createdAt: {
           gte: firstDayOfMonth,
         },
@@ -344,8 +348,12 @@ export class OrganizationsService {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
       include: {
+        // Los workflows internos (isInternal) los crea super admin para construir o
+        // probar algo dentro de la organización real del cliente, y no deben restarle
+        // cupo de su plan. Uno eliminado tampoco: si no filtrara deletedAt, borrar un
+        // workflow no liberaría cupo.
         _count: {
-          select: { workflows: true },
+          select: { workflows: { where: { isInternal: false, deletedAt: null } } },
         },
       },
     });
@@ -359,6 +367,24 @@ export class OrganizationsService {
       effectiveLimits.maxWorkflows === -1 ||
       organization._count.workflows < effectiveLimits.maxWorkflows
     );
+  }
+
+  /**
+   * Límite efectivo de workflows de una organización (plan, con el override
+   * `customMaxWorkflows` si tiene uno puesto). Para construir el mensaje de error
+   * cuando `canAddWorkflow()` da `false` — separado de ese método para no cambiarle
+   * el tipo de retorno a todos sus otros llamadores.
+   */
+  async getWorkflowLimit(organizationId: string): Promise<number> {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    return this.getEffectiveLimits(organization).maxWorkflows;
   }
 
   /**

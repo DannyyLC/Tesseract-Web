@@ -12,8 +12,6 @@ import {
 import {
   getWorkflowCreditCost,
   PaginatedResponse,
-  PLANS,
-  SubscriptionPlan,
   WorkflowCategory as SharedWorkflowCategory,
   DashboardWorkflowDto,
   WorkflowStatsDto,
@@ -121,11 +119,10 @@ export class WorkflowsService {
     // Validar límite de workflows según el plan
     const canAdd = await this.organizationsService.canAddWorkflow(organizationId);
     if (!canAdd) {
-      const org = await this.prisma.organization.findUnique({
-        where: { id: organizationId },
-        select: { plan: true },
-      });
-      const limit = PLANS[org!.plan as SubscriptionPlan].limits.maxWorkflows;
+      // Límite efectivo (respeta un `customMaxWorkflows` si la organización tiene
+      // uno puesto) y no el base del plan, que le mentiría al cliente si tiene un
+      // override.
+      const limit = await this.organizationsService.getWorkflowLimit(organizationId);
       throw new ForbiddenException(
         limit === -1
           ? 'No se pueden crear más workflows'
@@ -182,6 +179,9 @@ export class WorkflowsService {
     const where: any = {
       organizationId,
       deletedAt: null,
+      // Los workflows internos los crea/prueba super admin dentro de esta organización;
+      // el cliente nunca debe verlos.
+      isInternal: false,
       ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
       ...(filters?.category && { category: filters.category }),
       ...(filters?.search && {
@@ -253,20 +253,25 @@ export class WorkflowsService {
       await Promise.all([
         // Total Workflows
         this.prisma.workflow.count({
-          where: { organizationId, deletedAt: null },
+          where: { organizationId, deletedAt: null, isInternal: false },
         }),
         // Active Workflows
         this.prisma.workflow.count({
-          where: { organizationId, deletedAt: null, isActive: true },
+          where: { organizationId, deletedAt: null, isActive: true, isInternal: false },
         }),
         // Total Executions Month
         this.prisma.execution.count({
           where: {
             organizationId,
             startedAt: { gte: startOfPeriod },
+            // Columna propia congelada en Execution, no un join a Workflow.isInternal
+            // (mutable) — ver Execution.isInternalWorkflow.
+            isInternalWorkflow: false,
           },
         }),
         // Credits Consumed Month (Query from CreditTransactions)
+        // No necesita filtrar isInternal: las ejecuciones de workflows internos nunca
+        // descuentan crédito, así que jamás generan una CreditTransaction.
         this.prisma.creditTransaction.aggregate({
           _sum: { amount: true },
           where: {
@@ -278,7 +283,7 @@ export class WorkflowsService {
         // By Category
         this.prisma.workflow.groupBy({
           by: ['category'],
-          where: { organizationId, deletedAt: null },
+          where: { organizationId, deletedAt: null, isInternal: false },
           _count: true,
         }),
       ]);
@@ -309,6 +314,7 @@ export class WorkflowsService {
         id: workflowId,
         organizationId,
         deletedAt: null,
+        isInternal: false,
       },
       select: {
         id: true,
@@ -361,7 +367,7 @@ export class WorkflowsService {
   ): Promise<WorkflowMetricsDto> {
     // Validate existence
     const wf = await this.prisma.workflow.findFirst({
-      where: { id: workflowId, organizationId },
+      where: { id: workflowId, organizationId, isInternal: false },
       include: { organization: { select: { timezone: true } } },
     });
     if (!wf) throw new NotFoundException('Workflow no encontrado');
@@ -428,6 +434,7 @@ export class WorkflowsService {
       this.prisma.execution.aggregate({
         where: {
           workflowId,
+          isInternalWorkflow: false,
           startedAt: { gte: startDate },
         },
         _count: {
@@ -443,6 +450,7 @@ export class WorkflowsService {
         by: ['status'],
         where: {
           workflowId,
+          isInternalWorkflow: false,
           startedAt: { gte: startDate },
         },
         _count: true,
@@ -464,6 +472,7 @@ export class WorkflowsService {
         FROM executions
         WHERE "workflowId" = $1
           AND "startedAt" >= $2
+          AND "isInternalWorkflow" = false
         GROUP BY ${groupByClause}
         ORDER BY date ASC
       `,
@@ -497,6 +506,7 @@ export class WorkflowsService {
       const failures = await this.prisma.execution.findMany({
         where: {
           workflowId,
+          isInternalWorkflow: false,
           startedAt: { gte: startDate },
           status: ExecutionStatus.FAILED,
           error: { not: null },
@@ -688,6 +698,31 @@ export class WorkflowsService {
     return resolveMediaPolicy(workflow?.config);
   }
 
+  /**
+   * Guardia de los endpoints de test-execute de super admin (`admin/workflows/:id/test-execute*`).
+   *
+   * `execute()`/`executeStream()` ya saltan créditos y estadísticas cuando `isInternal` es
+   * `true`, para cualquier llamador. Sin este chequeo, alguien podría apuntar test-execute a
+   * un workflow ya publicado y regalarle ejecuciones gratis e invisibles a un cliente real.
+   */
+  async assertInternalForTesting(organizationId: string, workflowId: string): Promise<void> {
+    const workflow = await this.prisma.workflow.findFirst({
+      where: { id: workflowId, organizationId, deletedAt: null },
+      select: { isInternal: true },
+    });
+
+    if (!workflow) {
+      throw new WorkflowNotFoundException(workflowId);
+    }
+
+    if (!workflow.isInternal) {
+      throw new ForbiddenException(
+        'Este workflow no es interno: test-execute solo aplica a workflows con isInternal=true. ' +
+          'Usa el flujo normal de ejecución para uno publicado.',
+      );
+    }
+  }
+
   async execute(
     organizationId: string,
     workflowId: string,
@@ -697,6 +732,8 @@ export class WorkflowsService {
     whatsappData?: WhatsAppInboundEvent, // Opcional: datos de WhatsApp si la ejecución es por un mensaje entrante
     apiKeyId?: string, // Opcional: qué API key ejecuta
     trigger: TriggerType = TriggerType.API,
+    executionId?: string, // Opcional: id ya generado por el llamador (test-execute async)
+    allowInternal = false, // Solo true desde el controller admin de test-execute (ya validó isInternal con assertInternalForTesting)
   ) {
     // 1. VALIDACIONES PREVIAS - Cargar workflow con TODO lo necesario en 1 query
     const workflow = await this.prisma.workflow.findFirst({
@@ -734,6 +771,15 @@ export class WorkflowsService {
       throw new WorkflowNotFoundException(workflowId);
     }
 
+    // Barrera real de "el cliente nunca lo ejecuta": todo caller normal (UI, API key, cron,
+    // WhatsApp/Messenger) llega aquí con `allowInternal` en false. Se trata como "no existe"
+    // (misma excepción que arriba) para no revelarle a un caller sin acceso que el workflow
+    // existe pero está oculto. Solo el controller admin de test-execute pasa `true`, después
+    // de validar con `assertInternalForTesting()`.
+    if (workflow.isInternal && !allowInternal) {
+      throw new WorkflowNotFoundException(workflowId);
+    }
+
     if (!workflow.isActive) {
       throw new InvalidWorkflowConfigException('El workflow está inactivo', {
         workflowId,
@@ -752,24 +798,35 @@ export class WorkflowsService {
     }
 
     // 2.1. VALIDAR BALANCE DE CRÉDITOS
-    const canExecute = await this.creditsService.canExecuteWorkflow(
-      organizationId,
-      workflow.category,
-    );
+    // Los workflows internos (isInternal) los ejecuta solo super admin para construir/probar
+    // dentro de la organización real del cliente: no gastan su saldo ni pueden quedar
+    // bloqueados por falta de crédito.
+    if (!workflow.isInternal) {
+      const canExecute = await this.creditsService.canExecuteWorkflow(
+        organizationId,
+        workflow.category,
+      );
 
-    if (!canExecute.allowed) {
-      throw new ForbiddenException(`Insufficient credits: ${canExecute.reason}`);
+      if (!canExecute.allowed) {
+        throw new ForbiddenException(`Insufficient credits: ${canExecute.reason}`);
+      }
     }
 
     // 3. CREAR REGISTRO DE EJECUCIÓN
-    const execution = await this.executionsService.create(workflowId, trigger, {
-      input,
-      metadata,
-      organizationId: org.id,
-      organizationName: org.name,
-      userId, // Opcional
-      apiKeyId, // Opcional
-    });
+    const execution = await this.executionsService.create(
+      workflowId,
+      trigger,
+      {
+        input,
+        metadata,
+        organizationId: org.id,
+        organizationName: org.name,
+        userId, // Opcional
+        apiKeyId, // Opcional
+      },
+      executionId,
+      workflow.isInternal,
+    );
 
     this.logger.log(`Iniciando ejecución ${execution.id} para workflow ${workflowId}`);
 
@@ -801,6 +858,7 @@ export class WorkflowsService {
           workflowId,
           whatsappData?.whatsappInboundMessage?.to || '',
           whatsappData?.whatsappInboundMessage?.from || '',
+          workflow.isInternal,
         );
       } else {
         this.logger.error(`WhatsApp channel requires whatsappData for conversation management. Workflow: ${workflowId}, Execution: ${execution.id}`);
@@ -860,6 +918,7 @@ export class WorkflowsService {
         workflowId,
         messengerData.pageId,
         messengerData.senderId,
+        workflow.isInternal,
       );
     } else {
       conversation = await this.conversationsService.findOrCreateConversation(
@@ -868,6 +927,7 @@ export class WorkflowsService {
         userId,
         endUserId,
         conversationId,
+        workflow.isInternal,
       );
     }
     userMessage = input?.message ?? JSON.stringify(input);
@@ -1140,33 +1200,39 @@ export class WorkflowsService {
 
       this.logger.log(`Ejecución ${execution.id} marcada como completada`);
 
-      // 9. DESCONTAR CRÉDITOS SOLO EN EJECUCIONES EXITOSAS
+      // 9. DESCONTAR CRÉDITOS SOLO EN EJECUCIONES EXITOSAS (workflows no internos)
       // Se descuentan después de confirmar que todo fue exitoso
-      const creditsToDeduct = getWorkflowCreditCost(
-        this.mapDbWorkflowCategoryToShared(workflow.category),
-      );
+      if (!workflow.isInternal) {
+        const creditsToDeduct = getWorkflowCreditCost(
+          this.mapDbWorkflowCategoryToShared(workflow.category),
+        );
 
-      await this.creditsService.deductCredits(
-        organizationId,
-        execution.id,
-        workflow.id,
-        workflow.category,
-        workflow.name,
-        costUSD,
-        {
-          input_tokens: responseMetadata.input_tokens ?? 0,
-          output_tokens: responseMetadata.output_tokens ?? 0,
-          total_tokens: totalTokens,
-          usage_by_model: usageByModel,
-          cost_breakdown: costBreakdown,
-          execution_time_ms: responseMetadata.execution_time_ms,
-        },
-      );
+        await this.creditsService.deductCredits(
+          organizationId,
+          execution.id,
+          workflow.id,
+          workflow.category,
+          workflow.name,
+          costUSD,
+          {
+            input_tokens: responseMetadata.input_tokens ?? 0,
+            output_tokens: responseMetadata.output_tokens ?? 0,
+            total_tokens: totalTokens,
+            usage_by_model: usageByModel,
+            cost_breakdown: costBreakdown,
+            execution_time_ms: responseMetadata.execution_time_ms,
+          },
+        );
 
-      this.logger.log(
-        `Créditos descontados para ejecución exitosa ${execution.id}: ` +
-          `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
-      );
+        this.logger.log(
+          `Créditos descontados para ejecución exitosa ${execution.id}: ` +
+            `${creditsToDeduct} créditos (categoría: ${workflow.category}, costo real: $${costUSD.toFixed(4)})`,
+        );
+      } else {
+        this.logger.log(
+          `Ejecución ${execution.id} de workflow interno: no se descuentan créditos.`,
+        );
+      }
 
       // 10. RETORNAR EJECUCIÓN CON RELACIONES COMPLETAS (requiere query con joins)
       return this.executionsService.getByIdFull(execution.id, organizationId);
@@ -1202,6 +1268,8 @@ export class WorkflowsService {
     userId?: string, // Opcional: quién ejecuta desde UI
     apiKeyId?: string, // Opcional: qué API key ejecuta
     trigger: TriggerType = TriggerType.API,
+    executionId?: string, // Opcional: id ya generado por el llamador (test-execute async)
+    allowInternal = false, // Solo true desde el controller admin de test-execute (ya validó isInternal con assertInternalForTesting)
   ): Promise<NodeJS.ReadableStream> {
     // 1. VALIDACIONES PREVIAS (Misma lógica que execute)
     const workflow = await this.prisma.workflow.findFirst({
@@ -1238,6 +1306,11 @@ export class WorkflowsService {
       throw new WorkflowNotFoundException(workflowId);
     }
 
+    // Ver el mismo chequeo en execute(): barrera real de "el cliente nunca lo ejecuta".
+    if (workflow.isInternal && !allowInternal) {
+      throw new WorkflowNotFoundException(workflowId);
+    }
+
     if (!workflow.isActive) {
       throw new InvalidWorkflowConfigException('El workflow está inactivo', {
         workflowId,
@@ -1255,25 +1328,33 @@ export class WorkflowsService {
       throw new NotFoundException('Organización no encontrada');
     }
 
-    // 2.1. VALIDAR BALANCE DE CRÉDITOS
-    const canExecute = await this.creditsService.canExecuteWorkflow(
-      organizationId,
-      workflow.category,
-    );
+    // 2.1. VALIDAR BALANCE DE CRÉDITOS (los workflows internos no gastan saldo)
+    if (!workflow.isInternal) {
+      const canExecute = await this.creditsService.canExecuteWorkflow(
+        organizationId,
+        workflow.category,
+      );
 
-    if (!canExecute.allowed) {
-      throw new ForbiddenException(`Insufficient credits: ${canExecute.reason}`);
+      if (!canExecute.allowed) {
+        throw new ForbiddenException(`Insufficient credits: ${canExecute.reason}`);
+      }
     }
 
     // 3. CREAR REGISTRO DE EJECUCIÓN
-    const execution = await this.executionsService.create(workflowId, trigger, {
-      input,
-      metadata,
-      organizationId: org.id,
-      organizationName: org.name,
-      userId,
-      apiKeyId,
-    });
+    const execution = await this.executionsService.create(
+      workflowId,
+      trigger,
+      {
+        input,
+        metadata,
+        organizationId: org.id,
+        organizationName: org.name,
+        userId,
+        apiKeyId,
+      },
+      executionId,
+      workflow.isInternal,
+    );
 
     this.logger.log(`Iniciando ejecución (stream) ${execution.id} para workflow ${workflowId}`);
 
@@ -1289,6 +1370,7 @@ export class WorkflowsService {
       userId,
       endUserId,
       conversationId,
+      workflow.isInternal,
     );
 
     await this.executionsService.linkToConversation(execution.id, conversation.id);
@@ -1578,29 +1660,31 @@ export class WorkflowsService {
             );
           }
 
-          // 7. Descontar Créditos
-          try {
-            await this.creditsService.deductCredits(
-              organizationId,
-              execution.id,
-              workflow.id,
-              workflow.category,
-              workflow.name,
-              costUSD,
-              {
-                input_tokens: metadataEvent?.input_tokens ?? 0,
-                output_tokens: metadataEvent?.output_tokens ?? 0,
-                total_tokens: totalTokens,
-                usage_by_model: usageByModel,
-                cost_breakdown: costBreakdown,
-                execution_time_ms: metadataEvent?.execution_time_ms ?? 0,
-              },
-            );
-          } catch (nonCriticalCreditsError) {
-            this.logger.error(
-              `Non-critical post-stream credits deduction failed for ${execution.id}: ${(nonCriticalCreditsError as Error).message}`,
-              (nonCriticalCreditsError as Error).stack,
-            );
+          // 7. Descontar Créditos (workflows internos no gastan saldo)
+          if (!workflow.isInternal) {
+            try {
+              await this.creditsService.deductCredits(
+                organizationId,
+                execution.id,
+                workflow.id,
+                workflow.category,
+                workflow.name,
+                costUSD,
+                {
+                  input_tokens: metadataEvent?.input_tokens ?? 0,
+                  output_tokens: metadataEvent?.output_tokens ?? 0,
+                  total_tokens: totalTokens,
+                  usage_by_model: usageByModel,
+                  cost_breakdown: costBreakdown,
+                  execution_time_ms: metadataEvent?.execution_time_ms ?? 0,
+                },
+              );
+            } catch (nonCriticalCreditsError) {
+              this.logger.error(
+                `Non-critical post-stream credits deduction failed for ${execution.id}: ${(nonCriticalCreditsError as Error).message}`,
+                (nonCriticalCreditsError as Error).stack,
+              );
+            }
           }
 
           if (humanHandoffRequested?.requested) {

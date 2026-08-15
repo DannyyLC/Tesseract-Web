@@ -321,5 +321,60 @@ describe('OrganizationsService', () => {
       expect(stats.usage.users.current).toBe(2);
       expect(stats.usage.executions.thisMonth).toBe(7);
     });
+
+    // Un workflow interno (super admin construyendo/probando dentro de la org del
+    // cliente) no debe restarle cupo de plan ni sumar a sus ejecuciones del mes.
+    it('excludes internal workflows from the workflow count and executions this month', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        plan: 'FREE',
+        _count: { users: 2, workflows: 1, apiKeys: 0 },
+      });
+      mockPrismaService.execution.count.mockResolvedValue(0);
+
+      await service.getStats('org-1');
+
+      expect(mockPrismaService.organization.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            _count: expect.objectContaining({
+              select: expect.objectContaining({
+                workflows: { where: { isInternal: false, deletedAt: null } },
+              }),
+            }),
+          }),
+        }),
+      );
+      expect(mockPrismaService.execution.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organizationId: 'org-1',
+            // Columna propia congelada en Execution, no un join a Workflow.isInternal
+            // (mutable) — así "publicar" el workflow no desentierra retroactivamente
+            // sus ejecuciones de prueba en las stats del mes.
+            isInternalWorkflow: false,
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('canAddWorkflow', () => {
+    it('excludes internal workflows from the plan limit count', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        plan: 'FREE',
+        customMaxWorkflows: null,
+        _count: { workflows: 1 },
+      });
+
+      await service.canAddWorkflow('org-1');
+
+      expect(mockPrismaService.organization.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            _count: { select: { workflows: { where: { isInternal: false, deletedAt: null } } } },
+          }),
+        }),
+      );
+    });
   });
 });

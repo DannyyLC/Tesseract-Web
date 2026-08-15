@@ -11,6 +11,8 @@ export interface AdminWorkflowListItem {
   category: 'LIGHT' | 'STANDARD' | 'ADVANCED';
   isActive: boolean;
   isPaused: boolean;
+  /** Oculto para el cliente, sin costo ni efecto en su organización; solo lo ejecuta super admin. */
+  isInternal: boolean;
   version: number;
   totalExecutions: number;
   lastExecutedAt: string | null;
@@ -129,6 +131,8 @@ export interface CreateWorkflowAdminInput {
   maxTokensPerExecution: number;
   config: WorkflowConfig;
   note?: string;
+  /** Oculto para el cliente, sin costo ni efecto en su organización; solo lo ejecuta super admin. */
+  isInternal?: boolean;
 }
 
 export interface CloneWorkflowInput {
@@ -258,6 +262,23 @@ class WorkflowsAdminApi {
       `${WorkflowsAdminApi.BASE_URL}/${id}/clone`,
       data,
     );
+    return result.data.data!;
+  }
+
+  // Devuelven el `Workflow` base (sin organization/_count/tenantTools/config, a
+  // diferencia de findOne()): quien llama solo necesita disparar el refetch, no
+  // leer estos campos.
+  public async remove(id: string): Promise<{ id: string; deletedAt: string | null }> {
+    const result = await this.apiRequestManager.delete<
+      ApiResponse<{ id: string; deletedAt: string | null }>
+    >(`${WorkflowsAdminApi.BASE_URL}/${id}`);
+    return result.data.data!;
+  }
+
+  public async restore(id: string): Promise<{ id: string; deletedAt: string | null }> {
+    const result = await this.apiRequestManager.post<
+      ApiResponse<{ id: string; deletedAt: string | null }>
+    >(`${WorkflowsAdminApi.BASE_URL}/${id}/restore`, {});
     return result.data.data!;
   }
 }

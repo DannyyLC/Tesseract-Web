@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { CreateWorkflowDto } from '../create-workflow.dto';
 
 /**
@@ -17,4 +17,14 @@ export class CreateWorkflowAdminDto extends CreateWorkflowDto {
   @IsOptional()
   @MaxLength(500)
   note?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Workflow interno: oculto para el cliente, no gasta créditos ni cuenta en sus ' +
+      'estadísticas ni en el límite de workflows de su plan. Solo se ejecuta vía los ' +
+      'endpoints de test-execute de super admin.',
+  })
+  @IsBoolean()
+  @IsOptional()
+  isInternal?: boolean;
 }

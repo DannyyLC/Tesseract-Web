@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { Prisma, WorkflowVersionSource } from '@tesseract/database';
 import { ConfigService } from '@nestjs/config';
-import { PLANS, SubscriptionPlan } from '@tesseract/types';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { InvalidWorkflowConfigException } from '@/platform/common/exceptions';
 import { OrganizationsService } from '@/identity/organizations/organizations.service';
@@ -114,6 +113,7 @@ export class WorkflowsAdminService {
           category: true,
           isActive: true,
           isPaused: true,
+          isInternal: true,
           version: true,
           totalExecutions: true,
           lastExecutedAt: true,
@@ -325,9 +325,17 @@ export class WorkflowsAdminService {
   async updateMeta(workflowId: string, dto: UpdateWorkflowMetaDto) {
     const exists = await this.prisma.workflow.findUnique({
       where: { id: workflowId },
-      select: { id: true },
+      select: { id: true, organizationId: true, isInternal: true },
     });
     if (!exists) throw new NotFoundException('Workflow no encontrado');
+
+    // Publicar (isInternal true→false) vuelve al workflow visible y lo mete al
+    // conteo del plan del cliente — igual que create(), no puede saltarse el
+    // límite en silencio. Si ya era público, o se está ocultando, no hay nada que
+    // checar: el conteo no sube.
+    if (dto.isInternal === false && exists.isInternal) {
+      await this.assertCanAddWorkflow(exists.organizationId);
+    }
 
     return this.prisma.workflow.update({
       where: { id: workflowId },
@@ -340,12 +348,67 @@ export class WorkflowsAdminService {
         maxTokensPerExecution: true,
         isActive: true,
         isPaused: true,
+        isInternal: true,
         timeout: true,
         maxRetries: true,
         version: true,
         updatedAt: true,
       },
     });
+  }
+
+  /**
+   * Borra un workflow de cualquier organización (soft delete).
+   *
+   * Mismo shape que el soft delete de tenant (`WorkflowsService.remove()`):
+   * `deletedAt` + `isActive: false`, así que de paso deja de ejecutarse (cron,
+   * API, WhatsApp) sin tener que tocar nada más. No hay chequeo de pertenencia
+   * como en la versión de tenant porque el super admin ya apunta por id.
+   */
+  async remove(workflowId: string) {
+    const exists = await this.prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { id: true },
+    });
+    if (!exists) throw new NotFoundException('Workflow no encontrado');
+
+    const workflow = await this.prisma.workflow.update({
+      where: { id: workflowId },
+      // Sin condición sobre el estado actual: repetir el borrado (o borrar algo
+      // que ya estaba eliminado) es un no-op seguro, no un error.
+      data: { deletedAt: new Date(), isActive: false },
+    });
+
+    this.logger.log(`Workflow ${workflowId} eliminado (soft delete) por super admin`);
+    return workflow;
+  }
+
+  /**
+   * Restaura un workflow eliminado. No reactiva `isActive`: el super admin lo
+   * prende aparte desde Ajustes, para no revivir ejecuciones de golpe justo al
+   * restaurar.
+   */
+  async restore(workflowId: string) {
+    const exists = await this.prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { id: true, deletedAt: true, isInternal: true, organizationId: true },
+    });
+    if (!exists) throw new NotFoundException('Workflow no encontrado');
+
+    // Un workflow público (isInternal:false) vuelve a contar contra el límite del
+    // plan al restaurarse — mismo chequeo que publicar. Si ya estaba restaurado no
+    // hay nada nuevo que sumar al conteo, así que no hace falta checar de nuevo.
+    if (exists.deletedAt && !exists.isInternal) {
+      await this.assertCanAddWorkflow(exists.organizationId);
+    }
+
+    const workflow = await this.prisma.workflow.update({
+      where: { id: workflowId },
+      data: { deletedAt: null },
+    });
+
+    this.logger.log(`Workflow ${workflowId} restaurado por super admin`);
+    return workflow;
   }
 
   // ==========================================================
@@ -446,6 +509,26 @@ export class WorkflowsAdminService {
   // ==========================================================
 
   /**
+   * Lanza si la organización ya está en su límite de workflows del plan.
+   *
+   * La usan `create()` (siempre) y `updateMeta()`/`restore()` (solo cuando el
+   * workflow en cuestión pasa a ser público) — un solo mensaje, apuntando a ajustar
+   * `customMaxWorkflows` desde el panel de organización en vez de que el super admin
+   * se quede sin saber por qué no puede crear/publicar/restaurar.
+   */
+  private async assertCanAddWorkflow(organizationId: string): Promise<void> {
+    const canAdd = await this.organizationsService.canAddWorkflow(organizationId);
+    if (canAdd) return;
+
+    const limit = await this.organizationsService.getWorkflowLimit(organizationId);
+    throw new ForbiddenException(
+      limit === -1
+        ? 'La organización no puede crear más workflows'
+        : `La organización alcanzó el límite de ${limit} workflows de su plan`,
+    );
+  }
+
+  /**
    * Crea un workflow en cualquier organización. Respeta el límite de workflows del
    * plan del cliente: el super admin elige por quién crea, no se salta lo que el
    * cliente contrató.
@@ -455,22 +538,14 @@ export class WorkflowsAdminService {
 
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
-      select: { id: true, plan: true },
+      select: { id: true },
     });
     if (!organization) throw new NotFoundException('Organización no encontrada');
 
     const { valid, errors } = await this.configValidator.collect(rest.config);
     if (!valid) throw new InvalidWorkflowConfigException(errors.join(' | '), { errors });
 
-    const canAdd = await this.organizationsService.canAddWorkflow(organizationId);
-    if (!canAdd) {
-      const limit = PLANS[organization.plan as SubscriptionPlan].limits.maxWorkflows;
-      throw new ForbiddenException(
-        limit === -1
-          ? 'La organización no puede crear más workflows'
-          : `La organización alcanzó el límite de ${limit} workflows de su plan`,
-      );
-    }
+    await this.assertCanAddWorkflow(organizationId);
 
     const workflow = await this.prisma.workflow.create({
       data: {
@@ -487,6 +562,7 @@ export class WorkflowsAdminService {
         timeout: rest.timeout ?? 300,
         maxRetries: rest.maxRetries ?? 3,
         triggerType: rest.triggerType ? [rest.triggerType.toUpperCase() as any] : undefined,
+        isInternal: rest.isInternal ?? false,
         organizationId,
       },
     });
@@ -530,6 +606,7 @@ export class WorkflowsAdminService {
         maxTokensPerExecution: true,
         description: true,
         organizationId: true,
+        isInternal: true,
       },
     });
     if (!source) throw new NotFoundException('Workflow origen no encontrado');
@@ -545,6 +622,10 @@ export class WorkflowsAdminService {
         category: source.category,
         maxTokensPerExecution: source.maxTokensPerExecution,
         config: config as any,
+        // Un clon de un workflow todavía interno (en construcción) debe seguir
+        // oculto: si create() cayera a su default `false`, quedaría público y
+        // cobrando crédito de inmediato en la organización destino.
+        isInternal: source.isInternal,
         note: `Clonado del workflow ${sourceWorkflowId}`,
       },
       actor,

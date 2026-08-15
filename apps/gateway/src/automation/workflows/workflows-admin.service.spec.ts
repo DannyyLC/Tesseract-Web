@@ -281,6 +281,55 @@ describe('WorkflowsAdminService', () => {
     });
   });
 
+  describe('create', () => {
+    it('persiste isInternal cuando se pide un workflow interno', async () => {
+      prisma.organization.findUnique.mockResolvedValue({ id: 'org-1', plan: 'BUSINESS' });
+      prisma.workflow.create.mockResolvedValue({ id: 'wf-nuevo', isInternal: true, version: 1 });
+      prisma.workflowConfigVersion.create = jest.fn().mockResolvedValue({});
+
+      await service.create(
+        {
+          organizationId: 'org-1',
+          name: 'Workflow de prueba',
+          category: 'STANDARD',
+          maxTokensPerExecution: 50000,
+          config: validConfig(),
+          isInternal: true,
+        } as any,
+        ACTOR,
+      );
+
+      expect(prisma.workflow.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ isInternal: true }),
+        }),
+      );
+    });
+
+    it('por defecto crea un workflow no interno (visible para el cliente)', async () => {
+      prisma.organization.findUnique.mockResolvedValue({ id: 'org-1', plan: 'BUSINESS' });
+      prisma.workflow.create.mockResolvedValue({ id: 'wf-nuevo', isInternal: false, version: 1 });
+      prisma.workflowConfigVersion.create = jest.fn().mockResolvedValue({});
+
+      await service.create(
+        {
+          organizationId: 'org-1',
+          name: 'Workflow de prueba',
+          category: 'STANDARD',
+          maxTokensPerExecution: 50000,
+          config: validConfig(),
+        } as any,
+        ACTOR,
+      );
+
+      expect(prisma.workflow.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ isInternal: false }),
+        }),
+      );
+    });
+  });
+
   describe('clone', () => {
     it('lista las tool instances que hay que reasignar en la organización destino', async () => {
       const config = {

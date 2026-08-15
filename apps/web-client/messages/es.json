@@ -1493,6 +1493,7 @@
     "formulaCalculated": "Columna calculada",
     "formulaReadonlyHint": "Se calcula sola: {formula}",
     "formulaMissingDependency": "Esta fórmula usa «{column}», que estás quitando. Si guardas así, la columna calculada quedará vacía en todas las filas.",
+    "formulaStaleKey": "Esta fórmula usa «{column}», que no coincide con ninguna columna actual — ¿la renombraste después de referenciarla? Revísala antes de guardar.",
     "formulaOverwriteWarning": "«{columns}» ya tiene valores capturados a mano. Al guardar, la fórmula los va a reemplazar en las {count} filas del catálogo y eso no se puede deshacer.",
     "formulaOverwriteConfirm": "Guardar y recalcular",
     "importIgnoresCalculated": "Las columnas calculadas no van en el archivo: se calculan solas al importar. Si vienen, se ignoran.",

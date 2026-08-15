@@ -13,8 +13,8 @@ import { ToolsService } from '../tools/core/tools.service';
 import { MediaProcessingService } from '../media-processing/media-processing.service';
 import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { InvalidWorkflowConfigException } from '@/platform/common/exceptions';
-import { WorkflowCategory, SubscriptionPlan } from '@tesseract/types';
+import { InvalidWorkflowConfigException, WorkflowNotFoundException } from '@/platform/common/exceptions';
+import { WorkflowCategory } from '@tesseract/types';
 
 describe('WorkflowsService', () => {
   let service: WorkflowsService;
@@ -60,6 +60,7 @@ describe('WorkflowsService', () => {
   };
   const mockOrganizationsService = {
     canAddWorkflow: jest.fn(),
+    getWorkflowLimit: jest.fn(),
   };
   const mockAgentsService = {
     execute: jest.fn(),
@@ -175,7 +176,7 @@ describe('WorkflowsService', () => {
 
     it('should throw ForbiddenException if limit reached', async () => {
       mockOrganizationsService.canAddWorkflow.mockResolvedValue(false);
-      prisma.organization.findUnique = jest.fn().mockResolvedValue({ plan: SubscriptionPlan.FREE });
+      mockOrganizationsService.getWorkflowLimit.mockResolvedValue(5);
 
       await expect(service.create(orgId, createDto as any)).rejects.toThrow(ForbiddenException);
       expect(prisma.workflow.create).not.toHaveBeenCalled();
@@ -266,6 +267,20 @@ describe('WorkflowsService', () => {
       );
       expect(result.items).toHaveLength(1);
     });
+
+    // Un workflow interno lo construye/prueba super admin dentro de la organización real
+    // del cliente; no debe aparecer nunca en lo que el cliente ve.
+    it('should exclude internal workflows', async () => {
+      prisma.workflow.findMany = jest.fn().mockResolvedValue([]);
+
+      await service.getDashboardData('org1', null, 10);
+
+      expect(prisma.workflow.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ isInternal: false }),
+        }),
+      );
+    });
   });
 
   describe('getStats', () => {
@@ -287,6 +302,25 @@ describe('WorkflowsService', () => {
         creditsConsumedMonth: 50.5,
         byCategory: { STANDARD: 10 },
       });
+
+      // Los 4 conteos que puede ver el cliente (total, activos, ejecuciones del mes,
+      // por categoría) excluyen workflows internos.
+      expect(prisma.workflow.count).toHaveBeenNthCalledWith(1, {
+        where: { organizationId: 'org1', deletedAt: null, isInternal: false },
+      });
+      expect(prisma.workflow.count).toHaveBeenNthCalledWith(2, {
+        where: { organizationId: 'org1', deletedAt: null, isActive: true, isInternal: false },
+      });
+      expect(prisma.execution.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ isInternalWorkflow: false }),
+        }),
+      );
+      expect(prisma.workflow.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { organizationId: 'org1', deletedAt: null, isInternal: false },
+        }),
+      );
     });
 
     describe('findOne', () => {
@@ -301,6 +335,17 @@ describe('WorkflowsService', () => {
       it('should throw NotFoundException if workflow not found', async () => {
         prisma.workflow.findFirst = jest.fn().mockResolvedValue(null);
         await expect(service.findOne('org1', 'wf1')).rejects.toThrow(NotFoundException);
+      });
+
+      it('should exclude internal workflows from the tenant lookup', async () => {
+        prisma.workflow.findFirst = jest.fn().mockResolvedValue(null);
+
+        await expect(service.findOne('org1', 'wf1')).rejects.toThrow(NotFoundException);
+        expect(prisma.workflow.findFirst).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({ isInternal: false }),
+          }),
+        );
       });
     });
 
@@ -441,6 +486,167 @@ describe('WorkflowsService', () => {
           }),
         );
       });
+
+      it('salta el chequeo y el descuento de créditos para un workflow interno (allowInternal:true)', async () => {
+        prisma.workflow.findFirst = jest.fn().mockResolvedValue({ ...wfMock, isInternal: true });
+        (mockExecutionsService as any).create = jest.fn().mockResolvedValue({ id: 'exec1' });
+        (mockExecutionsService as any).linkToConversation = jest.fn();
+        (mockExecutionsService as any).getByIdFull = jest
+          .fn()
+          .mockResolvedValue({ id: 'exec1', status: 'completed' });
+        (mockExecutionsService as any).updateStatus = jest.fn();
+        (mockConversationsService as any).findOrCreateConversation = jest
+          .fn()
+          .mockResolvedValue({ id: 'conv1', isHumanInTheLoop: false });
+        (mockConversationsService as any).getMessageHistory = jest.fn().mockResolvedValue([]);
+        (mockConversationsService as any).addMessage = jest.fn();
+        (mockAgentsService as any).execute = jest.fn().mockResolvedValue({
+          messages: [{ role: 'assistant', content: 'Success response' }],
+          metadata: { total_tokens: 15, usage_by_model: { 'gpt-4o': 15 } },
+        });
+        (prisma as any).modelPrice = {
+          findMany: jest.fn().mockResolvedValue([{ modelName: 'gpt-4o', tokenGenPriceBase: 0.01 }]),
+        };
+
+        const result = await service.execute(
+          orgId,
+          wfId,
+          { message: 'Hello' },
+          undefined, // metadata
+          undefined, // userId
+          undefined, // whatsappData
+          undefined, // apiKeyId
+          undefined, // trigger
+          undefined, // executionId
+          true, // allowInternal: es el escenario que prueba este test (test-execute de admin)
+        );
+
+        expect((mockCreditsService as any).canExecuteWorkflow).not.toHaveBeenCalled();
+        expect((mockCreditsService as any).deductCredits).not.toHaveBeenCalled();
+        expect((mockExecutionsService as any).create).toHaveBeenCalledWith(
+          wfId,
+          expect.anything(),
+          expect.anything(),
+          undefined,
+          true, // isInternalWorkflow congelado desde workflow.isInternal
+        );
+        expect(result.id).toBe('exec1');
+      });
+
+      it('rechaza un workflow interno sin allowInternal (el cliente nunca lo ejecuta)', async () => {
+        prisma.workflow.findFirst = jest.fn().mockResolvedValue({ ...wfMock, isInternal: true });
+        (mockExecutionsService as any).create = jest.fn();
+
+        await expect(service.execute(orgId, wfId, { message: 'Hello' })).rejects.toThrow(
+          WorkflowNotFoundException,
+        );
+        expect((mockExecutionsService as any).create).not.toHaveBeenCalled();
+      });
+
+      it('rechaza igual con allowInternal:false explícito', async () => {
+        prisma.workflow.findFirst = jest.fn().mockResolvedValue({ ...wfMock, isInternal: true });
+        (mockExecutionsService as any).create = jest.fn();
+
+        await expect(
+          service.execute(
+            orgId,
+            wfId,
+            { message: 'Hello' },
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            false,
+          ),
+        ).rejects.toThrow(WorkflowNotFoundException);
+        expect((mockExecutionsService as any).create).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('executeStream', () => {
+      const orgId = 'org1';
+      const wfId = 'wf1';
+      const wfMock = {
+        id: wfId,
+        isActive: true,
+        isPaused: false,
+        organizationId: orgId,
+        category: WorkflowCategory.STANDARD,
+        organization: { id: orgId, name: 'Org 1', plan: 'STANDARD' },
+        tenantTools: [],
+        config: {
+          type: 'agent',
+          graph: { type: 'react' },
+          agents: { agent1: { model: 'gpt-4o' } },
+          models: [{ name: 'gpt-4o' }],
+        },
+      };
+
+      it('rechaza un workflow interno sin allowInternal (el cliente nunca lo ejecuta)', async () => {
+        prisma.workflow.findFirst = jest.fn().mockResolvedValue({ ...wfMock, isInternal: true });
+        (mockExecutionsService as any).create = jest.fn();
+
+        await expect(service.executeStream(orgId, wfId, { message: 'Hello' })).rejects.toThrow(
+          WorkflowNotFoundException,
+        );
+        expect((mockExecutionsService as any).create).not.toHaveBeenCalled();
+      });
+
+      it('con allowInternal:true pasa el gate, salta créditos y congela isInternalWorkflow', async () => {
+        prisma.workflow.findFirst = jest.fn().mockResolvedValue({ ...wfMock, isInternal: true });
+        // No hace falta mockear todo el pipeline de streaming: basta con que
+        // executionsService.create reciba la llamada (prueba que pasó el gate y el
+        // chequeo de créditos) y cortar ahí con un rechazo distintivo.
+        const sentinel = new Error('sentinel: llegó a crear la ejecución');
+        (mockExecutionsService as any).create = jest.fn().mockRejectedValue(sentinel);
+
+        await expect(
+          service.executeStream(
+            orgId,
+            wfId,
+            { message: 'Hello' },
+            undefined, // metadata
+            undefined, // userId
+            undefined, // apiKeyId
+            undefined, // trigger
+            undefined, // executionId
+            true, // allowInternal: es el escenario que prueba este test (test-execute de admin)
+          ),
+        ).rejects.toThrow(sentinel);
+
+        expect((mockCreditsService as any).canExecuteWorkflow).not.toHaveBeenCalled();
+        expect((mockExecutionsService as any).create).toHaveBeenCalledWith(
+          wfId,
+          expect.anything(),
+          expect.anything(),
+          undefined,
+          true, // isInternalWorkflow congelado desde workflow.isInternal
+        );
+      });
+    });
+  });
+
+  describe('assertInternalForTesting', () => {
+    const orgId = 'org1';
+    const wfId = 'wf1';
+
+    it('no lanza si el workflow es interno', async () => {
+      prisma.workflow.findFirst = jest.fn().mockResolvedValue({ isInternal: true });
+      await expect(service.assertInternalForTesting(orgId, wfId)).resolves.toBeUndefined();
+    });
+
+    it('rechaza un workflow publicado (isInternal: false)', async () => {
+      prisma.workflow.findFirst = jest.fn().mockResolvedValue({ isInternal: false });
+      await expect(service.assertInternalForTesting(orgId, wfId)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('lanza NotFound si el workflow no existe en esa organización', async () => {
+      prisma.workflow.findFirst = jest.fn().mockResolvedValue(null);
+      await expect(service.assertInternalForTesting(orgId, wfId)).rejects.toThrow();
     });
   });
 });
