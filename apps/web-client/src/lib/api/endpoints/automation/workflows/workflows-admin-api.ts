@@ -147,6 +147,26 @@ export interface CloneWorkflowResult {
   toolReferences: { id: string; location: string }[];
 }
 
+/**
+ * Lo que necesita el panel de "Probar" para mostrar el resultado de una ejecución
+ * de prueba sin ir a buscarlo a Cloud Logging. Es un subconjunto de lo que devuelve
+ * `GET /admin/workflows/test-executions/:id` (el `Execution` completo) — solo se
+ * tipan los campos que la UI realmente usa.
+ */
+export interface AdminTestExecutionDetail {
+  id: string;
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'TIMEOUT';
+  startedAt: string;
+  finishedAt: string | null;
+  /** Segundos. */
+  duration: number | null;
+  error: string | null;
+  errorStack: string | null;
+  /** Prisma Decimal serializado — puede llegar como string o number según el caso. */
+  cost: string | number;
+  tokensUsed: number | null;
+}
+
 class WorkflowsAdminApi {
   public apiRequestManager: ApiRequestManager;
   private static BASE_URL = '/admin/workflows';
@@ -279,6 +299,17 @@ class WorkflowsAdminApi {
     const result = await this.apiRequestManager.post<
       ApiResponse<{ id: string; deletedAt: string | null }>
     >(`${WorkflowsAdminApi.BASE_URL}/${id}/restore`, {});
+    return result.data.data!;
+  }
+
+  /** Detalle de una ejecución de prueba — para el panel de la pestaña "Probar". */
+  public async getTestExecution(
+    executionId: string,
+    organizationId: string,
+  ): Promise<AdminTestExecutionDetail> {
+    const result = await this.apiRequestManager.get<ApiResponse<AdminTestExecutionDetail>>(
+      `${WorkflowsAdminApi.BASE_URL}/test-executions/${executionId}?organizationId=${organizationId}`,
+    );
     return result.data.data!;
   }
 }

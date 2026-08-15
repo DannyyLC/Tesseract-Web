@@ -150,6 +150,18 @@ export function useAdminWorkflowMutations() {
     onSuccess: (_data, id) => invalidateWorkflow(id),
   });
 
+  // No es una query reactiva a propósito: se pide una vez, al terminar cada turno
+  // de la pestaña "Probar" (ver test-tab.tsx), no algo que se re-suscriba solo.
+  const getTestExecution = useMutation({
+    mutationFn: async ({
+      executionId,
+      organizationId,
+    }: {
+      executionId: string;
+      organizationId: string;
+    }) => api().getTestExecution(executionId, organizationId),
+  });
+
   return {
     saveConfig,
     validateConfig,
@@ -159,6 +171,7 @@ export function useAdminWorkflowMutations() {
     cloneWorkflow,
     removeWorkflow,
     restoreWorkflow,
+    getTestExecution,
   };
 }
 

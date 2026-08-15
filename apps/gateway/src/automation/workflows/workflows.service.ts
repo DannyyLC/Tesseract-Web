@@ -1530,8 +1530,12 @@ export class WorkflowsService {
     // highWaterMark: 0 deshabilita el buffer interno para que cada token se envíe inmediatamente
     const clientStream = new PassThrough({ highWaterMark: 0 });
 
-    // 0. ENVIAR CONVERSATION ID AL INICIO (Evento custom)
+    // 0. ENVIAR CONVERSATION ID Y EXECUTION ID AL INICIO (Eventos custom)
+    // execution_id: para que el caller pueda consultar el detalle completo de esta
+    // ejecución (GET /admin/workflows/test-executions/:id) apenas termine el stream,
+    // sin tener que adivinarlo ni ir a buscarlo a otro lado.
     clientStream.write(`event: conversation_id\ndata: "${conversation.id}"\n\n`);
+    clientStream.write(`event: execution_id\ndata: "${execution.id}"\n\n`);
 
     // Configurar un heartbeat para mantener la conexión viva
     const keepAliveInterval = setInterval(() => {
@@ -1540,6 +1544,11 @@ export class WorkflowsService {
 
     let metadataEvent: any = null;
     let assistantMessageBuilder = '';
+    // El agente puede reportar una falla (p. ej. grafo que no compila) como un evento
+    // `data` normal en vez de cortar el stream — el stream sigue y termina por
+    // `rawStream.on('end', ...)` como si nada. Sin capturar esto acá, la ejecución
+    // quedaba COMPLETED con respuesta vacía y costo $0 aunque el agente haya reventado.
+    let agentErrorContent: string | null = null;
 
     // gRPC data events emit decoded proto objects — no SSE parsing needed
     rawStream.on('data', (event: any) => {
@@ -1549,6 +1558,8 @@ export class WorkflowsService {
       } else if (event.type === 'metadata') {
         metadataEvent = event.metadata ? JSON.parse(event.metadata) : null;
       } else if (event.type === 'error') {
+        agentErrorContent =
+          typeof event.content === 'string' ? event.content : JSON.stringify(event.content);
         this.logger.error(`[${execution.id}] Agent stream error: ${event.content}`);
       }
       // tool_start, tool_end, end: consumed silently
@@ -1650,14 +1661,22 @@ export class WorkflowsService {
           );
 
           // 5. Actualizar Ejecución
-          await this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
-            result: {
-              messages: [{ role: ChatRole.ASSISTANT, content: assistantMessageBuilder }],
-              conversationId: conversation.id,
+          // Si el agente reportó error (ver `agentErrorContent` arriba), esto NO fue un
+          // éxito aunque el stream haya cerrado limpio — se marca FAILED con el mensaje
+          // real en vez de COMPLETED con una respuesta vacía.
+          await this.executionsService.updateStatus(
+            execution.id,
+            agentErrorContent ? ExecutionStatus.FAILED : ExecutionStatus.COMPLETED,
+            {
+              result: {
+                messages: [{ role: ChatRole.ASSISTANT, content: assistantMessageBuilder }],
+                conversationId: conversation.id,
+              },
+              cost: costUSD,
+              tokensUsed: totalTokens,
+              ...(agentErrorContent ? { error: agentErrorContent } : {}),
             },
-            cost: costUSD,
-            tokensUsed: totalTokens,
-          });
+          );
 
           // 6. Actualizar Conversación (stats)
           // Las conversaciones de workflows internos se crean con `isInternalWorkflow: true`
