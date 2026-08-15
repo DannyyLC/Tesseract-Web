@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
 import type {
@@ -8,6 +9,7 @@ import type {
   WorkflowConfig,
 } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
 import type { AdminOrganizationsQuery } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
+import WorkflowsAdminTestStream from '@/lib/api/endpoints/automation/workflows/workflows-admin-test-stream';
 
 const KEY = 'admin-workflows';
 const ORG_KEY = 'admin-organizations';
@@ -158,4 +160,53 @@ export function useAdminWorkflowMutations() {
     removeWorkflow,
     restoreWorkflow,
   };
+}
+
+// ---------------------------------------------------------------- test execute (admin)
+
+/**
+ * Probar un workflow interno desde el panel de admin, en streaming (estilo chat).
+ * Calca `useExecuteStream` (hooks/automation/use-workflows.ts): estado local en vez de
+ * `useMutation` porque necesita callbacks incrementales token a token, no un único
+ * resultado al final.
+ */
+export function useAdminTestExecuteStream() {
+  const [messages, setMessages] = useState<string>('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [error, setError] = useState<any>(null);
+
+  const execute = async (
+    id: string,
+    organizationId: string,
+    input: Record<string, any>,
+    metadata?: Record<string, any>,
+    onEvent?: (event: string, data: any) => void,
+  ) => {
+    setIsStreaming(true);
+    setMessages('');
+    setError(null);
+
+    try {
+      await WorkflowsAdminTestStream.testExecuteStream(id, organizationId, input, metadata, {
+        onChunk: (chunk) => setMessages((prev) => prev + chunk),
+        onEvent,
+        onError: (err) => {
+          setError(err);
+          setIsStreaming(false);
+        },
+        onComplete: () => setIsStreaming(false),
+      });
+    } catch (e) {
+      setError(e);
+      setIsStreaming(false);
+    }
+  };
+
+  const clear = () => {
+    setMessages('');
+    setError(null);
+    setIsStreaming(false);
+  };
+
+  return { execute, messages, isStreaming, error, clear };
 }

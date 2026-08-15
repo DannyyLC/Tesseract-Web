@@ -1177,8 +1177,15 @@ export class WorkflowsService {
       // 8. ACTUALIZAR EXECUTION Y CONVERSATION EN PARALELO
       const messageIncrement = assistantMessageSaved ? 2 : 1; // user + assistant (o solo user)
 
-      // Execution y Conversation son tablas DIFERENTES → Seguro paralelizar
-      await Promise.all([
+      // Execution y Conversation son tablas DIFERENTES → Seguro paralelizar. La
+      // conversación de un workflow interno se crea con `isInternalWorkflow: true`
+      // (findOrCreateConversation más arriba), y `ConversationsService.update()` filtra
+      // `isInternalWorkflow: false` a propósito — es el ownership check para que un
+      // cliente no pueda tocar la conversación de un workflow interno que ni ve.
+      // Meterla igual en el Promise.all para un workflow interno tira un
+      // NotFoundException sin capturar que revienta toda la ejecución; las stats de una
+      // conversación de prueba tampoco le sirven a nadie, así que directamente se omite.
+      const updates: Promise<unknown>[] = [
         // Update execution: TODOS los campos en 1 query (evita race condition)
         this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
           result: {
@@ -1189,14 +1196,21 @@ export class WorkflowsService {
           tokensUsed: totalTokens, // ← Consolidado en el mismo update
           credits: undefined, // Se actualizará en el siguiente paso
         }),
+      ];
+
+      if (!workflow.isInternal) {
         // Batch update de conversation (tabla diferente, sin conflicto)
-        this.conversationsService.update(organizationId, conversation.id, {
-          messageCount: { increment: messageIncrement },
-          lastMessageAt: new Date(),
-          ...(totalTokens > 0 ? { totalTokens: { increment: totalTokens } } : {}),
-          ...(costUSD > 0 ? { totalCost: { increment: Number(costUSD.toFixed(9)) } } : {}),
-        }),
-      ]);
+        updates.push(
+          this.conversationsService.update(organizationId, conversation.id, {
+            messageCount: { increment: messageIncrement },
+            lastMessageAt: new Date(),
+            ...(totalTokens > 0 ? { totalTokens: { increment: totalTokens } } : {}),
+            ...(costUSD > 0 ? { totalCost: { increment: Number(costUSD.toFixed(9)) } } : {}),
+          }),
+        );
+      }
+
+      await Promise.all(updates);
 
       this.logger.log(`Ejecución ${execution.id} marcada como completada`);
 
@@ -1646,18 +1660,27 @@ export class WorkflowsService {
           });
 
           // 6. Actualizar Conversación (stats)
-          try {
-            await this.conversationsService.update(organizationId, conversation.id, {
-              messageCount: { increment: assistantMessageBuilder ? 2 : 1 },
-              lastMessageAt: new Date(),
-              ...(totalTokens > 0 ? { totalTokens: { increment: totalTokens } } : {}),
-              ...(costUSD > 0 ? { totalCost: { increment: costUSD } } : {}),
-            });
-          } catch (nonCriticalConversationError) {
-            this.logger.error(
-              `Non-critical post-stream conversation update failed for ${execution.id}: ${(nonCriticalConversationError as Error).message}`,
-              (nonCriticalConversationError as Error).stack,
-            );
+          // Las conversaciones de workflows internos se crean con `isInternalWorkflow: true`
+          // (findOrCreateConversation más arriba), y `ConversationsService.update()` filtra
+          // `isInternalWorkflow: false` a propósito (es el ownership check: sin él, un cliente
+          // podría tocar la conversación de un workflow interno que ni ve). Llamarlo aquí sin
+          // este guard tira un `NotFoundException` en cada ejecución de prueba desde el panel
+          // de admin — inofensivo (está atrapado abajo) pero ruidoso, y las stats de una
+          // conversación de prueba no le sirven a nadie de todos modos.
+          if (!workflow.isInternal) {
+            try {
+              await this.conversationsService.update(organizationId, conversation.id, {
+                messageCount: { increment: assistantMessageBuilder ? 2 : 1 },
+                lastMessageAt: new Date(),
+                ...(totalTokens > 0 ? { totalTokens: { increment: totalTokens } } : {}),
+                ...(costUSD > 0 ? { totalCost: { increment: costUSD } } : {}),
+              });
+            } catch (nonCriticalConversationError) {
+              this.logger.error(
+                `Non-critical post-stream conversation update failed for ${execution.id}: ${(nonCriticalConversationError as Error).message}`,
+                (nonCriticalConversationError as Error).stack,
+              );
+            }
           }
 
           // 7. Descontar Créditos (workflows internos no gastan saldo)
