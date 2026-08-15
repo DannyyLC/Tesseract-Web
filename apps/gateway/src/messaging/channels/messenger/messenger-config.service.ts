@@ -709,4 +709,34 @@ export class MessengerConfigService {
 
     return crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
   }
+
+  async updateConnectionStatusByPageId(pageId: string, connectionStatus: MessengerConnectionStatus): Promise<boolean> {
+    try {
+      await this.prismaService.messengerConfig.updateMany({
+        where: { pageId },
+        data: {
+          connectionStatus,
+          lastConnectedAt:
+            connectionStatus === MessengerConnectionStatus.CONNECTED ? new Date() : undefined,
+        },
+      });
+      return true;
+    } catch (error) {
+      this.logger.error(`Error updating Messenger config connection status for pageId ${pageId}:`, error);
+      return false;
+    }
+  }
+
+  async updateConnectionErrorByPageId(pageId: string, connectionError: string): Promise<boolean> {
+    try {
+      await this.prismaService.messengerConfig.updateMany({
+        where: { pageId },
+        data: { connectionError },
+      });
+      return true;
+    } catch (error) {
+      this.logger.error(`Error updating Messenger config connection error for pageId ${pageId}:`, error);
+      return false;
+    }
+  }
 }

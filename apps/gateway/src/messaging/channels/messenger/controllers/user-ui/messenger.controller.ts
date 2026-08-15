@@ -119,13 +119,17 @@ export class MessengerController {
 
     if (!rawBody) {
       this.logger.error('Webhook de Messenger sin raw body; no se puede validar la firma');
+      await this.messengerConfigService.updateConnectionStatusByPageId(parsedBody?.entry?.[0]?.id ?? '', 'DISCONNECTED');
+      await this.messengerConfigService.updateConnectionErrorByPageId(parsedBody?.entry?.[0]?.id ?? '', 'Webhook de Messenger sin raw body; no se puede validar la firma');
       return res.status(HttpStatus.UNAUTHORIZED).send({ received: false });
     }
 
     if (parsedBody?.object !== 'page') {
       // Instagram y WhatsApp comparten el mecanismo de webhooks de Meta; si la app
       // llega a suscribirse a otro producto, esto evita procesarlo como Messenger.
-      this.logger.warn(`Webhook de Messenger con object inesperado: ${parsedBody?.object}`);
+      this.logger.warn(`Webhook de Messenger con object inesperado, el object no es page: ${parsedBody?.object}`);
+      await this.messengerConfigService.updateConnectionStatusByPageId(parsedBody?.entry?.[0]?.id ?? '', 'DISCONNECTED');
+      await this.messengerConfigService.updateConnectionErrorByPageId(parsedBody?.entry?.[0]?.id ?? '', `Webhook de Messenger con object inesperado: ${parsedBody?.object}`);
       return res.status(HttpStatus.OK).send({ received: true, ignored: 'unsupported-object' });
     }
 
@@ -166,6 +170,8 @@ export class MessengerController {
           `Firma inválida en webhook de Messenger para la página ${event.pageId}`,
         );
         rejected++;
+        await this.messengerConfigService.updateConnectionStatusByPageId(event.pageId, 'DISCONNECTED');
+        await this.messengerConfigService.updateConnectionErrorByPageId(event.pageId, 'Firma inválida en webhook de Messenger');
         results.push({ messageId: event.messageId, ignored: 'invalid-signature' });
         continue;
       }
