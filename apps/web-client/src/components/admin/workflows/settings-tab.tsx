@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, RotateCcw, Save, Trash2 } from 'lucide-react';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { Switch } from '@/components/ui/switch';
 import { useAdminWorkflowMutations } from '@/hooks/automation/use-admin-workflows';
 import type { AdminWorkflowDetail } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
@@ -42,6 +43,8 @@ const toForm = (w: AdminWorkflowDetail): Form => ({
  */
 export function SettingsTab({ workflow }: Props) {
   const [form, setForm] = useState<Form>(() => toForm(workflow));
+  const [confirmPublishOpen, setConfirmPublishOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const { updateMeta, removeWorkflow, restoreWorkflow } = useAdminWorkflowMutations();
 
   // Si el workflow se recarga (p. ej. tras guardar el config), reflejar lo que llegó.
@@ -54,13 +57,8 @@ export function SettingsTab({ workflow }: Props) {
     // Apagarlo es "publicar": el workflow se vuelve visible y ejecutable para el cliente,
     // que hasta ahora no sabía que existía. Prendiéndolo (ocultarlo de nuevo) no hace
     // falta confirmar: no hay nada que se le revele a nadie.
-    if (
-      !value &&
-      !window.confirm(
-        'Vas a publicar este workflow: el cliente lo va a ver en su panel y va a poder ' +
-          'ejecutarlo. ¿Ya está listo?',
-      )
-    ) {
+    if (!value) {
+      setConfirmPublishOpen(true);
       return;
     }
     set('isInternal', value);
@@ -68,19 +66,14 @@ export function SettingsTab({ workflow }: Props) {
 
   const dirty = JSON.stringify(form) !== JSON.stringify(toForm(workflow));
 
-  const handleDelete = () => {
-    if (
-      !window.confirm(
-        'Vas a eliminar este workflow. Deja de ejecutarse de inmediato (cron, API, WhatsApp) y ' +
-          'se puede restaurar después desde aquí mismo.',
-      )
-    ) {
-      return;
+  const handleDelete = async () => {
+    try {
+      await removeWorkflow.mutateAsync(workflow.id);
+      toast.success('Workflow eliminado');
+      setConfirmDeleteOpen(false);
+    } catch (e: any) {
+      if (!e?.toastHandled) toast.error(e?.message ?? 'No se pudo eliminar');
     }
-    removeWorkflow.mutate(workflow.id, {
-      onSuccess: () => toast.success('Workflow eliminado'),
-      onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo eliminar'),
-    });
   };
 
   const handleRestore = () => {
@@ -106,7 +99,7 @@ export function SettingsTab({ workflow }: Props) {
   };
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="space-y-4">
       <p className="text-xs text-text-secondary">
         Estos ajustes no forman parte del config, así que guardarlos no crea una versión nueva ni
         interfiere con los cambios que tengas pendientes en las otras pestañas.
@@ -202,7 +195,7 @@ export function SettingsTab({ workflow }: Props) {
         </div>
       </div>
 
-      <div className="rounded-lg border border-danger/40 p-3">
+      <div className="rounded-lg border border-danger p-3">
         <p className="text-xs font-medium text-danger">Zona de peligro</p>
         {workflow.deletedAt ? (
           <>
@@ -230,8 +223,8 @@ export function SettingsTab({ workflow }: Props) {
               Deja de ejecutarse de inmediato (cron, API, WhatsApp). Se puede restaurar después.
             </p>
             <button
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
-              onClick={handleDelete}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-danger px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
+              onClick={() => setConfirmDeleteOpen(true)}
               disabled={removeWorkflow.isPending}
             >
               {removeWorkflow.isPending ? (
@@ -251,6 +244,29 @@ export function SettingsTab({ workflow }: Props) {
           Guardar ajustes
         </button>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmPublishOpen}
+        onClose={() => setConfirmPublishOpen(false)}
+        onConfirm={() => {
+          set('isInternal', false);
+          setConfirmPublishOpen(false);
+        }}
+        variant="warning"
+        title="Publicar workflow"
+        message="Vas a publicar este workflow: el cliente lo va a ver en su panel y va a poder ejecutarlo. ¿Ya está listo?"
+        confirmLabel="Publicar"
+      />
+
+      <ConfirmModal
+        isOpen={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={handleDelete}
+        variant="danger"
+        title="Eliminar workflow"
+        message="Vas a eliminar este workflow. Deja de ejecutarse de inmediato (cron, API, WhatsApp) y se puede restaurar después desde aquí mismo."
+        confirmLabel="Eliminar"
+      />
     </div>
   );
 }
