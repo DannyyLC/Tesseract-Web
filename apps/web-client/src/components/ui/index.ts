@@ -1,4 +1,5 @@
 export * from './backup-codes-panel';
+export * from './confirm-modal';
 export * from './copy-button';
 export * from './dynamic-icon';
 export * from './expanding-action-button';
