@@ -220,8 +220,8 @@ export function TestTab({ workflow }: Props) {
     // de arriba (título + tabs, ~93px con su margen) y el padding inferior del
     // layout de admin (lg:p-8, 32px), para que el chat ocupe todo lo que queda del
     // viewport en vez de quedarse corto con un porcentaje arbitrario.
-    <div className="flex h-[70vh] gap-4 lg:h-[calc(100vh-9rem)]">
-      <div className="flex max-w-3xl flex-1 flex-col">
+    <div className="flex h-[70vh] w-full gap-4 lg:h-[calc(100vh-9rem)]">
+      <div className="flex min-w-0 flex-1 flex-col">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-text-secondary">
             Canal <code className="font-mono">admin-test</code>: no descuenta créditos ni cuenta
@@ -325,8 +325,10 @@ export function TestTab({ workflow }: Props) {
       </div>
 
       {/* Panel de ejecuciones — oculto por debajo de lg: el chat ya va apretado ahí y
-          esta pantalla es casi exclusiva de desktop. */}
-      <div className="hidden w-80 shrink-0 flex-col lg:flex">
+          esta pantalla es casi exclusiva de desktop. w-96 y no w-80: con el chat ya
+          sin tope de ancho, dejar el panel angosto se sentía desperdiciado — más aire
+          para leer un stack trace sin que se vuelva un scroll horizontal. */}
+      <div className="hidden w-96 shrink-0 flex-col lg:flex">
         <p className="mb-3 text-xs font-medium text-text-secondary">
           Ejecuciones de esta sesión — el detalle de cada mensaje, sin salir de acá.
         </p>
