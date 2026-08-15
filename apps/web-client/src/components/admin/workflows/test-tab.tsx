@@ -116,7 +116,12 @@ export function TestTab({ workflow }: Props) {
   const lastId = thread[thread.length - 1]?.id;
 
   return (
-    <div className="flex h-[70vh] max-w-3xl flex-col">
+    // La altura fija en móvil (70vh) es un fallback nomás — ahí no es prioridad.
+    // En desktop (lg+) sí importa: `lg:h-[calc(100vh-9rem)]` resta la barra sticky
+    // de arriba (título + tabs, ~93px con su margen) y el padding inferior del
+    // layout de admin (lg:p-8, 32px), para que el chat ocupe todo lo que queda del
+    // viewport en vez de quedarse corto con un porcentaje arbitrario.
+    <div className="flex h-[70vh] max-w-3xl flex-col lg:h-[calc(100vh-9rem)]">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-text-secondary">
           Canal <code className="font-mono">admin-test</code>: no descuenta créditos ni cuenta en
