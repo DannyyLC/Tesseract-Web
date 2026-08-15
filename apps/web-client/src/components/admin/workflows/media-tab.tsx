@@ -30,7 +30,7 @@ export function MediaTab({ config, onChange }: Props) {
     onChange(setAtPath(config, ['mediaProcessing', ...path], value));
 
   return (
-    <div className="max-w-2xl space-y-5">
+    <div className="space-y-5">
       <p className="text-xs text-text-secondary">
         Todo empieza apagado: procesar media consume créditos, así que se habilita por cliente.
       </p>
