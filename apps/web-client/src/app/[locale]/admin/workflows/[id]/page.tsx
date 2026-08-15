@@ -18,8 +18,10 @@ import {
   Save,
   SlidersHorizontal,
   AlertTriangle,
+  Undo2,
 } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import {
   useAdminWorkflow,
@@ -109,6 +111,7 @@ function WorkflowEditor() {
   const [loadedHash, setLoadedHash] = useState<string | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
   const [changesOpen, setChangesOpen] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
   const [note, setNote] = useState('');
   const [validation, setValidation] = useState<{ valid: boolean; errors: string[] } | null>(null);
 
@@ -165,6 +168,13 @@ function WorkflowEditor() {
     [original, draft],
   );
 
+  // Ajustes e Historial no tocan `draft`: Ajustes guarda metadata por su cuenta con su
+  // propio botón, e Historial no edita nada. Mostrar aquí Validar/Guardar/Ver cambios
+  // sin motivo confundía. Pero si hay cambios de config pendientes de OTRA pestaña, hay
+  // que poder guardarlos o descartarlos desde donde sea — así que la barra aparece igual,
+  // en el mismo lugar de siempre, en cuanto hay algo pendiente.
+  const showConfigFooter = isDirty || (tab !== 'settings' && tab !== 'history');
+
   const changes = useMemo(
     () => (original && draft ? diffLocal(original, draft) : []),
     [original, draft],
@@ -177,7 +187,12 @@ function WorkflowEditor() {
   const lintErrors = lintIssues.filter((i) => i.severity === 'error');
 
   // Persistir el borrador: perder 40 minutos de escritura por cerrar una pestaña
-  // sería el peor modo de falla de este editor.
+  // sería el peor modo de falla de este editor. Esto ya cubre el caso que antes
+  // atajaba un `beforeunload` nativo (recargar/cerrar con cambios sin guardar): al
+  // volver, el borrador se recupera solo desde acá arriba (ver el `useEffect` de
+  // carga inicial). El diálogo nativo del navegador no se puede reemplazar por un
+  // modal propio — ninguno lo permite desde ~2016 — así que en vez de pelear con
+  // eso, se quitó: ya no hace falta, no hay nada que se pierda de verdad.
   useEffect(() => {
     if (!workflow || !draft) return;
     if (loadedVersion === null) return;
@@ -186,20 +201,20 @@ function WorkflowEditor() {
     else localStorage.removeItem(key);
   }, [draft, isDirty, workflow, workflowId, loadedVersion]);
 
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (!isDirty) return;
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [isDirty]);
-
   const handleChange = useCallback((next: WorkflowConfig) => {
     setDraft(next);
     setValidation(null);
   }, []);
+
+  /** Vuelve `draft` a como está guardado. Es la única forma de cancelar ediciones. */
+  const handleDiscard = () => {
+    if (!original || loadedVersion === null) return;
+    setDraft(structuredClone(original));
+    setValidation(null);
+    localStorage.removeItem(draftKey(workflowId, loadedVersion));
+    setDiscardOpen(false);
+    toast.info('Cambios descartados');
+  };
 
   const handleValidate = () => {
     if (!draft) return;
@@ -276,7 +291,7 @@ function WorkflowEditor() {
   }
 
   return (
-    <div className="w-full pb-24">
+    <div className={`w-full ${showConfigFooter ? 'pb-24' : ''}`}>
       {/*
         Barra propia del editor, pegada al borde del área de contenido: se sangra el
         padding del layout con márgenes negativos y queda fija al hacer scroll, para
@@ -300,6 +315,8 @@ function WorkflowEditor() {
               )}
             </p>
           </div>
+          {/* Solo informativo — las acciones (Guardar/Descartar/Validar/Ver cambios)
+              viven todas juntas abajo, en la barra sticky. Un solo lugar. */}
           {isDirty && (
             <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs text-accent">
               {changes.length} cambio(s) sin guardar
@@ -370,7 +387,7 @@ function WorkflowEditor() {
         />
       )}
 
-      {validation && !validation.valid && (
+      {showConfigFooter && validation && !validation.valid && (
         <div className="mt-4 space-y-1 rounded-lg border border-danger/40 p-3">
           <p className="text-xs font-medium text-danger">
             La validación del servidor encontró {validation.errors.length} problema(s):
@@ -384,32 +401,69 @@ function WorkflowEditor() {
       )}
 
       {/*
-        Sticky y no fixed: así se alinea sola con el área de contenido. Con `fixed`
-        había que hardcodear el ancho del sidebar, y quedaba descuadrada al colapsarlo.
+        `fixed` de verdad, no `sticky`: con `sticky` el navegador la "suelta" al llegar
+        al final del documento y se reacomoda a su posición en el flujo — eso es el
+        salto que se veía al hacer scroll hasta abajo. `fixed` la deja anclada a la
+        ventana sin importar el scroll, punto.
+        Antes evitábamos `fixed` porque habría que hardcodear el ancho del sidebar para
+        no quedar tapada por él (y se desalineaba al colapsarlo). Eso ya no hace falta:
+        `--admin-sidebar-w` la pone `layout.tsx` como variable CSS y se actualiza sola
+        con el sidebar.
+        Oculta en Ajustes/Historial: ninguna de las dos toca `draft`, así que estos
+        botones (que son del config) no tienen nada que ver con lo que se ve ahí y
+        solo confundían.
       */}
-      <div className="sticky bottom-0 z-20 -mx-4 -mb-24 mt-6 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {validation?.valid && (
-            <span className="mr-auto inline-flex items-center gap-1 text-xs text-success-500">
-              <CheckCircle2 size={13} /> Config válido
-            </span>
-          )}
-          <button className={btnGhost} onClick={handleValidate} disabled={validateConfig.isPending}>
-            {validateConfig.isPending ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <ListChecks size={14} />
+      {showConfigFooter && (
+        <div className="fixed inset-x-0 bottom-0 z-20 h-16 border-t border-border bg-surface/95 px-4 backdrop-blur transition-[left] duration-300 md:px-6 lg:left-[var(--admin-sidebar-w)] lg:px-8">
+          {/*
+            `flex-nowrap` + `overflow-x-auto` y no `flex-wrap`: con varios botones, en
+            cuanto el ancho disponible bajaba un poco (aparece la scrollbar, se achica la
+            ventana) la fila pasaba a dos líneas y la barra crecía de alto. Con altura fija
+            (`h-16`) y una sola línea que scrollea horizontal si hace falta, nunca cambia
+            de tamaño.
+          */}
+          <div className="flex h-full flex-nowrap items-center justify-end gap-2 overflow-x-auto">
+            {validation?.valid && (
+              <span className="mr-auto inline-flex shrink-0 items-center gap-1 text-xs whitespace-nowrap text-success-500">
+                <CheckCircle2 size={13} /> Config válido
+              </span>
             )}
-            Validar
-          </button>
-          <button className={btnGhost} onClick={() => setChangesOpen(true)} disabled={!isDirty}>
-            Ver cambios ({changes.length})
-          </button>
-          <button className={btnPrimary} onClick={() => setSaveOpen(true)} disabled={!isDirty}>
-            <Save size={14} /> Guardar
-          </button>
+            <button
+              className={`${btnGhost} shrink-0 whitespace-nowrap`}
+              onClick={handleValidate}
+              disabled={validateConfig.isPending}
+            >
+              {validateConfig.isPending ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <ListChecks size={14} />
+              )}
+              Validar
+            </button>
+            <button
+              className={`${btnGhost} shrink-0 whitespace-nowrap`}
+              onClick={() => setChangesOpen(true)}
+              disabled={!isDirty}
+            >
+              Ver cambios ({changes.length})
+            </button>
+            <button
+              className={`${btnGhost} shrink-0 whitespace-nowrap text-danger hover:bg-danger/10`}
+              onClick={() => setDiscardOpen(true)}
+              disabled={!isDirty}
+            >
+              <Undo2 size={14} /> Descartar
+            </button>
+            <button
+              className={`${btnPrimary} shrink-0 whitespace-nowrap`}
+              onClick={() => setSaveOpen(true)}
+              disabled={!isDirty}
+            >
+              <Save size={14} /> Guardar
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <AnimatePresence>
         {changesOpen && (
@@ -473,6 +527,16 @@ function WorkflowEditor() {
           </Modal>
         )}
       </AnimatePresence>
+
+      <ConfirmModal
+        isOpen={discardOpen}
+        onClose={() => setDiscardOpen(false)}
+        onConfirm={handleDiscard}
+        variant="danger"
+        title="Descartar cambios"
+        message={`Vas a perder ${changes.length} cambio(s) sin guardar en este workflow. No se puede deshacer.`}
+        confirmLabel="Descartar"
+      />
     </div>
   );
 }

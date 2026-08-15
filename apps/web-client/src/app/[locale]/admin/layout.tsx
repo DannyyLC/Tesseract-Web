@@ -161,7 +161,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   );
 
   return (
-    <div className="min-h-screen bg-dashboard-background">
+    <div
+      className="min-h-screen bg-dashboard-background"
+      // Ancho actual del sidebar como variable CSS: la usan elementos `fixed` de
+      // páginas hijas (como la barra de guardar del editor de workflows) para no
+      // quedar tapados por el sidebar ni tener que hardcodear su ancho — con
+      // `isCollapsed` viviendo solo acá, no hay otra forma de que se enteren.
+      style={{ '--admin-sidebar-w': isCollapsed ? '72px' : '240px' } as React.CSSProperties}
+    >
       {/* Sidebar fijo (desktop) */}
       <aside className={`fixed left-0 top-0 z-40 hidden h-screen transition-all duration-300 lg:block ${isCollapsed ? 'w-[72px]' : 'w-[240px]'}`}>
         {sidebar}
