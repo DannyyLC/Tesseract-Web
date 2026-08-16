@@ -58,15 +58,23 @@ export interface AdminOrganizationDetail {
       overageLimit: number;
     };
   };
-  usage: { users: number; workflows: number; apiKeys: number };
+  usage: {
+    users: number;
+    workflows: number;
+    apiKeys: number;
+    datasets: number;
+    datasetRows: number;
+    credits: number;
+  };
 }
 
 export interface UpdateAdminCustomLimitsInput {
-  customMaxUsers?: number;
-  customMaxApiKeys?: number;
-  customMaxWorkflows?: number;
-  customMaxDatasets?: number;
-  customMaxDatasetRows?: number;
+  // `null` = borra el override y vuelve al default del plan; `undefined` = no tocar el campo.
+  customMaxUsers?: number | null;
+  customMaxApiKeys?: number | null;
+  customMaxWorkflows?: number | null;
+  customMaxDatasets?: number | null;
+  customMaxDatasetRows?: number | null;
 }
 
 export interface ToggleAdminOverageInput {

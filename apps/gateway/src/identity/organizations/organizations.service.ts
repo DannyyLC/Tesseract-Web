@@ -139,33 +139,46 @@ export class OrganizationsService {
    * Obtiene la información de una organización
    */
   async findOne(organizationId: string) {
-    const organization = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-      include: {
-        subscription: true,
-        _count: {
-          select: {
-            users: true,
-            workflows: true,
-            apiKeys: true,
+    const [organization, datasetRows] = await Promise.all([
+      this.prisma.organization.findUnique({
+        where: { id: organizationId },
+        include: {
+          subscription: true,
+          creditBalance: true,
+          _count: {
+            select: {
+              users: true,
+              // Igual que en getStats: un workflow interno no es del cliente y uno
+              // eliminado no debe seguir contando contra su cupo de plan.
+              workflows: { where: { isInternal: false, deletedAt: null } },
+              apiKeys: true,
+              datasets: { where: { deletedAt: null } },
+            },
           },
         },
-      },
-    });
+      }),
+      this.prisma.datasetRecord.count({
+        where: { dataset: { organizationId, deletedAt: null } },
+      }),
+    ]);
 
     if (!organization) {
       throw new NotFoundException('Organización no encontrada');
     }
 
-    const planConfig = PLANS[organization.plan];
-
     return {
       ...organization,
-      planLimits: planConfig,
+      // Límites EFECTIVOS (con overrides de `custom Max*`), no los defaults crudos del
+      // plan: si no se resuelven los overrides aquí, este endpoint enseña un cupo distinto
+      // al que de verdad aplica `getStats()`/`canAddWorkflow()` para la misma organización.
+      planLimits: { limits: this.getEffectiveLimits(organization) },
       usage: {
         users: organization._count.users,
         workflows: organization._count.workflows,
         apiKeys: organization._count.apiKeys,
+        datasets: organization._count.datasets,
+        datasetRows,
+        credits: organization.creditBalance?.balance ?? 0,
       },
     };
   }
@@ -865,6 +878,8 @@ export class OrganizationsService {
       maxUsers: organization.customMaxUsers ?? planDefaults.maxUsers,
       maxWorkflows: organization.customMaxWorkflows ?? planDefaults.maxWorkflows,
       maxApiKeys: organization.customMaxApiKeys ?? planDefaults.maxApiKeys,
+      maxDatasets: organization.customMaxDatasets ?? planDefaults.maxDatasets,
+      maxDatasetRows: organization.customMaxDatasetRows ?? planDefaults.maxDatasetRows,
       monthlyCredits: planDefaults.monthlyCredits,
       overageLimit: organization.overageLimit ?? planDefaults.overageLimit,
       allowOverages: organization.allowOverages ?? planDefaults.allowOverages,

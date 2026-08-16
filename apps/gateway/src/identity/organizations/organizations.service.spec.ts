@@ -132,6 +132,9 @@ describe('OrganizationsService', () => {
     execution: {
       count: jest.fn(),
     },
+    datasetRecord: {
+      count: jest.fn(),
+    },
     userVerification: {
       findFirst: jest.fn(),
       deleteMany: jest.fn(),
@@ -187,19 +190,50 @@ describe('OrganizationsService', () => {
         id: 'org-1',
         name: 'Org',
         plan: 'FREE',
-        _count: { users: 5, workflows: 2, apiKeys: 1 },
+        customMaxWorkflows: 25, // override: debe reflejarse en planLimits, no el default de FREE
+        creditBalance: { balance: 42 },
+        _count: { users: 5, workflows: 2, apiKeys: 1, datasets: 3 },
       };
       mockPrismaService.organization.findUnique.mockResolvedValue(org);
+      mockPrismaService.datasetRecord.count.mockResolvedValue(120);
+
       const res = await service.findOne('org-1');
+
       expect(res.name).toEqual('Org');
-      expect(res.usage.users).toEqual(5);
+      expect(res.usage).toEqual({
+        users: 5,
+        workflows: 2,
+        apiKeys: 1,
+        datasets: 3,
+        datasetRows: 120,
+        credits: 42,
+      });
+      // Límite efectivo (con override), no el default crudo del plan.
+      expect(res.planLimits.limits.maxWorkflows).toEqual(25);
       expect(mockPrismaService.organization.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: 'org-1' }, include: expect.any(Object) }),
       );
+      expect(mockPrismaService.datasetRecord.count).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ dataset: expect.any(Object) }) }),
+      );
+    });
+
+    it('sin balance de créditos, usa 0', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        name: 'Org',
+        plan: 'FREE',
+        _count: { users: 0, workflows: 0, apiKeys: 0, datasets: 0 },
+      });
+      mockPrismaService.datasetRecord.count.mockResolvedValue(0);
+
+      const res = await service.findOne('org-1');
+      expect(res.usage.credits).toEqual(0);
     });
 
     it('throws NotFoundException when not found', async () => {
       mockPrismaService.organization.findUnique.mockResolvedValue(null);
+      mockPrismaService.datasetRecord.count.mockResolvedValue(0);
       await expect(service.findOne('org-x')).rejects.toThrow(NotFoundException);
     });
   });

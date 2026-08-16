@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from '@/i18n/routing';
-import { Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAdminOrganizations } from '@/hooks/identity/use-admin-organizations';
+import { OrganizationSummary } from '@/components/admin/organizations/organization-summary';
 import { btnGhost, inputClass } from '../_styles';
 
 const STATUS_FILTERS = [
@@ -15,11 +15,10 @@ const STATUS_FILTERS = [
 ] as const;
 
 export default function AdminOrganizationsPage() {
-  const router = useRouter();
-
   const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]['value']>('');
   const [page, setPage] = useState(1);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const search = useDebounce(searchInput, 400);
 
@@ -88,32 +87,38 @@ export default function AdminOrganizationsPage() {
           </p>
         ) : (
           <ul className="divide-y divide-border">
-            {data.data.map((org) => (
-              <li key={org.id}>
-                <button
-                  onClick={() => router.push(`/admin/organizaciones/${org.id}`)}
-                  className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-surface-secondary"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="truncate font-medium text-text-primary">{org.name}</span>
-                      <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase text-text-secondary">
-                        {org.plan}
-                      </span>
-                      {!org.isActive && (
-                        <span className="rounded bg-danger/10 px-1.5 py-0.5 text-[10px] text-danger">
-                          inactiva
-                        </span>
-                      )}
+            {data.data.map((org) => {
+              const isExpanded = expandedId === org.id;
+              return (
+                <li key={org.id}>
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : org.id)}
+                    aria-expanded={isExpanded}
+                    className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-surface-secondary"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate font-medium text-text-primary">{org.name}</span>
+                        {!org.isActive && <span className="text-xs text-danger">inactiva</span>}
+                      </div>
+                      <p className="mt-0.5 text-xs text-text-secondary">{org.slug}</p>
                     </div>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
-                      <span>{org.slug}</span>
-                      <span>{org._count.workflows} workflows</span>
-                    </p>
-                  </div>
-                </button>
-              </li>
-            ))}
+                    <ChevronDown
+                      size={16}
+                      className={`shrink-0 text-text-secondary transition-transform ${
+                        isExpanded ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t border-border px-4">
+                      <OrganizationSummary organizationId={org.id} />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
