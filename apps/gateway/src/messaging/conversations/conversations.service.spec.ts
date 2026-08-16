@@ -24,6 +24,7 @@ const mockPrismaService = {
     update: jest.fn(),
     findMany: jest.fn(),
     count: jest.fn(),
+    updateMany: jest.fn(),
   },
   workflow: {
     findUnique: jest.fn(),
@@ -398,6 +399,95 @@ describe('ConversationsService', () => {
             { id: 'desc' },
           ],
         }),
+      );
+    });
+  });
+
+  describe('findAllForAdmin', () => {
+    it('no excluye conversaciones de workflows internos (a diferencia de findAll)', async () => {
+      mockPrismaService.conversation.findMany.mockResolvedValue([]);
+      mockBuild.mockReturnValue({ items: [], nextCursor: null });
+
+      await service.findAllForAdmin({ organizationId: 'org-1', workflowId: 'wf-1' });
+
+      const where = mockPrismaService.conversation.findMany.mock.calls.at(-1)?.[0].where;
+      expect(where).not.toHaveProperty('isInternalWorkflow');
+      expect(where).not.toHaveProperty('executions');
+    });
+
+    it('con onlyErrors, filtra las que tienen al menos una ejecución FAILED', async () => {
+      mockPrismaService.conversation.findMany.mockResolvedValue([]);
+      mockBuild.mockReturnValue({ items: [], nextCursor: null });
+
+      await service.findAllForAdmin({
+        organizationId: 'org-1',
+        workflowId: 'wf-1',
+        onlyErrors: true,
+      });
+
+      expect(mockPrismaService.conversation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            executions: { some: { status: 'FAILED' } },
+          }),
+        }),
+      );
+    });
+
+    it('marca hasError según el conteo de ejecuciones fallidas incluido', async () => {
+      const row = { id: 'c-1', title: 'Consulta de stock', _count: { executions: 2 } };
+      const rowOk = { id: 'c-2', title: 'Todo bien', _count: { executions: 0 } };
+      mockPrismaService.conversation.findMany.mockResolvedValue([row, rowOk]);
+      mockBuild.mockReturnValue({ items: [row, rowOk], nextCursor: null });
+
+      const result = await service.findAllForAdmin({ organizationId: 'org-1', workflowId: 'wf-1' });
+
+      expect(result.items[0]).toEqual(expect.objectContaining({ id: 'c-1', hasError: true }));
+      expect(result.items[1]).toEqual(expect.objectContaining({ id: 'c-2', hasError: false }));
+    });
+  });
+
+  describe('findOneForAdmin', () => {
+    it('devuelve la conversación con mensajes y ejecuciones', async () => {
+      const mockConversation = { id: 'c-1', messages: [], executions: [] };
+      mockPrismaService.conversation.findFirst.mockResolvedValue(mockConversation);
+
+      const result = await service.findOneForAdmin('org-1', 'wf-1', 'c-1');
+
+      expect(result).toEqual(mockConversation);
+      expect(mockPrismaService.conversation.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'c-1', organizationId: 'org-1', workflowId: 'wf-1', deletedAt: null },
+        }),
+      );
+    });
+
+    it('lanza NotFoundException si no existe', async () => {
+      mockPrismaService.conversation.findFirst.mockResolvedValue(null);
+
+      await expect(service.findOneForAdmin('org-1', 'wf-1', 'c-x')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('renameForAdmin', () => {
+    it('actualiza el título cuando la conversación existe en esa organización', async () => {
+      mockPrismaService.conversation.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.renameForAdmin('org-1', 'c-1', 'Bug de checkout');
+
+      expect(mockPrismaService.conversation.updateMany).toHaveBeenCalledWith({
+        where: { id: 'c-1', organizationId: 'org-1' },
+        data: { title: 'Bug de checkout' },
+      });
+    });
+
+    it('lanza NotFoundException si no hay ninguna fila que coincida', async () => {
+      mockPrismaService.conversation.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.renameForAdmin('org-1', 'c-x', 'Título')).rejects.toThrow(
+        NotFoundException,
       );
     });
   });

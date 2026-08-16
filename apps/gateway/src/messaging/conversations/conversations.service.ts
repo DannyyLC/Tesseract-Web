@@ -15,6 +15,7 @@ import {
   ChatRole,
   CompactionStatus,
   MessengerConfig,
+  ExecutionStatus,
 } from '@tesseract/database';
 import { UtilityService } from '@/platform/utility/utility.service';
 import { buildConversationTitle } from './conversation-title';
@@ -631,6 +632,129 @@ export class ConversationsService {
 
     this.logger.debug(`Conversación ${id} actualizada: ${JSON.stringify(updateData)}`);
     return conversation;
+  }
+
+  // ============================================
+  // ADMIN (super admin, cross-organización)
+  // ============================================
+  /**
+   * Lista las conversaciones de un workflow para el super admin.
+   *
+   * A diferencia de findAll() (dashboard del cliente), NO excluye las de workflows
+   * internos —son justo las que un admin necesita revisar, no solo las de "Probar"— ni
+   * aplica la prioridad HITL, que es un concepto de bandeja de soporte sin sentido acá.
+   *
+   * `onlyErrors` filtra las que tienen al menos una ejecución FAILED: es el caso de uso
+   * principal — cuando el workflow funciona bien no hay nada que rastrear, así que no
+   * vale la pena revisar el resto.
+   */
+  async findAllForAdmin(params: {
+    organizationId: string;
+    workflowId: string;
+    cursor?: string | null;
+    take?: number;
+    onlyErrors?: boolean;
+  }): Promise<PaginatedResponse<any>> {
+    const { organizationId, workflowId, cursor, take = 20, onlyErrors } = params;
+
+    const conversations = await this.prisma.conversation.findMany({
+      take: take + 1,
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
+      where: {
+        organizationId,
+        workflowId,
+        deletedAt: null,
+        ...(onlyErrors && { executions: { some: { status: ExecutionStatus.FAILED } } }),
+      },
+      // Mismo orden y desempate que findAll(): último mensaje primero, NULL al final,
+      // `id` como desempate final para que el cursor no salte ni repita filas.
+      orderBy: [
+        { lastMessageAt: { sort: 'desc', nulls: 'last' } },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
+      include: {
+        _count: { select: { executions: { where: { status: ExecutionStatus.FAILED } } } },
+        user: { select: { name: true } },
+        endUser: { select: { name: true, phoneNumber: true } },
+      },
+    });
+
+    const paginated = await CursorPaginatedResponseUtils.getInstance().build(
+      conversations as any,
+      take,
+    );
+
+    return {
+      ...paginated,
+      items: paginated.items.map((c: any) => ({
+        id: c.id,
+        title: c.title,
+        channel: c.channel,
+        status: c.status,
+        messageCount: c.messageCount,
+        lastMessageAt: c.lastMessageAt,
+        createdAt: c.createdAt,
+        hasError: c._count.executions > 0,
+        authorName: c.user?.name ?? c.endUser?.name ?? c.endUser?.phoneNumber ?? null,
+      })),
+    };
+  }
+
+  /**
+   * Detalle completo de una conversación para el super admin: mensajes en orden y, por
+   * cada uno, la ejecución que lo produjo (con error/stack/costo/tokens) — lo mismo que
+   * se ve en vivo en la pestaña Probar, reconstruido de lo ya guardado.
+   */
+  async findOneForAdmin(organizationId: string, workflowId: string, id: string) {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { id, organizationId, workflowId, deletedAt: null },
+      include: {
+        // SYSTEM/TOOL no se muestran en el hilo en vivo tampoco — mismo criterio acá.
+        messages: {
+          where: { role: { in: [ChatRole.USER, ChatRole.ASSISTANT] } },
+          orderBy: { createdAt: 'asc' },
+        },
+        executions: {
+          orderBy: { startedAt: 'asc' },
+          select: {
+            id: true,
+            status: true,
+            startedAt: true,
+            finishedAt: true,
+            duration: true,
+            error: true,
+            errorStack: true,
+            cost: true,
+            tokensUsed: true,
+          },
+        },
+      },
+    });
+
+    if (!conversation) {
+      throw new NotFoundException(`Conversation with ID ${id} not found`);
+    }
+
+    return conversation;
+  }
+
+  /**
+   * Renombra una conversación desde el panel de admin. No reusa update(): esa trae
+   * reglas de HITL/autocierre que no aplican a un simple cambio de título, y su ownership
+   * check (getAutoCloseContext) excluye workflows internos, que es justo lo que el admin
+   * necesita poder tocar.
+   */
+  async renameForAdmin(organizationId: string, id: string, title: string) {
+    const result = await this.prisma.conversation.updateMany({
+      where: { id, organizationId },
+      data: { title },
+    });
+
+    if (result.count === 0) {
+      throw new NotFoundException(`Conversation with ID ${id} not found`);
+    }
   }
 
   /**

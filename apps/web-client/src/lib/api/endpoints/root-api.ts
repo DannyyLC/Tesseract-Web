@@ -20,6 +20,7 @@ import LlmCategoriesApi from './automation/llm-models/llm-categories-api';
 import DatasetsApi from './automation/datasets/datasets-api';
 import CreditsAdminApi from './billing/credits-admin-api';
 import SubscriptionAdminApi from './billing/subscription-admin-api';
+import ConversationsAdminApi from './messaging/conversations/conversations-admin-api';
 
 class RootApi {
   private static instance: RootApi;
@@ -45,6 +46,7 @@ class RootApi {
   private datasetsApi: DatasetsApi;
   private creditsAdminApi: CreditsAdminApi;
   private subscriptionAdminApi: SubscriptionAdminApi;
+  private conversationsAdminApi: ConversationsAdminApi;
 
   private constructor() {
     this.authApi = new AuthApi();
@@ -69,6 +71,7 @@ class RootApi {
     this.datasetsApi = new DatasetsApi();
     this.creditsAdminApi = new CreditsAdminApi();
     this.subscriptionAdminApi = new SubscriptionAdminApi();
+    this.conversationsAdminApi = new ConversationsAdminApi();
   }
 
   public static getInstance(): RootApi {
@@ -164,6 +167,10 @@ class RootApi {
 
   public getSubscriptionAdminApi(): SubscriptionAdminApi {
     return this.subscriptionAdminApi;
+  }
+
+  public getConversationsAdminApi(): ConversationsAdminApi {
+    return this.conversationsAdminApi;
   }
 }
 

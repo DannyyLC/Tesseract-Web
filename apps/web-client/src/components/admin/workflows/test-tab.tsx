@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { toast } from 'sonner';
 import {
   AlertTriangle,
   ChevronDown,
@@ -20,8 +21,13 @@ import {
   useAdminTestExecuteStream,
   useAdminWorkflowMutations,
 } from '@/hooks/automation/use-admin-workflows';
+import {
+  useLoadAdminConversation,
+  useRenameAdminConversation,
+} from '@/hooks/messaging/use-admin-conversations';
 import { useDictation } from '@/hooks/use-dictation';
 import RecordingBar from '@/components/ui/recording-bar';
+import { ConversationHistoryMenu } from './conversation-history-menu';
 import type {
   AdminTestExecutionDetail,
   AdminWorkflowDetail,
@@ -82,9 +88,14 @@ export function TestTab({ workflow }: Props) {
   const [input, setInput] = useState('');
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [execHistory, setExecHistory] = useState<ExecRecord[]>([]);
+  const [title, setTitle] = useState<string | null>(null);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
   const { execute, messages: streamContent, isStreaming, error, clear } =
     useAdminTestExecuteStream();
   const { getTestExecution } = useAdminWorkflowMutations();
+  const loadConversation = useLoadAdminConversation();
+  const renameConversation = useRenameAdminConversation();
 
   // Mismo dictado que el chat real de conversaciones: transcribe y lo pone en el
   // composer, no lo manda solo — el operador puede corregir antes de enviar.
@@ -219,7 +230,73 @@ export function TestTab({ workflow }: Props) {
     setInput('');
     setConversationId(undefined);
     setExecHistory([]);
+    setTitle(null);
+    setIsEditingTitle(false);
     clear();
+  };
+
+  /**
+   * Carga una conversación real del workflow (cualquier canal, no solo las de esta
+   * pestaña) elegida desde el reloj: hidrata el hilo y el panel de ejecuciones con lo
+   * que ya pasó, y deja `conversationId` puesto — si mandás un mensaje después, sigue
+   * esta misma conversación en vez de abrir una nueva.
+   */
+  const handleSelectConversation = async (id: string) => {
+    try {
+      const detail = await loadConversation.mutateAsync({
+        id,
+        organizationId: workflow.organization.id,
+        workflowId: workflow.id,
+      });
+
+      clear();
+      setConversationId(detail.id);
+      setTitle(detail.title);
+      setIsEditingTitle(false);
+      setThread(
+        detail.messages.map((m) => ({
+          id: m.id,
+          role: m.role === 'USER' ? 'user' : 'assistant',
+          content: m.content,
+        })),
+      );
+      setExecHistory(
+        detail.executions.map((e) => ({
+          turnId: `hist-${e.id}`,
+          executionId: e.id,
+          status: 'done',
+          detail: e,
+        })),
+      );
+    } catch (err: any) {
+      toast.error(err?.message ?? 'No se pudo cargar la conversación');
+    }
+  };
+
+  const startEditingTitle = () => {
+    setTitleDraft(title ?? '');
+    setIsEditingTitle(true);
+  };
+
+  const commitTitle = () => {
+    const trimmed = titleDraft.trim();
+    if (!conversationId || !trimmed || trimmed === title) {
+      setIsEditingTitle(false);
+      return;
+    }
+    renameConversation.mutate(
+      { id: conversationId, organizationId: workflow.organization.id, title: trimmed },
+      {
+        onSuccess: () => {
+          setTitle(trimmed);
+          setIsEditingTitle(false);
+        },
+        onError: (err: any) => {
+          toast.error(err?.message ?? 'No se pudo renombrar la conversación');
+          setIsEditingTitle(false);
+        },
+      },
+    );
   };
 
   const lastId = thread[thread.length - 1]?.id;
@@ -232,17 +309,55 @@ export function TestTab({ workflow }: Props) {
     // viewport en vez de quedarse corto con un porcentaje arbitrario.
     <div className="flex h-[70vh] w-full gap-4 lg:h-[calc(100vh-9rem)]">
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="mb-3 flex justify-end">
-          <button
-            type="button"
-            onClick={handleReset}
-            disabled={thread.length === 0 && !conversationId}
-            title="Nueva conversación de prueba"
-            aria-label="Nueva conversación de prueba"
-            className="flex-shrink-0 rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            <SquarePen size={18} />
-          </button>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            {!conversationId ? (
+              <span className="text-sm font-medium text-text-secondary">Nueva conversación</span>
+            ) : isEditingTitle ? (
+              <input
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    commitTitle();
+                  } else if (e.key === 'Escape') {
+                    setIsEditingTitle(false);
+                  }
+                }}
+                onBlur={commitTitle}
+                autoFocus
+                className="w-full max-w-xs border-b border-border-hover bg-transparent text-sm font-medium text-text-primary outline-none"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={startEditingTitle}
+                title="Renombrar conversación"
+                className="max-w-xs truncate text-sm font-medium text-text-primary transition-opacity hover:opacity-70"
+              >
+                {title || 'Sin título'}
+              </button>
+            )}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1">
+            <ConversationHistoryMenu
+              organizationId={workflow.organization.id}
+              workflowId={workflow.id}
+              onSelect={handleSelectConversation}
+            />
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={thread.length === 0 && !conversationId}
+              title="Nueva conversación de prueba"
+              aria-label="Nueva conversación de prueba"
+              className="flex-shrink-0 rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              <SquarePen size={18} />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
