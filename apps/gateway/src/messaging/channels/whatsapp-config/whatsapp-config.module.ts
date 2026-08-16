@@ -11,11 +11,12 @@ import { ConversationsModule } from '@/messaging/conversations/conversations.mod
 import { WebhookDedupModule } from '@/platform/webhooks/webhook-dedup.module';
 import { CloudTasksModule } from '@/platform/tasks/cloud-tasks.module';
 import { WhatsappWorkerController } from './controllers/internal/whatsapp-worker.controller';
+import { WhatsappConfigAdminController } from './controllers/admin/whatsapp-config.admin.controller';
 
 @Module({
   imports: [UtilityModule, HttpModule, WorkflowsModule, MediaProcessingModule, GoogleDriveModule, ConversationsModule, WebhookDedupModule, CloudTasksModule],
   providers: [WhatsappConfigService, WhatsappMessageQueueService],
-  controllers: [WhatsappConfigController, WhatsappWorkerController],
+  controllers: [WhatsappConfigController, WhatsappWorkerController, WhatsappConfigAdminController],
   exports: [WhatsappConfigService, WhatsappMessageQueueService],
 })
 export class WhatsappConfigModule {}

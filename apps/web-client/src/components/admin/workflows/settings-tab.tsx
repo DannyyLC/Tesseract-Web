@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { useAdminWorkflowMutations } from '@/hooks/automation/use-admin-workflows';
 import type { AdminWorkflowDetail } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import { WorkflowChannelsSection } from './workflow-channels-section';
 
 interface Props {
   workflow: AdminWorkflowDetail;
@@ -194,6 +195,8 @@ export function SettingsTab({ workflow }: Props) {
           />
         </div>
       </div>
+
+      <WorkflowChannelsSection workflowId={workflow.id} organizationId={workflow.organization.id} />
 
       <div className="rounded-lg border border-danger p-3">
         <p className="text-xs font-medium text-danger">Zona de peligro</p>

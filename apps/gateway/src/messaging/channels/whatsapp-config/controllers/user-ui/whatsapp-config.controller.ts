@@ -259,6 +259,22 @@ export class WhatsappConfigController {
       return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
     }
 
+    // `workflowId` ya no es obligatorio (la página de Canales puede dar de alta el
+    // número sin asignarlo todavía), pero si viene, tiene que ser de esta organización
+    // — el id llega del body, no hay que confiar en él a ciegas.
+    if (body.workflowId) {
+      const workflow = await this.workflowsService
+        .findOne(currUser.organizationId, body.workflowId)
+        .catch(() => null);
+      if (!workflow) {
+        apiResponse
+          .setStatusCode(HttpStatus.BAD_REQUEST)
+          .setData(false)
+          .setMessage('Workflow not found in this organization');
+        return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
+      }
+    }
+
     const response = await this.whatsappConfigService.createRecordAndgenerateWebhookSecret(
       currUser.organizationId,
       body.workflowId,
@@ -342,6 +358,21 @@ export class WhatsappConfigController {
         .setData(false)
         .setMessage('WhatsApp config not found');
       return res.status(HttpStatus.NOT_FOUND).json(apiResponse.build());
+    }
+
+    // Reasignar a un workflow ajeno no debería ser posible ni por error: se valida
+    // igual que en createConfig. `null` (desasignar) no pasa por acá.
+    if (body.workflowId) {
+      const workflow = await this.workflowsService
+        .findOne(currUser.organizationId, body.workflowId)
+        .catch(() => null);
+      if (!workflow) {
+        apiResponse
+          .setStatusCode(HttpStatus.BAD_REQUEST)
+          .setData(false)
+          .setMessage('Workflow not found in this organization');
+        return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
+      }
     }
 
     const success = await this.whatsappConfigService.updateConfig(id, body);

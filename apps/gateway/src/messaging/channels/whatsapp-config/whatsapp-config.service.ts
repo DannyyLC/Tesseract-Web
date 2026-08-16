@@ -69,6 +69,7 @@ export class WhatsappConfigService {
     organizationId: string,
     workflowId: string,
     phoneNumber: string,
+    presentation?: { displayName?: string; description?: string },
   ): Promise<WhatsAppConfig | null> {
     try {
       const newRecord = await this.prismaService.whatsAppConfig.create({
@@ -79,6 +80,8 @@ export class WhatsappConfigService {
           webhookUrl: `${process.env.DOMAIN_BASE_URL}/whatsapp-config/whatsapp-webhook`,
           defaultWorkflowId: workflowId,
           isActive: true,
+          displayName: presentation?.displayName?.trim() || undefined,
+          description: presentation?.description?.trim() || undefined,
         },
       });
 
@@ -86,6 +89,23 @@ export class WhatsappConfigService {
     } catch (error) {
       this.logger.error('Error creating WhatsApp config:', error);
       return null;
+    }
+  }
+
+  /**
+   * Todos los números de la organización, sin importar a qué workflow ruteen (o si
+   * todavía no ruteen a ninguno) — la página de Canales, a diferencia de la vista
+   * anidada en un workflow que solo pide los suyos.
+   */
+  async getConfigsByOrganization(organizationId: string): Promise<WhatsAppConfig[]> {
+    try {
+      return await this.prismaService.whatsAppConfig.findMany({
+        where: { organizationId },
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (error) {
+      this.logger.error('Error fetching WhatsApp configs by organization:', error);
+      return [];
     }
   }
 
@@ -134,17 +154,25 @@ export class WhatsappConfigService {
   /**
    * Edita un número desde la pantalla de configuración del canal.
    *
-   * Solo se escribe lo que llegó; un campo ausente se queda como estaba. Los dos son
-   * texto de presentación, así que vaciarlos es un estado legítimo y se guarda como
-   * NULL. `phoneNumber` no se toca: es la llave con la que el webhook resuelve la fila
-   * (para eso está `updatePhoneNumber`).
+   * Solo se escribe lo que llegó; un campo ausente se queda como estaba. `displayName`/
+   * `description` son texto de presentación, así que vaciarlos es un estado legítimo y
+   * se guarda como NULL. `phoneNumber` no se toca acá: es la llave con la que el
+   * webhook resuelve la fila (para eso está `updatePhoneNumber`).
+   *
+   * `workflowId` es tri-estado: ausente no se toca, `null` desasigna, string reasigna
+   * — el caller (controller) ya validó que ese workflow existe y es de la misma
+   * organización antes de llegar hasta acá.
    */
   async updateConfig(
     configId: string,
-    fields: { displayName?: string; description?: string },
+    fields: { displayName?: string; description?: string; workflowId?: string | null },
   ): Promise<boolean> {
     try {
-      const data: { displayName?: string | null; description?: string | null } = {};
+      const data: {
+        displayName?: string | null;
+        description?: string | null;
+        defaultWorkflowId?: string | null;
+      } = {};
 
       if (fields.displayName !== undefined) {
         data.displayName = fields.displayName.trim() || null;
@@ -152,6 +180,10 @@ export class WhatsappConfigService {
 
       if (fields.description !== undefined) {
         data.description = fields.description.trim() || null;
+      }
+
+      if (fields.workflowId !== undefined) {
+        data.defaultWorkflowId = fields.workflowId;
       }
 
       if (Object.keys(data).length === 0) return true;

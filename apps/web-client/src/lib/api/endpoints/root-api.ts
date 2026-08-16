@@ -21,6 +21,7 @@ import DatasetsApi from './automation/datasets/datasets-api';
 import CreditsAdminApi from './billing/credits-admin-api';
 import SubscriptionAdminApi from './billing/subscription-admin-api';
 import ConversationsAdminApi from './messaging/conversations/conversations-admin-api';
+import WhatsappConfigAdminApi from './messaging/whatsapp-config/whatsapp-config-admin-api';
 
 class RootApi {
   private static instance: RootApi;
@@ -47,6 +48,7 @@ class RootApi {
   private creditsAdminApi: CreditsAdminApi;
   private subscriptionAdminApi: SubscriptionAdminApi;
   private conversationsAdminApi: ConversationsAdminApi;
+  private whatsappConfigAdminApi: WhatsappConfigAdminApi;
 
   private constructor() {
     this.authApi = new AuthApi();
@@ -72,6 +74,7 @@ class RootApi {
     this.creditsAdminApi = new CreditsAdminApi();
     this.subscriptionAdminApi = new SubscriptionAdminApi();
     this.conversationsAdminApi = new ConversationsAdminApi();
+    this.whatsappConfigAdminApi = new WhatsappConfigAdminApi();
   }
 
   public static getInstance(): RootApi {
@@ -171,6 +174,10 @@ class RootApi {
 
   public getConversationsAdminApi(): ConversationsAdminApi {
     return this.conversationsAdminApi;
+  }
+
+  public getWhatsappConfigAdminApi(): WhatsappConfigAdminApi {
+    return this.whatsappConfigAdminApi;
   }
 }
 
