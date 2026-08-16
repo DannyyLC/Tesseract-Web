@@ -22,6 +22,7 @@ import CreditsAdminApi from './billing/credits-admin-api';
 import SubscriptionAdminApi from './billing/subscription-admin-api';
 import ConversationsAdminApi from './messaging/conversations/conversations-admin-api';
 import WhatsappConfigAdminApi from './messaging/whatsapp-config/whatsapp-config-admin-api';
+import TenantToolsAdminApi from './automation/tools/tenant-tools-admin-api';
 
 class RootApi {
   private static instance: RootApi;
@@ -49,6 +50,7 @@ class RootApi {
   private subscriptionAdminApi: SubscriptionAdminApi;
   private conversationsAdminApi: ConversationsAdminApi;
   private whatsappConfigAdminApi: WhatsappConfigAdminApi;
+  private tenantToolsAdminApi: TenantToolsAdminApi;
 
   private constructor() {
     this.authApi = new AuthApi();
@@ -75,6 +77,7 @@ class RootApi {
     this.subscriptionAdminApi = new SubscriptionAdminApi();
     this.conversationsAdminApi = new ConversationsAdminApi();
     this.whatsappConfigAdminApi = new WhatsappConfigAdminApi();
+    this.tenantToolsAdminApi = new TenantToolsAdminApi();
   }
 
   public static getInstance(): RootApi {
@@ -178,6 +181,10 @@ class RootApi {
 
   public getWhatsappConfigAdminApi(): WhatsappConfigAdminApi {
     return this.whatsappConfigAdminApi;
+  }
+
+  public getTenantToolsAdminApi(): TenantToolsAdminApi {
+    return this.tenantToolsAdminApi;
   }
 }
 
