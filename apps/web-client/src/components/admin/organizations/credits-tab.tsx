@@ -64,7 +64,7 @@ export function CreditsTab({ organizationId }: Props) {
 
   return (
     <div className="w-full space-y-6">
-      <section className="rounded-xl border border-border bg-surface p-4">
+      <section className="p-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold text-text-primary">Balance</h2>
