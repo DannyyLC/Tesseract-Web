@@ -10,8 +10,9 @@ import {
   Clock,
   Coins,
   Loader2,
-  RotateCcw,
+  Mic,
   Send,
+  SquarePen,
   User,
   Zap,
 } from 'lucide-react';
@@ -19,11 +20,12 @@ import {
   useAdminTestExecuteStream,
   useAdminWorkflowMutations,
 } from '@/hooks/automation/use-admin-workflows';
+import { useDictation } from '@/hooks/use-dictation';
+import RecordingBar from '@/components/ui/recording-bar';
 import type {
   AdminTestExecutionDetail,
   AdminWorkflowDetail,
 } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
-import { inputClass } from '@/app/[locale]/admin/_styles';
 
 interface Props {
   workflow: AdminWorkflowDetail;
@@ -83,6 +85,14 @@ export function TestTab({ workflow }: Props) {
   const { execute, messages: streamContent, isStreaming, error, clear } =
     useAdminTestExecuteStream();
   const { getTestExecution } = useAdminWorkflowMutations();
+
+  // Mismo dictado que el chat real de conversaciones: transcribe y lo pone en el
+  // composer, no lo manda solo — el operador puede corregir antes de enviar.
+  const handleTranscribed = (text: string) => {
+    setInput((previous) => (previous.trim() ? `${previous.trim()} ${text}` : text));
+  };
+  const dictation = useDictation(handleTranscribed);
+
   const wasStreamingRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const panelBottomRef = useRef<HTMLDivElement>(null);
@@ -222,22 +232,20 @@ export function TestTab({ workflow }: Props) {
     // viewport en vez de quedarse corto con un porcentaje arbitrario.
     <div className="flex h-[70vh] w-full gap-4 lg:h-[calc(100vh-9rem)]">
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-text-secondary">
-            Canal <code className="font-mono">admin-test</code>: no descuenta créditos ni cuenta
-            en las estadísticas de {workflow.organization.name}.
-          </p>
+        <div className="mb-3 flex justify-end">
           <button
             type="button"
             onClick={handleReset}
             disabled={thread.length === 0 && !conversationId}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-text-secondary transition-colors hover:bg-surface-secondary disabled:opacity-40"
+            title="Nueva conversación de prueba"
+            aria-label="Nueva conversación de prueba"
+            className="flex-shrink-0 rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30"
           >
-            <RotateCcw size={12} /> Nueva conversación de prueba
+            <SquarePen size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto rounded-lg border border-border p-4">
+        <div className="flex-1 overflow-y-auto p-4">
           {thread.length === 0 ? (
             <p className="flex h-full items-center justify-center text-center text-sm text-text-secondary">
               Escribe un mensaje para empezar a probar "{workflow.name}".
@@ -304,23 +312,47 @@ export function TestTab({ workflow }: Props) {
           <div ref={bottomRef} />
         </div>
 
-        <div className="mt-3 flex items-end gap-2">
-          <textarea
-            rows={2}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Escribe como si fueras el cliente… (Enter envía, Shift+Enter salto de línea)"
-            className={`${inputClass} flex-1 resize-none`}
-          />
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={!input.trim() || isStreaming}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-text-inverse transition-opacity hover:opacity-90 disabled:opacity-40"
-          >
-            {isStreaming ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-          </button>
+        <div className="mt-3 flex items-end gap-2 rounded-[26px] border border-border bg-surface p-2 pl-4 shadow-sm transition-shadow focus-within:shadow-md">
+          {dictation.isActive ? (
+            <RecordingBar
+              analyser={dictation.analyser}
+              seconds={dictation.seconds}
+              isProcessing={dictation.state === 'processing'}
+              isTranscribingSegment={dictation.isTranscribingSegment}
+              transcript={input}
+              onStop={dictation.stop}
+              onCancel={dictation.cancel}
+            />
+          ) : (
+            <>
+              <textarea
+                rows={1}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Escribe como si fueras el cliente… (Enter envía, Shift+Enter salto de línea)"
+                className="scrollbar-hide max-h-[120px] min-h-[24px] flex-1 resize-none overflow-y-auto bg-transparent py-2 text-sm leading-relaxed text-text-primary outline-none placeholder:text-input-placeholder"
+              />
+              <button
+                type="button"
+                onClick={dictation.start}
+                disabled={isStreaming}
+                title="Dictar por voz"
+                aria-label="Dictar por voz"
+                className="flex-shrink-0 rounded-full p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <Mic size={20} />
+              </button>
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={!input.trim() || isStreaming}
+                className="mb-0.5 mr-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-text-inverse transition-opacity hover:opacity-90 disabled:opacity-40"
+              >
+                {isStreaming ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -329,9 +361,7 @@ export function TestTab({ workflow }: Props) {
           sin tope de ancho, dejar el panel angosto se sentía desperdiciado — más aire
           para leer un stack trace sin que se vuelva un scroll horizontal. */}
       <div className="hidden w-96 shrink-0 flex-col lg:flex">
-        <p className="mb-3 text-xs font-medium text-text-secondary">
-          Ejecuciones de esta sesión — el detalle de cada mensaje, sin salir de acá.
-        </p>
+        <p className="mb-3 text-xs font-medium text-text-secondary">Ejecuciones de esta sesión</p>
         <div className="flex-1 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
           {execHistory.length === 0 ? (
             <p className="flex h-full items-center justify-center text-center text-xs text-text-secondary">
