@@ -252,14 +252,14 @@ export function TestTab({ workflow }: Props) {
                   <div
                     className={`flex max-w-[85%] gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
                   >
-                    <div
-                      className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
-                        msg.role === 'user' ? 'bg-accent text-text-inverse' : 'bg-surface-secondary'
-                      }`}
-                    >
+                    <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center">
                       {msg.role === 'user' ? (
-                        <User size={12} strokeWidth={2.5} />
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-text-inverse">
+                          <User size={12} strokeWidth={2.5} />
+                        </div>
                       ) : (
+                        // Sin badge/círculo de fondo: es el logo de Tesseract, no un
+                        // avatar genérico — se ve mejor suelto que metido en una insignia.
                         <div
                           className={`relative h-4 w-4 ${
                             isStreaming && msg.id === lastId ? 'animate-spin' : ''
