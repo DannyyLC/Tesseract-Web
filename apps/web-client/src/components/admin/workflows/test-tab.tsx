@@ -140,8 +140,8 @@ export function TestTab({ workflow }: Props) {
 
   if (!workflow.isInternal) {
     return (
-      <div className="max-w-2xl rounded-lg border border-border p-4 text-sm">
-        <p className="flex items-center gap-2 font-medium text-text-primary">
+      <div className="mx-auto max-w-2xl py-16 text-center text-sm">
+        <p className="flex items-center justify-center gap-2 font-medium text-text-primary">
           <AlertTriangle size={14} /> Este workflow ya está publicado
         </p>
         <p className="mt-1 text-text-secondary">
