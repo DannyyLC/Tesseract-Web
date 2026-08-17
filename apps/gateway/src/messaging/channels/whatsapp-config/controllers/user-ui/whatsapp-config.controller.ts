@@ -43,6 +43,7 @@ import {
 } from '../../whatsapp-worker.constants';
 import { WorkflowsService } from '@/automation/workflows/workflows.service';
 import { ConversationsService } from '@/messaging/conversations/conversations.service';
+import { EndUsersService } from '@/identity/end-users/end-users.service';
 
 @Controller('whatsapp-config')
 export class WhatsappConfigController {
@@ -54,6 +55,7 @@ export class WhatsappConfigController {
     private readonly webhookDedup: WebhookDedupService,
     private readonly workflowsService: WorkflowsService,
     private readonly conversationsService: ConversationsService,
+    private readonly endUsersService: EndUsersService,
   ) {}
 
   // ─── Webhook ──────────────────────────────────────────────────────────
@@ -189,6 +191,37 @@ export class WhatsappConfigController {
           `Received message for WhatsApp config with no associated workflow: ${account.id}`,
         );
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'no-workflow' });
+      }
+
+      // Lista negra, ANTES de resolver el workflow. El orden importa: con el flujo apagado la
+      // rama de abajo registra el mensaje, y si la comprobación fuera después, un contacto
+      // bloqueado empezaría a acumular mensajes guardados cada vez que alguien apague el
+      // workflow — justo lo que el bloqueo venía a evitar. El bloqueo es sobre la persona y
+      // gana sobre cualquier estado del flujo.
+      //
+      // Solo aplica a lo que ENTRA: un echo es un mensaje que el negocio decidió mandar desde
+      // su propio teléfono, y la lista negra nunca fue sobre lo que sale.
+      //
+      // Cortar en este punto significa que un contacto bloqueado no escribe al buffer de Redis,
+      // no agenda una Cloud Task, no recibe palomita azul, no transcribe su audio, no ejecuta el
+      // workflow y no cuesta un crédito. Es lo único que se gasta en él: un findUnique por llave
+      // única. El mensaje no se guarda en ningún lado; esta línea de log —con el número
+      // enmascarado y el id— es lo que permite rastrear un bloqueo por error, y Cloud Logging la
+      // retiene 30 días sin costar una sola escritura en la base.
+      if (!isEcho) {
+        const isBlocked = await this.endUsersService.isBlocked(account.organizationId, {
+          phoneNumber: userNumber,
+        });
+
+        if (isBlocked) {
+          this.logger.info('Mensaje de contacto bloqueado, se descarta', {
+            organizationId: account.organizationId,
+            phoneNumber,
+            userNumber: maskPhone(userNumber),
+            whatsappMessageId,
+          });
+          return res.status(HttpStatus.OK).send({ received: true, ignored: 'blocked-contact' });
+        }
       }
 
       const workflow = await this.workflowsService.findOne(

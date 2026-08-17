@@ -7,5 +7,7 @@ import { UtilityModule } from '@/platform/utility/utility.module';
   imports: [UtilityModule],
   providers: [EndUsersService],
   controllers: [EndUsersController],
+  // Lo consumen los webhooks de cada canal para descartar lo que mande un contacto bloqueado.
+  exports: [EndUsersService],
 })
 export class EndUsersModule {}

@@ -19,5 +19,7 @@ export class ConversationDetailDto implements IConversationDetailDto {
   workflowId: string;
   userId: string | null;
   endUserId: string | null;
+  endUserBlockedAt: Date | null;
+  endUserBlockedReason: string | null;
   messages: ConversationMessageDto[];
 }

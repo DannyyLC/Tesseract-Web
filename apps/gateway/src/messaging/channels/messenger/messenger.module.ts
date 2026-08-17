@@ -12,6 +12,7 @@ import { MessengerWorkerController } from './controllers/internal/messenger-work
 import { MessengerController } from './controllers/user-ui/messenger.controller';
 import { MessengerConfigService } from './messenger-config.service';
 import { MessengerMessageQueueService } from './messenger-message-queue.service';
+import { EndUsersModule } from '@/identity/end-users/end-users.module';
 
 @Module({
   imports: [
@@ -25,6 +26,8 @@ import { MessengerMessageQueueService } from './messenger-message-queue.service'
     CloudTasksModule,
     // Por KmsService: el token de página se guarda cifrado.
     ToolsModule,
+    // Por la lista negra: el webhook descarta lo que mande un contacto bloqueado.
+    EndUsersModule,
   ],
   providers: [MessengerConfigService, MessengerMessageQueueService],
   controllers: [MessengerController, MessengerWorkerController],

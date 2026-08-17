@@ -8,10 +8,10 @@ import { useApiKeys } from '@/hooks/identity/use-api-key';
 import { ApiKeyListDto } from '@tesseract/types';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { LogoLoader } from '@/components/ui/logo-loader';
+import { CursorPager } from '@/components/ui/cursor-pager';
 import {
   ApiKeyCreatedModal,
   ApiKeyRow,
-  ApiKeysPager,
   CreateApiKeyModal,
   DeleteApiKeyModal,
   EditApiKeyModal,
@@ -119,10 +119,12 @@ export default function ApiKeysPage() {
           </motion.div>
         )}
 
-        <ApiKeysPager
+        <CursorPager
           prevCursor={data?.prevCursor ?? null}
           nextCursor={data?.nextCursor ?? null}
           nextPageAvailable={data?.nextPageAvailable ?? false}
+          prevLabel={t('prev')}
+          nextLabel={t('next')}
           onNavigate={handleNavigate}
         />
       </div>

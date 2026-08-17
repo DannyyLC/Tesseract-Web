@@ -2,6 +2,7 @@ import AuthApi from './identity/auth/auth-api';
 import WorkflowsApi from './automation/workflows/workflows-api';
 import ConversationsApi from './messaging/conversations/conversations-api';
 import ApiKeysApi from './identity/api-keys/api-keys-api';
+import EndUsersApi from './identity/end-users/end-users-api';
 import UsersApi from './identity/users/users-api';
 import ExecutionsApi from './automation/executions/executions-api';
 import BillingApi from './billing/billing-api';
@@ -30,6 +31,7 @@ class RootApi {
   private workflowsApi: WorkflowsApi;
   private conversationsApi: ConversationsApi;
   private apiKeysApi: ApiKeysApi;
+  private endUsersApi: EndUsersApi;
   private usersApi: UsersApi;
   private executionsApi: ExecutionsApi;
   private billingApi: BillingApi;
@@ -57,6 +59,7 @@ class RootApi {
     this.workflowsApi = new WorkflowsApi();
     this.conversationsApi = new ConversationsApi();
     this.apiKeysApi = new ApiKeysApi();
+    this.endUsersApi = new EndUsersApi();
     this.usersApi = new UsersApi();
     this.executionsApi = new ExecutionsApi();
     this.billingApi = new BillingApi();
@@ -101,6 +104,10 @@ class RootApi {
 
   public getApiKeysApi(): ApiKeysApi {
     return this.apiKeysApi;
+  }
+
+  public getEndUsersApi(): EndUsersApi {
+    return this.endUsersApi;
   }
 
   public getUsersApi(): UsersApi {

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MessageSquare, User, Calendar, Trash2, Loader2, BellRing } from 'lucide-react';
+import { MessageSquare, User, Calendar, Trash2, Loader2, BellRing, ShieldBan } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { useState } from 'react';
 import { DashboardConversationDto } from '@tesseract/types';
@@ -179,6 +179,24 @@ export default function DashboardConversationItem({
                       <BellRing size={10} className="text-info-600" />
                       <span className="text-[10px] font-medium uppercase tracking-wide text-info-600">
                         {t('statusNeedsFollowUp')}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Contacto en la lista negra: se ve aquí para no tener que abrir la
+                      conversación —o irse a Contactos— para entender por qué está muerta. */}
+                  {conversation.endUserBlockedAt && (
+                    <div
+                      className="flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5"
+                      style={{ backgroundColor: 'var(--badge-danger-bg)' }}
+                      title={t('blockTitle')}
+                    >
+                      <ShieldBan size={10} style={{ color: 'var(--badge-danger-text)' }} />
+                      <span
+                        className="text-[10px] font-medium uppercase tracking-wide"
+                        style={{ color: 'var(--badge-danger-text)' }}
+                      >
+                        {t('blockedBadge')}
                       </span>
                     </div>
                   )}

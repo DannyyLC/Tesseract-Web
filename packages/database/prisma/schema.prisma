@@ -485,6 +485,7 @@ model User {
   tenantTools      TenantTool[]
   backupCodes      UserBackupCode[]
   datasets         Dataset[]
+  blockedEndUsers  EndUser[]          @relation("EndUserBlockedBy")
 
   @@index([organizationId])
   @@index([role])
@@ -532,6 +533,22 @@ model EndUser {
   updatedAt  DateTime  @updatedAt
   lastSeenAt DateTime?
 
+  /// Lista negra: con valor, sus mensajes entrantes se descartan en el webhook — antes de
+  /// bufferear, de agendar la tarea, de transcribir audio y de ejecutar el workflow, así que
+  /// un contacto bloqueado no cuesta ni un crédito.
+  ///
+  /// Va aquí y no en una tabla aparte porque `EndUser` YA es la identidad del interlocutor por
+  /// organización, guardada con la llave exacta que entrega el proveedor (el `from` crudo de
+  /// WhatsApp, `messenger:<pageId>:<psid>` en Messenger). El match es por índice único y no hay
+  /// normalización de por medio que pueda fallar; y el bloqueo es de la organización entera, no
+  /// de un workflow: una lista negra que se esquiva cambiando de canal no es una lista negra.
+  ///
+  /// `DateTime?` en vez de booleano, igual que `deletedAt`: da "bloqueado desde cuándo" gratis.
+  blockedAt       DateTime?
+  blockedReason   String?
+  blockedByUserId String?
+  blockedBy       User?     @relation("EndUserBlockedBy", fields: [blockedByUserId], references: [id], onDelete: SetNull)
+
   // Relación con Organization (multi-tenancy)
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -547,6 +564,8 @@ model EndUser {
   @@index([email])
   @@index([sessionId])
   @@index([lastSeenAt])
+  // Sirve al filtro "solo bloqueados" del listado de contactos, que siempre acota por organización.
+  @@index([organizationId, blockedAt])
   @@map("end_users")
 }
 

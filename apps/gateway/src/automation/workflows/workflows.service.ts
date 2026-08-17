@@ -21,6 +21,7 @@ import { PassThrough } from 'stream';
 import { AgentsService } from '../agents/agents.service';
 import { ToolsService } from '../tools/core/tools.service';
 import { DatasetTokenService } from '../datasets/core/dataset-token.service';
+import { EndUsersService } from '@/identity/end-users/end-users.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
 import {
   InvalidWorkflowConfigException,
@@ -98,6 +99,7 @@ export class WorkflowsService {
     private readonly configService: ConfigService,
     private readonly configValidator: WorkflowConfigValidator,
     private readonly datasetTokenService: DatasetTokenService,
+    private readonly endUsersService: EndUsersService,
   ) {
     this.compactionApiBaseUrl = this.configService
       .get<string>('COMPACTION_API_BASE_URL', 'https://api.openai.com/v1')
@@ -996,6 +998,35 @@ export class WorkflowsService {
       return this.executionsService.getByIdFull(execution.id, organizationId);
     }
 
+    // 4.1.5 LISTA NEGRA (External conversation): última guardia antes de gastar el LLM.
+    //
+    // El corte de verdad está en el webhook de cada canal, que descarta el mensaje sin gastar
+    // nada. Esta comprobación cubre la ventana que aquel no alcanza a ver: entre que el mensaje
+    // entra y que la Cloud Task corre pasan segundos —más los reintentos—, así que un bloqueo
+    // hecho justo ahí ya pasó por el webhook. Sin esto, bloquear a alguien que acaba de escribir
+    // le regala una respuesta más.
+    //
+    // A diferencia de HITL, el mensaje NO se guarda: bloquear es ignorar, no callar.
+    if (
+      conversation.endUserId &&
+      !userId &&
+      (await this.endUsersService.isBlockedById(conversation.endUserId))
+    ) {
+      this.logger.log(`Contacto bloqueado en la conversación ${conversation.id}. No se responde.`);
+
+      await this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
+        result: {
+          messages: [],
+          skipped: 'blocked',
+          conversationId: conversation.id,
+        },
+        cost: 0,
+        tokensUsed: 0,
+      });
+
+      return this.executionsService.getByIdFull(execution.id, organizationId);
+    }
+
     // 4.2 HITL LOCK (External conversation): guardar mensaje y detener respuesta de IA
     if (conversation.isHumanInTheLoop && conversation.endUserId && !userId) {
       this.logger.log(
@@ -1432,6 +1463,30 @@ export class WorkflowsService {
       // Simular evento finalización (opcional, pero buena práctica)
       // stream.write(`event: done\ndata: "[DONE]"\n\n`);
 
+      stream.end();
+      return stream;
+    }
+
+    // 4.1.5 LISTA NEGRA (External conversation): ver la rama equivalente de `execute()`.
+    if (
+      conversation.endUserId &&
+      !userId &&
+      (await this.endUsersService.isBlockedById(conversation.endUserId))
+    ) {
+      this.logger.log(`Contacto bloqueado en la conversación ${conversation.id}. No se responde.`);
+
+      await this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
+        result: {
+          messages: [],
+          skipped: 'blocked',
+          conversationId: conversation.id,
+        },
+        cost: 0,
+        tokensUsed: 0,
+      });
+
+      const stream = new PassThrough();
+      stream.write(`event: conversation_id\ndata: "${conversation.id}"\n\n`);
       stream.end();
       return stream;
     }

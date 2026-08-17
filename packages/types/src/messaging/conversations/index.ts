@@ -107,6 +107,9 @@ export interface ConversationDetailDto {
   workflowId: string;
   userId: string | null;
   endUserId: string | null;
+  /** Con valor, el contacto está en la lista negra y sus mensajes ya no llegan. */
+  endUserBlockedAt: Date | null;
+  endUserBlockedReason: string | null;
   messages: Message[];
 }
 
@@ -139,6 +142,8 @@ export interface DashboardConversationDto {
   userId: string | null;
   organizationId: string | null;
   isInternal: boolean;
+  /** Con valor, el contacto está en la lista negra. Marca la conversación en el listado. */
+  endUserBlockedAt: Date | null;
 }
 
 export interface UpdateConversationDto {
