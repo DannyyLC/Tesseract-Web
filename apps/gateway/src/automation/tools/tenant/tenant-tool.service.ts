@@ -99,6 +99,64 @@ export class TenantToolService {
     }
   }
 
+  // ============================================
+  // ADMIN (super admin, cross-organización)
+  // ============================================
+  /**
+   * Todas las tenant tools de todas las organizaciones, para ubicar a qué organización
+   * (y qué workflows) pertenece un id — no hay forma de saberlo desde `/integrations`,
+   * que resuelve la organización desde el JWT de quien llama. Búsqueda simple por
+   * nombre o id, paginado con página/límite (no cursor): es una pantalla de consulta,
+   * no una lista que cambie mientras la estás viendo.
+   */
+  async findAllForAdmin(query: {
+    search?: string;
+    organizationId?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const { search, organizationId, page = 1, limit = 20 } = query;
+    const skip = (page - 1) * limit;
+
+    const where = {
+      deletedAt: null,
+      ...(organizationId && { organizationId }),
+      ...(search && {
+        OR: [
+          { displayName: { contains: search, mode: 'insensitive' as const } },
+          { id: { contains: search, mode: 'insensitive' as const } },
+        ],
+      }),
+    };
+
+    const [data, total] = await Promise.all([
+      this.prismaService.tenantTool.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          displayName: true,
+          status: true,
+          isConnected: true,
+          createdAt: true,
+          organization: { select: { id: true, name: true, slug: true } },
+          toolCatalog: {
+            select: { id: true, toolName: true, displayName: true, provider: true, icon: true },
+          },
+          _count: { select: { workflows: true } },
+        },
+      }),
+      this.prismaService.tenantTool.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
   async getTenantToolById(id: string): Promise<DashboardTenantToolDto | null> {
     try {
       const tenantTool = await this.prismaService.tenantTool.findUnique({

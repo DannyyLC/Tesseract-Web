@@ -28,7 +28,7 @@ import PermissionGuard from '@/components/auth/permission-guard';
 import { useAuth } from '@/hooks/identity/use-auth';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
 import { useTranslations } from 'next-intl';
-import RecordingBar from '../_components/recording-bar';
+import RecordingBar from '@/components/ui/recording-bar';
 import ConversationChannelMeta from '../_components/conversation-channel-meta';
 import { useDictation } from '@/hooks/use-dictation';
 

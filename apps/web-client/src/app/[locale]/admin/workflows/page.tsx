@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from '@/i18n/routing';
 import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
-import { Search, Plus, Pause, PowerOff, History, Building2, EyeOff, Trash2 } from 'lucide-react';
+import { Search, Plus, History, Building2 } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { InfiniteSelect } from '@/components/ui/infinite-select';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -107,11 +107,12 @@ export default function AdminWorkflowsPage() {
             onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
-        <label className="flex items-center gap-2 whitespace-nowrap text-sm text-text-secondary">
+        <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-text-secondary">
           <input
             type="checkbox"
             checked={includeDeleted}
             onChange={(e) => setIncludeDeleted(e.target.checked)}
+            className="h-4 w-4 shrink-0 accent-accent"
           />
           Incluir eliminados
         </label>
@@ -139,44 +140,33 @@ export default function AdminWorkflowsPage() {
                   className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-surface-secondary"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                       <span className="truncate font-medium text-text-primary">{w.name}</span>
-                      <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase text-text-secondary">
-                        {w.category}
-                      </span>
-                      {!w.isActive && (
-                        <span className="inline-flex items-center gap-1 rounded bg-surface-secondary px-1.5 py-0.5 text-[10px] text-text-secondary">
-                          <PowerOff size={10} /> inactivo
-                        </span>
+                      {w.deletedAt ? (
+                        <span className="text-xs text-danger">eliminado</span>
+                      ) : w.isPaused ? (
+                        <span className="text-xs text-text-tertiary">pausado</span>
+                      ) : (
+                        !w.isActive && <span className="text-xs text-text-tertiary">inactivo</span>
                       )}
-                      {w.isPaused && (
-                        <span className="inline-flex items-center gap-1 rounded bg-surface-secondary px-1.5 py-0.5 text-[10px] text-text-secondary">
-                          <Pause size={10} /> pausado
-                        </span>
-                      )}
-                      {w.isInternal && (
-                        <span className="inline-flex items-center gap-1 rounded bg-accent/10 px-1.5 py-0.5 text-[10px] text-accent">
-                          <EyeOff size={10} /> interno
-                        </span>
-                      )}
-                      {w.deletedAt && (
-                        <span className="inline-flex items-center gap-1 rounded bg-danger/10 px-1.5 py-0.5 text-[10px] text-danger">
-                          <Trash2 size={10} /> eliminado
-                        </span>
-                      )}
+                      {w.isInternal && <span className="text-xs text-text-tertiary">interno</span>}
                     </div>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
                       <span className="inline-flex items-center gap-1">
                         <Building2 size={11} />
                         {w.organization.name}
                       </span>
-                      <span>v{w.version}</span>
-                      <span className="inline-flex items-center gap-1">
-                        <History size={11} />
-                        {w._count.configVersions} versiones guardadas
-                      </span>
-                      <span>{w.totalExecutions} ejecuciones</span>
+                      <span>{w.category}</span>
                     </p>
+                  </div>
+
+                  <div className="hidden shrink-0 items-center gap-4 text-xs text-text-secondary md:flex">
+                    <span>v{w.version}</span>
+                    <span className="inline-flex items-center gap-1">
+                      <History size={11} />
+                      {w._count.configVersions}
+                    </span>
+                    <span>{w.totalExecutions} ejecuciones</span>
                   </div>
                 </button>
               </li>

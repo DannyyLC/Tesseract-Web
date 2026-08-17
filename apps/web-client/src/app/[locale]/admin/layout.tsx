@@ -1,15 +1,17 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { useAuth, useLogout } from '@/hooks/identity/use-auth';
 import { LogoLoader } from '@/components/ui/logo-loader';
-import { Building2, Cpu, Settings, ShieldCheck, LogOut, Menu, PanelLeftClose, PanelLeftOpen, User as UserIcon, Workflow } from 'lucide-react';
+import { Blocks, Building2, Cpu, Settings, LogOut, Menu, PanelLeftClose, PanelLeftOpen, User as UserIcon, Workflow } from 'lucide-react';
 
 const ADMIN_NAV = [
   { label: 'Organizaciones', href: '/admin/organizaciones', icon: Building2 },
   { label: 'Workflows', href: '/admin/workflows', icon: Workflow },
+  { label: 'Integraciones', href: '/admin/integraciones', icon: Blocks },
   { label: 'Modelos LLM', href: '/admin/llm-models', icon: Cpu },
   { label: 'Configuración', href: '/admin/configuracion', icon: Settings },
 ];
@@ -82,7 +84,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         
         {!isCollapsed && (
           <div className="ml-2 flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-            <ShieldCheck size={18} className="shrink-0 text-text-primary" />
+            <div className="relative h-6 w-6 shrink-0">
+              <Image
+                src="/favicon.svg"
+                alt="Tesseract"
+                fill
+                loading="eager"
+                className="object-contain [filter:var(--logo-filter)]"
+              />
+            </div>
             <span className="truncate text-sm font-semibold text-text-primary">
               Tesseract Admin
             </span>
@@ -184,7 +194,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Menu size={20} />
         </button>
         <div className="flex items-center gap-2">
-          <ShieldCheck size={18} className="text-text-primary" />
+          <div className="relative h-6 w-6 shrink-0">
+            <Image
+              src="/favicon.svg"
+              alt="Tesseract"
+              fill
+              loading="eager"
+              className="object-contain [filter:var(--logo-filter)]"
+            />
+          </div>
           <span className="text-sm font-semibold text-text-primary">Tesseract Admin</span>
         </div>
       </header>

@@ -57,14 +57,14 @@ export function LimitsTab({ org }: Props) {
     allowOverages !== org.allowOverages || overageLimit !== (org.overageLimit?.toString() ?? '');
 
   const handleSaveLimits = () => {
-    // Solo se manda lo que cambió: un campo vacío que no cambió no pisa el override
-    // existente (el backend ignora los campos ausentes del body, no los resetea).
+    // Solo se manda lo que cambió (el backend ignora los campos ausentes del body, no
+    // los resetea). Si cambió a vacío, se manda `null` explícito para borrar el override
+    // — mandar `undefined` ahí dejaría el valor viejo intacto en vez de volver al plan.
     const initial = toForm(org);
     const payload: UpdateAdminCustomLimitsInput = {};
     for (const { key } of LIMIT_FIELDS) {
       if (form[key] === initial[key]) continue;
-      if (form[key].trim() === '') continue;
-      payload[key] = Number(form[key]);
+      payload[key] = form[key].trim() === '' ? null : Number(form[key]);
     }
 
     updateCustomLimits.mutate(
@@ -97,8 +97,8 @@ export function LimitsTab({ org }: Props) {
       <section className="rounded-xl border border-border bg-surface p-4">
         <h2 className="mb-1 text-sm font-semibold text-text-primary">Límites custom</h2>
         <p className="mb-4 text-xs text-text-secondary">
-          Vacío = usa el default del plan ({org.plan}). <strong>-1</strong> = ilimitado. Un campo
-          que dejas vacío no se toca, aunque ya tenga un override.
+          Vacío = usa el default del plan ({org.plan}). <strong>-1</strong> = ilimitado. Si un
+          campo ya tenía un override, dejarlo vacío y guardar lo borra.
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

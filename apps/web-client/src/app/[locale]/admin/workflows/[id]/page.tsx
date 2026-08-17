@@ -10,6 +10,7 @@ import {
   Boxes,
   CheckCircle2,
   FileJson,
+  FlaskConical,
   GitBranch,
   History,
   Image as ImageIcon,
@@ -41,9 +42,10 @@ import { MediaTab } from '@/components/admin/workflows/media-tab';
 import { RawJsonTab } from '@/components/admin/workflows/raw-json-tab';
 import { HistoryTab } from '@/components/admin/workflows/history-tab';
 import { SettingsTab } from '@/components/admin/workflows/settings-tab';
+import { TestTab } from '@/components/admin/workflows/test-tab';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '../../_styles';
 
-type TabId = 'agents' | 'nodes' | 'graph' | 'media' | 'json' | 'settings' | 'history';
+type TabId = 'agents' | 'nodes' | 'graph' | 'media' | 'json' | 'test' | 'settings' | 'history';
 
 const TABS: { id: TabId; label: string; icon: typeof Bot }[] = [
   { id: 'agents', label: 'Agentes', icon: Bot },
@@ -51,9 +53,13 @@ const TABS: { id: TabId; label: string; icon: typeof Bot }[] = [
   { id: 'graph', label: 'Grafo', icon: GitBranch },
   { id: 'media', label: 'Media', icon: ImageIcon },
   { id: 'json', label: 'JSON', icon: FileJson },
+  { id: 'test', label: 'Probar', icon: FlaskConical },
   { id: 'settings', label: 'Ajustes', icon: SlidersHorizontal },
   { id: 'history', label: 'Historial', icon: History },
 ];
+
+/** Pestañas que no tocan `draft` (ver `showConfigFooter` más abajo). */
+const NON_DRAFT_TABS: TabId[] = ['settings', 'history', 'test'];
 
 const draftKey = (id: string, version: number) => `wf-draft:${id}:${version}`;
 
@@ -168,12 +174,13 @@ function WorkflowEditor() {
     [original, draft],
   );
 
-  // Ajustes e Historial no tocan `draft`: Ajustes guarda metadata por su cuenta con su
-  // propio botón, e Historial no edita nada. Mostrar aquí Validar/Guardar/Ver cambios
-  // sin motivo confundía. Pero si hay cambios de config pendientes de OTRA pestaña, hay
-  // que poder guardarlos o descartarlos desde donde sea — así que la barra aparece igual,
-  // en el mismo lugar de siempre, en cuanto hay algo pendiente.
-  const showConfigFooter = isDirty || (tab !== 'settings' && tab !== 'history');
+  // Ajustes, Historial y Probar no tocan `draft`: Ajustes guarda metadata por su cuenta
+  // con su propio botón, Historial no edita nada y Probar solo ejecuta (no cambia el
+  // config). Mostrar aquí Validar/Guardar/Ver cambios sin motivo confundía. Pero si hay
+  // cambios de config pendientes de OTRA pestaña, hay que poder guardarlos o
+  // descartarlos desde donde sea — así que la barra aparece igual, en el mismo lugar de
+  // siempre, en cuanto hay algo pendiente.
+  const showConfigFooter = isDirty || !NON_DRAFT_TABS.includes(tab);
 
   const changes = useMemo(
     () => (original && draft ? diffLocal(original, draft) : []),
@@ -378,6 +385,7 @@ function WorkflowEditor() {
       {tab === 'json' && (
         <RawJsonTab config={draft} onChange={handleChange} workflowName={workflow.name} />
       )}
+      {tab === 'test' && <TestTab workflow={workflow} />}
       {tab === 'settings' && <SettingsTab workflow={workflow} />}
       {tab === 'history' && (
         <HistoryTab

@@ -98,6 +98,34 @@ describe('WhatsappConfigService', () => {
       expect(mockLogger.error).toHaveBeenCalled();
       expect(res).toBeNull();
     });
+
+    it('guarda displayName/description cuando se mandan al crear', async () => {
+      mockPrisma.whatsAppConfig.create.mockResolvedValue({ id: 'n1' });
+
+      await service.createRecordAndgenerateWebhookSecret('org-1', 'wf-1', '+1', {
+        displayName: '  WhatsApp Ventas  ',
+        description: '  Línea de ventas  ',
+      });
+
+      expect(mockPrisma.whatsAppConfig.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            displayName: 'WhatsApp Ventas',
+            description: 'Línea de ventas',
+          }),
+        }),
+      );
+    });
+
+    it('sin displayName/description, no los manda (quedan NULL por default de Prisma)', async () => {
+      mockPrisma.whatsAppConfig.create.mockResolvedValue({ id: 'n1' });
+
+      await service.createRecordAndgenerateWebhookSecret('org-1', 'wf-1', '+1');
+
+      const data = mockPrisma.whatsAppConfig.create.mock.calls.at(-1)?.[0].data;
+      expect(data.displayName).toBeUndefined();
+      expect(data.description).toBeUndefined();
+    });
   });
 
   describe('updatePhoneNumber', () => {
@@ -151,6 +179,27 @@ describe('WhatsappConfigService', () => {
     });
   });
 
+  describe('getConfigsByOrganization', () => {
+    it('lista todos los números de la organización, sin filtrar por workflow', async () => {
+      const list = [{ id: 'a' }, { id: 'b' }];
+      mockPrisma.whatsAppConfig.findMany.mockResolvedValue(list);
+
+      const res = await service.getConfigsByOrganization('org-1');
+
+      expect(mockPrisma.whatsAppConfig.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { organizationId: 'org-1' } }),
+      );
+      expect(res).toEqual(list);
+    });
+
+    it('returns empty array on error and logs', async () => {
+      mockPrisma.whatsAppConfig.findMany.mockRejectedValue(new Error('boom'));
+      const res = await service.getConfigsByOrganization('org-1');
+      expect(res).toEqual([]);
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+  });
+
   describe('updateIsActive', () => {
     it('returns true when update succeeds', async () => {
       mockPrisma.whatsAppConfig.update.mockResolvedValue({});
@@ -191,6 +240,28 @@ describe('WhatsappConfigService', () => {
       mockPrisma.whatsAppConfig.update.mockRejectedValue(new Error('err'));
       expect(await service.updateConfig('c1', { displayName: 'Soporte' })).toBe(false);
       expect(mockLogger.error).toHaveBeenCalled();
+    });
+
+    it('reasigna defaultWorkflowId cuando llega un workflowId', async () => {
+      mockPrisma.whatsAppConfig.update.mockResolvedValue({});
+
+      await service.updateConfig('c1', { workflowId: 'wf-2' });
+
+      expect(mockPrisma.whatsAppConfig.update).toHaveBeenCalledWith({
+        where: { id: 'c1' },
+        data: { defaultWorkflowId: 'wf-2' },
+      });
+    });
+
+    it('desasigna el workflow cuando workflowId llega null explícito', async () => {
+      mockPrisma.whatsAppConfig.update.mockResolvedValue({});
+
+      await service.updateConfig('c1', { workflowId: null });
+
+      expect(mockPrisma.whatsAppConfig.update).toHaveBeenCalledWith({
+        where: { id: 'c1' },
+        data: { defaultWorkflowId: null },
+      });
     });
   });
 

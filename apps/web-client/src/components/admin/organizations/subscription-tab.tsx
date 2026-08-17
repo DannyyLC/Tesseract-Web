@@ -143,11 +143,12 @@ export function SubscriptionTab({ org }: Props) {
           />
         </div>
         <div className="flex items-end pb-2">
-          <label className="flex items-center gap-2 text-sm text-text-primary">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-text-primary">
             <input
               type="checkbox"
               checked={form.cancelAtPeriodEnd}
               onChange={(e) => set('cancelAtPeriodEnd', e.target.checked)}
+              className="h-4 w-4 shrink-0 accent-accent"
             />
             No renovar al final del período
           </label>

@@ -17,6 +17,7 @@ describe('TenantToolService', () => {
       findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
     },
     toolCatalog: { findUnique: jest.fn() },
     tenantToolCredential: { deleteMany: jest.fn() },
@@ -51,6 +52,51 @@ describe('TenantToolService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  describe('findAllForAdmin', () => {
+    it('lista paginado sin filtro de organización', async () => {
+      const tools = [{ id: 't1' }];
+      mockPrismaService.tenantTool.findMany.mockResolvedValue(tools);
+      mockPrismaService.tenantTool.count.mockResolvedValue(1);
+
+      const res = await service.findAllForAdmin({});
+
+      expect(mockPrismaService.tenantTool.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { deletedAt: null } }),
+      );
+      expect(res).toEqual({ data: tools, meta: { total: 1, page: 1, limit: 20, totalPages: 1 } });
+    });
+
+    it('filtra por organización', async () => {
+      mockPrismaService.tenantTool.findMany.mockResolvedValue([]);
+      mockPrismaService.tenantTool.count.mockResolvedValue(0);
+
+      await service.findAllForAdmin({ organizationId: 'org-1' });
+
+      expect(mockPrismaService.tenantTool.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { deletedAt: null, organizationId: 'org-1' } }),
+      );
+    });
+
+    it('busca por nombre o id', async () => {
+      mockPrismaService.tenantTool.findMany.mockResolvedValue([]);
+      mockPrismaService.tenantTool.count.mockResolvedValue(0);
+
+      await service.findAllForAdmin({ search: 'abc-123' });
+
+      expect(mockPrismaService.tenantTool.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            deletedAt: null,
+            OR: [
+              { displayName: { contains: 'abc-123', mode: 'insensitive' } },
+              { id: { contains: 'abc-123', mode: 'insensitive' } },
+            ],
+          },
+        }),
+      );
+    });
   });
 
   describe('getDashboardData', () => {

@@ -3,6 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import useEvents from '@/hooks/shared/use-events';
 import { WhatsAppConfig, ENDPOINT_EVENTS, TYPE_EVENTS } from '@tesseract/types';
+import type {
+  CreateTemplateInput,
+  UpdateTemplateInput,
+} from '@/lib/api/endpoints/messaging/whatsapp-config/whatsapp-config';
 
 export function useWhatsappMutations() {
   const queryClient = useQueryClient();
@@ -51,6 +55,8 @@ export function useWhatsappMutations() {
       id: string;
       displayName?: string;
       description?: string;
+      /** Tri-estado: ausente no toca, `null` desasigna, string reasigna. */
+      workflowId?: string | null;
     }) => {
       const api = RootApi.getInstance().getWhatsappConfigApi();
       return await api.updateWhatsappConfiguration(id, data);
@@ -77,6 +83,49 @@ export function useWhatsappNumbers(workflowId: string) {
     },
     enabled: !!workflowId,
   });
+}
+
+export function useWhatsappTemplates(configId: string | null) {
+  return useQuery({
+    queryKey: ['whatsapp', 'templates', configId],
+    queryFn: async () => {
+      const api = RootApi.getInstance().getWhatsappConfigApi();
+      return await api.listTemplates(configId!);
+    },
+    enabled: !!configId,
+  });
+}
+
+export function useWhatsappTemplateMutations(configId: string) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: ['whatsapp', 'templates', configId] });
+
+  const createTemplate = useMutation({
+    mutationFn: async (data: CreateTemplateInput) => {
+      const api = RootApi.getInstance().getWhatsappConfigApi();
+      return await api.createTemplate(configId, data);
+    },
+    onSuccess: invalidate,
+  });
+
+  const updateTemplate = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateTemplateInput }) => {
+      const api = RootApi.getInstance().getWhatsappConfigApi();
+      return await api.updateTemplate(id, data);
+    },
+    onSuccess: invalidate,
+  });
+
+  const deleteTemplate = useMutation({
+    mutationFn: async (id: string) => {
+      const api = RootApi.getInstance().getWhatsappConfigApi();
+      return await api.deleteTemplate(id);
+    },
+    onSuccess: invalidate,
+  });
+
+  return { createTemplate, updateTemplate, deleteTemplate };
 }
 
 export function useWhatsappConfigSubscriptions() {

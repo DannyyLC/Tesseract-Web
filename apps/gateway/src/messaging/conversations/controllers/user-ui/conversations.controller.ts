@@ -88,9 +88,13 @@ export class ConversationsController {
    * *recibir* por WhatsApp; aquí el audio no llega al workflow —lo que se envía es
    * texto—, así que dictar desde el panel es una comodidad del operador y está siempre
    * disponible. El tope de tamaño sigue vigente como red de seguridad.
+   *
+   * SUPER_ADMIN incluido: la pestaña "Probar" de un workflow interno (panel de admin)
+   * reusa este mismo endpoint para dictar — no lee `@CurrentUser()` ni depende de la
+   * organización de quien llama, así que no hay nada que resolver distinto ahí.
    */
   @Post('transcribe')
-  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER, UserRole.SUPER_ADMIN)
   // Cada transcripción cuesta dinero: se limita por si el micrófono se queda pulsado.
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   async transcribe(

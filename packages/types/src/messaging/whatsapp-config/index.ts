@@ -1,6 +1,9 @@
 export interface CreateConfigDto {
+  /** Un número nace ligado a un workflow. Reasignar/desasignar después sí es opcional. */
   workflowId: string;
   phoneNumber: string;
+  displayName?: string;
+  description?: string;
 }
 
 export interface WhatsAppConfig {
@@ -24,4 +27,16 @@ export interface WhatsAppConfig {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+}
+
+export interface WhatsAppTemplate {
+  id: string;
+  name: string;
+  displayName: string | null;
+  language: string;
+  variables: { body?: string[]; header?: string[]; buttons?: string[] };
+  isActive: boolean;
+  whatsAppConfigId: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
