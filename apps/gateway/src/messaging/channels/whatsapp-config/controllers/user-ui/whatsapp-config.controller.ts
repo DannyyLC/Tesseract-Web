@@ -6,6 +6,7 @@ import {
   Headers,
   HttpStatus,
   Inject,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -224,10 +225,22 @@ export class WhatsappConfigController {
         }
       }
 
-      const workflow = await this.workflowsService.findOne(
-        account.organizationId,
-        account.defaultWorkflowId,
-      );
+      // Un workflow borrado (o de otra organización) deja `findOne` lanzando. No es
+      // transitorio: reintentar no lo resucita, así que se corta aquí en vez de caer al
+      // catch, devolver 500 y dejar a YCloud reintentando contra una config rota.
+      let workflow: { isActive: boolean };
+      try {
+        workflow = await this.workflowsService.findOne(
+          account.organizationId,
+          account.defaultWorkflowId,
+        );
+      } catch (error) {
+        if (!(error instanceof NotFoundException)) throw error;
+        this.logger.warn(
+          `Received message for WhatsApp config with missing workflow: ${account.defaultWorkflowId}`,
+        );
+        return res.status(HttpStatus.OK).send({ received: true, ignored: 'missing-workflow' });
+      }
 
       // Con el flujo apagado nadie más lleva la conversación al día: se registra el
       // mensaje sea cual sea su origen (cliente o negocio) para que el historial no se

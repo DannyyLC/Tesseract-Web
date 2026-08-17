@@ -1,4 +1,4 @@
-import { HttpStatus } from '@nestjs/common';
+import { HttpStatus, NotFoundException } from '@nestjs/common';
 import { WhatsappConfigController } from './whatsapp-config.controller';
 
 /**
@@ -177,6 +177,53 @@ describe('WhatsappConfigController · webhook', () => {
       expect(mockEndUsersService.isBlocked).not.toHaveBeenCalled();
       expect(mockConversationsService.addMessage).toHaveBeenCalled();
     });
+  });
+
+  /**
+   * Una config que apunta a un workflow borrado es un estado de configuración, no una falla
+   * transitoria: reintentar no lo resucita. Antes `findOne` lanzaba, el throw caía al catch del
+   * webhook y se contestaba 500, así que cada mensaje entrante de ese número se convertía en un
+   * ciclo de reintentos de YCloud.
+   */
+  describe('cuando el workflow ya no existe', () => {
+    beforeEach(() => {
+      mockWorkflowsService.findOne.mockRejectedValue(new NotFoundException('Workflow not found'));
+    });
+
+    it('lo descarta con 200 en vez de pedir reintento', async () => {
+      const res = createMockResponse();
+
+      await controller.handleWebhook(body, res, {});
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(res.send).toHaveBeenCalledWith({ received: true, ignored: 'missing-workflow' });
+      expect(res.status).not.toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    });
+
+    it('no bufferea, no agenda y conserva el claim de deduplicación', async () => {
+      const res = createMockResponse();
+
+      await controller.handleWebhook(body, res, {});
+
+      expect(mockQueueService.bufferMessage).not.toHaveBeenCalled();
+      expect(mockCloudTasks.enqueue).not.toHaveBeenCalled();
+      // Liberar el claim es lo que habilita el reintento; en un descarte deliberado se queda.
+      expect(mockWebhookDedup.release).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * La contracara: un fallo real de infraestructura sí merece reintento. Si la guarda se tragara
+   * cualquier excepción, una caída de la base descartaría mensajes del cliente en silencio.
+   */
+  it('sigue devolviendo 500 si el workflow no se pudo resolver por otra causa', async () => {
+    mockWorkflowsService.findOne.mockRejectedValue(new Error('connection terminated'));
+    const res = createMockResponse();
+
+    await controller.handleWebhook(body, res, {});
+
+    expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    expect(mockWebhookDedup.release).toHaveBeenCalled();
   });
 
   it('no consulta la lista negra si la firma no es válida', async () => {

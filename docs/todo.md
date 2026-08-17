@@ -268,51 +268,35 @@ Vale la pena normalizar el número en el lookup en vez de confiar en que ambos l
 
 ---
 
-## 11. Las guardas de workflow del webhook fallan cuando el workflow no existe
+## 11. El webhook de WhatsApp usa un método de UI para leer un booleano
 
-**Severidad: media — un mensaje entrante puede quedar en reintento infinito.**
+**Severidad: baja — funciona, pero paga joins de más en la ruta caliente.**
 
-Levantado el 5 de agosto de 2026 al revisar el commit `b66eb168` ("Inactive Workflow - Whatsapp
-Channel", 29 de julio de 2026), que agregó dos guardas al webhook en
-[`whatsapp-config.controller.ts`](https://github.com/FractalOps-Dev/Tesseract/blob/main/apps/gateway/src/messaging/channels/whatsapp-config/controllers/user-ui/whatsapp-config.controller.ts):
-si la config no tiene `defaultWorkflowId` responde 200 con `ignored: 'no-workflow'`, y si el
-workflow asociado está inactivo responde 200 con `ignored: 'inactive-workflow'`. En ambos casos
-el mensaje no se bufferea ni se encola. La intención es correcta; la implementación tiene un
-hueco.
+`findOne` es un método pensado para la UI —trae `tenantTools` con joins anidados a `toolCatalog`—
+y el webhook lo usa para leer un solo booleano (`isActive`) en cada mensaje entrante. Conviene un
+`select` mínimo, o cachear el estado del workflow. Aplica igual al canal de Messenger, que resuelve
+el workflow con el mismo método.
 
-**El bug.** La segunda guarda resuelve el workflow con `workflowsService.findOne(organizationId,
-defaultWorkflowId)`, que lanza `NotFoundException` cuando el workflow no existe, fue borrado en
-suave (el query filtra por `deletedAt: null`) o pertenece a otra organización. Ese throw cae en
-el `catch` del webhook, que libera el claim de deduplicación y responde **500 para que YCloud
-reintente**. Resultado: una fila de `whatsapp_configs` que apunte a un workflow eliminado
-convierte cada mensaje entrante en un ciclo de reintentos, en vez de ignorarlo limpiamente —
-justo lo contrario de lo que la guarda pretendía. El caso "workflow inactivo" sí funciona bien;
-el que falla es "workflow inexistente".
+**Resuelto el 17 de agosto de 2026:** el bug de esta sección. La resolución del workflow lanzaba
+`NotFoundException` cuando el workflow no existía, había sido borrado en suave o era de otra
+organización; el throw caía en el `catch` del webhook, que libera el claim de deduplicación y
+responde 500 para que YCloud reintente. Una fila de `whatsapp_configs` apuntando a un workflow
+eliminado convertía cada mensaje entrante en un ciclo de reintentos. Ahora responde 200 con
+`ignored: 'missing-workflow'`, igual que Messenger, y solo las fallas que no son `NotFoundException`
+siguen pidiendo reintento.
 
-**Arreglo propuesto:** envolver la resolución del workflow en su propio `try/catch`, o usar una
-consulta que devuelva `null` en vez de lanzar, y tratar el workflow ausente igual que el
-inactivo: 200 con `ignored: 'missing-workflow'`. La distinción importa para el log, pero ninguno
-de los dos casos justifica un reintento: son estados de configuración, no fallas transitorias.
+**Nota sobre el commit `b66eb168`** ("Inactive Workflow - Whatsapp Channel", 29 de julio de 2026),
+que introdujo las guardas: su mensaje dice "Added a guard to prevent from sending read
+acknowledgments to the whatsapp server", pero no hay código de read receipts en `apps/gateway` (no
+existe `markAsRead`, `read_receipt` ni equivalente) y las guardas sí responden 200, que es
+precisamente un acuse a YCloud. Lo que hacen es cortar el ingreso al pipeline. Vale anotarlo porque
+quien busque el cambio por el mensaje no lo va a encontrar.
 
-**Deuda menor del mismo bloque:**
-
-- El `if (account.defaultWorkflowId)` de la segunda guarda es redundante: el bloque inmediatamente
-  anterior ya retorna cuando ese campo es falsy, así que la condición siempre es verdadera.
-- `findOne` es un método pensado para la UI — trae `tenantTools` con joins anidados a
-  `toolCatalog` — y se está usando en la ruta caliente del webhook para leer un solo booleano.
-  Conviene un `select` mínimo de `isActive`, o cachear el estado del workflow.
-
-**El mensaje del commit no describe el cambio.** Dice "Added a guard to prevent from sending read
-acknowledgments to the whatsapp server", pero no hay código de read receipts en `apps/gateway`
-(no existe `markAsRead`, `read_receipt` ni equivalente) y las guardas sí responden 200, que es
-precisamente un acuse a YCloud. Lo que hacen es cortar el ingreso al pipeline. Vale anotarlo
-porque quien busque el cambio por el mensaje no lo va a encontrar.
-
-**Relación con el punto 10.** Estas dos guardas suman dos caminos más de descarte silencioso a
-los que ya existían (`unknown-config` e `inactive-config`): ahora son cuatro rutas por las que un
-mensaje del cliente termina en un 200 sin dejar rastro en la conversación. El riesgo operativo
-señalado al final del punto 10 aplica igual aquí. Si se agrega observabilidad para los descartes,
-conviene cubrir las cuatro de una vez.
+**Relación con el punto 10.** Ya son **cinco** las rutas por las que un mensaje del cliente termina
+en un 200 sin dejar rastro en la conversación: `unknown-config`, `inactive-config`, `no-workflow`,
+`missing-workflow` e `inactive-workflow` — más `blocked-contact`, que sí es deliberado. El riesgo
+operativo señalado al final del punto 10 aplica igual aquí. Si se agrega observabilidad para los
+descartes, conviene cubrir todas de una vez.
 
 ---
 
