@@ -28,24 +28,33 @@ CRUD de modelos del admin.
 
 ---
 
-## 2. Los límites de categoría no se aplican en ningún lado
+## 2. La restricción de tiers de modelo no restringe nada
 
-**Severidad: alta — el límite existe solo en el papel.**
+**Severidad: baja — decidir si se define o se borra.**
 
-`WORKFLOW_CATEGORIES` en [`packages/types/src/billing/subscriptions/plans.ts`](https://github.com/FractalOps-Dev/Tesseract/blob/main/packages/types/src/billing/subscriptions/plans.ts)
-define `maxTokens` y `allowedModelTiers` por categoría, pero:
+`WORKFLOW_CATEGORIES` en [`plans.ts`](https://github.com/FractalOps-Dev/Tesseract/blob/main/packages/types/src/billing/subscriptions/plans.ts)
+declara `allowedModelTiers` por categoría, y `canUseModelInWorkflow()` no se llama desde `apps/`.
+Pero implementarlo hoy **no cambiaría nada**: las tres categorías declaran
+`[BASIC, STANDARD, PREMIUM]`, o sea que todo está permitido en todas.
 
-- `getMaxTokensForCategory()` — **nunca se llama** desde `apps/`.
-- `isModelTierAllowed()` — **nunca se llama** desde `apps/`.
+O se definen tiers distintos por categoría —que es volver a abrir la pregunta de producto de qué
+modelos puede usar un plan barato— o se borra el campo. Aplicar la función tal como está sería
+código que no restringe.
 
-Solo se usa `credits`. Consecuencias:
+**Resuelto el 17 de agosto de 2026:** la otra mitad de este punto, el techo de tokens. Se podía
+crear un workflow `LIGHT` con 500k y nadie lo impedía. Ahora
+[`category-token-ceiling.ts`](https://github.com/FractalOps-Dev/Tesseract/blob/main/apps/gateway/src/automation/workflows/category-token-ceiling.ts)
+valida el par contra `getWorkflowMaxTokens()` en las tres puertas de entrada: `create`, `update` de
+tenant y el `updateMeta` del admin.
 
-- `maxTokensPerExecution` del workflow no se valida contra el techo de su categoría: se puede
-  crear un workflow `LIGHT` con 500k y nadie lo impide.
-- La restricción de tiers (`BASIC` solo para `LIGHT`, etc.) no se aplica.
+Dos detalles del diseño que conviene no perder:
 
-**Arreglo propuesto:** validar en `createWorkflow`/`updateWorkflow` que
-`maxTokensPerExecution <= getMaxTokensForCategory(category)`.
+- **El par se resuelve contra lo guardado.** En una edición `category` y `maxTokensPerExecution`
+  viajan por separado y ambos son opcionales; validar el DTO crudo dejaría pasar bajar la categoría
+  sin tocar los tokens, que es la misma violación por la puerta de atrás.
+- **Solo se valida si la edición toca alguno de los dos campos.** Una fila que ya estuviera fuera de
+  rango sigue siendo editable para todo lo demás: cerrar el hueco no debería trabar lo que ya
+  existe.
 
 ---
 
@@ -90,24 +99,30 @@ gastó. Es el nombre el que engaña.
 
 ---
 
-## 5. Comentarios desactualizados en el esquema
+## 5. ¿Subir los techos de tokens por categoría?
 
-**Severidad: baja — pero induce a configurar con números viejos.**
+**Severidad: baja — decisión de producto, no un defecto.**
 
-Los comentarios del enum `WorkflowCategory` en `packages/database/prisma/schema.prisma` no
-coinciden con el código, que es la fuente de verdad:
+Los techos vigentes son 20k / 100k / 250k. La propuesta era subirlos:
 
-| Categoría | Comentario en schema.prisma | Real en plans.ts | Propuesto |
-|---|---|---|---|
-| `LIGHT` | 1 crédito, 20k | 1 crédito, 20k | **50k** |
-| `STANDARD` | 5 créditos, 50k | 5 créditos, 100k | **200k** |
-| `ADVANCED` | 25 créditos, 128k | 20 créditos, 250k | **300k–350k** |
+| Categoría | Hoy en plans.ts | Propuesto |
+|---|---|---|
+| `LIGHT` | 20k | **50k** |
+| `STANDARD` | 100k | **200k** |
+| `ADVANCED` | 250k | **300k–350k** |
 
 `ADVANCED` se propone por debajo de 400k a propósito: es la ventana de `gpt-5.4-mini`, el modelo
-más chico en uso. Mientras el punto 3 no exista, ese techo es la única protección.
+más chico en uso. Mientras el punto 3 no exista, ese techo es la única protección — y desde el
+punto 2 sí se aplica de verdad, así que ahora el número importa.
 
 Subir estos límites **no cambia la facturación**: los créditos son fijos por categoría e
-independientes de los tokens. Solo permite conversaciones más largas antes de compactar.
+independientes de los tokens. Solo permite conversaciones más largas antes de compactar. Es un
+cambio de una línea por categoría en `WORKFLOW_CATEGORIES`, más los comentarios del schema.
+
+**Corregido el 17 de agosto de 2026:** los comentarios desactualizados de
+`packages/database/prisma/schema.prisma`, que decían 20k/50k/128k y 25 créditos. Eran **tres**
+lugares, no dos: el enum `WorkflowCategory` y también la columna `maxTokensPerExecution`. Ahora el
+enum apunta a `plans.ts` como fuente de verdad para que la próxima vez se actualice un solo lado.
 
 ---
 

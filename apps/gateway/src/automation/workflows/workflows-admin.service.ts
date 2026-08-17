@@ -6,12 +6,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, WorkflowVersionSource } from '@tesseract/database';
+import { WorkflowCategory } from '@tesseract/types';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { InvalidWorkflowConfigException } from '@/platform/common/exceptions';
 import { OrganizationsService } from '@/identity/organizations/organizations.service';
 import { AgentsService } from '../agents/agents.service';
 import { WorkflowConfigValidator } from './workflow-config.validator';
+import {
+  assertMaxTokensWithinCategory,
+  touchesCategoryCeiling,
+} from './category-token-ceiling';
 import { configSizeBytes, diffConfigs, hashConfig } from './workflow-config.utils';
 import {
   CloneWorkflowDto,
@@ -325,9 +330,24 @@ export class WorkflowsAdminService {
   async updateMeta(workflowId: string, dto: UpdateWorkflowMetaDto) {
     const exists = await this.prisma.workflow.findUnique({
       where: { id: workflowId },
-      select: { id: true, organizationId: true, isInternal: true },
+      select: {
+        id: true,
+        organizationId: true,
+        isInternal: true,
+        category: true,
+        maxTokensPerExecution: true,
+      },
     });
     if (!exists) throw new NotFoundException('Workflow no encontrado');
+
+    // Mismo techo por categoría que en la ruta de tenant: el super admin puede mover
+    // un workflow de categoría, y bajarlo sin tocar los tokens lo dejaría fuera de rango.
+    if (touchesCategoryCeiling(dto)) {
+      assertMaxTokensWithinCategory({
+        category: (dto.category as WorkflowCategory) ?? (exists.category as WorkflowCategory),
+        maxTokensPerExecution: dto.maxTokensPerExecution ?? exists.maxTokensPerExecution,
+      });
+    }
 
     // Publicar (isInternal true→false) vuelve al workflow visible y lo mete al
     // conteo del plan del cliente — igual que create(), no puede saltarse el

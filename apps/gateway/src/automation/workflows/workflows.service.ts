@@ -18,6 +18,10 @@ import {
   WorkflowMetricsDto,
 } from '@tesseract/types';
 import { PassThrough } from 'stream';
+import {
+  assertMaxTokensWithinCategory,
+  touchesCategoryCeiling,
+} from './category-token-ceiling';
 import { AgentsService } from '../agents/agents.service';
 import { ToolsService } from '../tools/core/tools.service';
 import { DatasetTokenService } from '../datasets/core/dataset-token.service';
@@ -117,6 +121,11 @@ export class WorkflowsService {
    */
   async create(organizationId: string, dto: CreateWorkflowDto) {
     await this.validateConfig(dto.config);
+
+    assertMaxTokensWithinCategory({
+      category: this.mapDbWorkflowCategoryToShared(dto.category as DbWorkflowCategory),
+      maxTokensPerExecution: dto.maxTokensPerExecution,
+    });
 
     // Validar límite de workflows según el plan
     const canAdd = await this.organizationsService.canAddWorkflow(organizationId);
@@ -623,6 +632,23 @@ export class WorkflowsService {
     // 2. Validar config si se está actualizando
     if (dto.config) {
       await this.validateConfig(dto.config);
+    }
+
+    // El par se resuelve contra lo guardado: si la edición manda solo uno de los dos
+    // campos, el otro sigue siendo el que ya tenía el workflow. `findOne` no trae el
+    // tope guardado (es un método de UI), así que se lee aparte y solo cuando hace falta.
+    if (touchesCategoryCeiling(dto)) {
+      const stored = await this.prisma.workflow.findUniqueOrThrow({
+        where: { id: workflowId },
+        select: { category: true, maxTokensPerExecution: true },
+      });
+
+      assertMaxTokensWithinCategory({
+        category: this.mapDbWorkflowCategoryToShared(
+          (dto.category as DbWorkflowCategory) ?? stored.category,
+        ),
+        maxTokensPerExecution: dto.maxTokensPerExecution ?? stored.maxTokensPerExecution,
+      });
     }
 
     // 3. Actualizar (incrementando versión)

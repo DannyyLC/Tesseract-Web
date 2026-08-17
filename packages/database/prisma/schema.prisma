@@ -19,10 +19,13 @@ enum SubscriptionPlan {
   ENTERPRISE
 }
 
+// Los créditos y el techo de tokens los define WORKFLOW_CATEGORIES en
+// packages/types/src/billing/subscriptions/plans.ts, que es la fuente de verdad; estos
+// comentarios son un reflejo y hay que moverlos si allá cambian.
 enum WorkflowCategory {
   LIGHT // 1 crédito - Tareas simples, hasta 20k tokens
-  STANDARD // 5 créditos - Workflows completos, hasta 50k tokens
-  ADVANCED // 25 créditos - Multi-agente complejo, hasta 128k tokens
+  STANDARD // 5 créditos - Workflows completos, hasta 100k tokens
+  ADVANCED // 20 créditos - Multi-agente complejo, hasta 250k tokens
 }
 
 enum ModelTier {
@@ -1270,7 +1273,7 @@ model Workflow {
 
   // Credit System - Workflow Category
   category              WorkflowCategory // LIGHT (1cr), STANDARD (5cr), ADVANCED (25cr) - Asignado por admin
-  maxTokensPerExecution Int // Límite de tokens por ejecución (20k/50k/128k según category)
+  maxTokensPerExecution Int // Techo de historial de conversación (20k/100k/250k según category)
 
   maxMessages            Int? // null = sin límite de mensajes
   inactivityHours        Int? // null = sin límite temporal
