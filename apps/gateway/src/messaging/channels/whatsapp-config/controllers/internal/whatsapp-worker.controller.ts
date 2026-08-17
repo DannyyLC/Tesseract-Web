@@ -105,10 +105,10 @@ export class WhatsappWorkerController {
     try {
       const account = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(phoneNumber);
 
-      if (!account?.isActive) {
-        this.logger.warn('Config de WhatsApp ausente o inactiva al procesar la ventana', logContext);
+      if (!account) {
+        this.logger.warn('No Whatsapp-Config Account found for: ', logContext);
         await this.commit(drained.processingKey);
-        return res.status(HttpStatus.OK).send({ processed: false, reason: 'inactive-config' });
+        return res.status(HttpStatus.OK).send({ processed: false, reason: 'ausent-config' });
       }
 
       const yCloudApiKey = process.env.Y_CLOUD_API_KEY;

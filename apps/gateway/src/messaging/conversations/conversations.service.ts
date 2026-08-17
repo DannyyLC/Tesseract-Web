@@ -131,9 +131,6 @@ export class ConversationsService {
     private readonly kmsService: KmsService,
   ) {}
 
-  private readonly fallbackMessengerPageAccessToken =
-    process.env.MESSENGER_PAGE_ACCESS_TOKEN ?? '';
-
   private async resolveMessengerPageAccessToken(config: {
     pageId: string;
     pageAccessToken: string | null;
@@ -149,14 +146,8 @@ export class ConversationsService {
         );
       }
     }
-
-    if (!this.fallbackMessengerPageAccessToken) {
-      throw new Error(
-        `No hay token de acceso para la página ${config.pageId}: ni en la config ni en MESSENGER_PAGE_ACCESS_TOKEN`,
-      );
-    }
-
-    return this.fallbackMessengerPageAccessToken;
+    
+    return '';
   }
 
   private async fetchMessengerSenderName(

@@ -255,8 +255,7 @@ describe('MessengerConfigService', () => {
       expect(options.params.access_token).toBe('page-token');
     });
 
-    it('falls back to the env token when the config has none', async () => {
-      process.env.MESSENGER_PAGE_ACCESS_TOKEN = 'env-token';
+    it('returns empty string when the config has none page access token', async () => {
       const fallbackService = new MessengerConfigService(
         mockPrisma,
         mockHttpService,
@@ -269,8 +268,7 @@ describe('MessengerConfigService', () => {
       await fallbackService.sendTextMessage({ ...config, pageAccessToken: null }, 'psid-1', 'hola');
 
       expect(mockKmsService.decrypt).not.toHaveBeenCalled();
-      expect(mockHttpService.post.mock.calls[0][2].params.access_token).toBe('env-token');
-      delete process.env.MESSENGER_PAGE_ACCESS_TOKEN;
+      expect(mockHttpService.post.mock.calls[0][2].params.access_token).toBe('');
     });
   });
 

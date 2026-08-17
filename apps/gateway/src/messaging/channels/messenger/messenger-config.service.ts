@@ -31,9 +31,6 @@ export class MessengerConfigService {
   private readonly fallbackAppSecret: string = process.env.MESSENGER_APP_SECRET ?? '';
   /** Token del challenge de verificación (GET /webhook). */
   private readonly verifyToken: string = process.env.MESSENGER_VERIFY_TOKEN ?? '';
-  /** Token de página para despliegues de una sola página; ver `resolvePageAccessToken`. */
-  private readonly fallbackPageAccessToken: string =
-    process.env.MESSENGER_PAGE_ACCESS_TOKEN ?? '';
 
   constructor(
     private readonly prismaService: PrismaService,
@@ -425,13 +422,7 @@ export class MessengerConfigService {
       }
     }
 
-    if (!this.fallbackPageAccessToken) {
-      throw new Error(
-        `No hay token de acceso para la página ${config.pageId}: ni en la config ni en MESSENGER_PAGE_ACCESS_TOKEN`,
-      );
-    }
-
-    return this.fallbackPageAccessToken;
+    return '';
   }
 
   private async callSendApi(
