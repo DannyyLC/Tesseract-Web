@@ -211,6 +211,8 @@ describe('ConversationsService', () => {
         ...mockConversation,
         endUserPhoneNumber: null,
         endUserName: null,
+        endUserBlockedAt: null,
+        endUserBlockedReason: null,
         messengerPageName: null,
       });
     });

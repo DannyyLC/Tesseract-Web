@@ -461,7 +461,8 @@
     "confirmButton": "Confirm",
     "logoutError": "Error signing out",
     "logoutErrorDesc": "Could not sign out. Please try again.",
-    "navDatasets": "Data"
+    "navDatasets": "Data",
+    "navContacts": "Contacts"
   },
   "LegalToc": {
     "content": "Contents"
@@ -942,7 +943,17 @@
     "clearFollowUp": "Mark as handled",
     "phoneNumberTitle": "Customer phone number",
     "customerNameTitle": "Customer name",
-    "messengerPageTitle": "Facebook page"
+    "messengerPageTitle": "Facebook page",
+    "reactivateAI": "Reactivate AI",
+    "closeTitle": "Close conversation",
+    "closeConfirmDesc": "The conversation will be archived and will no longer show among the active ones. You can reopen it at any time.",
+    "takeControlConfirmDesc": "The AI will stop replying in this conversation and the answers will be up to you, until you reactivate it.",
+    "reactivateAIConfirmDesc": "The AI will start replying automatically in this conversation again, without waiting for anyone on the team. Make sure you are done with what you were handling.",
+    "block": "Block",
+    "blocked": "Blocked",
+    "blockTitle": "Block this contact (their messages will stop arriving)",
+    "unblockTitle": "Unblock this contact",
+    "blockedBadge": "Blocked"
   },
   "ApiKeys": {
     "heading": "API Keys",
@@ -1604,5 +1615,30 @@
     "notFoundTitle": "We couldn't find this number",
     "notFoundBody": "The WhatsApp configuration you are trying to edit no longer exists or belongs to another workflow.",
     "backToWorkflow": "Back to workflow"
+  },
+  "Contacts": {
+    "heading": "Contacts",
+    "description": "Everyone who has messaged you. Block anyone you no longer want to attend from here.",
+    "searchPlaceholder": "Search by name, phone or identifier...",
+    "filter_all": "All",
+    "filter_active": "Active",
+    "filter_blocked": "Blocked",
+    "blockAction": "Block",
+    "unblockAction": "Unblock",
+    "blockedSince": "Blocked since {date}",
+    "blockedBy": "by {name}",
+    "noReason": "No reason given",
+    "blockModalTitle": "Block contact",
+    "blockModalWarning": "Messages from <strong>{contact}</strong> will stop arriving and their active conversations will be closed. You can unblock them at any time.",
+    "blockModalReasonLabel": "Reason (optional)",
+    "blockModalReasonPlaceholder": "For example: spam, not a customer...",
+    "blockModalReasonHint": "Shown in the contacts list so you remember why you blocked them.",
+    "cancel": "Cancel",
+    "prev": "Previous",
+    "next": "Next",
+    "noContacts": "No contacts yet",
+    "noContactsDesc": "Anyone who messages you on WhatsApp or Messenger will show up here.",
+    "noMatches": "No results",
+    "noMatchesDesc": "Try different text or change the filter."
   }
 }

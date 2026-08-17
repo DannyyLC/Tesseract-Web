@@ -7,10 +7,10 @@ import { Loader2, Plus } from 'lucide-react';
 import { ApiKeyListDto } from '@tesseract/types';
 import { useApiKeys } from '@/hooks/identity/use-api-key';
 import PermissionGuard from '@/components/auth/permission-guard';
+import { CursorPager } from '@/components/ui/cursor-pager';
 import {
   ApiKeyCreatedModal,
   ApiKeyRow,
-  ApiKeysPager,
   CreateApiKeyModal,
   DeleteApiKeyModal,
   EditApiKeyModal,
@@ -72,10 +72,12 @@ export default function WorkflowApiKeysSection({ workflowId }: { workflowId: str
               ))}
             </AnimatePresence>
 
-            <ApiKeysPager
+            <CursorPager
               prevCursor={data?.prevCursor ?? null}
               nextCursor={data?.nextCursor ?? null}
               nextPageAvailable={data?.nextPageAvailable ?? false}
+              prevLabel={t('prev')}
+              nextLabel={t('next')}
               onNavigate={(nextCursor, nextAction) => {
                 setCursor(nextCursor);
                 setAction(nextAction);

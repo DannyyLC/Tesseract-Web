@@ -1,4 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
+import { ConversationStatus } from '@tesseract/database';
 import { EndUsersService } from './end-users.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
@@ -13,8 +15,33 @@ jest.spyOn(CursorPaginatedResponseUtils, 'getInstance').mockReturnValue({
 const mockPrismaService = {
   endUser: {
     findMany: jest.fn(),
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    update: jest.fn(),
   },
+  conversation: {
+    updateMany: jest.fn(),
+  },
+  $transaction: jest.fn((operations: Promise<unknown>[]) => Promise.all(operations)),
 };
+
+/** Columnas que el listado pide a Prisma. Se comparte con las aserciones. */
+const EXPECTED_SELECT = {
+  id: true,
+  phoneNumber: true,
+  email: true,
+  externalId: true,
+  name: true,
+  avatar: true,
+  metadata: true,
+  lastSeenAt: true,
+  createdAt: true,
+  blockedAt: true,
+  blockedReason: true,
+  blockedBy: { select: { name: true } },
+};
+
+const EXPECTED_ORDER_BY = [{ lastSeenAt: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }];
 
 describe('EndUsersService', () => {
   let service: EndUsersService;
@@ -26,8 +53,10 @@ describe('EndUsersService', () => {
 
     service = module.get<EndUsersService>(EndUsersService);
 
-    // Limpiar mocks entre tests
     jest.clearAllMocks();
+    mockPrismaService.$transaction.mockImplementation((operations: Promise<unknown>[]) =>
+      Promise.all(operations),
+    );
   });
 
   it('should be defined', () => {
@@ -43,7 +72,7 @@ describe('EndUsersService', () => {
     const mockEndUsers = [
       {
         id: 'eu-1',
-        phoneNumber: '+5215512345678',
+        phoneNumber: '5215512345678',
         email: 'john@example.com',
         externalId: 'ext-1',
         name: 'John Doe',
@@ -51,10 +80,13 @@ describe('EndUsersService', () => {
         metadata: null,
         lastSeenAt: new Date('2026-03-01'),
         createdAt: new Date('2026-01-15'),
+        blockedAt: null,
+        blockedReason: null,
+        blockedBy: null,
       },
       {
         id: 'eu-2',
-        phoneNumber: '+5215587654321',
+        phoneNumber: '5215587654321',
         email: 'jane@example.com',
         externalId: 'ext-2',
         name: 'Jane Smith',
@@ -62,6 +94,9 @@ describe('EndUsersService', () => {
         metadata: { source: 'whatsapp' },
         lastSeenAt: new Date('2026-03-10'),
         createdAt: new Date('2026-02-20'),
+        blockedAt: new Date('2026-03-11'),
+        blockedReason: 'Spam',
+        blockedBy: { name: 'Daniel' },
       },
     ];
 
@@ -80,31 +115,21 @@ describe('EndUsersService', () => {
 
       const result = await service.getDashboardData(organizationId);
 
-      // Verificar que Prisma fue llamado con los parámetros correctos
       expect(mockPrismaService.endUser.findMany).toHaveBeenCalledWith({
         where: { organizationId },
         skip: 0, // sin cursor → skip 0
         take: 11, // pageSize (10) + 1 para detectar next page
         cursor: undefined, // sin cursor
-        select: {
-          id: true,
-          phoneNumber: true,
-          email: true,
-          externalId: true,
-          name: true,
-          avatar: true,
-          metadata: true,
-          lastSeenAt: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
+        select: EXPECTED_SELECT,
+        orderBy: EXPECTED_ORDER_BY,
       });
 
-      // Verificar que CursorPaginatedResponseUtils fue llamado correctamente
       expect(mockBuild).toHaveBeenCalledWith(mockEndUsers, 10, null);
 
-      // Verificar resultado
-      expect(result).toEqual(mockPaginatedResponse);
+      // `blockedBy` es una relación anidada y no viaja al cliente: se aplana a un nombre.
+      expect(result.items[1]).toMatchObject({ id: 'eu-2', blockedByName: 'Daniel' });
+      expect(result.items[1]).not.toHaveProperty('blockedBy');
+      expect(result.items[0].blockedByName).toBeNull();
     });
 
     // ─── Caso 2: Con cursor (paginación next) ──────────────────
@@ -159,31 +184,13 @@ describe('EndUsersService', () => {
       await service.getDashboardData(organizationId, null, 25, null);
 
       expect(mockPrismaService.endUser.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          take: 26, // 25 + 1
-        }),
+        expect.objectContaining({ take: 26 }),
       );
 
       expect(mockBuild).toHaveBeenCalledWith([], 25, null);
     });
 
-    // ─── Caso 5: Sin cursor y paginationAction null ────────────
-    it('should handle null cursor and null paginationAction', async () => {
-      mockPrismaService.endUser.findMany.mockResolvedValue(mockEndUsers);
-      mockBuild.mockResolvedValue(mockPaginatedResponse);
-
-      await service.getDashboardData(organizationId, null, 10, null);
-
-      expect(mockPrismaService.endUser.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          skip: 0,
-          cursor: undefined,
-          take: 11, // paginationAction null → positivo
-        }),
-      );
-    });
-
-    // ─── Caso 6: Prisma lanza una excepción ────────────────────
+    // ─── Caso 5: Prisma lanza una excepción ────────────────────
     it('should propagate errors from Prisma', async () => {
       const dbError = new Error('Database connection lost');
       mockPrismaService.endUser.findMany.mockRejectedValue(dbError);
@@ -195,7 +202,7 @@ describe('EndUsersService', () => {
       expect(mockBuild).not.toHaveBeenCalled();
     });
 
-    // ─── Caso 7: Lista vacía ───────────────────────────────────
+    // ─── Caso 6: Lista vacía ───────────────────────────────────
     it('should return empty paginated response when no end users exist', async () => {
       const emptyResponse = {
         items: [],
@@ -209,8 +216,293 @@ describe('EndUsersService', () => {
 
       const result = await service.getDashboardData(organizationId);
 
-      expect(result).toEqual(emptyResponse);
       expect(result.items).toHaveLength(0);
+    });
+
+    // ─── Filtro por estado de bloqueo ──────────────────────────
+    it.each([
+      ['blocked' as const, { blockedAt: { not: null } }],
+      ['active' as const, { blockedAt: null }],
+    ])('should narrow the query when filtering by %s', async (blocked, expected) => {
+      mockPrismaService.endUser.findMany.mockResolvedValue([]);
+      mockBuild.mockResolvedValue({ items: [] });
+
+      await service.getDashboardData(organizationId, null, 10, null, { blocked });
+
+      expect(mockPrismaService.endUser.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { organizationId, ...expected } }),
+      );
+    });
+
+    it('should not filter by block state when asking for all', async () => {
+      mockPrismaService.endUser.findMany.mockResolvedValue([]);
+      mockBuild.mockResolvedValue({ items: [] });
+
+      await service.getDashboardData(organizationId, null, 10, null, { blocked: 'all' });
+
+      expect(mockPrismaService.endUser.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { organizationId } }),
+      );
+    });
+
+    // ─── Búsqueda ──────────────────────────────────────────────
+    it('should strip everything but digits before matching a phone number', async () => {
+      mockPrismaService.endUser.findMany.mockResolvedValue([]);
+      mockBuild.mockResolvedValue({ items: [] });
+
+      // Es el caso que motiva el despojado: en la base vive `5215512345678`, sin `+` ni espacios.
+      await service.getDashboardData(organizationId, null, 10, null, {
+        search: '+52 1 55 1234 5678',
+      });
+
+      expect(mockPrismaService.endUser.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            organizationId,
+            OR: [
+              { name: { contains: '+52 1 55 1234 5678', mode: 'insensitive' } },
+              { email: { contains: '+52 1 55 1234 5678', mode: 'insensitive' } },
+              { externalId: { contains: '+52 1 55 1234 5678', mode: 'insensitive' } },
+              { phoneNumber: { contains: '5215512345678' } },
+            ],
+          },
+        }),
+      );
+    });
+
+    /**
+     * El match es por subcadena, y eso es lo que salva a la búsqueda de la forma en que México
+     * escribe sus números: WhatsApp guarda `5215512345678` —con el `1` de móvil que mete Meta—
+     * así que teclear el número "bonito" (`+52 55 1234 5678` → `525512345678`) NO empata. Lo que
+     * sí empata, y es como la gente busca, son los últimos dígitos.
+     */
+    it('should match a phone number by its trailing digits', async () => {
+      mockPrismaService.endUser.findMany.mockResolvedValue([]);
+      mockBuild.mockResolvedValue({ items: [] });
+
+      await service.getDashboardData(organizationId, null, 10, null, { search: '55 1234 5678' });
+
+      const call = mockPrismaService.endUser.findMany.mock.calls[0][0];
+      expect(call.where.OR).toContainEqual({ phoneNumber: { contains: '5512345678' } });
+      // Y esos dígitos son, en efecto, una subcadena de lo que guarda el webhook.
+      expect('5215512345678').toContain('5512345678');
+    });
+
+    it('should skip the phone branch when the term has no digits', async () => {
+      mockPrismaService.endUser.findMany.mockResolvedValue([]);
+      mockBuild.mockResolvedValue({ items: [] });
+
+      await service.getDashboardData(organizationId, null, 10, null, { search: 'Jane' });
+
+      const call = mockPrismaService.endUser.findMany.mock.calls[0][0];
+      expect(call.where.OR).toHaveLength(3);
+      expect(JSON.stringify(call.where.OR)).not.toContain('phoneNumber');
+    });
+
+    it('should ignore a blank search term', async () => {
+      mockPrismaService.endUser.findMany.mockResolvedValue([]);
+      mockBuild.mockResolvedValue({ items: [] });
+
+      await service.getDashboardData(organizationId, null, 10, null, { search: '   ' });
+
+      expect(mockPrismaService.endUser.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { organizationId } }),
+      );
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // isBlocked / isBlockedById
+  // ═══════════════════════════════════════════════════════════════
+  describe('isBlocked', () => {
+    const organizationId = 'org-123';
+
+    it('should look the contact up by its WhatsApp phone number', async () => {
+      mockPrismaService.endUser.findUnique.mockResolvedValue({ blockedAt: new Date() });
+
+      const result = await service.isBlocked(organizationId, { phoneNumber: '5215512345678' });
+
+      expect(result).toBe(true);
+      expect(mockPrismaService.endUser.findUnique).toHaveBeenCalledWith({
+        where: {
+          organizationId_phoneNumber: { organizationId, phoneNumber: '5215512345678' },
+        },
+        select: { blockedAt: true },
+      });
+    });
+
+    it('should look the contact up by its Messenger external id', async () => {
+      mockPrismaService.endUser.findUnique.mockResolvedValue({ blockedAt: new Date() });
+
+      const result = await service.isBlocked(organizationId, {
+        externalId: 'messenger:page-1:psid-1',
+      });
+
+      expect(result).toBe(true);
+      expect(mockPrismaService.endUser.findUnique).toHaveBeenCalledWith({
+        where: {
+          organizationId_externalId: { organizationId, externalId: 'messenger:page-1:psid-1' },
+        },
+        select: { blockedAt: true },
+      });
+    });
+
+    it('should report an existing but unblocked contact as not blocked', async () => {
+      mockPrismaService.endUser.findUnique.mockResolvedValue({ blockedAt: null });
+
+      await expect(
+        service.isBlocked(organizationId, { phoneNumber: '5215512345678' }),
+      ).resolves.toBe(false);
+    });
+
+    // Quien escribe por primera vez todavía no tiene fila: no bloqueado, y no debe reventar.
+    it('should report an unknown contact as not blocked', async () => {
+      mockPrismaService.endUser.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.isBlocked(organizationId, { phoneNumber: '5215599999999' }),
+      ).resolves.toBe(false);
+    });
+
+    it('should resolve the block state by id', async () => {
+      mockPrismaService.endUser.findUnique.mockResolvedValue({ blockedAt: new Date() });
+
+      await expect(service.isBlockedById('eu-1')).resolves.toBe(true);
+      expect(mockPrismaService.endUser.findUnique).toHaveBeenCalledWith({
+        where: { id: 'eu-1' },
+        select: { blockedAt: true },
+      });
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // block / unblock
+  // ═══════════════════════════════════════════════════════════════
+  describe('block', () => {
+    const organizationId = 'org-123';
+    const endUserId = 'eu-1';
+    const blockedByUserId = 'user-9';
+
+    const blockedRow = {
+      id: endUserId,
+      phoneNumber: '5215512345678',
+      email: null,
+      externalId: null,
+      name: 'John Doe',
+      avatar: null,
+      metadata: null,
+      lastSeenAt: new Date('2026-03-01'),
+      createdAt: new Date('2026-01-15'),
+      blockedAt: new Date('2026-03-12'),
+      blockedReason: 'Spam',
+      blockedBy: { name: 'Daniel' },
+    };
+
+    beforeEach(() => {
+      mockPrismaService.endUser.findFirst.mockResolvedValue({ id: endUserId });
+      mockPrismaService.endUser.update.mockResolvedValue(blockedRow);
+      mockPrismaService.conversation.updateMany.mockResolvedValue({ count: 1 });
+    });
+
+    it('should stamp the block and close the active conversations in one transaction', async () => {
+      const result = await service.block(organizationId, endUserId, blockedByUserId, 'Spam');
+
+      expect(mockPrismaService.endUser.update).toHaveBeenCalledWith({
+        where: { id: endUserId },
+        data: expect.objectContaining({
+          blockedAt: expect.any(Date),
+          blockedReason: 'Spam',
+          blockedByUserId,
+        }),
+        select: expect.any(Object),
+      });
+
+      expect(mockPrismaService.conversation.updateMany).toHaveBeenCalledWith({
+        where: { endUserId, status: ConversationStatus.ACTIVE, deletedAt: null },
+        data: { status: ConversationStatus.CLOSED, closedAt: expect.any(Date) },
+      });
+
+      // Las dos escrituras van juntas: un bloqueo sin cierre deja en la bandeja una
+      // conversación viva que nadie va a contestar.
+      expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
+      expect(result.blockedByName).toBe('Daniel');
+    });
+
+    it.each([
+      ['undefined', undefined],
+      ['blank', '   '],
+    ])('should store a %s reason as null', async (_label, reason) => {
+      await service.block(organizationId, endUserId, blockedByUserId, reason);
+
+      expect(mockPrismaService.endUser.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ blockedReason: null }),
+        }),
+      );
+    });
+
+    it('should trim the reason', async () => {
+      await service.block(organizationId, endUserId, blockedByUserId, '  Spam  ');
+
+      expect(mockPrismaService.endUser.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ blockedReason: 'Spam' }),
+        }),
+      );
+    });
+
+    // Sin esto bastaría con conocer el uuid de un contacto ajeno para bloquearlo.
+    it('should refuse to block a contact from another organization', async () => {
+      mockPrismaService.endUser.findFirst.mockResolvedValue(null);
+
+      await expect(service.block('otra-org', endUserId, blockedByUserId)).rejects.toThrow(
+        NotFoundException,
+      );
+
+      expect(mockPrismaService.endUser.update).not.toHaveBeenCalled();
+      expect(mockPrismaService.conversation.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('unblock', () => {
+    const organizationId = 'org-123';
+    const endUserId = 'eu-1';
+
+    it('should clear the three block columns and reopen nothing', async () => {
+      mockPrismaService.endUser.findFirst.mockResolvedValue({ id: endUserId });
+      mockPrismaService.endUser.update.mockResolvedValue({
+        id: endUserId,
+        phoneNumber: '5215512345678',
+        email: null,
+        externalId: null,
+        name: null,
+        avatar: null,
+        metadata: null,
+        lastSeenAt: null,
+        createdAt: new Date(),
+        blockedAt: null,
+        blockedReason: null,
+        blockedBy: null,
+      });
+
+      const result = await service.unblock(organizationId, endUserId);
+
+      expect(mockPrismaService.endUser.update).toHaveBeenCalledWith({
+        where: { id: endUserId },
+        data: { blockedAt: null, blockedReason: null, blockedByUserId: null },
+        select: expect.any(Object),
+      });
+
+      // Las conversaciones que cerró el bloqueo se quedan cerradas.
+      expect(mockPrismaService.conversation.updateMany).not.toHaveBeenCalled();
+      expect(result.blockedAt).toBeNull();
+    });
+
+    it('should refuse to unblock a contact from another organization', async () => {
+      mockPrismaService.endUser.findFirst.mockResolvedValue(null);
+
+      await expect(service.unblock('otra-org', endUserId)).rejects.toThrow(NotFoundException);
+      expect(mockPrismaService.endUser.update).not.toHaveBeenCalled();
     });
   });
 });

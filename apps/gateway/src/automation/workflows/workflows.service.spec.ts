@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { WorkflowsService } from './workflows.service';
 import { WorkflowConfigValidator } from './workflow-config.validator';
 import { DatasetTokenService } from '../datasets/core/dataset-token.service';
+import { EndUsersService } from '@/identity/end-users/end-users.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { ExecutionsService } from '@/automation/executions/executions.service';
 import { OrganizationsService } from '@/identity/organizations/organizations.service';
@@ -106,6 +107,11 @@ describe('WorkflowsService', () => {
     sign: jest.fn().mockResolvedValue('dataset-token'),
   };
 
+  // Por defecto nadie está bloqueado: la lista negra es la excepción, no el caso normal.
+  const mockEndUsersService = {
+    isBlockedById: jest.fn().mockResolvedValue(false),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -121,6 +127,7 @@ describe('WorkflowsService', () => {
         { provide: MediaProcessingService, useValue: mockMediaProcessingService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: DatasetTokenService, useValue: mockDatasetTokenService },
+        { provide: EndUsersService, useValue: mockEndUsersService },
         // El validador real, no un mock: los tests de config de abajo existen para
         // ejercer esa lógica, y mockearla los dejaría sin verificar nada.
         WorkflowConfigValidator,

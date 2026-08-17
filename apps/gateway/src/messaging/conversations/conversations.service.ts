@@ -19,6 +19,7 @@ import {
 } from '@tesseract/database';
 import { UtilityService } from '@/platform/utility/utility.service';
 import { buildConversationTitle } from './conversation-title';
+import { messengerExternalId } from '@/platform/common/utils/messenger-external-id';
 import { KmsService } from '@/automation/tools/core/kms.service';
 import { firstValueFrom } from 'rxjs';
 
@@ -487,16 +488,18 @@ export class ConversationsService {
     // El PSID no es un teléfono ni un email: encaja en `externalId`, que es el
     // identificador libre del EndUser. Se prefija con la página porque el mismo PSID
     // puede repetirse entre páginas distintas.
+    const externalId = messengerExternalId(pageId, senderId);
+
     const endUser = await this.prisma.endUser.upsert({
       where: {
         organizationId_externalId: {
           organizationId: workflow.organizationId,
-          externalId: `messenger:${pageId}:${senderId}`,
+          externalId,
         },
       },
       create: {
         organizationId: workflow.organizationId,
-        externalId: `messenger:${pageId}:${senderId}`,
+        externalId,
         lastSeenAt: new Date(),
       },
       update: {
@@ -550,7 +553,9 @@ export class ConversationsService {
             attachments: true,
           },
         },
-        endUser: { select: { phoneNumber: true, name: true } },
+        endUser: {
+          select: { phoneNumber: true, name: true, blockedAt: true, blockedReason: true },
+        },
         messengerConfig: { select: { pageName: true } },
       },
     });
@@ -563,6 +568,8 @@ export class ConversationsService {
       ...conversation,
       endUserPhoneNumber: conversation.endUser?.phoneNumber ?? null,
       endUserName: conversation.endUser?.name ?? null,
+      endUserBlockedAt: conversation.endUser?.blockedAt ?? null,
+      endUserBlockedReason: conversation.endUser?.blockedReason ?? null,
       messengerPageName: conversation.messengerConfig?.pageName ?? null,
     };
   }
@@ -832,7 +839,16 @@ export class ConversationsService {
       omit: { isInternalWorkflow: true },
       include: {
         user: { select: { name: true, email: true, avatar: true } },
-        endUser: { select: { id: true, name: true, email: true, avatar: true, phoneNumber: true } },
+        endUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+            phoneNumber: true,
+            blockedAt: true,
+          },
+        },
         messengerConfig: { select: { pageName: true, pageId: true, pageAccessToken: true } },
         whatsappConfig: { select: { phoneNumber: true } },
       },
@@ -879,6 +895,7 @@ export class ConversationsService {
           endUserPhoneNumber: c.endUser?.phoneNumber ?? null,
           whatsappBusinessPhoneNumber: c.whatsappConfig?.phoneNumber ?? null,
           endUserName,
+          endUserBlockedAt: c.endUser?.blockedAt ?? null,
           messengerPageName: c.messengerConfig?.pageName ?? null,
           messengerSenderId: c.messengerSenderId ?? null,
         };

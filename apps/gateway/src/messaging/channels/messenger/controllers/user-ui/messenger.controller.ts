@@ -24,8 +24,10 @@ import { WorkflowsService } from '@/automation/workflows/workflows.service';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
+import { messengerExternalId } from '@/platform/common/utils/messenger-external-id';
 import { CloudTasksService } from '@/platform/tasks/cloud-tasks.service';
 import { WebhookDedupService } from '@/platform/webhooks/webhook-dedup.service';
+import { EndUsersService } from '@/identity/end-users/end-users.service';
 import {
   CreateConfigDto,
   MessengerInboundEvent,
@@ -60,6 +62,7 @@ export class MessengerController {
     private readonly cloudTasks: CloudTasksService,
     private readonly webhookDedup: WebhookDedupService,
     private readonly workflowsService: WorkflowsService,
+    private readonly endUsersService: EndUsersService,
   ) {}
 
   // ─── Webhook ──────────────────────────────────────────────────────────
@@ -313,6 +316,23 @@ export class MessengerController {
         `Received message for Messenger config with no associated workflow: ${account.id}`,
       );
       return { messageId, ignored: 'no-workflow' };
+    }
+
+    // Lista negra. El bloqueo es de la organización, no del canal: si alguien quedó bloqueado
+    // por WhatsApp, tampoco se le contesta por aquí. Cortar en el webhook es lo que hace que un
+    // contacto bloqueado no cueste buffer, ni tarea, ni workflow, ni crédito.
+    const isBlocked = await this.endUsersService.isBlocked(account.organizationId, {
+      externalId: messengerExternalId(pageId, senderId),
+    });
+
+    if (isBlocked) {
+      this.logger.info('Mensaje de contacto bloqueado, se descarta', {
+        organizationId: account.organizationId,
+        pageId,
+        senderId,
+        messageId,
+      });
+      return { messageId, ignored: 'blocked-contact' };
     }
 
     if (process.env.NODE_ENV !== 'production') {

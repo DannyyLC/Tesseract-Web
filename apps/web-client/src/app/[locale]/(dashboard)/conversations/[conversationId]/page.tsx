@@ -15,6 +15,7 @@ import {
   AlertCircle,
   BellRing,
   Mic,
+  ShieldBan,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useWorkflow, useExecuteStream } from '@/hooks/automation/use-workflows';
@@ -31,6 +32,8 @@ import { useTranslations } from 'next-intl';
 import RecordingBar from '@/components/ui/recording-bar';
 import ConversationChannelMeta from '../_components/conversation-channel-meta';
 import { useDictation } from '@/hooks/use-dictation';
+import { useEndUserMutations } from '@/hooks/identity/use-end-users';
+import { BlockContactModal } from '@/components/contacts';
 
 interface Message {
   id: string;
@@ -85,6 +88,8 @@ export default function WorkflowChatPage() {
   // Si conversationId es 'new', no intentamos cargar la conversación
   const isNewConversation = conversationId === 'new';
   const { data: conversationData } = useConversation(isNewConversation ? '' : conversationId);
+  const { unblockEndUser } = useEndUserMutations();
+  const isContactBlocked = conversationData?.endUserBlockedAt != null;
 
   // Gestión de URL y router (Moved up for early access)
   const searchParams = useSearchParams();
@@ -112,6 +117,9 @@ export default function WorkflowChatPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isHitlConfirmOpen, setIsHitlConfirmOpen] = useState(false);
+  const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
+  const [isBlockOpen, setIsBlockOpen] = useState(false);
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
 
   useEffect(() => {
@@ -574,12 +582,7 @@ export default function WorkflowChatPage() {
                         {!conversationData.userId && (
                           <PermissionGuard permissions="conversations:update">
                             <button
-                              onClick={() =>
-                                updateConversation.mutate({
-                                  id: conversationId,
-                                  data: { isHumanInTheLoop: !conversationData.isHumanInTheLoop },
-                                })
-                              }
+                              onClick={() => setIsHitlConfirmOpen(true)}
                               disabled={updateConversation.isPending}
                               className={`flex items-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium transition-colors lg:px-3 ${
                                 conversationData.isHumanInTheLoop
@@ -630,18 +633,46 @@ export default function WorkflowChatPage() {
                           </button>
                         </PermissionGuard>
 
+                        {/* Bloquear contacto: solo en conversaciones externas — un compañero de
+                            equipo no es un contacto que se pueda bloquear. */}
+                        {!conversationData.userId && conversationData.endUserId && (
+                          <PermissionGuard permissions="end_users:block">
+                            <button
+                              onClick={() =>
+                                isContactBlocked
+                                  ? unblockEndUser.mutate(conversationData.endUserId as string)
+                                  : setIsBlockOpen(true)
+                              }
+                              disabled={unblockEndUser.isPending}
+                              className={`flex items-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium transition-colors lg:px-3 ${
+                                isContactBlocked
+                                  ? 'border border-danger-600 text-danger hover:bg-[color-mix(in_srgb,var(--danger-500)_10%,transparent)]'
+                                  : 'bg-surface-secondary text-text-tertiary hover:bg-surface-elevated'
+                              }`}
+                              title={isContactBlocked ? t('unblockTitle') : t('blockTitle')}
+                            >
+                              <ShieldBan size={13} className="shrink-0" />
+                              <span className="hidden lg:inline">
+                                {isContactBlocked ? t('blocked') : t('block')}
+                              </span>
+                            </button>
+                          </PermissionGuard>
+                        )}
+
                         {/* Status Toggle (Simple Open/Close for now) */}
                         <PermissionGuard permissions="conversations:update">
                           <button
-                            onClick={() =>
-                              updateConversation.mutate({
-                                id: conversationId,
-                                data: {
-                                  status:
-                                    conversationData.status === 'CLOSED' ? 'ACTIVE' : 'CLOSED',
-                                },
-                              })
-                            }
+                            onClick={() => {
+                              // Reabrir no destruye nada, así que solo el cierre confirma.
+                              if (conversationData.status === 'CLOSED') {
+                                updateConversation.mutate({
+                                  id: conversationId,
+                                  data: { status: 'ACTIVE' },
+                                });
+                                return;
+                              }
+                              setIsCloseConfirmOpen(true);
+                            }}
                             disabled={updateConversation.isPending}
                             className={`flex items-center gap-1.5 rounded-full border px-2 py-1.5 text-xs font-medium shadow-sm transition-all lg:px-3 ${
                               conversationData.status === 'CLOSED'
@@ -1050,6 +1081,90 @@ export default function WorkflowChatPage() {
               </div>
             </div>
           </Modal>
+
+          {/* Tomar el control / devolvérselo a la IA.
+              Confirma en los dos sentidos, y no solo al tomar el control: reactivar la IA es
+              el movimiento más delicado de los dos, porque el bot vuelve a hablar solo con
+              alguien a quien estaba atendiendo una persona. */}
+          <Modal
+            isOpen={isHitlConfirmOpen}
+            onClose={() => setIsHitlConfirmOpen(false)}
+            title={
+              conversationData?.isHumanInTheLoop ? t('reactivateAITitle') : t('takeControlTitle')
+            }
+          >
+            <div className="space-y-4">
+              <p className="text-text-secondary">
+                {conversationData?.isHumanInTheLoop
+                  ? t('reactivateAIConfirmDesc')
+                  : t('takeControlConfirmDesc')}
+              </p>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setIsHitlConfirmOpen(false)}
+                  className="rounded-full px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-secondary"
+                >
+                  {t('cancelButton')}
+                </button>
+                <button
+                  onClick={() =>
+                    updateConversation.mutate(
+                      {
+                        id: conversationId,
+                        data: { isHumanInTheLoop: !conversationData?.isHumanInTheLoop },
+                      },
+                      { onSuccess: () => setIsHitlConfirmOpen(false) },
+                    )
+                  }
+                  disabled={updateConversation.isPending}
+                  className="flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {updateConversation.isPending && <Loader2 size={14} className="animate-spin" />}
+                  {conversationData?.isHumanInTheLoop ? t('reactivateAI') : t('takeControl')}
+                </button>
+              </div>
+            </div>
+          </Modal>
+
+          {/* Cerrar conversación */}
+          <Modal
+            isOpen={isCloseConfirmOpen}
+            onClose={() => setIsCloseConfirmOpen(false)}
+            title={t('closeTitle')}
+          >
+            <div className="space-y-4">
+              <p className="text-text-secondary">{t('closeConfirmDesc')}</p>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setIsCloseConfirmOpen(false)}
+                  className="rounded-full px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-secondary"
+                >
+                  {t('cancelButton')}
+                </button>
+                <button
+                  onClick={() =>
+                    updateConversation.mutate(
+                      { id: conversationId, data: { status: 'CLOSED' } },
+                      { onSuccess: () => setIsCloseConfirmOpen(false) },
+                    )
+                  }
+                  disabled={updateConversation.isPending}
+                  className="flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {updateConversation.isPending && <Loader2 size={14} className="animate-spin" />}
+                  {t('close')}
+                </button>
+              </div>
+            </div>
+          </Modal>
+
+          <BlockContactModal
+            endUserId={isBlockOpen ? (conversationData?.endUserId ?? null) : null}
+            contactLabel={
+              conversationData?.endUserName || conversationData?.endUserPhoneNumber || ''
+            }
+            onClose={() => setIsBlockOpen(false)}
+          />
         </div>
       </div>
     </PermissionGuard>

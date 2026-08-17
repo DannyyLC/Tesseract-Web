@@ -18,6 +18,7 @@ import { ToolsModule } from '../tools/core/tools.module';
 import { MediaProcessingModule } from '@/automation/media-processing/media-processing.module';
 import { DatasetsModule } from '../datasets/datasets.module';
 import { CloudTasksModule } from '@/platform/tasks/cloud-tasks.module';
+import { EndUsersModule } from '@/identity/end-users/end-users.module';
 
 /**
  * WorkflowsModule
@@ -36,6 +37,8 @@ import { CloudTasksModule } from '@/platform/tasks/cloud-tasks.module';
     MediaProcessingModule,
     DatasetsModule,
     CloudTasksModule,
+    // Última guardia de la lista negra antes de gastar el LLM.
+    EndUsersModule,
   ],
   controllers: [
     WorkflowsController,

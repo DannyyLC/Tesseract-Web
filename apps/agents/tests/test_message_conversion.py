@@ -60,6 +60,21 @@ class TestMessageConversion:
         assert isinstance(result[1], AIMessage)
         assert isinstance(result[2], HumanMessage)
     
+    def test_historial_reconstruido_no_trae_usage_metadata(self):
+        """
+        El accounting del servicer SUMA el input de cada mensaje con usage_metadata.
+        Los mensajes que vienen del historial ya se pagaron en su turno: si la
+        reconstrucción les pusiera usage, cada turno volvería a sumar los tokens de
+        todos los turnos anteriores. La guarda del servicer se apoya en esto.
+        """
+        messages = [
+            {"role": "user", "content": "Hola"},
+            {"role": "assistant", "content": "¡Hola!"},
+        ]
+        result = convert_message_history_to_langchain(messages)
+
+        assert all(getattr(m, "usage_metadata", None) is None for m in result)
+
     def test_convert_langchain_to_dict_filters_system(self):
         """Prueba que SystemMessage se filtra."""
         messages = [

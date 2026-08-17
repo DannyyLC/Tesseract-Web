@@ -177,6 +177,7 @@ export class ConversationsController {
       endUserPhoneNumber: c.endUserPhoneNumber ?? null,
       whatsappBusinessPhoneNumber: c.whatsappBusinessPhoneNumber ?? null,
       endUserName: c.endUserName ?? null,
+      endUserBlockedAt: c.endUserBlockedAt ?? null,
       messengerPageName: c.messengerPageName ?? null,
       messengerSenderId: c.messengerSenderId ?? null,
       messageCount: c.messageCount,
@@ -245,6 +246,8 @@ export class ConversationsController {
       workflowId: conversation.workflowId,
       userId: conversation.userId,
       endUserId: conversation.endUserId,
+      endUserBlockedAt: conversation.endUserBlockedAt ?? null,
+      endUserBlockedReason: conversation.endUserBlockedReason ?? null,
       messages: conversation.messages.map((msg) => ({
         id: msg.id,
         role: msg.role,

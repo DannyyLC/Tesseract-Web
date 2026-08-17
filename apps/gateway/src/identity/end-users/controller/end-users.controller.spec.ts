@@ -7,6 +7,8 @@ import { Reflector } from '@nestjs/core';
 // ─── Mock del servicio ─────────────────────────────────────────────
 const mockEndUsersService = {
   getDashboardData: jest.fn(),
+  block: jest.fn(),
+  unblock: jest.fn(),
 };
 
 describe('EndUsersController', () => {
@@ -55,7 +57,7 @@ describe('EndUsersController', () => {
       items: [
         {
           id: 'eu-1',
-          phoneNumber: '+5215512345678',
+          phoneNumber: '5215512345678',
           email: 'john@example.com',
           externalId: 'ext-1',
           name: 'John Doe',
@@ -63,6 +65,9 @@ describe('EndUsersController', () => {
           metadata: null,
           lastSeenAt: new Date('2026-03-01'),
           createdAt: new Date('2026-01-15'),
+          blockedAt: null,
+          blockedReason: null,
+          blockedByName: null,
         },
       ],
       nextCursor: null,
@@ -76,7 +81,7 @@ describe('EndUsersController', () => {
       mockEndUsersService.getDashboardData.mockResolvedValue(mockPaginatedData);
       const res = createMockResponse();
 
-      await controller.getDashboardData(mockUser, null, 10, null, res);
+      await controller.getDashboardData(mockUser, {}, res);
 
       // Verifica que pasa el organizationId del usuario autenticado
       expect(service.getDashboardData).toHaveBeenCalledWith(
@@ -84,6 +89,7 @@ describe('EndUsersController', () => {
         null, // cursor
         10, // pageSize
         null, // paginationAction
+        { search: undefined, blocked: undefined },
       );
 
       // Verifica response HTTP
@@ -98,19 +104,26 @@ describe('EndUsersController', () => {
     });
 
     // ─── Caso 2: Pasa los query params correctamente ───────────
-    it('should forward cursor and pagination params to the service', async () => {
+    it('should forward cursor, pagination, search and block filter to the service', async () => {
       mockEndUsersService.getDashboardData.mockResolvedValue(mockPaginatedData);
       const res = createMockResponse();
 
       await controller.getDashboardData(
         mockUser,
-        'eu-cursor-123', // cursor
-        25, // pageSize
-        'next', // paginationAction
+        {
+          cursor: 'eu-cursor-123',
+          pageSize: 25,
+          paginationAction: 'next',
+          search: 'Jane',
+          blocked: 'blocked',
+        },
         res,
       );
 
-      expect(service.getDashboardData).toHaveBeenCalledWith('org-123', 'eu-cursor-123', 25, 'next');
+      expect(service.getDashboardData).toHaveBeenCalledWith('org-123', 'eu-cursor-123', 25, 'next', {
+        search: 'Jane',
+        blocked: 'blocked',
+      });
     });
 
     // ─── Caso 3: Paginación hacia atrás ────────────────────────
@@ -118,9 +131,19 @@ describe('EndUsersController', () => {
       mockEndUsersService.getDashboardData.mockResolvedValue(mockPaginatedData);
       const res = createMockResponse();
 
-      await controller.getDashboardData(mockUser, 'eu-cursor-456', 10, 'prev', res);
+      await controller.getDashboardData(
+        mockUser,
+        { cursor: 'eu-cursor-456', paginationAction: 'prev' },
+        res,
+      );
 
-      expect(service.getDashboardData).toHaveBeenCalledWith('org-123', 'eu-cursor-456', 10, 'prev');
+      expect(service.getDashboardData).toHaveBeenCalledWith(
+        'org-123',
+        'eu-cursor-456',
+        10,
+        'prev',
+        { search: undefined, blocked: undefined },
+      );
     });
 
     // ─── Caso 4: El servicio lanza una excepción ───────────────
@@ -129,7 +152,7 @@ describe('EndUsersController', () => {
       mockEndUsersService.getDashboardData.mockRejectedValue(error);
       const res = createMockResponse();
 
-      await expect(controller.getDashboardData(mockUser, null, 10, null, res)).rejects.toThrow(
+      await expect(controller.getDashboardData(mockUser, {}, res)).rejects.toThrow(
         'Database error',
       );
 
@@ -149,11 +172,10 @@ describe('EndUsersController', () => {
       mockEndUsersService.getDashboardData.mockResolvedValue(emptyData);
       const res = createMockResponse();
 
-      await controller.getDashboardData(mockUser, null, 10, null, res);
+      await controller.getDashboardData(mockUser, {}, res);
 
       const responseBody = res.json.mock.calls[0][0];
 
-      // Verifica estructura completa de ApiResponse
       expect(responseBody).toHaveProperty('success', true);
       expect(responseBody).toHaveProperty('data', emptyData);
       expect(responseBody).toHaveProperty('message');
@@ -173,14 +195,52 @@ describe('EndUsersController', () => {
       mockEndUsersService.getDashboardData.mockResolvedValue(mockPaginatedData);
       const res = createMockResponse();
 
-      await controller.getDashboardData(differentUser, null, 10, null, res);
+      await controller.getDashboardData(differentUser, {}, res);
 
       expect(service.getDashboardData).toHaveBeenCalledWith(
         'org-different-456', // ← debe usar el org del usuario actual
         null,
         10,
         null,
+        { search: undefined, blocked: undefined },
       );
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // POST /end-users/:id/block · /unblock
+  // ═══════════════════════════════════════════════════════════════
+  describe('block', () => {
+    it('should pass the organization, the contact, who blocked and the reason', async () => {
+      mockEndUsersService.block.mockResolvedValue({ id: 'eu-1' });
+      const res = createMockResponse();
+
+      await controller.block(mockUser, 'eu-1', { reason: 'Spam' }, res);
+
+      // `user.sub` es quien queda registrado como autor del bloqueo.
+      expect(service.block).toHaveBeenCalledWith('org-123', 'eu-1', 'user-1', 'Spam');
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('should allow blocking without a reason', async () => {
+      mockEndUsersService.block.mockResolvedValue({ id: 'eu-1' });
+      const res = createMockResponse();
+
+      await controller.block(mockUser, 'eu-1', {}, res);
+
+      expect(service.block).toHaveBeenCalledWith('org-123', 'eu-1', 'user-1', undefined);
+    });
+  });
+
+  describe('unblock', () => {
+    it('should pass the organization and the contact', async () => {
+      mockEndUsersService.unblock.mockResolvedValue({ id: 'eu-1' });
+      const res = createMockResponse();
+
+      await controller.unblock(mockUser, 'eu-1', res);
+
+      expect(service.unblock).toHaveBeenCalledWith('org-123', 'eu-1');
+      expect(res.status).toHaveBeenCalledWith(200);
     });
   });
 });

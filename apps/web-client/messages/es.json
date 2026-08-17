@@ -461,7 +461,8 @@
     "confirmButton": "Confirmar",
     "logoutError": "Error al cerrar sesión",
     "logoutErrorDesc": "No se pudo cerrar la sesión. Intenta de nuevo.",
-    "navDatasets": "Datos"
+    "navDatasets": "Datos",
+    "navContacts": "Contactos"
   },
   "LegalToc": {
     "content": "Contenido"
@@ -942,7 +943,17 @@
     "clearFollowUp": "Marcar como atendida",
     "phoneNumberTitle": "Telefono del cliente",
     "customerNameTitle": "Nombre del cliente",
-    "messengerPageTitle": "Pagina de Facebook"
+    "messengerPageTitle": "Pagina de Facebook",
+    "reactivateAI": "Reactivar IA",
+    "closeTitle": "Cerrar conversación",
+    "closeConfirmDesc": "La conversación se archivará y dejará de aparecer entre las activas. Puedes reabrirla cuando quieras.",
+    "takeControlConfirmDesc": "La IA dejará de responder en esta conversación y las respuestas quedarán en tus manos, hasta que la reactives.",
+    "reactivateAIConfirmDesc": "La IA volverá a responder automáticamente en esta conversación, sin esperar a nadie del equipo. Asegúrate de haber terminado lo que estabas atendiendo.",
+    "block": "Bloquear",
+    "blocked": "Bloqueado",
+    "blockTitle": "Bloquear a este contacto (sus mensajes dejarán de llegar)",
+    "unblockTitle": "Desbloquear a este contacto",
+    "blockedBadge": "Bloqueado"
   },
   "ApiKeys": {
     "heading": "API Keys",
@@ -1604,5 +1615,30 @@
     "notFoundTitle": "No encontramos este número",
     "notFoundBody": "La configuración de WhatsApp que intentas editar ya no existe o pertenece a otro workflow.",
     "backToWorkflow": "Volver al workflow"
+  },
+  "Contacts": {
+    "heading": "Contactos",
+    "description": "Todas las personas que te han escrito. Desde aquí puedes bloquear a quien no quieras volver a atender.",
+    "searchPlaceholder": "Buscar por nombre, teléfono o identificador...",
+    "filter_all": "Todos",
+    "filter_active": "Activos",
+    "filter_blocked": "Bloqueados",
+    "blockAction": "Bloquear",
+    "unblockAction": "Desbloquear",
+    "blockedSince": "Bloqueado desde el {date}",
+    "blockedBy": "por {name}",
+    "noReason": "Sin motivo",
+    "blockModalTitle": "Bloquear contacto",
+    "blockModalWarning": "Los mensajes de <strong>{contact}</strong> dejarán de llegar y sus conversaciones activas se cerrarán. Puedes desbloquearlo cuando quieras.",
+    "blockModalReasonLabel": "Motivo (opcional)",
+    "blockModalReasonPlaceholder": "Por ejemplo: spam, no es cliente...",
+    "blockModalReasonHint": "Se muestra en la lista de contactos para recordar por qué lo bloqueaste.",
+    "cancel": "Cancelar",
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "noContacts": "Todavía no hay contactos",
+    "noContactsDesc": "Aquí aparecerá quien te escriba por WhatsApp o Messenger.",
+    "noMatches": "Sin resultados",
+    "noMatchesDesc": "Prueba con otro texto o cambia el filtro."
   }
 }
