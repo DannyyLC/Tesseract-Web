@@ -22,6 +22,7 @@ import {
   assertMaxTokensWithinCategory,
   touchesCategoryCeiling,
 } from './category-token-ceiling';
+import { collectConfiguredModels, resolveContextWindowBudget } from './context-window-budget';
 import { AgentsService } from '../agents/agents.service';
 import { ToolsService } from '../tools/core/tools.service';
 import { DatasetTokenService } from '../datasets/core/dataset-token.service';
@@ -79,7 +80,17 @@ const FOLLOW_UP_REASON_VARIABLE = 'follow_up_reason';
 @Injectable()
 export class WorkflowsService {
   private readonly logger = new Logger(WorkflowsService.name);
+  /** Gatillo: a qué porcentaje del límite efectivo se dispara la compactación. */
   private readonly compactionThresholdRatio = 0.8;
+  /**
+   * Descuento sobre la capacidad del modelo: qué parte de su ventana se puede gastar en
+   * historial. El 20% restante es para lo demás que viaja en la misma ventana y no se
+   * cuenta aquí — system prompt, definiciones de tools y la respuesta a generar.
+   *
+   * No confundir con `compactionThresholdRatio`: aquel es un umbral sobre el límite ya
+   * calculado, este decide cuál es ese límite. Se encadenan.
+   */
+  private readonly usableContextWindowRatio = 0.8;
   private readonly recentMessagesToKeepWithSummary = 7;
   private readonly maxArchivedMessagesForSummary = 40;
   /** Mensajes nuevos mínimos para compactar. Evita una llamada al LLM por cada mensaje. */
@@ -1104,7 +1115,7 @@ export class WorkflowsService {
     try {
       const { historyForPayload, activeSummary } = await this.prepareHistoryForPayload(
         conversation.id,
-        workflow.maxTokensPerExecution,
+        await this.resolveEffectiveMaxTokens(workflow),
         messageHistory,
         userMessage,
       );
@@ -1554,7 +1565,7 @@ export class WorkflowsService {
     try {
       const { historyForPayload, activeSummary } = await this.prepareHistoryForPayload(
         conversation.id,
-        workflow.maxTokensPerExecution,
+        await this.resolveEffectiveMaxTokens(workflow),
         messageHistory,
         userMessage,
       );
@@ -2204,6 +2215,62 @@ export class WorkflowsService {
    * Vive en un solo lugar porque `execute` y `executeStream` hacían exactamente lo mismo
    * con código duplicado, y arreglar uno y olvidar el otro era cuestión de tiempo.
    */
+  /**
+   * Cuánto historial cabe de verdad en esta ejecución.
+   *
+   * El valor configurado en el workflow lo escribió una persona y nada garantizaba que le
+   * cupiera al modelo. Aquí se contrasta contra la ventana del modelo más chico que la
+   * ejecución puede llegar a usar, y manda el menor de los dos.
+   *
+   * Nunca lanza: esto corre en la ruta de ejecución y un problema resolviendo ventanas no
+   * puede tumbar la conversación de un cliente. Si algo falla se sigue con el valor
+   * configurado, que es exactamente el comportamiento que había antes de esta guarda.
+   */
+  private async resolveEffectiveMaxTokens(workflow: {
+    id: string;
+    config: unknown;
+    maxTokensPerExecution: number;
+  }): Promise<number> {
+    try {
+      const modelNames = collectConfiguredModels(workflow.config);
+      const windows = await this.llmModelsService.getContextWindows(modelNames);
+
+      const missing = modelNames.filter((name) => !windows.has(name));
+      if (missing.length > 0) {
+        // No restringe, pero deja rastro: un modelo que no resuelve es una config rota
+        // o un modelo dado de baja, y en ambos casos alguien tiene que enterarse.
+        this.logger.warn(
+          `Workflow ${workflow.id}: sin ventana de contexto para ${missing.join(', ')}. ` +
+            `Esos modelos no acotan el límite de historial.`,
+        );
+      }
+
+      const budget = resolveContextWindowBudget({
+        configuredMaxTokens: workflow.maxTokensPerExecution,
+        contextWindows: Array.from(windows, ([modelName, contextWindow]) => ({
+          modelName,
+          contextWindow,
+        })),
+        marginRatio: this.usableContextWindowRatio,
+      });
+
+      if (budget.boundBy === 'context-window') {
+        this.logger.log(
+          `Workflow ${workflow.id}: límite de historial recortado a ${budget.effectiveMaxTokens} ` +
+            `por la ventana de ${budget.limitingModel} (configurado: ${workflow.maxTokensPerExecution})`,
+        );
+      }
+
+      return budget.effectiveMaxTokens;
+    } catch (error) {
+      this.logger.warn(
+        `Workflow ${workflow.id}: no se pudo resolver la ventana de contexto, se usa el ` +
+          `valor configurado. ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return workflow.maxTokensPerExecution;
+    }
+  }
+
   private async prepareHistoryForPayload(
     conversationId: string,
     maxTokensPerExecution: number,

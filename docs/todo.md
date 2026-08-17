@@ -58,28 +58,44 @@ Dos detalles del diseño que conviene no perder:
 
 ---
 
-## 3. No hay guarda contra la ventana de contexto del modelo
+## 3. La guarda de ventana de contexto no se puede cachear todavía
 
-**Severidad: media — falla en runtime contra la API del proveedor.**
+**Severidad: baja — una consulta extra por ejecución.**
 
-`contextWindow` se guarda en `llm_models` pero **nunca se consulta en runtime**: solo aparece en
-el DTO de creación y en `supersedePricing`. Hoy nada impide configurar un
-`maxTokensPerExecution` mayor que la ventana del modelo más chico del workflow; el error saldría
-del proveedor, en producción.
-
-Caso concreto: `gpt-5.4-mini` (el router del RGM) tiene ventana de 400k. Un historial de 500k
-no le cabe.
-
-**Arreglo propuesto:** al resolver el workflow, tomar la ventana **más chica** entre los modelos
-de todos sus agentes y usar como límite efectivo:
+**Resuelto el 17 de agosto de 2026.** `contextWindow` se guardaba en `llm_models` y no se
+consultaba nunca en runtime, así que nada impedía configurar un `maxTokensPerExecution` mayor que
+la ventana del modelo más chico del workflow; el error salía del proveedor, en producción y a media
+conversación. Ahora
+[`context-window-budget.ts`](https://github.com/FractalOps-Dev/Tesseract/blob/main/apps/gateway/src/automation/workflows/context-window-budget.ts)
+calcula el límite efectivo:
 
 ```
-min(maxTokensPerExecution, ventanaMínima × margen)
+min(maxTokensPerExecution, ventanaMínima × 0.8)
 ```
 
-Ese valor alimenta tanto el umbral de compactación como el hard cap. El margen (reservar 20–25%)
-es necesario porque la ventana también aloja system prompts, definiciones de tools y la respuesta.
-El que llegue primero manda.
+Ese valor entra por el único parámetro del que ya colgaban el umbral de compactación, el recorte
+adaptativo y el hard cap, así que los tres lo respetan sin haber tocado su lógica. El margen del
+20% cubre lo que también viaja en la ventana y no se contaba: system prompt, definiciones de tools
+y la respuesta a generar.
+
+Tres decisiones que conviene no perder:
+
+- **Los `fallbacks` cuentan.** Un fallback se usa de verdad cuando el principal falla, así que su
+  ventana ata igual. Dejarlos fuera daría un presupuesto que se desmorona justo cuando algo ya
+  salió mal.
+- **Un modelo que no resuelve no restringe**, solo deja un `warn`. Cortar conversaciones reales por
+  un modelo ausente en `llm_models` sería peor que el problema original.
+- **Nunca lanza.** Corre en la ruta de ejecución; si algo falla se sigue con el valor configurado,
+  que es el comportamiento que había antes.
+
+**Lo que queda pendiente:** es una consulta a `llm_models` por ejecución. Es chica —un `findMany`
+por nombre de modelo, con índice— pero está en la ruta caliente y se repite en cada mensaje. Vale
+cachearla por workflow cuando haya volumen que lo justifique; hoy no lo hay.
+
+**Efecto secundario a vigilar.** Si la ventana es la que manda, el umbral de compactación baja solo
+(es un 80% del límite efectivo, no del configurado). Eso ataca de lado el punto 9 —que la
+compactación casi nunca se dispara— pero también significa que un workflow puede empezar a compactar
+antes que ayer sin que nadie haya cambiado su configuración.
 
 ---
 

@@ -145,6 +145,39 @@ export class LlmModelsService {
   }
 
   /**
+   * Ventana de contexto de varios modelos, en una sola consulta.
+   *
+   * Misma resolución de vigencia que `getModel` (la tabla versiona precios, así que hay
+   * varias filas por `modelName` y solo una vigente). Los modelos que no resuelven
+   * simplemente no aparecen en el resultado: quien llama decide qué hacer con la
+   * ausencia, que no siempre es un error.
+   */
+  async getContextWindows(modelNames: string[]): Promise<Map<string, number>> {
+    if (modelNames.length === 0) return new Map();
+
+    const now = new Date();
+    const rows = await this.prisma.llmModel.findMany({
+      where: {
+        modelName: { in: modelNames },
+        isActive: true,
+        effectiveFrom: { lte: now },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+      },
+      select: { modelName: true, contextWindow: true },
+      orderBy: { effectiveFrom: 'desc' },
+    });
+
+    // El orden descendente deja primero la fila vigente de cada modelo; las versiones
+    // viejas que sigan dentro de su rango no deben pisarla.
+    const windows = new Map<string, number>();
+    for (const row of rows) {
+      if (!windows.has(row.modelName)) windows.set(row.modelName, row.contextWindow);
+    }
+
+    return windows;
+  }
+
+  /**
    * Actualizar un modelo LLM
    */
   async update(id: string, updateLlmModelDto: UpdateLlmModelDto) {
