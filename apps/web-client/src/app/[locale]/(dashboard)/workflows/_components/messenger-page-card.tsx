@@ -2,6 +2,7 @@
 
 import PermissionGuard from '@/components/auth/permission-guard';
 import { Link } from '@/i18n/routing';
+import { Modal } from '@/components/ui/modal';
 import { motion } from 'framer-motion';
 import { MoreVertical, Pencil, Unplug, Trash2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -57,6 +58,7 @@ export function MessengerPageCard({
   const t = useTranslations('MessengerPageCard');
   const locale = useLocale();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isDisconnectOpen, setIsDisconnectOpen] = useState(false);
   const status =
     STATUS_STYLES[page.connectionStatus ?? 'DISCONNECTED'] ?? STATUS_STYLES.DISCONNECTED;
   const connectionLabel = isActive
@@ -134,11 +136,13 @@ export function MessengerPageCard({
                 <button
                   onClick={() => {
                     setMenuOpen(false);
-                    const targetState = !isActive;
 
-                    if (onSetActiveStatus) {
-                      onSetActiveStatus(page.id, targetState);
+                    if (isActive) {
+                      setIsDisconnectOpen(true);
+                      return;
                     }
+
+                    onSetActiveStatus?.(page.id, true);
                   }}
                   className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
                     !isActive
@@ -167,6 +171,40 @@ export function MessengerPageCard({
           </>
         )}
       </div>
+
+      <Modal
+        isOpen={isDisconnectOpen}
+        onClose={() => setIsDisconnectOpen(false)}
+        title={t('disconnectModalTitle')}
+      >
+        <div className="space-y-4">
+          <div className="border-danger-500/20 bg-danger/10 rounded-xl border p-4 text-sm text-[var(--danger-text-adaptive)]">
+            <p className="mb-2 flex items-center gap-2 font-semibold">
+              <Unplug size={16} />
+              {t('disconnectConfirmHeading')}
+            </p>
+            <p className="opacity-90">{t('disconnectConfirmMessage')}</p>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => setIsDisconnectOpen(false)}
+              className="flex-1 rounded-xl bg-[var(--surface-tint)] px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-[var(--surface-tint-md)]"
+            >
+              {t('cancelButton')}
+            </button>
+            <button
+              onClick={() => {
+                setIsDisconnectOpen(false);
+                onSetActiveStatus?.(page.id, false);
+              }}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2 text-sm font-medium text-brand-white transition-all hover:bg-danger-600"
+            >
+              {t('confirmDisconnectButton')}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </motion.div>
   );
 }

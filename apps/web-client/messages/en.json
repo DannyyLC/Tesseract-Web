@@ -1429,7 +1429,12 @@
     "connect": "Connect",
     "disconnect": "Disconnect",
     "delete": "Delete",
-    "menuAriaLabel": "Page actions"
+    "menuAriaLabel": "Page actions",
+    "disconnectModalTitle": "Disconnect Messenger page",
+    "disconnectConfirmHeading": "Are you sure?",
+    "disconnectConfirmMessage": "This channel will stop recording messages in conversations while it is disabled, meaning, they won't be in our system. It start to record them again when you reconnect it.",
+    "cancelButton": "Cancel",
+    "confirmDisconnectButton": "Yes, Disconnect"
   },
   "WhatsappNumberCard": {
     "subtitle": "WhatsApp number",
@@ -1444,7 +1449,12 @@
     "connect": "Connect",
     "disconnect": "Disconnect",
     "delete": "Delete",
-    "menuAriaLabel": "Number actions"
+    "menuAriaLabel": "Number actions",
+    "disconnectModalTitle": "Disconnect WhatsApp number",
+    "disconnectConfirmHeading": "Are you sure?",
+    "disconnectConfirmMessage": "This channel will stop recording messages in conversations while it is disabled, meaning, they won't be in our system. It start to record them again when you reconnect it.",
+    "cancelButton": "Cancel",
+    "confirmDisconnectButton": "Yes, Disconnect"
   },
   "Datasets": {
     "heading": "Data",

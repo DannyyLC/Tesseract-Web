@@ -1429,7 +1429,12 @@
     "connect": "Conectar",
     "disconnect": "Desconectar",
     "delete": "Eliminar",
-    "menuAriaLabel": "Acciones de la página"
+    "menuAriaLabel": "Acciones de la página",
+    "disconnectModalTitle": "Desconectar página de Messenger",
+    "disconnectConfirmHeading": "¿Estás seguro?",
+    "disconnectConfirmMessage": "Este canal dejará de registrar mensajes en las conversaciones durante el tiempo que esté desconectado. Nuestro sistema no tendrá esos mensajes, comenzara a registrarlos de nuevo cuando lo vuelvas a conectar.",
+    "cancelButton": "Cancelar",
+    "confirmDisconnectButton": "Sí, Desconectar"
   },
   "WhatsappNumberCard": {
     "subtitle": "Número de WhatsApp",
@@ -1444,7 +1449,12 @@
     "connect": "Conectar",
     "disconnect": "Desconectar",
     "delete": "Eliminar",
-    "menuAriaLabel": "Acciones del número"
+    "menuAriaLabel": "Acciones del número",
+    "disconnectModalTitle": "Desconectar número de WhatsApp",
+    "disconnectConfirmHeading": "¿Estás seguro?",
+    "disconnectConfirmMessage": "Este canal dejará de registrar mensajes en las conversaciones durante el tiempo que esté desconectado. Nuestro sistema no tendrá esos mensajes, comenzará a registrarlos de nuevo cuando lo vuelvas a conectar.",
+    "cancelButton": "Cancelar",
+    "confirmDisconnectButton": "Sí, Desconectar"
   },
   "Datasets": {
     "heading": "Datos",
