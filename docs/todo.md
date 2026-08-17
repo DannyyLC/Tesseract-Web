@@ -1,6 +1,6 @@
 ---
 title: 'TODO — Deuda técnica detectada'
-description: 'Hallazgos pendientes de corregir: cálculo de costos en fan-out, límites de categoría no aplicados, guarda de ventana de contexto, riesgos de despliegue, secretos en el historial, campos inertes en la config de WhatsApp, reintento infinito cuando el workflow del webhook no existe, la imposibilidad deliberada de cambiar el país de facturación de una organización y el trato que debe recibir un downgrade de plan cuando lo que sobra son datos del cliente.'
+description: 'Hallazgos pendientes de corregir: el prompt caching sin modelar en el cálculo de costos, límites de categoría no aplicados, guarda de ventana de contexto, riesgos de despliegue, secretos en el historial, campos inertes en la config de WhatsApp, reintento infinito cuando el workflow del webhook no existe, la imposibilidad deliberada de cambiar el país de facturación de una organización y el trato que debe recibir un downgrade de plan cuando lo que sobra son datos del cliente.'
 ---
 
 Levantado durante la preparación del despliegue del workflow RGM (julio 2026), y ampliado con
@@ -9,26 +9,22 @@ esto bloquea el despliegue; se documenta para no perderlo.
 
 ---
 
-## 1. El costo subestima el fan-out paralelo
+## 1. El cálculo de costo no modela el prompt caching
 
-**Severidad: alta — afecta cálculo de costos reales.**
+**Severidad: baja — el número queda por arriba del real, nunca por debajo.**
 
-En [`apps/agents/src/core/usage.py`](https://github.com/FractalOps-Dev/Tesseract/blob/main/apps/agents/src/core/usage.py) el acumulador aplica:
+`input_tokens` es la suma de todas las llamadas al LLM, que es lo que factura el proveedor a precio
+de lista. Pero los proveedores descuentan fuerte el prefijo repetido, y ese caso es justo el más
+común: las iteraciones de un loop agéntico reenvían el mismo historial. O sea que el `costUSD` que
+se guarda por ejecución es un **techo**, no el número exacto.
 
-- `output_tokens` → **suma** de todas las llamadas.
-- `input_tokens` → **máximo por modelo**, no suma.
+`usage_metadata` ya trae el desglose en `input_token_details.cache_read`, pero hoy nada en el repo lo
+lee y `llm_models` no tiene columna de precio de input cacheado.
 
-El razonamiento documentado es correcto para un agente **secuencial** (un ReAct reenvía el mismo
-historial en cada iteración, sumarlo lo contaría N veces). Pero es **falso en un fan-out paralelo**:
-cada rama manda su propio historial completo a la API y el proveedor cobra las N. Como además se
-agrupa por modelo y todos los verticales del RGM usan `gpt-5.6-luna`, las ramas caen en el mismo
-bucket y sobrevive solo una.
-
-**Efecto:** el input se subestima por un factor cercano al número de ramas paralelas activas. Los
-outputs están bien.
-
-**Arreglo propuesto:** distinguir llamadas secuenciales de ramas concurrentes. El máximo aplica
-dentro de una misma cadena de mensajes; entre ramas paralelas hay que sumar.
+**Arreglo propuesto:** separar el input fresco del cacheado en
+[`usage.py`](https://github.com/FractalOps-Dev/Tesseract/blob/main/apps/agents/src/core/usage.py) y
+cobrar cada uno a su tarifa. Requiere una columna nueva en `llm_models` con su migración y sumarla al
+CRUD de modelos del admin.
 
 ---
 
@@ -164,33 +160,7 @@ independientes de los tokens. Solo permite conversaciones más largas antes de c
 
 ---
 
-## 8. Alta del workflow RGM
-
-Al insertar `rgm.json` en una organización nueva hay que sustituir dos referencias; el resto del
-JSON va por nombre y es portable:
-
-| Referencia | Valor en el archivo | Reemplazar por |
-|---|---|---|
-| `tool_instance` y `tools` | `ec0f1bf0-e03f-4475-ba57-599ebad41f0c` | UUID del `TenantTool` de WhatsApp de la org |
-| `template_id` | `<<TEMPLATE_UUID>>` | UUID de un `WhatsAppTemplate` **activo** de ese `WhatsAppConfig` |
-
-El UUID del tool aparece en dos lugares: el nodo `notify_team` y la lista `tools` del agente
-`synthesizer`. Además el workflow debe quedar **ligado** a ese `TenantTool` en la tabla de unión
-`_WorkflowToTenantTool`; si la relación no existe, el ID del JSON no resuelve y el agente se queda
-sin la tool.
-
-En `TenantTool.config` va únicamente:
-
-```json
-{ "whatsapp_config_id": "<uuid del WhatsAppConfig>" }
-```
-
-`from_number`, `api_key` y `available_templates` los inyecta el gateway a partir de ese ID.
-Ponerlos a mano no sirve: el spread del sistema los sobreescribe.
-
----
-
-## 9. Seguridad
+## 8. Seguridad
 
 **Severidad: media-alta — depende de si los secretos coinciden con producción.**
 
@@ -216,7 +186,7 @@ Ponerlos a mano no sirve: el spread del sistema los sobreescribe.
 
 ---
 
-## 10. Pipeline de WhatsApp — deuda menor
+## 9. Pipeline de WhatsApp — deuda menor
 
 Levantado al migrar a Cloud Tasks. Nada urgente.
 
@@ -246,7 +216,7 @@ Levantado al migrar a Cloud Tasks. Nada urgente.
 
 ---
 
-## 11. Campos inertes en `whatsapp_configs`
+## 10. Campos inertes en `whatsapp_configs`
 
 **Severidad: baja — no rompe nada, pero engaña a quien lee el esquema.**
 
@@ -282,7 +252,7 @@ real usa `process.env.Y_CLOUD_WEBHOOK_SECRET` en
   self-service deja de serlo.
 - El valor que hay hoy en la fila del RGM (`whsec_b167…`) trae prefijo de Stripe y ya está
   rotado — o sea que nunca fue un secreto de YCloud. Nadie lo notó porque nada lo consulta.
-  Esto relativiza el punto 9: el `webhookSecret` que quedó en el historial de git no protegía
+  Esto relativiza el punto 8: el `webhookSecret` que quedó en el historial de git no protegía
   nada.
 
 **Arreglo propuesto (cuando se haga el multi-tenant):** que `verifySignature` resuelva el config
@@ -298,7 +268,7 @@ Vale la pena normalizar el número en el lookup en vez de confiar en que ambos l
 
 ---
 
-## 12. Las guardas de workflow del webhook fallan cuando el workflow no existe
+## 11. Las guardas de workflow del webhook fallan cuando el workflow no existe
 
 **Severidad: media — un mensaje entrante puede quedar en reintento infinito.**
 
@@ -338,15 +308,15 @@ acknowledgments to the whatsapp server", pero no hay código de read receipts en
 precisamente un acuse a YCloud. Lo que hacen es cortar el ingreso al pipeline. Vale anotarlo
 porque quien busque el cambio por el mensaje no lo va a encontrar.
 
-**Relación con el punto 11.** Estas dos guardas suman dos caminos más de descarte silencioso a
+**Relación con el punto 10.** Estas dos guardas suman dos caminos más de descarte silencioso a
 los que ya existían (`unknown-config` e `inactive-config`): ahora son cuatro rutas por las que un
 mensaje del cliente termina en un 200 sin dejar rastro en la conversación. El riesgo operativo
-señalado al final del punto 11 aplica igual aquí. Si se agrega observabilidad para los descartes,
+señalado al final del punto 10 aplica igual aquí. Si se agrega observabilidad para los descartes,
 conviene cubrir las cuatro de una vez.
 
 ---
 
-## 13. No se puede cambiar el país (ni la moneda) de una organización
+## 12. No se puede cambiar el país (ni la moneda) de una organización
 
 **Severidad: baja — decisión deliberada, no un olvido.**
 
@@ -384,7 +354,7 @@ de acceso a las facturas anteriores.
 
 ---
 
-## 14. El downgrade de plan no puede tratar los datos del cliente como a los workflows
+## 13. El downgrade de plan no puede tratar los datos del cliente como a los workflows
 
 **Severidad: media — a definir antes de implementar Datasets.**
 
