@@ -16,6 +16,7 @@ export class EmailService {
   private emailPasswordResetTemplate: handlebars.TemplateDelegate;
   private emailOrganizationExistsTemplate: handlebars.TemplateDelegate;
   private emailServiceRequestTemplate: handlebars.TemplateDelegate;
+  private cfdiFailuresAlertTemplate: handlebars.TemplateDelegate;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -44,6 +45,7 @@ export class EmailService {
     this.emailPasswordResetTemplate = this.loadTemplate('restore_password_es.hbs');
     this.emailOrganizationExistsTemplate = this.loadTemplate('email_organization_exists.hbs');
     this.emailServiceRequestTemplate = this.loadTemplate('request_services_info.hbs');
+    this.cfdiFailuresAlertTemplate = this.loadTemplate('cfdi_failures_alert.hbs');
   }
 
   private loadTemplate(templateName: string): handlebars.TemplateDelegate {
@@ -195,6 +197,40 @@ export class EmailService {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
         `sendServiceRequestEmail >> Error enviando email a ${targetEmail}: ${errorMessage}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Aviso interno de facturas que no se pudieron timbrar.
+   *
+   * **Un correo por barrido, no uno por factura.** Los fallos de este tipo son de configuración
+   * —CSD vencido, timbres agotados, PAC caído— y cuando ocurren fallan todas las facturas a la
+   * vez. Cuarenta correos idénticos diciendo lo mismo se convierten en ruido que se filtra a
+   * spam en la segunda semana, justo antes de que haga falta leerlos.
+   *
+   * Por eso recibe las causas ya agrupadas: cuántas facturas por cada mensaje de error.
+   */
+  async sendCfdiFailuresAlert(
+    targetEmail: string,
+    failedCount: number,
+    causes: { message: string; count: number }[],
+  ): Promise<unknown> {
+    try {
+      return await this.transporter.sendMail({
+        to: targetEmail,
+        subject: `[Tesseract] ${failedCount} factura(s) sin timbrar`,
+        html: this.cfdiFailuresAlertTemplate({
+          failed_count: failedCount,
+          date: new Date().toLocaleDateString('es-MX'),
+          causes: causes.map((cause) => ({ ...cause, isSingle: cause.count === 1 })),
+        }),
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `sendCfdiFailuresAlert >> Error enviando email a ${targetEmail}: ${errorMessage}`,
       );
       return null;
     }

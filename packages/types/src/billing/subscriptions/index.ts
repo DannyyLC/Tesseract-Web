@@ -11,6 +11,10 @@ export interface BillingDashboardData {
   allowOverages: boolean;
   overageLimit: number;
   hasBillingAccount: boolean;
+  /** País de facturación (ISO 3166-1 alpha-2). NULL mientras no haya pasado por el checkout. */
+  country: string | null;
+  /** Si el SAT aceptó los datos fiscales. Solo aplica cuando `country` es 'MX'. */
+  fiscalProfileComplete: boolean;
 
   credits: {
     available: number;

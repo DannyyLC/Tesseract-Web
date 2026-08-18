@@ -9,7 +9,14 @@ import { StripeClient } from './stripe.client';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { CreditsService } from '../credits/credits.service';
-import { TransactionType, SubscriptionPlan, SubscriptionStatus } from '@tesseract/database';
+import {
+  TransactionType,
+  SubscriptionPlan,
+  SubscriptionStatus,
+  CfdiStatus,
+  InvoiceStatus,
+  InvoiceType,
+} from '@tesseract/database';
 import {
   PLANS,
   canUpgradePlan,
@@ -26,6 +33,7 @@ import { AdminUpdateSubscriptionDto } from './dto/admin-update-subscription.dto'
 import Stripe from 'stripe';
 import { UtilityService } from '@/platform/utility/utility.service';
 import { maskEmail } from '@/platform/common/utils/mask-email';
+import { CfdiService } from '../invoice/cfdi.service';
 
 @Injectable()
 export class BillingService {
@@ -38,6 +46,7 @@ export class BillingService {
     private readonly configService: ConfigService,
     private readonly utilityService: UtilityService,
     private readonly priceCatalog: PriceCatalogService,
+    private readonly cfdiService: CfdiService,
   ) {}
 
   /**
@@ -541,9 +550,136 @@ export class BillingService {
           periodEnd.toLocaleDateString('es-ES'),
         ],
       );
+
+      // La factura se persiste y se timbra al final, con los créditos ya otorgados. Ver el
+      // comentario de `recordInvoiceAndStamp` para por qué este orden y por qué no relanza.
+      await this.recordInvoiceAndStamp(
+        invoice,
+        organizationId,
+        dbSubscription.id,
+        periodStart,
+        periodEnd,
+        invoicedOverage,
+      );
     } else {
       this.logger.warn(`No credits added for invoice ${invoice.id} (Amount: ${amountPaidCents})`);
     }
+  }
+
+  /**
+   * Guarda la factura en nuestra base y lanza el timbrado del CFDI.
+   *
+   * ## Por qué va al final y por qué no relanza nunca
+   *
+   * El controlador del webhook libera el claim de deduplicación y responde 503 ante cualquier
+   * excepción, para que Stripe reintente. Eso significa que **todo lo que hay antes vuelve a
+   * ejecutarse**, incluido `addCredits`, que suma al saldo. Una excepción escapada desde aquí
+   * no dejaría al cliente sin factura: le duplicaría los créditos.
+   *
+   * Por eso el orden es primero el dinero y después el papel, y por eso este método se traga
+   * sus errores. Si el PAC está caído, el cliente ya tiene lo que pagó y la factura la recoge
+   * el barrido nocturno; al revés sería un cliente sin créditos porque el SAT iba lento.
+   *
+   * ## Numeración
+   *
+   * `invoiceNumber` toma el número que asignó Stripe en vez de generarlo nosotros. Un contador
+   * propio del tipo `INV-YYYYMM-0001` obliga a serializar la escritura para no repetir folio,
+   * y el de Stripe ya es único e inmutable. El folio *fiscal* es otra cosa y lo asigna el PAC.
+   */
+  private async recordInvoiceAndStamp(
+    stripeInvoice: any,
+    organizationId: string,
+    subscriptionId: string,
+    periodStart: Date,
+    periodEnd: Date,
+    invoicedOverage: number,
+  ): Promise<void> {
+    try {
+      const organization = await this.prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { country: true, fiscalProfile: { select: { validatedAt: true } } },
+      });
+
+      const isMexican = organization?.country === 'MX';
+      const hasFiscalProfile = Boolean(organization?.fiscalProfile?.validatedAt);
+
+      // Sin perfil fiscal la factura queda PENDING, no FAILED: no ha fallado nada todavía,
+      // simplemente faltan datos que el cliente puede llenar cuando quiera. El panel se lo
+      // pide y el botón la genera.
+      const cfdiStatus = isMexican ? CfdiStatus.PENDING : CfdiStatus.NOT_APPLICABLE;
+
+      const amountPaid = (stripeInvoice.amount_paid ?? 0) / 100;
+      const taxAmount = (stripeInvoice.tax ?? 0) / 100;
+      const overageAmount = await this.calculateOverageAmount(stripeInvoice);
+
+      const saved = await this.prisma.invoice.upsert({
+        where: { stripeInvoiceId: stripeInvoice.id },
+        create: {
+          organizationId,
+          subscriptionId,
+          invoiceNumber: stripeInvoice.number ?? `STRIPE-${stripeInvoice.id}`,
+          type: InvoiceType.SUBSCRIPTION,
+          status: InvoiceStatus.PAID,
+          periodStart,
+          periodEnd,
+          subtotal: amountPaid - overageAmount,
+          overageCredits: invoicedOverage,
+          overageAmount,
+          tax: taxAmount,
+          total: amountPaid,
+          stripeInvoiceId: stripeInvoice.id,
+          stripePaymentIntentId: stripeInvoice.payment_intent ?? null,
+          stripeHostedUrl: stripeInvoice.hosted_invoice_url ?? null,
+          stripePdfUrl: stripeInvoice.invoice_pdf ?? null,
+          paidAt: new Date(),
+          cfdiStatus,
+        },
+        // Un reintento de Stripe no debe reabrir el estado del CFDI: si ya se timbró, la
+        // factura conserva su folio fiscal.
+        update: {
+          status: InvoiceStatus.PAID,
+          paidAt: new Date(),
+          stripeHostedUrl: stripeInvoice.hosted_invoice_url ?? null,
+          stripePdfUrl: stripeInvoice.invoice_pdf ?? null,
+        },
+      });
+
+      if (!isMexican) return;
+
+      if (!hasFiscalProfile) {
+        this.logger.log(
+          `recordInvoiceAndStamp >> Factura ${saved.id} sin datos fiscales; queda pendiente de que el cliente los llene`,
+        );
+        return;
+      }
+
+      await this.cfdiService.stampInvoice(saved.id);
+    } catch (error) {
+      // Deliberadamente sin relanzar: ver el comentario de la cabecera.
+      this.logger.error(
+        `recordInvoiceAndStamp >> No se pudo registrar/timbrar la factura de Stripe ${stripeInvoice.id}: ${
+          (error as Error).message
+        }`,
+        (error as Error).stack,
+      );
+    }
+  }
+
+  /**
+   * Importe de la línea de overage dentro de la factura de Stripe.
+   *
+   * El overage no llega como factura aparte: se añade como línea a la factura de la
+   * suscripción (ver `handleInvoiceCreated`). Se identifica por su Price ID, no por la
+   * descripción, que es texto libre y cambia.
+   */
+  private async calculateOverageAmount(stripeInvoice: any): Promise<number> {
+    const overagePriceId = await this.priceCatalog.overagePriceId();
+
+    const overageCents = (stripeInvoice.lines?.data ?? [])
+      .filter((line: any) => this.getLineItemPriceId(line) === overagePriceId)
+      .reduce((sum: number, line: any) => sum + (line.amount ?? 0), 0);
+
+    return overageCents / 100;
   }
 
   /**
@@ -1280,7 +1416,14 @@ export class BillingService {
       await this.prisma.$transaction([
         this.prisma.organization.findUnique({
           where: { id: organizationId },
-          select: { plan: true, allowOverages: true, overageLimit: true, stripeCustomerId: true },
+          select: {
+            plan: true,
+            allowOverages: true,
+            overageLimit: true,
+            stripeCustomerId: true,
+            country: true,
+            fiscalProfile: { select: { validatedAt: true } },
+          },
         }),
         this.prisma.subscription.findUnique({
           where: { organizationId },
@@ -1342,6 +1485,8 @@ export class BillingService {
       allowOverages: organization.allowOverages,
       overageLimit: organization.overageLimit ?? 0,
       hasBillingAccount: !!organization.stripeCustomerId,
+      country: organization.country,
+      fiscalProfileComplete: !!organization.fiscalProfile?.validatedAt,
       credits: {
         available: creditBalance?.balance ?? 0,
         usedThisMonth: creditBalance?.currentMonthSpent ?? 0,

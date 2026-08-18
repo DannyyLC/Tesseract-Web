@@ -10,6 +10,9 @@ import { HealthModule } from './health/health.module';
  * Infraestructura compartida (cross-cutting). Agrupa y reexporta:
  * base de datos (Prisma, @Global), utilidades, tareas programadas,
  * el bootstrap del super admin, deduplicación de webhooks y health checks.
+ *
+ * `CloudStorageModule` no está aquí: no es `@Global` y cada dominio que escribe en un bucket
+ * lo importa por su cuenta, de modo que quede a la vista quién lo hace.
  */
 @Module({
   imports: [

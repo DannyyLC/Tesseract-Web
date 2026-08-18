@@ -18,5 +18,6 @@ export * from './business/execution.exceptions';
 export * from './business/tag.exceptions';
 export * from './business/integration.exceptions';
 export * from './business/validation.exceptions';
+export * from './business/fiscal.exceptions';
 export * from './business/system.exceptions';
 export * from './business/rate-limit.exceptions';

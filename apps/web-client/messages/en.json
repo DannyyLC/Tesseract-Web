@@ -290,7 +290,10 @@
       "northAmerica": "North America",
       "europe": "Europe"
     },
-    "genericError": "Could not start the payment. Please try again."
+    "genericError": "Could not start the payment. Please try again.",
+    "fiscalMissingTitle": "We don't have your tax details yet",
+    "fiscalMissingDesc": "You can subscribe without them, but we won't be able to issue your invoice until you fill them in.",
+    "fiscalMissingAction": "Add tax details"
   },
   "WorkflowDetail": {
     "emptyNameError": "Name cannot be empty",
@@ -815,7 +818,8 @@
     "successHeading": "Thank you for your trust!",
     "successText": "Your subscription has been successfully activated. You can now enjoy all the benefits of your new plan.",
     "startButton": "Get started!",
-    "cancelledPayment": "The payment process was cancelled."
+    "cancelledPayment": "The payment process was cancelled.",
+    "invoicesLink": "Invoices"
   },
   "Workflows": {
     "heading": "My Workflows",
@@ -1640,5 +1644,44 @@
     "noContactsDesc": "Anyone who messages you on WhatsApp or Messenger will show up here.",
     "noMatches": "No results",
     "noMatchesDesc": "Try different text or change the filter."
+  },
+  "Invoices": {
+    "heading": "Invoices",
+    "description": "Billing history for your organization.",
+    "descriptionMx": "Your tax details and invoice history with their CFDI.",
+    "backToBilling": "Back to billing",
+    "historyTitle": "History",
+    "emptyState": "No invoices yet. They will show up here once your first payment is processed.",
+    "fiscalTitle": "Tax details",
+    "fiscalDescription": "We use these details to issue your CFDI with the SAT.",
+    "fiscalValidated": "Validated with the SAT",
+    "fiscalMissingWarning": "Without these details we cannot issue your tax invoices. Fill them in once and the rest are generated automatically.",
+    "fiscalRejected": "The SAT rejected these details:",
+    "fiscalSaved": "Tax details validated and saved.",
+    "fiscalError": "Tax details could not be saved.",
+    "validating": "Validating with the SAT…",
+    "saveFiscal": "Save tax details",
+    "rfcLabel": "RFC",
+    "zipLabel": "Tax ZIP code",
+    "legalNameLabel": "Legal name",
+    "legalNamePlaceholder": "EMPRESA DEMO SA DE CV",
+    "legalNameHelp": "Enter it exactly as it appears on your Constancia de Situación Fiscal. The SAT compares it character by character.",
+    "taxRegimeLabel": "Tax regime",
+    "cfdiUseLabel": "CFDI use",
+    "fiscalEmailLabel": "Billing email",
+    "colInvoice": "Invoice",
+    "colPeriod": "Period",
+    "colTotal": "Total",
+    "colCfdi": "CFDI",
+    "cfdiNeedsFiscalData": "Check your tax details",
+    "cfdiInProgress": "Generating your invoice, it will be available shortly",
+    "cfdiPending": "Pending generation",
+    "cfdiStamping": "Generating…",
+    "generateCfdi": "Generate invoice",
+    "cfdiGenerated": "Invoice generated.",
+    "cfdiGenerationError": "The invoice could not be generated.",
+    "downloadError": "The file could not be downloaded.",
+    "previous": "Previous",
+    "next": "Next"
   }
 }

@@ -290,7 +290,10 @@
       "northAmerica": "Norteamérica",
       "europe": "Europa"
     },
-    "genericError": "No se pudo iniciar el pago. Inténtalo de nuevo."
+    "genericError": "No se pudo iniciar el pago. Inténtalo de nuevo.",
+    "fiscalMissingTitle": "Aún no tenemos tus datos fiscales",
+    "fiscalMissingDesc": "Puedes contratar sin ellos, pero no podremos emitirte factura hasta que los llenes.",
+    "fiscalMissingAction": "Llenar datos fiscales"
   },
   "WorkflowDetail": {
     "emptyNameError": "El nombre no puede estar vacío",
@@ -815,7 +818,8 @@
     "successHeading": "¡Gracias por tu confianza!",
     "successText": "Tu suscripción ha sido activada exitosamente. Ya puedes disfrutar de todos los beneficios de tu nuevo plan.",
     "startButton": "¡Comenzar!",
-    "cancelledPayment": "El proceso de pago fue cancelado."
+    "cancelledPayment": "El proceso de pago fue cancelado.",
+    "invoicesLink": "Facturas"
   },
   "Workflows": {
     "heading": "Mis Workflows",
@@ -1640,5 +1644,44 @@
     "noContactsDesc": "Aquí aparecerá quien te escriba por WhatsApp o Messenger.",
     "noMatches": "Sin resultados",
     "noMatchesDesc": "Prueba con otro texto o cambia el filtro."
+  },
+  "Invoices": {
+    "heading": "Facturas",
+    "description": "Historial de cobros de tu organización.",
+    "descriptionMx": "Tus datos fiscales y el historial de facturas con su CFDI.",
+    "backToBilling": "Volver a facturación",
+    "historyTitle": "Historial",
+    "emptyState": "Todavía no hay facturas. Aparecerán aquí en cuanto se procese tu primer cobro.",
+    "fiscalTitle": "Datos fiscales",
+    "fiscalDescription": "Con estos datos emitimos tu CFDI ante el SAT.",
+    "fiscalValidated": "Validados ante el SAT",
+    "fiscalMissingWarning": "Sin estos datos no podemos emitir tus facturas fiscales. Llénalos una vez y las siguientes se generan solas.",
+    "fiscalRejected": "El SAT rechazó estos datos:",
+    "fiscalSaved": "Datos fiscales validados y guardados.",
+    "fiscalError": "No se pudieron guardar los datos fiscales.",
+    "validating": "Validando ante el SAT…",
+    "saveFiscal": "Guardar datos fiscales",
+    "rfcLabel": "RFC",
+    "zipLabel": "Código postal fiscal",
+    "legalNameLabel": "Razón social",
+    "legalNamePlaceholder": "EMPRESA DEMO SA DE CV",
+    "legalNameHelp": "Escríbela exactamente como aparece en tu Constancia de Situación Fiscal. El SAT compara letra por letra.",
+    "taxRegimeLabel": "Régimen fiscal",
+    "cfdiUseLabel": "Uso del CFDI",
+    "fiscalEmailLabel": "Correo fiscal",
+    "colInvoice": "Factura",
+    "colPeriod": "Periodo",
+    "colTotal": "Total",
+    "colCfdi": "CFDI",
+    "cfdiNeedsFiscalData": "Revisa tus datos fiscales",
+    "cfdiInProgress": "Generando tu factura, estará disponible pronto",
+    "cfdiPending": "Pendiente de generar",
+    "cfdiStamping": "Generando…",
+    "generateCfdi": "Generar factura",
+    "cfdiGenerated": "Factura generada.",
+    "cfdiGenerationError": "No se pudo generar la factura.",
+    "downloadError": "No se pudo descargar el archivo.",
+    "previous": "Anterior",
+    "next": "Siguiente"
   }
 }

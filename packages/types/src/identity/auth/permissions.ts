@@ -43,6 +43,8 @@ export type AppPermission =
   | 'conversations:update'
   | 'conversations:delete'
   | 'invoice:read'
+  | 'fiscal_profile:read'
+  | 'fiscal_profile:update'
   | 'billing:read'
   | 'billing:checkout'
   | 'billing:update_plan'
@@ -108,6 +110,11 @@ export const ROLE_PERMISSIONS: Record<string, AppPermission[]> = {
 
     'invoice:read',
 
+    // Los datos fiscales solo los edita el Owner: un RFC equivocado no rompe la aplicación,
+    // rompe la factura ante el SAT, y corregirlo después de timbrar exige cancelar.
+    'fiscal_profile:read',
+    'fiscal_profile:update',
+
     'billing:read',
     'billing:checkout',
     'billing:update_plan',
@@ -169,6 +176,8 @@ export const ROLE_PERMISSIONS: Record<string, AppPermission[]> = {
     'conversations:delete',
 
     'invoice:read',
+
+    'fiscal_profile:read',
 
     'billing:read',
     'billing:update_overages',

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useRouter } from '@/i18n/routing';
+import { Link, useRouter } from '@/i18n/routing';
 import { useQueryClient } from '@tanstack/react-query';
 import { useBillingDashboard, useBillingMutations } from '@/hooks/billing/use-billing';
 import { usePlans } from '@/hooks/billing/use-billing';
@@ -27,6 +27,7 @@ import {
   RefreshCw,
   ArrowDownRight,
   AlertCircle,
+  FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Loading from '@/app/[locale]/(dashboard)/loading';
@@ -285,6 +286,35 @@ export default function PlansPage() {
           <h1 className="text-4xl font-bold tracking-tight text-text-primary">{t('heading')}</h1>
           <p className="max-w-xl font-medium text-text-secondary">{t('description')}</p>
         </div>
+
+        {/*
+          Aviso de datos fiscales faltantes.
+          No bloquea el checkout a propósito: los datos son opcionales y meter un formulario
+          fiscal entre el cliente y el pago cuesta ventas. Pero sin ellos no se puede timbrar
+          el CFDI, y es mejor que se entere antes de pagar que después.
+          Se muestra también con `country` nulo: quien aún no ha contratado puede ser mexicano.
+        */}
+        {dashboardData &&
+          !dashboardData.fiscalProfileComplete &&
+          (dashboardData.country === 'MX' || dashboardData.country === null) && (
+            <div className="flex flex-col gap-4 rounded-2xl border border-warning-500/30 bg-warning-500/10 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning-500/20">
+                  <FileText size={20} className="text-warning-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-text-primary">{t('fiscalMissingTitle')}</p>
+                  <p className="text-xs text-text-secondary">{t('fiscalMissingDesc')}</p>
+                </div>
+              </div>
+              <Link
+                href="/billing/invoices"
+                className="shrink-0 rounded-xl border border-border bg-surface px-4 py-2 text-center text-sm font-medium text-text-primary hover:bg-surface-secondary"
+              >
+                {t('fiscalMissingAction')}
+              </Link>
+            </div>
+          )}
 
         {/* Past Due / Failed Payment Banner */}
         {subscription.status?.toUpperCase() === 'PAST_DUE' && (

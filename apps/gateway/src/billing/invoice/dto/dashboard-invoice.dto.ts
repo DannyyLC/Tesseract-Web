@@ -1,4 +1,4 @@
-import { InvoiceStatus, InvoiceType } from '@tesseract/database';
+import { CfdiErrorKind, CfdiStatus, InvoiceStatus, InvoiceType } from '@tesseract/database';
 
 export interface DashboardInvoiceDto {
   id: string;
@@ -15,4 +15,10 @@ export interface DashboardInvoiceDto {
   stripePdfUrl: string | null;
   paidAt: Date | null;
   dueAt: Date | null;
+
+  // CFDI. En organizaciones no mexicanas `cfdiStatus` es siempre NOT_APPLICABLE.
+  cfdiStatus: CfdiStatus;
+  cfdiUuid: string | null;
+  cfdiStampedAt: Date | null;
+  cfdiErrorKind: CfdiErrorKind | null;
 }

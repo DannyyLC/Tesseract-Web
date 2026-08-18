@@ -7,6 +7,7 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { UtilityService } from '@/platform/utility/utility.service';
 import { PriceCatalogService } from './price-catalog.service';
+import { CfdiService } from '../invoice/cfdi.service';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 
 const mockStripeClient = {
@@ -66,6 +67,9 @@ const mockPrismaService = {
     findMany: jest.fn(),
     updateMany: jest.fn(),
   },
+  invoice: {
+    upsert: jest.fn(),
+  },
   $transaction: jest.fn((promises) => Promise.all(promises || [])),
 };
 
@@ -100,6 +104,10 @@ const mockUtilityService = {
   sendNotificationToAppClients: jest.fn(),
 };
 
+const mockCfdiService = {
+  stampInvoice: jest.fn(async () => ({ status: 'stamped' as const })),
+};
+
 describe('BillingService', () => {
   let service: BillingService;
 
@@ -113,6 +121,7 @@ describe('BillingService', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: UtilityService, useValue: mockUtilityService },
         { provide: PriceCatalogService, useValue: mockPriceCatalog },
+        { provide: CfdiService, useValue: mockCfdiService },
       ],
     }).compile();
 
@@ -609,6 +618,11 @@ describe('BillingService', () => {
         metadata: { organizationId: 'org-1' },
         items: { data: [{ current_period_start: 1700000000, current_period_end: 1702592000 }] },
       });
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        country: 'MX',
+        fiscalProfile: { validatedAt: new Date() },
+      });
+      mockPrismaService.invoice.upsert.mockResolvedValue({ id: 'inv-db-1' });
     });
 
     it('acredita los créditos del plan al pagarse la renovación', async () => {
@@ -691,6 +705,89 @@ describe('BillingService', () => {
           quantity: 100,
         }),
       );
+    });
+
+    describe('registro de la factura y timbrado del CFDI', () => {
+      it('persiste la factura y dispara el timbrado en organizaciones mexicanas', async () => {
+        await service.handleWebhookEvent({
+          type: 'invoice.payment_succeeded',
+          data: { object: proInvoice() },
+        } as any);
+
+        expect(mockPrismaService.invoice.upsert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { stripeInvoiceId: 'inv_pro_1' },
+            create: expect.objectContaining({ cfdiStatus: 'PENDING', status: 'PAID' }),
+          }),
+        );
+        expect(mockCfdiService.stampInvoice).toHaveBeenCalledWith('inv-db-1');
+      });
+
+      it('no timbra a organizaciones no mexicanas', async () => {
+        mockPrismaService.organization.findUnique.mockResolvedValue({
+          country: 'US',
+          fiscalProfile: null,
+        });
+
+        await service.handleWebhookEvent({
+          type: 'invoice.payment_succeeded',
+          data: { object: proInvoice() },
+        } as any);
+
+        expect(mockPrismaService.invoice.upsert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            create: expect.objectContaining({ cfdiStatus: 'NOT_APPLICABLE' }),
+          }),
+        );
+        expect(mockCfdiService.stampInvoice).not.toHaveBeenCalled();
+      });
+
+      it('deja la factura pendiente si la organización no ha llenado sus datos fiscales', async () => {
+        // No es un fallo: los datos son opcionales. La factura espera a que el cliente los
+        // llene y pulse el botón del panel.
+        mockPrismaService.organization.findUnique.mockResolvedValue({
+          country: 'MX',
+          fiscalProfile: null,
+        });
+
+        await service.handleWebhookEvent({
+          type: 'invoice.payment_succeeded',
+          data: { object: proInvoice() },
+        } as any);
+
+        expect(mockPrismaService.invoice.upsert).toHaveBeenCalled();
+        expect(mockCfdiService.stampInvoice).not.toHaveBeenCalled();
+      });
+
+      it('un fallo del PAC no propaga la excepción ni duplica los créditos', async () => {
+        // Es la garantía central de todo el diseño. El controlador del webhook libera el claim
+        // de deduplicación y responde 503 ante cualquier excepción, así que Stripe reintenta y
+        // `addCredits` volvería a correr. Una factura sin timbrar se recupera de noche; unos
+        // créditos duplicados hay que quitarlos a mano.
+        mockCfdiService.stampInvoice.mockRejectedValueOnce(new Error('PAC caído'));
+
+        await expect(
+          service.handleWebhookEvent({
+            type: 'invoice.payment_succeeded',
+            data: { object: proInvoice() },
+          } as any),
+        ).resolves.not.toThrow();
+
+        expect(mockCreditsService.addCredits).toHaveBeenCalledTimes(1);
+      });
+
+      it('un fallo al escribir la factura tampoco propaga', async () => {
+        mockPrismaService.invoice.upsert.mockRejectedValueOnce(new Error('DB caída'));
+
+        await expect(
+          service.handleWebhookEvent({
+            type: 'invoice.payment_succeeded',
+            data: { object: proInvoice() },
+          } as any),
+        ).resolves.not.toThrow();
+
+        expect(mockCreditsService.addCredits).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('resuelve el organizationId desde la suscripción de Stripe si falta en la factura', async () => {

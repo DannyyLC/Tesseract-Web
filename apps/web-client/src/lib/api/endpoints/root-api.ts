@@ -6,6 +6,7 @@ import EndUsersApi from './identity/end-users/end-users-api';
 import UsersApi from './identity/users/users-api';
 import ExecutionsApi from './automation/executions/executions-api';
 import BillingApi from './billing/billing-api';
+import InvoiceApi from './billing/invoice-api';
 import OrganizationsApi from './identity/organizations/organizations-api';
 import NotificationsApi from './messaging/notifications/notifications-api';
 import SupportApi from './platform/support/support-api';
@@ -35,6 +36,7 @@ class RootApi {
   private usersApi: UsersApi;
   private executionsApi: ExecutionsApi;
   private billingApi: BillingApi;
+  private invoiceApi: InvoiceApi;
   private organizationsApi: OrganizationsApi;
   private notificationsApi: NotificationsApi;
   private supportApi: SupportApi;
@@ -63,6 +65,7 @@ class RootApi {
     this.usersApi = new UsersApi();
     this.executionsApi = new ExecutionsApi();
     this.billingApi = new BillingApi();
+    this.invoiceApi = new InvoiceApi();
     this.organizationsApi = new OrganizationsApi();
     this.notificationsApi = new NotificationsApi();
     this.supportApi = new SupportApi();
@@ -120,6 +123,10 @@ class RootApi {
 
   public getBillingApi(): BillingApi {
     return this.billingApi;
+  }
+
+  public getInvoiceApi(): InvoiceApi {
+    return this.invoiceApi;
   }
 
   public getOrganizationsApi(): OrganizationsApi {

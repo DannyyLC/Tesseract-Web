@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../database/prisma.service';
 import { ConversationStatus, ChatRole } from '@tesseract/database';
 import { ToolsService } from '@/automation/tools/core/tools.service';
+import { CfdiRetryService } from '@/billing/invoice/cfdi-retry.service';
 
 @Injectable()
 export class CronJobsService {
@@ -11,6 +12,7 @@ export class CronJobsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly toolsService: ToolsService,
+    private readonly cfdiRetryService: CfdiRetryService,
   ) {}
 
   // Runs every hour
@@ -124,6 +126,27 @@ export class CronJobsService {
       this.logger.log(`Daily Tool Credential Probe: checked ${probed} connected tool(s)`);
     } catch (error) {
       this.logger.error(`Daily Tool Credential Probe failed: ${(error as Error).message}`);
+    }
+  }
+
+  // Runs every day at 04:00
+  @Cron('0 4 * * *')
+  async handleCfdiRetrySweep() {
+    // Red de seguridad del timbrado. Si el CFDI falla en el momento del cobro y nadie pulsa
+    // el botón del panel, esa factura no sale nunca — y una factura de enero sin timbrar en
+    // enero se convierte en un problema del contador, porque corregirla después del cierre
+    // exige cancelar ante el SAT.
+    //
+    // `retryPending` decide a quién toca y agrupa el aviso; aquí solo se dispara y se registra.
+    try {
+      const result = await this.cfdiRetryService.retryPending();
+      if (result.attempted > 0) {
+        this.logger.log(
+          `Daily CFDI Retry: ${result.attempted} intentadas, ${result.stamped} timbradas, ${result.failed} fallidas`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(`Daily CFDI Retry failed: ${(error as Error).message}`);
     }
   }
 }

@@ -45,6 +45,15 @@ const REQUIRED_IN_PRODUCTION: string[] = [
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
 
+  // Facturación fiscal (CFDI). El PAC que timbra ante el SAT y el bucket donde se guardan
+  // los XML, que hay que conservar cinco años. La llave decide el entorno: `sk_test_` opera
+  // contra el sandbox, `sk_live_` emite CFDI reales y consume timbres de pago.
+  'FACTURAPI_API_KEY',
+  'CFDI_STORAGE_BUCKET',
+  // A dónde llega el aviso cuando el barrido nocturno no consigue timbrar. Un correo por
+  // ejecución, no por factura.
+  'BILLING_ALERTS_EMAIL',
+
   // Email / SMTP
   'SMTP_HOST',
   'SMTP_USER',

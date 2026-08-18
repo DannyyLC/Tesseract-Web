@@ -59,6 +59,27 @@ enum InvoiceStatus {
   REFUNDED // Reembolsada
 }
 
+/// Estado del CFDI (factura fiscal del SAT) de una factura.
+///
+/// Solo aplica a organizaciones mexicanas; el resto se queda en NOT_APPLICABLE para siempre.
+/// STAMPING es un estado de reclamo: lo escribe quien va a llamar al PAC, y existe para que
+/// dos procesos concurrentes no timbren la misma factura dos veces. Un CFDI duplicado obliga
+/// a cancelar ante el SAT, que es justo lo que se quiere evitar.
+enum CfdiStatus {
+  NOT_APPLICABLE // Organización no mexicana: no se emite CFDI
+  PENDING // Pendiente de timbrar
+  STAMPING // Reclamada por un proceso que está llamando al PAC ahora mismo
+  STAMPED // Timbrada: tiene folio fiscal
+  FAILED // El timbrado falló; ver cfdiError / cfdiErrorKind
+}
+
+/// De quién es la culpa de que el timbrado fallara. Decide dos cosas: si el cron reintenta,
+/// y qué mensaje ve el cliente en el panel.
+enum CfdiErrorKind {
+  CLIENT_DATA // RFC/razón social/CP no cuadran con el padrón del SAT: lo corrige el cliente
+  INTERNAL // CSD vencido, timbres agotados, PAC caído: lo resolvemos nosotros
+}
+
 enum SubscriptionStatus {
   ACTIVE // Suscripción activa
   CANCELED // Cancelada, no renovará
@@ -240,6 +261,7 @@ model Organization {
   // Credit System Relations
   creditBalance      CreditBalance?
   subscription       Subscription?
+  fiscalProfile      FiscalProfile?
   creditTransactions CreditTransaction[]
   invoices           Invoice[]
   conversations      Conversation[]
@@ -415,6 +437,23 @@ model Invoice {
   stripeHostedUrl       String? // URL para que el cliente pague
   stripePdfUrl          String? // URL del PDF generado por Stripe
 
+  // CFDI (factura fiscal del SAT). Solo se llenan para organizaciones con country = 'MX'.
+  //
+  // `cfdiUuid` es el folio fiscal que devuelve el PAC, y su unicidad es el candado duro de
+  // "se timbra una sola vez": aunque fallara el reclamo por estado, la base rechazaría el
+  // segundo timbrado de la misma factura.
+  cfdiStatus        CfdiStatus     @default(NOT_APPLICABLE)
+  cfdiUuid          String?        @unique // Folio fiscal (UUID del timbre)
+  cfdiStampedAt     DateTime?
+  cfdiFolioNumber   Int? // Folio propio que se le manda al PAC; permite buscar un intento a medias
+  facturapiId       String?        @unique // ID de la factura en Facturapi
+  cfdiXmlPath       String? // Objeto en el bucket de GCS
+  cfdiPdfPath       String?
+  cfdiError         String? // Último mensaje de error del PAC
+  cfdiErrorKind     CfdiErrorKind?
+  cfdiAttempts      Int            @default(0)
+  cfdiLastAttemptAt DateTime?
+
   // Fechas
   paidAt DateTime? // Cuándo se pagó
   dueAt  DateTime? // Fecha límite de pago
@@ -430,7 +469,49 @@ model Invoice {
   @@index([type, status])
   @@index([status, dueAt])
   @@index([subscriptionId])
+  // Barrido del cron de reintentos: filtra por estado y descarta las recién pagadas.
+  @@index([cfdiStatus, paidAt])
   @@map("invoices")
+}
+
+// ============================================
+// FISCAL PROFILE (Datos fiscales para el CFDI)
+// ============================================
+
+/// Datos fiscales con los que se le emite el CFDI a una organización mexicana.
+///
+/// Es opcional a propósito: no se bloquea el checkout por no tenerlo. Una organización sin
+/// perfil se cobra igual y su factura queda pendiente hasta que llene los datos y la genere
+/// desde el panel.
+///
+/// El SAT valida RFC + razón social + código postal contra su padrón al timbrar, así que los
+/// tres tienen que venir *exactamente* como aparecen en la Constancia de Situación Fiscal.
+/// Por eso se validan contra el PAC al guardarlos y no al cobrar: es mejor que el cliente se
+/// entere del error cuando llena el formulario que cuando ya pagó.
+model FiscalProfile {
+  id             String       @id @default(uuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  rfc       String // 12 caracteres (persona moral) o 13 (persona física), en mayúsculas
+  legalName String // Razón social EXACTA de la Constancia de Situación Fiscal
+  zipCode   String // CP del domicilio fiscal (DomicilioFiscalReceptor)
+  taxRegime String // Clave del catálogo c_RegimenFiscal del SAT: 601, 612, 626…
+  cfdiUse   String @default("G03") // Clave del catálogo c_UsoCFDI
+  email     String // Correo fiscal del receptor
+
+  // Facturapi guarda su propia copia del receptor; se referencia para no reenviar los datos
+  // en cada timbrado.
+  facturapiCustomerId String? @unique
+
+  /// Última vez que el PAC aceptó estos datos contra el padrón del SAT. En NULL significa
+  /// "sin validar": no se intenta timbrar, porque el SAT lo rechazaría.
+  validatedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("fiscal_profiles")
 }
 
 // ============================================

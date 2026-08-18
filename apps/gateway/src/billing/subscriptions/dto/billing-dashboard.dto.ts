@@ -10,6 +10,17 @@ export class BillingDashboardDto {
   overageLimit: number;
   hasBillingAccount: boolean;
 
+  /** País de facturación (ISO 3166-1 alpha-2). NULL mientras no haya pasado por el checkout. */
+  country: string | null;
+
+  /**
+   * Si la organización tiene datos fiscales aceptados por el SAT.
+   *
+   * Solo significa algo cuando `country` es 'MX'. El front lo usa para avisar antes de
+   * contratar que sin esos datos no podrá emitirse la factura.
+   */
+  fiscalProfileComplete: boolean;
+
   credits: {
     available: number;
     usedThisMonth: number;

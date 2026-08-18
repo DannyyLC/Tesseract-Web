@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CronJobsService } from './cron-jobs.service';
 import { PrismaService } from '../database/prisma.service';
 import { ToolsService } from '@/automation/tools/core/tools.service';
+import { CfdiRetryService } from '@/billing/invoice/cfdi-retry.service';
 
 describe('CronJobsService', () => {
   let service: CronJobsService;
@@ -28,12 +29,17 @@ describe('CronJobsService', () => {
     probeAllCredentials: jest.fn(),
   };
 
+  const mockCfdiRetryService = {
+    retryPending: jest.fn(async () => ({ attempted: 0, stamped: 0, failed: 0 })),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CronJobsService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: ToolsService, useValue: mockToolsService },
+        { provide: CfdiRetryService, useValue: mockCfdiRetryService },
       ],
     }).compile();
 

@@ -460,4 +460,38 @@ export enum ErrorCode {
    * HTTP Status: 500 Internal Server Error
    */
   CLIENT_UPDATE_ERROR = 'CLIENT_10004',
+
+  // ============================================
+  // 11000-11999: FACTURACIÓN FISCAL (CFDI / SAT)
+  // ============================================
+
+  /**
+   * Se intentó operar con datos fiscales en una organización no mexicana
+   * HTTP Status: 409 Conflict
+   */
+  FISCAL_NOT_APPLICABLE = 'FISCAL_11001',
+
+  /**
+   * El SAT no reconoce la combinación de RFC, razón social y código postal
+   * HTTP Status: 422 Unprocessable Entity
+   */
+  FISCAL_DATA_REJECTED = 'FISCAL_11002',
+
+  /**
+   * La organización no tiene datos fiscales validados
+   * HTTP Status: 409 Conflict
+   */
+  FISCAL_PROFILE_MISSING = 'FISCAL_11003',
+
+  /**
+   * La factura no está en un estado desde el que se pueda timbrar
+   * HTTP Status: 409 Conflict
+   */
+  CFDI_NOT_STAMPABLE = 'FISCAL_11004',
+
+  /**
+   * El CFDI solicitado no existe o todavía no se ha timbrado
+   * HTTP Status: 404 Not Found
+   */
+  CFDI_NOT_FOUND = 'FISCAL_11005',
 }

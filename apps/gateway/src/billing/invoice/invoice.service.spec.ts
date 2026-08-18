@@ -18,9 +18,12 @@ describe('InvoiceService', () => {
 
   const mockLogger = { error: jest.fn() } as any;
 
+  const mockStorage = { download: jest.fn() } as any;
+  const mockConfigService = { get: jest.fn(() => 'test-bucket') } as any;
+
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new InvoiceService(mockPrismaService, mockLogger);
+    service = new InvoiceService(mockPrismaService, mockStorage, mockConfigService, mockLogger);
   });
 
   it('should be defined', () => {
