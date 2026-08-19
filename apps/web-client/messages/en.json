@@ -463,7 +463,7 @@
     "confirmButton": "Confirm",
     "logoutError": "Error signing out",
     "logoutErrorDesc": "Could not sign out. Please try again.",
-    "navDatasets": "Data",
+    "navDatasets": "Catalogs",
     "navContacts": "Contacts"
   },
   "LegalToc": {
@@ -1471,7 +1471,7 @@
     "confirmDisconnectButton": "Yes, Disconnect"
   },
   "Datasets": {
-    "heading": "Data",
+    "heading": "Catalogs",
     "description": "Your catalogs: what your agent needs to know in order to answer. Define the columns, add the rows and connect them to a workflow.",
     "newDataset": "New catalog",
     "loading": "Loading…",
