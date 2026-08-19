@@ -43,6 +43,8 @@ from typing import Any, List
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 import logging
+import re
+import unicodedata
 
 from core.context import TenantContext
 
@@ -50,6 +52,84 @@ from core.context import TenantContext
 # Logger
 # ==========================================
 logger = logging.getLogger(__name__)
+
+
+# ==========================================
+# Nombres de tool válidos para el proveedor
+# ==========================================
+# OpenAI valida `tools[N].function.name` contra ^[a-zA-Z0-9_-]+$ con tope de 64 caracteres, y
+# responde 400 cuando no casa. Ese nombre no lo elegimos del todo nosotros: lleva pegado el
+# display_name de la instancia, que teclea el cliente en el UI —o que arma el Gateway, como el
+# `Datos: <catálogo>` de los datasets, cuyos dos puntos rompen el patrón siempre—. Sanear aquí, en
+# la última capa antes de bind_tools, es lo único que no depende de que cada productor de nombres
+# se porte bien.
+TOOL_NAME_MAX_LENGTH = 64
+_INVALID_TOOL_NAME_CHARS = re.compile(r"[^a-zA-Z0-9_-]+")
+_UNDERSCORE_RUN = re.compile(r"_{2,}")
+
+
+def _sanitize_tool_name(name: str) -> str:
+    """Deja solo [a-zA-Z0-9_-]. Los acentos caen a su letra base, no a un guion bajo."""
+    ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+    return _UNDERSCORE_RUN.sub("_", _INVALID_TOOL_NAME_CHARS.sub("_", ascii_name)).strip("_")
+
+
+def _normalize_tool_names(tools: List[BaseTool], workflow_id: str) -> List[BaseTool]:
+    """
+    Deja los nombres válidos para el proveedor y únicos dentro de la lista.
+
+    Corre sobre la lista completa —instancias de tenant y signal tools— porque se construyen por
+    caminos distintos y una signal puede chocar con una instancia.
+
+    El desempate no es cosmético: un nombre repetido no da error en ninguna capa. Tanto el
+    `tools_by_name` del nodo agent como el ToolNode de LangGraph indexan por nombre en un dict, y
+    gana el último. El modelo elegiría la tool correcta y la ejecución caería en la otra, sin
+    error y sin log: el agente contesta con datos de la instancia equivocada.
+
+    `metadata["base_name"]` se conserva crudo: es lo que referencian disable_tools_if,
+    set_variables_on_tool_call e intercept_tools_in_parallel desde la config.
+    """
+    seen: set[str] = set()
+
+    for tool in tools:
+        metadata = getattr(tool, "metadata", None)
+        raw_base = metadata.get("base_name") if isinstance(metadata, dict) else None
+        base_name = _sanitize_tool_name(raw_base or tool.name) or "tool"
+
+        original = tool.name
+        # Vacío = el display_name era todo caracteres inválidos ("✅"). Cae al nombre base; si eso
+        # lo vuelve ambiguo es porque hay otra instancia, y de eso se encarga el desempate.
+        candidate = _sanitize_tool_name(original) or base_name
+
+        if len(candidate) > TOOL_NAME_MAX_LENGTH:
+            # El nombre base es prefijo del completo, así que recortar por la derecha lo respeta.
+            # El fallback cubre el caso degenerado de un base que ya excede el tope por sí solo.
+            candidate = (
+                candidate[:TOOL_NAME_MAX_LENGTH].rstrip("_") or base_name[:TOOL_NAME_MAX_LENGTH]
+            )
+
+        unique = candidate
+        attempt = 2
+
+        while unique in seen:
+            numbered = f"_{attempt}"
+            unique = candidate[: TOOL_NAME_MAX_LENGTH - len(numbered)].rstrip("_") + numbered
+            attempt += 1
+
+        if unique != candidate:
+            logger.warning(
+                f"[{workflow_id}] Tool name collision: '{original}' -> '{unique}'. "
+                f"Renombra una de las instancias: el modelo no puede distinguirlas por nombre."
+            )
+        elif unique != original:
+            logger.debug(
+                f"[{workflow_id}] Tool name normalized: '{original}' -> '{unique}'"
+            )
+
+        tool.name = unique
+        seen.add(unique)
+
+    return tools
 
 
 # ==========================================
@@ -224,7 +304,10 @@ def load_tools(ctx: TenantContext, agent_name: str = "default") -> List[BaseTool
     2. Inicializa la tool (spawn MCP server o crear wrapper)
     3. Filtra funciones si es necesario
     4. Agrega sufijo de display_name para diferenciar múltiples instancias
-    
+
+    Al final, sobre la lista completa (instancias + signal_tools),
+    `_normalize_tool_names()` deja los nombres válidos para el proveedor y únicos.
+
     Args:
         ctx: TenantContext con agent_tool_instances
         agent_name: Nombre del agente ("default", "sales", "marketing", etc)
@@ -307,6 +390,8 @@ def load_tools(ctx: TenantContext, agent_name: str = "default") -> List[BaseTool
             # ==========================================
             # 4. Agregar sufijo de display_name para diferenciar
             # ==========================================
+            # El sufijo se pega crudo: _normalize_tool_names() lo sanea y lo topa al final,
+            # cuando ya está la lista completa y se puede desempatar.
             display_suffix = display_name.replace(' ', '_').replace('-', '_')
             for tool in loaded_tools:
                 original_name = tool.name
@@ -353,6 +438,11 @@ def load_tools(ctx: TenantContext, agent_name: str = "default") -> List[BaseTool
             f"[{ctx.workflow_id}] Loaded {len(signal_tools)} signal tool(s) "
             f"for agent '{agent_name}'"
         )
+
+    # ==========================================
+    # Nombres válidos y únicos (última capa antes de bind_tools)
+    # ==========================================
+    _normalize_tool_names(tools, ctx.workflow_id)
 
     logger.info(
         f"[{ctx.workflow_id}] Successfully loaded {len(tools)} tools "

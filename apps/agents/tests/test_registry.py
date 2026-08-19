@@ -9,6 +9,7 @@ Cubre:
 """
 
 import pytest
+import re
 import sys
 from pathlib import Path
 from unittest.mock import patch, Mock, MagicMock
@@ -322,6 +323,134 @@ class TestLoadTools:
         names = [t.name for t in result]
         assert any("Calc_A" in n for n in names)
         assert any("Calc_B" in n for n in names)
+
+
+# ──────────────────────────────────────────────
+# _normalize_tool_names (ejercitado vía load_tools)
+# ──────────────────────────────────────────────
+
+# Lo que OpenAI valida en tools[N].function.name; 400 si no casa.
+OPENAI_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
+OPENAI_NAME_MAX_LENGTH = 64
+
+
+def make_instances(*pairs) -> dict:
+    """agent_tool_instances para load_tools, desde pares (tool_name, display_name)."""
+    return {
+        "default": {
+            f"uuid-{i}": {
+                "tool_name": tool_name,
+                "display_name": display_name,
+                "credentials": {},
+                "config": {},
+                "enabled_functions": None,
+            }
+            for i, (tool_name, display_name) in enumerate(pairs)
+        }
+    }
+
+
+class TestToolNameNormalization:
+
+    @patch("tools.dataset.load_dataset_tools")
+    def test_strips_invalid_chars_and_accents(self, mock_loader):
+        # El Gateway nombra las instancias de dataset `Datos: <catálogo>`: los dos puntos
+        # rompen el patrón siempre, y el acento lo agrava.
+        mock_loader.return_value = [make_tool("search_dataset")]
+
+        ctx = make_ctx(agent_tool_instances=make_instances(
+            ("dataset", "Datos: Vehículos blindados"),
+        ))
+
+        name = load_tools(ctx, "default")[0].name
+
+        assert OPENAI_NAME_PATTERN.match(name)
+        # El acento cae a su letra base, no a un guion bajo.
+        assert "Vehiculos_blindados" in name
+
+    @patch("tools.dataset.load_dataset_tools")
+    def test_caps_name_at_provider_limit(self, mock_loader):
+        mock_loader.return_value = [make_tool("list_dataset_values")]
+
+        ctx = make_ctx(agent_tool_instances=make_instances(
+            ("dataset", "Datos: Catálogo de vehículos blindados y equipo especializado"),
+        ))
+
+        name = load_tools(ctx, "default")[0].name
+
+        assert len(name) <= OPENAI_NAME_MAX_LENGTH
+        assert OPENAI_NAME_PATTERN.match(name)
+        # El recorte sale del sufijo: el nombre base queda entero.
+        assert name.startswith("list_dataset_values_")
+
+    @patch("tools.calculator.load_calculator_tools")
+    def test_dedupes_display_names_that_collapse(self, mock_loader):
+        # "Ventas MX" y "Ventas-MX" son distintos para el índice único de tenant_tools,
+        # pero colapsan al mismo nombre al normalizar.
+        mock_loader.return_value = [make_tool("calculator")]
+
+        ctx = make_ctx(agent_tool_instances=make_instances(
+            ("calculator", "Ventas MX"),
+            ("calculator", "Ventas-MX"),
+        ))
+
+        result = load_tools(ctx, "default")
+        names = [t.name for t in result]
+
+        assert len(result) == 2
+        assert len(set(names)) == 2, "una tool taparía a la otra en tools_by_name"
+        assert all(OPENAI_NAME_PATTERN.match(n) for n in names)
+        assert all(t.metadata["base_name"] == "calculator" for t in result)
+
+    @patch("tools.calculator.load_calculator_tools")
+    def test_signal_tool_colliding_with_instance_survives(self, mock_loader):
+        mock_loader.return_value = [make_tool("calculator")]
+
+        ctx = make_ctx(
+            agents_config={
+                "default": {
+                    "model": "gpt-4o",
+                    "signal_tools": [{
+                        "name": "calculator_Ventas",
+                        "description": "Señal que choca con el nombre de la instancia",
+                    }],
+                }
+            },
+            agent_tool_instances=make_instances(("calculator", "Ventas")),
+        )
+
+        result = load_tools(ctx, "default")
+        names = [t.name for t in result]
+
+        assert len(result) == 2
+        assert len(set(names)) == 2
+        # La signal conserva su base_name crudo: es lo que referencia la config.
+        signal = next(t for t in result if t.metadata.get("signal"))
+        assert signal.metadata["base_name"] == "calculator_Ventas"
+
+    @patch("tools.calculator.load_calculator_tools")
+    def test_display_name_without_valid_chars_falls_back_to_base(self, mock_loader):
+        mock_loader.return_value = [make_tool("calculator")]
+
+        ctx = make_ctx(agent_tool_instances=make_instances(("calculator", "✅")))
+
+        assert load_tools(ctx, "default")[0].name == "calculator"
+
+    @patch("tools.dataset.load_dataset_tools")
+    def test_config_still_resolves_tool_by_base_name(self, mock_loader):
+        # disable_tools_if / set_variables_on_tool_call referencian el nombre sin sufijo.
+        from graphs.pipeline.nodes.agent import tool_name_matches
+
+        mock_loader.return_value = [make_tool("search_dataset")]
+
+        ctx = make_ctx(agent_tool_instances=make_instances(
+            ("dataset", "Datos: Vehículos blindados"),
+        ))
+
+        tool = load_tools(ctx, "default")[0]
+
+        assert tool.name != "search_dataset"
+        assert tool_name_matches("search_dataset", tool)
 
 
 # ──────────────────────────────────────────────
