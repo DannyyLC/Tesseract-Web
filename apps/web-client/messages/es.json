@@ -428,12 +428,11 @@
     "unlimited": "Ilimitado"
   },
   "DashboardNav": {
-    "sectionPlatform": "PLATAFORMA",
-    "sectionAdmin": "ADMINISTRACIÓN",
     "navDashboard": "Dashboard",
     "navWorkflows": "Workflows",
     "navIntegrations": "Integraciones",
     "navConversations": "Conversaciones",
+    "navOrganization": "Organización",
     "navMembers": "Miembros",
     "navApiKeys": "API Keys",
     "navBilling": "Facturación",
