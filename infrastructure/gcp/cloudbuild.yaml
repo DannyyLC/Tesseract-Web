@@ -75,6 +75,16 @@ steps:
       # --no-cpu-throttling, se queda hasta que se revierta a mano. Con Cloud Tasks no
       # queda trabajo después del ACK, así que facturamos por request.
       - --cpu-throttling
+      # Config no sensible, versionada en el repo. Ambas banderas REEMPLAZAN su conjunto
+      # completo: lo que no esté declarado aquí se borra del servicio. Por eso la lista de
+      # secretos va entera aunque algunos ya no se usen — se retiran en un commit aparte,
+      # después de confirmar que el deploy declarativo quedó bien.
+      - --env-vars-file=infrastructure/gcp/gateway.env.yaml
+      # Los valores viven en Secret Manager; aquí solo va el nombre del secreto. Crear el
+      # secreto y dar `roles/secretmanager.secretAccessor` a la SA del servicio sigue
+      # siendo manual: meter el valor al repo es justo lo que esto evita.
+      - >-
+        --set-secrets=AGENTS_INTERNAL_SECRET=AGENTS_INTERNAL_SECRET:latest,COMPACTION_API_KEY=COMPACTION_API_KEY:latest,DATABASE_URL=DATABASE_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,JWT_SECRET=JWT_SECRET:latest,MEDIA_PROCESSING_API_KEY=MEDIA_PROCESSING_API_KEY:latest,REDIS_URL=REDIS_URL:latest,SMTP_PASS=SMTP_PASS:latest,SMTP_USER=SMTP_USER:latest,STRIPE_PRICE_BUSINESS=STRIPE_PRICE_BUSINESS:latest,STRIPE_PRICE_GROWTH=STRIPE_PRICE_GROWTH:latest,STRIPE_PRICE_OVERAGE=STRIPE_PRICE_OVERAGE:latest,STRIPE_PRICE_PRO=STRIPE_PRICE_PRO:latest,STRIPE_PRICE_STARTER=STRIPE_PRICE_STARTER:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,SUPER_ADMIN_EMAIL=SUPER_ADMIN_EMAIL:latest,SUPER_ADMIN_PASSWORD=SUPER_ADMIN_PASSWORD:latest,TEMP_TOKEN_SECRET=TEMP_TOKEN_SECRET:latest,TURNSTILE_SECRET_KEY=TURNSTILE_SECRET_KEY:latest,Y_CLOUD_API_KEY=Y_CLOUD_API_KEY:latest,Y_CLOUD_WEBHOOK_SECRET=Y_CLOUD_WEBHOOK_SECRET:latest
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy-agents'
@@ -87,6 +97,12 @@ steps:
       - --image=us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/agents:$COMMIT_SHA
       - --region=us-central1
       - --platform=managed
+      - --env-vars-file=infrastructure/gcp/agents.env.yaml
+      # AGENTS_INTERNAL_SECRET debe coincidir con el del gateway. Las llaves de LLM las lee
+      # litellm del entorno, sin referencia en el código: si esta línea se pierde, el
+      # servicio arranca sano y falla en la primera ejecución de un workflow.
+      - >-
+        --set-secrets=AGENTS_INTERNAL_SECRET=AGENTS_INTERNAL_SECRET:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest
 
 images:
   - us-central1-docker.pkg.dev/fractal-tesseract/tesseract-repo/gateway:$COMMIT_SHA

@@ -21,6 +21,7 @@
     "prisma:reset": "pnpm --filter @tesseract/database exec prisma migrate reset",
     "prisma:seed": "pnpm --filter @tesseract/database seed",
     "stripe:catalog": "dotenv -e .env -- ts-node -P scripts/tsconfig.json scripts/stripe/sync-catalog.ts",
+    "env:diff": "./scripts/diff-env.sh",
     "test:all": "pnpm -r --if-present run test",
     "test:gateway": "pnpm --filter @tesseract/gateway test",
     "test:gateway:unit": "pnpm --filter @tesseract/gateway test:unit",
