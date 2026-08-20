@@ -793,7 +793,12 @@ export class WorkflowsService {
           },
         },
         // Incluir tenantTools desde el inicio (evita query duplicado)
+        //
+        // El filtro por `deletedAt` es la red que atrapa cualquier tool borrada que se quedó
+        // colgada de la relación: viajaría al agente con la config a medias y el runtime la
+        // descartaría, dejando al agente sin la herramienta y sin explicación.
         tenantTools: {
+          where: { deletedAt: null },
           include: {
             credential: true,
             toolCatalog: {
@@ -1371,7 +1376,10 @@ export class WorkflowsService {
             timezone: true,
           },
         },
+        // Mismo filtro que en execute(): una tool borrada que siguió colgada de la relación
+        // llegaría al payload con la config a medias.
         tenantTools: {
+          where: { deletedAt: null },
           include: {
             credential: true,
             toolCatalog: {

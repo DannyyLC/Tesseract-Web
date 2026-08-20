@@ -495,24 +495,42 @@ export class DatasetsService {
 
     // La instancia de tool se va con el dataset: dejarla viva anunciaría al agente una búsqueda
     // que ya no responde. El soft delete conserva el histórico de ejecuciones que la usaron.
+    const tenantTools = await this.prismaService.tenantTool.findMany({
+      where: {
+        organizationId,
+        deletedAt: null,
+        toolCatalog: { toolName: DATASET_TOOL_NAME },
+        config: { path: ['dataset_id'], equals: datasetId },
+      },
+      select: { id: true },
+    });
+
+    const now = new Date();
+
     await this.prismaService.$transaction([
       this.prismaService.dataset.update({
         where: { id: datasetId },
-        data: { deletedAt: new Date(), workflows: { set: [] } },
+        data: { deletedAt: now, workflows: { set: [] } },
       }),
-      this.prismaService.tenantTool.updateMany({
-        where: {
-          organizationId,
-          deletedAt: null,
-          toolCatalog: { toolName: DATASET_TOOL_NAME },
-          config: { path: ['dataset_id'], equals: datasetId },
-        },
-        data: {
-          deletedAt: new Date(),
-          isConnected: false,
-          status: ToolConnectionStatus.DISCONNECTED,
-        },
-      }),
+      // Una por una y no un `updateMany`: desenlazar de los workflows es una escritura anidada
+      // sobre la relación, y `updateMany` no las admite.
+      //
+      // El `set: []` no es cosmético. Marcar `deletedAt` deja la fila de `WorkflowToTenantTool`
+      // en pie, y el payload del agente arma sus tools desde esa relación: el tool muerto seguía
+      // viajando con `config` a medias —sin `fields`, sin `api_base`, sin token—, así que el
+      // runtime lo descartaba y el agente se quedaba sin catálogo. Mismo orden que sigue
+      // `TenantToolService.deleteTool()`.
+      ...tenantTools.map((tool) =>
+        this.prismaService.tenantTool.update({
+          where: { id: tool.id },
+          data: {
+            deletedAt: now,
+            isConnected: false,
+            status: ToolConnectionStatus.DISCONNECTED,
+            workflows: { set: [] },
+          },
+        }),
+      ),
     ]);
 
     this.logger.info(`Dataset ${datasetId} borrado (lógico) en org ${organizationId}`);

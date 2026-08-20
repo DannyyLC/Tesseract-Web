@@ -43,6 +43,7 @@ describe('DatasetsService', () => {
     dataset: { findFirst: jest.fn(), update: jest.fn() },
     datasetRecord: { count: jest.fn(), createMany: jest.fn() },
     organization: { findUnique: jest.fn() },
+    tenantTool: { findMany: jest.fn(), update: jest.fn() },
     $transaction: jest.fn(),
   };
 
@@ -310,6 +311,37 @@ describe('DatasetsService', () => {
       expect(mockPrismaService.datasetRecord.createMany).toHaveBeenCalledWith({
         data: [{ datasetId: DATASET_ID, data: { precio_base: 100, porcentaje: 10, precio_final: 110 } }],
       });
+    });
+  });
+
+  /**
+   * El borrado lógico es el punto donde el dataset y su tool se separan, y donde es fácil marcar
+   * una y olvidar la otra: la relación con el workflow no la limpia `deletedAt`.
+   */
+  describe('remove', () => {
+    it('desenlaza del workflow la tool del dataset, no solo la marca borrada', async () => {
+      mockPrismaService.dataset.findFirst.mockResolvedValue(datasetWith([PRECIO_BASE]));
+      mockPrismaService.tenantTool.findMany.mockResolvedValue([{ id: 'tt-1' }]);
+
+      await service.remove(ORG_ID, DATASET_ID);
+
+      const [{ data }] = mockPrismaService.tenantTool.update.mock.calls[0];
+
+      expect(data.deletedAt).toBeInstanceOf(Date);
+      // Sin este `set: []` la fila de `WorkflowToTenantTool` sobrevive al borrado, el tool muerto
+      // sigue viajando en el payload del agente con la config a medias —sin `fields`, sin token—
+      // y el runtime lo descarta: el agente se queda sin catálogo y sin explicación.
+      expect(data.workflows).toEqual({ set: [] });
+    });
+
+    it('no rompe cuando el dataset nunca se enlazó a un workflow', async () => {
+      mockPrismaService.dataset.findFirst.mockResolvedValue(datasetWith([PRECIO_BASE]));
+      mockPrismaService.tenantTool.findMany.mockResolvedValue([]);
+
+      await service.remove(ORG_ID, DATASET_ID);
+
+      expect(mockPrismaService.tenantTool.update).not.toHaveBeenCalled();
+      expect(mockPrismaService.dataset.update).toHaveBeenCalled();
     });
   });
 
