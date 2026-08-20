@@ -353,6 +353,9 @@ export class WorkflowsService {
         timezone: true,
         organization: { select: { timezone: true } },
         tenantTools: {
+          // Una tool borrada puede seguir colgada de la relación; contarla aquí infla el radio
+          // de impacto con algo que el agente ya no recibe.
+          where: { deletedAt: null },
           select: {
             id: true,
             displayName: true,
