@@ -239,21 +239,15 @@ silencioso. Son unas líneas más en `phoneNumberVariants` el día que haya oper
 
 ---
 
-## 10. El webhook de WhatsApp usa un método de UI para leer un booleano
+## 10. Los descartes del webhook no tienen observabilidad
 
-**Severidad: baja — funciona, pero paga joins de más en la ruta caliente.**
+**Severidad: baja — no se está ciego, pero nadie se entera hasta que el cliente reclama.**
 
-`findOne` es un método pensado para la UI —trae `tenantTools` con joins anidados a `toolCatalog`—
-y el webhook lo usa para leer un solo booleano (`isActive`) en cada mensaje entrante. Conviene un
-`select` mínimo, o cachear el estado del workflow. Aplica igual al canal de Messenger, que resuelve
-el workflow con el mismo método.
-
-**Falta observabilidad de los descartes.** Son **cinco** las rutas por las que un mensaje del
-cliente termina en un 200 sin dejar rastro en la conversación: `unknown-config`,
-`inactive-config`, `no-workflow`, `missing-workflow` e `inactive-workflow` — más
-`blocked-contact`, que sí es deliberado. Hoy cada una deja un `warn`, así que no se está ciego,
-pero no hay contador ni alerta: nadie se entera de que una config quedó mal configurada hasta que
-el cliente reclama. Si se agrega, conviene cubrir las cinco de una vez.
+Son **cinco** las rutas por las que un mensaje del cliente termina en un 200 sin dejar rastro en la
+conversación: `unknown-config`, `inactive-config`, `no-workflow`, `missing-workflow` e
+`inactive-workflow` — más `blocked-contact`, que sí es deliberado. Cada una deja su `warn` en Cloud
+Logging, así que el dato está; lo que falta es un contador o una alerta que lo saque a flote sin
+que alguien vaya a buscarlo. Si se agrega, conviene cubrir las cinco de una vez.
 
 ---
 
