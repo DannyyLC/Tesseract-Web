@@ -195,8 +195,8 @@ Levantado al migrar a Cloud Tasks. Nada urgente.
 Levantado el 31 de julio de 2026 al poner los números reales del RGM en producción.
 
 De las 20 columnas de `whatsapp_configs`, el runtime solo lee cuatro: `phoneNumber` (el único
-lookup del webhook, `getWhatsappConfigByPhoneNumber` → `findFirst` por match exacto de string),
-`isActive`, `defaultWorkflowId` y `organizationId`. `connectionStatus` solo se escribe. El resto
+lookup del webhook, `getWhatsappConfigByPhoneNumber`), `isActive`, `defaultWorkflowId` y
+`organizationId`. `connectionStatus` solo se escribe. El resto
 está inerte.
 
 **Importante: nada de esto se debe borrar todavía.** Casi todos los campos muertos son
@@ -232,11 +232,10 @@ por `phoneNumber` y use `account.webhookSecret`, con fallback a la env var para 
 ya existe. Mientras tanto, dejar la columna documentada como no usada para que nadie asuma que
 está protegiendo algo.
 
-**Riesgo operativo a tener presente:** como `phoneNumber` es el único lookup y es match exacto de
-string, el formato con el que YCloud manda el número tiene que coincidir carácter por carácter
-con lo guardado (con `+`, sin espacios). Si no coincide, `account` sale `null` y el mensaje se
-descarta silenciosamente con `reason: 'inactive-config'` — un 200 y nada en la conversación.
-Vale la pena normalizar el número en el lookup en vez de confiar en que ambos lados coincidan.
+**Lo único que queda del riesgo del formato** (el lookup ya tolera las diferencias desde
+`891d400f`): la equivalencia solo está escrita para México —el `1` de móvil—, así que un número de
+un país con una regla análoga, como el `9` de Argentina, seguiría cayendo en el descarte
+silencioso. Son unas líneas más en `phoneNumberVariants` el día que haya operación ahí.
 
 ---
 
@@ -249,18 +248,12 @@ y el webhook lo usa para leer un solo booleano (`isActive`) en cada mensaje entr
 `select` mínimo, o cachear el estado del workflow. Aplica igual al canal de Messenger, que resuelve
 el workflow con el mismo método.
 
-**Relación con el punto 9.** Ya son **cinco** las rutas por las que un mensaje del cliente termina
-en un 200 sin dejar rastro en la conversación: `unknown-config`, `inactive-config`, `no-workflow`,
-`missing-workflow` e `inactive-workflow` — más `blocked-contact`, que sí es deliberado. El riesgo
-operativo señalado al final del punto 9 aplica igual aquí. Si se agrega observabilidad para los
-descartes, conviene cubrir todas de una vez.
-
-**Nota sobre el commit `b66eb168`** ("Inactive Workflow - Whatsapp Channel", 29 de julio de 2026),
-que introdujo esas guardas: su mensaje dice "Added a guard to prevent from sending read
-acknowledgments to the whatsapp server", pero no hay código de read receipts en `apps/gateway` (no
-existe `markAsRead`, `read_receipt` ni equivalente) y las guardas sí responden 200, que es
-precisamente un acuse a YCloud. Lo que hacen es cortar el ingreso al pipeline. Vale anotarlo porque
-quien busque el cambio por el mensaje no lo va a encontrar.
+**Falta observabilidad de los descartes.** Son **cinco** las rutas por las que un mensaje del
+cliente termina en un 200 sin dejar rastro en la conversación: `unknown-config`,
+`inactive-config`, `no-workflow`, `missing-workflow` e `inactive-workflow` — más
+`blocked-contact`, que sí es deliberado. Hoy cada una deja un `warn`, así que no se está ciego,
+pero no hay contador ni alerta: nadie se entera de que una config quedó mal configurada hasta que
+el cliente reclama. Si se agrega, conviene cubrir las cinco de una vez.
 
 ---
 
