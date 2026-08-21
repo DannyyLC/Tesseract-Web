@@ -14,6 +14,8 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
 import { JsonObject } from '@prisma/client/runtime/client';
 import { WhatsAppInboundEvent } from './dto';
+import { maskPhone } from '@/platform/common/utils/mask-phone';
+import { normalizePhone, phoneNumberVariants } from '@/platform/common/utils/normalize-phone';
 import { ConversationsService } from '@/messaging/conversations/conversations.service';
 import {
   PostTurnAction,
@@ -51,6 +53,18 @@ export class WhatsappConfigService {
     }
   }
 
+  /**
+   * Resuelve la config por el número del negocio, tolerando que el formato guardado no sea el
+   * mismo que manda YCloud.
+   *
+   * Primero la igualdad exacta: es el camino de siempre y entra por el índice único de la columna.
+   * Si no hay match se reintenta con las formas equivalentes del mismo número
+   * ({@link phoneNumberVariants}), porque un desajuste de formato aquí no devuelve un error: hace
+   * que el webhook responda 200 y el mensaje del cliente se pierda sin rastro.
+   *
+   * El `warn` del segundo camino no es decorativo: dice qué fila quedó con un formato distinto al
+   * que manda el proveedor, que es lo que hace falta para limpiarla a mano.
+   */
   async getWhatsappConfigByPhoneNumber(phoneNumber: string) {
     try {
       const account = await this.prismaService.whatsAppConfig.findFirst({
@@ -58,7 +72,24 @@ export class WhatsappConfigService {
           phoneNumber: phoneNumber,
         },
       });
-      return account;
+      if (account) return account;
+
+      const variants = phoneNumberVariants(phoneNumber);
+      if (variants.length === 0) return null;
+
+      const byVariant = await this.prismaService.whatsAppConfig.findFirst({
+        where: { phoneNumber: { in: variants } },
+      });
+
+      if (byVariant) {
+        this.logger.warn('WhatsApp config resuelta por variante del número, no por match exacto', {
+          recibido: maskPhone(phoneNumber),
+          guardado: maskPhone(byVariant.phoneNumber),
+          configId: byVariant.id,
+        });
+      }
+
+      return byVariant;
     } catch (error) {
       this.logger.error('Error fetching WhatsApp config by phone number:', error);
       return null;
@@ -76,7 +107,8 @@ export class WhatsappConfigService {
         data: {
           provider: 'ycloud',
           organizationId: organizationId,
-          phoneNumber: phoneNumber,
+          // Canónico, nunca una variante: este valor es el remitente que sale hacia YCloud.
+          phoneNumber: normalizePhone(phoneNumber) ?? phoneNumber,
           webhookUrl: `${process.env.DOMAIN_BASE_URL}/whatsapp-config/whatsapp-webhook`,
           defaultWorkflowId: workflowId,
           isActive: true,
@@ -113,7 +145,7 @@ export class WhatsappConfigService {
     try {
       await this.prismaService.whatsAppConfig.update({
         where: { id: configId },
-        data: { phoneNumber: phoneNumber },
+        data: { phoneNumber: normalizePhone(phoneNumber) ?? phoneNumber },
       });
     } catch (error) {
       this.logger.error('Error updating WhatsApp phone number:', error);
@@ -682,8 +714,10 @@ export class WhatsappConfigService {
     connectionStatus: WhatsAppConnectionStatus,
   ): Promise<boolean> {
     try {
+      // Mismas variantes que el lookup: esto corre en la ruta de firma inválida, antes de
+      // resolver la config, y con match exacto marcaba cero filas sin decir nada.
       await this.prismaService.whatsAppConfig.updateMany({
-        where: { phoneNumber: phoneNumber },
+        where: { phoneNumber: { in: phoneNumberVariants(phoneNumber) } },
         data: { connectionStatus: connectionStatus },
       });
       return true;
@@ -699,7 +733,7 @@ export class WhatsappConfigService {
   ): Promise<boolean> {
     try {
       await this.prismaService.whatsAppConfig.updateMany({
-        where: { phoneNumber: phoneNumber },
+        where: { phoneNumber: { in: phoneNumberVariants(phoneNumber) } },
         data: { connectionError: connectionError },
       });
       return true;
