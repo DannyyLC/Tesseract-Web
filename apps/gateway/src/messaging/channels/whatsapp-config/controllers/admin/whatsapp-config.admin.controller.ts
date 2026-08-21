@@ -45,7 +45,7 @@ export class WhatsappConfigAdminController {
   /** Valida que un workflowId, si viene, sea de esta misma organización. */
   private async assertWorkflowBelongsToOrg(organizationId: string, workflowId?: string | null) {
     if (!workflowId) return;
-    const workflow = await this.workflowsService.findOne(organizationId, workflowId).catch(() => null);
+    const workflow = await this.workflowsService.getRoutingState(organizationId, workflowId);
     if (!workflow) {
       throw new BadRequestException('Workflow not found in this organization');
     }

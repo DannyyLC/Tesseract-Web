@@ -6,7 +6,6 @@ import {
   Headers,
   HttpStatus,
   Inject,
-  NotFoundException,
   Param,
   Patch,
   Post,
@@ -225,17 +224,15 @@ export class WhatsappConfigController {
         }
       }
 
-      // Un workflow borrado (o de otra organización) deja `findOne` lanzando. No es
+      // Un workflow borrado (o de otra organización) no tiene a dónde rutear. No es
       // transitorio: reintentar no lo resucita, así que se corta aquí en vez de caer al
-      // catch, devolver 500 y dejar a YCloud reintentando contra una config rota.
-      let workflow: { isActive: boolean };
-      try {
-        workflow = await this.workflowsService.findOne(
-          account.organizationId,
-          account.defaultWorkflowId,
-        );
-      } catch (error) {
-        if (!(error instanceof NotFoundException)) throw error;
+      // catch, devolver 500 y dejar a YCloud reintentando contra una config rota. Un fallo
+      // de base sí lanza, y ese sí cae al catch y pide reintento, que es lo correcto.
+      const workflow = await this.workflowsService.getRoutingState(
+        account.organizationId,
+        account.defaultWorkflowId,
+      );
+      if (!workflow) {
         this.logger.warn(
           `Received message for WhatsApp config with missing workflow: ${account.defaultWorkflowId}`,
         );
@@ -411,9 +408,10 @@ export class WhatsappConfigController {
     // número sin asignarlo todavía), pero si viene, tiene que ser de esta organización
     // — el id llega del body, no hay que confiar en él a ciegas.
     if (body.workflowId) {
-      const workflow = await this.workflowsService
-        .findOne(currUser.organizationId, body.workflowId)
-        .catch(() => null);
+      const workflow = await this.workflowsService.getRoutingState(
+        currUser.organizationId,
+        body.workflowId,
+      );
       if (!workflow) {
         apiResponse
           .setStatusCode(HttpStatus.BAD_REQUEST)

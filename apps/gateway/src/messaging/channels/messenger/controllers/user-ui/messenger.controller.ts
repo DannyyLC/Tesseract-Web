@@ -6,7 +6,6 @@ import {
   Headers,
   HttpStatus,
   Inject,
-  NotFoundException,
   Param,
   Patch,
   Post,
@@ -339,17 +338,14 @@ export class MessengerController {
       this.logger.debug('Webhook de Messenger recibido, payload completo', JSON.stringify(event, null, 2));
     }
 
-    // Un workflow borrado deja `findOne` lanzando. No es transitorio: reintentar no lo
+    // Un workflow borrado no tiene a dónde rutear. No es transitorio: reintentar no lo
     // resucita, así que se corta aquí en vez de devolver 500 y dejar a Meta reintentando
-    // contra una config rota.
-    let workflowAssociated: { isActive: boolean };
-    try {
-      workflowAssociated = await this.workflowsService.findOne(
-        account.organizationId,
-        account.defaultWorkflowId,
-      );
-    } catch (error) {
-      if (!(error instanceof NotFoundException)) throw error;
+    // contra una config rota. Un fallo de base sí lanza y sí pide reintento.
+    const workflowAssociated = await this.workflowsService.getRoutingState(
+      account.organizationId,
+      account.defaultWorkflowId,
+    );
+    if (!workflowAssociated) {
       this.logger.warn(
         `Received message for Messenger config with missing workflow: ${account.defaultWorkflowId}`,
       );

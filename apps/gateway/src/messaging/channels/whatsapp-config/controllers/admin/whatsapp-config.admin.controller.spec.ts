@@ -23,7 +23,7 @@ describe('WhatsappConfigAdminController', () => {
   };
 
   const mockWorkflowsService = {
-    findOne: jest.fn(),
+    getRoutingState: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -42,7 +42,7 @@ describe('WhatsappConfigAdminController', () => {
   describe('create', () => {
     it('crea el número cuando el workflow es de esta organización', async () => {
       mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue(null);
-      mockWorkflowsService.findOne.mockResolvedValue({ id: 'wf-1' });
+      mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: true });
       mockWhatsappConfigService.createRecordAndgenerateWebhookSecret.mockResolvedValue({ id: 'c-1' });
 
       const res = await controller.create('org-1', {
@@ -51,7 +51,7 @@ describe('WhatsappConfigAdminController', () => {
         displayName: 'WhatsApp Ventas',
       } as any);
 
-      expect(mockWorkflowsService.findOne).toHaveBeenCalledWith('org-1', 'wf-1');
+      expect(mockWorkflowsService.getRoutingState).toHaveBeenCalledWith('org-1', 'wf-1');
       expect(mockWhatsappConfigService.createRecordAndgenerateWebhookSecret).toHaveBeenCalledWith(
         'org-1',
         'wf-1',
@@ -72,7 +72,8 @@ describe('WhatsappConfigAdminController', () => {
 
     it('rechaza si el workflowId no es de esta organización', async () => {
       mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue(null);
-      mockWorkflowsService.findOne.mockRejectedValue(new NotFoundException());
+      // Ajeno, borrado o interno: los tres llegan como null, no como excepción.
+      mockWorkflowsService.getRoutingState.mockResolvedValue(null);
 
       await expect(
         controller.create('org-1', { phoneNumber: '+1', workflowId: 'wf-ajeno' } as any),
@@ -99,7 +100,7 @@ describe('WhatsappConfigAdminController', () => {
         id: 'c-1',
         organizationId: 'org-1',
       });
-      mockWorkflowsService.findOne.mockResolvedValue({ id: 'wf-2' });
+      mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: true });
       mockWhatsappConfigService.updateConfig.mockResolvedValue(true);
 
       const res = await controller.update('org-1', 'c-1', { workflowId: 'wf-2' } as any);
@@ -117,7 +118,7 @@ describe('WhatsappConfigAdminController', () => {
 
       await controller.update('org-1', 'c-1', { workflowId: null } as any);
 
-      expect(mockWorkflowsService.findOne).not.toHaveBeenCalled();
+      expect(mockWorkflowsService.getRoutingState).not.toHaveBeenCalled();
       expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', { workflowId: null });
     });
   });
