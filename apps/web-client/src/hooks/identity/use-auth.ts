@@ -76,7 +76,7 @@ export function useLogin() {
         // El super admin es operador de plataforma: va a su propia área /admin,
         // no al panel de inquilino (scopeado por organización).
         const destination =
-          response.data.user.role === 'SUPER_ADMIN' ? '/admin/llm-models' : '/dashboard';
+          response.data.user.role === 'SUPER_ADMIN' ? '/admin/dashboard' : '/dashboard';
         router.push(`${destination}${queryStr}`);
       } else if (response?.data?.require2FA) {
         // 2FA requerido - redirigir a página de verificación
