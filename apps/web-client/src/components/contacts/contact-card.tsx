@@ -63,13 +63,14 @@ export function ContactCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ delay: Math.min(index * 0.03, 0.3) }}
-      // El estado se lee sin leer: un bloqueado sale con borde y fondo de la familia danger.
+      // El estado se lee sin leer: un bloqueado sale con el borde de la familia danger. Solo
+      // el borde y no también el fondo —a diferencia del ícono y el texto de estado, que sí
+      // llevan el tinte completo— porque a lo ancho de toda la fila el mismo tinte se siente
+      // como demasiado rojo para una lista que se recorre de un vistazo.
       // Rojo y no ámbar a propósito — el ámbar ya significa "modo manual" en la conversación,
       // y compartir color obligaría a leer para distinguirlos.
-      className={`flex flex-col gap-3 rounded-2xl border p-4 transition-colors sm:flex-row sm:items-center sm:justify-between ${
-        isBlocked
-          ? 'border-danger-600 bg-[var(--badge-danger-bg)]'
-          : 'border-border bg-surface-secondary'
+      className={`flex flex-col gap-3 rounded-2xl border bg-surface-secondary p-4 transition-colors sm:flex-row sm:items-center sm:justify-between ${
+        isBlocked ? 'border-danger-600' : 'border-border'
       }`}
     >
       <div className="flex min-w-0 items-center gap-3">
