@@ -40,3 +40,18 @@ export interface BlockEndUserDto {
   /** Opcional a propósito: obligarlo llena la columna de "x" y "spam", que no informan nada. */
   reason?: string;
 }
+
+export interface CreateEndUserDto {
+  /** Número de WhatsApp del contacto. Se normaliza a solo dígitos, igual que lo entrega el webhook. */
+  phoneNumber: string;
+  /** Opcional: si no se da, el contacto se muestra por su número hasta que WhatsApp entregue un nombre. */
+  name?: string;
+}
+
+export interface UpdateEndUserDto {
+  /**
+   * Solo el nombre es editable: el teléfono, el email y el externalId son la identidad del
+   * contacto en su canal — cambiarlos rompería el match con los mensajes que ya le llegaron.
+   */
+  name: string;
+}

@@ -14,6 +14,9 @@ export type AppPermission =
   | 'users:delete'
   | 'users:transfer_ownership'
   | 'end_users:read'
+  | 'end_users:create'
+  | 'end_users:update'
+  | 'end_users:delete'
   | 'end_users:block'
   | 'executions:read'
   | 'executions:cancel'
@@ -72,6 +75,9 @@ export const ROLE_PERMISSIONS: Record<string, AppPermission[]> = {
     'users:transfer_ownership',
 
     'end_users:read',
+    'end_users:create',
+    'end_users:update',
+    'end_users:delete',
     'end_users:block',
 
     'executions:read',
@@ -140,6 +146,9 @@ export const ROLE_PERMISSIONS: Record<string, AppPermission[]> = {
     'users:delete',
 
     'end_users:read',
+    'end_users:create',
+    'end_users:update',
+    'end_users:delete',
     'end_users:block',
 
     'executions:read',
