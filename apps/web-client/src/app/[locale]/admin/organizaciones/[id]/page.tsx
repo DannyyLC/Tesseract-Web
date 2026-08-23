@@ -3,7 +3,7 @@
 import { Suspense, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { usePathname, useRouter } from '@/i18n/routing';
-import { Building2, CreditCard, Radio, Receipt, SlidersHorizontal } from 'lucide-react';
+import { Building2, CreditCard, Database, Radio, Receipt, SlidersHorizontal } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useAdminOrganization } from '@/hooks/identity/use-admin-organizations';
 import { GeneralTab } from '@/components/admin/organizations/general-tab';
@@ -11,8 +11,9 @@ import { CreditsTab } from '@/components/admin/organizations/credits-tab';
 import { SubscriptionTab } from '@/components/admin/organizations/subscription-tab';
 import { LimitsTab } from '@/components/admin/organizations/limits-tab';
 import { ChannelsTab } from '@/components/admin/organizations/channels-tab';
+import { CatalogsTab } from '@/components/admin/organizations/catalogs/catalogs-tab';
 
-type TabId = 'general' | 'credits' | 'subscription' | 'limits' | 'channels';
+type TabId = 'general' | 'credits' | 'subscription' | 'limits' | 'channels' | 'catalogs';
 
 const TABS: { id: TabId; label: string; icon: typeof Building2 }[] = [
   { id: 'general', label: 'General', icon: Building2 },
@@ -20,6 +21,7 @@ const TABS: { id: TabId; label: string; icon: typeof Building2 }[] = [
   { id: 'subscription', label: 'Suscripción', icon: Receipt },
   { id: 'limits', label: 'Límites', icon: SlidersHorizontal },
   { id: 'channels', label: 'Canales', icon: Radio },
+  { id: 'catalogs', label: 'Catálogos', icon: Database },
 ];
 
 /**
@@ -111,6 +113,7 @@ function OrganizationDetail() {
       {tab === 'subscription' && <SubscriptionTab org={org} />}
       {tab === 'limits' && <LimitsTab org={org} />}
       {tab === 'channels' && <ChannelsTab organizationId={organizationId} />}
+      {tab === 'catalogs' && <CatalogsTab organizationId={organizationId} />}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { useRouter } from '@/i18n/routing';
 export default function AdminIndexPage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/admin/organizaciones');
+    router.replace('/admin/dashboard');
   }, [router]);
   return null;
 }

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { DatasetsAdminController } from './controllers/admin/datasets.admin.controller';
 import { DatasetQueryController } from './controllers/internal/dataset-query.controller';
 import { DatasetsController } from './controllers/user-ui/datasets.controller';
 import { DatasetAccessGuard } from './core/dataset-access.guard';
@@ -15,7 +16,7 @@ import { DatasetsService } from './core/datasets.service';
 @Module({
   imports: [JwtModule.register({})],
   providers: [DatasetsService, DatasetQueryService, DatasetTokenService, DatasetAccessGuard],
-  controllers: [DatasetsController, DatasetQueryController],
+  controllers: [DatasetsController, DatasetQueryController, DatasetsAdminController],
   exports: [DatasetsService, DatasetQueryService, DatasetTokenService],
 })
 export class DatasetsModule {}
