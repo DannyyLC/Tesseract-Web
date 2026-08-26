@@ -4,11 +4,21 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Search, Users } from 'lucide-react';
+import { toast } from 'sonner';
 import { DashboardEndUserDto, EndUserBlockedFilter } from '@tesseract/types';
 import { useEndUsers, useEndUserMutations } from '@/hooks/identity/use-end-users';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { CursorPager } from '@/components/ui/cursor-pager';
-import { BlockContactModal, ContactCard, describeContact } from '@/components/contacts';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
+import {
+  AddContactMenu,
+  AddWhatsappContactModal,
+  BlockContactModal,
+  ContactCard,
+  EditContactModal,
+  describeContact,
+} from '@/components/contacts';
+import PermissionGuard from '@/components/auth/permission-guard';
 
 const PAGE_SIZE = 10;
 
@@ -22,7 +32,10 @@ export default function ContactsPage() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [action, setAction] = useState<'next' | 'prev' | null>(null);
   const [contactToBlock, setContactToBlock] = useState<DashboardEndUserDto | null>(null);
+  const [contactToEdit, setContactToEdit] = useState<DashboardEndUserDto | null>(null);
+  const [contactToDelete, setContactToDelete] = useState<DashboardEndUserDto | null>(null);
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
+  const [isAddWhatsappOpen, setIsAddWhatsappOpen] = useState(false);
 
   // Búsqueda y filtro se resuelven en el servidor, así que al cambiarlos hay que volver a la
   // primera página: el cursor anterior apunta a una fila que quizá ya no entra en el filtro.
@@ -39,7 +52,7 @@ export default function ContactsPage() {
     blocked,
   });
 
-  const { unblockEndUser } = useEndUserMutations();
+  const { unblockEndUser, deleteEndUser } = useEndUserMutations();
   const contacts = data?.items ?? [];
 
   const handleUnblock = async (contact: DashboardEndUserDto) => {
@@ -48,6 +61,19 @@ export default function ContactsPage() {
       await unblockEndUser.mutateAsync(contact.id);
     } finally {
       setUnblockingId(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!contactToDelete) return;
+
+    try {
+      await deleteEndUser.mutateAsync(contactToDelete.id);
+      toast.success(t('deleteSuccess'));
+      setContactToDelete(null);
+    } catch (err: any) {
+      const backendMessage = typeof err?.message === 'string' ? err.message : '';
+      toast.error(backendMessage || t('deleteError'));
     }
   };
 
@@ -62,9 +88,15 @@ export default function ContactsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">{t('heading')}</h1>
-        <p className="mt-1 text-text-secondary">{t('description')}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary">{t('heading')}</h1>
+          <p className="mt-1 text-text-secondary">{t('description')}</p>
+        </div>
+
+        <PermissionGuard permissions="end_users:create">
+          <AddContactMenu onSelectWhatsapp={() => setIsAddWhatsappOpen(true)} />
+        </PermissionGuard>
       </div>
 
       {/* Filtros */}
@@ -110,6 +142,8 @@ export default function ContactsPage() {
               index={index}
               onBlock={setContactToBlock}
               onUnblock={handleUnblock}
+              onEdit={setContactToEdit}
+              onDelete={setContactToDelete}
               isUnblocking={unblockingId === contact.id}
             />
           ))}
@@ -146,6 +180,28 @@ export default function ContactsPage() {
         endUserId={contactToBlock?.id ?? null}
         contactLabel={contactToBlock ? describeContact(contactToBlock).label : ''}
         onClose={() => setContactToBlock(null)}
+      />
+
+      <AddWhatsappContactModal
+        isOpen={isAddWhatsappOpen}
+        onClose={() => setIsAddWhatsappOpen(false)}
+      />
+
+      <EditContactModal contact={contactToEdit} onClose={() => setContactToEdit(null)} />
+
+      <ConfirmModal
+        isOpen={Boolean(contactToDelete)}
+        onClose={() => setContactToDelete(null)}
+        onConfirm={handleDelete}
+        variant="danger"
+        title={t('deleteModalTitle')}
+        message={
+          contactToDelete
+            ? t('deleteModalMessage', { contact: describeContact(contactToDelete).label })
+            : ''
+        }
+        confirmLabel={t('deleteConfirmLabel')}
+        cancelLabel={t('cancel')}
       />
     </div>
   );

@@ -25,6 +25,8 @@ import SubscriptionAdminApi from './billing/subscription-admin-api';
 import ConversationsAdminApi from './messaging/conversations/conversations-admin-api';
 import WhatsappConfigAdminApi from './messaging/whatsapp-config/whatsapp-config-admin-api';
 import TenantToolsAdminApi from './automation/tools/tenant-tools-admin-api';
+import AnalyticsAdminApi from './billing/analytics-admin-api';
+import DatasetsAdminApi from './automation/datasets/datasets-admin-api';
 
 class RootApi {
   private static instance: RootApi;
@@ -55,6 +57,8 @@ class RootApi {
   private conversationsAdminApi: ConversationsAdminApi;
   private whatsappConfigAdminApi: WhatsappConfigAdminApi;
   private tenantToolsAdminApi: TenantToolsAdminApi;
+  private analyticsAdminApi: AnalyticsAdminApi;
+  private datasetsAdminApi: DatasetsAdminApi;
 
   private constructor() {
     this.authApi = new AuthApi();
@@ -84,6 +88,8 @@ class RootApi {
     this.conversationsAdminApi = new ConversationsAdminApi();
     this.whatsappConfigAdminApi = new WhatsappConfigAdminApi();
     this.tenantToolsAdminApi = new TenantToolsAdminApi();
+    this.analyticsAdminApi = new AnalyticsAdminApi();
+    this.datasetsAdminApi = new DatasetsAdminApi();
   }
 
   public static getInstance(): RootApi {
@@ -199,6 +205,14 @@ class RootApi {
 
   public getTenantToolsAdminApi(): TenantToolsAdminApi {
     return this.tenantToolsAdminApi;
+  }
+
+  public getAnalyticsAdminApi(): AnalyticsAdminApi {
+    return this.analyticsAdminApi;
+  }
+
+  public getDatasetsAdminApi(): DatasetsAdminApi {
+    return this.datasetsAdminApi;
   }
 }
 

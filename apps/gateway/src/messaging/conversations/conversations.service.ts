@@ -20,6 +20,7 @@ import {
 import { UtilityService } from '@/platform/utility/utility.service';
 import { buildConversationTitle } from './conversation-title';
 import { messengerExternalId } from '@/platform/common/utils/messenger-external-id';
+import { normalizePhone } from '@/platform/common/utils/normalize-phone';
 import { KmsService } from '@/automation/tools/core/kms.service';
 import { firstValueFrom } from 'rxjs';
 
@@ -397,17 +398,24 @@ export class ConversationsService {
       throw new Error(`Workflow no encontrado: ${workflowId}`);
     }
 
-    // Encontrar o crear el EndUser por número de teléfono (requerido por constraint XOR)
+    // Encontrar o crear el EndUser por número de teléfono (requerido por constraint XOR).
+    //
+    // Se normaliza a "+dígitos" aquí y no se guarda `userNumber` crudo: es la misma forma
+    // canónica que usa `WhatsAppConfig.phoneNumber` (ver normalizePhone()), y sin ella un
+    // contacto dado de alta a mano antes de escribir —con el número ya normalizado— nunca
+    // haría match con este upsert, y terminaría duplicado.
+    const normalizedUserNumber = normalizePhone(userNumber) ?? userNumber;
+
     const endUser = await this.prisma.endUser.upsert({
       where: {
         organizationId_phoneNumber: {
           organizationId: workflow.organizationId,
-          phoneNumber: userNumber,
+          phoneNumber: normalizedUserNumber,
         },
       },
       create: {
         organizationId: workflow.organizationId,
-        phoneNumber: userNumber,
+        phoneNumber: normalizedUserNumber,
         lastSeenAt: new Date(),
       },
       update: {

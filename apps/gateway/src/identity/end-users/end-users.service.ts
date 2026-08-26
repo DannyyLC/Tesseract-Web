@@ -1,5 +1,5 @@
 import { PrismaService } from '@/platform/database/prisma.service';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConversationStatus, Prisma } from '@tesseract/database';
 import {
   DashboardEndUserDto,
@@ -7,6 +7,7 @@ import {
   PaginatedResponse,
 } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
+import { normalizePhone } from '@/platform/common/utils/normalize-phone';
 
 /** Nombre de quien bloqueó: viaja en el DTO para no obligar al cliente a cruzarlo por su cuenta. */
 const BLOCKED_BY_INCLUDE = { blockedBy: { select: { name: true } } } as const;
@@ -14,9 +15,10 @@ const BLOCKED_BY_INCLUDE = { blockedBy: { select: { name: true } } } as const;
 /**
  * Cómo se identifica a un contacto en el canal por el que llega.
  *
- * Son las dos llaves únicas de `EndUser` y se corresponden con lo que entrega cada webhook:
- * el `from` crudo de WhatsApp y `messenger:<pageId>:<psid>` en Messenger. Se guardan tal cual
- * llegan, así que el match es exacto y por índice: no hay normalización que pueda fallar.
+ * Son las dos llaves únicas de `EndUser`. El externalId de Messenger (`messenger:<pageId>:<psid>`)
+ * se guarda tal cual llega. El teléfono de WhatsApp NO: `isBlocked()` lo normaliza a `+dígitos`
+ * antes de buscarlo, porque así vive `EndUser.phoneNumber` (ver `normalizePhone()`) — un llamador
+ * puede pasar el número crudo del webhook sin preocuparse por el formato.
  */
 export type EndUserIdentifier = { phoneNumber: string } | { externalId: string };
 
@@ -79,17 +81,60 @@ export class EndUsersService {
   }
 
   /**
+   * Da de alta un contacto de WhatsApp a mano, sin esperar a que escriba primero.
+   *
+   * Queda fuera de la ruta del webhook a propósito: ahí un `upsert` nunca falla porque
+   * cualquier mensaje entrante es bienvenido. Aquí sí debe fallar si el número ya existe —
+   * darlo de alta "otra vez" le pisaría el nombre y el historial que ya tiene ese contacto.
+   *
+   * `phoneNumber` llega ya normalizado (`+dígitos`) por `CreateEndUserDto`, en la misma forma
+   * canónica que escribe el webhook: es lo que hace posible el match cuando esa persona
+   * escriba de verdad.
+   */
+  async createFromPhoneNumber(
+    organizationId: string,
+    phoneNumber: string,
+    name?: string,
+  ): Promise<DashboardEndUserDto> {
+    try {
+      const trimmedName = name?.trim();
+      const endUser = await this.prismaService.endUser.create({
+        // Vacío y ausente significan lo mismo —"sin nombre"—, así que no se guarda "".
+        data: { organizationId, phoneNumber, name: trimmedName ? trimmedName : null },
+        select: this.dashboardSelect(),
+      });
+
+      return this.toDashboardDto(endUser);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Ya existe un contacto con ese número');
+      }
+
+      throw error;
+    }
+  }
+
+  /**
    * ¿Hay que descartar lo que mande este contacto?
    *
    * La consultan los webhooks de cada canal ANTES de bufferear el mensaje, agendar la tarea,
    * transcribir el audio o ejecutar el workflow. Es un `findUnique` por llave única, y es lo
    * único que se gasta en un contacto bloqueado.
+   *
+   * El teléfono se normaliza aquí adentro, no en cada llamador: el webhook manda el número
+   * crudo tal como lo entrega WhatsApp, pero `EndUser.phoneNumber` vive en la forma canónica
+   * de `normalizePhone()` — sin normalizar, el `findUnique` nunca encontraría la fila.
    */
   async isBlocked(organizationId: string, identifier: EndUserIdentifier): Promise<boolean> {
     const endUser = await this.prismaService.endUser.findUnique({
       where:
         'phoneNumber' in identifier
-          ? { organizationId_phoneNumber: { organizationId, phoneNumber: identifier.phoneNumber } }
+          ? {
+              organizationId_phoneNumber: {
+                organizationId,
+                phoneNumber: normalizePhone(identifier.phoneNumber) ?? identifier.phoneNumber,
+              },
+            }
           : { organizationId_externalId: { organizationId, externalId: identifier.externalId } },
       select: { blockedAt: true },
     });
@@ -174,6 +219,42 @@ export class EndUsersService {
   }
 
   /**
+   * Cambia el nombre con el que se conoce al contacto.
+   *
+   * Es el único campo editable a propósito: el teléfono, el email y el externalId son la
+   * identidad del contacto en su canal, y editarlos rompería el match con los mensajes que ya
+   * le llegaron.
+   */
+  async update(
+    organizationId: string,
+    endUserId: string,
+    name: string,
+  ): Promise<DashboardEndUserDto> {
+    await this.assertBelongsToOrganization(organizationId, endUserId);
+
+    const endUser = await this.prismaService.endUser.update({
+      where: { id: endUserId },
+      data: { name: name.trim() },
+      select: this.dashboardSelect(),
+    });
+
+    return this.toDashboardDto(endUser);
+  }
+
+  /**
+   * Elimina el contacto para siempre.
+   *
+   * A diferencia de bloquear, aquí no hay vuelta atrás: el schema tiene `onDelete: Cascade`
+   * de `Conversation` hacia `EndUser`, así que esto se lleva entre también todas sus
+   * conversaciones y mensajes. Quien solo quiera dejar de atenderlo debe bloquearlo, no
+   * borrarlo.
+   */
+  async remove(organizationId: string, endUserId: string): Promise<void> {
+    await this.assertBelongsToOrganization(organizationId, endUserId);
+    await this.prismaService.endUser.delete({ where: { id: endUserId } });
+  }
+
+  /**
    * Aísla por organización antes de escribir.
    *
    * El `update` posterior va por `id` porque es la PK, y sin esta comprobación bastaría con
@@ -202,9 +283,10 @@ export class EndUsersService {
   /**
    * Búsqueda por el identificador con el que se conoce al contacto.
    *
-   * El teléfono se busca con el término despojado de todo lo que no sea dígito: en la base vive
-   * como lo manda el proveedor (`5215512345678`), así que quien teclee `+52 55 1234 5678` no
-   * encontraría nada comparando en crudo. Las demás columnas sí se buscan literales.
+   * El teléfono se busca con el término despojado de todo lo que no sea dígito y por
+   * subcadena: el `+` con el que vive `EndUser.phoneNumber` (ver `normalizePhone()`) es solo
+   * el primer carácter, así que buscar los puros dígitos lo sigue encontrando sin tener que
+   * saber si quien tecleó incluyó el `+` o no. Las demás columnas sí se buscan literales.
    */
   private buildSearchFilter(search?: string): Prisma.EndUserWhereInput {
     const term = search?.trim();

@@ -1,4 +1,5 @@
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { NormalizePhone } from '@/platform/common/utils/normalize-phone';
 
 export class CreateConfigDto {
   /**
@@ -11,8 +12,14 @@ export class CreateConfigDto {
   @IsString()
   workflowId: string;
 
+  /**
+   * Se guarda canónico (`+` y dígitos) para que el número tecleado a mano empate con el que manda
+   * YCloud en el webhook. La columna es `@unique`, pero eso solo impide el duplicado idéntico: sin
+   * normalizar, `+52 55 1234 5678` y `+525512345678` entran como dos números distintos.
+   */
   @IsNotEmpty()
   @IsString()
+  @NormalizePhone()
   phoneNumber: string;
 
   @IsOptional()

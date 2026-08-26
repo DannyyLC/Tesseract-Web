@@ -5,12 +5,15 @@ import { motion } from 'framer-motion';
 import { Loader2, MessageCircle, Phone, ShieldBan, ShieldCheck, User } from 'lucide-react';
 import { DashboardEndUserDto } from '@tesseract/types';
 import PermissionGuard from '@/components/auth/permission-guard';
+import { ContactOptionsMenu } from './contact-options-menu';
 
 interface ContactCardProps {
   contact: DashboardEndUserDto;
   index: number;
   onBlock: (contact: DashboardEndUserDto) => void;
   onUnblock: (contact: DashboardEndUserDto) => void;
+  onEdit: (contact: DashboardEndUserDto) => void;
+  onDelete: (contact: DashboardEndUserDto) => void;
   isUnblocking: boolean;
 }
 
@@ -40,7 +43,15 @@ export function describeContact(contact: DashboardEndUserDto) {
   };
 }
 
-export function ContactCard({ contact, index, onBlock, onUnblock, isUnblocking }: ContactCardProps) {
+export function ContactCard({
+  contact,
+  index,
+  onBlock,
+  onUnblock,
+  onEdit,
+  onDelete,
+  isUnblocking,
+}: ContactCardProps) {
   const t = useTranslations('Contacts');
   const format = useFormatter();
   const isBlocked = contact.blockedAt != null;
@@ -52,13 +63,14 @@ export function ContactCard({ contact, index, onBlock, onUnblock, isUnblocking }
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ delay: Math.min(index * 0.03, 0.3) }}
-      // El estado se lee sin leer: un bloqueado sale con borde y fondo de la familia danger.
+      // El estado se lee sin leer: un bloqueado sale con el borde de la familia danger. Solo
+      // el borde y no también el fondo —a diferencia del ícono y el texto de estado, que sí
+      // llevan el tinte completo— porque a lo ancho de toda la fila el mismo tinte se siente
+      // como demasiado rojo para una lista que se recorre de un vistazo.
       // Rojo y no ámbar a propósito — el ámbar ya significa "modo manual" en la conversación,
       // y compartir color obligaría a leer para distinguirlos.
-      className={`flex flex-col gap-3 rounded-2xl border p-4 transition-colors sm:flex-row sm:items-center sm:justify-between ${
-        isBlocked
-          ? 'border-danger-600 bg-[var(--badge-danger-bg)]'
-          : 'border-border bg-surface-secondary'
+      className={`flex flex-col gap-3 rounded-2xl border bg-surface-secondary p-4 transition-colors sm:flex-row sm:items-center sm:justify-between ${
+        isBlocked ? 'border-danger-600' : 'border-border'
       }`}
     >
       <div className="flex min-w-0 items-center gap-3">
@@ -109,30 +121,36 @@ export function ContactCard({ contact, index, onBlock, onUnblock, isUnblocking }
         </div>
       </div>
 
-      <PermissionGuard permissions="end_users:block">
-        {isBlocked ? (
-          <button
-            onClick={() => onUnblock(contact)}
-            disabled={isUnblocking}
-            className="flex shrink-0 items-center justify-center gap-1.5 self-start rounded-full border border-border bg-surface-elevated px-4 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50 sm:self-auto"
-          >
-            {isUnblocking ? (
-              <Loader2 size={13} className="animate-spin" />
-            ) : (
-              <ShieldCheck size={13} />
-            )}
-            {t('unblockAction')}
-          </button>
-        ) : (
-          <button
-            onClick={() => onBlock(contact)}
-            className="flex shrink-0 items-center justify-center gap-1.5 self-start rounded-full border border-border px-4 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-danger-600 hover:text-danger disabled:opacity-50 sm:self-auto"
-          >
-            <ShieldBan size={13} />
-            {t('blockAction')}
-          </button>
-        )}
-      </PermissionGuard>
+      <div className="flex shrink-0 items-center gap-1.5 self-start sm:self-auto">
+        <PermissionGuard permissions="end_users:block">
+          {isBlocked ? (
+            <button
+              onClick={() => onUnblock(contact)}
+              disabled={isUnblocking}
+              className="flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-border bg-surface-elevated px-4 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50"
+            >
+              {isUnblocking ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <ShieldCheck size={13} />
+              )}
+              {t('unblockAction')}
+            </button>
+          ) : (
+            <button
+              onClick={() => onBlock(contact)}
+              className="flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-border px-4 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-danger-600 hover:text-danger disabled:opacity-50"
+            >
+              <ShieldBan size={13} />
+              {t('blockAction')}
+            </button>
+          )}
+        </PermissionGuard>
+
+        <PermissionGuard permissions={['end_users:update', 'end_users:delete']}>
+          <ContactOptionsMenu onEdit={() => onEdit(contact)} onDelete={() => onDelete(contact)} />
+        </PermissionGuard>
+      </div>
     </motion.div>
   );
 }

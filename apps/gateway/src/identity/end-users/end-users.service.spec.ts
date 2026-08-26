@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
-import { ConversationStatus } from '@tesseract/database';
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConversationStatus, Prisma } from '@tesseract/database';
 import { EndUsersService } from './end-users.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
@@ -17,13 +17,23 @@ const mockPrismaService = {
     findMany: jest.fn(),
     findUnique: jest.fn(),
     findFirst: jest.fn(),
+    create: jest.fn(),
     update: jest.fn(),
+    delete: jest.fn(),
   },
   conversation: {
     updateMany: jest.fn(),
   },
   $transaction: jest.fn((operations: Promise<unknown>[]) => Promise.all(operations)),
 };
+
+/** Simula el error que lanza Prisma cuando la llave única (organizationId, phoneNumber) choca. */
+function uniqueConstraintError() {
+  return new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+    code: 'P2002',
+    clientVersion: 'test',
+  });
+}
 
 /** Columnas que el listado pide a Prisma. Se comparte con las aserciones. */
 const EXPECTED_SELECT = {
@@ -320,12 +330,28 @@ describe('EndUsersService', () => {
     it('should look the contact up by its WhatsApp phone number', async () => {
       mockPrismaService.endUser.findUnique.mockResolvedValue({ blockedAt: new Date() });
 
-      const result = await service.isBlocked(organizationId, { phoneNumber: '5215512345678' });
+      const result = await service.isBlocked(organizationId, { phoneNumber: '+5215512345678' });
 
       expect(result).toBe(true);
       expect(mockPrismaService.endUser.findUnique).toHaveBeenCalledWith({
         where: {
-          organizationId_phoneNumber: { organizationId, phoneNumber: '5215512345678' },
+          organizationId_phoneNumber: { organizationId, phoneNumber: '+5215512345678' },
+        },
+        select: { blockedAt: true },
+      });
+    });
+
+    // `EndUser.phoneNumber` vive normalizado ("+dígitos"), pero el webhook manda el número
+    // crudo tal cual lo entrega WhatsApp: sin normalizar aquí adentro, este `findUnique` por
+    // llave única nunca encontraría la fila y un contacto bloqueado se colaría.
+    it('should normalize the phone number before the exact-match lookup', async () => {
+      mockPrismaService.endUser.findUnique.mockResolvedValue({ blockedAt: new Date() });
+
+      await service.isBlocked(organizationId, { phoneNumber: '5215512345678' });
+
+      expect(mockPrismaService.endUser.findUnique).toHaveBeenCalledWith({
+        where: {
+          organizationId_phoneNumber: { organizationId, phoneNumber: '+5215512345678' },
         },
         select: { blockedAt: true },
       });
@@ -503,6 +529,162 @@ describe('EndUsersService', () => {
 
       await expect(service.unblock('otra-org', endUserId)).rejects.toThrow(NotFoundException);
       expect(mockPrismaService.endUser.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // createFromPhoneNumber
+  // ═══════════════════════════════════════════════════════════════
+  describe('createFromPhoneNumber', () => {
+    const organizationId = 'org-123';
+
+    it('should create the contact with the given phone number and name', async () => {
+      mockPrismaService.endUser.create.mockResolvedValue({
+        id: 'eu-1',
+        phoneNumber: '+5215512345678',
+        email: null,
+        externalId: null,
+        name: 'John Doe',
+        avatar: null,
+        metadata: null,
+        lastSeenAt: null,
+        createdAt: new Date(),
+        blockedAt: null,
+        blockedReason: null,
+        blockedBy: null,
+      });
+
+      const result = await service.createFromPhoneNumber(
+        organizationId,
+        '+5215512345678',
+        'John Doe',
+      );
+
+      expect(mockPrismaService.endUser.create).toHaveBeenCalledWith({
+        data: { organizationId, phoneNumber: '+5215512345678', name: 'John Doe' },
+        select: expect.any(Object),
+      });
+      expect(result.name).toBe('John Doe');
+    });
+
+    it.each([
+      ['undefined', undefined],
+      ['blank', '   '],
+    ])('should store a %s name as null', async (_label, name) => {
+      mockPrismaService.endUser.create.mockResolvedValue({ id: 'eu-1' });
+
+      await service.createFromPhoneNumber(organizationId, '+5215512345678', name);
+
+      expect(mockPrismaService.endUser.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ name: null }) }),
+      );
+    });
+
+    it('should trim the name', async () => {
+      mockPrismaService.endUser.create.mockResolvedValue({ id: 'eu-1' });
+
+      await service.createFromPhoneNumber(organizationId, '+5215512345678', '  John Doe  ');
+
+      expect(mockPrismaService.endUser.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ name: 'John Doe' }) }),
+      );
+    });
+
+    // El número ya llega normalizado por `CreateEndUserDto`: el servicio lo guarda tal cual,
+    // sin volver a tocarlo.
+    it('should store the phone number exactly as received', async () => {
+      mockPrismaService.endUser.create.mockResolvedValue({ id: 'eu-1' });
+
+      await service.createFromPhoneNumber(organizationId, '+5215512345678');
+
+      expect(mockPrismaService.endUser.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ phoneNumber: '+5215512345678' }),
+        }),
+      );
+    });
+
+    it('should refuse a duplicate phone number within the organization', async () => {
+      mockPrismaService.endUser.create.mockRejectedValue(uniqueConstraintError());
+
+      await expect(
+        service.createFromPhoneNumber(organizationId, '+5215512345678'),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should propagate errors that are not a unique constraint violation', async () => {
+      const dbError = new Error('Database connection lost');
+      mockPrismaService.endUser.create.mockRejectedValue(dbError);
+
+      await expect(
+        service.createFromPhoneNumber(organizationId, '+5215512345678'),
+      ).rejects.toThrow('Database connection lost');
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // update
+  // ═══════════════════════════════════════════════════════════════
+  describe('update', () => {
+    const organizationId = 'org-123';
+    const endUserId = 'eu-1';
+
+    it('should rename the contact', async () => {
+      mockPrismaService.endUser.findFirst.mockResolvedValue({ id: endUserId });
+      mockPrismaService.endUser.update.mockResolvedValue({ id: endUserId, name: 'Jane Doe' });
+
+      const result = await service.update(organizationId, endUserId, 'Jane Doe');
+
+      expect(mockPrismaService.endUser.update).toHaveBeenCalledWith({
+        where: { id: endUserId },
+        data: { name: 'Jane Doe' },
+        select: expect.any(Object),
+      });
+      expect(result.name).toBe('Jane Doe');
+    });
+
+    it('should trim the name', async () => {
+      mockPrismaService.endUser.findFirst.mockResolvedValue({ id: endUserId });
+      mockPrismaService.endUser.update.mockResolvedValue({ id: endUserId });
+
+      await service.update(organizationId, endUserId, '  Jane Doe  ');
+
+      expect(mockPrismaService.endUser.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { name: 'Jane Doe' } }),
+      );
+    });
+
+    it('should refuse to rename a contact from another organization', async () => {
+      mockPrismaService.endUser.findFirst.mockResolvedValue(null);
+
+      await expect(service.update('otra-org', endUserId, 'Jane Doe')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(mockPrismaService.endUser.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // remove
+  // ═══════════════════════════════════════════════════════════════
+  describe('remove', () => {
+    const organizationId = 'org-123';
+    const endUserId = 'eu-1';
+
+    it('should delete the contact', async () => {
+      mockPrismaService.endUser.findFirst.mockResolvedValue({ id: endUserId });
+      mockPrismaService.endUser.delete.mockResolvedValue({ id: endUserId });
+
+      await service.remove(organizationId, endUserId);
+
+      expect(mockPrismaService.endUser.delete).toHaveBeenCalledWith({ where: { id: endUserId } });
+    });
+
+    it('should refuse to delete a contact from another organization', async () => {
+      mockPrismaService.endUser.findFirst.mockResolvedValue(null);
+
+      await expect(service.remove('otra-org', endUserId)).rejects.toThrow(NotFoundException);
+      expect(mockPrismaService.endUser.delete).not.toHaveBeenCalled();
     });
   });
 });

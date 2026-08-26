@@ -353,6 +353,9 @@ export class WorkflowsService {
         timezone: true,
         organization: { select: { timezone: true } },
         tenantTools: {
+          // Una tool borrada puede seguir colgada de la relación; contarla aquí infla el radio
+          // de impacto con algo que el agente ya no recibe.
+          where: { deletedAt: null },
           select: {
             id: true,
             displayName: true,
@@ -723,6 +726,34 @@ export class WorkflowsService {
    * Ejecutar un workflow
    */
   /**
+   * ¿Puede un canal entregarle un mensaje a este workflow?
+   *
+   * Devuelve `null` cuando no hay a dónde rutear —borrado, de otra organización o interno— y
+   * `{ isActive }` cuando existe, que es lo único que el canal necesita para decidir.
+   *
+   * Existe para no usar `findOne` en la ruta caliente: ese método es de la UI y arrastra
+   * `tenantTools` con su join anidado a `toolCatalog` para que el usuario vea el radio de impacto
+   * de una credencial rota. Traer todo eso por cada mensaje entrante, para leer un booleano, es
+   * trabajo de más justo donde más se repite.
+   *
+   * El `where` es el mismo de `findOne` a propósito: si se separan, un workflow interno o borrado
+   * dejaría de estar filtrado en el canal y empezaría a recibir mensajes de clientes.
+   *
+   * Devuelve `null` en vez de lanzar porque los llamadores necesitan distinguir "no existe" —que
+   * no se arregla reintentando— de un fallo de base, que sí. Con una excepción de por medio los
+   * dos casos se mezclan.
+   */
+  async getRoutingState(
+    organizationId: string,
+    workflowId: string,
+  ): Promise<{ isActive: boolean } | null> {
+    return this.prisma.workflow.findFirst({
+      where: { id: workflowId, organizationId, deletedAt: null, isInternal: false },
+      select: { isActive: true },
+    });
+  }
+
+  /**
    * Política de media del workflow, con los defaults ya aplicados.
    *
    * Lee solo `config` porque quien la necesita —el worker de WhatsApp— decide con ella
@@ -793,7 +824,12 @@ export class WorkflowsService {
           },
         },
         // Incluir tenantTools desde el inicio (evita query duplicado)
+        //
+        // El filtro por `deletedAt` es la red que atrapa cualquier tool borrada que se quedó
+        // colgada de la relación: viajaría al agente con la config a medias y el runtime la
+        // descartaría, dejando al agente sin la herramienta y sin explicación.
         tenantTools: {
+          where: { deletedAt: null },
           include: {
             credential: true,
             toolCatalog: {
@@ -1371,7 +1407,10 @@ export class WorkflowsService {
             timezone: true,
           },
         },
+        // Mismo filtro que en execute(): una tool borrada que siguió colgada de la relación
+        // llegaría al payload con la config a medias.
         tenantTools: {
+          where: { deletedAt: null },
           include: {
             credential: true,
             toolCatalog: {

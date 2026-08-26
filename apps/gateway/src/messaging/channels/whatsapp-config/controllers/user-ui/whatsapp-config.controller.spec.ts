@@ -1,4 +1,4 @@
-import { HttpStatus, NotFoundException } from '@nestjs/common';
+import { HttpStatus } from '@nestjs/common';
 import { WhatsappConfigController } from './whatsapp-config.controller';
 
 /**
@@ -22,7 +22,7 @@ describe('WhatsappConfigController · webhook', () => {
   const mockQueueService: any = { bufferMessage: jest.fn(), buildWindowId: jest.fn(() => 'w-1') };
   const mockCloudTasks: any = { enqueue: jest.fn() };
   const mockWebhookDedup: any = { claim: jest.fn(), release: jest.fn() };
-  const mockWorkflowsService: any = { findOne: jest.fn() };
+  const mockWorkflowsService: any = { getRoutingState: jest.fn() };
   const mockConversationsService: any = {
     findActiveWhatsappConversation: jest.fn(),
     findOrCreateConversationFromWhatsAppMessage: jest.fn(),
@@ -88,7 +88,7 @@ describe('WhatsappConfigController · webhook', () => {
       defaultWorkflowId: 'wf-1',
     });
     mockWebhookDedup.claim.mockResolvedValue(true);
-    mockWorkflowsService.findOne.mockResolvedValue({ isActive: true });
+    mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: true });
     mockConversationsService.findActiveWhatsappConversation.mockResolvedValue(null);
     mockConversationsService.findOrCreateConversationFromWhatsAppMessage.mockResolvedValue({
       id: 'conv-1',
@@ -154,7 +154,7 @@ describe('WhatsappConfigController · webhook', () => {
      * apaga el workflow, que es justo lo que el bloqueo venía a evitar.
      */
     it('tampoco guarda el mensaje cuando además el workflow está apagado', async () => {
-      mockWorkflowsService.findOne.mockResolvedValue({ isActive: false });
+      mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: false });
       const res = createMockResponse();
 
       await controller.handleWebhook(body, res, {});
@@ -169,7 +169,7 @@ describe('WhatsappConfigController · webhook', () => {
      * tenant le escribió.
      */
     it('no filtra los echoes del negocio', async () => {
-      mockWorkflowsService.findOne.mockResolvedValue({ isActive: false });
+      mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: false });
       const res = createMockResponse();
 
       await controller.handleWebhook(echoBody, res, {});
@@ -181,13 +181,14 @@ describe('WhatsappConfigController · webhook', () => {
 
   /**
    * Una config que apunta a un workflow borrado es un estado de configuración, no una falla
-   * transitoria: reintentar no lo resucita. Antes `findOne` lanzaba, el throw caía al catch del
-   * webhook y se contestaba 500, así que cada mensaje entrante de ese número se convertía en un
-   * ciclo de reintentos de YCloud.
+   * transitoria: reintentar no lo resucita. En su día esto contestaba 500 y cada mensaje entrante
+   * de ese número se convertía en un ciclo de reintentos de YCloud.
    */
   describe('cuando el workflow ya no existe', () => {
     beforeEach(() => {
-      mockWorkflowsService.findOne.mockRejectedValue(new NotFoundException('Workflow not found'));
+      // `getRoutingState` devuelve null cuando no hay a dónde rutear: borrado, de otra
+      // organización o interno.
+      mockWorkflowsService.getRoutingState.mockResolvedValue(null);
     });
 
     it('lo descarta con 200 en vez de pedir reintento', async () => {
@@ -217,7 +218,7 @@ describe('WhatsappConfigController · webhook', () => {
    * cualquier excepción, una caída de la base descartaría mensajes del cliente en silencio.
    */
   it('sigue devolviendo 500 si el workflow no se pudo resolver por otra causa', async () => {
-    mockWorkflowsService.findOne.mockRejectedValue(new Error('connection terminated'));
+    mockWorkflowsService.getRoutingState.mockRejectedValue(new Error('connection terminated'));
     const res = createMockResponse();
 
     await controller.handleWebhook(body, res, {});

@@ -63,6 +63,43 @@ describe('WhatsappConfigService', () => {
       expect(res).toEqual(record);
     });
 
+    it('no consulta variantes cuando el match exacto acierta', async () => {
+      mockPrisma.whatsAppConfig.findFirst.mockResolvedValue({ id: 'r2' });
+      await service.getWhatsappConfigByPhoneNumber('+525512345678');
+      expect(mockPrisma.whatsAppConfig.findFirst).toHaveBeenCalledTimes(1);
+      expect(mockLogger.warn).not.toHaveBeenCalled();
+    });
+
+    it('resuelve por variante cuando el formato guardado no es el que manda YCloud', async () => {
+      // Guardado a mano sin el `1` de móvil; YCloud lo manda con él.
+      const record = { id: 'r2', phoneNumber: '+525512345678' };
+      mockPrisma.whatsAppConfig.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(record);
+
+      const res = await service.getWhatsappConfigByPhoneNumber('+5215512345678');
+
+      expect(res).toEqual(record);
+      const [, segundaLlamada] = mockPrisma.whatsAppConfig.findFirst.mock.calls;
+      expect(segundaLlamada[0].where.phoneNumber.in).toContain('+525512345678');
+      // El warn es lo que permite encontrar la fila con el formato torcido.
+      expect(mockLogger.warn).toHaveBeenCalled();
+    });
+
+    it('devuelve null cuando no hay match ni por variante', async () => {
+      mockPrisma.whatsAppConfig.findFirst.mockResolvedValue(null);
+      const res = await service.getWhatsappConfigByPhoneNumber('+5215512345678');
+      expect(res).toBeNull();
+      expect(mockLogger.warn).not.toHaveBeenCalled();
+    });
+
+    it('no consulta variantes cuando el número no tiene dígitos', async () => {
+      mockPrisma.whatsAppConfig.findFirst.mockResolvedValue(null);
+      const res = await service.getWhatsappConfigByPhoneNumber('unknown');
+      expect(res).toBeNull();
+      expect(mockPrisma.whatsAppConfig.findFirst).toHaveBeenCalledTimes(1);
+    });
+
     it('returns null and logs on error', async () => {
       mockPrisma.whatsAppConfig.findFirst.mockRejectedValue(new Error('boom'));
       const res = await service.getWhatsappConfigByPhoneNumber('+123');
