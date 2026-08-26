@@ -43,7 +43,10 @@ import {
   WHATSAPP_WORKER_PATH,
 } from '../../whatsapp-worker.constants';
 import { WorkflowsService } from '@/automation/workflows/workflows.service';
-import { ConversationsService } from '@/messaging/conversations/conversations.service';
+import {
+  ConversationsService,
+  OutsideWorkflowReason,
+} from '@/messaging/conversations/conversations.service';
 import { EndUsersService } from '@/identity/end-users/end-users.service';
 
 @Controller('whatsapp-config')
@@ -253,6 +256,7 @@ export class WhatsappConfigController {
           userNumber,
           parsedBody,
           isEcho,
+          'inactive-workflow',
         );
         this.logger.warn(
           `Received message for WhatsApp config with inactive workflow: ${account.defaultWorkflowId}`,
@@ -277,6 +281,7 @@ export class WhatsappConfigController {
             userNumber,
             parsedBody,
             isEcho,
+            'human-in-the-loop',
             conversation,
           );
         }
@@ -354,7 +359,8 @@ export class WhatsappConfigController {
     userNumber: string,
     event: WhatsAppInboundEvent,
     isEcho: boolean,
-    knownConversation?: { id: string } | null,
+    reason: OutsideWorkflowReason,
+    knownConversation?: { id: string; organizationId: string; metadata?: unknown } | null,
   ): Promise<void> {
     const content = isEcho
       ? event.whatsappMessage?.text?.body
@@ -384,6 +390,18 @@ export class WhatsappConfigController {
       content,
       { source: isEcho ? 'whatsapp_smb_echo' : 'whatsapp_inbound_message' },
     );
+
+    // El mensaje quedó con rol ASSISTANT pero lo mandó un humano, no el workflow: se
+    // deja constancia en `metadata` para poder distinguir, en el historial, los turnos
+    // que el bot nunca vio de los que sí generó.
+    if (isEcho) {
+      await this.conversationsService.markMessageOutsideWorkflow(
+        conversation.organizationId,
+        conversation.id,
+        reason,
+        conversation.metadata,
+      );
+    }
   }
 
   // ─── Config CRUD ──────────────────────────────────────────────────────

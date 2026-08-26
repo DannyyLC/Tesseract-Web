@@ -15,7 +15,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
-import { MessengerConfig } from '@tesseract/database';
+import { ChatRole, MessengerConfig } from '@tesseract/database';
 import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
 import { Response } from 'express';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
@@ -23,6 +23,10 @@ import { Logger } from 'winston';
 import { WorkflowsService } from '@/automation/workflows/workflows.service';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
+import {
+  ConversationsService,
+  OutsideWorkflowReason,
+} from '@/messaging/conversations/conversations.service';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { messengerExternalId } from '@/platform/common/utils/messenger-external-id';
 import { CloudTasksService } from '@/platform/tasks/cloud-tasks.service';
@@ -31,6 +35,7 @@ import { EndUsersService } from '@/identity/end-users/end-users.service';
 import {
   CreateConfigDto,
   MessengerInboundEvent,
+  MessengerMessagingEvent,
   UpdateAppSecretDto,
   UpdateMessengerConfigDto,
   UpdatePageAccessTokenDto,
@@ -63,6 +68,7 @@ export class MessengerController {
     private readonly webhookDedup: WebhookDedupService,
     private readonly workflowsService: WorkflowsService,
     private readonly endUsersService: EndUsersService,
+    private readonly conversationsService: ConversationsService,
   ) {}
 
   // ─── Webhook ──────────────────────────────────────────────────────────
@@ -138,7 +144,7 @@ export class MessengerController {
 
     const events = this.flattenEvents(parsedBody);
     if (events.length === 0) {
-      // Acuses de entrega, lecturas y ecos de la propia página caen aquí. Son normales.
+      // Acuses de entrega y de lectura caen aquí. Son normales.
       return res.status(HttpStatus.OK).send({ received: true, ignored: 'no-messages' });
     }
 
@@ -244,21 +250,25 @@ export class MessengerController {
   /**
    * Aplana el payload de Meta a la unidad con la que trabaja el resto del canal.
    *
-   * Descarta lo que no es un mensaje del usuario: acuses de entrega y de lectura, y los
-   * ecos de la propia página —sin ese filtro el bot se contestaría a sí mismo en bucle.
+   * Descarta lo que no es un mensaje ni un postback: acuses de entrega y de lectura.
+   * Los ecos (`message_echoes`, `is_echo: true`) SÍ se conservan —a diferencia de antes—
+   * porque hace falta registrarlos cuando alguien intervino la conversación a mano; el
+   * corte contra el bucle no está en descartarlos aquí, sino en que `scheduleEvent` nunca
+   * los agenda para ejecutar el workflow.
    */
   private flattenEvents(payload: MessengerWebhookPayload): MessengerInboundEvent[] {
     const events: MessengerInboundEvent[] = [];
 
     for (const entry of payload.entry ?? []) {
       for (const messaging of entry.messaging ?? []) {
-        if (messaging.message?.is_echo) continue;
+        const isEcho = messaging.message?.is_echo === true;
 
         const messageId = messaging.message?.mid ?? messaging.postback?.mid;
-        const senderId = messaging.sender?.id;
-        // `entry.id` es la página; se prefiere `recipient.id` porque es el destinatario
-        // real del evento y coincide con la página en los mensajes entrantes.
-        const pageId = messaging.recipient?.id ?? entry.id;
+        // En un mensaje entrante la página es la destinataria (`recipient`); en un echo
+        // es quien lo mandó (`sender`), porque el echo refleja algo que la página envió.
+        // `entry.id` es el respaldo cuando el lado correspondiente no viene en el payload.
+        const pageId = (isEcho ? messaging.sender?.id : messaging.recipient?.id) ?? entry.id;
+        const senderId = isEcho ? messaging.recipient?.id : messaging.sender?.id;
 
         if (!messageId || !senderId || !pageId) continue;
         if (!messaging.message && !messaging.postback) continue;
@@ -269,6 +279,7 @@ export class MessengerController {
           messageId,
           timestamp: messaging.timestamp,
           messaging,
+          isEcho,
         });
       }
     }
@@ -291,7 +302,7 @@ export class MessengerController {
     event: MessengerInboundEvent,
     account: MessengerConfig,
   ): Promise<Record<string, unknown>> {
-    const { messageId, pageId, senderId } = event;
+    const { messageId, pageId, senderId, isEcho } = event;
 
     // Deduplicación: Meta reintenta, y reprocesar dispara el workflow dos veces (y con
     // él, el cobro de créditos al tenant). Va después de la firma: reclamar antes
@@ -299,7 +310,7 @@ export class MessengerController {
     const isNew = await this.webhookDedup.claim(
       WEBHOOK_PROVIDER_MESSENGER,
       messageId,
-      event.messaging.postback ? 'postback' : 'message',
+      isEcho ? 'echo' : event.messaging.postback ? 'postback' : 'message',
     );
     if (!isNew) {
       this.logger.warn(`Mensaje de Messenger ${messageId} duplicado, se omite`);
@@ -318,21 +329,25 @@ export class MessengerController {
       return { messageId, ignored: 'no-workflow' };
     }
 
-    // Lista negra. El bloqueo es de la organización, no del canal: si alguien quedó bloqueado
-    // por WhatsApp, tampoco se le contesta por aquí. Cortar en el webhook es lo que hace que un
-    // contacto bloqueado no cueste buffer, ni tarea, ni workflow, ni crédito.
-    const isBlocked = await this.endUsersService.isBlocked(account.organizationId, {
-      externalId: messengerExternalId(pageId, senderId),
-    });
-
-    if (isBlocked) {
-      this.logger.info('Mensaje de contacto bloqueado, se descarta', {
-        organizationId: account.organizationId,
-        pageId,
-        senderId,
-        messageId,
+    // Lista negra. Solo aplica a lo que ENTRA: un echo es un mensaje que la página mandó
+    // ella misma, y la lista negra nunca fue sobre lo que sale. El bloqueo es de la
+    // organización, no del canal: si alguien quedó bloqueado por WhatsApp, tampoco se le
+    // contesta por aquí. Cortar en el webhook es lo que hace que un contacto bloqueado no
+    // cueste buffer, ni tarea, ni workflow, ni crédito.
+    if (!isEcho) {
+      const isBlocked = await this.endUsersService.isBlocked(account.organizationId, {
+        externalId: messengerExternalId(pageId, senderId),
       });
-      return { messageId, ignored: 'blocked-contact' };
+
+      if (isBlocked) {
+        this.logger.info('Mensaje de contacto bloqueado, se descarta', {
+          organizationId: account.organizationId,
+          pageId,
+          senderId,
+          messageId,
+        });
+        return { messageId, ignored: 'blocked-contact' };
+      }
     }
 
     if (process.env.NODE_ENV !== 'production') {
@@ -356,11 +371,46 @@ export class MessengerController {
       return { messageId, ignored: 'missing-workflow' };
     }
 
+    // Con el flujo apagado nadie más lleva la conversación al día: se registra el mensaje
+    // sea cual sea su origen (usuario o página) para que el historial no se quede corto.
     if (!workflowAssociated.isActive) {
+      await this.recordMessageOutsideFlow(
+        account.id,
+        account.defaultWorkflowId,
+        pageId,
+        senderId,
+        event.messaging,
+        isEcho,
+        'inactive-workflow',
+      );
       this.logger.warn(
         `Received message for Messenger config with inactive workflow: ${account.defaultWorkflowId}`,
       );
       return { messageId, ignored: 'inactive-workflow' };
+    }
+
+    // Los ecos reflejan mensajes que la página ya mandó fuera de nuestra API (Meta
+    // Business Suite, Page Inbox): no hay nada que ejecutar. Con el flujo activo solo
+    // hace falta registrarlos si alguien intervino la conversación a mano; si no,
+    // `execute()` es quien la lleva al día y sumar el eco aquí la duplicaría.
+    if (isEcho) {
+      const conversation = await this.conversationsService.findActiveMessengerConversation(
+        account.id,
+        senderId,
+      );
+      if (conversation?.isHumanInTheLoop === true) {
+        await this.recordMessageOutsideFlow(
+          account.id,
+          account.defaultWorkflowId,
+          pageId,
+          senderId,
+          event.messaging,
+          isEcho,
+          'human-in-the-loop',
+          conversation,
+        );
+      }
+      return { messageId, echo: true };
     }
 
     const bufferedAt = Date.now();
@@ -402,6 +452,64 @@ export class MessengerController {
     });
 
     return { messageId, scheduled: true, windowId };
+  }
+
+  /**
+   * Deja constancia en la conversación de un mensaje que el flujo no va a procesar: ya
+   * sea un eco de la página (evento `message_echoes`) o, con el workflow apagado, el
+   * mensaje mismo del usuario. El llamador decide cuándo corresponde —workflow inactivo,
+   * o eco con la conversación intervenida (`isHumanInTheLoop`)—; este método solo escribe.
+   *
+   * Análogo a `recordMessageOutsideFlow` de `WhatsappConfigController`.
+   */
+  private async recordMessageOutsideFlow(
+    messengerConfigId: string,
+    defaultWorkflowId: string,
+    pageId: string,
+    senderId: string,
+    messaging: MessengerMessagingEvent,
+    isEcho: boolean,
+    reason: OutsideWorkflowReason,
+    knownConversation?: { id: string; organizationId: string; metadata?: unknown } | null,
+  ): Promise<void> {
+    const content = messaging.message?.text;
+    if (!content) {
+      this.logger.warn(
+        `Messenger message without text for config ${messengerConfigId}, it's skipped`,
+      );
+      return;
+    }
+
+    const conversation =
+      knownConversation ??
+      (await this.conversationsService.findActiveMessengerConversation(
+        messengerConfigId,
+        senderId,
+      )) ??
+      (await this.conversationsService.findOrCreateConversationFromMessengerMessage(
+        defaultWorkflowId,
+        pageId,
+        senderId,
+      ));
+
+    await this.conversationsService.addMessage(
+      conversation.id,
+      isEcho ? ChatRole.ASSISTANT : ChatRole.USER,
+      content,
+      { source: isEcho ? 'messenger_echo' : 'messenger_message' },
+    );
+
+    // El mensaje quedó con rol ASSISTANT pero lo mandó un humano, no el workflow: se
+    // deja constancia en `metadata` para poder distinguir, en el historial, los turnos
+    // que el bot nunca vio de los que sí generó.
+    if (isEcho) {
+      await this.conversationsService.markMessageOutsideWorkflow(
+        conversation.organizationId,
+        conversation.id,
+        reason,
+        conversation.metadata,
+      );
+    }
   }
 
   // ─── Config CRUD ──────────────────────────────────────────────────────

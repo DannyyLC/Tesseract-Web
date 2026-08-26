@@ -42,8 +42,7 @@ export interface MessengerMessage {
   /** Id del mensaje. Único y estable: es la llave de deduplicación. */
   mid?: string;
   text?: string;
-  /** `true` cuando el mensaje lo envió la propia página. Se ignora para no
-   *  contestarnos a nosotros mismos en un bucle. */
+  /** `true` cuando el mensaje lo envió la propia página (evento `message_echoes`). */
   is_echo?: boolean;
   quick_reply?: { payload?: string };
   attachments?: MessengerAttachment[];
@@ -84,15 +83,17 @@ export interface MessengerPostback {
  * recibe `workflows.execute()` como contexto del canal.
  */
 export interface MessengerInboundEvent {
-  /** Id de la página (destinatario). */
+  /** Id de la página. En un echo la deduce de `sender`, no de `recipient`. */
   pageId: string;
-  /** PSID de quien escribe. */
+  /** PSID de la persona (nunca de la página, ni siquiera en un echo). */
   senderId: string;
   /** `message.mid` o `postback.mid`. */
   messageId: string;
   /** Epoch ms según Meta. */
   timestamp?: number;
   messaging: MessengerMessagingEvent;
+  /** `true` cuando el mensaje lo mandó la página (event `message_echoes`). */
+  isEcho: boolean;
 }
 
 export default MessengerInboundEvent;

@@ -38,6 +38,9 @@ interface CreateCompactionInput {
   error?: string;
 }
 
+/** Por qué un mensaje ASSISTANT no pasó por el workflow. Ver `markMessageOutsideWorkflow`. */
+export type OutsideWorkflowReason = 'inactive-workflow' | 'human-in-the-loop';
+
 interface MessageAttachmentInput {
   type: 'IMAGE' | 'AUDIO';
   mimeType: string;
@@ -435,6 +438,32 @@ export class ConversationsService {
   }
 
   /**
+   * Conversación activa de un PSID de Messenger, sin crearla si no existe.
+   *
+   * Es el mismo predicado que usa `findOrCreateConversationFromMessengerMessage`, y por eso
+   * vive aquí en vez de duplicarse: el webhook consulta esta conversación para saber si está
+   * intervenida (`isHumanInTheLoop`) antes de decidir qué hacer con un echo, y si los dos
+   * `where` se separaran, podría decidir sobre una conversación distinta de la que después se
+   * usa. Gemela de `findActiveWhatsappConversation`.
+   *
+   * El filtro `deletedAt: null` no es opcional: sin él se reutiliza una conversación borrada
+   * desde la UI, y como `findOne` sí descarta las borradas, el flujo del webhook terminaba
+   * lanzando NotFoundException y no enviando la respuesta.
+   */
+  async findActiveMessengerConversation(messengerConfigId: string, senderId: string) {
+    return this.prisma.conversation.findFirst({
+      where: {
+        channel: ConversationChannel.MESSENGER,
+        messengerConfigId,
+        messengerSenderId: senderId,
+        status: ConversationStatus.ACTIVE,
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
    * Busca o crea la conversación de un usuario de Messenger.
    *
    * Gemelo de `findOrCreateConversationFromWhatsAppMessage`: la pareja (página, PSID)
@@ -454,19 +483,7 @@ export class ConversationsService {
       throw new Error(`Messenger config no encontrada para la página: ${pageId}`);
     }
 
-    // El filtro `deletedAt: null` no es opcional: sin él se reutiliza una conversación
-    // borrada desde la UI y, como `findOne` sí descarta las borradas, el flujo del
-    // webhook termina lanzando NotFoundException y sin enviar la respuesta.
-    const existing = await this.prisma.conversation.findFirst({
-      where: {
-        channel: ConversationChannel.MESSENGER,
-        messengerConfigId: messengerConfig.id,
-        messengerSenderId: senderId,
-        status: ConversationStatus.ACTIVE,
-        deletedAt: null,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const existing = await this.findActiveMessengerConversation(messengerConfig.id, senderId);
 
     if (existing) {
       this.logger.debug(
@@ -630,6 +647,32 @@ export class ConversationsService {
 
     this.logger.debug(`Conversación ${id} actualizada: ${JSON.stringify(updateData)}`);
     return conversation;
+  }
+
+  /**
+   * Deja constancia, en `metadata.outsideWorkflow`, de que el último mensaje con rol
+   * ASSISTANT no lo generó el workflow sino un humano: un eco de WhatsApp Business o
+   * Messenger llegado con el flujo apagado, o con la conversación intervenida
+   * (`isHumanInTheLoop`). No es una columna aparte porque no se lista ni se filtra por
+   * esto —es trazabilidad para leer el historial, igual que `postTurnActions` o
+   * `variables` dentro de `metadata`.
+   *
+   * `currentMetadata` lo pasa quien llama porque ya tiene la conversación en mano (viene
+   * de `findActiveWhatsappConversation`/`findActiveMessengerConversation` o de crearla);
+   * pedirla otra vez aquí solo añadiría una lectura.
+   */
+  async markMessageOutsideWorkflow(
+    organizationId: string,
+    conversationId: string,
+    reason: OutsideWorkflowReason,
+    currentMetadata?: unknown,
+  ): Promise<void> {
+    await this.update(organizationId, conversationId, {
+      metadata: {
+        ...((currentMetadata as object) ?? {}),
+        outsideWorkflow: { reason, recordedAt: new Date().toISOString() },
+      },
+    });
   }
 
   // ============================================
