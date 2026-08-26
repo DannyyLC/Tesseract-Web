@@ -192,6 +192,29 @@ export const PLAN_ORDER: SubscriptionPlan[] = [
 
 /**
  * Configuración completa de todos los planes
+ *
+ * **De dónde salen los `monthlyCredits`.** No son números redondos elegidos a ojo: se derivan
+ * del costo real medido de un crédito y de un múltiplo objetivo por plan. La calibración de
+ * agosto 2026 partió de $0.002216 USD por crédito —costo promedio real de una ejecución LIGHT
+ * sobre 386 ejecuciones en producción, que a 1 crédito por ejecución es el costo de un crédito—
+ * y repartió los precios vigentes de Stripe entre ese costo por un múltiplo que decrece con el
+ * plan, para que subir de plan salga más barato por crédito:
+ *
+ *   plan       precio    múltiplo   créditos   USD/crédito
+ *   STARTER    $25          15×        750       $0.0333
+ *   GROWTH     $79          14×      2,550       $0.0310
+ *   BUSINESS   $199         13×      6,900       $0.0288
+ *   PRO        $499         12×     18,750       $0.0266
+ *
+ * El múltiplo es alto a propósito y no es margen neto: absorbe la infraestructura (Cloud SQL y
+ * Cloud Run son costo fijo, así que el costo por cliente baja al crecer) y el hecho de que un
+ * workflow con prompt más pesado puede costar 2-3× la base medida. Antes de esta calibración los
+ * créditos estaban dimensionados suponiendo ~$0.10 por ejecución, un costo que nunca se
+ * materializó: se cobraba del orden de 80× el costo real y el saldo de STARTER —200 créditos, o
+ * 200 mensajes al mes— era demasiado chico para sostener un agente conversacional.
+ *
+ * Recalibrar exige volver a medir contra `Execution.cost`, no ajustar a intuición. Y solo se
+ * puede a la baja avisando un mes antes: reducir créditos afecta la facturación del cliente.
  */
 export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
   [SubscriptionPlan.FREE]: {
@@ -222,8 +245,8 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxApiKeys: 50,
       maxDatasets: 1,
       maxDatasetRows: 1000,
-      monthlyCredits: 200,
-      overageLimit: 200,
+      monthlyCredits: 750,
+      overageLimit: 750,
       allowOverages: true,
     },
     features: ['Soporte estándar por email'],
@@ -240,8 +263,8 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxApiKeys: 100,
       maxDatasets: 3,
       maxDatasetRows: 5000,
-      monthlyCredits: 650,
-      overageLimit: 650,
+      monthlyCredits: 2550,
+      overageLimit: 2550,
       allowOverages: true,
     },
     features: ['Soporte prioritario 24h'],
@@ -259,8 +282,8 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxApiKeys: 250,
       maxDatasets: 5,
       maxDatasetRows: 15000,
-      monthlyCredits: 1800,
-      overageLimit: 1800,
+      monthlyCredits: 6900,
+      overageLimit: 6900,
       allowOverages: true,
     },
     features: ['Soporte prioritario 12h'],
@@ -278,8 +301,8 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxApiKeys: 500,
       maxDatasets: 10,
       maxDatasetRows: 50000,
-      monthlyCredits: 5000,
-      overageLimit: 5000,
+      monthlyCredits: 18750,
+      overageLimit: 18750,
       allowOverages: true,
     },
     features: ['Account Manager'],

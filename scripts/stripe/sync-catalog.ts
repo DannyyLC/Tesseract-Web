@@ -84,7 +84,12 @@ const CATALOG: CatalogEntry[] = [
     // Pago único: se adjunta como línea a la factura del mes en que hubo consumo extra, con
     // `quantity` igual a los créditos debidos. No es una suscripción aparte.
     recurring: false,
-    amounts: { usd: 16, mxn: 320 },
+    // $0.05 por crédito: 1.5× la tarifa de STARTER y ~1.9× la de PRO. Suficiente para que
+    // subir de plan siga siendo lo racional (un STARTER que duplica su consumo paga
+    // $0.039/crédito por la vía del overage contra $0.031 en GROWTH) sin que el sobregiro se
+    // sienta multa. Venía de $0.16, que era 4.8× la tarifa de plan y castigaba justo al
+    // cliente que estaba creciendo.
+    amounts: { usd: 5, mxn: 100 },
   },
 ];
 

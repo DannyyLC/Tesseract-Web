@@ -309,8 +309,10 @@ model Subscription {
 
   // Campos personalizables para ENTERPRISE
   customMonthlyPrice   Decimal? @db.Decimal(19, 4) // null = usar precio estándar del plan
-  customMonthlyCredits Int? // null = usar defaults (150/500/1500/5000)
-  customMaxWorkflows   Int? // null = usar defaults (3/7/12/25)
+  // null = usar el default del plan. Los valores viven en `PLANS` (packages/types) y no se
+  // repiten aquí a propósito: se recalibran contra el costo real y las copias quedan obsoletas.
+  customMonthlyCredits Int?
+  customMaxWorkflows   Int?
   customOverageLimit   Int? // null = calcular automático (1 mes de créditos)
   customFeatures       Json? // Features especiales: { sla: "99.9%", support: "24/7", ... }
 
@@ -1353,7 +1355,7 @@ model Workflow {
   datasets Dataset[] @relation("WorkflowToDataset")
 
   // Credit System - Workflow Category
-  category              WorkflowCategory // LIGHT (1cr), STANDARD (5cr), ADVANCED (25cr) - Asignado por admin
+  category              WorkflowCategory // Asignado por admin. Costo en créditos: WORKFLOW_CATEGORIES (packages/types)
   maxTokensPerExecution Int // Techo de historial de conversación (20k/100k/250k según category)
 
   maxMessages            Int? // null = sin límite de mensajes
@@ -1484,7 +1486,7 @@ model Execution {
 
   // Credit System - Costos y Créditos
   cost          Decimal @default(0) @db.Decimal(19, 8) // Costo real en USD (de las APIs de modelos)
-  credits       Int     @default(0) // Créditos cobrados (1/5/25 según workflow.category)
+  credits       Int     @default(0) // Créditos cobrados según workflow.category (ver WORKFLOW_CATEGORIES)
   tokensUsed    Int? // Total tokens consumidos en esta ejecución
   balanceBefore Int? // Snapshot del balance antes de la ejecución
   balanceAfter  Int? // Snapshot del balance después de la ejecución
