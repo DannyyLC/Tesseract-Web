@@ -31,7 +31,7 @@ export function OrganizationSummary({ organizationId }: Props) {
   }
 
   const limits = org.planLimits.limits;
-  const fmt = (max: number) => (max === -1 ? '∞' : max);
+  const fmt = (max: number) => (max === -1 ? '∞' : max.toLocaleString('es-MX'));
 
   return (
     <div className="space-y-4 py-4">
@@ -48,7 +48,9 @@ export function OrganizationSummary({ organizationId }: Props) {
         </div>
         <div>
           <dt className="text-xs text-text-secondary">Créditos</dt>
-          <dd className="text-sm text-text-primary">{org.usage.credits}</dd>
+          <dd className={`text-sm ${org.usage.credits < 0 ? 'text-danger' : 'text-text-primary'}`}>
+            {org.usage.credits.toLocaleString('es-MX')} / {fmt(limits.monthlyCredits)}
+          </dd>
         </div>
         <div>
           <dt className="text-xs text-text-secondary">Se renuevan</dt>
