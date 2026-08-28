@@ -41,6 +41,18 @@ export function useTenantTool(id: string) {
   });
 }
 
+// ─── Estado de "WhatsApp Outbound" (tarjeta del catálogo) ────────────────────
+export function useWhatsappOutboundStatus() {
+  return useQuery({
+    queryKey: ['tenant-tools', 'whatsapp-outbound-status'],
+    queryFn: async () => {
+      const api = RootApi.getInstance().getTenantToolsApi();
+      return await api.getWhatsappOutboundStatus();
+    },
+    staleTime: 1000 * 60,
+  });
+}
+
 // ─── Mutaciones ───────────────────────────────────────────────────────────────
 export function useTenantToolMutations() {
   const queryClient = useQueryClient();
@@ -89,6 +101,17 @@ export function useTenantToolMutations() {
     },
   });
 
+  const linkWhatsappOutboundWorkflows = useMutation({
+    mutationFn: async (workflowIds: string[]) => {
+      const api = RootApi.getInstance().getTenantToolsApi();
+      return await api.linkWhatsappOutboundWorkflows(workflowIds);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-tools', 'whatsapp-outbound-status'] });
+      invalidateDashboard();
+    },
+  });
+
   const disconnectTool = useMutation({
     mutationFn: async (toolId: string) => {
       const api = RootApi.getInstance().getTenantToolsApi();
@@ -114,6 +137,7 @@ export function useTenantToolMutations() {
     updateTenantTool,
     addWorkflows,
     removeWorkflows,
+    linkWhatsappOutboundWorkflows,
     disconnectTool,
     deleteTool,
   };

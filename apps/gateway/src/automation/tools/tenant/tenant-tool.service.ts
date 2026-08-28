@@ -5,7 +5,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PaginatedResponse, DashboardTenantToolDto } from '@tesseract/types';
+import {
+  PaginatedResponse,
+  DashboardTenantToolDto,
+  WhatsappOutboundStatusDto,
+} from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../../../platform/common/responses/cursor-paginated-response';
 import { PrismaService } from '../../../platform/database/prisma.service';
 import { CreateTenantToolDto } from './dto/create-tenant-tool.dto';
@@ -347,6 +351,137 @@ export class TenantToolService {
         `Error removing workflows from tenant tool with ID ${tenantToolId}: ${error?.message ?? 'Unknown error'}`,
       );
       return null;
+    }
+  }
+
+  /**
+   * Estado del catálogo de "WhatsApp Outbound" para una organización: si hay al menos un
+   * número configurado (para pintar la tarjeta activa o gris) y qué workflows ya tienen un
+   * WhatsAppConfig activo con `defaultWorkflowId` propio pero todavía no están enganchados
+   * a la tenant tool (para ofrecer el enlace en el diálogo de selección).
+   */
+  async getWhatsappOutboundStatus(organizationId: string): Promise<WhatsappOutboundStatusDto> {
+    const [whatsappConfigCount, tenantTool, configsWithDefaultWorkflow] = await Promise.all([
+      this.prismaService.whatsAppConfig.count({
+        where: { organizationId, deletedAt: null },
+      }),
+      this.prismaService.tenantTool.findFirst({
+        where: {
+          organizationId,
+          deletedAt: null,
+          toolCatalog: { toolName: 'send_bulk_whatsapp' },
+        },
+        select: { id: true, workflows: { select: { id: true } } },
+      }),
+      this.prismaService.whatsAppConfig.findMany({
+        where: {
+          organizationId,
+          deletedAt: null,
+          isActive: true,
+          defaultWorkflowId: { not: null },
+        },
+        select: {
+          id: true,
+          phoneNumber: true,
+          displayName: true,
+          defaultWorkflowId: true,
+          defaultWorkflow: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
+
+    const linkedWorkflowIds = new Set(tenantTool?.workflows.map((w) => w.id) ?? []);
+    const seenWorkflowIds = new Set<string>();
+    const unlinkedWorkflows: WhatsappOutboundStatusDto['unlinkedWorkflows'] = [];
+
+    for (const wac of configsWithDefaultWorkflow) {
+      const workflowId = wac.defaultWorkflowId;
+      if (!workflowId || linkedWorkflowIds.has(workflowId) || seenWorkflowIds.has(workflowId)) {
+        continue;
+      }
+      seenWorkflowIds.add(workflowId);
+      unlinkedWorkflows.push({
+        workflowId,
+        workflowName: wac.defaultWorkflow?.name ?? '',
+        whatsappConfigId: wac.id,
+        phoneNumber: wac.phoneNumber,
+        displayName: wac.displayName,
+      });
+    }
+
+    return {
+      hasWhatsappConfig: whatsappConfigCount > 0,
+      tenantToolId: tenantTool?.id ?? null,
+      unlinkedWorkflows,
+    };
+  }
+
+  /**
+   * Engancha los workflows seleccionados a la tenant tool "WhatsApp Outbound" de la
+   * organización, creándola si todavía no existe. Sin gate de `createdByUserId`: a
+   * diferencia de editar una tool ya conectada, esto es un flujo de setup guiado que
+   * cualquier OWNER/ADMIN puede completar (el controller ya restringe el rol).
+   */
+  async linkWhatsappOutboundWorkflows(
+    organizationId: string,
+    userId: string,
+    workflowIds: string[],
+  ) {
+    if (workflowIds.length === 0) {
+      throw new NotFoundException('No workflow IDs provided');
+    }
+
+    const validWorkflows = await this.prismaService.workflow.findMany({
+      where: { id: { in: workflowIds }, organizationId },
+      select: { id: true },
+    });
+
+    if (validWorkflows.length !== workflowIds.length) {
+      throw new NotFoundException('One or more workflows do not belong to this organization');
+    }
+
+    const catalogEntry = await this.prismaService.toolCatalog.findFirst({
+      where: { toolName: 'send_bulk_whatsapp' },
+      select: { id: true, displayName: true },
+    });
+
+    if (!catalogEntry) {
+      throw new NotFoundException('WhatsApp Outbound tool catalog entry not found');
+    }
+
+    const existing = await this.prismaService.tenantTool.findFirst({
+      where: { organizationId, deletedAt: null, toolCatalogId: catalogEntry.id },
+    });
+
+    try {
+      if (existing) {
+        return await this.prismaService.tenantTool.update({
+          where: { id: existing.id },
+          data: {
+            workflows: { connect: workflowIds.map((id) => ({ id })) },
+          },
+        });
+      }
+
+      return await this.prismaService.tenantTool.create({
+        data: {
+          displayName: catalogEntry.displayName,
+          organizationId,
+          toolCatalogId: catalogEntry.id,
+          createdByUserId: userId,
+          isConnected: true,
+          status: ToolConnectionStatus.CONNECTED,
+          workflows: { connect: workflowIds.map((id) => ({ id })) },
+        },
+      });
+    } catch (error: any) {
+      if (error?.code === 'P2002') {
+        throw new ConflictException('Ya existe una herramienta activa con ese nombre.');
+      }
+      this.logger.error(
+        `Error linking workflows to WhatsApp Outbound tenant tool: ${error?.message ?? 'Unknown error'}`,
+      );
+      throw error;
     }
   }
 

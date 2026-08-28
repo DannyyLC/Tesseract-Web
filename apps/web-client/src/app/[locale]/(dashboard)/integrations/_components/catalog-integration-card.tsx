@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Zap, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 import { GetToolsDto } from '@tesseract/types';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import PermissionGuard from '@/components/auth/permission-guard';
@@ -18,6 +18,16 @@ interface CatalogIntegrationCardProps {
    */
   connectedCount?: number;
   onConnect?: (tool: GetToolsDto) => void;
+  /**
+   * Extra gray-out condition on top of `tool.isActive`, driven by org-specific state the
+   * catalog itself can't know about (e.g. WhatsApp Outbound with no WhatsAppConfig yet).
+   */
+  forceDisabled?: boolean;
+  /** Badge text shown instead of "Coming soon" when `forceDisabled` is true but the catalog entry itself is active. */
+  disabledBadgeText?: string;
+  /** When > 0, shows a CTA to resolve N pending setup items (e.g. workflows waiting to be linked). */
+  pendingSetupCount?: number;
+  onPendingSetupClick?: () => void;
 }
 
 const CATEGORY_STYLE = 'bg-[var(--surface-tint)] text-text-tertiary';
@@ -27,9 +37,14 @@ export function CatalogIntegrationCard({
   index,
   connectedCount = 0,
   onConnect,
+  forceDisabled = false,
+  disabledBadgeText,
+  pendingSetupCount = 0,
+  onPendingSetupClick,
 }: CatalogIntegrationCardProps) {
   const t = useTranslations('Integrations');
   const [isExpanded, setIsExpanded] = useState(false);
+  const isDisabled = !tool.isActive || forceDisabled;
 
   return (
     <motion.div
@@ -41,7 +56,7 @@ export function CatalogIntegrationCard({
       layout
       onClick={() => setIsExpanded(!isExpanded)}
       // El `mb-4` hace de separación vertical dentro de la columna.
-      className={`group mb-4 flex w-full cursor-pointer flex-col rounded-2xl border border-[var(--border-subtle)] bg-surface-elevated p-5 transition-shadow hover:shadow-md ${!tool.isActive ? 'opacity-50' : ''}`}
+      className={`group mb-4 flex w-full cursor-pointer flex-col rounded-2xl border border-[var(--border-subtle)] bg-surface-elevated p-5 transition-shadow hover:shadow-md ${isDisabled ? 'opacity-50' : ''}`}
     >
       {/* Header */}
       <div className="mb-4 flex items-start justify-between">
@@ -65,6 +80,11 @@ export function CatalogIntegrationCard({
           {!tool.isActive && (
             <span className="rounded-full bg-[var(--surface-tint)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
               {t('comingSoon')}
+            </span>
+          )}
+          {tool.isActive && forceDisabled && disabledBadgeText && (
+            <span className="rounded-full bg-[var(--surface-tint)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+              {disabledBadgeText}
             </span>
           )}
         </div>
@@ -129,13 +149,25 @@ export function CatalogIntegrationCard({
 
       {/* Footer */}
       <div className="mt-4 border-t border-[var(--border-subtle)] pt-4">
+        {pendingSetupCount > 0 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onPendingSetupClick?.();
+            }}
+            className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--badge-warning-bg-solid)] bg-[var(--badge-warning-bg-solid)] py-2 text-xs font-medium text-[var(--warning-text-adaptive)] transition-opacity hover:opacity-80"
+          >
+            <AlertCircle size={12} />
+            {t('pendingWorkflowSetup', { count: pendingSetupCount })}
+          </button>
+        )}
         <PermissionGuard permissions="tenant_tools:create">
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (tool.isActive) onConnect?.(tool);
+              if (!isDisabled) onConnect?.(tool);
             }}
-            disabled={!tool.isActive}
+            disabled={isDisabled}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-30"
           >
             <Plus size={14} />

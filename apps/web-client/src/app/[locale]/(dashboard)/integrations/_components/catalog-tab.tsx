@@ -8,10 +8,14 @@ import { useToolCatalog, flattenToolCatalog } from '@/hooks/automation/use-tool-
 import {
   useInfiniteTenantToolsDashboard,
   flattenTenantTools,
+  useWhatsappOutboundStatus,
 } from '@/hooks/automation/use-tenant-tools';
 import { GetToolsDto } from '@tesseract/types';
 import { CatalogIntegrationCard } from './catalog-integration-card';
 import { ConnectIntegrationModal } from './connect-integration-modal';
+import { WhatsappOutboundLinkModal } from './whatsapp-outbound-link-modal';
+
+const WHATSAPP_OUTBOUND_TOOL_NAME = 'send_bulk_whatsapp';
 
 interface CatalogTabProps {
   onConnect?: (tool: GetToolsDto) => void;
@@ -22,6 +26,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
   const [localSearch, setLocalSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [connectTarget, setConnectTarget] = useState<GetToolsDto | null>(null);
+  const [whatsappLinkModalOpen, setWhatsappLinkModalOpen] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -40,6 +45,7 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
   } = useToolCatalog({ pageSize: 20, search: debouncedSearch || undefined });
 
   const { data: tenantToolsData } = useInfiniteTenantToolsDashboard({ pageSize: 100 });
+  const { data: whatsappStatus } = useWhatsappOutboundStatus();
 
   const allCatalogTools = flattenToolCatalog(catalogData);
   const connectedTools = flattenTenantTools(tenantToolsData);
@@ -81,6 +87,15 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
   );
 
   const handleConnectClick = (tool: GetToolsDto) => {
+    // WhatsApp Outbound is fully driven by the org's WhatsApp channel setup + the link
+    // dialog below — it never needs the generic OAuth modal. Routing it there would hit
+    // the modal's `provider !== 'none'` branch (provider is 'platform', not 'none') and
+    // send the user through a Google OAuth redirect that doesn't apply to this tool.
+    if (tool.toolName === WHATSAPP_OUTBOUND_TOOL_NAME) {
+      setWhatsappLinkModalOpen(true);
+      onConnect?.(tool);
+      return;
+    }
     setConnectTarget(tool);
     onConnect?.(tool);
   };
@@ -124,18 +139,29 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
         <div className="flex items-start gap-4">
           {toolColumns.map((column, columnIndex) => (
             <div key={columnIndex} className="flex min-w-0 flex-1 flex-col">
-              {column.map((tool, i) => (
-                <CatalogIntegrationCard
-                  key={tool.id}
-                  tool={tool}
-                  // La entrada se escalona por posición dentro de la columna, no por índice
-                  // global: con el scroll infinito el índice global crece sin límite y las
-                  // cartas de la cuarta página tardaban segundos en aparecer.
-                  index={i}
-                  connectedCount={connectedCountMap[tool.toolName] ?? 0}
-                  onConnect={handleConnectClick}
-                />
-              ))}
+              {column.map((tool, i) => {
+                const isWhatsappOutbound = tool.toolName === WHATSAPP_OUTBOUND_TOOL_NAME;
+                return (
+                  <CatalogIntegrationCard
+                    key={tool.id}
+                    tool={tool}
+                    // La entrada se escalona por posición dentro de la columna, no por índice
+                    // global: con el scroll infinito el índice global crece sin límite y las
+                    // cartas de la cuarta página tardaban segundos en aparecer.
+                    index={i}
+                    connectedCount={connectedCountMap[tool.toolName] ?? 0}
+                    onConnect={handleConnectClick}
+                    forceDisabled={
+                      isWhatsappOutbound && whatsappStatus ? !whatsappStatus.hasWhatsappConfig : false
+                    }
+                    disabledBadgeText={isWhatsappOutbound ? t('whatsappNoConfigBadge') : undefined}
+                    pendingSetupCount={
+                      isWhatsappOutbound ? (whatsappStatus?.unlinkedWorkflows.length ?? 0) : 0
+                    }
+                    onPendingSetupClick={() => setWhatsappLinkModalOpen(true)}
+                  />
+                );
+              })}
             </div>
           ))}
         </div>
@@ -168,6 +194,13 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
           catalogTool={connectTarget}
         />
       )}
+
+      {/* WhatsApp Outbound: link pending workflows to the tenant tool */}
+      <WhatsappOutboundLinkModal
+        isOpen={whatsappLinkModalOpen}
+        onClose={() => setWhatsappLinkModalOpen(false)}
+        unlinkedWorkflows={whatsappStatus?.unlinkedWorkflows ?? []}
+      />
     </div>
   );
 }

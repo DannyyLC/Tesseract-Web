@@ -12,7 +12,12 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiResponseBuilder, PaginatedResponse, UserRole } from '@tesseract/types';
+import {
+  ApiResponseBuilder,
+  PaginatedResponse,
+  UserRole,
+  WhatsappOutboundStatusDto,
+} from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { Response } from 'express';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
@@ -159,6 +164,43 @@ export class TenantToolController {
       .setData(updated)
       .setMessage('Workflows removed from tenant tool successfully');
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Get('whatsapp-outbound-status')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
+  async getWhatsappOutboundStatus(@CurrentUser() user: UserPayload, @Res() res: Response) {
+    const apiResponse = new ApiResponseBuilder<WhatsappOutboundStatusDto>();
+    const status = await this.tenantToolService.getWhatsappOutboundStatus(user.organizationId);
+    apiResponse
+      .setSuccess(true)
+      .setData(status)
+      .setMessage('WhatsApp Outbound status retrieved successfully');
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  @Post('whatsapp-outbound-link')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async linkWhatsappOutboundWorkflows(
+    @Body() body: WorkflowIdsDto,
+    @CurrentUser() user: UserPayload,
+    @Res() res: Response,
+  ) {
+    const apiResponse = new ApiResponseBuilder<any>();
+    try {
+      const updated = await this.tenantToolService.linkWhatsappOutboundWorkflows(
+        user.organizationId,
+        user.sub,
+        body.workflowIds,
+      );
+      apiResponse
+        .setSuccess(true)
+        .setData(updated)
+        .setMessage('Workflows linked to WhatsApp Outbound successfully');
+      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+    } catch (error: any) {
+      apiResponse.setSuccess(false).setMessage(error?.message ?? 'Error linking workflows');
+      return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
+    }
   }
 
   @Get(':id')

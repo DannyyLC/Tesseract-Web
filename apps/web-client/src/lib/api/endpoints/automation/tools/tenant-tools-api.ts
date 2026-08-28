@@ -4,6 +4,7 @@ import {
   DashboardTenantToolDto,
   UpdateTenantToolDto,
   WorkflowIdsDto,
+  WhatsappOutboundStatusDto,
   PaginatedResponse,
   ApiResponse,
 } from '@tesseract/types';
@@ -102,6 +103,31 @@ class TenantToolsApi {
     const body: WorkflowIdsDto = { workflowIds };
     const result = await this.apiRequestManager.post<ApiResponse<void>>(
       `${TenantToolsApi.BASE_URL}/remove-workflows/${id}`,
+      body,
+    );
+    return result.data.success;
+  }
+
+  /**
+   * Estado del catálogo "WhatsApp Outbound" para la organización actual.
+   * Endpoint: GET /tenant-tool/whatsapp-outbound-status
+   */
+  public async getWhatsappOutboundStatus(): Promise<WhatsappOutboundStatusDto | null> {
+    const result = await this.apiRequestManager.get<ApiResponse<WhatsappOutboundStatusDto>>(
+      `${TenantToolsApi.BASE_URL}/whatsapp-outbound-status`,
+    );
+    return result.data.data ?? null;
+  }
+
+  /**
+   * Engancha workflows a la tenant tool "WhatsApp Outbound" de la organización,
+   * creándola si todavía no existe.
+   * Endpoint: POST /tenant-tool/whatsapp-outbound-link
+   */
+  public async linkWhatsappOutboundWorkflows(workflowIds: string[]): Promise<boolean> {
+    const body: WorkflowIdsDto = { workflowIds };
+    const result = await this.apiRequestManager.post<ApiResponse<void>>(
+      `${TenantToolsApi.BASE_URL}/whatsapp-outbound-link`,
       body,
     );
     return result.data.success;
