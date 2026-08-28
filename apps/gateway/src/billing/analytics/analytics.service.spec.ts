@@ -67,12 +67,13 @@ describe('AdminAnalyticsService', () => {
       mockPrismaService.organization.findMany.mockResolvedValue([
         { id: 'org-starter', name: 'Starter Co', plan: SubscriptionPlan.STARTER, subscription: null },
       ]);
-      // STARTER = 200 créditos/mes (packages/types/plans.ts). $20.00 -> 2000 centavos.
-      mockPriceCatalogService.pricesFor.mockResolvedValue({ usd: 2000 });
+      // STARTER = 750 créditos/mes (packages/types/plans.ts). $75.00 -> 7500 centavos, elegido
+      // para que el valor del crédito salga en 0.10 redondo y la aserción se lea sola.
+      mockPriceCatalogService.pricesFor.mockResolvedValue({ usd: 7500 });
 
       const result = await service.getOrganizationsMargin('30d', 1, 20, 'marginPct');
 
-      // valor del crédito = 2000/100/200 = 0.10 USD; 100 créditos cobrados = $10.00
+      // valor del crédito = 7500/100/750 = 0.10 USD; 100 créditos cobrados = $10.00
       expect(result.items[0].estimatedRevenueUSD).toBeCloseTo(10);
       expect(result.items[0].marginUSD).toBeCloseTo(8); // 10 - 2
     });

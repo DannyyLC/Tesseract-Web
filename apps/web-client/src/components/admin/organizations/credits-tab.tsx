@@ -6,13 +6,15 @@ import { ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useAdjustAdminCredits, useAdminOrgCredits } from '@/hooks/billing/use-admin-billing';
+import type { AdminOrganizationDetail } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 
 interface Props {
   organizationId: string;
+  org: AdminOrganizationDetail;
 }
 
-export function CreditsTab({ organizationId }: Props) {
+export function CreditsTab({ organizationId, org }: Props) {
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [direction, setDirection] = useState<'next' | 'prev' | undefined>(undefined);
   const { data, isLoading } = useAdminOrgCredits(organizationId, cursor, direction);
@@ -62,21 +64,79 @@ export function CreditsTab({ organizationId }: Props) {
 
   const { items, nextCursor, prevCursor, nextPageAvailable } = data.creditTransactions;
 
+  // `planLimits.limits` ya resuelve los overrides custom de la organización sobre el plan
+  // (ver getEffectiveLimits en el gateway), así que no hay que combinarlos acá.
+  const { monthlyCredits, overageLimit } = org.planLimits.limits;
+
+  // Un balance negativo *es* el sobregiro consumido: los créditos se descuentan hasta pasar de
+  // cero y el negativo es la deuda acumulada del periodo.
+  const overageUsed = data.balance < 0 ? -data.balance : 0;
+  const overageRemaining = overageLimit === -1 ? null : Math.max(0, overageLimit - overageUsed);
+
   return (
     <div className="w-full space-y-6">
       <section className="p-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold text-text-primary">Balance</h2>
-            <p className="mt-1 text-2xl font-semibold text-text-primary">{data.balance}</p>
+            <p className="mt-1 flex items-baseline gap-1.5">
+              <span
+                className={`text-2xl font-semibold ${
+                  data.balance < 0 ? 'text-danger' : 'text-text-primary'
+                }`}
+              >
+                {data.balance.toLocaleString('es-MX')}
+              </span>
+              {/* El denominador es lo que vuelve legible el balance: 750 no dice nada sin saber
+                  de cuántos son, y los créditos del plan cambian con cada recalibración. */}
+              <span className="text-sm text-text-secondary">
+                / {monthlyCredits === -1 ? '∞' : monthlyCredits.toLocaleString('es-MX')} del plan
+              </span>
+            </p>
             <p className="text-xs text-text-secondary">
-              {data.currentMonthSpent} créditos gastados este mes
+              {data.currentMonthSpent.toLocaleString('es-MX')} créditos gastados este mes
             </p>
           </div>
           <button className={btnPrimary} onClick={() => setIsAdjusting(true)}>
             <Plus size={16} /> Ajustar créditos
           </button>
         </div>
+      </section>
+
+      {/* Sobregiro. Se edita en la pestaña Límites, pero se muestra acá porque es el único
+          lugar donde un balance negativo tiene sentido: sin el límite al lado no se sabe
+          cuánto le queda antes del corte. */}
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-3 text-sm font-semibold text-text-primary">Sobregiro</h2>
+        {org.allowOverages ? (
+          <dl className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <dt className="text-xs text-text-secondary">Estado</dt>
+              <dd className="text-sm text-success-600">Permitido</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-text-secondary">Límite</dt>
+              <dd className="text-sm text-text-primary">
+                {overageLimit === -1 ? '∞' : `${overageLimit.toLocaleString('es-MX')} créditos`}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-text-secondary">Consumido</dt>
+              <dd className={`text-sm ${overageUsed > 0 ? 'text-danger' : 'text-text-primary'}`}>
+                {overageUsed > 0
+                  ? `${overageUsed.toLocaleString('es-MX')} créditos` +
+                    (overageRemaining === null
+                      ? ''
+                      : ` · quedan ${overageRemaining.toLocaleString('es-MX')}`)
+                  : 'Ninguno'}
+              </dd>
+            </div>
+          </dl>
+        ) : (
+          <p className="text-sm text-text-secondary">
+            No permitido. Al quedarse sin créditos, la organización deja de ejecutar workflows.
+          </p>
+        )}
       </section>
 
       <section className="rounded-xl border border-border bg-surface">

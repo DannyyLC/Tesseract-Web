@@ -109,7 +109,7 @@ function OrganizationDetail() {
       </div>
 
       {tab === 'general' && <GeneralTab org={org} />}
-      {tab === 'credits' && <CreditsTab organizationId={organizationId} />}
+      {tab === 'credits' && <CreditsTab organizationId={organizationId} org={org} />}
       {tab === 'subscription' && <SubscriptionTab org={org} />}
       {tab === 'limits' && <LimitsTab org={org} />}
       {tab === 'channels' && <ChannelsTab organizationId={organizationId} />}

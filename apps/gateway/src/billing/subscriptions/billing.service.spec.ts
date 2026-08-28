@@ -589,8 +589,8 @@ describe('BillingService', () => {
   });
 
   describe('Webhook Events - invoice.payment_succeeded', () => {
-    // El plan PRO cuesta 499 USD e incluye 5000 créditos mensuales.
-    const PRO_MONTHLY_CREDITS = 5000;
+    // El plan PRO cuesta 499 USD e incluye 18750 créditos mensuales.
+    const PRO_MONTHLY_CREDITS = 18750;
 
     /** Factura de renovación del plan PRO, resuelta por priceId de la línea. */
     const proInvoice = (overrides: Record<string, any> = {}) => ({
@@ -666,7 +666,7 @@ describe('BillingService', () => {
 
     it('devuelve el overage ya facturado además de los créditos del plan', async () => {
       // Se facturaron 300 créditos de overage y el balance quedó en -300:
-      // el pago los cubre, así que el saldo debe volver a los 5000 del plan.
+      // el pago los cubre, así que el saldo debe volver a los 18750 del plan.
       mockPrismaService.creditBalance.findUnique.mockResolvedValue({
         balance: -300,
         invoicedOverageCredits: 300,
@@ -844,7 +844,7 @@ describe('BillingService', () => {
       it('no confunde $499 MXN de STARTER con los $499 USD de PRO', async () => {
         // Este es el bug que motivó el cambio. El fallback anterior comparaba `amount_paid`
         // contra el precio de cada plan en centavos, sin mirar la moneda: 49900 coincidía con
-        // PRO y esta organización habría recibido 5000 créditos en vez de 200.
+        // PRO y esta organización habría recibido 18750 créditos en vez de 750.
         mockPrismaService.subscription.findUnique.mockResolvedValue({ plan: 'STARTER' });
 
         await service.handleWebhookEvent({
@@ -852,7 +852,7 @@ describe('BillingService', () => {
           data: { object: starterMxnInvoice() },
         } as any);
 
-        expect(addCreditsAmount()).toBe(200);
+        expect(addCreditsAmount()).toBe(750);
         expect(addCreditsAmount()).not.toBe(PRO_MONTHLY_CREDITS);
       });
 
