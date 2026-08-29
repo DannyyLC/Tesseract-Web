@@ -8,6 +8,7 @@ import {
   SubscriptionStatus,
   CompactionStatus,
   WorkflowCategory as DbWorkflowCategory,
+  ConversationChannel,
 } from '@tesseract/database';
 import {
   getWorkflowCreditCost,
@@ -1982,7 +1983,7 @@ export class WorkflowsService {
           (configuredIds.length === 0 || configuredIds.includes(whatsAppConfigId))
         ) {
           configId = whatsAppConfigId;
-        } else if (configuredIds.length === 1) {
+        } else if (configuredIds.length === 1 || channel != ConversationChannel.WHATSAPP) {
           configId = configuredIds[0];
         } else if (configuredIds.length > 1) {
           this.logger.warn(
