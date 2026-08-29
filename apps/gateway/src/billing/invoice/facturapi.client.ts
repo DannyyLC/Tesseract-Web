@@ -64,6 +64,20 @@ export class FacturapiClient implements OnModuleInit {
     return this.client !== null;
   }
 
+  /**
+   * Si la facturación fiscal está habilitada.
+   *
+   * Distinto de `isConfigured`: aquello describe si hay llave, esto si queremos usarla. Apagada,
+   * ninguna ruta llega al PAC y las facturas se quedan en PENDING sin intentos ni errores, que es
+   * el estado del que el barrido nocturno las recoge tal cual el día que se vuelva a encender.
+   *
+   * Se apaga con `CFDI_ENABLED="false"` y nada más: ausente o con cualquier otro valor queda
+   * habilitada, para no cambiar el comportamiento de los entornos que no la declaran.
+   */
+  get isEnabled(): boolean {
+    return this.configService.get<string>('CFDI_ENABLED') !== 'false';
+  }
+
   /** `true` cuando se está operando contra el sandbox. */
   get isTestMode(): boolean {
     return (this.configService.get<string>('FACTURAPI_API_KEY') ?? '').startsWith('sk_test');

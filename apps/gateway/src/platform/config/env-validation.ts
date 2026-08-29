@@ -45,15 +45,6 @@ const REQUIRED_IN_PRODUCTION: string[] = [
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
 
-  // Facturación fiscal (CFDI). El PAC que timbra ante el SAT y el bucket donde se guardan
-  // los XML, que hay que conservar cinco años. La llave decide el entorno: `sk_test_` opera
-  // contra el sandbox, `sk_live_` emite CFDI reales y consume timbres de pago.
-  'FACTURAPI_API_KEY',
-  'CFDI_STORAGE_BUCKET',
-  // A dónde llega el aviso cuando el barrido nocturno no consigue timbrar. Un correo por
-  // ejecución, no por factura.
-  'BILLING_ALERTS_EMAIL',
-
   // Email / SMTP
   'SMTP_HOST',
   'SMTP_USER',
@@ -94,6 +85,24 @@ const REQUIRED_IN_PRODUCTION: string[] = [
   'GCP_TASKS_WORKER_BASE_URL',
 ];
 
+// ─── Requeridas en producción solo si el CFDI está habilitado ────────────────
+
+/**
+ * Facturación fiscal (CFDI). El PAC que timbra ante el SAT, el bucket donde se guardan los XML
+ * —que hay que conservar cinco años— y a dónde llega el aviso cuando el barrido nocturno no
+ * consigue timbrar. La llave decide el entorno: `sk_test_` opera contra el sandbox, `sk_live_`
+ * emite CFDI reales y consume timbres de pago.
+ *
+ * Van aparte porque la facturación se puede apagar entera con `CFDI_ENABLED=false` mientras se
+ * cambia de proveedor. Apagada, exigirlas dejaría el gateway sin arrancar por una funcionalidad
+ * que nadie va a usar; encendida, siguen siendo obligatorias como cualquier otra.
+ */
+const REQUIRED_IN_PRODUCTION_CFDI: string[] = [
+  'FACTURAPI_API_KEY',
+  'CFDI_STORAGE_BUCKET',
+  'BILLING_ALERTS_EMAIL',
+];
+
 // ─── Opcionales (documentadas) ──────────────────────────────────────────────
 // SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD / SUPER_ADMIN_NAME:
 //   Si se definen, SuperAdminBootstrapService crea/actualiza el super admin al
@@ -104,7 +113,15 @@ const REQUIRED_IN_PRODUCTION: string[] = [
 
 export function validateEnv(): void {
   const isProduction = process.env.NODE_ENV === 'production';
-  const toCheck = isProduction ? [...REQUIRED_ALWAYS, ...REQUIRED_IN_PRODUCTION] : REQUIRED_ALWAYS;
+  const cfdiEnabled = process.env.CFDI_ENABLED !== 'false';
+
+  const toCheck = isProduction
+    ? [
+        ...REQUIRED_ALWAYS,
+        ...REQUIRED_IN_PRODUCTION,
+        ...(cfdiEnabled ? REQUIRED_IN_PRODUCTION_CFDI : []),
+      ]
+    : REQUIRED_ALWAYS;
 
   const missing = toCheck.filter((key) => !process.env[key]);
 

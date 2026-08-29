@@ -79,6 +79,16 @@ export class CfdiService {
    * La unicidad de `cfdiUuid` en la base es la tercera red, por si fallaran las dos primeras.
    */
   async stampInvoice(invoiceId: string): Promise<StampResult> {
+    // Antes del compare-and-swap a propósito: apagados, la factura no puede pasar por STAMPING ni
+    // sumar un intento. Tiene que quedar en PENDING intacta para que el barrido la recoja tal cual
+    // cuando se encienda el proveedor nuevo.
+    if (!this.facturapiClient.isEnabled) {
+      this.logger.info(
+        `stampInvoice >> Facturación CFDI deshabilitada, se omite la factura ${invoiceId}`,
+      );
+      return { status: 'skipped' };
+    }
+
     const claimed = await this.prisma.invoice.updateMany({
       where: {
         id: invoiceId,
@@ -108,6 +118,13 @@ export class CfdiService {
    * —ya está reclamada— pero sí actualiza el contador de intentos.
    */
   async resumeStalledInvoice(invoiceId: string): Promise<StampResult> {
+    if (!this.facturapiClient.isEnabled) {
+      this.logger.info(
+        `resumeStalledInvoice >> Facturación CFDI deshabilitada, se omite la factura ${invoiceId}`,
+      );
+      return { status: 'skipped' };
+    }
+
     await this.prisma.invoice.update({
       where: { id: invoiceId },
       data: { cfdiAttempts: { increment: 1 }, cfdiLastAttemptAt: new Date() },

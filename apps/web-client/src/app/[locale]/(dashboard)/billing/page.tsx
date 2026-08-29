@@ -14,7 +14,7 @@ import BillingHero from './_components/billing-hero';
 import OverageCard from './_components/overage-card';
 import UsageCard from './_components/usage-card';
 import Loading from '@/app/[locale]/(dashboard)/loading';
-import { Workflow, Key, Users, ArrowUpRight, PartyPopper, FileText } from 'lucide-react';
+import { Workflow, Key, Users, ArrowUpRight, PartyPopper } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import PermissionGuard from '@/components/auth/permission-guard';
@@ -116,15 +116,6 @@ export default function BillingPage() {
                     {isOpeningPortal ? t('loading') : t('paymentPortal')}
                   </a>
                 )}
-              </PermissionGuard>
-              <PermissionGuard permissions="invoice:read">
-                <Link
-                  href="/billing/invoices"
-                  className="flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface-secondary"
-                >
-                  <FileText size={16} />
-                  {t('invoicesLink')}
-                </Link>
               </PermissionGuard>
               <Link
                 href="/billing/plans"

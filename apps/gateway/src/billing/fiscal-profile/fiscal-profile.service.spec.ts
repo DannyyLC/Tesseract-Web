@@ -1,5 +1,6 @@
 import { FiscalProfileService } from './fiscal-profile.service';
 import {
+  CfdiDisabledException,
   FiscalDataRejectedException,
   FiscalNotApplicableException,
 } from '@/platform/common/exceptions';
@@ -14,6 +15,7 @@ describe('FiscalProfileService', () => {
   } as any;
 
   const mockFacturapi = {
+    isEnabled: true,
     customers: {
       create: jest.fn(),
       update: jest.fn(),
@@ -35,6 +37,18 @@ describe('FiscalProfileService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new FiscalProfileService(mockPrisma, mockFacturapi, mockLogger);
+  });
+
+  it('rechaza guardar con la facturación deshabilitada', async () => {
+    // Antes incluso de mirar el país: sin PAC no se puede validar contra el padrón del SAT, y
+    // guardar sin validar deja datos que aparentan estar bien y fallan al primer timbrado.
+    mockFacturapi.isEnabled = false;
+
+    await expect(service.upsert('org-1', dto)).rejects.toBeInstanceOf(CfdiDisabledException);
+    expect(mockPrisma.organization.findUnique).not.toHaveBeenCalled();
+    expect(mockFacturapi.customers.create).not.toHaveBeenCalled();
+
+    mockFacturapi.isEnabled = true;
   });
 
   it('rechaza organizaciones no mexicanas', async () => {

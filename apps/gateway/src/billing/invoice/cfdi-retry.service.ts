@@ -6,6 +6,7 @@ import { CfdiErrorKind, CfdiStatus } from '@tesseract/database';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { EmailService } from '@/messaging/notifications/email/email.service';
 import { CfdiService } from './cfdi.service';
+import { FacturapiClient } from './facturapi.client';
 
 /**
  * Ventana de gracia antes de que el barrido toque una factura.
@@ -32,6 +33,7 @@ export class CfdiRetryService {
     private readonly prisma: PrismaService,
     private readonly cfdiService: CfdiService,
     private readonly emailService: EmailService,
+    private readonly facturapiClient: FacturapiClient,
     private readonly configService: ConfigService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
@@ -44,6 +46,13 @@ export class CfdiRetryService {
    * de alerta diario por algo que solo el cliente puede corregir desde su panel.
    */
   async retryPending(): Promise<RetrySweepResult> {
+    // Apagados no basta con que `stampInvoice` salga sola: sin esta guarda el barrido consultaría
+    // 50 facturas cada noche para no hacer nada con ellas, y el correo de alerta —que existe para
+    // avisar de una avería real— se convertiría en ruido diario.
+    if (!this.facturapiClient.isEnabled) {
+      return { attempted: 0, stamped: 0, failed: 0 };
+    }
+
     const cutoff = new Date(Date.now() - GRACE_PERIOD_MS);
 
     const candidates = await this.prisma.invoice.findMany({

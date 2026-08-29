@@ -13,6 +13,7 @@ describe('CfdiService', () => {
   } as any;
 
   const mockFacturapi = {
+    isEnabled: true,
     invoices: {
       create: jest.fn(),
       downloadXml: jest.fn(),
@@ -49,6 +50,34 @@ describe('CfdiService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new CfdiService(mockPrisma, mockFacturapi, mockStorage, mockConfig, mockLogger);
+  });
+
+  describe('con la facturación deshabilitada', () => {
+    beforeEach(() => {
+      mockFacturapi.isEnabled = false;
+    });
+
+    afterEach(() => {
+      mockFacturapi.isEnabled = true;
+    });
+
+    it('stampInvoice sale sin escribir en la factura', async () => {
+      // Lo que se comprueba no es que no llame al PAC, sino que **no toca la fila**. Si pasara
+      // por el compare-and-swap, la factura acabaría en FAILED con intentos contados, y el
+      // proveedor nuevo se encontraría un histórico de errores que nunca ocurrieron.
+      const result = await service.stampInvoice('inv-1');
+
+      expect(result.status).toBe('skipped');
+      expect(mockPrisma.invoice.updateMany).not.toHaveBeenCalled();
+      expect(mockFacturapi.invoices.create).not.toHaveBeenCalled();
+    });
+
+    it('resumeStalledInvoice tampoco incrementa intentos', async () => {
+      const result = await service.resumeStalledInvoice('inv-1');
+
+      expect(result.status).toBe('skipped');
+      expect(mockPrisma.invoice.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('stampInvoice — reclamo de la fila', () => {

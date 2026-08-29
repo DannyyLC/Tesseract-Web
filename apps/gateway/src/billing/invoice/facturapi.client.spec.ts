@@ -41,4 +41,33 @@ describe('FacturapiClient', () => {
       expect(client.isTestMode).toBe(false);
     });
   });
+
+  describe('isEnabled', () => {
+    const clientWithFlag = (flag: string | undefined) =>
+      new FacturapiClient({
+        get: (key: string) => (key === 'CFDI_ENABLED' ? flag : 'sk_test_123'),
+      } as any);
+
+    it('queda habilitada si la variable no está declarada', () => {
+      // El default importa: los entornos que no la declaran —local, y producción antes de este
+      // cambio— tienen que seguir comportándose igual.
+      expect(clientWithFlag(undefined).isEnabled).toBe(true);
+    });
+
+    it('solo la apaga el literal "false"', () => {
+      expect(clientWithFlag('false').isEnabled).toBe(false);
+      expect(clientWithFlag('true').isEnabled).toBe(true);
+      expect(clientWithFlag('').isEnabled).toBe(true);
+    });
+
+    it('es independiente de que haya llave', () => {
+      // Son dos preguntas distintas: `isConfigured` es "hay llave", `isEnabled` es "queremos
+      // usarla". Con la facturación apagada da igual que la llave siga puesta.
+      const client = clientWithFlag('false');
+      client.onModuleInit();
+
+      expect(client.isConfigured).toBe(true);
+      expect(client.isEnabled).toBe(false);
+    });
+  });
 });

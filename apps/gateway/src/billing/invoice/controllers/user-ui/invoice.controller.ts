@@ -12,7 +12,8 @@ import { CfdiService } from '../../cfdi.service';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
 import { PrismaService } from '@/platform/database/prisma.service';
-import { CfdiNotStampableException } from '@/platform/common/exceptions';
+import { CfdiDisabledException, CfdiNotStampableException } from '@/platform/common/exceptions';
+import { FacturapiClient } from '../../facturapi.client';
 
 @Controller('invoice')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -20,6 +21,7 @@ export class InvoiceController {
   constructor(
     private readonly invoiceService: InvoiceService,
     private readonly cfdiService: CfdiService,
+    private readonly facturapiClient: FacturapiClient,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -69,6 +71,13 @@ export class InvoiceController {
     @Param('id') invoiceId: string,
     @Res() res: Response,
   ): Promise<Response> {
+    // Se corta aquí y no solo en `stampInvoice`: aquella devuelve `skipped` cuando está apagada,
+    // y este endpoint traduce `skipped` a un 200 de "CFDI generado". El cliente vería éxito sobre
+    // una factura que nadie timbró.
+    if (!this.facturapiClient.isEnabled) {
+      throw new CfdiDisabledException();
+    }
+
     const invoice = await this.prisma.invoice.findFirst({
       where: { id: invoiceId, organizationId: user.organizationId },
       select: { id: true, cfdiStatus: true },

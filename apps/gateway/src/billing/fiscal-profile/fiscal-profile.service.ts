@@ -4,6 +4,7 @@ import { Logger } from 'winston';
 import { DEFAULT_CFDI_USE, FiscalProfileDto } from '@tesseract/types';
 import { PrismaService } from '@/platform/database/prisma.service';
 import {
+  CfdiDisabledException,
   FiscalDataRejectedException,
   FiscalNotApplicableException,
 } from '@/platform/common/exceptions';
@@ -66,6 +67,13 @@ export class FiscalProfileService {
    * bien en la interfaz y volvería a fallar en cada intento de timbrado.
    */
   async upsert(organizationId: string, dto: UpsertFiscalProfileDto): Promise<FiscalProfileDto> {
+    // Guardar exige validar contra el padrón del SAT, y eso pasa por el PAC. Con la facturación
+    // apagada no hay a quién preguntar, así que se rechaza antes de tocar nada: guardar sin
+    // validar dejaría datos que aparentan estar bien y fallarían al primer timbrado.
+    if (!this.facturapiClient.isEnabled) {
+      throw new CfdiDisabledException();
+    }
+
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
       select: { country: true },

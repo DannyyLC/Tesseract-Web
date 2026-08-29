@@ -18,6 +18,25 @@ export class FiscalNotApplicableException extends AppException {
 }
 
 /**
+ * Excepción: la facturación fiscal está deshabilitada
+ *
+ * No es un fallo del PAC ni de los datos del cliente: es que esta instalación tiene el CFDI
+ * apagado (`CFDI_ENABLED=false`) mientras se cambia de proveedor. Se distingue de
+ * `FiscalNotApplicableException` a propósito —aquella dice "tú no facturas aquí", esta dice
+ * "nadie factura aquí ahora mismo"— porque el cliente sí puede acabar viéndola si llega a la
+ * pantalla por URL directa, y confundir las dos manda a soporte por el camino equivocado.
+ */
+export class CfdiDisabledException extends AppException {
+  constructor() {
+    super(
+      ErrorCode.CFDI_DISABLED,
+      'Automatic fiscal invoicing (CFDI) is temporarily disabled',
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+/**
  * Excepción: el SAT rechazó los datos fiscales
  *
  * Es el error que más se va a ver. El SAT compara RFC, razón social y código postal contra su

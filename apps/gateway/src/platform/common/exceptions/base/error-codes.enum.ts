@@ -494,4 +494,10 @@ export enum ErrorCode {
    * HTTP Status: 404 Not Found
    */
   CFDI_NOT_FOUND = 'FISCAL_11005',
+
+  /**
+   * La facturación fiscal está deshabilitada en esta instalación
+   * HTTP Status: 409 Conflict
+   */
+  CFDI_DISABLED = 'FISCAL_11006',
 }
