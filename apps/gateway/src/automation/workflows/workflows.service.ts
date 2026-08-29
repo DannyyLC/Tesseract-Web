@@ -1977,7 +1977,6 @@ export class WorkflowsService {
             : [];
 
         let configId: string | undefined;
-        this.logger.log("whatsapp Config: " + whatsAppConfigId)
         if (
           whatsAppConfigId &&
           (configuredIds.length === 0 || configuredIds.includes(whatsAppConfigId))

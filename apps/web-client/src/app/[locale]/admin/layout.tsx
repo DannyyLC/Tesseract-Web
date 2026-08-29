@@ -6,13 +6,14 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { useAuth, useLogout } from '@/hooks/identity/use-auth';
 import { LogoLoader } from '@/components/ui/logo-loader';
-import { Blocks, Building2, Cpu, LayoutDashboard, Settings, LogOut, Menu, PanelLeftClose, PanelLeftOpen, User as UserIcon, Workflow } from 'lucide-react';
+import { Blocks, Building2, Cpu, LayoutDashboard, MessageSquareText, Settings, LogOut, Menu, PanelLeftClose, PanelLeftOpen, User as UserIcon, Workflow } from 'lucide-react';
 
 const ADMIN_NAV = [
   { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { label: 'Organizaciones', href: '/admin/organizaciones', icon: Building2 },
   { label: 'Workflows', href: '/admin/workflows', icon: Workflow },
   { label: 'Integraciones', href: '/admin/integraciones', icon: Blocks },
+  { label: 'Templates WhatsApp', href: '/admin/wb-templates', icon: MessageSquareText },
   { label: 'Modelos LLM', href: '/admin/llm-models', icon: Cpu },
   { label: 'Configuración', href: '/admin/configuracion', icon: Settings },
 ];

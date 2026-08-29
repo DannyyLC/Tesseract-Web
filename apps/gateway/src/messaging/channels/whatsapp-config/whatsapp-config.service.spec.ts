@@ -13,6 +13,13 @@ describe('WhatsappConfigService', () => {
       delete: jest.fn(),
       findMany: jest.fn(),
     },
+    whatsAppTemplate: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
   };
 
   const mockHttpService: any = {
@@ -388,6 +395,111 @@ describe('WhatsappConfigService', () => {
     it('devuelve false si no hay secreto configurado', () => {
       delete process.env.Y_CLOUD_WEBHOOK_SECRET;
       expect(service.verifySignature('x', 't=123,s=abc')).toBe(false);
+    });
+  });
+
+  describe('createTemplate', () => {
+    it('crea el template con los defaults esperados', async () => {
+      const created = { id: 't1', whatsAppConfigId: 'c1', name: 'saludo' };
+      mockPrisma.whatsAppTemplate.create.mockResolvedValue(created);
+
+      const res = await service.createTemplate('c1', { name: 'saludo' });
+
+      expect(mockPrisma.whatsAppTemplate.create).toHaveBeenCalledWith({
+        data: {
+          whatsAppConfigId: 'c1',
+          name: 'saludo',
+          displayName: undefined,
+          language: 'es_MX',
+          variables: {},
+        },
+      });
+      expect(res).toEqual(created);
+    });
+
+    it('respeta displayName/language/variables cuando llegan', async () => {
+      mockPrisma.whatsAppTemplate.create.mockResolvedValue({});
+
+      await service.createTemplate('c1', {
+        name: 'saludo',
+        displayName: 'Saludo',
+        language: 'en_US',
+        variables: { body: ['nombre'] },
+      });
+
+      expect(mockPrisma.whatsAppTemplate.create).toHaveBeenCalledWith({
+        data: {
+          whatsAppConfigId: 'c1',
+          name: 'saludo',
+          displayName: 'Saludo',
+          language: 'en_US',
+          variables: { body: ['nombre'] },
+        },
+      });
+    });
+  });
+
+  describe('listTemplates', () => {
+    it('lista los templates de un número, más recientes primero', async () => {
+      const list = [{ id: 't1' }, { id: 't2' }];
+      mockPrisma.whatsAppTemplate.findMany.mockResolvedValue(list);
+
+      const res = await service.listTemplates('c1');
+
+      expect(mockPrisma.whatsAppTemplate.findMany).toHaveBeenCalledWith({
+        where: { whatsAppConfigId: 'c1' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(res).toEqual(list);
+    });
+  });
+
+  describe('getTemplate', () => {
+    it('devuelve el template cuando existe', async () => {
+      const template = { id: 't1' };
+      mockPrisma.whatsAppTemplate.findUnique.mockResolvedValue(template);
+
+      const res = await service.getTemplate('t1');
+
+      expect(mockPrisma.whatsAppTemplate.findUnique).toHaveBeenCalledWith({ where: { id: 't1' } });
+      expect(res).toEqual(template);
+    });
+
+    it('devuelve null cuando no existe', async () => {
+      mockPrisma.whatsAppTemplate.findUnique.mockResolvedValue(null);
+      const res = await service.getTemplate('missing');
+      expect(res).toBeNull();
+    });
+  });
+
+  describe('updateTemplate', () => {
+    it('actualiza solo los campos que llegan', async () => {
+      const updated = { id: 't1', isActive: false };
+      mockPrisma.whatsAppTemplate.update.mockResolvedValue(updated);
+
+      const res = await service.updateTemplate('t1', { isActive: false });
+
+      expect(mockPrisma.whatsAppTemplate.update).toHaveBeenCalledWith({
+        where: { id: 't1' },
+        data: { isActive: false },
+      });
+      expect(res).toEqual(updated);
+    });
+  });
+
+  describe('deleteTemplate', () => {
+    it('returns true on successful delete', async () => {
+      mockPrisma.whatsAppTemplate.delete.mockResolvedValue({});
+      const res = await service.deleteTemplate('t1');
+      expect(mockPrisma.whatsAppTemplate.delete).toHaveBeenCalledWith({ where: { id: 't1' } });
+      expect(res).toBe(true);
+    });
+
+    it('returns false on delete error and logs', async () => {
+      mockPrisma.whatsAppTemplate.delete.mockRejectedValue(new Error('err'));
+      const res = await service.deleteTemplate('t1');
+      expect(res).toBe(false);
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 });
