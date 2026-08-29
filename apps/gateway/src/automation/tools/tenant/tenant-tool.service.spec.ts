@@ -19,7 +19,9 @@ describe('TenantToolService', () => {
       update: jest.fn(),
       count: jest.fn(),
     },
-    toolCatalog: { findUnique: jest.fn() },
+    toolCatalog: { findUnique: jest.fn(), findFirst: jest.fn() },
+    whatsAppConfig: { count: jest.fn(), findMany: jest.fn() },
+    workflow: { findMany: jest.fn() },
     tenantToolCredential: { deleteMany: jest.fn() },
     $transaction: jest.fn(),
   };
@@ -352,6 +354,185 @@ describe('TenantToolService', () => {
       });
       await service.disconnectTool('t1', 'org-1', 'user-1', 'member');
       expect(mockPrismaService.$transaction).toHaveBeenCalled();
+    });
+  });
+
+  describe('getWhatsappOutboundStatus', () => {
+    it('hasWhatsappConfig en false y sin workflows pendientes cuando la org no tiene números', async () => {
+      mockPrismaService.whatsAppConfig.count.mockResolvedValue(0);
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
+      mockPrismaService.whatsAppConfig.findMany.mockResolvedValue([]);
+
+      const res = await service.getWhatsappOutboundStatus('org-1');
+
+      expect(res).toEqual({ hasWhatsappConfig: false, tenantToolId: null, unlinkedWorkflows: [] });
+    });
+
+    it('agrupa varios números que apuntan al mismo workflow todavía no enganchado', async () => {
+      mockPrismaService.whatsAppConfig.count.mockResolvedValue(2);
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
+      mockPrismaService.whatsAppConfig.findMany.mockResolvedValue([
+        {
+          id: 'c1',
+          phoneNumber: '+1',
+          displayName: 'Ventas',
+          defaultWorkflowId: 'w1',
+          defaultWorkflow: { id: 'w1', name: 'Flujo Ventas' },
+        },
+        {
+          id: 'c2',
+          phoneNumber: '+2',
+          displayName: 'Soporte',
+          defaultWorkflowId: 'w1',
+          defaultWorkflow: { id: 'w1', name: 'Flujo Ventas' },
+        },
+      ]);
+
+      const res = await service.getWhatsappOutboundStatus('org-1');
+
+      expect(res.unlinkedWorkflows).toEqual([
+        {
+          workflowId: 'w1',
+          workflowName: 'Flujo Ventas',
+          whatsappNumbers: [
+            { whatsappConfigId: 'c1', phoneNumber: '+1', displayName: 'Ventas' },
+            { whatsappConfigId: 'c2', phoneNumber: '+2', displayName: 'Soporte' },
+          ],
+        },
+      ]);
+    });
+
+    it('excluye workflows que ya están enganchados a la tenant tool existente', async () => {
+      mockPrismaService.whatsAppConfig.count.mockResolvedValue(1);
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue({
+        id: 'tt-1',
+        workflows: [{ id: 'w1' }],
+      });
+      mockPrismaService.whatsAppConfig.findMany.mockResolvedValue([
+        {
+          id: 'c1',
+          phoneNumber: '+1',
+          displayName: null,
+          defaultWorkflowId: 'w1',
+          defaultWorkflow: { id: 'w1', name: 'Flujo Ventas' },
+        },
+      ]);
+
+      const res = await service.getWhatsappOutboundStatus('org-1');
+
+      expect(res.tenantToolId).toBe('tt-1');
+      expect(res.unlinkedWorkflows).toEqual([]);
+    });
+  });
+
+  describe('linkWhatsappOutboundWorkflows', () => {
+    it('throws NotFoundException cuando no llegan workflowIds', async () => {
+      await expect(service.linkWhatsappOutboundWorkflows('org-1', 'user-1', [])).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('throws NotFoundException cuando un workflow no pertenece a la organización', async () => {
+      mockPrismaService.workflow.findMany.mockResolvedValue([{ id: 'w1' }]);
+
+      await expect(
+        service.linkWhatsappOutboundWorkflows('org-1', 'user-1', ['w1', 'w2']),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws NotFoundException cuando no existe el catálogo de send_bulk_whatsapp', async () => {
+      mockPrismaService.workflow.findMany.mockResolvedValue([{ id: 'w1' }]);
+      mockPrismaService.toolCatalog.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.linkWhatsappOutboundWorkflows('org-1', 'user-1', ['w1']),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('conecta los workflows a la tenant tool existente sin tocar su config', async () => {
+      mockPrismaService.workflow.findMany.mockResolvedValue([{ id: 'w1' }]);
+      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({ id: 'cat-1', displayName: 'WhatsApp Outbound' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue({ id: 'tt-1' });
+      const updated = { id: 'tt-1' };
+      mockPrismaService.tenantTool.update.mockResolvedValue(updated);
+
+      const res = await service.linkWhatsappOutboundWorkflows('org-1', 'user-1', ['w1']);
+
+      expect(mockPrismaService.tenantTool.update).toHaveBeenCalledWith({
+        where: { id: 'tt-1' },
+        data: { workflows: { connect: [{ id: 'w1' }] } },
+      });
+      expect(mockPrismaService.tenantTool.create).not.toHaveBeenCalled();
+      expect(res).toEqual(updated);
+    });
+
+    it('crea la tenant tool con allowedFunctions y config de un solo número', async () => {
+      mockPrismaService.workflow.findMany.mockResolvedValue([{ id: 'w1' }]);
+      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({ id: 'cat-1', displayName: 'WhatsApp Outbound' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
+      mockPrismaService.whatsAppConfig.findMany.mockResolvedValue([{ id: 'c1' }]);
+      const created = { id: 'tt-new' };
+      mockPrismaService.tenantTool.create.mockResolvedValue(created);
+
+      const res = await service.linkWhatsappOutboundWorkflows('org-1', 'user-1', ['w1']);
+
+      expect(mockPrismaService.tenantTool.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            organizationId: 'org-1',
+            toolCatalogId: 'cat-1',
+            allowedFunctions: ['send_bulk_whatsapp'],
+            config: { whatsapp_config_id: 'c1' },
+            createdByUserId: 'user-1',
+            workflows: { connect: [{ id: 'w1' }] },
+          }),
+        }),
+      );
+      expect(res).toEqual(created);
+    });
+
+    it('crea la tenant tool con config en array cuando hay 2+ números enganchados', async () => {
+      mockPrismaService.workflow.findMany.mockResolvedValue([{ id: 'w1' }, { id: 'w2' }]);
+      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({ id: 'cat-1', displayName: 'WhatsApp Outbound' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
+      mockPrismaService.whatsAppConfig.findMany.mockResolvedValue([{ id: 'c1' }, { id: 'c2' }]);
+      mockPrismaService.tenantTool.create.mockResolvedValue({ id: 'tt-new' });
+
+      await service.linkWhatsappOutboundWorkflows('org-1', 'user-1', ['w1', 'w2']);
+
+      expect(mockPrismaService.tenantTool.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ config: { whatsapp_config_id: ['c1', 'c2'] } }),
+        }),
+      );
+    });
+
+    it('crea la tenant tool sin config cuando ningún WhatsAppConfig activo apunta a los workflows', async () => {
+      mockPrismaService.workflow.findMany.mockResolvedValue([{ id: 'w1' }]);
+      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({ id: 'cat-1', displayName: 'WhatsApp Outbound' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
+      mockPrismaService.whatsAppConfig.findMany.mockResolvedValue([]);
+      mockPrismaService.tenantTool.create.mockResolvedValue({ id: 'tt-new' });
+
+      await service.linkWhatsappOutboundWorkflows('org-1', 'user-1', ['w1']);
+
+      expect(mockPrismaService.tenantTool.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ config: undefined }) }),
+      );
+    });
+
+    it('re-throws ConflictException para P2002 al crear', async () => {
+      mockPrismaService.workflow.findMany.mockResolvedValue([{ id: 'w1' }]);
+      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({ id: 'cat-1', displayName: 'WhatsApp Outbound' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
+      mockPrismaService.whatsAppConfig.findMany.mockResolvedValue([]);
+      const err: any = new Error('unique');
+      err.code = 'P2002';
+      mockPrismaService.tenantTool.create.mockRejectedValue(err);
+
+      await expect(
+        service.linkWhatsappOutboundWorkflows('org-1', 'user-1', ['w1']),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
   });
 });
