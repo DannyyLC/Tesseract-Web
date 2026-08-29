@@ -391,23 +391,27 @@ export class TenantToolService {
     ]);
 
     const linkedWorkflowIds = new Set(tenantTool?.workflows.map((w) => w.id) ?? []);
-    const seenWorkflowIds = new Set<string>();
-    const unlinkedWorkflows: WhatsappOutboundStatusDto['unlinkedWorkflows'] = [];
+    const byWorkflowId = new Map<string, WhatsappOutboundStatusDto['unlinkedWorkflows'][number]>();
 
     for (const wac of configsWithDefaultWorkflow) {
       const workflowId = wac.defaultWorkflowId;
-      if (!workflowId || linkedWorkflowIds.has(workflowId) || seenWorkflowIds.has(workflowId)) {
+      if (!workflowId || linkedWorkflowIds.has(workflowId)) {
         continue;
       }
-      seenWorkflowIds.add(workflowId);
-      unlinkedWorkflows.push({
+      const entry = byWorkflowId.get(workflowId) ?? {
         workflowId,
         workflowName: wac.defaultWorkflow?.name ?? '',
+        whatsappNumbers: [],
+      };
+      entry.whatsappNumbers.push({
         whatsappConfigId: wac.id,
         phoneNumber: wac.phoneNumber,
         displayName: wac.displayName,
       });
+      byWorkflowId.set(workflowId, entry);
     }
+
+    const unlinkedWorkflows = Array.from(byWorkflowId.values());
 
     return {
       hasWhatsappConfig: whatsappConfigCount > 0,
@@ -463,12 +467,32 @@ export class TenantToolService {
         });
       }
 
+      const linkedConfigs = await this.prismaService.whatsAppConfig.findMany({
+        where: {
+          organizationId,
+          deletedAt: null,
+          isActive: true,
+          defaultWorkflowId: { in: workflowIds },
+        },
+        select: { id: true },
+      });
+      const configIds = linkedConfigs.map((c) => c.id);
+      const config =
+        configIds.length > 1
+          ? { whatsapp_config_id: configIds }
+          : configIds.length === 1
+            ? { whatsapp_config_id: configIds[0] }
+            : undefined;
+
       return await this.prismaService.tenantTool.create({
         data: {
           displayName: catalogEntry.displayName,
           organizationId,
           toolCatalogId: catalogEntry.id,
+          allowedFunctions: ['send_bulk_whatsapp'],
+          config,
           createdByUserId: userId,
+          connectedAt: new Date(),
           isConnected: true,
           status: ToolConnectionStatus.CONNECTED,
           workflows: { connect: workflowIds.map((id) => ({ id })) },

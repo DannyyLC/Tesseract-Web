@@ -1,9 +1,14 @@
-export interface WhatsappOutboundUnlinkedWorkflowDto {
-  workflowId: string;
-  workflowName: string;
+export interface WhatsappOutboundWorkflowNumberDto {
   whatsappConfigId: string;
   phoneNumber: string;
   displayName: string | null;
+}
+
+export interface WhatsappOutboundUnlinkedWorkflowDto {
+  workflowId: string;
+  workflowName: string;
+  /** Every active WhatsAppConfig whose defaultWorkflowId points at this workflow. */
+  whatsappNumbers: WhatsappOutboundWorkflowNumberDto[];
 }
 
 export interface WhatsappOutboundStatusDto {

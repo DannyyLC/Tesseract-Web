@@ -212,6 +212,7 @@ export class WhatsappWorkerController {
         {
           channel: ConversationChannel.WHATSAPP,
           // Ya procesados aquí: `execute()` no debe volver a transcribirlos.
+          whatsAppConfigId: account.id,
           preProcessedAttachments: interpreted.attachments,
         },
         undefined,

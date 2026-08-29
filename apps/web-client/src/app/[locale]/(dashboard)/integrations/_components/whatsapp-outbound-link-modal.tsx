@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check, Loader2, Workflow as WorkflowIcon } from 'lucide-react';
+import { Check, Loader2, Phone, Workflow as WorkflowIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
 import { WhatsappOutboundUnlinkedWorkflowDto } from '@tesseract/types';
@@ -107,13 +107,21 @@ export function WhatsappOutboundLinkModal({
                     {selected.includes(wf.workflowId) && <Check size={12} strokeWidth={3} />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-semibold text-text-primary">
-                      {wf.displayName || wf.phoneNumber}
-                    </p>
-                    <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] text-text-tertiary">
-                      <WorkflowIcon size={10} />
+                    <p className="flex items-center gap-1 truncate text-xs font-semibold text-text-primary">
+                      <WorkflowIcon size={10} className="shrink-0" />
                       {wf.workflowName}
                     </p>
+                    <div className="mt-1 flex flex-col gap-0.5">
+                      {wf.whatsappNumbers.map((num) => (
+                        <p
+                          key={num.whatsappConfigId}
+                          className="flex items-center gap-1 truncate text-[10px] text-text-tertiary"
+                        >
+                          <Phone size={10} className="shrink-0" />
+                          {num.displayName ? `${num.displayName} · ${num.phoneNumber}` : num.phoneNumber}
+                        </p>
+                      ))}
+                    </div>
                   </div>
                 </button>
               ))}

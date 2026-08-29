@@ -1965,8 +1965,31 @@ export class WorkflowsService {
 
       // Enriquecer send_bulk_whatsapp con config del sistema (el modelo nunca elige el remitente)
       if (toolName === 'send_bulk_whatsapp') {
-        const configId =
-          (tenantTool.config)?.whatsapp_config_id ?? whatsAppConfigId ?? undefined;
+        // whatsapp_config_id puede ser un solo id (un número) o un array (varios workflows
+        // comparten esta tenant tool, cada uno con su propio número). Con array, el id de la
+        // ejecución (metadata.whatsAppConfigId → el número que recibió el mensaje entrante)
+        // es lo único que puede desambiguar cuál de los números aplica a este turno.
+        const rawConfigId = (tenantTool.config)?.whatsapp_config_id;
+        const configuredIds: string[] = Array.isArray(rawConfigId)
+          ? rawConfigId
+          : rawConfigId
+            ? [rawConfigId]
+            : [];
+
+        let configId: string | undefined;
+        this.logger.log("whatsapp Config: " + whatsAppConfigId)
+        if (
+          whatsAppConfigId &&
+          (configuredIds.length === 0 || configuredIds.includes(whatsAppConfigId))
+        ) {
+          configId = whatsAppConfigId;
+        } else if (configuredIds.length === 1) {
+          configId = configuredIds[0];
+        } else if (configuredIds.length > 1) {
+          this.logger.warn(
+            `send_bulk_whatsapp tool ${toolId}: ${configuredIds.length} whatsapp_config_id configured and no matching execution whatsAppConfigId to disambiguate`,
+          );
+        }
 
         if (configId) {
           const wac = await this.prisma.whatsAppConfig.findFirst({
