@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, GripVertical, Plus, Sigma, Trash2 } from 'lucide-react';
 import {
   DATASET_FIELD_TYPES,
@@ -28,6 +28,61 @@ const TYPE_LABEL: Record<DatasetFieldType, string> = {
 
 const formulaUsesKey = (formula: string, key: string): boolean =>
   new RegExp(`(^|[^a-z0-9_])${key}($|[^a-z0-9_])`).test(formula);
+
+/** Texto del textarea -> lista de opciones. Un renglón por opción, sin vacíos ni espacios de sobra. */
+const parseOptions = (text: string): string[] =>
+  text
+    .split('\n')
+    .map((option) => option.trim())
+    .filter(Boolean);
+
+/**
+ * Editor de las opciones de una columna `select`.
+ *
+ * Tiene estado propio porque el textarea es controlado y las opciones se guardan ya normalizadas:
+ * pintar `options.join('\n')` como valor obliga a que el texto sobreviva un viaje de ida y vuelta
+ * por `parseOptions` en cada tecla, y ese viaje se come justo lo que se acaba de teclear mientras
+ * todavía no es una opción. Al pulsar Enter el valor crudo es `"Nivel III\n"`, el renglón vacío del
+ * final se descarta y el textarea se repinta sin el salto de línea: **por teclado no se podía crear
+ * un renglón**, solo pegando un bloque de varias líneas.
+ *
+ * Mientras se escribe manda el borrador; hacia fuera siempre viajan las opciones normalizadas.
+ */
+function OptionsEditor({
+  options,
+  onChange,
+  placeholder,
+}: {
+  options: string[];
+  onChange: (options: string[]) => void;
+  placeholder: string;
+}) {
+  const [draft, setDraft] = useState(() => options.join('\n'));
+  const committed = options.join('\n');
+
+  // Resincroniza solo cuando lo de fuera dejó de corresponder a lo tecleado: otra columna, o un
+  // dataset recién cargado. Si equivale al borrador, pisarlo borraría el renglón en curso.
+  useEffect(() => {
+    if (parseOptions(draft).join('\n') !== committed) {
+      setDraft(committed);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [committed]);
+
+  return (
+    <textarea
+      value={draft}
+      onChange={(event) => {
+        setDraft(event.target.value);
+        onChange(parseOptions(event.target.value));
+      }}
+      onBlur={() => setDraft(parseOptions(draft).join('\n'))}
+      rows={3}
+      placeholder={placeholder}
+      className="w-full rounded-lg border border-border bg-surface px-3 py-2 font-mono text-xs text-text-primary outline-none focus:border-border-focus"
+    />
+  );
+}
 
 interface SchemaBuilderProps {
   fields: DatasetField[];
@@ -133,18 +188,15 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
 
               {field.type === 'select' && (
                 <div>
-                  <textarea
-                    value={(field.options ?? []).join('\n')}
-                    onChange={(event) =>
-                      update(index, {
-                        options: event.target.value.split('\n').map((option) => option.trim()).filter(Boolean),
-                      })
-                    }
-                    rows={3}
-                    placeholder="Una opción por línea"
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 font-mono text-xs text-text-primary outline-none focus:border-border-focus"
+                  <OptionsEditor
+                    options={field.options ?? []}
+                    onChange={(options) => update(index, { options })}
+                    placeholder={'Nivel III\nNivel IV\nNivel IV Plus'}
                   />
-                  <p className="mt-1 text-xs text-text-tertiary">Estas opciones son las únicas que el agente podrá usar.</p>
+                  <p className="mt-1 text-xs text-text-tertiary">
+                    Una opción por renglón, separadas con Enter. Estas opciones son las únicas que el
+                    agente podrá usar.
+                  </p>
                 </div>
               )}
 
