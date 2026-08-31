@@ -64,8 +64,23 @@ export interface PlanLimits {
   maxUsers: number; // Usuarios permitidos en la organización
   maxWorkflows: number; // Workflows activos simultáneos
   maxApiKeys: number; // API keys permitidas
-  maxDatasets: number; // Datasets (mini bases de datos) de la organización
-  maxDatasetRows: number; // Filas sumadas entre TODOS los datasets de la organización
+  /**
+   * Datasets (mini bases de datos) de la organización.
+   *
+   * **Se reparte con la mano suelta a propósito**: un dataset vacío no cuesta nada —una fila en
+   * `datasets` con su JSON de columnas—, y lo que sí cuesta, las filas, ya lo cobra
+   * `maxDatasetRows`. Apretar aquí no ahorra infraestructura; lo único que consigue es empujar al
+   * cliente a meter productos que no se parecen en un solo catálogo, que es justo lo que degrada
+   * la herramienta: columnas vacías, `select` con opciones de otra línea de negocio y un agente
+   * que puede leer filas que no le tocan (el token de consulta tiene alcance de UN dataset).
+   * Quien tiene seis líneas de negocio necesita seis catálogos con o sin permiso nuestro.
+   */
+  maxDatasets: number;
+  /**
+   * Filas sumadas entre TODOS los datasets de la organización. Aquí sí está el costo real
+   * (almacenamiento e índice GIN), y por eso este es el límite que sube plan con plan.
+   */
+  maxDatasetRows: number;
   monthlyCredits: number; // Créditos incluidos por mes
   overageLimit: number; // Límite de créditos en negativo (overage)
   allowOverages: boolean; // Si permite balance negativo
@@ -243,7 +258,7 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxUsers: 10,
       maxWorkflows: 10,
       maxApiKeys: 50,
-      maxDatasets: 1,
+      maxDatasets: 3,
       maxDatasetRows: 1000,
       monthlyCredits: 750,
       overageLimit: 750,
@@ -261,7 +276,7 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxUsers: 25,
       maxWorkflows: 25,
       maxApiKeys: 100,
-      maxDatasets: 3,
+      maxDatasets: 10,
       maxDatasetRows: 5000,
       monthlyCredits: 2550,
       overageLimit: 2550,
@@ -280,7 +295,7 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxUsers: 50,
       maxWorkflows: 100,
       maxApiKeys: 250,
-      maxDatasets: 5,
+      maxDatasets: 25,
       maxDatasetRows: 15000,
       monthlyCredits: 6900,
       overageLimit: 6900,
@@ -299,7 +314,7 @@ export const PLANS: Record<SubscriptionPlan, BillingPlan> = {
       maxUsers: 100,
       maxWorkflows: 250,
       maxApiKeys: 500,
-      maxDatasets: 10,
+      maxDatasets: 50,
       maxDatasetRows: 50000,
       monthlyCredits: 18750,
       overageLimit: 18750,
