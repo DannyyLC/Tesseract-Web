@@ -14,10 +14,10 @@ El sistema de creditos es el motor economico de Tesseract. Cada ejecucion de un 
 | Plan           | Precio/mes MXN | Precio/mes USD | Creditos/mes  | Usuarios  | Workflows | API Keys  | Datasets  | Filas     |
 | -------------- | -------------- | -------------- | ------------- | --------- | --------- | --------- | --------- | --------- |
 | **Free**       | $0             | $0             | 0             | 1         | 3         | 3         | 1         | 100       |
-| **Starter**    | $499           | $25            | 750           | 10        | 10        | 50        | 1         | 1,000     |
-| **Growth**     | $1,590         | $79            | 2,550         | 25        | 25        | 100       | 3         | 5,000     |
-| **Business**   | $3,990         | $199           | 6,900         | 50        | 100       | 250       | 5         | 15,000    |
-| **Pro**        | $9,990         | $499           | 18,750        | 100       | 250       | 500       | 10        | 50,000    |
+| **Starter**    | $499           | $25            | 750           | 10        | 10        | 50        | 3         | 1,000     |
+| **Growth**     | $1,590         | $79            | 2,550         | 25        | 25        | 100       | 10        | 5,000     |
+| **Business**   | $3,990         | $199           | 6,900         | 50        | 100       | 250       | 25        | 15,000    |
+| **Pro**        | $9,990         | $499           | 18,750        | 100       | 250       | 500       | 50        | 50,000    |
 | **Enterprise** | Personalizado  | Personalizado  | Personalizado | Ilimitado | Ilimitado | Ilimitado | Ilimitado | Ilimitado |
 
 > El plan **Free** no incluye creditos mensuales. Solo permite usar el dashboard y crear hasta 3 Workflows sin ejecutarlos con IA.
@@ -29,6 +29,8 @@ La moneda la decide el pais de facturacion de la organizacion (`Organization.cou
 Los importes en pesos **no son la conversion** de los de dolares: son un punto de precio propio para el mercado mexicano. Cambiar uno no obliga a tocar el otro. En Stripe ambos viven en el mismo objeto `Price` via `currency_options`, asi que el Price ID que llega en una factura es el mismo se cobre en la moneda que se cobre.
 
 La columna **Filas** es el total sumado entre todos los datasets de la organizacion, no por dataset. El maximo de columnas por dataset es 30 en todos los planes (`MAX_DATASET_FIELDS`), a proposito: no es una palanca comercial sino el punto en el que el LLM empieza a elegir mal los filtros.
+
+De los dos limites de datasets, **el que cobra el costo real es Filas**; el conteo de catalogos se reparte con la mano suelta porque un dataset vacio no cuesta nada. Partir un catalogo en varios no consume ni una fila mas, y evita el patron que degrada la herramienta: meter lineas de negocio que no se parecen en una sola tabla, donde las 30 columnas se las come la union de todos los esquemas y se pierde el aislamiento por token —cada tool de dataset tiene alcance de UNO solo, y es lo unico que impide que un agente lea filas que no le tocan. La recomendacion de producto es **un dataset por esquema**: si dos lineas comparten columnas, se fusionan con una columna `select` que las distinga; si no, van separadas.
 
 ---
 
