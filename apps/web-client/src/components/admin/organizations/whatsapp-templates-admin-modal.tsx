@@ -142,6 +142,9 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
                     {template.name} · {template.language}
                     {!template.isActive && ' · inactivo'}
                   </p>
+                  <p className="mt-0.5 truncate font-mono text-[11px] text-text-tertiary">
+                    {template.id}
+                  </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <button

@@ -315,3 +315,9 @@ el límite— pero **no borrar nada y dejar la lectura intacta**. Así:
 Queda por acordar: si el bloqueo aplica también a **editar** filas existentes (yo lo dejaría pasar,
 editar no aumenta el conteo), si conviene un periodo de gracia antes de bloquear, y cómo se le avisa
 en la UI —porque un botón de "agregar fila" deshabilitado sin explicación es peor que el límite.
+
+**release 2.0 -> Observaciones**
+- La sección donde aparece los datos del catálogo no tiene barra de busqueda, ¿Conviene agregarla?
+- Cuando se conecta un catalogo con su workflow se crea una tenant tool, pero se observo que el id del usuario no se esta registrando para el campo createdByUserId de la tabla tenant_tool. 
+- Se pueden ligar varios numeros de telefono (whatsapp_config) a un workflow, cada numero tiene sus templates (esto es requerido ya que asi lo maneja Meta). El problema radica al momento de crear el payload que se le pasara al agent, especificamente para las available templates metadata, ya que de todos los números asociados, ¿Como saber que número tomar para obtener las templates asociadas? Por el canal de whatsapp no hay problema ya que el webhook nos dice cual numero es el destino, pero cuando se trata de canal API (nuestra app Tesseract) o Messenger, no sabemos que número sacara las templates (por ahora la solución fue que se elija al primero en la lista de los numeros disponibles en config de tenant_tool).
+- Al momento de hacer la acción "leave organization" la app redirige al dashboard que muestra todo en blanco (deberia redirigir al login).

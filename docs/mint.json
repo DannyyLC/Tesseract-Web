@@ -64,6 +64,16 @@
         "reference/api-endpoints",
         "reference/credits-and-plans"
       ]
+    },
+    {
+      "group": "Templates de Agente",
+      "pages": [
+        "templates/overview",
+        "templates/ventas",
+        "templates/soporte",
+        "templates/agendamiento",
+        "templates/catalogo"
+      ]
     }
   ],
   "footerSocials": {

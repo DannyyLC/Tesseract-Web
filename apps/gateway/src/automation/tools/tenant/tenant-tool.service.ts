@@ -16,7 +16,7 @@ import { CreateTenantToolDto } from './dto/create-tenant-tool.dto';
 import { UpdateTenantToolDto } from './dto/update-tenant-tool.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
-import { Prisma, ToolConnectionStatus } from '@tesseract/database';
+import { Prisma, ToolConnectionStatus, UserRole } from '@tesseract/database';
 import { ToolHealthService } from '../core/tool-health.service';
 
 /**
@@ -263,7 +263,7 @@ export class TenantToolService {
       throw new NotFoundException('Tool not found');
     }
 
-    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== 'owner') {
+    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== UserRole.OWNER) {
       throw new ForbiddenException('No tienes permisos para modificar esta herramienta');
     }
 
@@ -297,7 +297,7 @@ export class TenantToolService {
       throw new NotFoundException('Tool not found');
     }
 
-    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== 'owner') {
+    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== UserRole.OWNER) {
       throw new ForbiddenException('No tienes permisos para modificar esta herramienta');
     }
 
@@ -333,7 +333,7 @@ export class TenantToolService {
       throw new NotFoundException('Tool not found');
     }
 
-    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== 'owner') {
+    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== UserRole.OWNER) {
       throw new ForbiddenException('No tienes permisos para modificar esta herramienta');
     }
 
@@ -521,7 +521,7 @@ export class TenantToolService {
       throw new NotFoundException('Tool not found');
     }
 
-    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== 'owner') {
+    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== UserRole.OWNER) {
       throw new Error('No tienes permisos para desconectar esta herramienta');
     }
 
@@ -564,7 +564,7 @@ export class TenantToolService {
       throw new NotFoundException('Tool not found');
     }
 
-    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== 'owner') {
+    if (tool.createdByUserId && tool.createdByUserId !== userId && role !== UserRole.OWNER) {
       throw new Error('No tienes permisos para desconectar esta herramienta');
     }
 
