@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, GripVertical, Plus, Sigma, Trash2 } from 'lucide-react';
 import {
@@ -47,6 +47,65 @@ interface SchemaBuilderProps {
  */
 const formulaUsesKey = (formula: string, key: string): boolean =>
   new RegExp(`(^|[^a-z0-9_])${key}($|[^a-z0-9_])`).test(formula);
+
+/** Texto del textarea -> lista de opciones. Un renglón por opción, sin vacíos ni espacios de sobra. */
+const parseOptions = (text: string): string[] =>
+  text
+    .split('\n')
+    .map((option) => option.trim())
+    .filter(Boolean);
+
+/**
+ * Editor de las opciones de una columna `select`.
+ *
+ * **Por qué tiene estado propio en vez de leer `options` directo.** El textarea es controlado y las
+ * opciones se guardan ya normalizadas, así que pintar `options.join('\n')` como valor obliga a que
+ * el texto sobreviva un viaje de ida y vuelta por `parseOptions` en cada tecla. Ese viaje se come
+ * justo lo que se acaba de teclear mientras todavía no es una opción: al pulsar Enter el valor
+ * crudo es `"Nivel III\n"`, el renglón vacío del final se descarta y el textarea se repinta sin el
+ * salto de línea. El efecto era que **por teclado no se podía crear un renglón**; solo funcionaba
+ * pegar un bloque de varias líneas, porque ahí ningún segmento queda vacío. Con un espacio
+ * intermedio pasaba lo mismo: `trim()` lo borraba antes de poder escribir la siguiente palabra.
+ *
+ * Así que mientras se escribe manda el borrador —que sí conserva renglones vacíos y espacios— y
+ * hacia fuera siempre viajan las opciones normalizadas. Al salir del campo el borrador se limpia,
+ * para que lo que se ve sea lo que se va a guardar.
+ */
+function OptionsEditor({
+  options,
+  onChange,
+  placeholder,
+}: {
+  options: string[];
+  onChange: (options: string[]) => void;
+  placeholder: string;
+}) {
+  const [draft, setDraft] = useState(() => options.join('\n'));
+  const committed = options.join('\n');
+
+  // Resincroniza solo cuando lo de fuera dejó de corresponder a lo tecleado: otra columna, o un
+  // dataset recién cargado. Si equivale al borrador, pisarlo borraría el renglón en curso.
+  useEffect(() => {
+    if (parseOptions(draft).join('\n') !== committed) {
+      setDraft(committed);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [committed]);
+
+  return (
+    <textarea
+      value={draft}
+      onChange={(event) => {
+        setDraft(event.target.value);
+        onChange(parseOptions(event.target.value));
+      }}
+      onBlur={() => setDraft(parseOptions(draft).join('\n'))}
+      rows={3}
+      placeholder={placeholder}
+      className="w-full rounded-xl border border-border bg-surface px-3 py-2 font-mono text-xs text-text-primary outline-none focus:border-accent"
+    />
+  );
+}
 
 export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuilderProps) {
   const t = useTranslations('Datasets');
@@ -208,19 +267,10 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                   que el modelo pida un valor que no existe. */}
               {field.type === 'select' && (
                 <div>
-                  <textarea
-                    value={(field.options ?? []).join('\n')}
-                    onChange={(event) =>
-                      update(index, {
-                        options: event.target.value
-                          .split('\n')
-                          .map((option) => option.trim())
-                          .filter(Boolean),
-                      })
-                    }
-                    rows={3}
+                  <OptionsEditor
+                    options={field.options ?? []}
+                    onChange={(options) => update(index, { options })}
                     placeholder={t('optionsPlaceholder')}
-                    className="w-full rounded-xl border border-border bg-surface px-3 py-2 font-mono text-xs text-text-primary outline-none focus:border-accent"
                   />
                   <p className="mt-1 text-xs text-text-tertiary">{t('optionsHint')}</p>
                 </div>
