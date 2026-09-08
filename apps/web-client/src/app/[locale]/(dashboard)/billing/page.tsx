@@ -14,7 +14,7 @@ import BillingHero from './_components/billing-hero';
 import OverageCard from './_components/overage-card';
 import UsageCard from './_components/usage-card';
 import Loading from '@/app/[locale]/(dashboard)/loading';
-import { Workflow, Key, Users, ArrowUpRight, PartyPopper } from 'lucide-react';
+import { Workflow, Key, Users, Database, Rows3, ArrowUpRight, PartyPopper } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import PermissionGuard from '@/components/auth/permission-guard';
@@ -76,6 +76,8 @@ export default function BillingPage() {
     workflows: { used: 0, limit: 0 },
     apiKeys: { used: 0, limit: 0 },
     users: { used: 0, limit: 0 },
+    datasets: { used: 0, limit: 0 },
+    datasetRows: { used: 0, limit: 0 },
   };
 
   const subscription = {
@@ -170,6 +172,20 @@ export default function BillingPage() {
                 used={usage.users.used}
                 limit={usage.users.limit}
                 unit={t('usersUnit')}
+              />
+              <UsageCard
+                title={t('datasetsTitle')}
+                icon={<Database />}
+                used={usage.datasets.used}
+                limit={usage.datasets.limit}
+                unit={t('datasetsUnit')}
+              />
+              <UsageCard
+                title={t('datasetRowsTitle')}
+                icon={<Rows3 />}
+                used={usage.datasetRows.used}
+                limit={usage.datasetRows.limit}
+                unit={t('datasetRowsUnit')}
               />
             </div>
           </div>

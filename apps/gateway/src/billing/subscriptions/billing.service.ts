@@ -1412,8 +1412,16 @@ export class BillingService {
    * Get Aggregated Billing Dashboard Data
    */
   async getBillingDashboard(organizationId: string): Promise<BillingDashboardDto> {
-    const [organization, subscription, creditBalance, workflowCount, apiKeyCount, userCount] =
-      await this.prisma.$transaction([
+    const [
+      organization,
+      subscription,
+      creditBalance,
+      workflowCount,
+      apiKeyCount,
+      userCount,
+      datasetCount,
+      datasetRowCount,
+    ] = await this.prisma.$transaction([
         this.prisma.organization.findUnique({
           where: { id: organizationId },
           select: {
@@ -1455,6 +1463,12 @@ export class BillingService {
             isActive: true,
             deletedAt: null,
           },
+        }),
+        this.prisma.dataset.count({
+          where: { organizationId, deletedAt: null },
+        }),
+        this.prisma.datasetRecord.count({
+          where: { dataset: { organizationId, deletedAt: null } },
         }),
       ]);
 
@@ -1504,6 +1518,14 @@ export class BillingService {
         users: {
           used: userCount,
           limit: limits.maxUsers,
+        },
+        datasets: {
+          used: datasetCount,
+          limit: limits.maxDatasets,
+        },
+        datasetRows: {
+          used: datasetRowCount,
+          limit: limits.maxDatasetRows,
         },
       },
     };

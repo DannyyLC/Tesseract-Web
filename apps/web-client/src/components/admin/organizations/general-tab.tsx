@@ -77,7 +77,7 @@ export function GeneralTab({ org }: Props) {
 
       <section className="rounded-xl border border-border bg-surface p-4">
         <h2 className="mb-3 text-sm font-semibold text-text-primary">Uso</h2>
-        <dl className="grid grid-cols-3 gap-3">
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <div>
             <dt className="text-xs text-text-secondary">Usuarios</dt>
             <dd className="text-sm text-text-primary">
@@ -96,6 +96,20 @@ export function GeneralTab({ org }: Props) {
             <dd className="text-sm text-text-primary">
               {org.usage.apiKeys} /{' '}
               {org.planLimits.limits.maxApiKeys === -1 ? '∞' : org.planLimits.limits.maxApiKeys}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-text-secondary">Catálogos</dt>
+            <dd className="text-sm text-text-primary">
+              {org.usage.datasets} /{' '}
+              {org.planLimits.limits.maxDatasets === -1 ? '∞' : org.planLimits.limits.maxDatasets}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-text-secondary">Filas de catálogos</dt>
+            <dd className="text-sm text-text-primary">
+              {org.usage.datasetRows} /{' '}
+              {org.planLimits.limits.maxDatasetRows === -1 ? '∞' : org.planLimits.limits.maxDatasetRows}
             </dd>
           </div>
         </dl>

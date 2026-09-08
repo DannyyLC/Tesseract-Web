@@ -40,5 +40,13 @@ export class BillingDashboardDto {
       used: number;
       limit: number;
     };
+    datasets: {
+      used: number;
+      limit: number;
+    };
+    datasetRows: {
+      used: number;
+      limit: number;
+    };
   };
 }

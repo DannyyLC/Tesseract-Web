@@ -35,6 +35,14 @@ export interface BillingDashboardData {
       used: number;
       limit: number;
     };
+    datasets: {
+      used: number;
+      limit: number;
+    };
+    datasetRows: {
+      used: number;
+      limit: number;
+    };
   };
 }
 

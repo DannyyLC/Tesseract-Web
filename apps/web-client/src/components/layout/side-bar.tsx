@@ -134,17 +134,18 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
         isCollapsed ? 'w-20' : 'w-[280px] lg:w-[260px]'
       }`}
     >
-      {/* Header: logo y, a la derecha, el control de plegado.
-          Estaba en el pie ocupando una fila entera de navegación; aquí no cuesta altura. */}
+      {/* Header: logo y, a la derecha, el control de plegado. Vive siempre aquí, plegado o no
+          — antes se iba al pie cuando el sidebar estaba angosto, y ahí quedaba escondido bajo
+          el resto de la navegación en vez de a mano apenas se necesita. */}
       <div
-        className={`flex h-16 shrink-0 items-center border-b border-border px-4 ${
-          isCollapsed ? 'justify-center' : 'justify-between'
+        className={`flex h-16 shrink-0 items-center justify-between border-b border-border ${
+          isCollapsed ? 'px-2' : 'px-4'
         }`}
       >
         <Link
           href="/dashboard"
           onClick={onNavigate}
-          className="flex items-center gap-3 overflow-hidden"
+          className="flex min-w-0 items-center gap-3 overflow-hidden"
         >
           <div className="relative h-9 w-9 flex-shrink-0">
             <Image
@@ -160,20 +161,20 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
           )}
         </Link>
 
-        {!isCollapsed && (
-          <button
-            onClick={onToggle}
-            className="rounded-lg p-1.5 text-text-tertiary transition-all hover:bg-surface-secondary hover:text-text-primary"
-            title={t('collapse')}
-            aria-label={t('collapse')}
-          >
-            <ChevronLeft size={18} />
-          </button>
-        )}
+        <button
+          onClick={onToggle}
+          className={`flex-shrink-0 rounded-lg text-text-tertiary transition-all hover:bg-surface-secondary hover:text-text-primary ${
+            isCollapsed ? 'p-1' : 'p-1.5'
+          }`}
+          title={isCollapsed ? t('expand') : t('collapse')}
+          aria-label={isCollapsed ? t('expand') : t('collapse')}
+        >
+          <ChevronLeft size={isCollapsed ? 16 : 18} className={isCollapsed ? 'rotate-180' : ''} />
+        </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4">
         <ul className="space-y-1">
           {visibleEntries.map((entry) => {
             if (!isGroup(entry)) {
@@ -203,14 +204,28 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
             // Con el sidebar plegado no cabe un desplegable, así que los hijos salen en un
             // panel lateral al pasar el ratón. El `pl-2` del contenedor hace de puente: con un
             // margen quedaría un hueco sin cubrir y el panel se cerraría al cruzarlo.
+            //
+            // También responde al click (no solo al hover): en touch/trackpad no hay hover
+            // real, así que sin esto el grupo parece muerto. El click reusa `toggledGroups`,
+            // así que si se abre a mano se queda abierto aunque el ratón salga del área.
             if (isCollapsed) {
               return (
                 <li key={entry.key} className="group/flyout relative">
-                  <div className={rowClass(hasActiveChild)} title={entry.label}>
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(entry)}
+                    aria-expanded={open}
+                    className={`w-full ${rowClass(hasActiveChild)}`}
+                    title={entry.label}
+                  >
                     <span className="flex-shrink-0">{entry.icon}</span>
-                  </div>
+                  </button>
 
-                  <div className="invisible absolute left-full top-0 z-50 pl-2 opacity-0 transition-opacity group-hover/flyout:visible group-hover/flyout:opacity-100">
+                  <div
+                    className={`absolute left-full top-0 z-50 pl-2 opacity-0 transition-opacity group-hover/flyout:visible group-hover/flyout:opacity-100 ${
+                      open ? 'visible opacity-100' : 'invisible'
+                    }`}
+                  >
                     <ul className="min-w-[190px] space-y-1 rounded-xl border border-border bg-surface p-2 shadow-lg">
                       {entry.items.map((item) => (
                         <li key={item.href}>
@@ -297,19 +312,6 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
           <HelpCircle size={20} />
           {!isCollapsed && <span className="font-medium">{t('navSupport')}</span>}
         </Link>
-
-        {/* Plegado: en el pie solo cuando el sidebar está estrecho, porque ahí el header no
-            tiene sitio para el botón. Expandido vive arriba. */}
-        {isCollapsed && (
-          <button
-            onClick={onToggle}
-            className="flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2 text-text-secondary transition-all hover:bg-surface-secondary hover:text-text-primary"
-            title={t('expand')}
-            aria-label={t('expand')}
-          >
-            <ChevronLeft size={20} className="rotate-180" />
-          </button>
-        )}
       </div>
     </aside>
   );
