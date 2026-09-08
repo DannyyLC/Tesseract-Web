@@ -201,19 +201,19 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
             const hasActiveChild = groupHasActiveRoute(entry);
             const open = isGroupOpen(entry);
 
-            // Con el sidebar plegado no cabe un desplegable, así que los hijos salen en un
-            // panel lateral al pasar el ratón. El `pl-2` del contenedor hace de puente: con un
-            // margen quedaría un hueco sin cubrir y el panel se cerraría al cruzarlo.
-            //
-            // También responde al click (no solo al hover): en touch/trackpad no hay hover
-            // real, así que sin esto el grupo parece muerto. El click reusa `toggledGroups`,
-            // así que si se abre a mano se queda abierto aunque el ratón salga del área.
+            // Con el sidebar plegado el panel lateral solo aparece al pasar el ratón — en
+            // touch/trackpad no hay hover, así que el grupo parecía muerto al hacer click. El
+            // click ahora expande el sidebar entero y abre el grupo, en vez de depender de un
+            // flyout que nunca se ve si nadie pasa el mouse por encima.
             if (isCollapsed) {
               return (
                 <li key={entry.key} className="group/flyout relative">
                   <button
                     type="button"
-                    onClick={() => toggleGroup(entry)}
+                    onClick={() => {
+                      onToggle();
+                      setToggledGroups((prev) => ({ ...prev, [entry.key]: true }));
+                    }}
                     aria-expanded={open}
                     className={`w-full ${rowClass(hasActiveChild)}`}
                     title={entry.label}
@@ -222,9 +222,7 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
                   </button>
 
                   <div
-                    className={`absolute left-full top-0 z-50 pl-2 opacity-0 transition-opacity group-hover/flyout:visible group-hover/flyout:opacity-100 ${
-                      open ? 'visible opacity-100' : 'invisible'
-                    }`}
+                    className={`invisible absolute left-full top-0 z-50 pl-2 opacity-0 transition-opacity group-hover/flyout:visible group-hover/flyout:opacity-100`}
                   >
                     <ul className="min-w-[190px] space-y-1 rounded-xl border border-border bg-surface p-2 shadow-lg">
                       {entry.items.map((item) => (
