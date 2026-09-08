@@ -165,21 +165,24 @@ export const WORKFLOW_CATEGORIES: Record<WorkflowCategory, WorkflowCategoryConfi
   [WorkflowCategory.LIGHT]: {
     category: WorkflowCategory.LIGHT,
     credits: 1,
-    maxTokens: 20_000,
+    maxTokens: 50_000,
     allowedModelTiers: [ModelTier.BASIC, ModelTier.STANDARD, ModelTier.PREMIUM],
     description: 'Tareas simples y rápidas con respuestas directas',
   },
   [WorkflowCategory.STANDARD]: {
     category: WorkflowCategory.STANDARD,
     credits: 5,
-    maxTokens: 100_000,
+    maxTokens: 200_000,
     allowedModelTiers: [ModelTier.BASIC, ModelTier.STANDARD, ModelTier.PREMIUM],
     description: 'Workflows completos con múltiples pasos y herramientas',
   },
   [WorkflowCategory.ADVANCED]: {
     category: WorkflowCategory.ADVANCED,
     credits: 20,
-    maxTokens: 250_000,
+    // Debajo de 400k a propósito: es la ventana de gpt-5.4-mini, el modelo más chico en uso.
+    // La guarda de ventana de contexto igual recorta el efectivo a ventanaMínima × 0.8 (320k
+    // con ese modelo en el workflow) — este número es el máximo configurable, no el que rige.
+    maxTokens: 350_000,
     allowedModelTiers: [ModelTier.BASIC, ModelTier.STANDARD, ModelTier.PREMIUM],
     description: 'Agentes complejos multi-step con reasoning avanzado',
   },

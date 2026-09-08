@@ -23,9 +23,9 @@ enum SubscriptionPlan {
 // packages/types/src/billing/subscriptions/plans.ts, que es la fuente de verdad; estos
 // comentarios son un reflejo y hay que moverlos si allá cambian.
 enum WorkflowCategory {
-  LIGHT // 1 crédito - Tareas simples, hasta 20k tokens
-  STANDARD // 5 créditos - Workflows completos, hasta 100k tokens
-  ADVANCED // 20 créditos - Multi-agente complejo, hasta 250k tokens
+  LIGHT // 1 crédito - Tareas simples, hasta 50k tokens
+  STANDARD // 5 créditos - Workflows completos, hasta 200k tokens
+  ADVANCED // 20 créditos - Multi-agente complejo, hasta 350k tokens
 }
 
 enum ModelTier {
@@ -1356,7 +1356,7 @@ model Workflow {
 
   // Credit System - Workflow Category
   category              WorkflowCategory // Asignado por admin. Costo en créditos: WORKFLOW_CATEGORIES (packages/types)
-  maxTokensPerExecution Int // Techo de historial de conversación (20k/100k/250k según category)
+  maxTokensPerExecution Int // Techo de historial de conversación (50k/200k/350k según category)
 
   maxMessages            Int? // null = sin límite de mensajes
   inactivityHours        Int? // null = sin límite temporal

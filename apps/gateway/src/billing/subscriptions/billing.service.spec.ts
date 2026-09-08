@@ -67,6 +67,12 @@ const mockPrismaService = {
     findMany: jest.fn(),
     updateMany: jest.fn(),
   },
+  dataset: {
+    count: jest.fn(),
+  },
+  datasetRecord: {
+    count: jest.fn(),
+  },
   invoice: {
     upsert: jest.fn(),
   },

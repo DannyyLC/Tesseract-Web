@@ -39,7 +39,7 @@ describe('category-token-ceiling', () => {
           category: WorkflowCategory.LIGHT,
           maxTokensPerExecution: 500_000,
         }),
-      ).toThrow(/500000.*LIGHT.*20000/);
+      ).toThrow(/500000.*LIGHT.*50000/);
     });
 
     it('aplica el techo de cada categoría, no uno global', () => {

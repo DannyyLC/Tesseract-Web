@@ -36,9 +36,12 @@ export class CreateWorkflowDto {
   @IsNotEmpty({ message: 'La categoría es requerida' })
   category!: 'LIGHT' | 'STANDARD' | 'ADVANCED';
 
+  // 350000 = techo de ADVANCED en WORKFLOW_CATEGORIES (packages/types), la categoría con más
+  // margen. El chequeo fino por categoría lo hace assertMaxTokensWithinCategory; este @Max
+  // es solo la cota superior absoluta para que class-validator rechace valores absurdos.
   @IsInt()
   @Min(1000)
-  @Max(200000)
+  @Max(350000)
   @IsNotEmpty({ message: 'maxTokensPerExecution es requerido' })
   maxTokensPerExecution!: number;
 
