@@ -21,10 +21,14 @@ dist/
 # Volcados de base de datos - IMPORTANTE: nunca subirlos.
 # Traen credenciales vivas (webhookSecret de WhatsApp, hashes de contraseñas,
 # refresh tokens) y datos personales. Las migraciones de Prisma sí se versionan.
+# seed.sql también: es catálogo (modelos LLM, tools, notificaciones) generado desde
+# seed-data.ts, sin datos de cliente — se corre en prod igual que las migraciones
+# (ver docs/manuals/migraciones-gcp.md).
 *.sql
 *.sql.orig
 *.dump
 !packages/database/prisma/migrations/**/*.sql
+!packages/database/prisma/seed.sql
 
 # Secrets - IMPORTANTE: nunca subir credenciales locales
 secrets.local.json

@@ -1,6 +1,6 @@
 .PHONY: install build dev gateway web agents proto db-up db-down db-logs clean \
-        prisma-migrate prisma-deploy prisma-studio prisma-generate prisma-seed prisma-reset \
-        test test-gateway test-unit test-e2e
+        prisma-migrate prisma-deploy prisma-studio prisma-generate prisma-seed prisma-seed-sql \
+        prisma-reset test test-gateway test-unit test-e2e
 
 # ── Install ───────────────────────────────────────────────────────────────────
 install:
@@ -63,6 +63,11 @@ prisma-studio:
 
 prisma-seed:
 	pnpm run prisma:seed
+
+# Regenera packages/database/prisma/seed.sql a partir de seed-data.ts. Ese .sql, no este
+# target, es lo que se corre en prod (Cloud SQL Studio) — ver docs/manuals/migraciones-gcp.md.
+prisma-seed-sql:
+	pnpm run prisma:seed:generate
 
 # ── Test ──────────────────────────────────────────────────────────────────────
 # test         -> toda la suite del monorepo (todos los paquetes)

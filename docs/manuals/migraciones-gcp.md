@@ -127,6 +127,34 @@ gcloud run deploy gateway \
 
 ---
 
+## Seed (catálogo de modelos LLM, tools y notificaciones)
+
+El seed **no** corre desde un Cloud Run Job — es innecesario montar esa infraestructura para algo
+que ya se resuelve igual que las migraciones manuales de arriba: es un `.sql` idempotente
+(`ON CONFLICT ... DO UPDATE`, seguro de re-ejecutar) que se pega y corre en **Cloud SQL Studio**.
+
+```
+packages/database/prisma/
+  seed-data.ts          <- fuente de verdad: modelos LLM, catálogo de tools, notificaciones
+  seed.ts                  (local, vía Prisma Client — `pnpm run prisma:seed`)
+  generate-seed-sql.ts  <- lee seed-data.ts y escribe seed.sql
+  seed.sql              <- generado, commiteado; esto es lo que se corre en prod
+```
+
+**Al cambiar el seed** (agregar un modelo, una tool, una notificación):
+
+```bash
+pnpm run prisma:seed:generate   # regenera packages/database/prisma/seed.sql
+```
+
+Commitea el `seed.sql` resultante junto con el cambio en `seed-data.ts`.
+
+**Para aplicarlo en prod:** Cloud SQL Studio (consola → SQL → `tesseract-db` → Studio) → pegar el
+contenido de `packages/database/prisma/seed.sql` → ejecutar. Corre dentro de un `BEGIN`/`COMMIT`
+propio, así que no hace falta envolverlo en nada más.
+
+---
+
 ## Solución de problemas
 
 ### `P3009` — migración fallida bloquea las demás

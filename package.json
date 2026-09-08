@@ -20,6 +20,7 @@
     "prisma:studio": "pnpm --filter @tesseract/database exec prisma studio",
     "prisma:reset": "pnpm --filter @tesseract/database exec prisma migrate reset",
     "prisma:seed": "pnpm --filter @tesseract/database seed",
+    "prisma:seed:generate": "pnpm --filter @tesseract/database seed:generate",
     "stripe:catalog": "dotenv -e .env -- ts-node -P scripts/tsconfig.json scripts/stripe/sync-catalog.ts",
     "env:diff": "./scripts/diff-env.sh",
     "test:all": "pnpm -r --if-present run test",

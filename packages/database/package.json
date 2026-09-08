@@ -18,6 +18,7 @@
     "migrate:reset": "prisma migrate reset",
     "studio": "prisma studio",
     "seed": "ts-node prisma/seed.ts",
+    "seed:generate": "ts-node prisma/generate-seed-sql.ts",
     "db:push": "prisma db push",
     "db:pull": "prisma db pull"
   },
