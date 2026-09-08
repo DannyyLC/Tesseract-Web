@@ -3,6 +3,9 @@ title: 'TODO — Deuda técnica detectada'
 description: 'Hallazgos pendientes de corregir: el prompt caching sin modelar en el cálculo de costos, los tiers de modelo declarados y nunca aplicados, riesgos de despliegue, secretos en el historial, campos inertes en la config de WhatsApp, la imposibilidad deliberada de cambiar el país de facturación de una organización y el trato que debe recibir un downgrade de plan cuando lo que sobra son datos del cliente.'
 ---
 
+Algo importante para la siguiente version es que en el panel de admin no se muestra el numero de rows y catalogos en la pantalla general de organizacion, de igual forma en al pantalla de billing de la pagina de usuarios no muestra esos dos limites.
+Otra coas al hacer click en el panel de usuario en la seccion de organizacion creo que se deberia de abrir el panel apra mostrar que esta tiene mas opciones porque si no parece que nomas no funciona. De igual forma al estar cerrado no se porque aparece una barra de scroll abajo, podriamos ocultarla para un diseño mas limpio, eso de hacer click y que se abra que por favor solo apse con organziacion o con los que tengan mas subsecciones por favor
+
 Levantado durante la preparación del despliegue del workflow RGM (julio 2026), y ampliado con
 lo que salió al migrar el pipeline de WhatsApp a Cloud Tasks (26 de julio de 2026). Nada de
 esto bloquea el despliegue; se documenta para no perderlo.
