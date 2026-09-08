@@ -230,7 +230,7 @@ export class ConversationsService {
     await this.utilityService.sendNotificationToAppClients(
       organizationId,
       [UserRole.OWNER, UserRole.ADMIN],
-      (NOTIFICATIONSENUM as any).HUMAN_INTERVENTION_REQUIRED ?? '0000-0114',
+      NOTIFICATIONSENUM.HUMAN_INTERVENTION_REQUIRED,
       [conversation.id, conversation.workflowId, safeReason],
     );
   }
@@ -269,7 +269,7 @@ export class ConversationsService {
     await this.utilityService.sendNotificationToAppClients(
       organizationId,
       [UserRole.OWNER, UserRole.ADMIN],
-      (NOTIFICATIONSENUM as any).CONVERSATION_NEEDS_FOLLOW_UP ?? '0000-0115',
+      NOTIFICATIONSENUM.CONVERSATION_NEEDS_FOLLOW_UP,
       [conversation.id, conversation.workflowId, safeReason],
     );
   }
