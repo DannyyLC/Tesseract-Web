@@ -753,6 +753,8 @@
     "whatsappLinkSuccess": "Workflows enlazados a WhatsApp Outbound.",
     "whatsappLinkError": "No se pudieron enlazar los workflows seleccionados.",
     "whatsappLinkConfirm": "{count, plural, one {Enlazar {count} workflow} other {Enlazar {count} workflows}}",
+    "whatsappDefaultListLabel": "Número por defecto para enviar",
+    "whatsappDefaultError": "No se pudo guardar el número por defecto.",
     "featuresAvailable": "Funciones disponibles",
     "connectAnother": "Conectar otra instancia",
     "connectButton": "Conectar",

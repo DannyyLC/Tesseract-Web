@@ -134,6 +134,22 @@ class TenantToolsApi {
   }
 
   /**
+   * Fija (o borra, con `whatsappConfigId: null`) cuál número usa `send_bulk_whatsapp` como
+   * remitente para este workflow cuando la conversación no es por WhatsApp.
+   * Endpoint: POST /tenant-tool/whatsapp-outbound-default
+   */
+  public async setWhatsappOutboundDefault(
+    workflowId: string,
+    whatsappConfigId: string | null,
+  ): Promise<boolean> {
+    const result = await this.apiRequestManager.post<ApiResponse<null>>(
+      `${TenantToolsApi.BASE_URL}/whatsapp-outbound-default`,
+      { workflowId, whatsappConfigId },
+    );
+    return result.data.success;
+  }
+
+  /**
    * Desconecta y limpia los secretos de un tenant tool.
    * Endpoint: DELETE /tenant-tool/disconnect/:toolId
    */

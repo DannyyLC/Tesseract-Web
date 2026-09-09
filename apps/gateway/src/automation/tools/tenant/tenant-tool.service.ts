@@ -371,7 +371,7 @@ export class TenantToolService {
           deletedAt: null,
           toolCatalog: { toolName: 'send_bulk_whatsapp' },
         },
-        select: { id: true, workflows: { select: { id: true } } },
+        select: { id: true, config: true, workflows: { select: { id: true } } },
       }),
       this.prismaService.whatsAppConfig.findMany({
         where: {
@@ -391,33 +391,70 @@ export class TenantToolService {
     ]);
 
     const linkedWorkflowIds = new Set(tenantTool?.workflows.map((w) => w.id) ?? []);
+    const defaultByWorkflow = this.readDefaultByWorkflow(tenantTool?.config);
+
     const byWorkflowId = new Map<string, WhatsappOutboundStatusDto['unlinkedWorkflows'][number]>();
+    const linkedByWorkflowId = new Map<
+      string,
+      WhatsappOutboundStatusDto['linkedWorkflowsNeedingDefault'][number]
+    >();
 
     for (const wac of configsWithDefaultWorkflow) {
       const workflowId = wac.defaultWorkflowId;
-      if (!workflowId || linkedWorkflowIds.has(workflowId)) {
-        continue;
-      }
-      const entry = byWorkflowId.get(workflowId) ?? {
-        workflowId,
-        workflowName: wac.defaultWorkflow?.name ?? '',
-        whatsappNumbers: [],
-      };
-      entry.whatsappNumbers.push({
+      if (!workflowId) continue;
+
+      const number = {
         whatsappConfigId: wac.id,
         phoneNumber: wac.phoneNumber,
         displayName: wac.displayName,
-      });
-      byWorkflowId.set(workflowId, entry);
+      };
+
+      if (linkedWorkflowIds.has(workflowId)) {
+        const entry = linkedByWorkflowId.get(workflowId) ?? {
+          workflowId,
+          workflowName: wac.defaultWorkflow?.name ?? '',
+          whatsappNumbers: [],
+          defaultWhatsappConfigId: null,
+        };
+        entry.whatsappNumbers.push(number);
+        linkedByWorkflowId.set(workflowId, entry);
+      } else {
+        const entry = byWorkflowId.get(workflowId) ?? {
+          workflowId,
+          workflowName: wac.defaultWorkflow?.name ?? '',
+          whatsappNumbers: [],
+        };
+        entry.whatsappNumbers.push(number);
+        byWorkflowId.set(workflowId, entry);
+      }
     }
 
-    const unlinkedWorkflows = Array.from(byWorkflowId.values());
+    // Solo interesan los workflows enlazados con MÁS de un número: con uno solo no hay nada
+    // que elegir, y mostrarlo en la UI sería un selector con una opción fija.
+    const linkedWorkflowsNeedingDefault = Array.from(linkedByWorkflowId.values())
+      .filter((entry) => entry.whatsappNumbers.length > 1)
+      .map((entry) => {
+        const configuredIds = new Set(entry.whatsappNumbers.map((n) => n.whatsappConfigId));
+        const preferred = defaultByWorkflow[entry.workflowId];
+        return {
+          ...entry,
+          defaultWhatsappConfigId: preferred && configuredIds.has(preferred) ? preferred : null,
+        };
+      });
 
     return {
       hasWhatsappConfig: whatsappConfigCount > 0,
       tenantToolId: tenantTool?.id ?? null,
-      unlinkedWorkflows,
+      unlinkedWorkflows: Array.from(byWorkflowId.values()),
+      linkedWorkflowsNeedingDefault,
     };
+  }
+
+  /** `TenantTool.config.default_by_workflow`, tolerante a que no exista o venga mal formado. */
+  private readDefaultByWorkflow(config: Prisma.JsonValue | undefined): Record<string, string> {
+    const raw = (config as Record<string, unknown> | null | undefined)?.default_by_workflow;
+    if (!raw || typeof raw !== 'object') return {};
+    return raw as Record<string, string>;
   }
 
   /**
@@ -507,6 +544,79 @@ export class TenantToolService {
       );
       throw error;
     }
+  }
+
+  /**
+   * Fija (o borra) cuál de los números conectados usa `send_bulk_whatsapp` como remitente para
+   * este workflow cuando la conversación no es por WhatsApp — API/Messenger no traen un número
+   * de destino que lo desambigüe solo, a diferencia del webhook de WhatsApp (ver el comentario en
+   * `WorkflowsService` donde se arma el payload de la tool). No afecta a los mensajes que sí son
+   * de WhatsApp: ahí siempre gana el número por el que llegó la conversación.
+   *
+   * `whatsappConfigId: null` borra la preferencia (vuelve a caer en el primero de la lista).
+   */
+  async setWhatsappOutboundDefault(
+    organizationId: string,
+    workflowId: string,
+    whatsappConfigId: string | null,
+  ): Promise<void> {
+    const catalogEntry = await this.prismaService.toolCatalog.findFirst({
+      where: { toolName: 'send_bulk_whatsapp' },
+      select: { id: true },
+    });
+    if (!catalogEntry) {
+      throw new NotFoundException('WhatsApp Outbound tool catalog entry not found');
+    }
+
+    const tenantTool = await this.prismaService.tenantTool.findFirst({
+      where: {
+        organizationId,
+        deletedAt: null,
+        toolCatalogId: catalogEntry.id,
+        workflows: { some: { id: workflowId } },
+      },
+      select: { id: true, config: true },
+    });
+    if (!tenantTool) {
+      throw new NotFoundException(
+        'Este workflow no está conectado a la tool de WhatsApp Outbound',
+      );
+    }
+
+    if (whatsappConfigId) {
+      const belongsToWorkflow = await this.prismaService.whatsAppConfig.findFirst({
+        where: {
+          id: whatsappConfigId,
+          organizationId,
+          deletedAt: null,
+          isActive: true,
+          defaultWorkflowId: workflowId,
+        },
+        select: { id: true },
+      });
+      if (!belongsToWorkflow) {
+        throw new NotFoundException(
+          'Ese número no está conectado a este workflow',
+        );
+      }
+    }
+
+    const defaultByWorkflow = this.readDefaultByWorkflow(tenantTool.config);
+    if (whatsappConfigId) {
+      defaultByWorkflow[workflowId] = whatsappConfigId;
+    } else {
+      delete defaultByWorkflow[workflowId];
+    }
+
+    await this.prismaService.tenantTool.update({
+      where: { id: tenantTool.id },
+      data: {
+        config: {
+          ...(tenantTool.config as Record<string, unknown> | null),
+          default_by_workflow: defaultByWorkflow,
+        },
+      },
+    });
   }
 
   /**

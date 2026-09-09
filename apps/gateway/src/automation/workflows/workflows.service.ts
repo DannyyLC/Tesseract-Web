@@ -1983,8 +1983,19 @@ export class WorkflowsService {
           (configuredIds.length === 0 || configuredIds.includes(whatsAppConfigId))
         ) {
           configId = whatsAppConfigId;
-        } else if (configuredIds.length === 1 || channel != ConversationChannel.WHATSAPP) {
+        } else if (configuredIds.length === 1) {
           configId = configuredIds[0];
+        } else if (configuredIds.length > 1 && channel != ConversationChannel.WHATSAPP) {
+          // Por WhatsApp el número que recibió el mensaje siempre gana (rama de arriba); esto
+          // solo resuelve el caso donde nunca hubo un número de origen que desambiguara solo
+          // (API, Messenger). `default_by_workflow` lo fija el OWNER/ADMIN desde Integraciones
+          // (TenantToolService.setWhatsappOutboundDefault); sin preferencia guardada, cae al
+          // primero de la lista — mismo comportamiento que antes de que existiera esta opción.
+          const defaultByWorkflow = (tenantTool.config as Record<string, unknown> | null)
+            ?.default_by_workflow as Record<string, string> | undefined;
+          const preferred = defaultByWorkflow?.[workflow.id];
+          configId =
+            preferred && configuredIds.includes(preferred) ? preferred : configuredIds[0];
         } else if (configuredIds.length > 1) {
           this.logger.warn(
             `send_bulk_whatsapp tool ${toolId}: ${configuredIds.length} whatsapp_config_id configured and no matching execution whatsAppConfigId to disambiguate`,

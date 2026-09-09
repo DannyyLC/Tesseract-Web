@@ -25,6 +25,7 @@ import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { DashboardTenantToolDto } from '@tesseract/types';
 import { WorkflowIdsDto } from '../../dto/workflow-ids.dto';
+import { SetWhatsappOutboundDefaultDto } from '../../dto/set-whatsapp-outbound-default.dto';
 import { TenantToolService } from '../../tenant-tool.service';
 import { CreateTenantToolDto } from '../../dto/create-tenant-tool.dto';
 import { UpdateTenantToolDto } from '../../dto/update-tenant-tool.dto';
@@ -199,6 +200,28 @@ export class TenantToolController {
       return res.status(HttpStatusCode.Ok).json(apiResponse.build());
     } catch (error: any) {
       apiResponse.setSuccess(false).setMessage(error?.message ?? 'Error linking workflows');
+      return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
+    }
+  }
+
+  @Post('whatsapp-outbound-default')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async setWhatsappOutboundDefault(
+    @Body() body: SetWhatsappOutboundDefaultDto,
+    @CurrentUser() user: UserPayload,
+    @Res() res: Response,
+  ) {
+    const apiResponse = new ApiResponseBuilder<null>();
+    try {
+      await this.tenantToolService.setWhatsappOutboundDefault(
+        user.organizationId,
+        body.workflowId,
+        body.whatsappConfigId ?? null,
+      );
+      apiResponse.setSuccess(true).setMessage('Número por defecto actualizado');
+      return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+    } catch (error: any) {
+      apiResponse.setSuccess(false).setMessage(error?.message ?? 'No se pudo actualizar');
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     }
   }
