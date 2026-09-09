@@ -1563,30 +1563,50 @@ model Tag {
 // ============================================
 // WHATSAPP CONFIG
 // ============================================
+/// De sus columnas, el webhook de WhatsApp en caliente solo lee `phoneNumber` (único
+/// lookup, `getWhatsappConfigByPhoneNumber`), `isActive`, `defaultWorkflowId` y
+/// `organizationId`. El resto vive aquí por dos pendientes de producto que todavía no
+/// se construyen —verificación con Meta y onboarding self-service vía Facebook Login /
+/// Embedded Signup, donde el cliente conecta su propio número sin pasarnos
+/// credenciales a mano— y no se debe borrar hasta que eso se implemente.
 model WhatsAppConfig {
   id String @id @default(uuid())
 
   // Identificación
   phoneNumber String  @unique
+  // Ya poblado para el RGM: sin esto no se distingue de quién es cada número al
+  // consultar la tabla directamente.
   displayName String?
   description String?
 
-  // Proveedor (baileys, twilio, meta)
+  // Nunca se compara en tiempo de ejecución. Hoy todo es YCloud; si se conecta la
+  // Cloud API de Meta directo, este campo es el discriminante entre proveedores.
   provider String
 
-  // Credenciales (referencia a Secret Manager en producción)
+  // Solo existe en un DTO, nunca se lee. Destino natural del token por tenant que
+  // devuelve el Embedded Signup el día que haya onboarding self-service.
   credentialPath String?
 
-  // Webhook
+  // No es solo inerte, es engañoso: el `@default(uuid())` sugiere un secreto por
+  // config (multi-tenant), pero la verificación real usa el único
+  // Y_CLOUD_WEBHOOK_SECRET global (whatsapp-config.service.ts) — esta columna nunca
+  // se consulta y hoy no protege nada. Cuando se construya el multi-tenant,
+  // `verifySignature` debe resolver el config por `phoneNumber` y usar este campo,
+  // con fallback a la env var para no romper lo que ya existe.
   webhookSecret String  @default(uuid())
+  // Se escribe al crear, nunca se lee. Meta exige callback URL por app/número al
+  // registrar el webhook.
   webhookUrl    String?
 
   // Estado de conexión
+  // Se escribe, pero nunca se lee.
   connectionStatus WhatsAppConnectionStatus @default(DISCONNECTED)
   lastConnectedAt  DateTime?
   connectionError  String?
 
-  // QR (para baileys)
+  // Siempre NULL hoy: vienen del diseño para un proveedor tipo Baileys. Son los
+  // únicos candidatos reales a borrarse si se confirma que solo habrá proveedores
+  // por API oficial.
   qrCode       String?
   qrCodeExpiry DateTime?
 

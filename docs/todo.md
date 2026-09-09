@@ -74,60 +74,9 @@ Levantado al migrar a Cloud Tasks. Nada urgente.
   el arreglo sería bajar el binario y mandarlo como data URI en base64.
 
 - **La compactación no se dispara nunca con la configuración actual.** El umbral es 80% de
-  `maxTokensPerExecution`, que en el workflow del RGM son ~80 000 tokens (~320 000 caracteres
+  `maxHistoryTokens`, que en el workflow del RGM son ~80 000 tokens (~320 000 caracteres
   de historial). Sus cuatro defectos ya están corregidos, pero conviene revisar el umbral
   cuando haya conversaciones reales que medir. Relacionado con el punto 4. Ojo con un efecto de
   la guarda de ventana de contexto: el umbral cuelga del límite **efectivo**, no del configurado,
   así que un workflow puede empezar a compactar antes que ayer sin que nadie haya tocado su
   configuración.
-
----
-
-## 9. Campos inertes en `whatsapp_configs`
-
-**Severidad: baja — no rompe nada, pero engaña a quien lee el esquema.**
-
-Levantado el 31 de julio de 2026 al poner los números reales del RGM en producción.
-
-De las 20 columnas de `whatsapp_configs`, el runtime solo lee cuatro: `phoneNumber` (el único
-lookup del webhook, `getWhatsappConfigByPhoneNumber`), `isActive`, `defaultWorkflowId` y
-`organizationId`. `connectionStatus` solo se escribe. El resto
-está inerte.
-
-**Importante: nada de esto se debe borrar todavía.** Casi todos los campos muertos son
-exactamente los que hacen falta para los dos pendientes de producto —verificación con Meta y
-onboarding self-service vía Facebook Login / Embedded Signup— donde el cliente conecta su propio
-número sin pasarnos credenciales a mano. Conviene revisarlos cuando eso se implemente, no antes.
-
-| Campo | Estado hoy | Por qué se queda |
-|---|---|---|
-| `credentialPath` | Solo existe en un DTO, nunca se lee | Destino natural del token por tenant que devuelve el Embedded Signup |
-| `webhookUrl` | Se escribe al crear, nunca se lee | Meta exige callback URL por app/número al registrar el webhook |
-| `provider` | Nunca se compara | Hoy todo es YCloud; si se conecta la Cloud API de Meta directo, este campo es el discriminante |
-| `qrCode` / `qrCodeExpiry` / `sessionData` | Siempre `NULL` | Vienen del diseño para un proveedor tipo Baileys. Son los únicos candidatos reales a borrarse si se confirma que solo habrá proveedores por API oficial |
-| `displayName` / `description` | Estaban `NULL`; ya se poblaron para el RGM | Útiles ya: sin esto no se distingue de quién es cada número al consultar la DB |
-
-**El caso aparte es `webhookSecret`.** No es solo inerte: es engañoso. La columna existe con
-`@default(uuid())` en [`schema.prisma`](https://github.com/FractalOps-Dev/Tesseract/blob/main/packages/database/prisma/schema.prisma),
-o sea que el diseño original era **un secreto por config** (multi-tenant), pero la verificación
-real usa `process.env.Y_CLOUD_WEBHOOK_SECRET` en
-[`whatsapp-config.service.ts`](https://github.com/FractalOps-Dev/Tesseract/blob/main/apps/gateway/src/messaging/channels/whatsapp-config/whatsapp-config.service.ts):
-**un único secreto global para todos los tenants**. Consecuencias:
-
-- Si ese secreto se filtra, cualquiera puede firmar webhooks válidos haciéndose pasar por
-  cualquier organización. Con un cliente en producción el riesgo es acotado; con onboarding
-  self-service deja de serlo.
-- El valor que hay hoy en la fila del RGM (`whsec_b167…`) trae prefijo de Stripe y ya está
-  rotado — o sea que nunca fue un secreto de YCloud. Nadie lo notó porque nada lo consulta.
-  Esto relativiza el punto 7: el `webhookSecret` que quedó en el historial de git no protegía
-  nada.
-
-**Arreglo propuesto (cuando se haga el multi-tenant):** que `verifySignature` resuelva el config
-por `phoneNumber` y use `account.webhookSecret`, con fallback a la env var para no romper lo que
-ya existe. Mientras tanto, dejar la columna documentada como no usada para que nadie asuma que
-está protegiendo algo.
-
-**Lo único que queda del riesgo del formato** (el lookup ya tolera las diferencias desde
-`891d400f`): la equivalencia solo está escrita para México —el `1` de móvil—, así que un número de
-un país con una regla análoga, como el `9` de Argentina, seguiría cayendo en el descarte
-silencioso. Son unas líneas más en `phoneNumberVariants` el día que haya operación ahí.
