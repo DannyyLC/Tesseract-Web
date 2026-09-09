@@ -131,15 +131,3 @@ está protegiendo algo.
 `891d400f`): la equivalencia solo está escrita para México —el `1` de móvil—, así que un número de
 un país con una regla análoga, como el `9` de Argentina, seguiría cayendo en el descarte
 silencioso. Son unas líneas más en `phoneNumberVariants` el día que haya operación ahí.
-
----
-
-## 10. Los descartes del webhook no tienen observabilidad
-
-**Severidad: baja — no se está ciego, pero nadie se entera hasta que el cliente reclama.**
-
-Son **cinco** las rutas por las que un mensaje del cliente termina en un 200 sin dejar rastro en la
-conversación: `unknown-config`, `inactive-config`, `no-workflow`, `missing-workflow` e
-`inactive-workflow` — más `blocked-contact`, que sí es deliberado. Cada una deja su `warn` en Cloud
-Logging, así que el dato está; lo que falta es un contador o una alerta que lo saque a flote sin
-que alguien vaya a buscarlo. Si se agrega, conviene cubrir las cinco de una vez.
