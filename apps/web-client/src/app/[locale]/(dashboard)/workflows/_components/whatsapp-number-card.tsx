@@ -37,22 +37,22 @@ interface WhatsappNumberCardProps {
 const STATUS_STYLES: Record<string, { dot: string; label: string; textKey: string }> = {
   CONNECTED: {
     dot: 'bg-success-500',
-    label: 'border border-success-500/25 bg-success-500/10 text-[var(--badge-success-text-strong)]',
+    label: 'bg-success-500/10 text-[var(--badge-success-text-strong)]',
     textKey: 'statusConfigured',
   },
   ERROR: {
     dot: 'bg-danger',
-    label: 'border border-danger-500/25 bg-danger/10 text-[var(--badge-danger-text-strong)]',
+    label: 'bg-danger/10 text-[var(--badge-danger-text-strong)]',
     textKey: 'statusError',
   },
   DISCONNECTED: {
     dot: 'bg-warning-500',
-    label: 'border border-warning-500/25 bg-warning-500/10 text-[var(--badge-warning-text-strong)]',
+    label: 'bg-warning-500/10 text-[var(--badge-warning-text-strong)]',
     textKey: 'statusNotConfigured',
   },
   PENDING: {
     dot: 'bg-neutral-400',
-    label: 'border border-neutral-500/20 bg-neutral-500/10 text-[var(--badge-neutral-text-strong)]',
+    label: 'bg-neutral-500/10 text-[var(--badge-neutral-text-strong)]',
     textKey: 'statusPending',
   },
 };
@@ -75,8 +75,8 @@ export function WhatsappNumberCard({
   const status =
     STATUS_STYLES[number.connectionStatus ?? 'DISCONNECTED'] ?? STATUS_STYLES.DISCONNECTED;
   const connectionLabel = isActive
-    ? 'border border-success-500/25 bg-success-500/10 text-[var(--badge-success-text-strong)]'
-    : 'border border-danger-500/25 bg-danger/10 text-[var(--badge-danger-text-strong)]';
+    ? 'bg-success-500/10 text-[var(--badge-success-text-strong)]'
+    : 'bg-danger/10 text-[var(--badge-danger-text-strong)]';
   const connectionDot = isActive ? 'bg-success-500' : 'bg-danger';
   const connectionText = isActive ? t('connected') : t('disconnected');
   const createdDate = new Date(number.createdAt).toLocaleDateString(locale, {
@@ -90,7 +90,7 @@ export function WhatsappNumberCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
-      className="group relative flex w-full items-start gap-3 rounded-2xl border border-border bg-surface-elevated p-4 transition-shadow hover:shadow-md"
+      className="group relative flex h-full w-full items-start gap-3 rounded-2xl border border-border bg-surface-elevated p-4 transition-shadow hover:shadow-md"
     >
       {/* Icon */}
       <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--surface-tint)] text-text-primary">
@@ -123,10 +123,15 @@ export function WhatsappNumberCard({
             <span className={`h-1.5 w-1.5 rounded-full ${connectionDot}`} />
             {connectionText}
           </span>
+        </div>
 
-          {showDefaultToggle &&
-            (number.isDefaultForOutbound ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-tint)] px-2.5 py-1 text-xs font-medium text-text-secondary">
+        {/* Fila propia y siempre presente cuando aplica (mismo workflow, mismo estado para
+            todas sus tarjetas): así una tarjeta nunca cambia de alto respecto a sus hermanas
+            solo porque esta pasó de botón a insignia. */}
+        {showDefaultToggle && (
+          <div className="mt-2">
+            {number.isDefaultForOutbound ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--surface-tint)] px-2.5 py-1 text-xs font-medium text-text-secondary">
                 <Star size={11} className="fill-current" />
                 {t('defaultOutbound')}
               </span>
@@ -142,14 +147,15 @@ export function WhatsappNumberCard({
                     }
                   }}
                   disabled={settingDefault}
-                  className="inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--border-subtle)] px-2.5 py-1 text-xs font-medium text-text-tertiary transition-colors hover:border-accent hover:text-text-primary disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-full border border-dashed border-border-hover px-2.5 py-1 text-xs font-medium text-text-tertiary transition-colors hover:border-accent hover:text-text-primary disabled:opacity-50"
                 >
                   {settingDefault ? <Check size={11} /> : <Star size={11} />}
                   {t('setDefaultOutbound')}
                 </button>
               </PermissionGuard>
-            ))}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Actions menu */}

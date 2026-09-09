@@ -310,10 +310,8 @@ export default function WorkflowDetailPage() {
                     <h1 className="flex flex-wrap items-center gap-3 break-words text-3xl font-bold tracking-tight text-text-primary">
                       {workflow.name}
                       <div
-                        className={`flex items-center gap-1 rounded-full border px-2 py-0.5 ${
-                          workflow.isActive
-                            ? 'bg-success-500/5 border-[var(--success-text-adaptive)]'
-                            : 'bg-neutral-500/5 border-[var(--neutral-text-adaptive)]'
+                        className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${
+                          workflow.isActive ? 'bg-success-500/5' : 'bg-neutral-500/5'
                         }`}
                       >
                         <div
