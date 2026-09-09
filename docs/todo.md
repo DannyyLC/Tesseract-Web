@@ -3,19 +3,7 @@ title: 'TODO — Deuda técnica detectada'
 description: 'Hallazgos pendientes de corregir: el prompt caching sin modelar en el cálculo de costos, los tiers de modelo declarados y nunca aplicados, riesgos de despliegue, secretos en el historial, campos inertes en la config de WhatsApp, la imposibilidad deliberada de cambiar el país de facturación de una organización y el trato que debe recibir un downgrade de plan cuando lo que sobra son datos del cliente.'
 ---
 
-Algo importante para la siguiente version es que en el panel de admin no se muestra el numero de rows y catalogos en la pantalla general de organizacion, de igual forma en al pantalla de billing de la pagina de usuarios no muestra esos dos limites.
-Otra coas al hacer click en el panel de usuario en la seccion de organizacion creo que se deberia de abrir el panel apra mostrar que esta tiene mas opciones porque si no parece que nomas no funciona. De igual forma al estar cerrado no se porque aparece una barra de scroll abajo, podriamos ocultarla para un diseño mas limpio, eso de hacer click y que se abra que por favor solo apse con organziacion o con los que tengan mas subsecciones por favor
-
-Levantado durante la preparación del despliegue del workflow RGM (julio 2026), y ampliado con
-lo que salió al migrar el pipeline de WhatsApp a Cloud Tasks (26 de julio de 2026). Nada de
-esto bloquea el despliegue; se documenta para no perderlo.
-
-**Depurado el 20 de agosto de 2026.** Se quitó todo lo que ya está resuelto. Las notas de diseño
-que traían esas secciones no se pierden: viven en el historial de git de este archivo y en los
-commits que las cerraron — `673867f8` (techo de tokens por categoría), `c8cfb918` (ventana de
-contexto) y `a9c3d5c0` (reintento del webhook cuando el workflow no existe).
-
----
+Debemos de traducir todo el texto del back y el servicio de agentes para que la aplicaicon sea completamente multiidioma.
 
 ## 1. El cálculo de costo no modela el prompt caching
 
@@ -36,21 +24,6 @@ CRUD de modelos del admin.
 
 ---
 
-## 2. La restricción de tiers de modelo no restringe nada
-
-**Severidad: baja — decidir si se define o se borra.**
-
-`WORKFLOW_CATEGORIES` en [`plans.ts`](https://github.com/FractalOps-Dev/Tesseract/blob/main/packages/types/src/billing/subscriptions/plans.ts)
-declara `allowedModelTiers` por categoría, y `canUseModelInWorkflow()` no se llama desde `apps/`.
-Pero implementarlo hoy **no cambiaría nada**: las tres categorías declaran
-`[BASIC, STANDARD, PREMIUM]`, o sea que todo está permitido en todas.
-
-O se definen tiers distintos por categoría —que es volver a abrir la pregunta de producto de qué
-modelos puede usar un plan barato— o se borra el campo. Aplicar la función tal como está sería
-código que no restringe.
-
----
-
 ## 3. `maxTokensPerExecution` está mal nombrado
 
 **Severidad: baja — pero causa confusión real al configurar.**
@@ -64,71 +37,6 @@ El comportamiento es correcto: se cuenta lo que se guarda y va a volver a entrar
 gastó. Es el nombre el que engaña.
 
 **Arreglo propuesto:** renombrar a `maxHistoryTokens` (requiere migración).
-
----
-
-## 4. ¿Subir los techos de tokens por categoría?
-
-**Severidad: baja — decisión de producto, no un defecto.**
-
-Los techos vigentes son 20k / 100k / 250k. La propuesta era subirlos:
-
-| Categoría | Hoy en plans.ts | Propuesto |
-|---|---|---|
-| `LIGHT` | 20k | **50k** |
-| `STANDARD` | 100k | **200k** |
-| `ADVANCED` | 250k | **300k–350k** |
-
-`ADVANCED` se propone por debajo de 400k a propósito: es la ventana de `gpt-5.4-mini`, el modelo
-más chico en uso. Hoy el techo se aplica de verdad en `create`, `update` y `updateMeta`, y encima
-la guarda de ventana de contexto recorta el límite efectivo a `ventanaMínima × 0.8`: subir
-`ADVANCED` a 350k con un modelo de 400k en el workflow deja el efectivo en 320k. El número de la
-tabla es el máximo configurable, no necesariamente el que va a regir.
-
-Subir estos límites **no cambia la facturación**: los créditos son fijos por categoría e
-independientes de los tokens. Solo permite conversaciones más largas antes de compactar. Es un
-cambio de una línea por categoría en `WORKFLOW_CATEGORIES`, más los comentarios del schema.
-
----
-
-## 5. Observaciones menores
-
-- **`"No Disponible"` hardcodeado** en español dentro del constructor de payloads de
-  [`apps/agents/src/tools/whatsapp_outbound.py`](https://github.com/FractalOps-Dev/Tesseract/blob/main/apps/agents/src/tools/whatsapp_outbound.py).
-  Si algún template es multi-idioma, ese texto se cuela tal cual al cliente.
-- **Cast innecesario.** `conversations.service.ts` usa
-  `(NOTIFICATIONSENUM as any).CONVERSATION_NEEDS_FOLLOW_UP ?? '0000-0115'`, pero la clave sí existe
-  en el enum. El cast y el fallback sobran.
-- **La guarda de ventana de contexto consulta `llm_models` en cada ejecución.**
-  `context-window-budget.ts` hace un `findMany` por nombre de modelo —chico y con índice— pero está
-  en la ruta caliente y se repite en cada mensaje. Vale cachearlo por workflow cuando haya volumen
-  que lo justifique; hoy no lo hay.
-
----
-
-## 6. Infraestructura
-
-**Severidad: media — un arreglo commiteado en la rama equivocada no llega a producción.**
-
-- **Un deploy manual desde la consola ignora el YAML por completo.** Ya causó un incidente: la
-  revisión `gateway-00044` traía la anotación `client-name: cloud-console`, así que ninguna de
-  las banderas del YAML estaba aplicada. Todo despliegue debe ir por Cloud Build.
-
-- **El trigger de Cloud Build está en `main`, pero se trabaja en `develop`.** Un arreglo
-  commiteado en `develop` **no se despliega**. Así fue como el commit `c02fd492` (pool de
-  Prisma, timeout de transacción) llevaba días escrito mientras producción corría el código
-  viejo. Se confirmó porque los errores en `executions` traían el timeout antiguo de 5000 ms.
-  Vale la pena decidir explícitamente si el trigger debe seguir en `main` o moverse.
-
-- **`gcloud run deploy` conserva las banderas que no se le pasan.** Quitar una del YAML **no la
-  revierte**. Por eso `--cpu-throttling` está declarado de forma explícita y no simplemente
-  omitido. Tenerlo presente al modificar el paso de despliegue.
-
-- **No existe forma de correr el seed en GCP.** El Cloud Run Job `migrate-db` ejecuta
-  `prisma migrate deploy` y nada más. El seed se documenta en
-  [Aplicar migraciones en GCP](/manuals/migraciones-gcp) como paso posterior, pero no hay Job que lo
-  ejecute. Falta crear uno con el mismo patrón (misma imagen, misma conectividad, cambiando el
-  `--args` a la tarea de seed).
 
 ---
 
@@ -251,76 +159,3 @@ conversación: `unknown-config`, `inactive-config`, `no-workflow`, `missing-work
 `inactive-workflow` — más `blocked-contact`, que sí es deliberado. Cada una deja su `warn` en Cloud
 Logging, así que el dato está; lo que falta es un contador o una alerta que lo saque a flote sin
 que alguien vaya a buscarlo. Si se agrega, conviene cubrir las cinco de una vez.
-
----
-
-## 11. No se puede cambiar el país (ni la moneda) de una organización
-
-**Severidad: baja — decisión deliberada, no un olvido.**
-
-Desde la facturación regionalizada, `organizations.country` determina la moneda de cobro. Se
-escribe una sola vez, al crear la sesión de checkout, y **no hay ninguna vía en la aplicación para
-cambiarlo**: no aparece en `UpdateOrganizationDto`, la página de configuración lo muestra como
-texto de solo lectura y `organizations.service.update()` ni lo toca.
-
-**Por qué está cerrado.** Stripe congela la moneda del `Customer` en su primera factura y es
-irreversible. Cambiarla obliga a:
-
-1. Cancelar la suscripción y crear un `Customer` nuevo — las suscripciones no se pueden mover
-   entre clientes.
-2. Volver a contratar, lo que reinicia el ciclo de facturación y cobra de inmediato.
-3. Dejar al cliente sin acceso desde el portal a sus facturas anteriores, que quedan colgando del
-   cliente viejo (siguen existiendo en el panel de Stripe, pero él ya no las ve).
-
-Y lo que de verdad pesa: **con saldo negativo se pierde dinero**. La deuda de overage quedó
-fotografiada en `credit_balances.invoicedOverageCredits` para cobrarse en la siguiente factura del
-cliente viejo, factura que ya nunca llega porque se canceló su suscripción. La deuda se evapora
-sin que nada lo señale.
-
-**Por qué no se automatizó.** Una organización no cambia de país; a la fecha el caso tiene cero
-ocurrencias. Construir el flujo —cancelar, recrear, reconciliar deuda y manejar los fallos a mitad
-de camino— cuesta bastante más que atender a mano los casos que haya.
-
-**Arreglo manual, mientras el volumen sea el de hoy:** liquidar el saldo (que `balance >= 0`),
-cancelar la suscripción en el panel de Stripe, poner `organizations.country` y
-`organizations.stripeCustomerId` en NULL por SQL, y pedirle al cliente que vuelva a contratar. El
-checkout creará un `Customer` nuevo con la moneda correcta.
-
-**Si algún día se automatiza**, lo mínimo sería: exigir saldo no negativo, cobrar el overage
-pendiente en la factura final del cliente viejo antes de cancelar, y avisar en la UI de la pérdida
-de acceso a las facturas anteriores.
-
----
-
-## 12. El downgrade de plan no puede tratar los datos del cliente como a los workflows
-
-**Severidad: media — a definir antes de implementar Datasets.**
-
-Cuando una organización baja de plan, `enforceLimits()` en
-[`apps/gateway/src/billing/subscriptions/billing.service.ts`](https://github.com/FractalOps-Dev/Tesseract/blob/main/apps/gateway/src/billing/subscriptions/billing.service.ts)
-recorta lo que sobra: **desactiva** workflows, API keys y usuarios por encima del nuevo límite. Es
-correcto para esos tres, porque desactivar es reversible y no destruye nada.
-
-Ese patrón **no se puede extender a los Datasets** (las mini bases de datos que el cliente captura
-para que su agente las consulte). Ahí lo que sobra son filas suyas: si Growth permite 5 000 y baja a
-Starter con 1 000, "recortar" significa borrar 4 000 registros que él cargó a mano o importó por CSV.
-Eso es pérdida de datos del cliente provocada por un cambio de plan, y no hay forma de deshacerlo.
-
-**Propuesta a discutir con el equipo:** al bajar de plan, en lugar de recortar, **bloquear la
-escritura** — no se pueden crear filas nuevas ni importar CSV hasta que el conteo vuelva a estar bajo
-el límite— pero **no borrar nada y dejar la lectura intacta**. Así:
-
-- El cliente conserva sus datos y decide él qué depurar.
-- El agente sigue funcionando: la tool de búsqueda sigue viendo el dataset completo, así que una baja
-  de plan no rompe conversaciones en producción.
-- El incentivo comercial se mantiene: para volver a cargar datos hay que subir de plan o depurar.
-
-Queda por acordar: si el bloqueo aplica también a **editar** filas existentes (yo lo dejaría pasar,
-editar no aumenta el conteo), si conviene un periodo de gracia antes de bloquear, y cómo se le avisa
-en la UI —porque un botón de "agregar fila" deshabilitado sin explicación es peor que el límite.
-
-**release 2.0 -> Observaciones**
-- La sección donde aparece los datos del catálogo no tiene barra de busqueda, ¿Conviene agregarla?
-- Cuando se conecta un catalogo con su workflow se crea una tenant tool, pero se observo que el id del usuario no se esta registrando para el campo createdByUserId de la tabla tenant_tool. 
-- Se pueden ligar varios numeros de telefono (whatsapp_config) a un workflow, cada numero tiene sus templates (esto es requerido ya que asi lo maneja Meta). El problema radica al momento de crear el payload que se le pasara al agent, especificamente para las available templates metadata, ya que de todos los números asociados, ¿Como saber que número tomar para obtener las templates asociadas? Por el canal de whatsapp no hay problema ya que el webhook nos dice cual numero es el destino, pero cuando se trata de canal API (nuestra app Tesseract) o Messenger, no sabemos que número sacara las templates (por ahora la solución fue que se elija al primero en la lista de los numeros disponibles en config de tenant_tool).
-- Al momento de hacer la acción "leave organization" la app redirige al dashboard que muestra todo en blanco (deberia redirigir al login).
