@@ -53,7 +53,6 @@ export interface WorkflowCategoryConfig {
   category: WorkflowCategory;
   credits: number; // Créditos que cuesta ejecutar
   maxTokens: number; // Límite de tokens por ejecución
-  allowedModelTiers: ModelTier[]; // Tiers de modelos permitidos
   description: string;
 }
 
@@ -166,14 +165,12 @@ export const WORKFLOW_CATEGORIES: Record<WorkflowCategory, WorkflowCategoryConfi
     category: WorkflowCategory.LIGHT,
     credits: 1,
     maxTokens: 50_000,
-    allowedModelTiers: [ModelTier.BASIC, ModelTier.STANDARD, ModelTier.PREMIUM],
     description: 'Tareas simples y rápidas con respuestas directas',
   },
   [WorkflowCategory.STANDARD]: {
     category: WorkflowCategory.STANDARD,
     credits: 5,
     maxTokens: 200_000,
-    allowedModelTiers: [ModelTier.BASIC, ModelTier.STANDARD, ModelTier.PREMIUM],
     description: 'Workflows completos con múltiples pasos y herramientas',
   },
   [WorkflowCategory.ADVANCED]: {
@@ -183,7 +180,6 @@ export const WORKFLOW_CATEGORIES: Record<WorkflowCategory, WorkflowCategoryConfi
     // La guarda de ventana de contexto igual recorta el efectivo a ventanaMínima × 0.8 (320k
     // con ese modelo en el workflow) — este número es el máximo configurable, no el que rige.
     maxTokens: 350_000,
-    allowedModelTiers: [ModelTier.BASIC, ModelTier.STANDARD, ModelTier.PREMIUM],
     description: 'Agentes complejos multi-step con reasoning avanzado',
   },
 };
@@ -480,16 +476,6 @@ export function getWorkflowCreditCost(category: WorkflowCategory): number {
  */
 export function getWorkflowMaxTokens(category: WorkflowCategory): number {
   return WORKFLOW_CATEGORIES[category].maxTokens;
-}
-
-/**
- * Verifica si un modelo puede usarse en un workflow de cierta categoría
- */
-export function canUseModelInWorkflow(
-  modelTier: ModelTier,
-  workflowCategory: WorkflowCategory,
-): boolean {
-  return WORKFLOW_CATEGORIES[workflowCategory].allowedModelTiers.includes(modelTier);
 }
 
 /**
