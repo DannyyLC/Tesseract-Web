@@ -178,21 +178,29 @@ export class WhatsappConfigController {
     try {
       const account = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(phoneNumber);
       if (!account) {
-        this.logger.warn(`No WhatsApp config found for phone number: ${phoneNumber}`);
+        // El campo `reason` es lo que cuentan las métricas de Cloud Logging dadas de alta
+        // para los descartes del webhook — no cambiar su valor sin actualizar el filtro
+        // de la métrica correspondiente (whatsapp-discard-<reason>).
+        this.logger.warn('No WhatsApp config found for phone number', {
+          reason: 'unknown-config',
+          phoneNumber,
+        });
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'unknown-config' });
       }
 
       if (!account.isActive) {
-        this.logger.warn(
-          `Received message for inactive WhatsApp config with phone number: ${phoneNumber}`,
-        );
+        this.logger.warn('Received message for inactive WhatsApp config', {
+          reason: 'inactive-config',
+          phoneNumber,
+        });
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'inactive-config' });
       }
 
       if (!account.defaultWorkflowId) {
-        this.logger.warn(
-          `Received message for WhatsApp config with no associated workflow: ${account.id}`,
-        );
+        this.logger.warn('Received message for WhatsApp config with no associated workflow', {
+          reason: 'no-workflow',
+          whatsappConfigId: account.id,
+        });
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'no-workflow' });
       }
 
@@ -236,9 +244,11 @@ export class WhatsappConfigController {
         account.defaultWorkflowId,
       );
       if (!workflow) {
-        this.logger.warn(
-          `Received message for WhatsApp config with missing workflow: ${account.defaultWorkflowId}`,
-        );
+        this.logger.warn('Received message for WhatsApp config with missing workflow', {
+          reason: 'missing-workflow',
+          whatsappConfigId: account.id,
+          workflowId: account.defaultWorkflowId,
+        });
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'missing-workflow' });
       }
 
@@ -255,9 +265,11 @@ export class WhatsappConfigController {
           isEcho,
           'inactive-workflow',
         );
-        this.logger.warn(
-          `Received message for WhatsApp config with inactive workflow: ${account.defaultWorkflowId}`,
-        );
+        this.logger.warn('Received message for WhatsApp config with inactive workflow', {
+          reason: 'inactive-workflow',
+          whatsappConfigId: account.id,
+          workflowId: account.defaultWorkflowId,
+        });
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'inactive-workflow' });
       }
 
