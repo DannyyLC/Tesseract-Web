@@ -1558,6 +1558,7 @@
     "disconnectSuccess": "“{name}” no longer queries this catalog",
     "disconnectError": "Could not disconnect the workflow",
     "rowsHeading": "{count, plural, =0 {Rows} one {# row} other {# rows}}",
+    "searchPlaceholder": "Search across all text columns...",
     "noRecords": "No rows yet. Add them by hand or import a CSV.",
     "addRow": "Add row",
     "previous": "Previous",

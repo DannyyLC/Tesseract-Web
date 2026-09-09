@@ -41,7 +41,7 @@ describe('DatasetsService', () => {
 
   const mockPrismaService: any = {
     dataset: { findFirst: jest.fn(), update: jest.fn() },
-    datasetRecord: { count: jest.fn(), createMany: jest.fn() },
+    datasetRecord: { count: jest.fn(), createMany: jest.fn(), findMany: jest.fn() },
     organization: { findUnique: jest.fn() },
     tenantTool: { findMany: jest.fn(), update: jest.fn() },
     $transaction: jest.fn(),
@@ -361,5 +361,35 @@ describe('DatasetsService', () => {
     const [, fields] = mockQueryService.search.mock.calls[0];
 
     expect(fields.find((f: DatasetField) => f.key === 'precio_final').type).toBe('number');
+  });
+
+  describe('listRecords — barra de búsqueda', () => {
+    it('con query delega al motor de búsqueda (mismo resultado que vería el agente)', async () => {
+      mockPrismaService.dataset.findFirst.mockResolvedValue(datasetWith([PRECIO_BASE]));
+      mockQueryService.search.mockResolvedValue({ total: 1, items: [{ id: 'r1', data: {} }] });
+
+      const result = await service.listRecords(ORG_ID, DATASET_ID, 50, 0, '  toyota  ');
+
+      // El query se manda recortado; delega en el mismo DatasetQueryService.search() que usa
+      // el agente, así que el resultado nunca puede divergir del que el bot vería.
+      expect(mockQueryService.search).toHaveBeenCalledWith(
+        DATASET_ID,
+        expect.any(Array),
+        expect.objectContaining({ query: 'toyota', limit: 50, offset: 0 }),
+      );
+      expect(result).toEqual({ total: 1, items: [{ id: 'r1', data: {} }] });
+      expect(mockPrismaService.datasetRecord.count).not.toHaveBeenCalled();
+    });
+
+    it('sin query (o solo espacios) sigue el camino plano de siempre', async () => {
+      mockPrismaService.dataset.findFirst.mockResolvedValue(datasetWith([PRECIO_BASE]));
+      mockPrismaService.datasetRecord.count.mockResolvedValue(0);
+      mockPrismaService.datasetRecord.findMany.mockResolvedValue([]);
+
+      await service.listRecords(ORG_ID, DATASET_ID, 50, 0, '   ');
+
+      expect(mockQueryService.search).not.toHaveBeenCalled();
+      expect(mockPrismaService.datasetRecord.count).toHaveBeenCalled();
+    });
   });
 });

@@ -144,6 +144,7 @@ export class DatasetsAdminController {
       id,
       query.limit ?? 50,
       query.offset ?? 0,
+      query.query,
     );
     return new ApiResponseBuilder().setData(result).build();
   }

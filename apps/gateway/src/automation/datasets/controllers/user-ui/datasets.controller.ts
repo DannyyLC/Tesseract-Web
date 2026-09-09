@@ -211,6 +211,7 @@ export class DatasetsController {
       id,
       query.limit ?? 50,
       query.offset ?? 0,
+      query.query,
     );
 
     const apiResponse = new ApiResponseBuilder<typeof result>()

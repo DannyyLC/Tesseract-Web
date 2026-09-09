@@ -21,6 +21,12 @@ interface RecordsGridProps {
   fields: DatasetField[];
   records: DatasetRecordDto[];
   readOnly?: boolean;
+  /**
+   * Cuando viene con texto, deshabilita SOLO el botón de agregar fila (no editar/borrar) y lo usa
+   * como tooltip. Es el límite de filas del plan: las filas que ya existen se siguen pudiendo
+   * editar y borrar libremente, lo único que se bloquea es crecer más.
+   */
+  createDisabledReason?: string;
   onCreate: (data: Record<string, unknown>) => Promise<void>;
   onUpdate: (recordId: string, data: Record<string, unknown>) => Promise<void>;
   onDelete: (recordId: string) => Promise<void>;
@@ -53,6 +59,7 @@ export function RecordsGrid({
   fields,
   records,
   readOnly,
+  createDisabledReason,
   onCreate,
   onUpdate,
   onDelete,
@@ -292,7 +299,9 @@ export function RecordsGrid({
       {!readOnly && !creating && (
         <button
           onClick={startCreate}
-          className="flex items-center gap-2 rounded-xl border border-dashed border-border px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:border-accent hover:text-text-primary"
+          disabled={!!createDisabledReason}
+          title={createDisabledReason}
+          className="flex items-center gap-2 rounded-xl border border-dashed border-border px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:border-accent hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border disabled:hover:text-text-secondary"
         >
           <Plus size={16} />
           {t('addRow')}

@@ -2,14 +2,20 @@
 
 import { use, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { FileUp, Loader2, Settings2, Trash2 } from 'lucide-react';
+import { FileUp, Loader2, Search, Settings2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { DatasetField } from '@tesseract/types';
 import { useRouter } from '@/i18n/routing';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { Modal } from '@/components/ui/modal';
 import { useAuth } from '@/hooks/identity/use-auth';
-import { useDataset, useDatasetMutations, useDatasetRecords } from '@/hooks/automation/use-datasets';
+import { useDebounce } from '@/hooks/use-debounce';
+import {
+  useDataset,
+  useDatasetMutations,
+  useDatasetRecords,
+  useDatasets,
+} from '@/hooks/automation/use-datasets';
 import { ConnectedWorkflowsSection } from '../_components/connected-workflows-section';
 import { ImportCsvModal } from '../_components/import-csv-modal';
 import { RecordsGrid } from '../_components/records-grid';
@@ -26,8 +32,21 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
   const canEdit = user?.role === 'OWNER' || user?.role === 'ADMIN';
 
   const { data: dataset, isLoading } = useDataset(id);
+  // El límite de filas es por organización, no por catálogo: se pide de la misma lista que ya
+  // lo trae para la pantalla de "Catálogos" en vez de exponer un endpoint nuevo solo para esto.
+  const { data: list } = useDatasets();
+  const usage = list?.usage;
+  const atRowLimit = !!usage && usage.writesBlocked;
+
   const [page, setPage] = useState(0);
-  const { data: records } = useDatasetRecords(id, PAGE_SIZE, page * PAGE_SIZE);
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebounce(searchInput, 400);
+
+  useEffect(() => {
+    setPage(0);
+  }, [search]);
+
+  const { data: records } = useDatasetRecords(id, PAGE_SIZE, page * PAGE_SIZE, search);
   const {
     updateFields,
     deleteDataset,
@@ -138,7 +157,9 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
               </button>
               <button
                 onClick={() => setIsImporting(true)}
-                className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-[var(--surface-tint)]"
+                disabled={atRowLimit}
+                title={atRowLimit ? t('writesBlocked') : undefined}
+                className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-[var(--surface-tint)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FileUp size={16} />
                 {t('import')}
@@ -190,10 +211,40 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
             )}
           </div>
 
+          {/* El consumo va a la vista: un botón deshabilitado sin explicación es peor que el
+              límite (mismo criterio que la pantalla de lista de catálogos). */}
+          {usage && (
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface-elevated px-5 py-3 text-sm">
+              <span className="text-text-tertiary">{t('usageRows')}: </span>
+              <span className="font-medium text-text-primary">
+                {usage.rows} / {usage.maxDatasetRows === -1 ? '∞' : usage.maxDatasetRows}
+              </span>
+              {atRowLimit && (
+                <span className="rounded-lg bg-warning-500/10 px-2 py-1 text-xs font-medium text-warning-600">
+                  {t('writesBlocked')}
+                </span>
+              )}
+            </div>
+          )}
+
+          <div className="relative max-w-sm">
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
+            />
+            <input
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder={t('searchPlaceholder')}
+              className="w-full rounded-xl border border-border bg-surface py-2 pl-9 pr-3 text-sm text-text-primary outline-none focus:border-accent"
+            />
+          </div>
+
           <RecordsGrid
             fields={dataset.fields}
             records={records?.items ?? []}
             readOnly={!canEdit}
+            createDisabledReason={atRowLimit ? t('writesBlocked') : undefined}
             onCreate={async (data) => {
               await createRecord.mutateAsync({ id, data });
             }}

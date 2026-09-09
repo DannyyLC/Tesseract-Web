@@ -92,4 +92,11 @@ export class ListDatasetRecordsQueryDto {
   @Min(0)
   @ApiPropertyOptional({ default: 0 })
   offset?: number;
+
+  /** Texto libre: mismo motor que `search_dataset`, barre las columnas `text` del catálogo. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  @ApiPropertyOptional()
+  query?: string;
 }

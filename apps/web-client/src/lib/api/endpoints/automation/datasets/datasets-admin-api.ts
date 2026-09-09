@@ -117,11 +117,12 @@ class DatasetsAdminApi {
   public async listRecords(
     organizationId: string,
     id: string,
-    params: { limit?: number; offset?: number } = {},
+    params: { limit?: number; offset?: number; query?: string } = {},
   ): Promise<{ total: number; items: DatasetRecordDto[] }> {
     const query = new URLSearchParams();
     if (params.limit !== undefined) query.append('limit', String(params.limit));
     if (params.offset !== undefined) query.append('offset', String(params.offset));
+    if (params.query) query.append('query', params.query);
     const queryString = query.toString();
 
     const result = await this.apiRequestManager.get<

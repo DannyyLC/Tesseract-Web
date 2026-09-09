@@ -23,10 +23,10 @@ export function useDataset(id: string) {
   });
 }
 
-export function useDatasetRecords(id: string, limit = 50, offset = 0) {
+export function useDatasetRecords(id: string, limit = 50, offset = 0, query = '') {
   return useQuery({
-    queryKey: ['datasets', 'records', id, limit, offset],
-    queryFn: async () => api().listRecords(id, { limit, offset }),
+    queryKey: ['datasets', 'records', id, limit, offset, query],
+    queryFn: async () => api().listRecords(id, { limit, offset, query: query || undefined }),
     enabled: !!id,
     // Las filas cambian cada vez que el cliente edita una celda: no vale la pena cachearlas.
     staleTime: 0,

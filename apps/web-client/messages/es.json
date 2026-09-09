@@ -1558,6 +1558,7 @@
     "disconnectSuccess": "«{name}» ya no consulta este catálogo",
     "disconnectError": "No se pudo desconectar el workflow",
     "rowsHeading": "{count, plural, =0 {Filas} one {# fila} other {# filas}}",
+    "searchPlaceholder": "Buscar en todas las columnas de texto...",
     "noRecords": "Aún no hay filas. Agrégalas a mano o importa un CSV.",
     "addRow": "Agregar fila",
     "previous": "Anterior",

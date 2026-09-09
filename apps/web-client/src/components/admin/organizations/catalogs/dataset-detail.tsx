@@ -1,17 +1,25 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, FileUp, Loader2, Settings2, Trash2 } from 'lucide-react';
+import { ArrowLeft, FileUp, Loader2, Search, Settings2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { DatasetField } from '@tesseract/types';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
+import { useDebounce } from '@/hooks/use-debounce';
 import {
   useAdminDataset,
   useAdminDatasetMutations,
   useAdminDatasetRecords,
+  useAdminDatasets,
 } from '@/hooks/automation/use-admin-datasets';
 import { btnGhost, btnPrimary, inputClass } from '@/app/[locale]/admin/_styles';
+
+// Mismo texto que Datasets.writesBlocked en es.json: este archivo no usa next-intl (todo el
+// admin de catálogos está hardcodeado en español), así que se repite literal.
+const ROW_LIMIT_REACHED_REASON =
+  'Alcanzaste el límite de filas: tus datos siguen intactos y tu agente los sigue consultando, ' +
+  'pero no puedes agregar más hasta liberar espacio o subir de plan.';
 import { ConnectedWorkflowsSection } from './connected-workflows-section';
 import { ImportCsvModal } from './import-csv-modal';
 import { RecordsGrid } from './records-grid';
@@ -31,8 +39,27 @@ interface DatasetDetailProps {
  */
 export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDetailProps) {
   const { data: dataset, isLoading } = useAdminDataset(organizationId, datasetId);
+  // El límite de filas es por organización, no por catálogo: se pide de la misma lista que ya
+  // usa la pantalla de "Catálogos" en vez de exponer un endpoint nuevo solo para esto.
+  const { data: list } = useAdminDatasets(organizationId);
+  const usage = list?.usage;
+  const atRowLimit = !!usage && usage.writesBlocked;
+
   const [page, setPage] = useState(0);
-  const { data: records } = useAdminDatasetRecords(organizationId, datasetId, PAGE_SIZE, page * PAGE_SIZE);
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebounce(searchInput, 400);
+
+  useEffect(() => {
+    setPage(0);
+  }, [search]);
+
+  const { data: records } = useAdminDatasetRecords(
+    organizationId,
+    datasetId,
+    PAGE_SIZE,
+    page * PAGE_SIZE,
+    search,
+  );
   const { updateFields, deleteDataset, createRecord, updateRecord, deleteRecord, importCsv } =
     useAdminDatasetMutations();
 
@@ -120,7 +147,12 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
           <button className={btnGhost} onClick={() => setIsEditingSchema(true)}>
             <Settings2 size={14} /> Columnas
           </button>
-          <button className={btnGhost} onClick={() => setIsImporting(true)}>
+          <button
+            className={btnGhost}
+            onClick={() => setIsImporting(true)}
+            disabled={atRowLimit}
+            title={atRowLimit ? ROW_LIMIT_REACHED_REASON : undefined}
+          >
             <FileUp size={14} /> Importar
           </button>
           <button
@@ -160,9 +192,37 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
           )}
         </div>
 
+        {usage && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-elevated px-4 py-2.5 text-sm">
+            <span className="text-text-tertiary">Filas: </span>
+            <span className="font-medium text-text-primary">
+              {usage.rows} / {usage.maxDatasetRows === -1 ? '∞' : usage.maxDatasetRows}
+            </span>
+            {atRowLimit && (
+              <span className="rounded-lg bg-warning-500/10 px-2 py-1 text-xs font-medium text-warning-600">
+                Altas bloqueadas por límite de plan
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className="relative max-w-sm">
+          <Search
+            size={14}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
+          />
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Buscar en todas las columnas de texto..."
+            className={`${inputClass} pl-9`}
+          />
+        </div>
+
         <RecordsGrid
           fields={dataset.fields}
           records={records?.items ?? []}
+          createDisabledReason={atRowLimit ? ROW_LIMIT_REACHED_REASON : undefined}
           onCreate={async (data) => {
             await createRecord.mutateAsync({ organizationId, id: datasetId, data });
           }}

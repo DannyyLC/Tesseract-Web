@@ -748,8 +748,17 @@ export class DatasetsService {
     datasetId: string,
     limit = 50,
     offset = 0,
+    query?: string,
   ): Promise<{ total: number; items: DatasetRecordDto[] }> {
     await this.loadOwned(organizationId, datasetId);
+
+    // Con texto libre, delega al mismo motor que usa el agente (`search_dataset`) en vez de
+    // reimplementar el ILIKE: mismo resultado que vería el bot, mismos límites (solo columnas
+    // `text`, no `select`/`number`/`date` — esas se filtran por valor exacto o rango).
+    const trimmedQuery = query?.trim();
+    if (trimmedQuery) {
+      return this.search(organizationId, datasetId, { query: trimmedQuery, limit, offset });
+    }
 
     const [total, records] = await Promise.all([
       this.prismaService.datasetRecord.count({ where: { datasetId } }),

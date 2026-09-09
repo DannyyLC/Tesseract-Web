@@ -26,10 +26,17 @@ export function useAdminDataset(organizationId: string, id: string) {
   });
 }
 
-export function useAdminDatasetRecords(organizationId: string, id: string, limit = 50, offset = 0) {
+export function useAdminDatasetRecords(
+  organizationId: string,
+  id: string,
+  limit = 50,
+  offset = 0,
+  query = '',
+) {
   return useQuery({
-    queryKey: [KEY, 'records', organizationId, id, limit, offset],
-    queryFn: async () => api().listRecords(organizationId, id, { limit, offset }),
+    queryKey: [KEY, 'records', organizationId, id, limit, offset, query],
+    queryFn: async () =>
+      api().listRecords(organizationId, id, { limit, offset, query: query || undefined }),
     enabled: !!organizationId && !!id,
     // Las filas cambian con cada edición; no vale la pena cachearlas.
     staleTime: 0,
