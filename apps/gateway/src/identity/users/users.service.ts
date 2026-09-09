@@ -14,6 +14,7 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { NotificationEventDto } from './dto/notification.dto';
 import { EmailService } from '@/messaging/notifications/email/email.service';
 import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
+import { AuthService } from '@/identity/auth/auth.service';
 import { DashboardUserDataDto, UpdateProfileDto, UserFiltersDto } from './dto';
 import { PendingInvitationDto } from './dto/pending-invitation.dto';
 import { maskEmail } from '@/platform/common/utils/mask-email';
@@ -60,6 +61,7 @@ export class UsersService {
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
     private readonly emailService: EmailService,
     private readonly twoFactorService: TwoFactorService,
+    private readonly authService: AuthService,
   ) {}
 
   async validateEmailUnique(email: string): Promise<boolean> {
@@ -701,6 +703,11 @@ export class UsersService {
         isActive: false,
       },
     });
+
+    // 5.1. Revocar la sesión. Sin esto, el refresh token que ya tenía en el navegador le sigue
+    // funcionando (refreshTokens() no revisa isActive/deletedAt), así que seguiría recibiendo
+    // cookies válidas para una cuenta que ya no existe en esta organización.
+    await this.authService.logoutAll(userId);
 
     // 6. Log de auditoría
     this.logger.info(`User userId=${user.id} left organization ${user.organization.name} voluntarily`);

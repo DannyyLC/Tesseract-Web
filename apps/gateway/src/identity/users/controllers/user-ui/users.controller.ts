@@ -289,6 +289,28 @@ export class UsersController {
       dto.code2FA,
     );
 
+    // El usuario ya no tiene sesión válida en esta organización: limpiar sus cookies con las
+    // mismas opciones con las que se crearon (mismo patrón que AuthController.logout()).
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.clearCookie('accessToken', {
+      path: '/',
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+    });
+    res.clearCookie('refreshToken', {
+      path: '/api/auth',
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+    });
+    res.clearCookie('temp2FAToken', {
+      path: '/api/auth',
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+    });
+
     apiResponse.setStatusCode(HttpStatusCode.Ok).setMessage(result.message).setData(result);
 
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());

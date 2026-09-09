@@ -25,7 +25,7 @@ export default function PanelLayout({ children }: PanelLayoutProps) {
   // El super admin es operador de plataforma: no pertenece al panel de
   // inquilino (scopeado por organización). Si cae aquí por cualquier vía
   // (navegación directa, refresh, redirect raíz), lo mandamos a /admin.
-  const { data: user } = useAuth();
+  const { data: user, isLoading: isLoadingUser } = useAuth();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
   useEffect(() => {
@@ -33,6 +33,15 @@ export default function PanelLayout({ children }: PanelLayoutProps) {
       router.replace('/admin');
     }
   }, [isSuperAdmin, router]);
+
+  // Segunda capa de defensa: si por lo que sea llegamos aquí sin usuario (sesión revocada,
+  // "leave organization", token expirado) no hay que dejar montar el panel — sin esto, todas las
+  // llamadas org-scoped devuelven 401 y la pantalla se queda en blanco en vez de mandar a login.
+  useEffect(() => {
+    if (!isLoadingUser && !user) {
+      router.replace('/login');
+    }
+  }, [user, isLoadingUser, router]);
 
   // Detectar si estamos en una página de detalle de conversación o workflow chat
   // Lógica: empieza con /conversations/ o /workflows/ y tiene caracteres después (el ID)
@@ -68,6 +77,15 @@ export default function PanelLayout({ children }: PanelLayoutProps) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-dashboard-background">
         <LogoLoader text="Redirigiendo a Super Admin" />
+      </div>
+    );
+  }
+
+  // Igual mientras redirigimos a login por falta de sesión: nunca montar el panel sin usuario.
+  if (!isLoadingUser && !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-dashboard-background">
+        <LogoLoader text="Redirigiendo a inicio de sesión" />
       </div>
     );
   }

@@ -5,6 +5,8 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { EmailService } from '@/messaging/notifications/email/email.service';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
+import { AuthService } from '@/identity/auth/auth.service';
+import { UserRole } from '@tesseract/database';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -49,6 +51,10 @@ describe('UsersService', () => {
     verifySecondFactor: jest.fn(),
   };
 
+  const mockAuthService = {
+    logoutAll: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -68,6 +74,10 @@ describe('UsersService', () => {
         {
           provide: TwoFactorService,
           useValue: mockTwoFactorService,
+        },
+        {
+          provide: AuthService,
+          useValue: mockAuthService,
         },
       ],
     }).compile();
@@ -383,6 +393,29 @@ describe('UsersService', () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
       const res = await service.validateEmailUnique('new@b.com');
       expect(res).toBe(true);
+    });
+  });
+
+  describe('leaveOrganization', () => {
+    it('revoca la sesión del usuario tras el soft-delete', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        organizationId: 'org-1',
+        role: UserRole.VIEWER,
+        twoFactorEnabled: false,
+        organization: { name: 'Acme' },
+      });
+      mockPrismaService.user.update.mockResolvedValue({});
+
+      await service.leaveOrganization('user-1', 'org-1', 'Acme');
+
+      expect(mockPrismaService.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: expect.objectContaining({ isActive: false }),
+      });
+      // Sin esto, el refresh token que ya tenía en el navegador le sigue funcionando después de
+      // salir de la organización (ver comentario en el servicio).
+      expect(mockAuthService.logoutAll).toHaveBeenCalledWith('user-1');
     });
   });
 });

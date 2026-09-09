@@ -4,9 +4,10 @@ import { UsersController } from './controllers/user-ui/users.controller';
 import { UtilityModule } from '@/platform/utility/utility.module';
 import { NotificationsModule } from '@/messaging/notifications/notifications.module';
 import { TwoFactorModule } from '../two-factor/two-factor.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [UtilityModule, NotificationsModule, TwoFactorModule],
+  imports: [UtilityModule, NotificationsModule, TwoFactorModule, AuthModule],
   providers: [UsersService],
   exports: [UsersService],
   controllers: [UsersController],

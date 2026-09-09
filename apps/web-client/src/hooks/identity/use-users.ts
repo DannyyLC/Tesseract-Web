@@ -128,7 +128,12 @@ export function useUserMutations() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users', 'dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['users', 'stats'] });
-      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+      // Limpiar el cache de auth de inmediato, no solo invalidarlo: invalidateQueries dispara un
+      // refetch en segundo plano, así que por un momento ['auth','me'] sigue devolviendo el
+      // usuario viejo. El modal navega a /login apenas esto resuelve, y AuthScreen ahí redirige
+      // de vuelta a /dashboard si ve un usuario truthy en cache — pasaba justo eso. Mismo patrón
+      // que useLogout().
+      queryClient.setQueryData(['auth', 'me'], null);
     },
   });
 
