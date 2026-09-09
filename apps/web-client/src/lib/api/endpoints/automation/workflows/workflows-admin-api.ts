@@ -42,7 +42,7 @@ export interface AdminWorkflowDetail extends Omit<AdminWorkflowListItem, '_count
   config: WorkflowConfig;
   /** sha256 del config tal como estaba al cargarlo. Se devuelve al guardar. */
   configHash: string;
-  maxTokensPerExecution: number;
+  maxHistoryTokens: number;
   timeout: number;
   maxRetries: number;
   tags: { id: string; name: string }[];
@@ -128,7 +128,7 @@ export interface CreateWorkflowAdminInput {
   name: string;
   description?: string;
   category: 'LIGHT' | 'STANDARD' | 'ADVANCED';
-  maxTokensPerExecution: number;
+  maxHistoryTokens: number;
   config: WorkflowConfig;
   note?: string;
   /** Oculto para el cliente, sin costo ni efecto en su organización; solo lo ejecuta super admin. */

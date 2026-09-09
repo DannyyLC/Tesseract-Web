@@ -1,5 +1,5 @@
 /**
- * Valida el `maxTokensPerExecution` de un workflow contra el techo de su categoría.
+ * Valida el `maxHistoryTokens` de un workflow contra el techo de su categoría.
  *
  * El techo ya estaba declarado en `WORKFLOW_CATEGORIES` desde el principio, pero
  * `getWorkflowMaxTokens()` no se llamaba desde ningún lado: se podía crear un workflow
@@ -17,27 +17,27 @@ import { WorkflowCategory, getWorkflowMaxTokens } from '@tesseract/types';
 
 export interface CategoryTokenPair {
   category: WorkflowCategory;
-  maxTokensPerExecution: number;
+  maxHistoryTokens: number;
 }
 
 /**
  * Lanza `BadRequestException` si el par (categoría, tokens) se pasa del techo.
  *
  * Recibe el par YA RESUELTO a propósito. En una edición, `category` y
- * `maxTokensPerExecution` viajan por separado y ambos son opcionales: validar el DTO
+ * `maxHistoryTokens` viajan por separado y ambos son opcionales: validar el DTO
  * crudo dejaría pasar bajar la categoría sin tocar los tokens, que es la misma
  * violación por la puerta de atrás. Quien llama resuelve cada campo contra lo que ya
  * está guardado y pasa el par completo.
  */
 export function assertMaxTokensWithinCategory({
   category,
-  maxTokensPerExecution,
+  maxHistoryTokens,
 }: CategoryTokenPair): void {
   const ceiling = getWorkflowMaxTokens(category);
 
-  if (maxTokensPerExecution > ceiling) {
+  if (maxHistoryTokens > ceiling) {
     throw new BadRequestException(
-      `maxTokensPerExecution (${maxTokensPerExecution}) supera el máximo de la categoría ` +
+      `maxHistoryTokens (${maxHistoryTokens}) supera el máximo de la categoría ` +
         `${category} (${ceiling}). Baja el valor o sube la categoría del workflow.`,
     );
   }
@@ -52,7 +52,7 @@ export function assertMaxTokensWithinCategory({
  */
 export function touchesCategoryCeiling(dto: {
   category?: unknown;
-  maxTokensPerExecution?: unknown;
+  maxHistoryTokens?: unknown;
 }): boolean {
-  return dto.category !== undefined || dto.maxTokensPerExecution !== undefined;
+  return dto.category !== undefined || dto.maxHistoryTokens !== undefined;
 }

@@ -24,22 +24,6 @@ CRUD de modelos del admin.
 
 ---
 
-## 3. `maxTokensPerExecution` está mal nombrado
-
-**Severidad: baja — pero causa confusión real al configurar.**
-
-El nombre sugiere un presupuesto de consumo de la ejecución. En realidad mide **el historial de
-conversación que entra al payload**: todo lo que se compara contra él sale de
-`estimateMessageHistoryTokens(...)`, tanto en la compactación como en el hard cap. El fan-out, el
-sintetizador y las tools no suman nada ahí.
-
-El comportamiento es correcto: se cuenta lo que se guarda y va a volver a entrar, no lo que se
-gastó. Es el nombre el que engaña.
-
-**Arreglo propuesto:** renombrar a `maxHistoryTokens` (requiere migración).
-
----
-
 ## 7. Seguridad
 
 **Severidad: media-alta — depende de si los secretos coinciden con producción.**

@@ -1355,8 +1355,8 @@ model Workflow {
   datasets Dataset[] @relation("WorkflowToDataset")
 
   // Credit System - Workflow Category
-  category              WorkflowCategory // Asignado por admin. Costo en créditos: WORKFLOW_CATEGORIES (packages/types)
-  maxTokensPerExecution Int // Techo de historial de conversación (50k/200k/350k según category)
+  category         WorkflowCategory // Asignado por admin. Costo en créditos: WORKFLOW_CATEGORIES (packages/types)
+  maxHistoryTokens Int // Techo de historial de conversación (50k/200k/350k según category)
 
   maxMessages            Int? // null = sin límite de mensajes
   inactivityHours        Int? // null = sin límite temporal

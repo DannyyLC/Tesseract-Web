@@ -292,7 +292,7 @@ describe('WorkflowsAdminService', () => {
           organizationId: 'org-1',
           name: 'Workflow de prueba',
           category: 'STANDARD',
-          maxTokensPerExecution: 50000,
+          maxHistoryTokens: 50000,
           config: validConfig(),
           isInternal: true,
         } as any,
@@ -316,7 +316,7 @@ describe('WorkflowsAdminService', () => {
           organizationId: 'org-1',
           name: 'Workflow de prueba',
           category: 'STANDARD',
-          maxTokensPerExecution: 50000,
+          maxHistoryTokens: 50000,
           config: validConfig(),
         } as any,
         ACTOR,
@@ -351,7 +351,7 @@ describe('WorkflowsAdminService', () => {
       prisma.workflow.findUnique.mockResolvedValue({
         config,
         category: 'STANDARD',
-        maxTokensPerExecution: 50000,
+        maxHistoryTokens: 50000,
         description: null,
         organizationId: 'org-origen',
       });

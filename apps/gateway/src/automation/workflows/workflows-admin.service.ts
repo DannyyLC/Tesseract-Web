@@ -335,7 +335,7 @@ export class WorkflowsAdminService {
         organizationId: true,
         isInternal: true,
         category: true,
-        maxTokensPerExecution: true,
+        maxHistoryTokens: true,
       },
     });
     if (!exists) throw new NotFoundException('Workflow no encontrado');
@@ -345,7 +345,7 @@ export class WorkflowsAdminService {
     if (touchesCategoryCeiling(dto)) {
       assertMaxTokensWithinCategory({
         category: (dto.category as WorkflowCategory) ?? (exists.category as WorkflowCategory),
-        maxTokensPerExecution: dto.maxTokensPerExecution ?? exists.maxTokensPerExecution,
+        maxHistoryTokens: dto.maxHistoryTokens ?? exists.maxHistoryTokens,
       });
     }
 
@@ -365,7 +365,7 @@ export class WorkflowsAdminService {
         name: true,
         description: true,
         category: true,
-        maxTokensPerExecution: true,
+        maxHistoryTokens: true,
         isActive: true,
         isPaused: true,
         isInternal: true,
@@ -572,7 +572,7 @@ export class WorkflowsAdminService {
         name: rest.name,
         description: rest.description,
         category: rest.category,
-        maxTokensPerExecution: rest.maxTokensPerExecution,
+        maxHistoryTokens: rest.maxHistoryTokens,
         config: rest.config as unknown as Prisma.InputJsonValue,
         isActive: rest.isActive ?? true,
         isPaused: rest.isPaused ?? false,
@@ -623,7 +623,7 @@ export class WorkflowsAdminService {
       select: {
         config: true,
         category: true,
-        maxTokensPerExecution: true,
+        maxHistoryTokens: true,
         description: true,
         organizationId: true,
         isInternal: true,
@@ -640,7 +640,7 @@ export class WorkflowsAdminService {
         name: dto.name,
         description: dto.description ?? source.description ?? undefined,
         category: source.category,
-        maxTokensPerExecution: source.maxTokensPerExecution,
+        maxHistoryTokens: source.maxHistoryTokens,
         config: config as any,
         // Un clon de un workflow todavía interno (en construcción) debe seguir
         // oculto: si create() cayera a su default `false`, quedaría público y

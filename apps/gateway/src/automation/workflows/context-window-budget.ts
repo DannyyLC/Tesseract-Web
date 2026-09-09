@@ -1,7 +1,7 @@
 /**
  * Calcula cuánto historial cabe de verdad en una ejecución.
  *
- * `maxTokensPerExecution` lo escribe una persona al configurar el workflow y nada
+ * `maxHistoryTokens` lo escribe una persona al configurar el workflow y nada
  * comprobaba que ese número le quepa al modelo. La ventana de cada modelo estaba
  * guardada en `llm_models` pero no se consultaba en runtime: se podía pedir 500k de
  * historial a un modelo de 400k, guardarlo sin una queja y funcionar semanas —hasta que

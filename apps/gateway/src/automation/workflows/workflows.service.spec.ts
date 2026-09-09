@@ -151,7 +151,7 @@ describe('WorkflowsService', () => {
       name: 'New Workflow',
       description: 'Desc',
       category: WorkflowCategory.STANDARD,
-      maxTokensPerExecution: 1000,
+      maxHistoryTokens: 1000,
       config: {
         type: 'agent',
         graph: { type: 'react' },

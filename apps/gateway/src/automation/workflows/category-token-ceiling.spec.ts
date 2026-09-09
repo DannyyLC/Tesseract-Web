@@ -8,7 +8,7 @@ describe('category-token-ceiling', () => {
       expect(() =>
         assertMaxTokensWithinCategory({
           category: WorkflowCategory.LIGHT,
-          maxTokensPerExecution: 10_000,
+          maxHistoryTokens: 10_000,
         }),
       ).not.toThrow();
     });
@@ -18,7 +18,7 @@ describe('category-token-ceiling', () => {
       expect(() =>
         assertMaxTokensWithinCategory({
           category: WorkflowCategory.STANDARD,
-          maxTokensPerExecution: getWorkflowMaxTokens(WorkflowCategory.STANDARD),
+          maxHistoryTokens: getWorkflowMaxTokens(WorkflowCategory.STANDARD),
         }),
       ).not.toThrow();
     });
@@ -27,7 +27,7 @@ describe('category-token-ceiling', () => {
       expect(() =>
         assertMaxTokensWithinCategory({
           category: WorkflowCategory.LIGHT,
-          maxTokensPerExecution: 500_000,
+          maxHistoryTokens: 500_000,
         }),
       ).toThrow(BadRequestException);
     });
@@ -37,7 +37,7 @@ describe('category-token-ceiling', () => {
       expect(() =>
         assertMaxTokensWithinCategory({
           category: WorkflowCategory.LIGHT,
-          maxTokensPerExecution: 500_000,
+          maxHistoryTokens: 500_000,
         }),
       ).toThrow(/500000.*LIGHT.*50000/);
     });
@@ -48,7 +48,7 @@ describe('category-token-ceiling', () => {
       expect(() =>
         assertMaxTokensWithinCategory({
           category: WorkflowCategory.LIGHT,
-          maxTokensPerExecution: overLight,
+          maxHistoryTokens: overLight,
         }),
       ).toThrow(BadRequestException);
 
@@ -56,7 +56,7 @@ describe('category-token-ceiling', () => {
       expect(() =>
         assertMaxTokensWithinCategory({
           category: WorkflowCategory.ADVANCED,
-          maxTokensPerExecution: overLight,
+          maxHistoryTokens: overLight,
         }),
       ).not.toThrow();
     });
@@ -69,7 +69,7 @@ describe('category-token-ceiling', () => {
     });
 
     it('detecta que se mandó solo el tope', () => {
-      expect(touchesCategoryCeiling({ maxTokensPerExecution: 50_000 })).toBe(true);
+      expect(touchesCategoryCeiling({ maxHistoryTokens: 50_000 })).toBe(true);
     });
 
     it('detecta que se mandó solo la categoría', () => {
@@ -79,7 +79,7 @@ describe('category-token-ceiling', () => {
 
     it('un cero explícito cuenta como enviado', () => {
       // `!== undefined` y no un chequeo de verdad: 0 es falsy pero sí viene en el DTO.
-      expect(touchesCategoryCeiling({ maxTokensPerExecution: 0 })).toBe(true);
+      expect(touchesCategoryCeiling({ maxHistoryTokens: 0 })).toBe(true);
     });
   });
 });

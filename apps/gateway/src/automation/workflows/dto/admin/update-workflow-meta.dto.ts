@@ -44,7 +44,7 @@ export class UpdateWorkflowMetaDto {
   @IsOptional()
   @Min(1000)
   @Max(350000)
-  maxTokensPerExecution?: number;
+  maxHistoryTokens?: number;
 
   @ApiPropertyOptional()
   @IsBoolean()

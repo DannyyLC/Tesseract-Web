@@ -42,8 +42,8 @@ export class CreateWorkflowDto {
   @IsInt()
   @Min(1000)
   @Max(350000)
-  @IsNotEmpty({ message: 'maxTokensPerExecution es requerido' })
-  maxTokensPerExecution!: number;
+  @IsNotEmpty({ message: 'maxHistoryTokens es requerido' })
+  maxHistoryTokens!: number;
 
   @IsObject()
   @IsNotEmpty({ message: 'El config es requerido' })

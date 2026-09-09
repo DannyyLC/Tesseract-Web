@@ -112,7 +112,7 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
         organizationId: targetOrgId,
         name: name.trim(),
         category,
-        maxTokensPerExecution: maxTokens,
+        maxHistoryTokens: maxTokens,
         config: blankConfig(model),
         note: 'Creado desde plantilla mínima',
         isInternal,

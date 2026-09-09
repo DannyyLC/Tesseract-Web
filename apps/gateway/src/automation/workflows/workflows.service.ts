@@ -136,7 +136,7 @@ export class WorkflowsService {
 
     assertMaxTokensWithinCategory({
       category: this.mapDbWorkflowCategoryToShared(dto.category as DbWorkflowCategory),
-      maxTokensPerExecution: dto.maxTokensPerExecution,
+      maxHistoryTokens: dto.maxHistoryTokens,
     });
 
     // Validar límite de workflows según el plan
@@ -158,7 +158,7 @@ export class WorkflowsService {
         name: dto.name,
         description: dto.description,
         category: dto.category,
-        maxTokensPerExecution: dto.maxTokensPerExecution,
+        maxHistoryTokens: dto.maxHistoryTokens,
         config: dto.config as any,
         isActive: dto.isActive ?? true,
         isPaused: dto.isPaused ?? false,
@@ -655,14 +655,14 @@ export class WorkflowsService {
     if (touchesCategoryCeiling(dto)) {
       const stored = await this.prisma.workflow.findUniqueOrThrow({
         where: { id: workflowId },
-        select: { category: true, maxTokensPerExecution: true },
+        select: { category: true, maxHistoryTokens: true },
       });
 
       assertMaxTokensWithinCategory({
         category: this.mapDbWorkflowCategoryToShared(
           (dto.category as DbWorkflowCategory) ?? stored.category,
         ),
-        maxTokensPerExecution: dto.maxTokensPerExecution ?? stored.maxTokensPerExecution,
+        maxHistoryTokens: dto.maxHistoryTokens ?? stored.maxHistoryTokens,
       });
     }
 
@@ -673,7 +673,7 @@ export class WorkflowsService {
         name: dto.name,
         description: dto.description,
         category: dto.category,
-        maxTokensPerExecution: dto.maxTokensPerExecution,
+        maxHistoryTokens: dto.maxHistoryTokens,
         config: dto.config as any,
         isActive: dto.isActive,
         isPaused: dto.isPaused,
@@ -2306,7 +2306,7 @@ export class WorkflowsService {
   private async resolveEffectiveMaxTokens(workflow: {
     id: string;
     config: unknown;
-    maxTokensPerExecution: number;
+    maxHistoryTokens: number;
   }): Promise<number> {
     try {
       const modelNames = collectConfiguredModels(workflow.config);
@@ -2323,7 +2323,7 @@ export class WorkflowsService {
       }
 
       const budget = resolveContextWindowBudget({
-        configuredMaxTokens: workflow.maxTokensPerExecution,
+        configuredMaxTokens: workflow.maxHistoryTokens,
         contextWindows: Array.from(windows, ([modelName, contextWindow]) => ({
           modelName,
           contextWindow,
@@ -2334,7 +2334,7 @@ export class WorkflowsService {
       if (budget.boundBy === 'context-window') {
         this.logger.log(
           `Workflow ${workflow.id}: límite de historial recortado a ${budget.effectiveMaxTokens} ` +
-            `por la ventana de ${budget.limitingModel} (configurado: ${workflow.maxTokensPerExecution})`,
+            `por la ventana de ${budget.limitingModel} (configurado: ${workflow.maxHistoryTokens})`,
         );
       }
 
@@ -2344,13 +2344,13 @@ export class WorkflowsService {
         `Workflow ${workflow.id}: no se pudo resolver la ventana de contexto, se usa el ` +
           `valor configurado. ${error instanceof Error ? error.message : String(error)}`,
       );
-      return workflow.maxTokensPerExecution;
+      return workflow.maxHistoryTokens;
     }
   }
 
   private async prepareHistoryForPayload(
     conversationId: string,
-    maxTokensPerExecution: number,
+    maxHistoryTokens: number,
     messageHistory: { role: string; content?: string | null }[],
     userMessage: string,
   ): Promise<{
@@ -2361,7 +2361,7 @@ export class WorkflowsService {
 
     const compactionContext = await this.compactConversationIfThresholdReached(
       conversationId,
-      maxTokensPerExecution,
+      maxHistoryTokens,
       historyForCompaction,
     );
 
@@ -2373,14 +2373,14 @@ export class WorkflowsService {
     // recorta. Antes solo se recortaba cuando la compactación corría en ese turno, así que
     // el resto del tiempo se mandaba resumen + historial completo.
     let historyForPayload = compactionContext.activeSummary
-      ? this.calculateAdaptiveRecentMessages(finalMessageHistory, maxTokensPerExecution)
+      ? this.calculateAdaptiveRecentMessages(finalMessageHistory, maxHistoryTokens)
       : finalMessageHistory;
 
     const finalTokens = this.estimateMessageHistoryTokens(historyForPayload);
-    if (finalTokens > maxTokensPerExecution) {
+    if (finalTokens > maxHistoryTokens) {
       this.logger.warn(
         `CRITICAL: conversation ${conversationId} exceeded hard cap ` +
-          `(${finalTokens}/${maxTokensPerExecution} tokens) after all reduction strategies. ` +
+          `(${finalTokens}/${maxHistoryTokens} tokens) after all reduction strategies. ` +
           `Forcing minimum history window.`,
       );
       historyForPayload = historyForPayload.slice(-2);
@@ -2399,11 +2399,11 @@ export class WorkflowsService {
    */
   private async compactConversationIfThresholdReached(
     conversationId: string,
-    maxTokensPerExecution: number,
+    maxHistoryTokens: number,
     messageHistory: { role: string; content?: string | null }[],
   ): Promise<{ compactionApplied: boolean; activeSummary: string | null }> {
     const historyTokens = this.estimateMessageHistoryTokens(messageHistory);
-    const threshold = Math.floor(maxTokensPerExecution * this.compactionThresholdRatio);
+    const threshold = Math.floor(maxHistoryTokens * this.compactionThresholdRatio);
 
     if (historyTokens < threshold) {
       const active = await this.conversationsService.getActiveCompaction(conversationId);
@@ -2465,7 +2465,7 @@ export class WorkflowsService {
       });
 
       this.logger.log(
-        `Conversation ${conversationId} compacted at ${historyTokens}/${maxTokensPerExecution} history tokens`,
+        `Conversation ${conversationId} compacted at ${historyTokens}/${maxHistoryTokens} history tokens`,
       );
       return { compactionApplied: true, activeSummary: composedSummary };
     } catch (error) {

@@ -18,7 +18,7 @@ type Form = {
   name: string;
   description: string;
   category: 'LIGHT' | 'STANDARD' | 'ADVANCED';
-  maxTokensPerExecution: number;
+  maxHistoryTokens: number;
   isActive: boolean;
   isPaused: boolean;
   isInternal: boolean;
@@ -30,7 +30,7 @@ const toForm = (w: AdminWorkflowDetail): Form => ({
   name: w.name,
   description: w.description ?? '',
   category: w.category,
-  maxTokensPerExecution: w.maxTokensPerExecution,
+  maxHistoryTokens: w.maxHistoryTokens,
   isActive: w.isActive,
   isPaused: w.isPaused,
   isInternal: w.isInternal,
@@ -141,8 +141,8 @@ export function SettingsTab({ workflow }: Props) {
             min={1000}
             max={200000}
             className={inputClass}
-            value={form.maxTokensPerExecution}
-            onChange={(e) => set('maxTokensPerExecution', Number(e.target.value))}
+            value={form.maxHistoryTokens}
+            onChange={(e) => set('maxHistoryTokens', Number(e.target.value))}
           />
         </div>
         <div>
