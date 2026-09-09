@@ -794,6 +794,31 @@ export class WorkflowsService {
     }
   }
 
+  /**
+   * `metadata.preProcessedAttachments` trae `sourceUrl` —el link de media de YCloud—
+   * porque el worker de WhatsApp lo necesita para armar el mensaje. Ese link ya queda
+   * guardado donde corresponde, en `message_attachments` (vía `toAttachmentInput()`
+   * más abajo en `execute()`/`executeStream()`). Copiarlo también a
+   * `Execution.triggerData` es una segunda copia, y a diferencia del buffer de Redis
+   * (TTL de 900s) esta columna no expira nunca. Se quita solo del snapshot que se
+   * persiste como trigger, no de `metadata` en sí: el resto del flujo lo sigue usando
+   * tal cual para procesar adjuntos.
+   */
+  private sanitizeMetadataForTrigger(
+    metadata?: Record<string, any>,
+  ): Record<string, any> | undefined {
+    if (!metadata?.preProcessedAttachments) {
+      return metadata;
+    }
+
+    return {
+      ...metadata,
+      preProcessedAttachments: (metadata.preProcessedAttachments as ProcessedAttachment[]).map(
+        ({ sourceUrl: _sourceUrl, ...rest }) => rest,
+      ),
+    };
+  }
+
   async execute(
     organizationId: string,
     workflowId: string,
@@ -894,7 +919,7 @@ export class WorkflowsService {
       trigger,
       {
         input,
-        metadata,
+        metadata: this.sanitizeMetadataForTrigger(metadata),
         organizationId: org.id,
         organizationName: org.name,
         userId, // Opcional
@@ -1468,7 +1493,7 @@ export class WorkflowsService {
       trigger,
       {
         input,
-        metadata,
+        metadata: this.sanitizeMetadataForTrigger(metadata),
         organizationId: org.id,
         organizationName: org.name,
         userId,

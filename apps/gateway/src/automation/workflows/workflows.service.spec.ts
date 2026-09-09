@@ -461,6 +461,61 @@ describe('WorkflowsService', () => {
         expect(result.id).toBe('exec1');
       });
 
+      it('no persiste sourceUrl de los adjuntos en triggerData, aunque sí lo use para armar el mensaje', async () => {
+        // El link de media de YCloud (docs/todo.md, punto 7) no debe duplicarse en
+        // Execution.triggerData, que no expira nunca — ya queda en message_attachments.
+        prisma.workflow.findFirst = jest.fn().mockResolvedValue(wfMock);
+        (mockCreditsService as any).canExecuteWorkflow = jest
+          .fn()
+          .mockResolvedValue({ allowed: true });
+        (mockExecutionsService as any).create = jest.fn().mockResolvedValue({ id: 'exec1' });
+        (mockExecutionsService as any).linkToConversation = jest.fn();
+        (mockExecutionsService as any).getByIdFull = jest
+          .fn()
+          .mockResolvedValue({ id: 'exec1', status: 'completed' });
+        (mockExecutionsService as any).updateStatus = jest.fn();
+        (mockExecutionsService as any).updateUsageStats = jest.fn();
+        (mockConversationsService as any).findOrCreateConversation = jest
+          .fn()
+          .mockResolvedValue({ id: 'conv1', isHumanInTheLoop: false });
+        (mockConversationsService as any).getMessageHistory = jest.fn().mockResolvedValue([]);
+        (mockConversationsService as any).addMessage = jest.fn();
+
+        (mockAgentsService as any).execute = jest.fn().mockResolvedValue({
+          messages: [{ role: 'assistant', content: 'Success response' }],
+          metadata: { total_tokens: 15, usage_by_model: { 'gpt-4o': 15 } },
+        });
+        (prisma as any).modelPrice = {
+          findMany: jest.fn().mockResolvedValue([{ modelName: 'gpt-4o', tokenGenPriceBase: 0.01 }]),
+        };
+
+        const preProcessedAttachments = [
+          {
+            type: 'AUDIO',
+            mimeType: 'audio/ogg',
+            sourceUrl: 'https://api.ycloud.com/v2/whatsapp/media/secret-link',
+            contentHash: 'hash1',
+            processingStatus: 'PROCESSED',
+            processedText: 'transcripción',
+          },
+        ];
+
+        await service.execute(
+          orgId,
+          wfId,
+          { message: 'nota de voz' },
+          { preProcessedAttachments },
+        );
+
+        const triggerDataArg = (mockExecutionsService as any).create.mock.calls[0][2];
+        expect(triggerDataArg.metadata.preProcessedAttachments[0]).not.toHaveProperty('sourceUrl');
+        expect(triggerDataArg.metadata.preProcessedAttachments[0].processedText).toBe(
+          'transcripción',
+        );
+        // El adjunto real (con el link) sigue armándose para message_attachments, sin tocar.
+        expect((mockConversationsService as any).addMessage).toHaveBeenCalled();
+      });
+
       it('marca el resultado con skipped:hitl cuando un humano atiende la conversación', async () => {
         // El worker de WhatsApp se apoya en esta marca para distinguir el silencio
         // deliberado de una ejecución que quedó vacía por un fallo. Sin ella volvería a
