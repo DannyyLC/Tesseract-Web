@@ -11,6 +11,8 @@ export interface UpdateWhatsappConfigDto {
   displayName?: string;
   description?: string;
   workflowId?: string | null;
+  /** Ver el comentario del mismo campo en `WhatsAppConfig` (`@tesseract/types`). */
+  isDefaultForOutbound?: boolean;
 }
 
 export interface CreateTemplateInput {

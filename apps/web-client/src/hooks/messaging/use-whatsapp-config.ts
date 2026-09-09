@@ -57,6 +57,7 @@ export function useWhatsappMutations() {
       description?: string;
       /** Tri-estado: ausente no toca, `null` desasigna, string reasigna. */
       workflowId?: string | null;
+      isDefaultForOutbound?: boolean;
     }) => {
       const api = RootApi.getInstance().getWhatsappConfigApi();
       return await api.updateWhatsappConfiguration(id, data);

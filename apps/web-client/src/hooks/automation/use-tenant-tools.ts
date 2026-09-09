@@ -112,22 +112,6 @@ export function useTenantToolMutations() {
     },
   });
 
-  const setWhatsappOutboundDefault = useMutation({
-    mutationFn: async ({
-      workflowId,
-      whatsappConfigId,
-    }: {
-      workflowId: string;
-      whatsappConfigId: string | null;
-    }) => {
-      const api = RootApi.getInstance().getTenantToolsApi();
-      return await api.setWhatsappOutboundDefault(workflowId, whatsappConfigId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-tools', 'whatsapp-outbound-status'] });
-    },
-  });
-
   const disconnectTool = useMutation({
     mutationFn: async (toolId: string) => {
       const api = RootApi.getInstance().getTenantToolsApi();
@@ -154,7 +138,6 @@ export function useTenantToolMutations() {
     addWorkflows,
     removeWorkflows,
     linkWhatsappOutboundWorkflows,
-    setWhatsappOutboundDefault,
     disconnectTool,
     deleteTool,
   };

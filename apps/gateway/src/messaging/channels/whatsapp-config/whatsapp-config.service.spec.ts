@@ -10,9 +10,11 @@ describe('WhatsappConfigService', () => {
       findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
       delete: jest.fn(),
       findMany: jest.fn(),
     },
+    $transaction: jest.fn((ops: unknown[]) => Promise.all(ops)),
     whatsAppTemplate: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -305,6 +307,50 @@ describe('WhatsappConfigService', () => {
       expect(mockPrisma.whatsAppConfig.update).toHaveBeenCalledWith({
         where: { id: 'c1' },
         data: { defaultWorkflowId: null },
+      });
+    });
+
+    it('isDefaultForOutbound: false no necesita transacción, es una asignación directa', async () => {
+      mockPrisma.whatsAppConfig.update.mockResolvedValue({});
+
+      await service.updateConfig('c1', { isDefaultForOutbound: false });
+
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+      expect(mockPrisma.whatsAppConfig.update).toHaveBeenCalledWith({
+        where: { id: 'c1' },
+        data: { isDefaultForOutbound: false },
+      });
+    });
+
+    it('isDefaultForOutbound: true le quita la marca a los demás números del mismo workflow', async () => {
+      mockPrisma.whatsAppConfig.findUnique.mockResolvedValue({ defaultWorkflowId: 'wf-1' });
+      mockPrisma.whatsAppConfig.update.mockResolvedValue({});
+      mockPrisma.whatsAppConfig.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.updateConfig('c1', { isDefaultForOutbound: true });
+
+      expect(mockPrisma.whatsAppConfig.updateMany).toHaveBeenCalledWith({
+        where: { defaultWorkflowId: 'wf-1', isDefaultForOutbound: true, id: { not: 'c1' } },
+        data: { isDefaultForOutbound: false },
+      });
+      expect(mockPrisma.whatsAppConfig.update).toHaveBeenCalledWith({
+        where: { id: 'c1' },
+        data: { isDefaultForOutbound: true },
+      });
+    });
+
+    it('con workflowId y isDefaultForOutbound juntos, usa el workflow NUEVO para desmarcar a los demás', async () => {
+      // El propio findUnique nunca se consulta: el workflowId que llega en la misma llamada
+      // ya resuelve a qué grupo de números aplica, no hace falta leer el que tenía antes.
+      mockPrisma.whatsAppConfig.update.mockResolvedValue({});
+      mockPrisma.whatsAppConfig.updateMany.mockResolvedValue({ count: 0 });
+
+      await service.updateConfig('c1', { workflowId: 'wf-2', isDefaultForOutbound: true });
+
+      expect(mockPrisma.whatsAppConfig.findUnique).not.toHaveBeenCalled();
+      expect(mockPrisma.whatsAppConfig.updateMany).toHaveBeenCalledWith({
+        where: { defaultWorkflowId: 'wf-2', isDefaultForOutbound: true, id: { not: 'c1' } },
+        data: { isDefaultForOutbound: false },
       });
     });
   });

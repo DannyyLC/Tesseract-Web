@@ -197,13 +197,19 @@ export class WhatsappConfigService {
    */
   async updateConfig(
     configId: string,
-    fields: { displayName?: string; description?: string; workflowId?: string | null },
+    fields: {
+      displayName?: string;
+      description?: string;
+      workflowId?: string | null;
+      isDefaultForOutbound?: boolean;
+    },
   ): Promise<boolean> {
     try {
       const data: {
         displayName?: string | null;
         description?: string | null;
         defaultWorkflowId?: string | null;
+        isDefaultForOutbound?: boolean;
       } = {};
 
       if (fields.displayName !== undefined) {
@@ -218,7 +224,44 @@ export class WhatsappConfigService {
         data.defaultWorkflowId = fields.workflowId;
       }
 
+      if (fields.isDefaultForOutbound !== undefined) {
+        data.isDefaultForOutbound = fields.isDefaultForOutbound;
+      }
+
       if (Object.keys(data).length === 0) return true;
+
+      // Marcar este como default: el índice único parcial garantiza en la base que a lo más
+      // uno puede tener `isDefaultForOutbound = true` por `defaultWorkflowId`, pero Postgres
+      // rechazaría el UPDATE si el número que ya tenía la marca no se le quita primero — así
+      // que se hace en una transacción, no porque haga falta atomicidad contra otra escritura.
+      if (data.isDefaultForOutbound === true) {
+        // Si el workflow no viaja en esta misma llamada, hay que leer el que ya tenía — pero
+        // solo entonces: no vale la pena una consulta extra cuando el caller ya lo mandó.
+        const workflowId =
+          data.defaultWorkflowId !== undefined
+            ? data.defaultWorkflowId
+            : (
+                await this.prismaService.whatsAppConfig.findUnique({
+                  where: { id: configId },
+                  select: { defaultWorkflowId: true },
+                })
+              )?.defaultWorkflowId;
+
+        if (workflowId) {
+          await this.prismaService.$transaction([
+            this.prismaService.whatsAppConfig.updateMany({
+              where: {
+                defaultWorkflowId: workflowId,
+                isDefaultForOutbound: true,
+                id: { not: configId },
+              },
+              data: { isDefaultForOutbound: false },
+            }),
+            this.prismaService.whatsAppConfig.update({ where: { id: configId }, data }),
+          ]);
+          return true;
+        }
+      }
 
       await this.prismaService.whatsAppConfig.update({ where: { id: configId }, data });
       return true;

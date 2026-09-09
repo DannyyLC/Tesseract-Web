@@ -200,7 +200,6 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
         isOpen={whatsappLinkModalOpen}
         onClose={() => setWhatsappLinkModalOpen(false)}
         unlinkedWorkflows={whatsappStatus?.unlinkedWorkflows ?? []}
-        linkedWorkflowsNeedingDefault={whatsappStatus?.linkedWorkflowsNeedingDefault ?? []}
       />
     </div>
   );

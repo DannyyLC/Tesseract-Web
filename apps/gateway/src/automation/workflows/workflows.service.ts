@@ -1966,16 +1966,22 @@ export class WorkflowsService {
 
       // Enriquecer send_bulk_whatsapp con config del sistema (el modelo nunca elige el remitente)
       if (toolName === 'send_bulk_whatsapp') {
-        // whatsapp_config_id puede ser un solo id (un número) o un array (varios workflows
-        // comparten esta tenant tool, cada uno con su propio número). Con array, el id de la
-        // ejecución (metadata.whatsAppConfigId → el número que recibió el mensaje entrante)
-        // es lo único que puede desambiguar cuál de los números aplica a este turno.
-        const rawConfigId = (tenantTool.config)?.whatsapp_config_id;
-        const configuredIds: string[] = Array.isArray(rawConfigId)
-          ? rawConfigId
-          : rawConfigId
-            ? [rawConfigId]
-            : [];
+        // Los números de este workflow se consultan EN VIVO — no desde una foto guardada en
+        // TenantTool.config (`whatsapp_config_id`, que ya no se lee acá). Esa foto solo se
+        // llenaba al enlazar el workflow por primera vez y nunca se actualizaba después: un
+        // número agregado más tarde quedaba invisible para la tool hasta volver a enlazar, y
+        // no había forma de hacerlo desde la UI. Con la relación real (`defaultWorkflowId`)
+        // agregar o quitar un número se refleja solo, sin tocar nada en Integraciones.
+        const configuredNumbers = await this.prisma.whatsAppConfig.findMany({
+          where: {
+            organizationId: workflow.organizationId,
+            deletedAt: null,
+            isActive: true,
+            defaultWorkflowId: workflow.id,
+          },
+          select: { id: true, isDefaultForOutbound: true },
+        });
+        const configuredIds = configuredNumbers.map((n) => n.id);
 
         let configId: string | undefined;
         if (
@@ -1988,17 +1994,15 @@ export class WorkflowsService {
         } else if (configuredIds.length > 1 && channel != ConversationChannel.WHATSAPP) {
           // Por WhatsApp el número que recibió el mensaje siempre gana (rama de arriba); esto
           // solo resuelve el caso donde nunca hubo un número de origen que desambiguara solo
-          // (API, Messenger). `default_by_workflow` lo fija el OWNER/ADMIN desde Integraciones
-          // (TenantToolService.setWhatsappOutboundDefault); sin preferencia guardada, cae al
-          // primero de la lista — mismo comportamiento que antes de que existiera esta opción.
-          const defaultByWorkflow = (tenantTool.config as Record<string, unknown> | null)
-            ?.default_by_workflow as Record<string, string> | undefined;
-          const preferred = defaultByWorkflow?.[workflow.id];
-          configId =
-            preferred && configuredIds.includes(preferred) ? preferred : configuredIds[0];
+          // (API, Messenger). `isDefaultForOutbound` se marca desde la página del workflow, en
+          // la tarjeta de cada número (WhatsappConfigService.updateConfig); sin ninguno
+          // marcado, cae al primero — mismo comportamiento que antes de que existiera esta
+          // opción.
+          const preferred = configuredNumbers.find((n) => n.isDefaultForOutbound)?.id;
+          configId = preferred ?? configuredIds[0];
         } else if (configuredIds.length > 1) {
           this.logger.warn(
-            `send_bulk_whatsapp tool ${toolId}: ${configuredIds.length} whatsapp_config_id configured and no matching execution whatsAppConfigId to disambiguate`,
+            `send_bulk_whatsapp tool ${toolId}: ${configuredIds.length} numbers configured for workflow ${workflow.id} and no matching execution whatsAppConfigId to disambiguate`,
           );
         }
 

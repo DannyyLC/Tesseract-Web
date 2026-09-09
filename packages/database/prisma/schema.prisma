@@ -1616,10 +1616,21 @@ model WhatsAppConfig {
   templates    WhatsAppTemplate[]
   cronTriggers WorkflowCronTrigger[]
 
+  // Cuando un workflow tiene más de un número (varios WhatsAppConfig con el mismo
+  // defaultWorkflowId), cuál usa `send_bulk_whatsapp` como remitente para templates si la
+  // conversación no es por WhatsApp — ahí no hay un número de destino que lo desambigüe solo,
+  // a diferencia del webhook de WhatsApp (ese siempre usa el número por el que llegó, nunca
+  // este flag). Con un único número por workflow esto no importa: ese es siempre el remitente.
+  // NOTE: la unicidad de a lo más un `true` por `defaultWorkflowId` se enforza con un partial
+  // unique index en el SQL: WHERE "isDefaultForOutbound" = true. Prisma no soporta partial
+  // unique indexes directamente (mismo patrón que ya usa `tenant_tools`, ver ese modelo).
+  isDefaultForOutbound Boolean @default(false)
+
   @@index([phoneNumber])
   @@index([connectionStatus])
   @@index([organizationId])
   @@index([deletedAt])
+  @@index([defaultWorkflowId, isDefaultForOutbound])
   @@map("whatsapp_configs")
 }
 

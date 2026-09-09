@@ -5,25 +5,23 @@ import { useTranslations } from 'next-intl';
 import { Check, Loader2, Phone, Workflow as WorkflowIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
-import { WhatsappOutboundLinkedWorkflowDto, WhatsappOutboundUnlinkedWorkflowDto } from '@tesseract/types';
+import { WhatsappOutboundUnlinkedWorkflowDto } from '@tesseract/types';
 import { useTenantToolMutations } from '@/hooks/automation/use-tenant-tools';
 
 interface WhatsappOutboundLinkModalProps {
   isOpen: boolean;
   onClose: () => void;
   unlinkedWorkflows: WhatsappOutboundUnlinkedWorkflowDto[];
-  linkedWorkflowsNeedingDefault?: WhatsappOutboundLinkedWorkflowDto[];
 }
 
 export function WhatsappOutboundLinkModal({
   isOpen,
   onClose,
   unlinkedWorkflows,
-  linkedWorkflowsNeedingDefault = [],
 }: WhatsappOutboundLinkModalProps) {
   const t = useTranslations('Integrations');
   const [selected, setSelected] = useState<string[]>([]);
-  const { linkWhatsappOutboundWorkflows, setWhatsappOutboundDefault } = useTenantToolMutations();
+  const { linkWhatsappOutboundWorkflows } = useTenantToolMutations();
 
   useEffect(() => {
     if (isOpen) {
@@ -65,34 +63,17 @@ export function WhatsappOutboundLinkModal({
     }
   };
 
-  const handlePickDefault = async (workflowId: string, whatsappConfigId: string) => {
-    try {
-      await setWhatsappOutboundDefault.mutateAsync({ workflowId, whatsappConfigId });
-    } catch (error: any) {
-      const backendMessage =
-        (typeof error?.message === 'string' && error.message.trim()) ||
-        (typeof error?.response?.data?.message === 'string' &&
-          error.response.data.message.trim()) ||
-        '';
-      toast.error(backendMessage || t('whatsappDefaultError'));
-    }
-  };
-
-  const nothingToShow = unlinkedWorkflows.length === 0 && linkedWorkflowsNeedingDefault.length === 0;
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('whatsappLinkModalTitle')}>
-      <div className="space-y-6 py-2">
+      <div className="space-y-4 py-2">
         <p className="text-xs text-text-secondary">{t('whatsappLinkModalDesc')}</p>
 
-        {nothingToShow && (
+        {unlinkedWorkflows.length === 0 ? (
           <p className="py-6 text-center text-sm text-text-tertiary">
             {t('whatsappLinkEmptyState')}
           </p>
-        )}
-
-        {unlinkedWorkflows.length > 0 && (
-          <div className="space-y-3">
+        ) : (
+          <>
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-text-secondary">
                 {t('whatsappLinkListLabel')}
@@ -157,57 +138,7 @@ export function WhatsappOutboundLinkModal({
                 t('whatsappLinkConfirm', { count: selected.length })
               )}
             </button>
-          </div>
-        )}
-
-        {/* Workflows con 2+ números ya enganchados: cuál usa `send_bulk_whatsapp` como remitente
-            por defecto cuando la conversación no es por WhatsApp (API, Messenger). */}
-        {linkedWorkflowsNeedingDefault.length > 0 && (
-          <div className="space-y-3">
-            <label className="text-xs font-medium text-text-secondary">
-              {t('whatsappDefaultListLabel')}
-            </label>
-
-            <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
-              {linkedWorkflowsNeedingDefault.map((wf) => (
-                <div
-                  key={wf.workflowId}
-                  className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3"
-                >
-                  <p className="flex items-center gap-1 text-xs font-semibold text-text-primary">
-                    <WorkflowIcon size={10} className="shrink-0" />
-                    {wf.workflowName}
-                  </p>
-                  <div className="mt-2 space-y-1.5">
-                    {wf.whatsappNumbers.map((num) => (
-                      <button
-                        key={num.whatsappConfigId}
-                        onClick={() => handlePickDefault(wf.workflowId, num.whatsappConfigId)}
-                        disabled={setWhatsappOutboundDefault.isPending}
-                        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-[var(--surface-tint)] disabled:opacity-50"
-                      >
-                        <div
-                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                            wf.defaultWhatsappConfigId === num.whatsappConfigId
-                              ? 'border-accent bg-accent'
-                              : 'border-border-hover'
-                          }`}
-                        >
-                          {wf.defaultWhatsappConfigId === num.whatsappConfigId && (
-                            <div className="h-1.5 w-1.5 rounded-full bg-text-inverse" />
-                          )}
-                        </div>
-                        <Phone size={10} className="shrink-0 text-text-tertiary" />
-                        <span className="truncate text-[11px] text-text-secondary">
-                          {num.displayName ? `${num.displayName} · ${num.phoneNumber}` : num.phoneNumber}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          </>
         )}
       </div>
     </Modal>

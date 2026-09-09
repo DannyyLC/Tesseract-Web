@@ -23,6 +23,12 @@ export interface WhatsAppConfig {
   sessionData: unknown;
   isActive: boolean;
   defaultWorkflowId: string | null;
+  /**
+   * Solo importa cuando el workflow tiene más de un número: cuál usa `send_bulk_whatsapp` como
+   * remitente para templates si la conversación no es por WhatsApp (API/Messenger no traen un
+   * número de destino que lo desambigüe solo, a diferencia del webhook de WhatsApp).
+   */
+  isDefaultForOutbound: boolean;
   organizationId: string;
   createdAt: Date;
   updatedAt: Date;

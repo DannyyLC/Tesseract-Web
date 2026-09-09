@@ -87,8 +87,12 @@ export default function WorkflowDetailPage() {
 
   const { data: whatsappNumbers, isLoading: isWhatsappNumbersLoading } = useWhatsappNumbers(id);
   const { data: messengerPages, isLoading: isMessengerPagesLoading } = useMessengerPages(id);
-  const { deleteWhatsappConfig, setisActiveStatus, addWhatsappConfiguration } =
-    useWhatsappMutations();
+  const {
+    deleteWhatsappConfig,
+    setisActiveStatus,
+    addWhatsappConfiguration,
+    updateWhatsappConfiguration,
+  } = useWhatsappMutations();
   const { deleteMessengerConfig, setisActiveStatus: setMessengerActiveStatus } =
     useMessengerMutations();
   useWhatsappConfigSubscriptions();
@@ -169,6 +173,21 @@ export default function WorkflowDetailPage() {
       }
     } catch (error) {
       toast.error(isActive ? t('whatsappActivateError') : t('whatsappDeactivateError'));
+      console.error(error);
+    }
+  };
+
+  const handleSetWhatsappDefaultOutbound = async (id: string) => {
+    try {
+      const success = await updateWhatsappConfiguration.mutateAsync({
+        id,
+        isDefaultForOutbound: true,
+      });
+      if (!success) {
+        toast.error(t('whatsappSetDefaultError'));
+      }
+    } catch (error) {
+      toast.error(t('whatsappSetDefaultError'));
       console.error(error);
     }
   };
@@ -531,12 +550,15 @@ export default function WorkflowDetailPage() {
                         displayName: number.displayName,
                         connectionStatus: number.connectionStatus,
                         createdAt: number.createdAt.toString(),
+                        isDefaultForOutbound: number.isDefaultForOutbound,
                       }}
                       index={index}
                       onDelete={handleWhatsappDelete}
                       onSetActiveStatus={handleSetWhatsappActiveStatus}
                       isActive={number.isActive}
                       workflowId={id}
+                      showDefaultToggle={whatsappNumbers.length > 1}
+                      onSetDefaultOutbound={handleSetWhatsappDefaultOutbound}
                     />
                   </div>
                 ))

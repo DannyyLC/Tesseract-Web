@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MoreVertical, Pencil, Unplug, Trash2 } from 'lucide-react';
+import { Check, MoreVertical, Pencil, Star, Unplug, Trash2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import PermissionGuard from '@/components/auth/permission-guard';
@@ -15,6 +15,7 @@ interface WhatsappNumberDto {
   displayName?: string | null;
   connectionStatus?: 'CONNECTED' | 'DISCONNECTED' | 'ERROR' | 'PENDING';
   createdAt: string;
+  isDefaultForOutbound?: boolean;
 }
 
 interface WhatsappNumberCardProps {
@@ -25,6 +26,12 @@ interface WhatsappNumberCardProps {
   isActive?: boolean;
   /** Necesario para armar la ruta de edición, que cuelga del workflow. */
   workflowId: string;
+  /**
+   * Solo se pinta el botón/insignia de "predeterminado" cuando el workflow tiene más de un
+   * número — con uno solo no hay nada que elegir, ese es siempre el remitente.
+   */
+  showDefaultToggle?: boolean;
+  onSetDefaultOutbound?: (id: string) => Promise<void>;
 }
 
 const STATUS_STYLES: Record<string, { dot: string; label: string; textKey: string }> = {
@@ -57,8 +64,11 @@ export function WhatsappNumberCard({
   onSetActiveStatus,
   isActive,
   workflowId,
+  showDefaultToggle,
+  onSetDefaultOutbound,
 }: WhatsappNumberCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [settingDefault, setSettingDefault] = useState(false);
   const [isDisconnectOpen, setIsDisconnectOpen] = useState(false);
   const t = useTranslations('WhatsappNumberCard');
   const locale = useLocale();
@@ -113,6 +123,32 @@ export function WhatsappNumberCard({
             <span className={`h-1.5 w-1.5 rounded-full ${connectionDot}`} />
             {connectionText}
           </span>
+
+          {showDefaultToggle &&
+            (number.isDefaultForOutbound ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-tint)] px-2.5 py-1 text-xs font-medium text-text-secondary">
+                <Star size={11} className="fill-current" />
+                {t('defaultOutbound')}
+              </span>
+            ) : (
+              <PermissionGuard permissions="workflows:update">
+                <button
+                  onClick={async () => {
+                    setSettingDefault(true);
+                    try {
+                      await onSetDefaultOutbound?.(number.id);
+                    } finally {
+                      setSettingDefault(false);
+                    }
+                  }}
+                  disabled={settingDefault}
+                  className="inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--border-subtle)] px-2.5 py-1 text-xs font-medium text-text-tertiary transition-colors hover:border-accent hover:text-text-primary disabled:opacity-50"
+                >
+                  {settingDefault ? <Check size={11} /> : <Star size={11} />}
+                  {t('setDefaultOutbound')}
+                </button>
+              </PermissionGuard>
+            ))}
         </div>
       </div>
 

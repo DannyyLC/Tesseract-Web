@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsOptional, IsString } from 'class-validator';
 
 /**
  * Edición de un número ya dado de alta.
@@ -25,4 +25,14 @@ export class UpdateWhatsappConfigDto {
   @IsOptional()
   @IsString()
   workflowId?: string | null;
+
+  /**
+   * Solo importa cuando el workflow tiene más de un número: cuál usa `send_bulk_whatsapp` como
+   * remitente para templates si la conversación no es por WhatsApp. `true` le quita la marca a
+   * cualquier otro número del mismo workflow (a lo más uno puede ser default); `false` la borra
+   * sin marcar a otro (cae al primero de la lista).
+   */
+  @IsOptional()
+  @IsBoolean()
+  isDefaultForOutbound?: boolean;
 }
