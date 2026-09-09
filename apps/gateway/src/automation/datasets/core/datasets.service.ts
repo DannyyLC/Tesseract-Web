@@ -549,8 +549,19 @@ export class DatasetsService {
    *
    * El cliente nunca ve esta instancia ni la palabra "tool": para él solo enlazó un catálogo a un
    * workflow.
+   *
+   * `userId` es opcional a propósito: `updateTenantTool`/`addWorkflowToTenantTool` en
+   * `TenantToolService` usan `createdByUserId` como guarda de permisos (solo su creador o un
+   * OWNER pueden tocarla). Cuando conecta un miembro real de la organización, se le asigna a él.
+   * Cuando conecta el super admin desde el panel — no es miembro de esta organización, vive en
+   * `platform` — se deja en `NULL` para no dejar la tool "bloqueada" para el propio cliente.
    */
-  private async ensureTenantTool(organizationId: string, datasetId: string, name: string) {
+  private async ensureTenantTool(
+    organizationId: string,
+    datasetId: string,
+    name: string,
+    userId?: string,
+  ) {
     const existing = await this.prismaService.tenantTool.findFirst({
       where: {
         organizationId,
@@ -587,6 +598,7 @@ export class DatasetsService {
         displayName,
         config: { dataset_id: datasetId },
         allowedFunctions: catalog.functions.map((fn) => fn.functionName),
+        createdByUserId: userId,
         // No hay OAuth que completar: la credencial es un token con alcance que el Gateway firma
         // al construir el payload de cada ejecución.
         isConnected: true,
@@ -617,8 +629,18 @@ export class DatasetsService {
     return `${base} ${Date.now()}`;
   }
 
-  /** Conecta el dataset a un workflow: el agente pasa a poder consultarlo. */
-  async linkWorkflow(organizationId: string, datasetId: string, workflowId: string): Promise<void> {
+  /**
+   * Conecta el dataset a un workflow: el agente pasa a poder consultarlo.
+   *
+   * `userId` es quien ejecuta la acción — ver el comentario de `ensureTenantTool()`. Se omite
+   * (`undefined`) cuando conecta el super admin desde el panel.
+   */
+  async linkWorkflow(
+    organizationId: string,
+    datasetId: string,
+    workflowId: string,
+    userId?: string,
+  ): Promise<void> {
     const dataset = await this.loadOwned(organizationId, datasetId);
 
     const workflow = await this.prismaService.workflow.findFirst({
@@ -630,7 +652,7 @@ export class DatasetsService {
       throw new NotFoundException('Workflow no encontrado');
     }
 
-    const tenantToolId = await this.ensureTenantTool(organizationId, datasetId, dataset.name);
+    const tenantToolId = await this.ensureTenantTool(organizationId, datasetId, dataset.name, userId);
 
     await this.prismaService.$transaction([
       this.prismaService.dataset.update({

@@ -113,6 +113,10 @@ export class DatasetsAdminController {
     @Param('id') id: string,
     @Param('workflowId') workflowId: string,
   ): Promise<ApiResponse> {
+    // Sin userId a propósito: el super admin no es miembro de esta organización (vive en
+    // `platform`), así que no debe quedar como "creador" de la tenant tool — eso bloquearía a
+    // los ADMIN reales de la organización para tocarla después (ver el comentario en
+    // DatasetsService.ensureTenantTool()).
     await this.datasetsService.linkWorkflow(organizationId, id, workflowId);
     return new ApiResponseBuilder().setMessage('Catálogo vinculado al workflow').build();
   }

@@ -168,7 +168,7 @@ export class DatasetsController {
     @Param('workflowId') workflowId: string,
     @Res() res: Response,
   ) {
-    await this.datasetsService.linkWorkflow(user.organizationId, id, workflowId);
+    await this.datasetsService.linkWorkflow(user.organizationId, id, workflowId, user.sub);
 
     const apiResponse = new ApiResponseBuilder<null>()
       .setMessage('Dataset linked to workflow successfully')
