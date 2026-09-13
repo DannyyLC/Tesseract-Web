@@ -5,6 +5,8 @@ description: 'Hallazgos pendientes de corregir: los tiers de modelo declarados y
 
 Debemos de traducir todo el texto del back y el servicio de agentes para que la aplicaicon sea completamente multiidioma.
 
+Revisar la posibilidad de replicar lo que hace Cal.com en nuestra aplicacion para no depender de un tercero para este aspecto.
+
 ## 8. Pipeline de WhatsApp — deuda menor
 
 Levantado al migrar a Cloud Tasks. Nada urgente.
