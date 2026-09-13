@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus } from 'lucide-react';
+import { Plus, Unplug } from 'lucide-react';
 import { DatasetWorkflowRef } from '@tesseract/types';
 import { RequestWorkflowConnectionModal } from './request-workflow-connection-modal';
 
@@ -14,6 +14,11 @@ import { RequestWorkflowConnectionModal } from './request-workflow-connection-mo
  * versión anterior pintaba el catálogo completo de workflows como chips y el estado conectado era
  * un cambio de color: se leía como un filtro, no como una relación, y el encabezado prometía una
  * lista de conectados que en realidad eran candidatos.
+ *
+ * El estado vacío no es un simple "no hay nada": un catálogo sin conectar es capital hundido —datos
+ * capturados que ningún agente usa—, así que explica el costo de no conectar antes de pedir la
+ * acción. Es la misma razón por la que el botón vive dentro del panel vacío y no solo arriba: quien
+ * llega aquí sin conexiones necesita el motivo antes que el atajo.
  */
 
 interface ConnectedWorkflowsSectionProps {
@@ -38,7 +43,10 @@ export function ConnectedWorkflowsSection({
           <p className="mt-1 max-w-2xl text-sm text-text-secondary">{t('connectedWorkflowsHint')}</p>
         </div>
 
-        {canEdit && (
+        {/* Con al menos una conexión, el valor ya es visible en la lista de abajo: el botón basta
+            arriba. Sin ninguna, el llamado a la acción va dentro del panel que explica por qué,
+            no aquí — repetirlo sería anteponer el atajo al motivo. */}
+        {canEdit && workflows.length > 0 && (
           <button
             type="button"
             onClick={() => setIsRequesting(true)}
@@ -70,7 +78,28 @@ export function ConnectedWorkflowsSection({
             ))}
           </AnimatePresence>
         ) : (
-          <p className="text-sm text-[var(--text-muted)]">{t('noConnectedWorkflows')}</p>
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] px-6 py-10 text-center">
+            <Unplug size={28} className="text-text-tertiary opacity-40" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-text-primary">
+                {t('noConnectedWorkflowsTitle')}
+              </p>
+              <p className="mx-auto max-w-sm text-sm text-text-secondary">
+                {t('noConnectedWorkflowsBody')}
+              </p>
+            </div>
+
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setIsRequesting(true)}
+                className="mt-1 flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-xs font-medium text-text-inverse transition-opacity hover:opacity-90 active:scale-95"
+              >
+                <Plus size={14} />
+                {t('requestConnectionButton')}
+              </button>
+            )}
+          </div>
         )}
       </div>
 

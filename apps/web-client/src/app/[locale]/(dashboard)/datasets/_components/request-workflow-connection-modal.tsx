@@ -199,7 +199,8 @@ export function RequestWorkflowConnectionModal({
   return (
     <Modal isOpen={isOpen} onClose={close} title={t('requestConnectionTitle')}>
       <div className="space-y-4">
-        <p className="text-sm text-text-secondary">{t('requestConnectionHint')}</p>
+        <p className="text-sm text-text-secondary">{t('requestConnectionWhy')}</p>
+        <p className="text-sm text-text-tertiary">{t('requestConnectionHint')}</p>
 
         <WorkflowPicker value={workflowIds} onChange={setWorkflowIds} connectedIds={connectedIds} />
 
