@@ -165,9 +165,34 @@ export function useAdminDatasetMutations() {
     },
   });
 
+  const deleteRecords = useMutation({
+    mutationFn: async ({
+      organizationId,
+      id,
+      recordIds,
+    }: {
+      organizationId: string;
+      id: string;
+      recordIds: string[];
+    }) => api().deleteRecords(organizationId, id, recordIds),
+    onSuccess: (_result, variables) => {
+      invalidateRecords(variables.organizationId, variables.id);
+      invalidateList(variables.organizationId);
+    },
+  });
+
   const importCsv = useMutation({
-    mutationFn: async ({ organizationId, id, csv }: { organizationId: string; id: string; csv: string }) =>
-      api().importCsv(organizationId, id, csv),
+    mutationFn: async ({
+      organizationId,
+      id,
+      csv,
+      fileName,
+    }: {
+      organizationId: string;
+      id: string;
+      csv: string;
+      fileName?: string;
+    }) => api().importCsv(organizationId, id, csv, fileName),
     onSuccess: (_result, variables) => {
       invalidateRecords(variables.organizationId, variables.id);
       invalidateList(variables.organizationId);
@@ -215,6 +240,7 @@ export function useAdminDatasetMutations() {
     createRecord,
     updateRecord,
     deleteRecord,
+    deleteRecords,
     importCsv,
     linkWorkflow,
     unlinkWorkflow,

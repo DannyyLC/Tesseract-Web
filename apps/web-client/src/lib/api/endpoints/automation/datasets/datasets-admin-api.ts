@@ -163,6 +163,19 @@ class DatasetsAdminApi {
     return result.data.success;
   }
 
+  /** POST .../:id/records/bulk-delete — borra las filas seleccionadas en la rejilla. */
+  public async deleteRecords(
+    organizationId: string,
+    id: string,
+    recordIds: string[],
+  ): Promise<{ deleted: number }> {
+    const result = await this.apiRequestManager.post<ApiResponse<{ deleted: number }>>(
+      `${this.base(organizationId)}/${id}/records/bulk-delete`,
+      { recordIds },
+    );
+    return result.data.data ?? { deleted: 0 };
+  }
+
   /** DELETE .../:id/records — borra todas las filas, el catálogo y sus columnas quedan igual. */
   public async clearRecords(organizationId: string, id: string): Promise<{ deleted: number }> {
     const result = await this.apiRequestManager.delete<ApiResponse<{ deleted: number }>>(
@@ -171,14 +184,17 @@ class DatasetsAdminApi {
     return result.data.data ?? { deleted: 0 };
   }
 
+  /** Ver el timeout propio en `DatasetsApi.importCsv`: un archivo grande se pasa del default. */
   public async importCsv(
     organizationId: string,
     id: string,
     csv: string,
+    fileName?: string,
   ): Promise<DatasetImportResultDto | null> {
     const result = await this.apiRequestManager.post<ApiResponse<DatasetImportResultDto>>(
       `${this.base(organizationId)}/${id}/import`,
-      { csv },
+      { csv, ...(fileName ? { fileName } : {}) },
+      { timeout: 300_000 },
     );
     return result.data.data ?? null;
   }

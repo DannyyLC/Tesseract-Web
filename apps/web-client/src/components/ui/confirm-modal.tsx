@@ -6,15 +6,21 @@ import { Modal } from './modal';
 
 type ConfirmVariant = 'danger' | 'warning';
 
+/**
+ * El fondo del banner sale de un token adaptativo y no de `bg-danger/10`: los colores de la paleta
+ * se declaran como `var(--danger-500)`, y Tailwind 3 no puede sacarles los canales para aplicarles
+ * alfa, así que esa utilidad nunca llegó a generarse y el banner quedaba sin fondo.
+ */
 const VARIANT_CLASSES: Record<ConfirmVariant, { banner: string; icon: string; button: string }> = {
   danger: {
-    banner: 'bg-danger/10 text-danger-600',
-    icon: 'text-danger-600',
+    banner:
+      'border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] text-[var(--danger-text-adaptive)]',
+    icon: 'text-[var(--danger-text-adaptive)]',
     button: 'bg-danger hover:bg-danger-600',
   },
   warning: {
-    banner: 'bg-warning/10 text-warning-600',
-    icon: 'text-warning-600',
+    banner: 'bg-[var(--badge-warning-bg-solid)] text-[var(--badge-warning-text-solid)]',
+    icon: 'text-[var(--badge-warning-text-solid)]',
     button: 'bg-warning-600 hover:bg-warning-700',
   },
 };

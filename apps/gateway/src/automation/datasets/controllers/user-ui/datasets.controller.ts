@@ -23,6 +23,7 @@ import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { DatasetsService } from '../../core/datasets.service';
 import { DatasetFieldsDto } from '../../dto/dataset-field.dto';
 import {
+  BulkDeleteDatasetRecordsDto,
   CreateDatasetDto,
   ImportDatasetCsvDto,
   ListDatasetRecordsQueryDto,
@@ -308,6 +309,35 @@ export class DatasetsController {
 
     const apiResponse = new ApiResponseBuilder<null>()
       .setMessage('Record deleted successfully')
+      .setSuccess(true);
+
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  /**
+   * Borra las filas seleccionadas en la rejilla.
+   *
+   * `POST` y no `DELETE` por dos razones: el borrado en lote necesita mandar la lista de ids en el
+   * body, y `DELETE :id/records/:recordId` ya ocupa esa forma de URL — un `DELETE :id/records/bulk`
+   * entraría por ahí con `recordId = 'bulk'`.
+   */
+  @Post(':id/records/bulk-delete')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async deleteRecords(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Body() body: BulkDeleteDatasetRecordsDto,
+    @Res() res: Response,
+  ) {
+    const result = await this.datasetsService.deleteRecords(
+      user.organizationId,
+      id,
+      body.recordIds,
+    );
+
+    const apiResponse = new ApiResponseBuilder<typeof result>()
+      .setData(result)
+      .setMessage('Records deleted successfully')
       .setSuccess(true);
 
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());

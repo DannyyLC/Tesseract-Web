@@ -2,10 +2,15 @@
 
 import { use, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Eraser, FileUp, Loader2, Search, Settings2 } from 'lucide-react';
+import { Eraser, FileUp, Loader2, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { DatasetField } from '@tesseract/types';
 import PermissionGuard from '@/components/auth/permission-guard';
+import { ImportCsvModal } from '@/components/datasets/import-csv-modal';
+import { RecordsGrid } from '@/components/datasets/records-grid';
+import { RecordsToolbar } from '@/components/datasets/records-toolbar';
+import { useRecordSelection } from '@/components/datasets/use-record-selection';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { Modal } from '@/components/ui/modal';
 import { useAuth } from '@/hooks/identity/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -16,8 +21,6 @@ import {
   useDatasets,
 } from '@/hooks/automation/use-datasets';
 import { ConnectedWorkflowsSection } from '../_components/connected-workflows-section';
-import { ImportCsvModal } from '../_components/import-csv-modal';
-import { RecordsGrid } from '../_components/records-grid';
 import { SchemaBuilder } from '../_components/schema-builder';
 
 const PAGE_SIZE = 50;
@@ -45,17 +48,18 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
   }, [search]);
 
   const { data: records } = useDatasetRecords(id, PAGE_SIZE, page * PAGE_SIZE, search);
-  const {
-    updateFields,
-    clearRecords,
-    createRecord,
-    updateRecord,
-    deleteRecord,
-    importCsv,
-  } = useDatasetMutations();
+  const { updateFields, clearRecords, createRecord, updateRecord, deleteRecords, importCsv } =
+    useDatasetMutations();
+
+  // La selección abarca solo la página visible, así que se vacía al paginar o al buscar.
+  const selection = useRecordSelection(
+    (records?.items ?? []).map((record) => record.id),
+    `${page}|${search}`,
+  );
 
   const [isEditingSchema, setIsEditingSchema] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isDeletingSelected, setIsDeletingSelected] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [clearConfirmName, setClearConfirmName] = useState('');
   const [draftFields, setDraftFields] = useState<DatasetField[]>([]);
@@ -131,6 +135,22 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
     }
   };
 
+  const handleDeleteSelected = async () => {
+    try {
+      // El conteo que se reporta es el del servidor, no el de la selección: si otra pestaña ya
+      // borró una de esas filas, el número honesto es el que volvió.
+      const { deleted } = await deleteRecords.mutateAsync({
+        id,
+        recordIds: selection.selectedVisibleIds,
+      });
+      selection.clear();
+      setIsDeletingSelected(false);
+      toast.success(t('deleteSelectedSuccess', { count: deleted }));
+    } catch {
+      toast.error(t('deleteSelectedError'));
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil((records?.total ?? 0) / PAGE_SIZE));
 
   return (
@@ -164,7 +184,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
               </button>
               <button
                 onClick={() => setIsClearing(true)}
-                className="hover:bg-danger/10 flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-danger-600"
+                className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-danger-600 transition-colors hover:bg-[var(--danger-tint-hover)]"
               >
                 <Eraser size={16} />
                 {t('clearData')}
@@ -225,32 +245,26 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
             </div>
           )}
 
-          <div className="relative max-w-sm">
-            <Search
-              size={16}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
-            />
-            <input
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder={t('searchPlaceholder')}
-              className="w-full rounded-xl border border-border bg-surface py-2 pl-9 pr-3 text-sm text-text-primary outline-none focus:border-accent"
-            />
-          </div>
+          <RecordsToolbar
+            search={searchInput}
+            onSearchChange={setSearchInput}
+            selectedCount={selection.selectedVisibleIds.length}
+            onDeleteSelected={() => setIsDeletingSelected(true)}
+            onClearSelection={selection.clear}
+            canDelete={canEdit}
+          />
 
           <RecordsGrid
             fields={dataset.fields}
             records={records?.items ?? []}
             readOnly={!canEdit}
             createDisabledReason={atRowLimit ? t('writesBlocked') : undefined}
+            selection={canEdit ? selection : undefined}
             onCreate={async (data) => {
               await createRecord.mutateAsync({ id, data });
             }}
             onUpdate={async (recordId, data) => {
               await updateRecord.mutateAsync({ id, recordId, data });
-            }}
-            onDelete={async (recordId) => {
-              await deleteRecord.mutateAsync({ id, recordId });
             }}
           />
         </section>
@@ -269,7 +283,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
           <SchemaBuilder fields={draftFields} onChange={setDraftFields} savedFields={dataset.fields} />
 
           {overwriteConfirmed && columnsLosingManualValues.length > 0 && (
-            <div className="bg-warning/10 rounded-xl px-4 py-3 text-sm text-warning-600">
+            <div className="rounded-xl bg-[var(--badge-warning-bg-solid)] px-4 py-3 text-sm text-[var(--badge-warning-text-solid)]">
               {t('formulaOverwriteWarning', {
                 columns: columnsLosingManualValues.join(', '),
                 count: dataset.recordCount,
@@ -278,7 +292,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
           )}
 
           {schemaError && (
-            <div className="bg-danger/10 rounded-xl px-4 py-3 text-sm text-danger-600">
+            <div className="rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] px-4 py-3 text-sm text-[var(--danger-text-adaptive)]">
               {schemaError}
             </div>
           )}
@@ -307,7 +321,21 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
         isOpen={isImporting}
         onClose={() => setIsImporting(false)}
         fields={dataset.fields}
-        onImport={(csv) => importCsv.mutateAsync({ id, csv })}
+        onImport={({ csv, fileName }) => importCsv.mutateAsync({ id, csv, fileName })}
+      />
+
+      <ConfirmModal
+        isOpen={isDeletingSelected}
+        onClose={() => setIsDeletingSelected(false)}
+        onConfirm={handleDeleteSelected}
+        title={t('deleteSelectedTitle')}
+        message={t('deleteSelectedBody', {
+          count: selection.selectedVisibleIds.length,
+          name: dataset.name,
+        })}
+        confirmLabel={t('deleteSelected')}
+        cancelLabel={t('cancel')}
+        variant="danger"
       />
 
       <Modal isOpen={isClearing} onClose={closeClear} title={t('clearDataTitle')}>

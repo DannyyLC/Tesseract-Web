@@ -25,7 +25,7 @@ import { Logger } from 'winston';
 import { EmailService } from '@/messaging/notifications/email/email.service';
 import { maskEmail } from '@/platform/common/utils/mask-email';
 import { PrismaService } from '../../../platform/database/prisma.service';
-import { parseCsv } from './csv.util';
+import { looksLikeCsvText, matchCsvHeader, parseCsv } from './csv.util';
 import { DatasetQueryService } from './dataset-query.service';
 import {
   ComputePlan,
@@ -951,6 +951,30 @@ export class DatasetsService {
   }
 
   /**
+   * Borra las filas seleccionadas en la rejilla.
+   *
+   * A diferencia de `deleteRecord`, **no falla si alguna ya no está**. Que el conteo no cuadre es
+   * lo normal cuando hay dos pestañas abiertas o alguien más borró esa fila primero, y no es un
+   * error de quien pidió el borrado: con un `NotFound` la UI mostraría un fallo justo después de
+   * haber borrado filas de verdad. Se devuelve lo que se borró y el front reporta ese número.
+   *
+   * El `datasetId` del `where` es lo que impide borrar filas de otro catálogo mandando ids ajenos.
+   */
+  async deleteRecords(
+    organizationId: string,
+    datasetId: string,
+    recordIds: string[],
+  ): Promise<{ deleted: number }> {
+    await this.loadOwned(organizationId, datasetId);
+
+    const { count } = await this.prismaService.datasetRecord.deleteMany({
+      where: { id: { in: recordIds }, datasetId },
+    });
+
+    return { deleted: count };
+  }
+
+  /**
    * Borra todas las filas del dataset. El dataset y su schema se conservan —a diferencia de
    * `remove()`, que da de baja el catálogo entero— así que sigue enlazado a sus workflows y listo
    * para recibir una captura o importación nueva.
@@ -981,6 +1005,16 @@ export class DatasetsService {
   ): Promise<DatasetImportResultDto> {
     const dataset = await this.loadOwned(organizationId, datasetId);
     const fields = liveFields(dataset.fields as unknown as DatasetField[]);
+
+    // Antes de parsear: un .xlsx llega como el mojibake de leer un zip en UTF-8 y, sin este corte,
+    // recorrería toda la importación para morir en "ninguna columna coincide" — un mensaje que
+    // manda a revisar los encabezados cuando el problema es el formato del archivo.
+    if (!looksLikeCsvText(csv)) {
+      throw new BadRequestException(
+        'El archivo no parece un CSV de texto. Guárdalo como CSV (UTF-8) desde Excel o Google Sheets.',
+      );
+    }
+
     const rows = parseCsv(csv);
 
     if (rows.length < 2) {
@@ -998,24 +1032,14 @@ export class DatasetsService {
       );
     }
 
-    // Las columnas calculadas no se mapean: su valor sale de la fórmula, así que si el archivo trae
-    // una, se ignora. Tienen que quedar fuera también del chequeo de más abajo, o un CSV cuyas
-    // únicas coincidencias fueran calculadas pasaría el filtro e importaría filas vacías.
-    const capturable = fields.filter((field) => !field.formula);
+    // El mapeo de encabezados es el mismo que corre el navegador al elegir el archivo (vive en
+    // `@tesseract/types`), así que el aviso previo y lo que aquí se importa no pueden discrepar.
+    const match = matchCsvHeader(fields, header);
+    const { columns } = match;
 
-    // El encabezado puede venir con la `key` o con el nombre visible de la columna: pedirle al
-    // cliente que conozca las keys internas sería absurdo cuando la UI se las esconde.
-    const byHeader = new Map<string, DatasetField>();
-    for (const field of capturable) {
-      byHeader.set(field.key.toLowerCase(), field);
-      byHeader.set(field.label.toLowerCase(), field);
-    }
-
-    const columns = header.map((name) => byHeader.get(name.trim().toLowerCase()) ?? null);
-
-    if (columns.every((column) => column === null)) {
+    if (match.recognized.length === 0) {
       throw new BadRequestException(
-        `Ninguna columna del archivo coincide con el dataset. Se esperaba alguna de: ${capturable
+        `Ninguna columna del archivo coincide con el dataset. Se esperaba alguna de: ${match.missingFields
           .map((field) => field.label)
           .join(', ')}`,
       );
@@ -1065,6 +1089,7 @@ export class DatasetsService {
       // Un archivo mal mapeado genera un error por fila; mostrar las primeras basta para
       // entender qué se rompió sin devolver 5000 mensajes iguales.
       errors: errors.slice(0, 50),
+      ignoredColumns: match.unknownHeaders,
     };
   }
 }

@@ -218,4 +218,11 @@ export interface DatasetImportResultDto {
   imported: number;
   failed: number;
   errors: DatasetImportRowError[];
+  /**
+   * Encabezados del archivo que no corresponden a ninguna columna del catálogo y se descartaron.
+   *
+   * Se reportan porque ignorarlos en silencio es justo lo que hace que una importación "exitosa"
+   * deje una columna entera vacía sin que nadie se entere hasta semanas después.
+   */
+  ignoredColumns?: string[];
 }

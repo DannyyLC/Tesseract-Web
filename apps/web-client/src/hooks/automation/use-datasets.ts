@@ -127,8 +127,20 @@ export function useDatasetMutations() {
     },
   });
 
+  const deleteRecords = useMutation({
+    mutationFn: async ({ id, recordIds }: { id: string; recordIds: string[] }) =>
+      api().deleteRecords(id, recordIds),
+    onSuccess: (_result, variables) => {
+      invalidateRecords(variables.id);
+      // El consumo de filas sale del listado, no del detalle: sin esto el banner de uso se queda
+      // marcando las filas que se acaban de borrar.
+      invalidateList();
+    },
+  });
+
   const importCsv = useMutation({
-    mutationFn: async ({ id, csv }: { id: string; csv: string }) => api().importCsv(id, csv),
+    mutationFn: async ({ id, csv, fileName }: { id: string; csv: string; fileName?: string }) =>
+      api().importCsv(id, csv, fileName),
     onSuccess: (_result, variables) => {
       invalidateRecords(variables.id);
       invalidateList();
@@ -173,6 +185,7 @@ export function useDatasetMutations() {
     createRecord,
     updateRecord,
     deleteRecord,
+    deleteRecords,
     importCsv,
     linkWorkflow,
     unlinkWorkflow,

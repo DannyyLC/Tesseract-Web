@@ -194,6 +194,20 @@ class DatasetsApi {
     return result.data.success;
   }
 
+  /**
+   * POST /datasets/:id/records/bulk-delete — borra las filas seleccionadas en la rejilla.
+   *
+   * POST y no DELETE: los ids viajan en el body, y `DELETE /records/:recordId` ya ocupa esa forma
+   * de URL.
+   */
+  public async deleteRecords(id: string, recordIds: string[]): Promise<{ deleted: number }> {
+    const result = await this.apiRequestManager.post<ApiResponse<{ deleted: number }>>(
+      `${DatasetsApi.BASE_URL}/${id}/records/bulk-delete`,
+      { recordIds },
+    );
+    return result.data.data ?? { deleted: 0 };
+  }
+
   /** DELETE /datasets/:id/records — borra todas las filas, el catálogo y sus columnas quedan igual. */
   public async clearRecords(id: string): Promise<{ deleted: number }> {
     const result = await this.apiRequestManager.delete<ApiResponse<{ deleted: number }>>(
@@ -206,12 +220,23 @@ class DatasetsApi {
    * POST /datasets/:id/import
    *
    * El archivo viaja como texto: el navegador lo lee con `FileReader`, así que no hace falta
-   * multipart ni infraestructura de subida en el Gateway.
+   * multipart ni infraestructura de subida en el Gateway. El nombre va aparte solo para que el
+   * Gateway pueda rechazar la extensión equivocada.
+   *
+   * Timeout propio, como `updateFields`: importar el máximo de filas valida una por una, evalúa las
+   * fórmulas y hace un `createMany`, y puede pasarse de los 30s por defecto. Cortar aquí no cancela
+   * la transacción del servidor, así que el usuario vería un error sobre filas que **sí** se
+   * guardaron y al reintentar las duplicaría.
    */
-  public async importCsv(id: string, csv: string): Promise<DatasetImportResultDto | null> {
+  public async importCsv(
+    id: string,
+    csv: string,
+    fileName?: string,
+  ): Promise<DatasetImportResultDto | null> {
     const result = await this.apiRequestManager.post<ApiResponse<DatasetImportResultDto>>(
       `${DatasetsApi.BASE_URL}/${id}/import`,
-      { csv },
+      { csv, ...(fileName ? { fileName } : {}) },
+      { timeout: 300_000 },
     );
     return result.data.data ?? null;
   }

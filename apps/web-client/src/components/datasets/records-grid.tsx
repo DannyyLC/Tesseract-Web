@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check, Plus, Sigma, Trash2, X } from 'lucide-react';
+import { Check, Plus, Sigma, X } from 'lucide-react';
 import { DatasetField, DatasetRecordDto } from '@tesseract/types';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RecordsSelection } from './use-record-selection';
 
 /**
  * Rejilla de captura generada desde el schema.
@@ -15,6 +17,10 @@ import { DatasetField, DatasetRecordDto } from '@tesseract/types';
  *
  * Una columna con fórmula no se captura: se muestra su valor y ya. El cálculo ocurre en el Gateway
  * al guardar la fila, así que el valor nuevo aparece cuando la fila vuelve del servidor.
+ *
+ * El borrado no vive aquí. Se marcan filas con la casilla de la izquierda y se borran desde la
+ * barra de la página, con confirmación: un botón de papelera por fila borraba al primer clic, sin
+ * red, y obligaba a repetirlo una vez por fila.
  */
 
 interface RecordsGridProps {
@@ -22,14 +28,15 @@ interface RecordsGridProps {
   records: DatasetRecordDto[];
   readOnly?: boolean;
   /**
-   * Cuando viene con texto, deshabilita SOLO el botón de agregar fila (no editar/borrar) y lo usa
-   * como tooltip. Es el límite de filas del plan: las filas que ya existen se siguen pudiendo
-   * editar y borrar libremente, lo único que se bloquea es crecer más.
+   * Cuando viene con texto, deshabilita SOLO el botón de agregar fila (no editar) y lo usa como
+   * tooltip. Es el límite de filas del plan: las filas que ya existen se siguen pudiendo editar y
+   * borrar libremente, lo único que se bloquea es crecer más.
    */
   createDisabledReason?: string;
+  /** Si viene y no es `readOnly`, la rejilla pinta la columna de casillas. */
+  selection?: RecordsSelection;
   onCreate: (data: Record<string, unknown>) => Promise<void>;
   onUpdate: (recordId: string, data: Record<string, unknown>) => Promise<void>;
-  onDelete: (recordId: string) => Promise<void>;
 }
 
 type RowDraft = Record<string, string>;
@@ -60,9 +67,9 @@ export function RecordsGrid({
   records,
   readOnly,
   createDisabledReason,
+  selection,
   onCreate,
   onUpdate,
-  onDelete,
 }: RecordsGridProps) {
   const t = useTranslations('Datasets');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -70,6 +77,8 @@ export function RecordsGrid({
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const selectable = !!selection && !readOnly;
 
   const startEdit = (record: DatasetRecordDto) => {
     setCreating(false);
@@ -133,7 +142,11 @@ export function RecordsGrid({
 
     if (field.type === 'select') {
       return (
-        <select value={value} onChange={(event) => onChange(event.target.value)} className={className}>
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={className}
+        >
           <option value="">—</option>
           {(field.options ?? []).map((option) => (
             <option key={option} value={option}>
@@ -159,7 +172,9 @@ export function RecordsGrid({
   return (
     <div className="space-y-3">
       {error && (
-        <div className="bg-danger/10 rounded-xl px-4 py-3 text-sm text-danger-600">{error}</div>
+        <div className="rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] px-4 py-3 text-sm text-[var(--danger-text-adaptive)]">
+          {error}
+        </div>
       )}
 
       {/* `overflow-x-auto` queda solo como red de seguridad para schemas con muchísimas columnas.
@@ -168,6 +183,19 @@ export function RecordsGrid({
         <table className="w-full text-left text-sm">
           <thead className="bg-[var(--surface-tint)]">
             <tr>
+              {selectable && (
+                <th className="w-px px-4 py-3">
+                  <Checkbox
+                    checked={selection.allVisibleSelected}
+                    indeterminate={selection.someVisibleSelected && !selection.allVisibleSelected}
+                    onChange={selection.toggleAllVisible}
+                    disabled={records.length === 0}
+                    aria-label={t('selectAllRows')}
+                    title={t('selectionPageOnlyHint')}
+                  />
+                </th>
+              )}
+
               {fields.map((field) => (
                 <th
                   key={field.key}
@@ -192,6 +220,19 @@ export function RecordsGrid({
           <tbody>
             {records.map((record) => (
               <tr key={record.id} className="border-t border-border">
+                {selectable && (
+                  <td className="w-px px-4 py-2 align-middle">
+                    <Checkbox
+                      checked={selection.selectedIds.has(record.id)}
+                      onChange={() => selection.toggle(record.id)}
+                      // La fila abierta en el editor tiene cambios sin guardar: marcarla para
+                      // borrarla en lote es pedir dos cosas contradictorias a la vez.
+                      disabled={isEditingRow(record.id)}
+                      aria-label={t('selectRow')}
+                    />
+                  </td>
+                )}
+
                 {fields.map((field) => {
                   const value =
                     record.data?.[field.key] != null && record.data[field.key] !== ''
@@ -218,7 +259,7 @@ export function RecordsGrid({
                         <button
                           onClick={save}
                           disabled={saving}
-                          className="rounded-lg p-1.5 text-success-600 hover:bg-success-50 disabled:opacity-50"
+                          className="rounded-lg p-1.5 text-success-600 hover:bg-[var(--success-tint-hover)] disabled:opacity-50"
                           aria-label={t('save')}
                         >
                           <Check size={16} />
@@ -232,21 +273,12 @@ export function RecordsGrid({
                         </button>
                       </div>
                     ) : (
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => startEdit(record)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-text-secondary hover:bg-[var(--surface-tint)]"
-                        >
-                          {t('edit')}
-                        </button>
-                        <button
-                          onClick={() => onDelete(record.id)}
-                          className="hover:bg-danger/10 rounded-lg p-1.5 text-text-tertiary hover:text-danger"
-                          aria-label={t('delete')}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => startEdit(record)}
+                        className="rounded-lg px-2 py-1 text-xs font-medium text-text-secondary hover:bg-[var(--surface-tint)]"
+                      >
+                        {t('edit')}
+                      </button>
                     )}
                   </td>
                 )}
@@ -255,6 +287,10 @@ export function RecordsGrid({
 
             {creating && (
               <tr className="border-t border-border bg-[var(--surface-tint)]">
+                {/* Sin esta celda líder la fila nueva sale corrida una columna respecto al
+                    encabezado y los editores no caen bajo su propia columna. */}
+                {selectable && <td className="w-px px-4 py-2" />}
+
                 {fields.map((field) => (
                   <td key={field.key} className="px-4 py-2">
                     {renderEditor(field)}
@@ -265,7 +301,7 @@ export function RecordsGrid({
                     <button
                       onClick={save}
                       disabled={saving}
-                      className="rounded-lg p-1.5 text-success-600 hover:bg-success-50 disabled:opacity-50"
+                      className="rounded-lg p-1.5 text-success-600 hover:bg-[var(--success-tint-hover)] disabled:opacity-50"
                       aria-label={t('save')}
                     >
                       <Check size={16} />
@@ -285,7 +321,7 @@ export function RecordsGrid({
             {records.length === 0 && !creating && (
               <tr>
                 <td
-                  colSpan={fields.length + (readOnly ? 0 : 1)}
+                  colSpan={fields.length + (selectable ? 1 : 0) + (readOnly ? 0 : 1)}
                   className="px-4 py-10 text-center text-sm text-text-tertiary"
                 >
                   {t('noRecords')}

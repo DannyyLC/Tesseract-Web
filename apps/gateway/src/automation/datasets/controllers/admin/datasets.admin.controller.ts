@@ -9,6 +9,7 @@ import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { DatasetsService } from '../../core/datasets.service';
 import { DatasetFieldsDto } from '../../dto/dataset-field.dto';
 import {
+  BulkDeleteDatasetRecordsDto,
   CreateDatasetDto,
   ImportDatasetCsvDto,
   ListDatasetRecordsQueryDto,
@@ -181,6 +182,21 @@ export class DatasetsAdminController {
   ): Promise<ApiResponse> {
     await this.datasetsService.deleteRecord(organizationId, id, recordId);
     return new ApiResponseBuilder().setMessage('Fila eliminada').build();
+  }
+
+  /**
+   * `POST` y no `DELETE`: el borrado en lote manda la lista de ids en el body, y
+   * `DELETE :id/records/:recordId` capturaría un `DELETE :id/records/bulk` con `recordId = 'bulk'`.
+   */
+  @Post(':id/records/bulk-delete')
+  @ApiOperation({ summary: 'Eliminar varias filas por id' })
+  async deleteRecords(
+    @Param('organizationId') organizationId: string,
+    @Param('id') id: string,
+    @Body() body: BulkDeleteDatasetRecordsDto,
+  ): Promise<ApiResponse> {
+    const result = await this.datasetsService.deleteRecords(organizationId, id, body.recordIds);
+    return new ApiResponseBuilder().setData(result).setMessage('Filas eliminadas').build();
   }
 
   @Delete(':id/records')

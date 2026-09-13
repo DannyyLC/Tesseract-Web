@@ -42,7 +42,12 @@ describe('DatasetsService', () => {
 
   const mockPrismaService: any = {
     dataset: { findFirst: jest.fn(), update: jest.fn() },
-    datasetRecord: { count: jest.fn(), createMany: jest.fn(), findMany: jest.fn() },
+    datasetRecord: {
+      count: jest.fn(),
+      createMany: jest.fn(),
+      findMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
     organization: { findUnique: jest.fn() },
     tenantTool: { findMany: jest.fn(), update: jest.fn() },
     $transaction: jest.fn(),
@@ -315,6 +320,71 @@ describe('DatasetsService', () => {
         data: [
           { datasetId: DATASET_ID, data: { precio_base: 100, porcentaje: 10, precio_final: 110 } },
         ],
+      });
+    });
+
+    it('acepta el encabezado con otras mayúsculas y espacios en el borde', async () => {
+      mockPrismaService.dataset.findFirst.mockResolvedValue(datasetWith([PRECIO_BASE, PORCENTAJE]));
+
+      const result = await service.importCsv(
+        ORG_ID,
+        DATASET_ID,
+        '  Precio_Base , PORCENTAJE \n100,10',
+      );
+
+      expect(result.imported).toBe(1);
+      expect(result.ignoredColumns).toEqual([]);
+    });
+
+    it('reporta la columna que no coincide en vez de descartarla en silencio', async () => {
+      mockPrismaService.dataset.findFirst.mockResolvedValue(datasetWith([PRECIO_BASE, PORCENTAJE]));
+
+      // "precio base" con espacio no es `precio_base`: se ignora, y el cliente tiene que enterarse
+      // o se queda con una importación "exitosa" que dejó la columna vacía.
+      const result = await service.importCsv(
+        ORG_ID,
+        DATASET_ID,
+        'precio base,porcentaje\n100,10',
+      );
+
+      expect(result.imported).toBe(1);
+      expect(result.ignoredColumns).toEqual(['precio base']);
+    });
+
+    it('rechaza un archivo que no es texto plano por su formato, no por sus encabezados', async () => {
+      mockPrismaService.dataset.findFirst.mockResolvedValue(datasetWith([PRECIO_BASE]));
+
+      // Un .xlsx llega como el mojibake de leer un zip. Sin el corte por formato, el mensaje
+      // hablaría de columnas que no coinciden y mandaría a revisar el encabezado equivocado.
+      await expect(
+        service.importCsv(ORG_ID, DATASET_ID, 'PK\x03\x04algo-binario-aqui'),
+      ).rejects.toThrow(/no parece un CSV de texto/);
+    });
+  });
+
+  describe('deleteRecords — borrado en lote', () => {
+    it('acota el borrado al dataset, no solo a los ids recibidos', async () => {
+      mockPrismaService.dataset.findFirst.mockResolvedValue(datasetWith([PRECIO_BASE]));
+      mockPrismaService.datasetRecord.deleteMany.mockResolvedValue({ count: 2 });
+
+      const result = await service.deleteRecords(ORG_ID, DATASET_ID, ['r1', 'r2']);
+
+      // Sin el `datasetId` en el where, mandar ids de otro catálogo de la misma organización
+      // bastaría para borrar sus filas desde esta pantalla.
+      expect(mockPrismaService.datasetRecord.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ['r1', 'r2'] }, datasetId: DATASET_ID },
+      });
+      expect(result).toEqual({ deleted: 2 });
+    });
+
+    it('no falla cuando las filas ya no existen', async () => {
+      mockPrismaService.dataset.findFirst.mockResolvedValue(datasetWith([PRECIO_BASE]));
+      mockPrismaService.datasetRecord.deleteMany.mockResolvedValue({ count: 0 });
+
+      // Otra pestaña ya las borró. Eso no es un error de quien pidió el borrado: devolver 404 aquí
+      // mostraría un fallo en la UI justo después de una operación que hizo lo que debía.
+      await expect(service.deleteRecords(ORG_ID, DATASET_ID, ['r1'])).resolves.toEqual({
+        deleted: 0,
       });
     });
   });

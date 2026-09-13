@@ -9,6 +9,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   Min,
   ValidateNested,
@@ -76,6 +77,31 @@ export class ImportDatasetCsvDto {
       'puede usar las claves o los nombres visibles de las columnas.',
   })
   csv: string;
+
+  /**
+   * Nombre del archivo que eligió el cliente.
+   *
+   * Solo sirve para rechazar el descuido honesto —alguien que subió el `.xlsx`— porque es un dato
+   * que el propio cliente manda. La comprobación que de verdad protege al servidor es
+   * `looksLikeCsvText()` sobre el contenido, en `importCsv`.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  @Matches(/\.csv$/i, { message: 'El archivo debe tener extensión .csv' })
+  @ApiPropertyOptional({ description: 'Nombre del archivo elegido, para validar su extensión' })
+  fileName?: string;
+}
+
+export class BulkDeleteDatasetRecordsDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  // La selección de la rejilla abarca solo la página visible, hoy de 50 filas. El tope deja holgura
+  // de sobra sin dejar que la lista crezca sin límite.
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  @ApiProperty({ type: [String], description: 'IDs de las filas seleccionadas para eliminar' })
+  recordIds: string[];
 }
 
 export class RequestWorkflowConnectionDto {

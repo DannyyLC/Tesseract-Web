@@ -1,9 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Eraser, FileUp, Loader2, Search, Settings2, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { ArrowLeft, Eraser, FileUp, Loader2, Settings2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { DatasetField } from '@tesseract/types';
+import { ImportCsvModal } from '@/components/datasets/import-csv-modal';
+import { RecordsGrid } from '@/components/datasets/records-grid';
+import { RecordsToolbar } from '@/components/datasets/records-toolbar';
+import { useRecordSelection } from '@/components/datasets/use-record-selection';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -21,8 +27,6 @@ const ROW_LIMIT_REACHED_REASON =
   'Alcanzaste el límite de filas: tus datos siguen intactos y tu agente los sigue consultando, ' +
   'pero no puedes agregar más hasta liberar espacio o subir de plan.';
 import { ConnectedWorkflowsSection } from './connected-workflows-section';
-import { ImportCsvModal } from './import-csv-modal';
-import { RecordsGrid } from './records-grid';
 import { SchemaBuilder } from './schema-builder';
 
 const PAGE_SIZE = 50;
@@ -38,6 +42,9 @@ interface DatasetDetailProps {
  * workflows conectados. Clon admin de `(dashboard)/datasets/[id]/page.tsx`.
  */
 export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDetailProps) {
+  // El resto del archivo va en español duro, pero la rejilla y el modal de import ahora son los
+  // mismos componentes que usa el cliente y traen sus textos de aquí.
+  const t = useTranslations('Datasets');
   const { data: dataset, isLoading } = useAdminDataset(organizationId, datasetId);
   // El límite de filas es por organización, no por catálogo: se pide de la misma lista que ya
   // usa la pantalla de "Catálogos" en vez de exponer un endpoint nuevo solo para esto.
@@ -60,11 +67,24 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
     page * PAGE_SIZE,
     search,
   );
-  const { updateFields, deleteDataset, clearRecords, createRecord, updateRecord, deleteRecord, importCsv } =
-    useAdminDatasetMutations();
+  const {
+    updateFields,
+    deleteDataset,
+    clearRecords,
+    createRecord,
+    updateRecord,
+    deleteRecords,
+    importCsv,
+  } = useAdminDatasetMutations();
+
+  const selection = useRecordSelection(
+    (records?.items ?? []).map((record) => record.id),
+    `${page}|${search}`,
+  );
 
   const [isEditingSchema, setIsEditingSchema] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isDeletingSelected, setIsDeletingSelected] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [isClearing, setIsClearing] = useState(false);
@@ -126,6 +146,21 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
       onBack();
     } catch {
       toast.error('No se pudo eliminar el catálogo');
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    try {
+      const { deleted } = await deleteRecords.mutateAsync({
+        organizationId,
+        id: datasetId,
+        recordIds: selection.selectedVisibleIds,
+      });
+      selection.clear();
+      setIsDeletingSelected(false);
+      toast.success(t('deleteSelectedSuccess', { count: deleted }));
+    } catch {
+      toast.error(t('deleteSelectedError'));
     }
   };
 
@@ -231,31 +266,25 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
           </div>
         )}
 
-        <div className="relative max-w-sm">
-          <Search
-            size={14}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
-          />
-          <input
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Buscar en todas las columnas de texto..."
-            className={`${inputClass} pl-9`}
-          />
-        </div>
+        <RecordsToolbar
+          search={searchInput}
+          onSearchChange={setSearchInput}
+          selectedCount={selection.selectedVisibleIds.length}
+          onDeleteSelected={() => setIsDeletingSelected(true)}
+          onClearSelection={selection.clear}
+          canDelete
+        />
 
         <RecordsGrid
           fields={dataset.fields}
           records={records?.items ?? []}
           createDisabledReason={atRowLimit ? ROW_LIMIT_REACHED_REASON : undefined}
+          selection={selection}
           onCreate={async (data) => {
             await createRecord.mutateAsync({ organizationId, id: datasetId, data });
           }}
           onUpdate={async (recordId, data) => {
             await updateRecord.mutateAsync({ organizationId, id: datasetId, recordId, data });
-          }}
-          onDelete={async (recordId) => {
-            await deleteRecord.mutateAsync({ organizationId, id: datasetId, recordId });
           }}
         />
       </section>
@@ -293,7 +322,23 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
         isOpen={isImporting}
         onClose={() => setIsImporting(false)}
         fields={dataset.fields}
-        onImport={(csv) => importCsv.mutateAsync({ organizationId, id: datasetId, csv })}
+        onImport={({ csv, fileName }) =>
+          importCsv.mutateAsync({ organizationId, id: datasetId, csv, fileName })
+        }
+      />
+
+      <ConfirmModal
+        isOpen={isDeletingSelected}
+        onClose={() => setIsDeletingSelected(false)}
+        onConfirm={handleDeleteSelected}
+        title={t('deleteSelectedTitle')}
+        message={t('deleteSelectedBody', {
+          count: selection.selectedVisibleIds.length,
+          name: dataset.name,
+        })}
+        confirmLabel={t('deleteSelected')}
+        cancelLabel={t('cancel')}
+        variant="danger"
       />
 
       <Modal isOpen={isDeleting} onClose={closeDelete} title="Eliminar catálogo">
