@@ -183,6 +183,18 @@ export class DatasetsAdminController {
     return new ApiResponseBuilder().setMessage('Fila eliminada').build();
   }
 
+  @Delete(':id/records')
+  @ApiOperation({
+    summary: 'Vaciar un catálogo: borra todas sus filas, conserva el catálogo y sus columnas',
+  })
+  async clearRecords(
+    @Param('organizationId') organizationId: string,
+    @Param('id') id: string,
+  ): Promise<ApiResponse> {
+    const result = await this.datasetsService.clearRecords(organizationId, id);
+    return new ApiResponseBuilder().setData(result).setMessage('Filas eliminadas').build();
+  }
+
   @Post(':id/import')
   @ApiOperation({ summary: 'Importar filas desde CSV' })
   async importCsv(

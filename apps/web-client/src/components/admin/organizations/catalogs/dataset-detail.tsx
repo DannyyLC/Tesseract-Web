@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, FileUp, Loader2, Search, Settings2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Eraser, FileUp, Loader2, Search, Settings2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { DatasetField } from '@tesseract/types';
 import { LogoLoader } from '@/components/ui/logo-loader';
@@ -60,13 +60,15 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
     page * PAGE_SIZE,
     search,
   );
-  const { updateFields, deleteDataset, createRecord, updateRecord, deleteRecord, importCsv } =
+  const { updateFields, deleteDataset, clearRecords, createRecord, updateRecord, deleteRecord, importCsv } =
     useAdminDatasetMutations();
 
   const [isEditingSchema, setIsEditingSchema] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
+  const [isClearing, setIsClearing] = useState(false);
+  const [clearConfirmName, setClearConfirmName] = useState('');
   const [draftFields, setDraftFields] = useState<DatasetField[]>([]);
   const [schemaError, setSchemaError] = useState<string | null>(null);
   const [overwriteConfirmed, setOverwriteConfirmed] = useState(false);
@@ -127,6 +129,23 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
     }
   };
 
+  const closeClear = () => {
+    setIsClearing(false);
+    setClearConfirmName('');
+  };
+
+  const canClear = clearConfirmName.trim() === dataset.name.trim();
+
+  const handleClear = async () => {
+    if (!canClear) return;
+    try {
+      await clearRecords.mutateAsync({ organizationId, id: datasetId });
+      closeClear();
+    } catch {
+      toast.error('No se pudieron eliminar los datos del catálogo');
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil((records?.total ?? 0) / PAGE_SIZE));
 
   return (
@@ -154,6 +173,12 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
             title={atRowLimit ? ROW_LIMIT_REACHED_REASON : undefined}
           >
             <FileUp size={14} /> Importar
+          </button>
+          <button
+            onClick={() => setIsClearing(true)}
+            className="hover:bg-danger/10 flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-danger-600"
+          >
+            <Eraser size={14} /> Vaciar datos
           </button>
           <button
             onClick={() => setIsDeleting(true)}
@@ -294,6 +319,35 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
             >
               {deleteDataset.isPending && <Loader2 size={16} className="animate-spin" />}
               {deleteDataset.isPending ? 'Eliminando…' : 'Eliminar'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isClearing} onClose={closeClear} title="Vaciar datos">
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            Se eliminarán las {records?.total ?? 0} filas de "{dataset.name}". El catálogo y sus columnas se
+            conservan. Para confirmar, escribe su nombre.
+          </p>
+          <input
+            value={clearConfirmName}
+            onChange={(e) => setClearConfirmName(e.target.value)}
+            autoComplete="off"
+            className={inputClass}
+            placeholder={dataset.name}
+          />
+          <div className="flex justify-end gap-2">
+            <button className={btnGhost} onClick={closeClear}>
+              Cancelar
+            </button>
+            <button
+              onClick={handleClear}
+              disabled={!canClear || clearRecords.isPending}
+              className="flex items-center gap-2 rounded-lg bg-danger-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {clearRecords.isPending && <Loader2 size={16} className="animate-spin" />}
+              {clearRecords.isPending ? 'Vaciando…' : 'Vaciar datos'}
             </button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { NotificationsModule } from '@/messaging/notifications/notifications.module';
 import { DatasetsAdminController } from './controllers/admin/datasets.admin.controller';
 import { DatasetQueryController } from './controllers/internal/dataset-query.controller';
 import { DatasetsController } from './controllers/user-ui/datasets.controller';
@@ -14,7 +15,7 @@ import { DatasetsService } from './core/datasets.service';
  * secreto de sesión haría que un token de dataset y uno de usuario fueran intercambiables.
  */
 @Module({
-  imports: [JwtModule.register({})],
+  imports: [JwtModule.register({}), NotificationsModule],
   providers: [DatasetsService, DatasetQueryService, DatasetTokenService, DatasetAccessGuard],
   controllers: [DatasetsController, DatasetQueryController, DatasetsAdminController],
   exports: [DatasetsService, DatasetQueryService, DatasetTokenService],

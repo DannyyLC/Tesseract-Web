@@ -14,11 +14,11 @@ const PAGE_SIZE = 10;
 /** Pausa al teclear antes de consultar. Una petición por pausa, no una por tecla. */
 const SEARCH_DEBOUNCE_MS = 400;
 
-interface ConnectWorkflowModalProps {
+interface RequestWorkflowConnectionModalProps {
   datasetId: string;
   isOpen: boolean;
   onClose: () => void;
-  /** Los ya conectados salen del listado: ofrecerlos sería ofrecer una operación sin efecto. */
+  /** Los ya conectados salen del listado: pedir su conexión otra vez no tendría sentido. */
   connectedIds: string[];
 }
 
@@ -34,14 +34,19 @@ interface ConnectWorkflowModalProps {
  * El servidor devuelve los más **recientes** que contienen el texto, no los más parecidos: ordena
  * por `createdAt` y el filtro es un `contains`. Para un selector alcanza — con tres o cuatro letras
  * el conjunto ya es corto—, pero no esperes que priorice la mejor coincidencia.
+ *
+ * La selección es múltiple y a propósito **no** se limpia al cambiar la búsqueda: el punto de
+ * poder elegir varios es justo poder buscar "facturación", marcar un par, buscar "ventas" y sumar
+ * más sin perder lo ya marcado. Cada fila pinta su propio estado, así que no hay ambigüedad sobre
+ * qué se está mandando aunque lo elegido antes ya no esté a la vista.
  */
 function WorkflowPicker({
   value,
   onChange,
   connectedIds,
 }: {
-  value: string;
-  onChange: (value: string) => void;
+  value: string[];
+  onChange: (value: string[]) => void;
   connectedIds: string[];
 }) {
   const t = useTranslations('Datasets');
@@ -64,13 +69,15 @@ function WorkflowPicker({
     (workflow) => !connected.has(workflow.id),
   );
 
-  // Al cambiar la búsqueda se suelta lo elegido: conservarlo dejaría el botón activo con una
-  // selección que ya no está a la vista, y se conectaría algo distinto de lo que se está mirando.
-  useEffect(() => {
-    onChange('');
-    // `onChange` viene del padre sin memoizar; incluirlo dispararía el efecto en cada render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQuery]);
+  const selectedIds = new Set(value);
+
+  const toggle = (workflowId: string) => {
+    onChange(
+      selectedIds.has(workflowId)
+        ? value.filter((id) => id !== workflowId)
+        : [...value, workflowId],
+    );
+  };
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -88,7 +95,14 @@ function WorkflowPicker({
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-text-primary">{t('workflowLabel')}</label>
+      <div className="flex items-baseline justify-between">
+        <label className="block text-sm font-medium text-text-primary">{t('workflowLabel')}</label>
+        {value.length > 0 && (
+          <span className="text-xs text-text-tertiary">
+            {t('workflowsSelectedCount', { count: value.length })}
+          </span>
+        )}
+      </div>
 
       <div className="relative">
         <Search
@@ -116,21 +130,28 @@ function WorkflowPicker({
           </p>
         ) : (
           workflows.map((workflow) => {
-            const selected = workflow.id === value;
+            const selected = selectedIds.has(workflow.id);
 
             return (
               <button
                 key={workflow.id}
                 type="button"
-                onClick={() => onChange(workflow.id)}
+                onClick={() => toggle(workflow.id)}
+                aria-pressed={selected}
                 className={`flex w-full items-center gap-3 border-b border-border px-3 py-2 text-left transition-colors last:border-b-0 ${
                   selected ? 'bg-[var(--surface-tint)]' : 'hover:bg-surface-secondary'
                 }`}
               >
+                <span
+                  className={`flex size-4 shrink-0 items-center justify-center rounded border ${
+                    selected ? 'border-accent bg-accent' : 'border-border'
+                  }`}
+                >
+                  {selected && <Check size={12} className="text-text-inverse" />}
+                </span>
                 <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
                   {workflow.name}
                 </span>
-                {selected && <Check size={16} className="shrink-0 text-accent" />}
               </button>
             );
           })
@@ -150,37 +171,37 @@ function WorkflowPicker({
   );
 }
 
-export function ConnectWorkflowModal({
+export function RequestWorkflowConnectionModal({
   datasetId,
   isOpen,
   onClose,
   connectedIds,
-}: ConnectWorkflowModalProps) {
+}: RequestWorkflowConnectionModalProps) {
   const t = useTranslations('Datasets');
-  const { linkWorkflow } = useDatasetMutations();
-  const [workflowId, setWorkflowId] = useState('');
+  const { requestWorkflowConnection } = useDatasetMutations();
+  const [workflowIds, setWorkflowIds] = useState<string[]>([]);
 
   const close = () => {
-    setWorkflowId('');
+    setWorkflowIds([]);
     onClose();
   };
 
-  const handleConnect = async () => {
+  const handleRequest = async () => {
     try {
-      await linkWorkflow.mutateAsync({ id: datasetId, workflowId });
+      await requestWorkflowConnection.mutateAsync({ id: datasetId, workflowIds });
       close();
-      toast.success(t('connectSuccess'));
+      toast.success(t('requestConnectionSuccess'));
     } catch {
-      toast.error(t('connectError'));
+      toast.error(t('requestConnectionError'));
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={close} title={t('connectWorkflowTitle')}>
+    <Modal isOpen={isOpen} onClose={close} title={t('requestConnectionTitle')}>
       <div className="space-y-4">
-        <p className="text-sm text-text-secondary">{t('connectWorkflowHint')}</p>
+        <p className="text-sm text-text-secondary">{t('requestConnectionHint')}</p>
 
-        <WorkflowPicker value={workflowId} onChange={setWorkflowId} connectedIds={connectedIds} />
+        <WorkflowPicker value={workflowIds} onChange={setWorkflowIds} connectedIds={connectedIds} />
 
         <div className="flex justify-end gap-2">
           <button
@@ -190,12 +211,12 @@ export function ConnectWorkflowModal({
             {t('cancel')}
           </button>
           <button
-            onClick={handleConnect}
-            disabled={!workflowId || linkWorkflow.isPending}
+            onClick={handleRequest}
+            disabled={workflowIds.length === 0 || requestWorkflowConnection.isPending}
             className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-text-inverse disabled:opacity-50"
           >
-            {linkWorkflow.isPending && <Loader2 size={16} className="animate-spin" />}
-            {linkWorkflow.isPending ? t('connecting') : t('connect')}
+            {requestWorkflowConnection.isPending && <Loader2 size={16} className="animate-spin" />}
+            {requestWorkflowConnection.isPending ? t('requestingConnection') : t('requestConnection')}
           </button>
         </div>
       </div>

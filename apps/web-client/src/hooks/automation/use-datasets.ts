@@ -88,6 +88,14 @@ export function useDatasetMutations() {
     onSuccess: invalidateList,
   });
 
+  const clearRecords = useMutation({
+    mutationFn: async (id: string) => api().clearRecords(id),
+    onSuccess: (_result, id) => {
+      invalidateRecords(id);
+      invalidateList();
+    },
+  });
+
   const createRecord = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) =>
       api().createRecord(id, data),
@@ -145,6 +153,12 @@ export function useDatasetMutations() {
     },
   });
 
+  // No enlaza nada: solo le avisa a soporte. Sin invalidación porque no cambia ningún dato.
+  const requestWorkflowConnection = useMutation({
+    mutationFn: async ({ id, workflowIds }: { id: string; workflowIds: string[] }) =>
+      api().requestWorkflowConnection(id, workflowIds),
+  });
+
   const search = useMutation({
     mutationFn: async ({ id, request }: { id: string; request: DatasetSearchRequest }) =>
       api().search(id, request),
@@ -155,12 +169,14 @@ export function useDatasetMutations() {
     updateDataset,
     updateFields,
     deleteDataset,
+    clearRecords,
     createRecord,
     updateRecord,
     deleteRecord,
     importCsv,
     linkWorkflow,
     unlinkWorkflow,
+    requestWorkflowConnection,
     search,
   };
 }

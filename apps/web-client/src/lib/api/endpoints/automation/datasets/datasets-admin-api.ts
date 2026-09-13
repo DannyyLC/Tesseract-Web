@@ -163,6 +163,14 @@ class DatasetsAdminApi {
     return result.data.success;
   }
 
+  /** DELETE .../:id/records — borra todas las filas, el catálogo y sus columnas quedan igual. */
+  public async clearRecords(organizationId: string, id: string): Promise<{ deleted: number }> {
+    const result = await this.apiRequestManager.delete<ApiResponse<{ deleted: number }>>(
+      `${this.base(organizationId)}/${id}/records`,
+    );
+    return result.data.data ?? { deleted: 0 };
+  }
+
   public async importCsv(
     organizationId: string,
     id: string,

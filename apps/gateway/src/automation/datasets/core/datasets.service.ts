@@ -22,6 +22,8 @@ import {
 import { Prisma, ToolConnectionStatus } from '@tesseract/database';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
+import { EmailService } from '@/messaging/notifications/email/email.service';
+import { maskEmail } from '@/platform/common/utils/mask-email';
 import { PrismaService } from '../../../platform/database/prisma.service';
 import { parseCsv } from './csv.util';
 import { DatasetQueryService } from './dataset-query.service';
@@ -61,11 +63,18 @@ const RECOMPUTE_TRANSACTION_OPTIONS = { timeout: 540_000, maxWait: 10_000 };
 /** `toolName` con el que la tool de datasets vive en `ToolCatalog`. */
 export const DATASET_TOOL_NAME = 'dataset';
 
+/**
+ * Buzón fijo para las solicitudes de conexión workflow↔dataset. No es `SUPPORT_EMAIL_TO`: ese es
+ * el soporte general por env, y esta solicitud tiene su propio destino a propósito.
+ */
+const WORKFLOW_CONNECTION_REQUEST_EMAIL = 'cristobal@fractalops.com.mx';
+
 @Injectable()
 export class DatasetsService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly datasetQueryService: DatasetQueryService,
+    private readonly emailService: EmailService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
@@ -649,10 +658,15 @@ export class DatasetsService {
     });
 
     if (!workflow) {
-      throw new NotFoundException('Workflow no encontrado');
+      throw new NotFoundException('linkWorkflow >> Workflow no encontrado');
     }
 
-    const tenantToolId = await this.ensureTenantTool(organizationId, datasetId, dataset.name, userId);
+    const tenantToolId = await this.ensureTenantTool(
+      organizationId,
+      datasetId,
+      dataset.name,
+      userId,
+    );
 
     await this.prismaService.$transaction([
       this.prismaService.dataset.update({
@@ -699,6 +713,77 @@ export class DatasetsService {
           ]
         : []),
     ]);
+  }
+
+  /**
+   * El cliente ya no conecta el workflow él mismo desde este flujo: solo le avisa a soporte, que
+   * hace el enlace a mano tras confirmar con él qué necesita. El correo va a un buzón propio, no a
+   * `SUPPORT_EMAIL_TO` — es una bandeja dedicada a estas solicitudes.
+   */
+  async requestWorkflowConnection(
+    organizationId: string,
+    datasetId: string,
+    workflowIds: string[],
+    userName: string,
+    userEmail: string,
+  ): Promise<boolean> {
+    const dataset = await this.loadOwned(organizationId, datasetId);
+
+    const workflows = await this.prismaService.workflow.findMany({
+      where: { id: { in: workflowIds }, organizationId, deletedAt: null },
+      select: { id: true, name: true },
+    });
+
+    if (workflows.length === 0) {
+      throw new NotFoundException('requestWorkflowConnection >> Workflow no encontrado');
+    }
+
+    const organization = await this.prismaService.organization.findUnique({
+      where: { id: organizationId },
+      select: { name: true },
+    });
+    const organizationName = organization?.name ?? 'Organización desconocida';
+
+    const now = new Date();
+    const dateString = now.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const dateTime = `${dateString} a las ${now.toLocaleTimeString('es-ES')}`;
+
+    // Uno solo o varios, mismo correo: es justo lo que evita mandar una solicitud por workflow.
+    const workflowsList = workflows
+      .map((workflow) => `- ${workflow.name} (${workflow.id})`)
+      .join('\n');
+    const userMessage =
+      `Catálogo: ${dataset.name} (${datasetId})\n` + `Workflows solicitados:\n${workflowsList}`;
+
+    try {
+      const emailResult = await this.emailService.sendServiceRequestEmail(
+        process.env.SMTP_EMAIL_FROM ?? 'no-reply@fractalops.com.mx',
+        WORKFLOW_CONNECTION_REQUEST_EMAIL,
+        userEmail,
+        userName,
+        'Solicitud de conexión de workflow a catálogo',
+        userMessage,
+        organizationName,
+        organizationId,
+        dateTime,
+      );
+
+      if (!emailResult) {
+        this.logger.error(
+          `Failed to send workflow connection request email for user ${maskEmail(userEmail)}`,
+        );
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      this.logger.error('Error sending workflow connection request email', error);
+      return false;
+    }
   }
 
   // ==========================================
@@ -869,6 +954,21 @@ export class DatasetsService {
     if (deleted.count === 0) {
       throw new NotFoundException('Fila no encontrada');
     }
+  }
+
+  /**
+   * Borra todas las filas del dataset. El dataset y su schema se conservan —a diferencia de
+   * `remove()`, que da de baja el catálogo entero— así que sigue enlazado a sus workflows y listo
+   * para recibir una captura o importación nueva.
+   */
+  async clearRecords(organizationId: string, datasetId: string): Promise<{ deleted: number }> {
+    await this.loadOwned(organizationId, datasetId);
+
+    const { count } = await this.prismaService.datasetRecord.deleteMany({
+      where: { datasetId },
+    });
+
+    return { deleted: count };
   }
 
   /**

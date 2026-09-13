@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { DatasetField } from '@tesseract/types';
 import { Logger } from 'winston';
+import { EmailService } from '@/messaging/notifications/email/email.service';
 import { PrismaService } from '../../../platform/database/prisma.service';
 import { DatasetQueryService } from './dataset-query.service';
 import { DatasetsService } from './datasets.service';
@@ -48,6 +49,7 @@ describe('DatasetsService', () => {
   };
 
   const mockQueryService: any = { search: jest.fn(), fieldValues: jest.fn() };
+  const mockEmailService: any = { sendServiceRequestEmail: jest.fn() };
   const mockLogger: any = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
   let service: DatasetsService;
@@ -87,6 +89,7 @@ describe('DatasetsService', () => {
     service = new DatasetsService(
       mockPrismaService as PrismaService,
       mockQueryService as DatasetQueryService,
+      mockEmailService as EmailService,
       mockLogger as Logger,
     );
   });
@@ -309,7 +312,9 @@ describe('DatasetsService', () => {
 
       expect(result.imported).toBe(1);
       expect(mockPrismaService.datasetRecord.createMany).toHaveBeenCalledWith({
-        data: [{ datasetId: DATASET_ID, data: { precio_base: 100, porcentaje: 10, precio_final: 110 } }],
+        data: [
+          { datasetId: DATASET_ID, data: { precio_base: 100, porcentaje: 10, precio_final: 110 } },
+        ],
       });
     });
   });

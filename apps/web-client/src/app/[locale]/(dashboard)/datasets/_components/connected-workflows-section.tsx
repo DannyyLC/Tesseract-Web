@@ -3,10 +3,9 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Unlink } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { DatasetWorkflowRef } from '@tesseract/types';
-import { ConnectWorkflowModal } from './connect-workflow-modal';
-import { DisconnectWorkflowModal } from './disconnect-workflow-modal';
+import { RequestWorkflowConnectionModal } from './request-workflow-connection-modal';
 
 /**
  * Workflows que consultan el catálogo.
@@ -29,8 +28,7 @@ export function ConnectedWorkflowsSection({
   canEdit,
 }: ConnectedWorkflowsSectionProps) {
   const t = useTranslations('Datasets');
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [workflowToDisconnect, setWorkflowToDisconnect] = useState<DatasetWorkflowRef | null>(null);
+  const [isRequesting, setIsRequesting] = useState(false);
 
   return (
     <section className="space-y-4">
@@ -43,11 +41,11 @@ export function ConnectedWorkflowsSection({
         {canEdit && (
           <button
             type="button"
-            onClick={() => setIsConnecting(true)}
+            onClick={() => setIsRequesting(true)}
             className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-primary transition-all hover:bg-[var(--surface-tint)] active:scale-95"
           >
             <Plus size={14} />
-            {t('connectWorkflow')}
+            {t('requestConnectionButton')}
           </button>
         )}
       </div>
@@ -63,25 +61,11 @@ export function ConnectedWorkflowsSection({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ delay: index * 0.05 }}
-                className="group flex items-center gap-3 rounded-xl border border-transparent p-3 transition-all duration-200 hover:border-border hover:bg-surface-panel hover:shadow-sm"
+                className="flex items-center gap-3 rounded-xl border border-transparent p-3 transition-all duration-200 hover:border-border hover:bg-surface-panel hover:shadow-sm"
               >
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary">
                   {workflow.name}
                 </span>
-
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => setWorkflowToDisconnect(workflow)}
-                    title={t('disconnect')}
-                    aria-label={t('disconnect')}
-                    /* Aparece al pasar el cursor, como en las API Keys, pero se queda visible en
-                       pantallas chicas: sin hover no habría forma de desconectar. */
-                    className="hover:bg-danger/10 shrink-0 rounded-full p-2 text-text-tertiary opacity-100 transition-opacity hover:text-danger focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                  >
-                    <Unlink size={16} />
-                  </button>
-                )}
               </motion.div>
             ))}
           </AnimatePresence>
@@ -90,17 +74,11 @@ export function ConnectedWorkflowsSection({
         )}
       </div>
 
-      <ConnectWorkflowModal
+      <RequestWorkflowConnectionModal
         datasetId={datasetId}
-        isOpen={isConnecting}
-        onClose={() => setIsConnecting(false)}
+        isOpen={isRequesting}
+        onClose={() => setIsRequesting(false)}
         connectedIds={workflows.map((workflow) => workflow.id)}
-      />
-
-      <DisconnectWorkflowModal
-        datasetId={datasetId}
-        workflow={workflowToDisconnect}
-        onClose={() => setWorkflowToDisconnect(null)}
       />
     </section>
   );

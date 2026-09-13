@@ -132,6 +132,18 @@ class DatasetsApi {
     return result.data.success;
   }
 
+  /**
+   * POST /datasets/:id/workflows/request-connection — no enlaza nada, solo avisa a soporte. Acepta
+   * varios workflows para que pedir todos a la vez sea un correo, no uno por workflow.
+   */
+  public async requestWorkflowConnection(id: string, workflowIds: string[]): Promise<boolean> {
+    const result = await this.apiRequestManager.post<ApiResponse<boolean>>(
+      `${DatasetsApi.BASE_URL}/${id}/workflows/request-connection`,
+      { workflowIds },
+    );
+    return result.data.success;
+  }
+
   // ─── Filas ─────────────────────────────────────────────────────────────────
 
   public async listRecords(
@@ -180,6 +192,14 @@ class DatasetsApi {
       `${DatasetsApi.BASE_URL}/${id}/records/${recordId}`,
     );
     return result.data.success;
+  }
+
+  /** DELETE /datasets/:id/records — borra todas las filas, el catálogo y sus columnas quedan igual. */
+  public async clearRecords(id: string): Promise<{ deleted: number }> {
+    const result = await this.apiRequestManager.delete<ApiResponse<{ deleted: number }>>(
+      `${DatasetsApi.BASE_URL}/${id}/records`,
+    );
+    return result.data.data ?? { deleted: 0 };
   }
 
   /**

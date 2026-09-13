@@ -2,10 +2,9 @@
 
 import { use, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { FileUp, Loader2, Search, Settings2, Trash2 } from 'lucide-react';
+import { Eraser, FileUp, Loader2, Search, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { DatasetField } from '@tesseract/types';
-import { useRouter } from '@/i18n/routing';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { Modal } from '@/components/ui/modal';
 import { useAuth } from '@/hooks/identity/use-auth';
@@ -26,7 +25,6 @@ const PAGE_SIZE = 50;
 export default function DatasetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const t = useTranslations('Datasets');
-  const router = useRouter();
 
   const { data: user } = useAuth();
   const canEdit = user?.role === 'OWNER' || user?.role === 'ADMIN';
@@ -49,7 +47,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
   const { data: records } = useDatasetRecords(id, PAGE_SIZE, page * PAGE_SIZE, search);
   const {
     updateFields,
-    deleteDataset,
+    clearRecords,
     createRecord,
     updateRecord,
     deleteRecord,
@@ -58,8 +56,8 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
 
   const [isEditingSchema, setIsEditingSchema] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteConfirmName, setDeleteConfirmName] = useState('');
+  const [isClearing, setIsClearing] = useState(false);
+  const [clearConfirmName, setClearConfirmName] = useState('');
   const [draftFields, setDraftFields] = useState<DatasetField[]>([]);
   const [schemaError, setSchemaError] = useState<string | null>(null);
   const [overwriteConfirmed, setOverwriteConfirmed] = useState(false);
@@ -113,23 +111,23 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
     }
   };
 
-  const closeDelete = () => {
-    setIsDeleting(false);
-    setDeleteConfirmName('');
+  const closeClear = () => {
+    setIsClearing(false);
+    setClearConfirmName('');
   };
 
   // Se comparan sin espacios en el borde —copiar y pegar el nombre suele arrastrarlos— pero
   // respetando mayusculas y acentos: es una confirmacion, no una busqueda.
-  const canDelete = deleteConfirmName.trim() === dataset.name.trim();
+  const canClear = clearConfirmName.trim() === dataset.name.trim();
 
-  const handleDelete = async () => {
-    if (!canDelete) return;
+  const handleClear = async () => {
+    if (!canClear) return;
 
     try {
-      await deleteDataset.mutateAsync(id);
-      router.push('/datasets');
+      await clearRecords.mutateAsync(id);
+      closeClear();
     } catch {
-      toast.error(t('deleteError'));
+      toast.error(t('clearDataError'));
     }
   };
 
@@ -165,11 +163,11 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
                 {t('import')}
               </button>
               <button
-                onClick={() => setIsDeleting(true)}
+                onClick={() => setIsClearing(true)}
                 className="hover:bg-danger/10 flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-danger-600"
               >
-                <Trash2 size={16} />
-                {t('delete')}
+                <Eraser size={16} />
+                {t('clearData')}
               </button>
             </div>
           )}
@@ -312,21 +310,21 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
         onImport={(csv) => importCsv.mutateAsync({ id, csv })}
       />
 
-      <Modal isOpen={isDeleting} onClose={closeDelete} title={t('deleteTitle')}>
+      <Modal isOpen={isClearing} onClose={closeClear} title={t('clearDataTitle')}>
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">
-            {t('deleteBody', { name: dataset.name, count: records?.total ?? 0 })}
+            {t('clearDataBody', { name: dataset.name, count: records?.total ?? 0 })}
           </p>
 
-          {/* Escribir el nombre es la unica barrera real: el catalogo se borra con sus filas, y
-              quien llega aqui por inercia no lo teclea. */}
+          {/* Escribir el nombre es la unica barrera real: las filas se borran sin poder
+              deshacerse, y quien llega aqui por inercia no lo teclea. */}
           <div>
             <label className="mb-1 block text-sm font-medium text-text-secondary">
-              {t('deleteConfirmLabel', { name: dataset.name })}
+              {t('clearDataConfirmLabel', { name: dataset.name })}
             </label>
             <input
-              value={deleteConfirmName}
-              onChange={(event) => setDeleteConfirmName(event.target.value)}
+              value={clearConfirmName}
+              onChange={(event) => setClearConfirmName(event.target.value)}
               autoComplete="off"
               className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
             />
@@ -334,18 +332,18 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
 
           <div className="flex justify-end gap-2">
             <button
-              onClick={closeDelete}
+              onClick={closeClear}
               className="rounded-xl px-4 py-2 text-sm font-medium text-text-secondary hover:bg-[var(--surface-tint)]"
             >
               {t('cancel')}
             </button>
             <button
-              onClick={handleDelete}
-              disabled={!canDelete || deleteDataset.isPending}
+              onClick={handleClear}
+              disabled={!canClear || clearRecords.isPending}
               className="flex items-center gap-2 rounded-xl bg-danger-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
-              {deleteDataset.isPending && <Loader2 size={16} className="animate-spin" />}
-              {deleteDataset.isPending ? t('deleting') : t('delete')}
+              {clearRecords.isPending && <Loader2 size={16} className="animate-spin" />}
+              {clearRecords.isPending ? t('clearingData') : t('clearData')}
             </button>
           </div>
         </div>

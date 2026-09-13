@@ -109,6 +109,15 @@ export function useAdminDatasetMutations() {
     onSuccess: (_result, variables) => invalidateList(variables.organizationId),
   });
 
+  const clearRecords = useMutation({
+    mutationFn: async ({ organizationId, id }: { organizationId: string; id: string }) =>
+      api().clearRecords(organizationId, id),
+    onSuccess: (_result, variables) => {
+      invalidateRecords(variables.organizationId, variables.id);
+      invalidateList(variables.organizationId);
+    },
+  });
+
   const createRecord = useMutation({
     mutationFn: async ({
       organizationId,
@@ -202,6 +211,7 @@ export function useAdminDatasetMutations() {
     updateDataset,
     updateFields,
     deleteDataset,
+    clearRecords,
     createRecord,
     updateRecord,
     deleteRecord,

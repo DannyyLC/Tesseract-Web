@@ -78,6 +78,17 @@ export class ImportDatasetCsvDto {
   csv: string;
 }
 
+export class RequestWorkflowConnectionDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  // Un solo correo alcanza para varias filas: el tope es para no dejar que la lista crezca sin
+  // límite, no porque haga falta uno tan bajo.
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @ApiProperty({ type: [String], description: 'IDs de los workflows cuya conexión se solicita' })
+  workflowIds: string[];
+}
+
 export class ListDatasetRecordsQueryDto {
   @IsOptional()
   @Type(() => Number)

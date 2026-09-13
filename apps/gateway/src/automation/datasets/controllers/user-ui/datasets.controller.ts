@@ -14,6 +14,7 @@ import {
 import { ApiResponseBuilder, DatasetField, UserRole } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
@@ -25,6 +26,7 @@ import {
   CreateDatasetDto,
   ImportDatasetCsvDto,
   ListDatasetRecordsQueryDto,
+  RequestWorkflowConnectionDto,
   UpdateDatasetDto,
   UpsertDatasetRecordDto,
 } from '../../dto/dataset.dto';
@@ -81,11 +83,7 @@ export class DatasetsController {
 
   @Get(':id')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
-  async getById(
-    @CurrentUser() user: UserPayload,
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async getById(@CurrentUser() user: UserPayload, @Param('id') id: string, @Res() res: Response) {
     const dataset = await this.datasetsService.getById(user.organizationId, id);
 
     const apiResponse = new ApiResponseBuilder<typeof dataset>()
@@ -142,11 +140,7 @@ export class DatasetsController {
 
   @Delete(':id')
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  async remove(
-    @CurrentUser() user: UserPayload,
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async remove(@CurrentUser() user: UserPayload, @Param('id') id: string, @Res() res: Response) {
     await this.datasetsService.remove(user.organizationId, id);
 
     const apiResponse = new ApiResponseBuilder<null>()
@@ -154,6 +148,43 @@ export class DatasetsController {
       .setSuccess(true);
 
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  /**
+   * No enlaza nada: le avisa a soporte por correo para que lo haga a mano. Acepta varios IDs para
+   * que pedir la conexión de varios workflows a la vez sea un correo, no uno por workflow — mismo
+   * límite de 1/min que `requestServiceInfoByEmail`, para que no se pueda usar como spam hacia ese
+   * buzón.
+   *
+   * Va **antes** de `linkWorkflow`: Nest resuelve las rutas de un controlador en el orden en que
+   * se declaran, y `:id/workflows/:workflowId` haría match con el segmento literal
+   * `request-connection` (tomándolo como si fuera un `workflowId`) si quedara declarada primero.
+   */
+  @Post(':id/workflows/request-connection')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @Throttle({ default: { limit: 1, ttl: 60000 } })
+  async requestWorkflowConnection(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Body() body: RequestWorkflowConnectionDto,
+    @Res() res: Response,
+  ) {
+    const sent = await this.datasetsService.requestWorkflowConnection(
+      user.organizationId,
+      id,
+      body.workflowIds,
+      user.name,
+      user.email,
+    );
+
+    const apiResponse = new ApiResponseBuilder<boolean>()
+      .setData(sent)
+      .setMessage(sent ? 'Request sent successfully' : 'Could not send the request')
+      .setSuccess(sent);
+
+    return res
+      .status(sent ? HttpStatusCode.Ok : HttpStatusCode.InternalServerError)
+      .json(apiResponse.build());
   }
 
   /**
@@ -277,6 +308,24 @@ export class DatasetsController {
 
     const apiResponse = new ApiResponseBuilder<null>()
       .setMessage('Record deleted successfully')
+      .setSuccess(true);
+
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
+  }
+
+  /** Borra todas las filas del dataset; el catálogo y sus columnas se conservan. */
+  @Delete(':id/records')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async clearRecords(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const result = await this.datasetsService.clearRecords(user.organizationId, id);
+
+    const apiResponse = new ApiResponseBuilder<typeof result>()
+      .setData(result)
+      .setMessage('Dataset records cleared successfully')
       .setSuccess(true);
 
     return res.status(HttpStatusCode.Ok).json(apiResponse.build());
