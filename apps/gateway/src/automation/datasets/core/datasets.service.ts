@@ -63,12 +63,6 @@ const RECOMPUTE_TRANSACTION_OPTIONS = { timeout: 540_000, maxWait: 10_000 };
 /** `toolName` con el que la tool de datasets vive en `ToolCatalog`. */
 export const DATASET_TOOL_NAME = 'dataset';
 
-/**
- * Buzón fijo para las solicitudes de conexión workflow↔dataset. No es `SUPPORT_EMAIL_TO`: ese es
- * el soporte general por env, y esta solicitud tiene su propio destino a propósito.
- */
-const WORKFLOW_CONNECTION_REQUEST_EMAIL = 'cristobal@fractalops.com.mx';
-
 @Injectable()
 export class DatasetsService {
   constructor(
@@ -717,8 +711,8 @@ export class DatasetsService {
 
   /**
    * El cliente ya no conecta el workflow él mismo desde este flujo: solo le avisa a soporte, que
-   * hace el enlace a mano tras confirmar con él qué necesita. El correo va a un buzón propio, no a
-   * `SUPPORT_EMAIL_TO` — es una bandeja dedicada a estas solicitudes.
+   * hace el enlace a mano tras confirmar con él qué necesita. Va a `SUPPORT_EMAIL_TO`, igual que el
+   * resto de las solicitudes internas — no a un buzón propio.
    */
   async requestWorkflowConnection(
     organizationId: string,
@@ -762,7 +756,7 @@ export class DatasetsService {
     try {
       const emailResult = await this.emailService.sendServiceRequestEmail(
         process.env.SMTP_EMAIL_FROM ?? 'no-reply@fractalops.com.mx',
-        WORKFLOW_CONNECTION_REQUEST_EMAIL,
+        process.env.SUPPORT_EMAIL_TO ?? 'support@fractalops.com.mx',
         userEmail,
         userName,
         'Solicitud de conexión de workflow a catálogo',

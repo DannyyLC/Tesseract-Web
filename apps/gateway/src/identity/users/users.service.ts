@@ -856,7 +856,7 @@ export class UsersService {
 
       const emailResult = await this.emailService.sendServiceRequestEmail(
         process.env.SMTP_EMAIL_FROM ?? 'no-reply@fractalops.com.mx',
-        process.env.SUPPORT_EMAIL_TO ?? 'daniel@fractalops.com.mx',
+        process.env.SUPPORT_EMAIL_TO ?? 'support@fractalops.com.mx',
         email,
         userName,
         subject,
