@@ -1,7 +1,8 @@
 import { UpdateConversationDto, ConversationDetailDto } from '../../dto';
 import {
-  DashboardConversationDto,
   ConversationsStatsDto as ConversationStatsDto,
+  DEFAULT_PAGE_SIZE,
+  DashboardConversationDto,
 } from '@tesseract/types';
 import { ConversationsService } from '../../conversations.service';
 import { ConversationChannel } from '@tesseract/database';
@@ -137,7 +138,7 @@ export class ConversationsController {
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
+    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('status') status: string | undefined,
     @Query('isIntervened') isIntervened: string | undefined,

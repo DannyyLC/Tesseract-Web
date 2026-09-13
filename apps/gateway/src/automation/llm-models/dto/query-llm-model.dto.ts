@@ -1,7 +1,8 @@
-import { IsOptional, IsString, IsEnum, IsBoolean } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ModelTier } from '@tesseract/database';
 import { Type } from 'class-transformer';
+import { ADMIN_PAGE_SIZE, MAX_PAGE_SIZE } from '@tesseract/types';
 
 export class QueryLlmModelsDto {
   @ApiPropertyOptional({
@@ -43,14 +44,20 @@ export class QueryLlmModelsDto {
   })
   @IsOptional()
   @Type(() => Number)
+  @IsInt()
+  @Min(1)
   page?: number;
 
   @ApiPropertyOptional({
     description: 'Elementos por página',
-    example: 20,
-    default: 20,
+    example: ADMIN_PAGE_SIZE,
+    default: ADMIN_PAGE_SIZE,
   })
   @IsOptional()
   @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  // Sin techo, un `?limit=100000` convierte el listado en un volcado de la tabla.
+  @Max(MAX_PAGE_SIZE)
   limit?: number;
 }

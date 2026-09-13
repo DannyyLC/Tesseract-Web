@@ -1,4 +1,5 @@
-import { Building2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Building2 } from 'lucide-react';
+import { PagePager } from '@/components/ui/page-pager';
 import { Link } from '@/i18n/routing';
 import type { AdminAnalyticsOrgMarginRow } from '@/lib/api/endpoints/billing/analytics-admin-api';
 import { formatPct, formatUSD } from './format';
@@ -57,27 +58,13 @@ export function OrganizationsMarginTable({ items, page, totalPages, onPageChange
         </ul>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-end gap-2 border-t border-border p-3">
-          <button
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 1}
-            className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <ChevronLeft size={14} /> Anterior
-          </button>
-          <span className="text-xs text-text-secondary">
-            {page} / {totalPages}
-          </span>
-          <button
-            onClick={() => onPageChange(page + 1)}
-            disabled={page >= totalPages}
-            className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Siguiente <ChevronRight size={14} />
-          </button>
-        </div>
-      )}
+      <PagePager
+        page={page}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+        emphasis="plain"
+        className="border-t border-border p-3"
+      />
     </section>
   );
 }

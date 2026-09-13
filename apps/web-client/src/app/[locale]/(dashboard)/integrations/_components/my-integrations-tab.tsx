@@ -27,6 +27,8 @@ interface MyIntegrationsTabProps {
 
 export function MyIntegrationsTab({ onAddTool, onCountChange }: MyIntegrationsTabProps) {
   const t = useTranslations('Integrations');
+  // 12 y no el tamaño estándar: es el lote que llena la cuadrícula de 3 columnas × 4 filas antes
+  // de pedir el siguiente. Sale del layout, así que no usa la constante compartida.
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useInfiniteTenantToolsDashboard({ pageSize: 12 });
 

@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Activity } from 'lucide-react';
+import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
+import { CursorPager } from '@/components/ui/cursor-pager';
 import { useDashboardExecutions } from '@/hooks/automation/use-executions';
 import DashboardExecutionItem from './dashboard-execution-item';
 import { useTranslations } from 'next-intl';
@@ -22,8 +24,6 @@ function periodToDateRange(period: string): { startDate?: Date; endDate?: Date }
   startDate.setDate(startDate.getDate() - days);
   return { startDate, endDate: now };
 }
-
-const PAGE_SIZE = 10;
 
 export default function WorkflowExecutionsTable({
   workflowId,
@@ -47,23 +47,9 @@ export default function WorkflowExecutionsTable({
     workflowId,
     cursor,
     action,
-    pageSize: PAGE_SIZE,
+    pageSize: DEFAULT_PAGE_SIZE,
     ...dateRange,
   });
-
-  const handleNext = () => {
-    if (data?.nextCursor) {
-      setCursor(data.nextCursor);
-      setAction('next');
-    }
-  };
-
-  const handlePrev = () => {
-    if (data?.prevCursor) {
-      setCursor(data.prevCursor);
-      setAction('prev');
-    }
-  };
 
   if (isLoading) {
     return (
@@ -92,26 +78,17 @@ export default function WorkflowExecutionsTable({
         <DashboardExecutionItem key={execution.id} execution={execution} />
       ))}
 
-      {(data?.nextPageAvailable || cursor) && (
-        <div className="flex items-center justify-end gap-2 pt-2">
-          <button
-            onClick={handlePrev}
-            disabled={!data?.prevCursor}
-            className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary transition-all hover:bg-[var(--surface-tint)] hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <ChevronLeft size={14} />
-            {t('executionsPrev')}
-          </button>
-          <button
-            onClick={handleNext}
-            disabled={!data?.nextPageAvailable}
-            className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary transition-all hover:bg-[var(--surface-tint)] hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {t('executionsNext')}
-            <ChevronRight size={14} />
-          </button>
-        </div>
-      )}
+      <CursorPager
+        prevCursor={data?.prevCursor ?? null}
+        nextCursor={data?.nextCursor ?? null}
+        nextPageAvailable={data?.nextPageAvailable ?? false}
+        prevLabel={t('executionsPrev')}
+        nextLabel={t('executionsNext')}
+        onNavigate={(nextCursor, nextAction) => {
+          setCursor(nextCursor);
+          setAction(nextAction);
+        }}
+      />
     </div>
   );
 }

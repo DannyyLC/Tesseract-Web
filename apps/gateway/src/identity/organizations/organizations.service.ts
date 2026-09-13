@@ -6,13 +6,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  ADMIN_PAGE_SIZE,
+  ErrorStrings,
+  NOTIFICATIONSENUM,
+  OPERATIONS,
   PLANS,
   SubscriptionPlan,
-  getPlanLimits,
   SubscriptionPlan as SharedSubscriptionPlan,
-  NOTIFICATIONSENUM,
-  ErrorStrings,
-  OPERATIONS,
+  getPlanLimits,
 } from '@tesseract/types';
 import { Organization, SubscriptionStatus, UserRole } from '@tesseract/database';
 import { randomBytes } from 'crypto';
@@ -97,7 +98,7 @@ export class OrganizationsService {
    * Devuelve lo mínimo para poblar un selector; el detalle se pide con findOne().
    */
   async findAllForAdmin(query: QueryOrganizationsAdminDto) {
-    const { search, isActive, page = 1, limit = 20 } = query;
+    const { search, isActive, page = 1, limit = ADMIN_PAGE_SIZE } = query;
     const skip = (page - 1) * limit;
 
     const where = {

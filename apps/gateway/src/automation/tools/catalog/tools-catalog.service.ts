@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
-import { PaginatedResponse, GetToolsDto } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, GetToolsDto, PaginatedResponse } from '@tesseract/types';
 import { Prisma } from '@tesseract/database';
 
 @Injectable()
@@ -10,7 +10,7 @@ export class ToolsCatalogService {
 
   async getAllToolsWithFunctions(
     cursor?: string | null,
-    take = 10,
+    take = DEFAULT_PAGE_SIZE,
     paginationAction: 'next' | 'prev' | null = null,
     filters?: {
       search?: string;

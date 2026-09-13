@@ -1,10 +1,5 @@
 import ApiRequestManager from '../../../api-request-manager';
-import {
-  DashboardUserDataDto,
-  UpdateUserDto,
-  ApiResponse,
-  CursorPaginatedResponse,
-} from '@tesseract/types';
+import { DashboardUserDataDto, UpdateUserDto, ApiResponse, PaginatedResponse } from '@tesseract/types';
 
 class UsersApi {
   public apiRequestManager: ApiRequestManager;
@@ -26,7 +21,7 @@ class UsersApi {
       role?: string;
       isActive?: boolean;
     } = {},
-  ): Promise<CursorPaginatedResponse<DashboardUserDataDto>> {
+  ): Promise<PaginatedResponse<DashboardUserDataDto>> {
     const queryParams = new URLSearchParams();
     if (params.cursor) queryParams.append('cursor', params.cursor);
     if (params.pageSize) queryParams.append('pageSize', params.pageSize.toString());
@@ -39,7 +34,7 @@ class UsersApi {
     const url = `${UsersApi.BASE_URL}/dashboard${queryString ? `?${queryString}` : ''}`;
 
     const result =
-      await this.apiRequestManager.get<ApiResponse<CursorPaginatedResponse<DashboardUserDataDto>>>(
+      await this.apiRequestManager.get<ApiResponse<PaginatedResponse<DashboardUserDataDto>>>(
         url,
       );
     return result.data.data!;

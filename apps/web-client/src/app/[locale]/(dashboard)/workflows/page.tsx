@@ -9,7 +9,8 @@ import { Search, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDashboardWorkflows, useWorkflowStats } from '@/hooks/automation/use-workflows';
 import { useSupportMutations } from '@/hooks/platform/use-support';
-import { WorkflowCategory } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, WorkflowCategory } from '@tesseract/types';
+import { CursorPager } from '@/components/ui/cursor-pager';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
 import DashboardWorkflowItem from './_components/dashboard-workflow-item';
@@ -43,7 +44,7 @@ export default function WorkflowsPage() {
 
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const pageSize = 10;
+  const pageSize = DEFAULT_PAGE_SIZE;
 
   // Sync debounced search with input (local input state needed for typing)
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -105,19 +106,6 @@ export default function WorkflowsPage() {
   // Helper para obtener conteo por categoría segura
   const getCategoryCount = (category: WorkflowCategory) => {
     return globalStats?.byCategory?.[category] ?? 0;
-  };
-
-  // Handler para paginación
-  const handleNextPage = () => {
-    if (nextPageAvailable && nextCursor) {
-      updateUrl({ cursor: nextCursor, action: 'next' });
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (prevCursor) {
-      updateUrl({ cursor: prevCursor, action: 'prev' });
-    }
   };
 
   const handleFilterChange = (status: string) => {
@@ -330,26 +318,16 @@ export default function WorkflowsPage() {
           )}
         </div>
 
-        {/* Pagination Controls */}
-        <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-4">
-          <button
-            onClick={handlePrevPage}
-            disabled={!prevCursor}
-            className="px-4 py-2 text-sm font-medium text-[var(--text-muted)] transition-colors hover:text-text-primary disabled:opacity-30 disabled:hover:text-text-secondary"
-          >
-            {t('previous')}
-          </button>
-          <span className="text-xs text-text-tertiary">
-            {t('showingItems', { count: workflows.length })}
-          </span>
-          <button
-            onClick={handleNextPage}
-            disabled={!nextPageAvailable}
-            className="px-4 py-2 text-sm font-medium text-[var(--text-muted)] transition-colors hover:text-text-primary disabled:opacity-30 disabled:hover:text-text-secondary"
-          >
-            {t('next')}
-          </button>
-        </div>
+        <CursorPager
+          prevCursor={prevCursor ?? null}
+          nextCursor={nextCursor ?? null}
+          nextPageAvailable={nextPageAvailable}
+          prevLabel={t('previous')}
+          nextLabel={t('next')}
+          summary={t('showingItems', { count: workflows.length })}
+          onNavigate={(cursor, action) => updateUrl({ cursor, action })}
+          className="border-t border-border pt-4"
+        />
 
         {/* New Workflow Modal */}
         <AnimatePresence>

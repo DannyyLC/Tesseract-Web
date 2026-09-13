@@ -6,8 +6,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
-  PaginatedResponse,
+  ADMIN_PAGE_SIZE,
+  DEFAULT_PAGE_SIZE,
   DashboardTenantToolDto,
+  PaginatedResponse,
   WhatsappOutboundStatusDto,
 } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../../../platform/common/responses/cursor-paginated-response';
@@ -65,7 +67,7 @@ export class TenantToolService {
   async getDashboardData(
     organizationId: string,
     cursor: string | null = null,
-    pageSize = 10,
+    pageSize = DEFAULT_PAGE_SIZE,
     paginationAction: 'next' | 'prev' | null = null,
   ): Promise<PaginatedResponse<DashboardTenantToolDto> | null> {
     try {
@@ -119,7 +121,7 @@ export class TenantToolService {
     page?: number;
     limit?: number;
   }) {
-    const { search, organizationId, page = 1, limit = 20 } = query;
+    const { search, organizationId, page = 1, limit = ADMIN_PAGE_SIZE } = query;
     const skip = (page - 1) * limit;
 
     const where = {

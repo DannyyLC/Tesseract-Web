@@ -9,7 +9,7 @@ import { ApiKeyUtil } from '../auth/utils/api-key.util';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { UpdateApiKeyDto } from './dto/update-api-key.dto';
 import { ApiKeyResponseDto, ApiKeyListDto } from './dto/response-api-key.dto';
-import { PaginatedResponse, PLANS, SubscriptionPlan } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, PLANS, PaginatedResponse, SubscriptionPlan } from '@tesseract/types';
 import { ApiKey, Prisma } from '@tesseract/database';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
 
@@ -89,7 +89,7 @@ export class ApiKeysService {
   async findAll(
     organizationId: string,
     cursor: string | null = null,
-    take = 10,
+    take = DEFAULT_PAGE_SIZE,
     paginationAction: 'next' | 'prev' | null = null,
     filters?: { workflowId?: string; search?: string },
   ): Promise<PaginatedResponse<ApiKeyListDto>> {

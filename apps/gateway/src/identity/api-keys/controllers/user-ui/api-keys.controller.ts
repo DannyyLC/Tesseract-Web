@@ -22,7 +22,7 @@ import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { UserPayload } from '@/platform/common/types/user-payload.type';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
-import { PaginatedResponse, UserRole } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, PaginatedResponse, UserRole } from '@tesseract/types';
 
 /**
  * Controller de API Keys
@@ -57,7 +57,7 @@ export class ApiKeysController {
   async findAll(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
+    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('workflowId') workflowId?: string,
     @Query('search') search?: string,

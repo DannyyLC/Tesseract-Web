@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import { Check, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAdminWorkflows } from '@/hooks/automation/use-admin-workflows';
@@ -38,7 +39,7 @@ export function ConnectWorkflowModal({
   }, [query]);
 
   const { data, isLoading } = useAdminWorkflows(
-    { organizationId, search: debouncedQuery || undefined, limit: 20 },
+    { organizationId, search: debouncedQuery || undefined, limit: DEFAULT_PAGE_SIZE },
     isOpen && !!organizationId,
   );
 

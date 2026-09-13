@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiResponseBuilder,
+  DEFAULT_PAGE_SIZE,
   PaginatedResponse,
   UserRole,
   WhatsappOutboundStatusDto,
@@ -41,7 +42,7 @@ export class TenantToolController {
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
+    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Res() res: Response,
   ): Promise<Response<PaginatedResponse<DashboardTenantToolDto>>> {

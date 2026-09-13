@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { ADMIN_PAGE_SIZE } from '@tesseract/types';
 import { ChevronDown, Search } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAdminOrganizations } from '@/hooks/identity/use-admin-organizations';
 import { OrganizationSummary } from '@/components/admin/organizations/organization-summary';
-import { btnGhost, inputClass } from '../_styles';
+import { inputClass } from '../_styles';
+import { PagePager } from '@/components/ui/page-pager';
 
 const STATUS_FILTERS = [
   { label: 'Todas', value: '' },
@@ -30,7 +32,7 @@ export default function AdminOrganizationsPage() {
     search: search || undefined,
     isActive: statusFilter === '' ? undefined : statusFilter === 'true',
     page,
-    limit: 20,
+    limit: ADMIN_PAGE_SIZE,
   });
 
   return (
@@ -123,28 +125,14 @@ export default function AdminOrganizationsPage() {
         )}
       </section>
 
-      {data && data.meta.totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between text-sm text-text-secondary">
-          <span>
-            Página {data.meta.page} de {data.meta.totalPages} · {data.meta.total} organizaciones
-          </span>
-          <div className="flex gap-2">
-            <button
-              className={btnGhost}
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Anterior
-            </button>
-            <button
-              className={btnGhost}
-              disabled={page >= data.meta.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
+      {data && (
+        <PagePager
+          page={data.meta.page}
+          totalPages={data.meta.totalPages}
+          onPageChange={setPage}
+          summary={`Página ${data.meta.page} de ${data.meta.totalPages} · ${data.meta.total} organizaciones`}
+          className="mt-4"
+        />
       )}
     </div>
   );

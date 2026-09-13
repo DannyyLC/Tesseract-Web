@@ -10,8 +10,9 @@ import {
 import {
   ApiResponse,
   ApiResponseBuilder,
-  PaginatedResponse,
+  DEFAULT_PAGE_SIZE,
   GetToolsDto,
+  PaginatedResponse,
   UserRole,
 } from '@tesseract/types';
 import { Response } from 'express';
@@ -31,7 +32,7 @@ export class ToolsCatalogController {
   async getAllToolsWithFunctions(
     @Res() res: Response,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
+    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('search') search: string | null = null,
   ): Promise<Response<ApiResponse<PaginatedResponse<GetToolsDto>>>> {

@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Search, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { DashboardEndUserDto, EndUserBlockedFilter } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, DashboardEndUserDto, EndUserBlockedFilter } from '@tesseract/types';
 import { useEndUsers, useEndUserMutations } from '@/hooks/identity/use-end-users';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { CursorPager } from '@/components/ui/cursor-pager';
@@ -20,7 +20,6 @@ import {
 } from '@/components/contacts';
 import PermissionGuard from '@/components/auth/permission-guard';
 
-const PAGE_SIZE = 10;
 
 const FILTERS: EndUserBlockedFilter[] = ['all', 'active', 'blocked'];
 
@@ -47,7 +46,7 @@ export default function ContactsPage() {
   const { data, isLoading } = useEndUsers({
     cursor,
     action,
-    pageSize: PAGE_SIZE,
+    pageSize: DEFAULT_PAGE_SIZE,
     search: searchQuery || undefined,
     blocked,
   });

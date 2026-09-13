@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { ADMIN_PAGE_SIZE } from '@tesseract/types';
 import { toast } from 'sonner';
 import { Plus, Pencil, DollarSign, Power, Search, AlertTriangle } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
+import { PagePager } from '@/components/ui/page-pager';
 import { useLlmModels, useLlmModelMutations } from '@/hooks/automation/use-llm-models';
 import { useInfiniteLlmCategories } from '@/hooks/automation/use-llm-categories';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -24,8 +26,6 @@ const inputClass =
 const labelClass = 'mb-1 block text-xs font-medium text-text-secondary';
 const btnPrimary =
   'inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:opacity-50';
-const btnGhost =
-  'inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm text-text-primary transition-colors hover:bg-surface-secondary';
 
 function fmtPrice(v: string) {
   const n = Number(v);
@@ -51,7 +51,7 @@ export default function LlmModelsAdminPage() {
     tier: tierFilter || undefined,
     llmCategoryId: categoryFilter || undefined,
     isActive: activeFilter === 'all' ? undefined : activeFilter === 'active',
-    limit: 20,
+    limit: ADMIN_PAGE_SIZE,
     page,
   };
 
@@ -226,26 +226,14 @@ export default function LlmModelsAdminPage() {
         )}
         
         {/* Paginación */}
-        {meta && meta.totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-border p-4">
-            <button
-              className={btnGhost}
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Anterior
-            </button>
-            <span className="text-sm font-medium text-text-secondary">
-              Página {page} de {meta.totalPages}
-            </span>
-            <button
-              className={btnGhost}
-              disabled={page === meta.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Siguiente
-            </button>
-          </div>
+        {meta && (
+          <PagePager
+            page={page}
+            totalPages={meta.totalPages}
+            onPageChange={setPage}
+            summary={`Página ${page} de ${meta.totalPages}`}
+            className="border-t border-border p-4"
+          />
         )}
       </div>
 

@@ -3,7 +3,7 @@ import { ApiKeysService } from './api-keys.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { ApiKeyUtil } from '../auth/utils/api-key.util';
-import { PLANS } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, PLANS } from '@tesseract/types';
 
 jest.mock('../auth/utils/api-key.util');
 
@@ -176,7 +176,7 @@ describe('ApiKeysService', () => {
       const result = await service.findAll(organizationId);
 
       expect(mockPrismaService.apiKey.findMany).toHaveBeenCalledWith({
-        take: 11,
+        take: DEFAULT_PAGE_SIZE + 1, // tamaño por defecto + 1 para detectar la página siguiente
         skip: 0,
         cursor: undefined,
         where: {

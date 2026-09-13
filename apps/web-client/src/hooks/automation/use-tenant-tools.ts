@@ -1,6 +1,11 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
-import { CreateTenantToolDto, DashboardTenantToolDto, UpdateTenantToolDto } from '@tesseract/types';
+import {
+  CreateTenantToolDto,
+  DEFAULT_PAGE_SIZE,
+  DashboardTenantToolDto,
+  UpdateTenantToolDto,
+} from '@tesseract/types';
 
 // ─── Dashboard (scroll infinito) ─────────────────────────────────────────────
 interface DashboardParams {
@@ -8,7 +13,7 @@ interface DashboardParams {
 }
 
 export function useInfiniteTenantToolsDashboard(params: DashboardParams = {}) {
-  const { pageSize = 10 } = params;
+  const { pageSize = DEFAULT_PAGE_SIZE } = params;
 
   return useInfiniteQuery({
     queryKey: ['tenant-tools', 'dashboard', 'infinite', { pageSize }],

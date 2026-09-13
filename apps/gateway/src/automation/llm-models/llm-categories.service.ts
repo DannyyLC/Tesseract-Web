@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import { ADMIN_PAGE_SIZE } from '@tesseract/types';
 import { Prisma } from '@tesseract/database';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { CreateLlmCategoryDto, UpdateLlmCategoryDto, QueryLlmCategoryDto } from './dto';
@@ -17,7 +18,7 @@ export class LlmCategoriesService {
    * de modelos asociados (útil para estadísticas y para evitar borrados ciegos).
    */
   async findAll(query: QueryLlmCategoryDto) {
-    const { isActive, page = 1, limit = 20 } = query;
+    const { isActive, page = 1, limit = ADMIN_PAGE_SIZE } = query;
     const skip = (page - 1) * limit;
     const where = isActive === undefined ? {} : { isActive };
 

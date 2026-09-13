@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
-import { GetToolsDto } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, GetToolsDto } from '@tesseract/types';
 
 interface UseToolCatalogParams {
   pageSize?: number;
@@ -8,7 +8,7 @@ interface UseToolCatalogParams {
 }
 
 export function useToolCatalog(params: UseToolCatalogParams = {}) {
-  const { pageSize = 20, search } = params;
+  const { pageSize = DEFAULT_PAGE_SIZE, search } = params;
 
   return useInfiniteQuery({
     queryKey: ['tool-catalog', 'infinite', { pageSize, search }],

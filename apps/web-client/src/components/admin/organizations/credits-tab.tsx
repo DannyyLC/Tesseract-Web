@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
+import { CursorPager } from '@/components/ui/cursor-pager';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useAdjustAdminCredits, useAdminOrgCredits } from '@/hooks/billing/use-admin-billing';
@@ -172,24 +173,15 @@ export function CreditsTab({ organizationId, org }: Props) {
           </ul>
         )}
 
-        {(prevCursor || nextPageAvailable) && (
-          <div className="flex items-center justify-end gap-2 border-t border-border p-3">
-            <button
-              onClick={() => prevCursor && navigate(prevCursor, 'prev')}
-              disabled={!prevCursor}
-              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <ChevronLeft size={14} /> Anterior
-            </button>
-            <button
-              onClick={() => nextCursor && navigate(nextCursor, 'next')}
-              disabled={!nextPageAvailable || !nextCursor}
-              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Siguiente <ChevronRight size={14} />
-            </button>
-          </div>
-        )}
+        <CursorPager
+          prevCursor={prevCursor}
+          nextCursor={nextCursor}
+          nextPageAvailable={nextPageAvailable}
+          prevLabel="Anterior"
+          nextLabel="Siguiente"
+          onNavigate={navigate}
+          className="border-t border-border p-3"
+        />
       </section>
 
       <Modal isOpen={isAdjusting} onClose={closeAdjust} title="Ajustar créditos">

@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { DashboardInvoiceDto } from './dto/dashboard-invoice.dto';
-import { PaginatedResponse } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, PaginatedResponse } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
 import { CloudStorageService } from '@/platform/cloud/storage/cloud-storage.service';
 import { CfdiNotFoundException } from '@/platform/common/exceptions';
@@ -21,7 +21,7 @@ export class InvoiceService {
   async getDashboardData(
     organizationId: string,
     cursor: string | null = null,
-    pageSize = 10,
+    pageSize = DEFAULT_PAGE_SIZE,
     action: 'next' | 'prev' | null = null,
   ): Promise<PaginatedResponse<DashboardInvoiceDto> | null> {
     const invoices = await this.prismaService.invoice.findMany({

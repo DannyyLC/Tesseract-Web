@@ -12,6 +12,7 @@ import {
   useWorkflowVersions,
 } from '@/hooks/automation/use-admin-workflows';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import { PagePager } from '@/components/ui/page-pager';
 
 interface Props {
   workflowId: string;
@@ -131,25 +132,12 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
         ))}
       </ul>
 
-      {data.meta.totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-text-secondary">
-          <span>
-            Página {data.meta.page} de {data.meta.totalPages}
-          </span>
-          <div className="flex gap-2">
-            <button className={btnGhost} disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-              Anterior
-            </button>
-            <button
-              className={btnGhost}
-              disabled={page >= data.meta.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
-      )}
+      <PagePager
+        page={data.meta.page}
+        totalPages={data.meta.totalPages}
+        onPageChange={setPage}
+        summary={`Página ${data.meta.page} de ${data.meta.totalPages}`}
+      />
 
       <AnimatePresence>
         {diffVersionId && (

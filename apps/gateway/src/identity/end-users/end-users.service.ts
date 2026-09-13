@@ -2,6 +2,7 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConversationStatus, Prisma } from '@tesseract/database';
 import {
+  DEFAULT_PAGE_SIZE,
   DashboardEndUserDto,
   EndUserBlockedFilter,
   PaginatedResponse,
@@ -29,7 +30,7 @@ export class EndUsersService {
   async getDashboardData(
     idOrganization: string,
     cursor: string | null = null,
-    pageSize = 10,
+    pageSize = DEFAULT_PAGE_SIZE,
     paginationAction: 'next' | 'prev' | null = null,
     filters?: { search?: string; blocked?: EndUserBlockedFilter },
   ): Promise<PaginatedResponse<DashboardEndUserDto>> {

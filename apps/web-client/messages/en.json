@@ -1136,7 +1136,9 @@
     "verification": "Verification",
     "emailVerified": "Email Verified",
     "emailPending": "Email Pending",
-    "loadDetailsError": "Error loading user details."
+    "loadDetailsError": "Error loading user details.",
+    "previous": "Previous",
+    "next": "Next"
   },
   "InviteUserModal": {
     "title": "Invite User",

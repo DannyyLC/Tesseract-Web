@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Key, Plus, Search } from 'lucide-react';
 import { useApiKeys } from '@/hooks/identity/use-api-key';
-import { ApiKeyListDto } from '@tesseract/types';
+import { ApiKeyListDto, DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { CursorPager } from '@/components/ui/cursor-pager';
@@ -17,7 +17,6 @@ import {
   EditApiKeyModal,
 } from '@/components/api-keys';
 
-const PAGE_SIZE = 10;
 
 export default function ApiKeysPage() {
   const t = useTranslations('ApiKeys');
@@ -41,7 +40,7 @@ export default function ApiKeysPage() {
   const { data, isLoading } = useApiKeys({
     cursor,
     action,
-    pageSize: PAGE_SIZE,
+    pageSize: DEFAULT_PAGE_SIZE,
     search: searchQuery || undefined,
   });
 

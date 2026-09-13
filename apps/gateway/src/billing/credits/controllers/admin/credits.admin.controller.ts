@@ -1,6 +1,21 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  DefaultValuePipe,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { ApiResponse, ApiResponseBuilder, UserRole } from '@tesseract/types';
+import {
+  ADMIN_PAGE_SIZE,
+  ApiResponse,
+  ApiResponseBuilder,
+  UserRole,
+} from '@tesseract/types';
 import { TransactionType } from '@tesseract/database';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
@@ -27,14 +42,14 @@ export class CreditsAdminController {
   @ApiOperation({ summary: 'Balance de créditos + historial paginado por cursor' })
   async getDashboard(
     @Param('id') id: string,
+    @Query('pageSize', new DefaultValuePipe(ADMIN_PAGE_SIZE), ParseIntPipe) pageSize: number,
     @Query('cursor') cursor?: string,
     @Query('direction') direction?: 'next' | 'prev',
-    @Query('pageSize') pageSize?: string,
   ): Promise<ApiResponse> {
     const result = await this.creditsService.getDashboardData(
       id,
       cursor ?? null,
-      pageSize ? Number(pageSize) : 10,
+      pageSize,
       direction ?? null,
     );
     return new ApiResponseBuilder().setData(result).build();

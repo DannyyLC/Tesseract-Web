@@ -109,38 +109,6 @@ describe('UsersService', () => {
       await expect(service.findOne('u1', 'org1')).rejects.toThrow(NotFoundException);
     });
 
-    it('findAll should return paginated users', async () => {
-      const mockUsers = [{ id: 'u1' }, { id: 'u2' }];
-      prisma.user.count = jest.fn().mockResolvedValue(2);
-      prisma.user.findMany = jest.fn().mockResolvedValue(mockUsers);
-
-      const result = await service.findAll('org1', {
-        page: 1,
-        limit: 10,
-        role: 'viewer' as any,
-        isActive: true,
-      });
-
-      expect(result.data).toEqual(mockUsers);
-      expect(result.meta).toEqual({
-        total: 2,
-        page: 1,
-        limit: 10,
-        totalPages: 1,
-      });
-      // Verification of where clause includes filtering params
-      expect(prisma.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            organizationId: 'org1',
-            role: 'VIEWER',
-            isActive: true,
-            deletedAt: null,
-          }),
-        }),
-      );
-    });
-
     it('findByEmail should return user', async () => {
       const mockUser = { id: 'u1', email: 'test@test.com' };
       prisma.user.findFirst = jest.fn().mockResolvedValue(mockUser);

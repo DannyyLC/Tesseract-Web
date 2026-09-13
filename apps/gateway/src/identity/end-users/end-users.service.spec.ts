@@ -1,3 +1,4 @@
+import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ConversationStatus, Prisma } from '@tesseract/database';
@@ -128,13 +129,13 @@ describe('EndUsersService', () => {
       expect(mockPrismaService.endUser.findMany).toHaveBeenCalledWith({
         where: { organizationId },
         skip: 0, // sin cursor → skip 0
-        take: 11, // pageSize (10) + 1 para detectar next page
+        take: DEFAULT_PAGE_SIZE + 1, // tamaño por defecto + 1 para detectar la página siguiente
         cursor: undefined, // sin cursor
         select: EXPECTED_SELECT,
         orderBy: EXPECTED_ORDER_BY,
       });
 
-      expect(mockBuild).toHaveBeenCalledWith(mockEndUsers, 10, null);
+      expect(mockBuild).toHaveBeenCalledWith(mockEndUsers, DEFAULT_PAGE_SIZE, null);
 
       // `blockedBy` es una relación anidada y no viaja al cliente: se aplana a un nombre.
       expect(result.items[1]).toMatchObject({ id: 'eu-2', blockedByName: 'Daniel' });

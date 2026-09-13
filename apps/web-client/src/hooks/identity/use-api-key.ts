@@ -1,13 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
-import { ApiKeysQuery, CreateApiKeyDto, UpdateApiKeyDto } from '@tesseract/types';
+import {
+  ApiKeysQuery,
+  CreateApiKeyDto,
+  DEFAULT_PAGE_SIZE,
+  UpdateApiKeyDto,
+} from '@tesseract/types';
 
 /**
  * Listado paginado de api-keys. Con `workflowId` sirve a la sección del detalle de
  * un workflow; sin él, a la página global.
  */
 export function useApiKeys(query: ApiKeysQuery = {}) {
-  const { cursor = null, action = null, pageSize = 10, workflowId, search } = query;
+  const { cursor = null, action = null, pageSize = DEFAULT_PAGE_SIZE, workflowId, search } = query;
 
   return useQuery({
     queryKey: ['api-keys', 'list', { cursor, action, pageSize, workflowId, search }],

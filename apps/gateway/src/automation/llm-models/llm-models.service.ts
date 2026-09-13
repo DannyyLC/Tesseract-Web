@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import { ADMIN_PAGE_SIZE } from '@tesseract/types';
 import { PrismaService } from '@/platform/database/prisma.service';
 import {
   CreateLlmModelDto,
@@ -63,7 +64,7 @@ export class LlmModelsService {
    * Obtener todos los modelos LLM con filtros y paginación
    */
   async findAll(query: QueryLlmModelsDto) {
-    const { search, tier, isActive, llmCategoryId, page = 1, limit = 20 } = query;
+    const { search, tier, isActive, llmCategoryId, page = 1, limit = ADMIN_PAGE_SIZE } = query;
     const skip = (page - 1) * limit;
 
     const where: any = {};

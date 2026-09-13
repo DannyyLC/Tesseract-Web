@@ -11,12 +11,13 @@ import {
   ConversationChannel,
 } from '@tesseract/database';
 import {
-  getWorkflowCreditCost,
+  DEFAULT_PAGE_SIZE,
+  DashboardWorkflowDto,
   PaginatedResponse,
   WorkflowCategory as SharedWorkflowCategory,
-  DashboardWorkflowDto,
-  WorkflowStatsDto,
   WorkflowMetricsDto,
+  WorkflowStatsDto,
+  getWorkflowCreditCost,
 } from '@tesseract/types';
 import { PassThrough } from 'stream';
 import {
@@ -191,7 +192,7 @@ export class WorkflowsService {
   async getDashboardData(
     organizationId: string,
     cursor?: string | null,
-    take = 10,
+    take = DEFAULT_PAGE_SIZE,
     paginationAction: 'next' | 'prev' | null = null,
     filters?: {
       search?: string;

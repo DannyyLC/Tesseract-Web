@@ -4,11 +4,12 @@ import { use, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Eraser, FileUp, Loader2, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { DatasetField } from '@tesseract/types';
+import { DatasetField, DENSE_PAGE_SIZE } from '@tesseract/types';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { ImportCsvModal } from '@/components/datasets/import-csv-modal';
 import { RecordsGrid } from '@/components/datasets/records-grid';
 import { RecordsToolbar } from '@/components/datasets/records-toolbar';
+import { PagePager } from '@/components/ui/page-pager';
 import { useRecordSelection } from '@/components/datasets/use-record-selection';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { Modal } from '@/components/ui/modal';
@@ -23,7 +24,6 @@ import {
 import { ConnectedWorkflowsSection } from '../_components/connected-workflows-section';
 import { SchemaBuilder } from '../_components/schema-builder';
 
-const PAGE_SIZE = 50;
 
 export default function DatasetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -39,15 +39,15 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
   const usage = list?.usage;
   const atRowLimit = !!usage && usage.writesBlocked;
 
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 400);
 
   useEffect(() => {
-    setPage(0);
+    setPage(1);
   }, [search]);
 
-  const { data: records } = useDatasetRecords(id, PAGE_SIZE, page * PAGE_SIZE, search);
+  const { data: records } = useDatasetRecords(id, DENSE_PAGE_SIZE, (page - 1) * DENSE_PAGE_SIZE, search);
   const { updateFields, clearRecords, createRecord, updateRecord, deleteRecords, importCsv } =
     useDatasetMutations();
 
@@ -151,7 +151,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil((records?.total ?? 0) / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil((records?.total ?? 0) / DENSE_PAGE_SIZE));
 
   return (
     <PermissionGuard permissions="datasets:read" redirect fallbackRoute="/dashboard">
@@ -206,27 +206,15 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
               {t('rowsHeading', { count: records?.total ?? 0 })}
             </h2>
 
-            {totalPages > 1 && (
-              <div className="flex items-center gap-2 text-sm">
-                <button
-                  onClick={() => setPage((current) => Math.max(0, current - 1))}
-                  disabled={page === 0}
-                  className="rounded-lg px-3 py-1 text-text-secondary hover:bg-[var(--surface-tint)] disabled:opacity-40"
-                >
-                  {t('previous')}
-                </button>
-                <span className="text-text-tertiary">
-                  {page + 1} / {totalPages}
-                </span>
-                <button
-                  onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))}
-                  disabled={page >= totalPages - 1}
-                  className="rounded-lg px-3 py-1 text-text-secondary hover:bg-[var(--surface-tint)] disabled:opacity-40"
-                >
-                  {t('next')}
-                </button>
-              </div>
-            )}
+            <PagePager
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              prevLabel={t('previous')}
+              nextLabel={t('next')}
+              emphasis="plain"
+              className="shrink-0"
+            />
           </div>
 
           {/* El consumo va a la vista: un botón deshabilitado sin explicación es peor que el

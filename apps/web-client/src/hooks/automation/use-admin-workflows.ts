@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
 import type {
@@ -23,7 +24,7 @@ const orgApi = () => RootApi.getInstance().getOrganizationsAdminApi();
 export function useInfiniteAdminOrganizations(query: AdminOrganizationsQuery = {}) {
   return useInfiniteQuery({
     queryKey: [ORG_KEY, 'infinite', query],
-    queryFn: async ({ pageParam }) => orgApi().findAll({ ...query, page: pageParam, limit: 20 }),
+    queryFn: async ({ pageParam }) => orgApi().findAll({ ...query, page: pageParam, limit: DEFAULT_PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (last) =>
       last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined,

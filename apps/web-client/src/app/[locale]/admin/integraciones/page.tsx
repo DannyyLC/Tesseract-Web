@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { ADMIN_PAGE_SIZE } from '@tesseract/types';
 import { Search } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { InfiniteSelect } from '@/components/ui/infinite-select';
@@ -8,7 +9,8 @@ import { Link } from '@/i18n/routing';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useInfiniteAdminOrganizations } from '@/hooks/automation/use-admin-workflows';
 import { useAdminTenantTools } from '@/hooks/automation/use-admin-tenant-tools';
-import { btnGhost, inputClass } from '../_styles';
+import { inputClass } from '../_styles';
+import { PagePager } from '@/components/ui/page-pager';
 
 const STATUS_STYLE: Record<string, string> = {
   CONNECTED: 'text-success-600',
@@ -62,7 +64,7 @@ export default function AdminIntegracionesPage() {
     organizationId: organizationId || undefined,
     search: search || undefined,
     page,
-    limit: 20,
+    limit: ADMIN_PAGE_SIZE,
   });
 
   return (
@@ -147,28 +149,14 @@ export default function AdminIntegracionesPage() {
         )}
       </section>
 
-      {data && data.meta.totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between text-sm text-text-secondary">
-          <span>
-            Página {data.meta.page} de {data.meta.totalPages} · {data.meta.total} integraciones
-          </span>
-          <div className="flex gap-2">
-            <button
-              className={btnGhost}
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Anterior
-            </button>
-            <button
-              className={btnGhost}
-              disabled={page >= data.meta.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
+      {data && (
+        <PagePager
+          page={data.meta.page}
+          totalPages={data.meta.totalPages}
+          onPageChange={setPage}
+          summary={`Página ${data.meta.page} de ${data.meta.totalPages} · ${data.meta.total} integraciones`}
+          className="mt-4"
+        />
       )}
     </div>
   );

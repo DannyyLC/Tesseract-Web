@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AnimatePresence } from 'framer-motion';
 import { Loader2, Plus } from 'lucide-react';
-import { ApiKeyListDto } from '@tesseract/types';
+import { ApiKeyListDto, DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import { useApiKeys } from '@/hooks/identity/use-api-key';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { CursorPager } from '@/components/ui/cursor-pager';
@@ -16,7 +16,6 @@ import {
   EditApiKeyModal,
 } from '@/components/api-keys';
 
-const PAGE_SIZE = 10;
 
 /**
  * API Keys enlazadas a un workflow. Se crean desde aquí ya enlazadas, que es el
@@ -33,7 +32,7 @@ export default function WorkflowApiKeysSection({ workflowId }: { workflowId: str
   const [keyToDelete, setKeyToDelete] = useState<ApiKeyListDto | null>(null);
   const [createdToken, setCreatedToken] = useState<string | null>(null);
 
-  const { data, isLoading } = useApiKeys({ workflowId, cursor, action, pageSize: PAGE_SIZE });
+  const { data, isLoading } = useApiKeys({ workflowId, cursor, action, pageSize: DEFAULT_PAGE_SIZE });
   const apiKeys = data?.items ?? [];
 
   return (

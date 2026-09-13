@@ -1,12 +1,13 @@
 import ApiRequestManager from '../../../api-request-manager';
 import {
-  ConversationDto,
-  DashboardConversationDto,
-  UpdateConversationDto,
-  ConversationsStatsDto,
-  ConversationDetailDto,
-  PaginatedResponse,
   ApiResponse,
+  ConversationDetailDto,
+  ConversationDto,
+  ConversationsStatsDto,
+  DEFAULT_PAGE_SIZE,
+  DashboardConversationDto,
+  PaginatedResponse,
+  UpdateConversationDto,
 } from '@tesseract/types';
 
 class ConversationsApi {
@@ -27,7 +28,7 @@ class ConversationsApi {
    */
   public async getDashboardData({
     cursor = null,
-    pageSize = 10,
+    pageSize = DEFAULT_PAGE_SIZE,
     action = null,
     status,
     isIntervened,

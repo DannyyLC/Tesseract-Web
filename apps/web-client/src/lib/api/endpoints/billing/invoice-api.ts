@@ -1,6 +1,7 @@
 import ApiRequestManager from '../../api-request-manager';
 import {
   ApiResponse,
+  DEFAULT_PAGE_SIZE,
   DashboardInvoiceDto,
   FiscalProfileDto,
   PaginatedResponse,
@@ -25,7 +26,7 @@ class InvoiceApi {
   /** GET /invoice/dashboard — histórico paginado por cursor. */
   public async list(
     cursor: string | null = null,
-    pageSize = 10,
+    pageSize = DEFAULT_PAGE_SIZE,
     action: 'next' | 'prev' | null = null,
   ): Promise<PaginatedResponse<DashboardInvoiceDto> | null> {
     const params = new URLSearchParams({ pageSize: String(pageSize) });

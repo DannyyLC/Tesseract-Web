@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConversationStatus, Prisma, User, UserRole } from '@tesseract/database';
-import { PaginatedResponse } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, PaginatedResponse } from '@tesseract/types';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
@@ -15,19 +15,10 @@ import { NotificationEventDto } from './dto/notification.dto';
 import { EmailService } from '@/messaging/notifications/email/email.service';
 import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
 import { AuthService } from '@/identity/auth/auth.service';
-import { DashboardUserDataDto, UpdateProfileDto, UserFiltersDto } from './dto';
+import { DashboardUserDataDto, UpdateProfileDto } from './dto';
 import { PendingInvitationDto } from './dto/pending-invitation.dto';
 import { maskEmail } from '@/platform/common/utils/mask-email';
 
-interface PaginatedUsers {
-  data: User[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}
 interface UserStats {
   total: number;
   byRole: {
@@ -96,48 +87,6 @@ export class UsersService {
     }
 
     return user;
-  }
-
-  /**
-   * Listar usuarios de la organización con filtros
-   */
-  async findAll(organizationId: string, filters: UserFiltersDto): Promise<PaginatedUsers> {
-    const { role, isActive, search, page = 1, limit = 10 } = filters;
-
-    // Construir condiciones de búsqueda
-    const where: Prisma.UserWhereInput = {
-      organizationId,
-      deletedAt: null,
-      ...(role && { role: role.toUpperCase() as any }),
-      ...(isActive !== undefined && { isActive }),
-      ...(search && {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-        ],
-      }),
-    };
-
-    // Contar total
-    const total = await this.prisma.user.count({ where });
-
-    // Obtener usuarios paginados
-    const users = await this.prisma.user.findMany({
-      where,
-      skip: (page - 1) * limit,
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return {
-      data: users,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
   }
 
   /**
@@ -551,7 +500,7 @@ export class UsersService {
   async getDashboardData(
     organizationId: string,
     cursor?: string | null,
-    take = 10,
+    take = DEFAULT_PAGE_SIZE,
     paginationAction: 'next' | 'prev' | null = null,
     filters?: {
       search?: string;
@@ -721,7 +670,7 @@ export class UsersService {
     userId: string,
     organizationId: string,
     cursor?: string | null,
-    pageSize = 10,
+    pageSize = DEFAULT_PAGE_SIZE,
   ): Promise<PaginatedResponse<NotificationEventDto>> {
     const where: Prisma.UserNotificationWhereInput = {
       userId,

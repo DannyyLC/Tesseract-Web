@@ -21,6 +21,10 @@ export function useUsersDashboard(params: DashboardParams = {}) {
     },
     retry: false,
     staleTime: 5000,
+    // Sin esto, cada cambio de página vacía la lista y la sección da un salto. Aquí importa más
+    // que en otras pantallas: las filas entran con animación escalonada, así que desmontarlas
+    // vuelve a reproducirla entera en cada página.
+    placeholderData: (previous) => previous,
   });
 }
 
@@ -49,9 +53,9 @@ export function useInfiniteUsersDashboard(params: DashboardParams = {}) {
       });
     },
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => {
-      return lastPage.hasMore ? lastPage.nextCursor : undefined;
-    },
+    // `nextPageAvailable`, no `hasMore`: es el campo que devuelve el Gateway. Con el nombre
+    // equivocado esto daba siempre `undefined` y el scroll nunca pasaba de la primera página.
+    getNextPageParam: (lastPage) => (lastPage.nextPageAvailable ? lastPage.nextCursor : undefined),
     retry: false,
     staleTime: 5000,
   });

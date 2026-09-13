@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import RootApi from '@/lib/api/endpoints/root-api';
 import type {
   CreateLlmCategoryInput,
@@ -27,7 +28,7 @@ export function useInfiniteLlmCategories(query: LlmCategoriesQuery = {}) {
     queryKey: [KEY, 'list', 'infinite', query],
     queryFn: async ({ pageParam = 1 }) => {
       const api = RootApi.getInstance().getLlmCategoriesApi();
-      return await api.findAll({ ...query, page: pageParam as number, limit: 20 });
+      return await api.findAll({ ...query, page: pageParam as number, limit: DEFAULT_PAGE_SIZE });
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {

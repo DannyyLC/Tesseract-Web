@@ -1,6 +1,21 @@
-import { Controller, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  DefaultValuePipe,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { ApiResponseBuilder, PaginatedResponse, UserRole } from '@tesseract/types';
+import {
+  ApiResponseBuilder,
+  DEFAULT_PAGE_SIZE,
+  PaginatedResponse,
+  UserRole,
+} from '@tesseract/types';
 import { CfdiStatus } from '@tesseract/database';
 import { Response } from 'express';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
@@ -30,7 +45,7 @@ export class InvoiceController {
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize') pageSize = 10,
+    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<PaginatedResponse<DashboardInvoiceDto>>>> {

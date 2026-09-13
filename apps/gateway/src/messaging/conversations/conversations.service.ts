@@ -2,8 +2,9 @@ import { Injectable, Logger, ForbiddenException, NotFoundException } from '@nest
 import { HttpService } from '@nestjs/axios';
 import { PrismaService } from '@/platform/database/prisma.service';
 import {
-  DashboardConversationDto,
   ConversationsStatsDto as ConversationStatsDto,
+  DEFAULT_PAGE_SIZE,
+  DashboardConversationDto,
   NOTIFICATIONSENUM,
   UserRole,
 } from '@tesseract/types';
@@ -704,7 +705,7 @@ export class ConversationsService {
     take?: number;
     onlyErrors?: boolean;
   }): Promise<PaginatedResponse<any>> {
-    const { organizationId, workflowId, cursor, take = 20, onlyErrors } = params;
+    const { organizationId, workflowId, cursor, take = DEFAULT_PAGE_SIZE, onlyErrors } = params;
 
     const conversations = await this.prisma.conversation.findMany({
       take: take + 1,

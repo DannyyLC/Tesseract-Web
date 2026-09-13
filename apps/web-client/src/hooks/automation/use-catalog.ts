@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
-import { GetToolsDto } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, GetToolsDto } from '@tesseract/types';
 
 interface CatalogParams {
   search?: string | null;
@@ -12,7 +12,7 @@ interface CatalogParams {
  * Usa cursor pagination hacia adelante (action: 'next').
  */
 export function useInfiniteToolsCatalog(params: CatalogParams = {}) {
-  const { search, pageSize = 10 } = params;
+  const { search, pageSize = DEFAULT_PAGE_SIZE } = params;
 
   return useInfiniteQuery({
     queryKey: ['tools', 'catalog', 'infinite', { search, pageSize }],

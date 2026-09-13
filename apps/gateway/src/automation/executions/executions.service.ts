@@ -3,7 +3,7 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { DashboardExecutionDto } from './dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
-import { HourlyDistributionDto, PaginatedResponse } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, HourlyDistributionDto, PaginatedResponse } from '@tesseract/types';
 import { ExecutionStatus, Prisma, TriggerType } from '@tesseract/database';
 import { resolveTimezone } from '@/platform/common/utils/resolve-timezone';
 import { addDaysInZone, startOfDayInZone, zonedDayKey } from '@/platform/common/utils/zoned-dates';
@@ -1360,7 +1360,7 @@ export class ExecutionsService {
   async getDashboardData(
     organizationId: string,
     cursor: string | null = null,
-    pageSize = 10,
+    pageSize = DEFAULT_PAGE_SIZE,
     action: 'next' | 'prev' | null = null,
     filters: {
       workflowId?: string;

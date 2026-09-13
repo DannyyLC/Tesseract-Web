@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { useRouter, usePathname } from '@/i18n/routing';
 import { MessageSquare, Search, Loader2 } from 'lucide-react';
+import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
+import { CursorPager } from '@/components/ui/cursor-pager';
 import { Modal } from '@/components/ui/modal';
 import {
   useConversationsDashboard,
@@ -47,7 +49,7 @@ export default function ConversationsPage() {
   // y sigue siendo válida si mañana cambia qué canales cubre un grupo.
   const selectedChannelGroup = searchParams.get('channel') || undefined;
 
-  const pageSize = 10;
+  const pageSize = DEFAULT_PAGE_SIZE;
 
   // Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -68,7 +70,7 @@ export default function ConversationsPage() {
     hasNextPage: hasNextModalWorkflows,
     isFetchingNextPage: isFetchingNextModalWorkflows,
     isLoading: isLoadingModalWorkflows,
-  } = useInfiniteDashboardWorkflows(10, debouncedModalSearch);
+  } = useInfiniteDashboardWorkflows(DEFAULT_PAGE_SIZE, debouncedModalSearch);
 
   const modalWorkflows = modalWorkflowsData?.pages.flatMap((page) => page.items) ?? [];
 
@@ -152,7 +154,7 @@ export default function ConversationsPage() {
     fetchNextPage: fetchNextWorkflows,
     hasNextPage: hasNextWorkflows,
     isFetchingNextPage: isFetchingNextWorkflows,
-  } = useInfiniteDashboardWorkflows(10);
+  } = useInfiniteDashboardWorkflows(DEFAULT_PAGE_SIZE);
 
   const workflows = (workflowsData?.pages.flatMap((page) => page.items) ?? []).map((wf) => ({
     label: wf.name,
@@ -165,7 +167,7 @@ export default function ConversationsPage() {
     fetchNextPage: fetchNextUsers,
     hasNextPage: hasNextUsers,
     isFetchingNextPage: isFetchingNextUsers,
-  } = useInfiniteUsersDashboard({ pageSize: 10 });
+  } = useInfiniteUsersDashboard({ pageSize: DEFAULT_PAGE_SIZE });
 
   const users = (usersData?.pages.flatMap((page) => page.items) ?? []).map((user) => ({
     label: user.name || user.email,
@@ -181,18 +183,6 @@ export default function ConversationsPage() {
   const { data: stats } = useConversationsStats();
 
   // Handlers
-  const handleNextPage = () => {
-    if (nextPageAvailable && nextCursor) {
-      updateUrl({ cursor: nextCursor, action: 'next' });
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (prevCursor) {
-      updateUrl({ cursor: prevCursor, action: 'prev' });
-    }
-  };
-
   const handleWorkflowChange = (workflowId: string) => {
     updateUrl({ workflowId: workflowId || null, cursor: null, action: null });
   };
@@ -395,26 +385,16 @@ export default function ConversationsPage() {
           )}
         </div>
 
-        {/* Pagination Controls */}
-        <div className="flex items-center justify-between border-t border-border pt-4">
-          <button
-            onClick={handlePrevPage}
-            disabled={!prevCursor}
-            className="px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-30"
-          >
-            {t('previous')}
-          </button>
-          <span className="text-xs text-text-tertiary">
-            {t('showingItems', { count: conversations.length })}
-          </span>
-          <button
-            onClick={handleNextPage}
-            disabled={!nextPageAvailable}
-            className="px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-30"
-          >
-            {t('next')}
-          </button>
-        </div>
+        <CursorPager
+          prevCursor={prevCursor ?? null}
+          nextCursor={nextCursor ?? null}
+          nextPageAvailable={nextPageAvailable}
+          prevLabel={t('previous')}
+          nextLabel={t('next')}
+          summary={t('showingItems', { count: conversations.length })}
+          onNavigate={(cursor, action) => updateUrl({ cursor, action })}
+          className="border-t border-border pt-4"
+        />
 
         {/* Workflow Selection Modal */}
         <AnimatePresence>

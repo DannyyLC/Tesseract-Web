@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import { useTranslations } from 'next-intl';
 import { Check, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,7 +10,6 @@ import { useInfiniteDashboardWorkflows } from '@/hooks/automation/use-workflows'
 import { Modal } from '@/components/ui/modal';
 
 /** Tamaño de página del listado. Diez caben en la caja sin que haya que estirar el modal. */
-const PAGE_SIZE = 10;
 
 /** Pausa al teclear antes de consultar. Una petición por pausa, no una por tecla. */
 const SEARCH_DEBOUNCE_MS = 400;
@@ -62,7 +62,7 @@ function WorkflowPicker({
   // El término entra en la `queryKey`, así que cada búsqueda estrena su propia cadena de cursores
   // y vuelve a empezar por la primera página.
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useInfiniteDashboardWorkflows(PAGE_SIZE, debouncedQuery || undefined);
+    useInfiniteDashboardWorkflows(DEFAULT_PAGE_SIZE, debouncedQuery || undefined);
 
   const connected = new Set(connectedIds);
   const workflows = (data?.pages.flatMap((page) => page.items) ?? []).filter(

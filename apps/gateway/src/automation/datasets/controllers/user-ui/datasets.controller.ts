@@ -5,13 +5,19 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Post,
   Put,
   Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiResponseBuilder, DatasetField, UserRole } from '@tesseract/types';
+import {
+  ApiResponseBuilder,
+  DatasetField,
+  MAX_PAGE_SIZE,
+  UserRole,
+} from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
@@ -411,14 +417,14 @@ export class DatasetsController {
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
     @Query('field') field: string,
-    @Query('limit', new DefaultValuePipe(100)) limit: number,
+    @Query('limit', new DefaultValuePipe(MAX_PAGE_SIZE), ParseIntPipe) limit: number,
     @Res() res: Response,
   ) {
     const result = await this.datasetsService.fieldValues(
       user.organizationId,
       id,
       field,
-      Number(limit),
+      limit,
     );
 
     const apiResponse = new ApiResponseBuilder<typeof result>()

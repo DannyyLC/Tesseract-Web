@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
-import { DatasetField, DatasetSearchRequest } from '@tesseract/types';
+import { DENSE_PAGE_SIZE, DatasetField, DatasetSearchRequest } from '@tesseract/types';
 
 const api = () => RootApi.getInstance().getDatasetsApi();
 
@@ -23,7 +23,7 @@ export function useDataset(id: string) {
   });
 }
 
-export function useDatasetRecords(id: string, limit = 50, offset = 0, query = '') {
+export function useDatasetRecords(id: string, limit = DENSE_PAGE_SIZE, offset = 0, query = '') {
   return useQuery({
     queryKey: ['datasets', 'records', id, limit, offset, query],
     queryFn: async () => api().listRecords(id, { limit, offset, query: query || undefined }),

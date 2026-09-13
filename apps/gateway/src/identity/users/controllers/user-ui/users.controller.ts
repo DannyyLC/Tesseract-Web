@@ -21,7 +21,13 @@ import {
   UpdateUserDto,
   UserDetailDto,
 } from '../../dto';
-import { ApiResponse, ApiResponseBuilder, PaginatedResponse, UserRole } from '@tesseract/types';
+import {
+  ApiResponse,
+  ApiResponseBuilder,
+  DEFAULT_PAGE_SIZE,
+  PaginatedResponse,
+  UserRole,
+} from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
@@ -43,7 +49,7 @@ export class UsersController {
     @CurrentUser() user: UserPayload,
     @Res() res: Response,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
+    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('search') search?: string,
     @Query('role') role?: string,
@@ -61,16 +67,15 @@ export class UsersController {
         isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
       },
     );
-    if (result.items.length === 0) {
-      apiResponse.setStatusCode(404).setMessage('No user data found for the organization');
-      return res.status(HttpStatusCode.NotFound).json(apiResponse.build());
-    } else {
-      apiResponse
-        .setStatusCode(HttpStatusCode.Ok)
-        .setMessage('User dashboard data retrieved successfully')
-        .setData(result);
-      return res.status(200).json(apiResponse.build());
-    }
+    // Una página vacía es un resultado, no un error: pasa al filtrar sin coincidencias y al
+    // paginar. Devolver 404 hacía que el cliente lo tratara como fallo —los hooks van con
+    // `retry: false`— y el estado vacío de la pantalla nunca llegaba a verse.
+    apiResponse
+      .setStatusCode(HttpStatusCode.Ok)
+      .setMessage('User dashboard data retrieved successfully')
+      .setData(result);
+
+    return res.status(HttpStatusCode.Ok).json(apiResponse.build());
   }
 
   @Get('notifications')
@@ -78,7 +83,7 @@ export class UsersController {
     @CurrentUser() user: UserPayload,
     @Res() res: Response,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
+    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
   ): Promise<Response<ApiResponse<PaginatedResponse<NotificationEventDto>>>> {
     const apiResponse = new ApiResponseBuilder<PaginatedResponse<NotificationEventDto>>();
     // Cast to any if needed or ensure service returns strict match

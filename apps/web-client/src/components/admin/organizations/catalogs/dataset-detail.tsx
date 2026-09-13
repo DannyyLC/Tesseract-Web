@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, Eraser, FileUp, Loader2, Settings2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { DatasetField } from '@tesseract/types';
+import { DatasetField, DENSE_PAGE_SIZE } from '@tesseract/types';
 import { ImportCsvModal } from '@/components/datasets/import-csv-modal';
 import { RecordsGrid } from '@/components/datasets/records-grid';
 import { RecordsToolbar } from '@/components/datasets/records-toolbar';
 import { useRecordSelection } from '@/components/datasets/use-record-selection';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
+import { PagePager } from '@/components/ui/page-pager';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -29,7 +30,6 @@ const ROW_LIMIT_REACHED_REASON =
 import { ConnectedWorkflowsSection } from './connected-workflows-section';
 import { SchemaBuilder } from './schema-builder';
 
-const PAGE_SIZE = 50;
 
 interface DatasetDetailProps {
   organizationId: string;
@@ -52,19 +52,19 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
   const usage = list?.usage;
   const atRowLimit = !!usage && usage.writesBlocked;
 
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 400);
 
   useEffect(() => {
-    setPage(0);
+    setPage(1);
   }, [search]);
 
   const { data: records } = useAdminDatasetRecords(
     organizationId,
     datasetId,
-    PAGE_SIZE,
-    page * PAGE_SIZE,
+    DENSE_PAGE_SIZE,
+    (page - 1) * DENSE_PAGE_SIZE,
     search,
   );
   const {
@@ -181,7 +181,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil((records?.total ?? 0) / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil((records?.total ?? 0) / DENSE_PAGE_SIZE));
 
   return (
     <div className="w-full space-y-6">
@@ -229,27 +229,13 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-text-primary">Filas ({records?.total ?? 0})</h3>
-          {totalPages > 1 && (
-            <div className="flex items-center gap-2 text-xs">
-              <button
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="rounded-lg px-3 py-1 text-text-secondary hover:bg-surface-secondary disabled:opacity-40"
-              >
-                Anterior
-              </button>
-              <span className="text-text-tertiary">
-                {page + 1} / {totalPages}
-              </span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                disabled={page >= totalPages - 1}
-                className="rounded-lg px-3 py-1 text-text-secondary hover:bg-surface-secondary disabled:opacity-40"
-              >
-                Siguiente
-              </button>
-            </div>
-          )}
+          <PagePager
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            emphasis="plain"
+            className="shrink-0"
+          />
         </div>
 
         {usage && (

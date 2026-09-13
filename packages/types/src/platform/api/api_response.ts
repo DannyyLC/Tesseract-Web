@@ -7,18 +7,16 @@ export interface ApiResponse<T = any> {
   timestamp?: string;
 }
 
+/**
+ * Respuesta paginada por cursor. Es la única forma que devuelven los endpoints paginados por
+ * cursor, y la que `CursorPager` consume en el front — los campos coinciden 1:1 con sus props.
+ */
 export interface PaginatedResponse<T> {
   items: T[];
   nextPageAvailable: boolean;
   nextCursor: string | null;
   prevCursor: string | null;
   pageSize: number;
-}
-
-export interface CursorPaginatedResponse<T> {
-  items: T[];
-  nextCursor: string | null;
-  hasMore: boolean;
 }
 
 export class ApiResponseBuilder<T = any> {

@@ -1,4 +1,5 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import RootApi from '@/lib/api/endpoints/root-api';
 
 const KEY = 'admin-conversations';
@@ -16,7 +17,7 @@ export function useInfiniteAdminConversations(
   return useInfiniteQuery({
     queryKey: [KEY, 'list', params],
     queryFn: async ({ pageParam }: { pageParam?: string }) =>
-      api().findAll({ ...params, cursor: pageParam, take: 20 }),
+      api().findAll({ ...params, cursor: pageParam, take: DEFAULT_PAGE_SIZE }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => (last.nextPageAvailable ? (last.nextCursor ?? undefined) : undefined),
     enabled,

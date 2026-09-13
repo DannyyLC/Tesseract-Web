@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { ADMIN_PAGE_SIZE } from '@tesseract/types';
 import { useRouter } from '@/i18n/routing';
 import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
@@ -12,7 +13,8 @@ import {
   useAdminWorkflows,
   useInfiniteAdminOrganizations,
 } from '@/hooks/automation/use-admin-workflows';
-import { btnGhost, btnPrimary, inputClass } from '../_styles';
+import { btnPrimary, inputClass } from '../_styles';
+import { PagePager } from '@/components/ui/page-pager';
 import { CreateWorkflowModal } from '@/components/admin/workflows/create-workflow-modal';
 
 export default function AdminWorkflowsPage() {
@@ -61,7 +63,7 @@ export default function AdminWorkflowsPage() {
     search: search || undefined,
     includeDeleted,
     page,
-    limit: 20,
+    limit: ADMIN_PAGE_SIZE,
   });
 
   return (
@@ -175,28 +177,14 @@ export default function AdminWorkflowsPage() {
         )}
       </section>
 
-      {data && data.meta.totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between text-sm text-text-secondary">
-          <span>
-            Página {data.meta.page} de {data.meta.totalPages} · {data.meta.total} workflows
-          </span>
-          <div className="flex gap-2">
-            <button
-              className={btnGhost}
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Anterior
-            </button>
-            <button
-              className={btnGhost}
-              disabled={page >= data.meta.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
+      {data && (
+        <PagePager
+          page={data.meta.page}
+          totalPages={data.meta.totalPages}
+          onPageChange={setPage}
+          summary={`Página ${data.meta.page} de ${data.meta.totalPages} · ${data.meta.total} workflows`}
+          className="mt-4"
+        />
       )}
 
       <AnimatePresence>

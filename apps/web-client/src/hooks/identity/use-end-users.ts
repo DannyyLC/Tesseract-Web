@@ -1,10 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
-import { BlockEndUserDto, CreateEndUserDto, EndUsersQuery, UpdateEndUserDto } from '@tesseract/types';
+import {
+  BlockEndUserDto,
+  CreateEndUserDto,
+  DEFAULT_PAGE_SIZE,
+  EndUsersQuery,
+  UpdateEndUserDto,
+} from '@tesseract/types';
 
 /** Listado paginado de contactos, con filtro por estado de bloqueo y búsqueda. */
 export function useEndUsers(query: EndUsersQuery = {}) {
-  const { cursor = null, action = null, pageSize = 10, search, blocked = 'all' } = query;
+  const { cursor = null, action = null, pageSize = DEFAULT_PAGE_SIZE, search, blocked = 'all' } = query;
 
   return useQuery({
     queryKey: ['end-users', 'list', { cursor, action, pageSize, search, blocked }],

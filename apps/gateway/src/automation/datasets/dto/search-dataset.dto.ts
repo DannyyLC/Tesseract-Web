@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsObject, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
-import { DatasetRangeFilter } from '@tesseract/types';
+import { DatasetRangeFilter, MAX_PAGE_SIZE } from '@tesseract/types';
 
 /**
  * Búsqueda sobre un dataset. La usan tanto el dashboard como la tool del agente.
@@ -45,7 +45,7 @@ export class SearchDatasetDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
+  @Max(MAX_PAGE_SIZE)
   @ApiPropertyOptional({ default: 20 })
   limit?: number;
 
