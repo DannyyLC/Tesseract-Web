@@ -43,18 +43,21 @@ export function ConnectedWorkflowsSection({
           <p className="mt-1 max-w-2xl text-sm text-text-secondary">{t('connectedWorkflowsHint')}</p>
         </div>
 
-        {/* Con al menos una conexión, el valor ya es visible en la lista de abajo: el botón basta
-            arriba. Sin ninguna, el llamado a la acción va dentro del panel que explica por qué,
-            no aquí — repetirlo sería anteponer el atajo al motivo. */}
+        {/* Con al menos una conexión, el motivo ya no es "por qué conectar" sino "por qué uno más":
+            el hint corto lo cubre sin repetir la explicación larga del panel vacío, que solo
+            aplica cuando no hay ninguna. */}
         {canEdit && workflows.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setIsRequesting(true)}
-            className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-primary transition-all hover:bg-[var(--surface-tint)] active:scale-95"
-          >
-            <Plus size={14} />
-            {t('requestConnectionButton')}
-          </button>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              type="button"
+              onClick={() => setIsRequesting(true)}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-primary transition-all hover:bg-[var(--surface-tint)] active:scale-95"
+            >
+              <Plus size={14} />
+              {t('requestConnectionButton')}
+            </button>
+            <span className="text-xs text-text-tertiary">{t('requestConnectionMoreHint')}</span>
+          </div>
         )}
       </div>
 

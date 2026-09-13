@@ -1547,6 +1547,7 @@
     "noConnectedWorkflowsTitle": "No agent uses this catalog yet",
     "noConnectedWorkflowsBody": "Without connecting it, your agent can't query this data: if someone asks about prices, stock, or anything else in here, it won't have a real answer to give.",
     "requestConnectionButton": "Request connection",
+    "requestConnectionMoreHint": "Other agents can use this catalog too.",
     "requestConnectionTitle": "Request workflow connections",
     "requestConnectionWhy": "The connection isn't automatic: our team sets it up with you so the agent uses these columns correctly instead of giving wrong answers.",
     "requestConnectionHint": "It goes to our support team, who'll reach out to you once they've reviewed it.",
