@@ -8,6 +8,7 @@ import {
 import { StripeClient } from './stripe.client';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
+import { CreateCreditCheckoutSessionDto } from './dto/create-credit-checkout-session.dto';
 import { CreditsService } from '../credits/credits.service';
 import {
   TransactionType,
@@ -24,6 +25,7 @@ import {
   SubscriptionPlan as SharedSubscriptionPlan,
   UserRole,
   NOTIFICATIONSENUM,
+  PAST_DUE_GRACE_DAYS,
 } from '@tesseract/types';
 import { ConfigService } from '@nestjs/config';
 import { PriceCatalogService } from './price-catalog.service';
@@ -113,6 +115,40 @@ export class BillingService {
   }
 
   /**
+   * Create a Stripe Checkout Session for a one-time credit top-up.
+   *
+   * `mode: 'payment'`, no `mode: 'subscription'`: es un cobro único, cobrado de inmediato, sin
+   * nada de lo que hace compleja a una suscripción (prorrateo, cambios de plan programados,
+   * reconciliación de ciclo). `quantity` es la cantidad de créditos elegida — el precio en
+   * Stripe es por crédito — así que el importe total lo calcula Stripe, no nosotros.
+   */
+  async createCreditTopUpCheckoutSession(dto: CreateCreditCheckoutSessionDto): Promise<string> {
+    try {
+      const session = await this.stripeClient.stripe.checkout.sessions.create({
+        customer: dto.customerId,
+        mode: 'payment',
+        currency: dto.currency,
+        line_items: [
+          {
+            price: dto.priceId,
+            quantity: dto.credits,
+          },
+        ],
+        success_url: dto.successUrl,
+        cancel_url: dto.cancelUrl,
+        payment_intent_data: {
+          metadata: dto.metadata,
+        },
+        metadata: dto.metadata,
+      });
+      return session.url!;
+    } catch (error) {
+      this.logger.error(`Failed to create credit top-up checkout session for ${dto.customerId}`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Create Stripe Customer Portal Session
    */
   async createCustomerPortalSession(customerId: string, returnUrl: string): Promise<string> {
@@ -143,6 +179,9 @@ export class BillingService {
         break;
       case 'customer.subscription.deleted':
         await this.handleSubscriptionDeleted(event.data.object);
+        break;
+      case 'checkout.session.completed':
+        await this.handleCheckoutSessionCompleted(event.data.object);
         break;
       default:
         this.logger.log(`Unhandled event type ${event.type}`);
@@ -274,12 +313,27 @@ export class BillingService {
           where: { id: sub.id },
           data: {
             status: SubscriptionStatus.PAST_DUE, // Internal status to show in UI
+            // Solo se marca la primera vez: Stripe reintenta el cobro varias veces mientras dura
+            // esta misma incidencia (Smart Retries), y cada reintento fallido vuelve a mandar
+            // este webhook. Si reiniciáramos el reloj en cada uno, la gracia de
+            // `resolveSubscriptionAccess` nunca se cumpliría mientras Stripe siga insistiendo.
+            pastDueSince: sub.pastDueSince ?? new Date(),
             // We don't necessarily set cancelAtPeriodEnd=true here because we want them to PAY.
             // But we blocked overages.
           },
         });
       }
     }
+
+    // 3. Avisar al cliente. Antes de este cambio no se le notificaba nada — el estado se
+    // reflejaba en /billing pero nadie iba a buscarlo ahí. Con el gate de suscripción activo,
+    // un aviso silencioso significaría cortarle la ejecución sin que nadie se entere de por qué.
+    await this.utilityService.sendNotificationToAppClients(
+      organizationId,
+      [UserRole.OWNER, UserRole.ADMIN],
+      NOTIFICATIONSENUM.PAYMENT_FAILED,
+      [PAST_DUE_GRACE_DAYS.toString()],
+    );
   }
 
   private async handleInvoicePaymentSucceeded(invoiceObject: Stripe.Invoice) {
@@ -478,6 +532,8 @@ export class BillingService {
           stripeSubscriptionId: subscriptionId,
           stripePriceId: upsertPriceId,
           pendingPlanChange: null,
+          // El cobro pasó: se acabó el impago que haya estado en curso.
+          pastDueSince: null,
         },
       });
 
@@ -680,6 +736,134 @@ export class BillingService {
       .reduce((sum: number, line: any) => sum + (line.amount ?? 0), 0);
 
     return overageCents / 100;
+  }
+
+  /**
+   * Handle Checkout Session Completed — solo la recarga de créditos de compra única.
+   *
+   * Las suscripciones no pasan por aquí: se resuelven por completo vía `invoice.*` y
+   * `customer.subscription.*`, que ya están probados. Mezclar los dos caminos en un solo
+   * handler duplicaría esa lógica sin necesidad; el filtro por `mode !== 'payment'` es lo que
+   * mantiene ambos caminos separados aunque compartan el mismo tipo de evento de Stripe.
+   *
+   * ## Por qué la cantidad se lee de Stripe y no de la metadata
+   *
+   * `session.metadata.credits` es la cantidad que **pedimos** al crear el Checkout; lo que hay
+   * que acreditar es lo que Stripe **cobró**. El payload del evento no trae `line_items`, así
+   * que hace falta pedirlos aparte con `listLineItems`. La metadata solo sirve de referencia
+   * cruzada — si no coincidieran, manda Stripe y se deja constancia en el log.
+   */
+  private async handleCheckoutSessionCompleted(sessionObject: Stripe.Checkout.Session) {
+    const session = sessionObject as any;
+
+    if (session.mode !== 'payment') return;
+
+    if (session.payment_status !== 'paid') {
+      this.logger.warn(
+        `Checkout session ${session.id} (payment) completada pero payment_status es '${session.payment_status}', se omite`,
+      );
+      return;
+    }
+
+    const organizationId = session.metadata?.organizationId;
+    if (!organizationId) {
+      this.logger.warn(
+        `Checkout session ${session.id} (payment) sin organizationId en metadata, se omite`,
+      );
+      return;
+    }
+
+    const lineItems = await this.stripeClient.stripe.checkout.sessions.listLineItems(session.id, {
+      limit: 1,
+      expand: ['data.price'],
+    });
+    const line = lineItems.data[0];
+    const linePriceId = line ? this.getLineItemPriceId(line) : undefined;
+    const topUpPriceId = await this.priceCatalog.topUpPriceId();
+
+    if (!line || linePriceId !== topUpPriceId) {
+      // No debería pasar —es el único producto en `mode: 'payment'` que vendemos— pero si algún
+      // día se agrega otro, ignorarlo aquí es más seguro que acreditar créditos por lo que sea
+      // que se haya cobrado.
+      this.logger.error(
+        `Checkout session ${session.id} (payment) no corresponde al precio de recarga de créditos (price ${linePriceId}); no se otorgan créditos`,
+      );
+      return;
+    }
+
+    const credits = line.quantity ?? 0;
+    if (credits <= 0) {
+      this.logger.error(
+        `Checkout session ${session.id} resolvió a ${credits} créditos, se omite`,
+      );
+      return;
+    }
+
+    const metadataCredits = Number(session.metadata?.credits);
+    if (Number.isFinite(metadataCredits) && metadataCredits !== credits) {
+      this.logger.warn(
+        `Checkout session ${session.id}: metadata pedía ${metadataCredits} créditos pero Stripe cobró ${credits}. Se usa el de Stripe.`,
+      );
+    }
+
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { country: true, fiscalProfile: { select: { validatedAt: true } } },
+    });
+
+    const isMexican = organization?.country === 'MX';
+    const hasFiscalProfile = Boolean(organization?.fiscalProfile?.validatedAt);
+    const cfdiStatus = isMexican ? CfdiStatus.PENDING : CfdiStatus.NOT_APPLICABLE;
+    const amountMajor = (session.amount_total ?? 0) / 100;
+    const paymentIntentId =
+      typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id;
+
+    const { invoiceId, deduped } = await this.creditsService.grantPurchasedCredits({
+      organizationId,
+      credits,
+      invoiceNumber: `TOPUP-${session.id}`,
+      amountMajor,
+      cfdiStatus,
+      stripePaymentIntentId: paymentIntentId,
+      metadata: {
+        stripeCheckoutSessionId: session.id,
+        purchasedBy: session.metadata?.purchasedBy,
+        userId: session.metadata?.userId,
+        currency: session.currency,
+      },
+    });
+
+    if (deduped) return;
+
+    this.logger.log(
+      `Recarga de ${credits} créditos acreditada a la organización ${organizationId} (sesión ${session.id})`,
+    );
+
+    this.utilityService.sendNotificationToAppClients(
+      organizationId,
+      [UserRole.OWNER, UserRole.ADMIN],
+      NOTIFICATIONSENUM.CREDIT_TOPUP_PURCHASED,
+      [credits.toString()],
+    );
+
+    // Fuera de la transacción de crédito y sin propagar: mismo criterio que
+    // `recordInvoiceAndStamp`. `grantPurchasedCredits` ya quedó protegido contra el reintento
+    // por `invoiceNumber`, así que un fallo aquí no debe costarle al cliente los créditos que ya
+    // pagó — solo pierde el timbrado, que el barrido nocturno puede recoger después.
+    if (isMexican && hasFiscalProfile) {
+      try {
+        await this.cfdiService.stampInvoice(invoiceId);
+      } catch (error) {
+        this.logger.error(
+          `handleCheckoutSessionCompleted >> No se pudo timbrar la recarga ${invoiceId}: ${
+            (error as Error).message
+          }`,
+          (error as Error).stack,
+        );
+      }
+    }
   }
 
   /**
@@ -1135,6 +1319,10 @@ export class BillingService {
           stripeSubscriptionId: sub.id,
           stripePriceId: priceId,
           cancelAtPeriodEnd: sub.cancel_at_period_end,
+          // Solo se limpia al confirmar que está activa: si sigue en PAST_DUE (p.ej. este evento
+          // llegó por otra razón mientras el cobro sigue fallando), el reloj de la gracia debe
+          // seguir corriendo desde el primer fallo, no reiniciarse.
+          ...(isEffectivelyActive ? { pastDueSince: null } : {}),
         },
       }),
     ]);

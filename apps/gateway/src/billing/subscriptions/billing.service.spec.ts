@@ -576,7 +576,10 @@ describe('BillingService', () => {
         subscription: 'sub_1',
       };
 
-      mockPrismaService.subscription.findUnique.mockResolvedValue({ id: 'sub-db' });
+      mockPrismaService.subscription.findUnique.mockResolvedValue({
+        id: 'sub-db',
+        pastDueSince: null,
+      });
 
       await service.handleWebhookEvent({
         type: 'invoice.payment_failed',
@@ -589,7 +592,37 @@ describe('BillingService', () => {
       });
       expect(mockPrismaService.subscription.update).toHaveBeenCalledWith({
         where: { id: 'sub-db' },
-        data: { status: 'PAST_DUE' },
+        data: { status: 'PAST_DUE', pastDueSince: expect.any(Date) },
+      });
+      expect(mockUtilityService.sendNotificationToAppClients).toHaveBeenCalledWith(
+        'org-1',
+        ['OWNER', 'ADMIN'],
+        '0000-0117',
+        ['7'],
+      );
+    });
+
+    it('handleInvoicePaymentFailed - no reinicia pastDueSince en un segundo reintento fallido', async () => {
+      const invoice = {
+        id: 'inv_2',
+        metadata: { organizationId: 'org-1' },
+        subscription: 'sub_1',
+      };
+      const firstFailure = new Date('2026-01-01T00:00:00Z');
+
+      mockPrismaService.subscription.findUnique.mockResolvedValue({
+        id: 'sub-db',
+        pastDueSince: firstFailure,
+      });
+
+      await service.handleWebhookEvent({
+        type: 'invoice.payment_failed',
+        data: { object: invoice },
+      } as any);
+
+      expect(mockPrismaService.subscription.update).toHaveBeenCalledWith({
+        where: { id: 'sub-db' },
+        data: { status: 'PAST_DUE', pastDueSince: firstFailure },
       });
     });
   });

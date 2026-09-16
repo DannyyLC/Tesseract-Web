@@ -10,6 +10,7 @@ import { UtilityModule } from '@/platform/utility/utility.module';
 import { OrganizationsModule } from '@/identity/organizations/organizations.module';
 import { WebhookDedupModule } from '@/platform/webhooks/webhook-dedup.module';
 import { InvoiceModule } from '../invoice/invoice.module';
+import { TwoFactorModule } from '@/identity/two-factor/two-factor.module';
 
 @Module({
   imports: [
@@ -21,6 +22,8 @@ import { InvoiceModule } from '../invoice/invoice.module';
     // Por el CfdiService: en cuanto el cobro se confirma y los créditos están otorgados, se
     // timbra la factura.
     InvoiceModule,
+    // Por el segundo factor que exige comprar créditos.
+    TwoFactorModule,
   ],
   controllers: [BillingController, SubscriptionAdminController],
   providers: [BillingService, StripeClient, PriceCatalogService],

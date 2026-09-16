@@ -15,17 +15,25 @@ import { PriceCatalogService } from './price-catalog.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { OrganizationsService } from '@/identity/organizations/organizations.service';
 import { WebhookDedupService } from '@/platform/webhooks/webhook-dedup.service';
+import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
 
 const mockBillingService = {
   handleWebhookEvent: jest.fn(),
   createCustomer: jest.fn(),
   createCheckoutSession: jest.fn(),
+  createCreditTopUpCheckoutSession: jest.fn(),
 };
 
 const mockPriceCatalog = {
   priceIdFor: jest.fn(),
   pricesFor: jest.fn(),
   overagePrices: jest.fn(),
+  topUpPriceId: jest.fn(),
+  topUpPrices: jest.fn(),
+};
+
+const mockTwoFactorService = {
+  verifySecondFactor: jest.fn(),
 };
 
 const mockStripeClient = {
@@ -48,6 +56,7 @@ const mockConfigService = {
 const mockPrismaService = {
   subscription: { findUnique: jest.fn() },
   organization: { findUnique: jest.fn(), update: jest.fn() },
+  user: { findUnique: jest.fn() },
 };
 const mockOrganizationsService = {};
 
@@ -71,6 +80,7 @@ describe('BillingController - Stripe webhook', () => {
         { provide: PriceCatalogService, useValue: mockPriceCatalog },
         { provide: OrganizationsService, useValue: mockOrganizationsService },
         { provide: WebhookDedupService, useValue: mockWebhookDedup },
+        { provide: TwoFactorService, useValue: mockTwoFactorService },
       ],
     }).compile();
 

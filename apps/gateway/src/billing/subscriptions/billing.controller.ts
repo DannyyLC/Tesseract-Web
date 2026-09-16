@@ -6,6 +6,7 @@ import {
   Body,
   Headers,
   BadRequestException,
+  ForbiddenException,
   InternalServerErrorException,
   ServiceUnavailableException,
   Req,
@@ -26,6 +27,7 @@ import { StripeClient } from './stripe.client';
 import { PriceCatalogService } from './price-catalog.service';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { CreateCheckoutRequestDto } from './dto/create-checkout-request.dto';
+import { CreateCreditCheckoutDto } from './dto/create-credit-checkout.dto';
 import { BillingDashboardDto } from './dto/billing-dashboard.dto';
 import { OrganizationsService } from '@/identity/organizations/organizations.service';
 import {
@@ -35,6 +37,9 @@ import {
   SubscriptionPlan as SharedSubscriptionPlan,
   UserRole,
   resolveBillingCurrency,
+  resolveSubscriptionAccess,
+  isValidTopUpQuantity,
+  CREDIT_TOPUP_LIMITS,
 } from '@tesseract/types';
 import { Organization, SubscriptionPlan, SubscriptionStatus } from '@tesseract/database';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
@@ -43,6 +48,7 @@ import { Response } from 'express';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
 import { WebhookDedupService } from '@/platform/webhooks/webhook-dedup.service';
+import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
 
 /** Identificador de proveedor para la tabla de deduplicación de webhooks. */
 const WEBHOOK_PROVIDER_STRIPE = 'stripe';
@@ -57,6 +63,7 @@ export class BillingController {
     private readonly priceCatalog: PriceCatalogService,
     private readonly organizationsService: OrganizationsService,
     private readonly webhookDedup: WebhookDedupService,
+    private readonly twoFactorService: TwoFactorService,
   ) {}
   private readonly logger = new Logger(BillingController.name);
 
@@ -164,6 +171,117 @@ export class BillingController {
     return { url: sessionUrl };
   }
 
+  /**
+   * Recarga de créditos de compra única (cantidad libre, no paquetes fijos). A diferencia de
+   * `POST /billing/checkout`, no exige que la organización carezca de suscripción — al
+   * contrario: exige que SÍ tenga una activa. Es justo el candado que evita que alguien compre
+   * un lote grande de créditos y luego cancele para seguir gastándolo sin volver a pagar, que es
+   * el mismo hueco que cierra el gate de `canExecuteWorkflow`.
+   */
+  @Post('credits/checkout')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async createCreditCheckoutSession(
+    @Req() req: Request & { user: UserPayload },
+    @Body() body: CreateCreditCheckoutDto,
+  ) {
+    const organizationId = req.user.organizationId;
+    const userEmail = req.user.email;
+    const userName = req.user.name ?? 'Admin User';
+
+    if (!organizationId) {
+      throw new BadRequestException('User does not belong to an organization');
+    }
+
+    // Segunda barrera además de los decoradores del DTO: `class-validator` valida el rango pero
+    // no el múltiplo de `CREDIT_TOPUP_LIMITS.step`.
+    if (!isValidTopUpQuantity(body.credits)) {
+      throw new BadRequestException(
+        `credits must be between ${CREDIT_TOPUP_LIMITS.min} and ${CREDIT_TOPUP_LIMITS.max}, in multiples of ${CREDIT_TOPUP_LIMITS.step}`,
+      );
+    }
+
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: { subscription: { select: { status: true, pastDueSince: true } } },
+    });
+
+    if (!organization) {
+      throw new BadRequestException('Organization not found');
+    }
+
+    const subscriptionAccess = resolveSubscriptionAccess({
+      status: organization.subscription?.status ?? null,
+      pastDueSince: organization.subscription?.pastDueSince ?? null,
+    });
+
+    if (!subscriptionAccess.allowed) {
+      throw new ForbiddenException(`Cannot purchase credits: ${subscriptionAccess.reason}`);
+    }
+
+    // Segundo factor, siempre que el usuario lo tenga activado — sin importar el monto. El JWT
+    // no carga este dato, así que se consulta a la base.
+    const user = await this.prisma.user.findUnique({
+      where: { id: req.user.sub },
+      select: { twoFactorEnabled: true },
+    });
+
+    if (user?.twoFactorEnabled) {
+      if (!body.code2FA) {
+        throw new ForbiddenException('2FA_REQUIRED');
+      }
+      const verified = await this.twoFactorService.verifySecondFactor(req.user.sub, body.code2FA);
+      if (!verified) {
+        throw new BadRequestException('2FA_INVALID');
+      }
+    }
+
+    const country = organization.country;
+    if (!country) {
+      throw new BadRequestException({
+        code: 'COUNTRY_REQUIRED',
+        message: 'A billing country is required before purchasing credits.',
+      });
+    }
+
+    const currency = resolveBillingCurrency(country);
+
+    let customerId = organization.stripeCustomerId;
+
+    if (!customerId) {
+      customerId = await this.billingService.createCustomer({
+        email: userEmail,
+        name: organization.name ?? userName,
+        metadata: { organizationId },
+      });
+
+      await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: { stripeCustomerId: customerId },
+      });
+    }
+
+    const priceId = await this.priceCatalog.topUpPriceId();
+    const frontendUrl = this.configService.get('FRONTEND_URL') ?? 'http://localhost:3000';
+
+    const sessionUrl = await this.billingService.createCreditTopUpCheckoutSession({
+      customerId,
+      priceId,
+      credits: body.credits,
+      currency,
+      successUrl: `${frontendUrl}/billing?topup=success`,
+      cancelUrl: `${frontendUrl}/billing?topup=canceled`,
+      metadata: {
+        organizationId,
+        credits: body.credits.toString(),
+        purchasedBy: userEmail,
+        userId: req.user.sub,
+      },
+    });
+
+    return { url: sessionUrl };
+  }
+
   @Post('portal')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER)
@@ -237,8 +355,19 @@ export class BillingController {
     );
 
     // El precio del overage no pertenece a ningún plan pero la UI lo necesita para el aviso de
-    // consumo, así que viaja en la misma respuesta en vez de en un endpoint aparte.
-    return { plans, overagePerCredit: await this.priceCatalog.overagePrices() };
+    // consumo, así que viaja en la misma respuesta en vez de en un endpoint aparte. Lo mismo
+    // aplica a la recarga de créditos: sale del mismo catálogo de Stripe y se usa en las mismas
+    // pantallas de Billing.
+    return {
+      plans,
+      overagePerCredit: await this.priceCatalog.overagePrices(),
+      creditTopUp: {
+        perCredit: await this.priceCatalog.topUpPrices(),
+        min: CREDIT_TOPUP_LIMITS.min,
+        max: CREDIT_TOPUP_LIMITS.max,
+        step: CREDIT_TOPUP_LIMITS.step,
+      },
+    };
   }
 
   @Get('subscription')

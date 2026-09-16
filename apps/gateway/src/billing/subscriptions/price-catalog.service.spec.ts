@@ -58,6 +58,7 @@ describe('PriceCatalogService', () => {
         'business_monthly',
         'pro_monthly',
         'overage_credit',
+        'credit_topup_unit',
       ]);
       expect(args.active).toBe(true);
       // Sin expandir, Stripe omite currency_options y los importes en pesos desaparecerían

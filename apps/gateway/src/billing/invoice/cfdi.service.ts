@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
-import { CfdiErrorKind, CfdiStatus, Invoice } from '@tesseract/database';
+import { CfdiErrorKind, CfdiStatus, Invoice, InvoiceType } from '@tesseract/database';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { CloudStorageService } from '@/platform/cloud/storage/cloud-storage.service';
 import { FacturapiClient } from './facturapi.client';
@@ -247,13 +247,12 @@ export class CfdiService {
    */
   private buildItems(invoice: Invoice) {
     const total = invoice.total.toNumber();
-    const period = this.describePeriod(invoice);
 
     return [
       {
         quantity: 1,
         product: {
-          description: `Suscripción Tesseract${period}`,
+          description: this.describeInvoice(invoice),
           product_key: CFDI_PRODUCT_KEY,
           unit_key: CFDI_UNIT_KEY,
           unit_name: CFDI_UNIT_NAME,
@@ -263,6 +262,18 @@ export class CfdiService {
         },
       },
     ];
+  }
+
+  /**
+   * Descripción del concepto único de la factura. Distingue la recarga de créditos de la
+   * suscripción porque son conceptos de negocio distintos, aunque compartan `product_key`
+   * (misma clave SAT: "servicios de sistemas de información" cubre a ambos).
+   */
+  private describeInvoice(invoice: Invoice): string {
+    if (invoice.type === InvoiceType.ONE_TIME) {
+      return 'Recarga de créditos Tesseract';
+    }
+    return `Suscripción Tesseract${this.describePeriod(invoice)}`;
   }
 
   private describePeriod(invoice: Invoice): string {

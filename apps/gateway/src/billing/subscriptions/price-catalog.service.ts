@@ -2,6 +2,7 @@ import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common
 import {
   ALL_LOOKUP_KEYS,
   BillingCurrency,
+  CREDIT_TOPUP_LOOKUP_KEY,
   OVERAGE_LOOKUP_KEY,
   PLAN_LOOKUP_KEYS,
   PlanPrices,
@@ -103,6 +104,20 @@ export class PriceCatalogService {
   async overagePrices(): Promise<PlanPrices> {
     const catalog = await this.load();
     return catalog.byLookupKey.get(OVERAGE_LOOKUP_KEY)?.prices ?? {};
+  }
+
+  /**
+   * Price ID de la recarga de créditos (cantidad libre, `quantity` variable). No es un plan, así
+   * que —igual que el overage— no entra en `planByPriceId`.
+   */
+  async topUpPriceId(): Promise<string> {
+    return (await this.requirePrice(CREDIT_TOPUP_LOOKUP_KEY)).id;
+  }
+
+  /** Importes de la recarga en todas las monedas, por crédito. */
+  async topUpPrices(): Promise<PlanPrices> {
+    const catalog = await this.load();
+    return catalog.byLookupKey.get(CREDIT_TOPUP_LOOKUP_KEY)?.prices ?? {};
   }
 
   /**
