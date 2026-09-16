@@ -1,11 +1,22 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@/platform/database/prisma.service';
-import { WorkflowCategory, TransactionType, UserRole } from '@tesseract/database';
+import {
+  WorkflowCategory,
+  TransactionType,
+  UserRole,
+  InvoiceType,
+  InvoiceStatus,
+  CfdiStatus,
+  Prisma,
+} from '@tesseract/database';
 import {
   PaginatedResponse,
   getWorkflowCreditCost,
   getPlanLimits,
   NOTIFICATIONSENUM,
+  resolveSubscriptionAccess,
+  SubscriptionDenialReason,
 } from '@tesseract/types';
 import { CreditBalance } from '@tesseract/database';
 import { DashboardCreditsDto } from './dto/dashboard-credits.dto';
@@ -102,7 +113,107 @@ export class CreditsService {
   }
 
   /**
+   * Acredita una recarga de créditos de compra única (Checkout `mode: 'payment'`), registrando
+   * su propia `Invoice` local en la misma transacción.
+   *
+   * A diferencia de `addCredits`, aquí sí hace falta idempotencia real: el webhook que llama a
+   * este método es `checkout.session.completed`, y Stripe reintenta si la respuesta tarda o
+   * falla. Reprocesar con `addCredits` duplicaría el abono; aquí, en cambio, `invoiceNumber` es
+   * `@unique` en `Invoice` y actúa como candado — un reintento choca con esa restricción
+   * (`P2002`) y se resuelve como "ya procesado" sin tocar el saldo ni la factura existente.
+   *
+   * El `id` de la factura se genera antes de la transacción (en vez de dejar que Prisma lo
+   * autogenere) porque `CreditTransaction.invoiceId` necesita conocerlo para poder crearse en el
+   * mismo array de operaciones — un `$transaction` de array, a diferencia de uno interactivo, no
+   * permite que una operación use el resultado de la anterior.
+   */
+  async grantPurchasedCredits(params: {
+    organizationId: string;
+    credits: number;
+    /** Idempotency key: normalmente `TOPUP-<stripeCheckoutSessionId>`. */
+    invoiceNumber: string;
+    /** Importe cobrado, en unidades mayores (no centavos) — así es como lo guarda `Invoice`. */
+    amountMajor: number;
+    cfdiStatus: CfdiStatus;
+    stripePaymentIntentId?: string;
+    metadata?: Record<string, any>;
+  }): Promise<{ invoiceId: string; deduped: boolean }> {
+    const balance = await this.prisma.creditBalance.findUnique({
+      where: { organizationId: params.organizationId },
+    });
+
+    if (!balance) {
+      throw new Error('Credit balance not found');
+    }
+
+    const balanceBefore = balance.balance;
+    const balanceAfter = balanceBefore + params.credits;
+    const invoiceId = randomUUID();
+
+    try {
+      await this.prisma.$transaction([
+        this.prisma.invoice.create({
+          data: {
+            id: invoiceId,
+            organizationId: params.organizationId,
+            invoiceNumber: params.invoiceNumber,
+            type: InvoiceType.ONE_TIME,
+            status: InvoiceStatus.PAID,
+            subtotal: params.amountMajor,
+            total: params.amountMajor,
+            tax: 0,
+            stripePaymentIntentId: params.stripePaymentIntentId,
+            paidAt: new Date(),
+            cfdiStatus: params.cfdiStatus,
+          },
+        }),
+        this.prisma.creditBalance.update({
+          where: { organizationId: params.organizationId },
+          data: {
+            balance: balanceAfter,
+            lifetimeEarned: { increment: params.credits },
+          },
+        }),
+        this.prisma.creditTransaction.create({
+          data: {
+            organizationId: params.organizationId,
+            type: TransactionType.ONE_TIME_PURCHASE,
+            amount: params.credits,
+            balanceBefore,
+            balanceAfter,
+            description: `Recarga de ${params.credits} créditos`,
+            metadata: params.metadata ?? undefined,
+            invoiceId,
+          },
+        }),
+      ]);
+
+      return { invoiceId, deduped: false };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        this.logger.info(
+          `grantPurchasedCredits >> Recarga ${params.invoiceNumber} ya estaba procesada, se omite`,
+        );
+        const existing = await this.prisma.invoice.findUnique({
+          where: { invoiceNumber: params.invoiceNumber },
+          select: { id: true },
+        });
+        // No debería faltar (P2002 fue justo por esta clave), pero si faltara no hay factura que
+        // timbrar: mejor devolver el id que se iba a usar que lanzar por algo ya resuelto.
+        return { invoiceId: existing?.id ?? invoiceId, deduped: true };
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Validar si una organización puede ejecutar un workflow
+   *
+   * El saldo de créditos no caduca, pero solo se puede **gastar** con una suscripción activa
+   * (o dentro de la gracia tras un cobro fallido). Sin eso, un cliente cancelado con saldo a
+   * favor podría seguir ejecutando workflows indefinidamente — cada ejecución sigue costando
+   * Cloud Run/Cloud SQL aunque el saldo ya esté pagado y no haya certeza de que vuelva a pagar.
+   * Ver `resolveSubscriptionAccess` (packages/types) para la regla completa.
    */
   async canExecuteWorkflow(
     organizationId: string,
@@ -115,12 +226,35 @@ export class CreditsService {
       }),
       this.prisma.organization.findUnique({
         where: { id: organizationId },
-        select: { allowOverages: true, overageLimit: true, plan: true },
+        select: {
+          allowOverages: true,
+          overageLimit: true,
+          plan: true,
+          subscription: { select: { status: true, pastDueSince: true } },
+        },
       }),
     ]);
 
     if (!balance || !org) {
       return { allowed: false, reason: 'Organization or balance not found' };
+    }
+
+    // Chequeo de suscripción, antes que el de saldo: a alguien sin suscripción activa no le
+    // sirve de nada tener crédito — el problema no es que le falten créditos, es que no hay
+    // relación de pago vigente que justifique seguir consumiendo infraestructura.
+    const subscriptionAccess = resolveSubscriptionAccess({
+      status: org.subscription?.status ?? null,
+      pastDueSince: org.subscription?.pastDueSince ?? null,
+    });
+
+    if (!subscriptionAccess.allowed) {
+      if (subscriptionAccess.reason === 'SUBSCRIPTION_PAST_DUE') {
+        await this.notifySubscriptionSuspendedOnce(organizationId);
+      }
+      return {
+        allowed: false,
+        reason: this.describeSubscriptionDenial(subscriptionAccess.reason),
+      };
     }
 
     const requiredCredits = getWorkflowCreditCost(workflowCategory as any);
@@ -301,11 +435,28 @@ export class CreditsService {
   private async shouldSendOverageLimitReachedNotification(
     organizationId: string,
   ): Promise<boolean> {
+    return this.shouldSendCooldownNotification(
+      organizationId,
+      NOTIFICATIONSENUM.OVERAGE_LIMIT_REACHED,
+      OVERAGE_LIMIT_NOTIFICATION_COOLDOWN_MS,
+    );
+  }
+
+  /**
+   * Igual que `shouldSendOverageLimitReachedNotification`, pero genérico por código de
+   * notificación: evita mandar el mismo aviso en cada ejecución bloqueada mientras la causa no
+   * cambia (p.ej. cada intento de ejecutar con la gracia de `PAST_DUE` ya agotada).
+   */
+  private async shouldSendCooldownNotification(
+    organizationId: string,
+    notificationCode: string,
+    cooldownMs: number,
+  ): Promise<boolean> {
     const latestNotification = await this.prisma.userNotification.findFirst({
       where: {
         organizationId,
         notification: {
-          code: NOTIFICATIONSENUM.OVERAGE_LIMIT_REACHED,
+          code: notificationCode,
         },
       },
       orderBy: {
@@ -321,7 +472,40 @@ export class CreditsService {
     }
 
     const elapsedTimeMs = Date.now() - latestNotification.createdAt.getTime();
-    return elapsedTimeMs >= OVERAGE_LIMIT_NOTIFICATION_COOLDOWN_MS;
+    return elapsedTimeMs >= cooldownMs;
+  }
+
+  /**
+   * Avisa que el servicio quedó suspendido por falta de pago, la primera vez que se deniega una
+   * ejecución por gracia de `PAST_DUE` agotada (con el mismo cooldown de 24h que el resto de los
+   * avisos de esta clase, para no repetirlo en cada intento de ejecución bloqueado).
+   */
+  private async notifySubscriptionSuspendedOnce(organizationId: string): Promise<void> {
+    const shouldNotify = await this.shouldSendCooldownNotification(
+      organizationId,
+      NOTIFICATIONSENUM.SUBSCRIPTION_SUSPENDED,
+      OVERAGE_LIMIT_NOTIFICATION_COOLDOWN_MS,
+    );
+
+    if (shouldNotify) {
+      await this.utilityService.sendNotificationToAppClients(
+        organizationId,
+        [UserRole.OWNER, UserRole.ADMIN],
+        NOTIFICATIONSENUM.SUBSCRIPTION_SUSPENDED,
+      );
+    }
+  }
+
+  /** Mensaje legible del motivo de bloqueo, para el `ForbiddenException` que ve el cliente. */
+  private describeSubscriptionDenial(reason: SubscriptionDenialReason): string {
+    switch (reason) {
+      case 'NO_SUBSCRIPTION':
+        return 'No active subscription';
+      case 'SUBSCRIPTION_CANCELED':
+        return 'Subscription canceled';
+      case 'SUBSCRIPTION_PAST_DUE':
+        return 'Subscription payment failed and the grace period has expired';
+    }
   }
 
   async getDashboardData(

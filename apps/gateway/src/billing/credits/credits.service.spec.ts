@@ -223,6 +223,7 @@ describe('CreditsService', () => {
         allowOverages: false,
         overageLimit: null,
         plan: 'PRO',
+        subscription: { status: 'ACTIVE', pastDueSince: null },
       });
 
       const result = await service.canExecuteWorkflow(orgId, 'LIGHT');
@@ -237,6 +238,7 @@ describe('CreditsService', () => {
         allowOverages: false,
         overageLimit: null,
         plan: 'PRO',
+        subscription: { status: 'ACTIVE', pastDueSince: null },
       });
 
       const result = await service.canExecuteWorkflow(orgId, 'LIGHT');
@@ -270,6 +272,7 @@ describe('CreditsService', () => {
         allowOverages: false,
         overageLimit: null,
         plan: 'PRO',
+        subscription: { status: 'ACTIVE', pastDueSince: null },
       });
 
       const result = await service.canExecuteWorkflow(orgId, 'ADVANCED');
@@ -288,6 +291,7 @@ describe('CreditsService', () => {
         allowOverages: true,
         overageLimit: null,
         plan: 'PRO',
+        subscription: { status: 'ACTIVE', pastDueSince: null },
       });
 
       const result = await service.canExecuteWorkflow(orgId, 'STANDARD');
@@ -307,6 +311,7 @@ describe('CreditsService', () => {
         allowOverages: true,
         overageLimit: 100,
         plan: 'PRO',
+        subscription: { status: 'ACTIVE', pastDueSince: null },
       });
 
       const result = await service.canExecuteWorkflow(orgId, 'ADVANCED');
@@ -323,6 +328,7 @@ describe('CreditsService', () => {
         allowOverages: true,
         overageLimit: 3,
         plan: 'PRO',
+        subscription: { status: 'ACTIVE', pastDueSince: null },
       });
       mockPrismaService.userNotification.findFirst.mockResolvedValue(null);
 
@@ -346,6 +352,7 @@ describe('CreditsService', () => {
         allowOverages: true,
         overageLimit: 3,
         plan: 'PRO',
+        subscription: { status: 'ACTIVE', pastDueSince: null },
       });
       mockPrismaService.userNotification.findFirst.mockResolvedValue({
         createdAt: new Date(Date.now() - 30 * 60 * 1000),
@@ -366,11 +373,107 @@ describe('CreditsService', () => {
         allowOverages: false,
         overageLimit: null,
         plan: 'PRO',
+        subscription: { status: 'ACTIVE', pastDueSince: null },
       });
 
       const result = await service.canExecuteWorkflow(orgId, 'STANDARD');
 
       expect(result).toEqual({ allowed: true });
+    });
+
+    // ─── Gate de suscripción activa ─────────────────────────────────
+    // Un saldo suficiente ya no basta: sin suscripción viva, se deniega antes de mirar el
+    // balance. El saldo no caduca, solo queda congelado.
+    it('should deny with plenty of balance when there is no subscription at all', async () => {
+      mockPrismaService.creditBalance.findUnique.mockResolvedValue({ balance: 999999 });
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        allowOverages: false,
+        overageLimit: null,
+        plan: 'FREE',
+        subscription: null,
+      });
+
+      const result = await service.canExecuteWorkflow(orgId, 'LIGHT');
+
+      expect(result).toEqual({ allowed: false, reason: 'No active subscription' });
+    });
+
+    it('should deny with plenty of balance when the subscription is canceled', async () => {
+      mockPrismaService.creditBalance.findUnique.mockResolvedValue({ balance: 999999 });
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        allowOverages: false,
+        overageLimit: null,
+        plan: 'FREE',
+        subscription: { status: 'CANCELED', pastDueSince: null },
+      });
+
+      const result = await service.canExecuteWorkflow(orgId, 'LIGHT');
+
+      expect(result).toEqual({ allowed: false, reason: 'Subscription canceled' });
+    });
+
+    it('should allow when PAST_DUE and still within the grace period', async () => {
+      mockPrismaService.creditBalance.findUnique.mockResolvedValue({ balance: 50 });
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        allowOverages: false,
+        overageLimit: null,
+        plan: 'PRO',
+        subscription: {
+          status: 'PAST_DUE',
+          pastDueSince: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // hace 3 días
+        },
+      });
+
+      const result = await service.canExecuteWorkflow(orgId, 'LIGHT');
+
+      expect(result).toEqual({ allowed: true });
+    });
+
+    it('should deny and notify once when PAST_DUE grace period has expired', async () => {
+      mockPrismaService.creditBalance.findUnique.mockResolvedValue({ balance: 50 });
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        allowOverages: false,
+        overageLimit: null,
+        plan: 'PRO',
+        subscription: {
+          status: 'PAST_DUE',
+          pastDueSince: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), // hace 8 días
+        },
+      });
+      mockPrismaService.userNotification.findFirst.mockResolvedValue(null);
+
+      const result = await service.canExecuteWorkflow(orgId, 'LIGHT');
+
+      expect(result).toEqual({
+        allowed: false,
+        reason: 'Subscription payment failed and the grace period has expired',
+      });
+      expect(mockUtilityService.sendNotificationToAppClients).toHaveBeenCalledWith(
+        orgId,
+        ['OWNER', 'ADMIN'],
+        '0000-0118',
+      );
+    });
+
+    it('should not repeat the suspension notification during its cooldown window', async () => {
+      mockPrismaService.creditBalance.findUnique.mockResolvedValue({ balance: 50 });
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        allowOverages: false,
+        overageLimit: null,
+        plan: 'PRO',
+        subscription: {
+          status: 'PAST_DUE',
+          pastDueSince: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+        },
+      });
+      mockPrismaService.userNotification.findFirst.mockResolvedValue({
+        createdAt: new Date(Date.now() - 30 * 60 * 1000),
+      });
+
+      const result = await service.canExecuteWorkflow(orgId, 'LIGHT');
+
+      expect(result.allowed).toBe(false);
+      expect(mockUtilityService.sendNotificationToAppClients).not.toHaveBeenCalled();
     });
   });
 

@@ -910,7 +910,7 @@ export class WorkflowsService {
       );
 
       if (!canExecute.allowed) {
-        throw new ForbiddenException(`Insufficient credits: ${canExecute.reason}`);
+        throw new ForbiddenException(`Workflow execution blocked: ${canExecute.reason}`);
       }
     }
 
@@ -1484,7 +1484,7 @@ export class WorkflowsService {
       );
 
       if (!canExecute.allowed) {
-        throw new ForbiddenException(`Insufficient credits: ${canExecute.reason}`);
+        throw new ForbiddenException(`Workflow execution blocked: ${canExecute.reason}`);
       }
     }
 

@@ -1,5 +1,14 @@
 import { HttpService } from '@nestjs/axios';
-import { Body, Controller, HttpStatus, Inject, Post, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  HttpStatus,
+  Inject,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ConversationChannel, TriggerType } from '@tesseract/database';
 import { Response } from 'express';
@@ -284,6 +293,19 @@ export class WhatsappWorkerController {
 
       return res.status(HttpStatus.OK).send({ processed: true });
     } catch (error) {
+      if (error instanceof ForbiddenException) {
+        // Bloqueo de negocio (sin crédito o sin suscripción activa): reintentar no lo va a
+        // arreglar, así que la ventana SÍ se confirma —igual que un `no-text`— para que Cloud
+        // Tasks no insista para siempre en algo que nunca va a pasar la guardia. Mismo criterio
+        // que `WorkflowsTestWorkerController`.
+        await this.commit(drained.processingKey);
+        this.logger.warn('Ejecución bloqueada, ventana confirmada sin reintento', {
+          ...logContext,
+          reason: error.message,
+        });
+        return res.status(HttpStatus.OK).send({ processed: false, reason: 'blocked' });
+      }
+
       // La ventana NO se confirma: sigue en Redis para que el reintento la retome.
       this.logger.error('Error procesando la ventana de WhatsApp', {
         ...logContext,
