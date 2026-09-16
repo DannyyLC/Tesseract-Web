@@ -41,8 +41,8 @@ Para que tu entorno de desarrollo reciba notificaciones de pagos exitosos, cance
 ## Catálogo de precios
 
 El gateway no lee Price IDs de variables de entorno: los resuelve por _lookup key_ (`starter_monthly`,
-`pro_monthly`, `overage_credit`…) contra la API de Stripe. Antes de probar un cobro hay que crear
-ese catálogo en tu cuenta de prueba:
+`pro_monthly`, `overage_credit`, `credit_topup_unit`…) contra la API de Stripe. Antes de probar un
+cobro hay que crear ese catálogo en tu cuenta de prueba:
 
 ```bash
 pnpm stripe:catalog            # dry-run: imprime qué crearía o cambiaría
@@ -55,6 +55,29 @@ que el **Price ID es el mismo en ambas monedas** y la organización paga en la s
 Para cambiar un precio se edita `CATALOG` en `scripts/stripe/sync-catalog.ts` y se vuelve a correr:
 no hace falta redeploy, porque no hay ninguna cifra de dinero compilada en el código. El gateway
 cachea el catálogo cinco minutos, así que un cambio tarda eso en verse.
+
+## Probar la recarga de créditos (compra única)
+
+A diferencia de las suscripciones, la recarga de créditos usa un Checkout `mode: 'payment'` y se
+resuelve por el webhook `checkout.session.completed`. `stripe trigger` **no sirve** para probarla:
+el evento sintético no trae la metadata (`organizationId`, `credits`) que el handler necesita, así
+que hay que completar un Checkout real contra el modo de prueba:
+
+1. Con `stripe listen` corriendo (arriba) y el catálogo sincronizado, pide desde el frontend
+   `POST /billing/credits/checkout` (o el botón "Comprar créditos" en `/billing`) con una
+   organización que tenga suscripción activa.
+2. Completa el pago en la página de Stripe con una tarjeta de prueba (ver la tabla de abajo).
+3. Verifica en la base local: `CreditBalance.balance` subió, hay un `CreditTransaction` con
+   `type: ONE_TIME_PURCHASE`, y un `Invoice` con `type: ONE_TIME` e `invoiceNumber` que empieza
+   con `TOPUP-`.
+4. Para probar que no se duplica el abono ante un reintento, reenvía el mismo evento:
+   ```bash
+   stripe events resend <event_id>
+   ```
+   El segundo intento debe registrarse en el log como "ya estaba procesada" y no debe volver a
+   sumar el saldo — la protección es el `invoiceNumber` único (`TOPUP-<session_id>`), no la
+   deduplicación de webhooks (que solo cubre eventos exactamente repetidos, no reintentos que
+   Stripe considera un evento nuevo).
 
 ## Tarjetas de Prueba (Test Cards)
 

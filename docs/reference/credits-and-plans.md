@@ -100,6 +100,8 @@ La organizacion puede ajustar su limite de overage desde el panel de Billing. Lo
 
 Los creditos se asignan automaticamente al inicio de cada ciclo de facturacion. Los creditos no utilizados **si se acumulan** al mes siguiente: la renovacion suma el balance del plan al saldo positivo existente (ver `addCredits` en `credits.service.ts`, que hace `balanceAfter = balanceBefore + amount`). Cuando hay saldo negativo por overage, la renovacion lo reconcilia primero y deja el balance en los creditos del plan.
 
+**Los creditos no caducan nunca.** Lo que decide si se pueden *gastar* no es su antiguedad, es si la organizacion tiene una suscripcion activa ahora mismo — ver la seccion 7.
+
 El historial completo de asignaciones, deducciones y cargos queda registrado en la tabla `CreditTransactions` de la base de datos, con los tipos:
 
 | Tipo de transaccion               | Cuando ocurre                          |
@@ -107,12 +109,62 @@ El historial completo de asignaciones, deducciones y cargos queda registrado en 
 | `SUBSCRIPTION_RENEWAL`            | Cada mes al renovar el plan            |
 | `EXECUTION_DEDUCTION`             | Cada vez que un Workflow se ejecuta    |
 | `OVERAGE_CHARGE`                  | Al facturar creditos negativos del mes |
+| `ONE_TIME_PURCHASE`               | Al comprar una recarga de creditos (seccion 8) |
 | `PLAN_UPGRADE` / `PLAN_DOWNGRADE` | Al cambiar de plan                     |
 | `MANUAL_ADJUSTMENT`               | Ajuste realizado por un administrador  |
 
 ---
 
-## 6. Actualizar Valores de Planes
+## 7. Gate de Suscripcion Activa
+
+Tener saldo no basta para ejecutar un Workflow: la organizacion tambien necesita una suscripcion viva. Sin esto, un cliente que cancela y queda en plan `FREE` (que permite hasta 3 Workflows activos) podria seguir ejecutando con el saldo que le sobro, consumiendo Cloud Run/Cloud SQL sin pagar mensualidad — el saldo prepagado solo cubre los tokens de IA, no la infraestructura fija.
+
+La regla vive en `resolveSubscriptionAccess()` (`packages/types/src/billing/subscriptions/subscription-access.ts`) y la consulta `CreditsService.canExecuteWorkflow()` antes de mirar el balance:
+
+| Estado de la suscripcion     | ¿Puede ejecutar?                                               |
+| ----------------------------- | ---------------------------------------------------------------- |
+| `ACTIVE`                       | Si, siempre (incluye cancelacion programada a fin de periodo)  |
+| `PAST_DUE`, dentro de 7 dias  | Si — gracia tras el primer cobro fallido                        |
+| `PAST_DUE`, pasados 7 dias    | No                                                               |
+| `CANCELED` / `INCOMPLETE`     | No, sin importar el saldo                                        |
+| Sin fila `Subscription`       | No (p.ej. nunca contrato)                                        |
+
+El reloj de la gracia (`Subscription.pastDueSince`) es propio y **mas corto que el de Stripe**: Stripe reintenta el cobro fallido durante semanas (configurable en su panel) antes de cancelar la suscripcion de verdad; nosotros cortamos la ejecucion a los 7 dias sin esperar a que Stripe se rinda. `pastDueSince` se marca la primera vez que falla un cobro y se limpia en cuanto vuelve a pagarse — un segundo intento fallido durante la misma incidencia no reinicia el reloj.
+
+El bloqueo es solo de **ejecucion**. Login, Billing y crear/editar recursos (dentro de los limites del plan que sigue teniendo la organizacion) quedan abiertos — tiene que poder entrar a pagar. Cuando Stripe finalmente cancela (`customer.subscription.deleted`), ahi si baja a `FREE` y se aplican los limites de ese plan (`enforceLimits`).
+
+Se avisa al cliente en cada transicion: `PAYMENT_FAILED` (codigo `0000-0117`) al caer en `PAST_DUE`, y `SUBSCRIPTION_SUSPENDED` (`0000-0118`) la primera vez que se bloquea una ejecucion por gracia agotada.
+
+---
+
+## 8. Recarga de Creditos (Compra Unica)
+
+Ademas de los creditos del plan y del overage, cualquier organizacion con suscripcion activa puede comprar creditos por adelantado, en la cantidad que quiera — no son paquetes fijos.
+
+### Por que un tercer precio, y por que en ese orden
+
+```
+incluido en el plan  <  recarga  <  overage
+   $0.027–$0.033           $0.04         $0.05   (USD/credito)
+```
+
+Cada tramo cubre un riesgo distinto:
+
+- **Incluido en el plan**: el mas barato, es lo que compra la lealtad al plan.
+- **Recarga**: dinero ya cobrado antes de otorgar el credito — cero riesgo de cobro para nosotros — pero **siempre por encima del credito incluido de cualquier plan**, para que comprar sueltos nunca sea mas barato que subir de plan.
+- **Overage**: el mas caro, porque ahi el credito se entrega antes de cobrarlo — el riesgo de que la tarjeta falle al facturar lo asumimos nosotros primero.
+
+### Limites y mecanismo
+
+`CREDIT_TOPUP_LIMITS` (`packages/types/src/billing/subscriptions/credit-topup.ts`): minimo 250, maximo 25,000, en multiplos de 50. Se valida en el servidor, no solo en la UI.
+
+Es un solo precio de Stripe (`credit_topup_unit`, `mode: 'payment'`, `quantity` = creditos elegidos) — el mismo mecanismo que ya usa el overage, pero cobrado al instante en vez de adjuntado a una factura futura. El webhook `checkout.session.completed` acredita los creditos leyendo la **cantidad que Stripe reporta como pagada** (via `listLineItems`), no la que se pidio en la metadata — la metadata es solo referencia cruzada.
+
+Comprar (y gastar) una recarga exige suscripcion activa, igual que ejecutar: si no, alguien podria comprar un lote grande justo antes de cancelar y seguir gastandolo sin volver a pagar, que es exactamente el hueco que cierra la seccion 7. Ademas, quien tenga 2FA activado debe confirmar la compra con su codigo, sin importar el monto.
+
+---
+
+## 9. Actualizar Valores de Planes
 
 Son dos archivos distintos segun lo que se cambie:
 

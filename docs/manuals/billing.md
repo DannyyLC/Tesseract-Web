@@ -73,3 +73,21 @@ El **Overage** permite consumir créditos extra que se cobrarán al final del me
 <Card title="Pruebas Locales" icon="credit-card" href="/setup/stripe-local">
   Recuerda consultar la guía de pruebas locales para ver cómo simular estos comportamientos usando el CLI de Stripe.
 </Card>
+
+## 5. Gate de Suscripción Activa
+
+Tener saldo de créditos no basta para ejecutar un Workflow: la organización también necesita una suscripción viva ahora mismo. Sin esto, alguien podía cancelar, caer al plan `FREE` (que permite hasta 3 Workflows activos) y seguir ejecutando con el saldo que le sobró — cada ejecución sigue costando Cloud Run/Cloud SQL, y el saldo prepagado solo cubre los tokens de IA, no la infraestructura fija.
+
+La regla es simple: `ACTIVE` ejecuta siempre; `PAST_DUE` ejecuta solo dentro de los **7 días** siguientes al primer cobro fallido (`Subscription.pastDueSince`); `CANCELED`, `INCOMPLETE` y quien nunca tuvo suscripción, nunca ejecutan, sin importar el saldo. Ese plazo de 7 días es un reloj propio y más corto que el de Stripe (que reintenta el cobro durante semanas antes de cancelar de verdad) — no se espera a que Stripe se rinda para dejar de gastar infraestructura en un cobro que ya falló.
+
+El bloqueo es solo de **ejecución**: login, Billing y crear/editar recursos siguen abiertos, porque el cliente tiene que poder entrar a pagar. Se le avisa en cada transición (pago fallido al entrar en `PAST_DUE`, suspensión al agotarse la gracia); antes de este cambio no había ningún aviso, ni correo ni notificación in-app.
+
+Detalle completo, con la tabla de estados, en la [referencia de créditos y planes](/reference/credits-and-plans#7-gate-de-suscripcion-activa).
+
+## 6. Recarga de Créditos (Compra Única)
+
+Aparte de los créditos del plan y del overage, cualquier organización con suscripción activa puede comprar créditos por adelantado, en la cantidad que quiera (no son paquetes fijos): mínimo 250, máximo 25,000, en múltiplos de 50.
+
+Es un Checkout de Stripe en `mode: 'payment'` — un cobro único e inmediato, sin nada de la complejidad de una suscripción (prorrateo, cambios programados, reconciliación de ciclo). El webhook que lo resuelve es `checkout.session.completed`, distinto de los eventos `invoice.*`/`customer.subscription.*` que maneja el resto de este documento: es el único punto del sistema que escucha ese evento, precisamente porque solo lo dispara este producto.
+
+El precio por crédito de la recarga queda a propósito entre el crédito incluido en el plan y el del overage — más caro que el primero para no competir con subir de plan, más barato que el segundo porque aquí el dinero ya está cobrado antes de otorgar el crédito. Comprarla exige suscripción activa, por la misma razón que ejecutar: evita que alguien compre un lote grande justo antes de cancelar. Con 2FA activado, la compra pide el código sin importar el monto.
