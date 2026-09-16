@@ -139,6 +139,16 @@ export interface BillingPlansResponse {
   plans: BillingPlanWithPrices[];
   /** Precio por crédito de overage, por moneda, en unidades mínimas. */
   overagePerCredit: PlanPrices;
+  /**
+   * Recarga de créditos de compra única (cantidad libre). Precio por crédito y los mismos
+   * límites que valida el servidor, para que la UI los use en el mismo formulario.
+   */
+  creditTopUp: {
+    perCredit: PlanPrices;
+    min: number;
+    max: number;
+    step: number;
+  };
 }
 
 /**

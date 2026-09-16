@@ -30,6 +30,13 @@ export const PLAN_LOOKUP_KEYS: Partial<Record<SubscriptionPlan, string>> = {
 export const OVERAGE_LOOKUP_KEY = 'overage_credit';
 
 /**
+ * Precio por crédito de la recarga de compra única (cantidad libre, no paquetes fijos). Pago
+ * único cobrado de inmediato vía Checkout `mode: 'payment'`, a diferencia del overage, que se
+ * adjunta a la factura del ciclo. Ver `CREDIT_TOPUP_LIMITS` para el rango permitido.
+ */
+export const CREDIT_TOPUP_LOOKUP_KEY = 'credit_topup_unit';
+
+/**
  * Planes que se cobran por Stripe. `FREE` no cobra y `ENTERPRISE` se negocia por
  * `Subscription.customMonthlyPrice`, así que ninguno de los dos tiene precio en el catálogo.
  */
@@ -39,4 +46,5 @@ export const BILLABLE_PLANS = Object.keys(PLAN_LOOKUP_KEYS) as SubscriptionPlan[
 export const ALL_LOOKUP_KEYS: string[] = [
   ...Object.values(PLAN_LOOKUP_KEYS),
   OVERAGE_LOOKUP_KEY,
+  CREDIT_TOPUP_LOOKUP_KEY,
 ];
