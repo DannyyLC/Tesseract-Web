@@ -293,6 +293,12 @@ model Subscription {
   currentPeriodEnd   DateTime // Calculado: currentPeriodStart + 1 mes
   cancelAtPeriodEnd  Boolean  @default(false) // Si true, no renueva al final del periodo
 
+  // Cuándo falló el primer cobro del impago actual. NULL = al corriente. Se limpia en cuanto
+  // vuelve a ACTIVE, así que un segundo impago reinicia el reloj. Es lo que mide la gracia de
+  // `resolveSubscriptionAccess` (packages/types): un reloj propio y más corto que el de Stripe,
+  // que sigue reintentando el cobro durante semanas.
+  pastDueSince DateTime?
+
   // Downgrade programado (se aplica al final del periodo = currentPeriodEnd)
   pendingPlanChange     SubscriptionPlan? // null = sin cambio pendiente, ej: GROWTH
   planChangeRequestedAt DateTime? // Cuándo el usuario SOLICITÓ el cambio

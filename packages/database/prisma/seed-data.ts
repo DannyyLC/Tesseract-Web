@@ -572,6 +572,32 @@ export const notifications: NotificationSeed[] = [
     isActive: true,
   },
   {
+    code: '0000-0117',
+    version: 1,
+    titleTemplate: 'Pago Fallido.',
+    messageTemplate:
+      'No pudimos cobrar tu suscripcion. Tienes %s dias para actualizar tu metodo de pago antes de que se suspenda la ejecucion de tus workflows.',
+    targetRoles: ['OWNER', 'ADMIN'],
+    isActive: true,
+  },
+  {
+    code: '0000-0118',
+    version: 1,
+    titleTemplate: 'Servicio Suspendido Por Falta De Pago.',
+    messageTemplate:
+      'Tu suscripcion sigue sin pagarse y ya no puedes ejecutar workflows. Tu saldo de creditos no se perdio: se reactivara en cuanto actualices tu metodo de pago.',
+    targetRoles: ['OWNER', 'ADMIN'],
+    isActive: true,
+  },
+  {
+    code: '0000-0119',
+    version: 1,
+    titleTemplate: 'Recarga De Creditos.',
+    messageTemplate: 'Se agregaron %s creditos a tu organizacion tras tu compra.',
+    targetRoles: ['OWNER', 'ADMIN'],
+    isActive: true,
+  },
+  {
     code: '0000-1000',
     version: 1,
     titleTemplate: 'Aceptacion De Invitacion.',

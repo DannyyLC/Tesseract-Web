@@ -686,6 +686,30 @@ ON CONFLICT ("code", "version") DO UPDATE SET
   "isActive" = EXCLUDED."isActive";
 
 INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0117', 1, 'Pago Fallido.', 'No pudimos cobrar tu suscripcion. Tienes %s dias para actualizar tu metodo de pago antes de que se suspenda la ejecucion de tus workflows.', '["OWNER","ADMIN"]'::jsonb, true, now())
+ON CONFLICT ("code", "version") DO UPDATE SET
+  "titleTemplate" = EXCLUDED."titleTemplate",
+  "messageTemplate" = EXCLUDED."messageTemplate",
+  "targetRoles" = EXCLUDED."targetRoles",
+  "isActive" = EXCLUDED."isActive";
+
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0118', 1, 'Servicio Suspendido Por Falta De Pago.', 'Tu suscripcion sigue sin pagarse y ya no puedes ejecutar workflows. Tu saldo de creditos no se perdio: se reactivara en cuanto actualices tu metodo de pago.', '["OWNER","ADMIN"]'::jsonb, true, now())
+ON CONFLICT ("code", "version") DO UPDATE SET
+  "titleTemplate" = EXCLUDED."titleTemplate",
+  "messageTemplate" = EXCLUDED."messageTemplate",
+  "targetRoles" = EXCLUDED."targetRoles",
+  "isActive" = EXCLUDED."isActive";
+
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0119', 1, 'Recarga De Creditos.', 'Se agregaron %s creditos a tu organizacion tras tu compra.', '["OWNER","ADMIN"]'::jsonb, true, now())
+ON CONFLICT ("code", "version") DO UPDATE SET
+  "titleTemplate" = EXCLUDED."titleTemplate",
+  "messageTemplate" = EXCLUDED."messageTemplate",
+  "targetRoles" = EXCLUDED."targetRoles",
+  "isActive" = EXCLUDED."isActive";
+
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
 VALUES (gen_random_uuid(), '0000-1000', 1, 'Aceptacion De Invitacion.', 'La invitacion para %s ha sido exitosamente procesada y aceptada por lo que ahora es parte de tu organizacion. Puedes gestionar su informacion desde el panel de administracion.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
