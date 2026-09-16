@@ -22,6 +22,7 @@
 
 import Stripe from 'stripe';
 import {
+  CREDIT_TOPUP_LOOKUP_KEY,
   OVERAGE_LOOKUP_KEY,
   PLAN_LOOKUP_KEYS,
   PLANS,
@@ -91,6 +92,21 @@ const CATALOG: CatalogEntry[] = [
     // cliente que estaba creciendo.
     amounts: { usd: 5, mxn: 100 },
   },
+  {
+    lookupKey: CREDIT_TOPUP_LOOKUP_KEY,
+    productName: 'Tesseract — Recarga de créditos',
+    description: 'Créditos comprados por adelantado, cantidad a elección del cliente',
+    // Pago único cobrado de inmediato vía Checkout `mode: 'payment'`, con `quantity` igual a
+    // los créditos elegidos (`CREDIT_TOPUP_LIMITS` en packages/types valida el rango). A
+    // diferencia del overage, no se adjunta a ninguna factura: es dinero en la mano antes de
+    // otorgar el crédito, así que no carga el riesgo de cobro que sí tiene el overage.
+    recurring: false,
+    // $0.04 por crédito: por encima de lo que cuesta el crédito incluido en cualquier plan
+    // (entre $0.027 y $0.033 según el plan) para no competir con subir de plan, y por debajo
+    // del overage ($0.05), que es más caro a propósito porque ahí el riesgo de cobro lo
+    // asumimos nosotros primero.
+    amounts: { usd: 4, mxn: 80 },
+  },
 ];
 
 // ============================================================
@@ -142,8 +158,15 @@ async function syncEntry(stripe: Stripe, entry: CatalogEntry): Promise<void> {
 
   // --- El precio ya existe ---
   if (existing) {
+    const productId = existing.product as string;
+
     if (isUpToDate(existing, entry)) {
       log('sin cambio', `${entry.lookupKey} (${existing.id}) — ${formatAmounts(entry.amounts)}`);
+      // Se llama también aquí, no solo tras crear un precio: es lo que corrige en retroactivo un
+      // producto cuyo `default_price` quedó apuntando al precio viejo de una recreación anterior
+      // a que existiera esta función — el precio en sí ya está al día, pero el dashboard seguía
+      // mostrando el huérfano como "el" precio del producto.
+      await ensureDefaultPrice(stripe, productId, existing.id);
       return;
     }
 
@@ -161,14 +184,23 @@ async function syncEntry(stripe: Stripe, entry: CatalogEntry): Promise<void> {
           mxn: { unit_amount: entry.amounts.mxn },
         },
       });
+      await ensureDefaultPrice(stripe, productId, existing.id);
       return;
     } catch {
       // Stripe no permite reescribir el importe de un `Price` ya usado. En ese caso se crea uno
       // nuevo y se le muda la lookup key con `transfer_lookup_key`: las suscripciones vigentes
-      // se quedan en el precio viejo —grandfathering— y las nuevas toman el nuevo, sin que el
-      // código note la diferencia porque sigue pidiendo la misma clave.
+      // se quedan en el precio viejo —grandfathering, Stripe sigue cobrándoles ahí sin problema—
+      // y las nuevas toman el nuevo, sin que el código note la diferencia porque sigue pidiendo
+      // la misma clave.
+      //
+      // Lo que faltaba antes: el precio viejo se quedaba `active: true` y como "default price"
+      // del producto para siempre, así que el catálogo de Stripe acumulaba un huérfano idéntico
+      // en apariencia (mismo importe, otra fecha) por cada recalibración — confuso en el
+      // dashboard aunque el código nunca lo tocara, porque solo resuelve por lookup key.
       log('recrea', `${entry.lookupKey} — el precio existente no admite cambios de importe`);
-      await createPrice(stripe, entry, existing.product as string, true);
+      const newPrice = await createPrice(stripe, entry, productId, true);
+      await archiveOldPrice(stripe, existing.id);
+      await ensureDefaultPrice(stripe, productId, newPrice.id);
       return;
     }
   }
@@ -185,7 +217,8 @@ async function syncEntry(stripe: Stripe, entry: CatalogEntry): Promise<void> {
     });
   }
 
-  await createPrice(stripe, entry, product.id, false);
+  const newPrice = await createPrice(stripe, entry, product.id, false);
+  await ensureDefaultPrice(stripe, product.id, newPrice.id);
 }
 
 async function createPrice(
@@ -193,8 +226,8 @@ async function createPrice(
   entry: CatalogEntry,
   productId: string,
   transferLookupKey: boolean,
-): Promise<void> {
-  await stripe.prices.create({
+): Promise<Stripe.Price> {
+  return stripe.prices.create({
     product: productId,
     lookup_key: entry.lookupKey,
     transfer_lookup_key: transferLookupKey,
@@ -209,6 +242,47 @@ async function createPrice(
     },
     ...(entry.recurring ? { recurring: { interval: 'month' as const } } : {}),
   });
+}
+
+/**
+ * Desactiva un precio reemplazado por una recreación.
+ *
+ * No se puede borrar —Stripe nunca deja borrar un `Price` que ya se usó, solo archivarlo— pero
+ * desactivarlo lo saca de cualquier flujo de compra nueva (Checkout, Portal) y dejar de mostrarlo
+ * como vigente en el dashboard, sin afectar en nada a quien ya está suscrito con él.
+ */
+async function archiveOldPrice(stripe: Stripe, oldPriceId: string): Promise<void> {
+  log('archiva', `${oldPriceId} — precio reemplazado, ya no admite compras nuevas`);
+  if (!APPLY) return;
+  await stripe.prices.update(oldPriceId, { active: false });
+}
+
+/**
+ * Asegura que el producto muestre el precio vigente como su "default price" en el dashboard de
+ * Stripe. No afecta al gateway —que siempre resuelve por lookup key, nunca por `default_price`—
+ * pero es lo que decide qué precio ve primero un humano mirando el catálogo, y es justo lo que
+ * quedaba mal tras una recreación: el producto seguía apuntando al precio huérfano.
+ */
+async function ensureDefaultPrice(
+  stripe: Stripe,
+  productId: string,
+  priceId: string,
+): Promise<void> {
+  const product = await stripe.products.retrieve(productId);
+  const currentDefault =
+    typeof product.default_price === 'string'
+      ? product.default_price
+      : product.default_price?.id;
+
+  if (currentDefault === priceId) return;
+
+  log(
+    'default',
+    `${productId}: default_price → ${priceId} (antes: ${currentDefault ?? '(ninguno)'})`,
+  );
+  if (!APPLY) return;
+
+  await stripe.products.update(productId, { default_price: priceId });
 }
 
 async function main() {
