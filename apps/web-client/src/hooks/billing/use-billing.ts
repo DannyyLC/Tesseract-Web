@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
 import { SubscriptionPlan } from '@tesseract/types';
+import { CreateCreditCheckoutParams } from '@/lib/api/endpoints/billing/billing-api';
 
 // Hook para obtener los planes de suscripción
 export function usePlans() {
@@ -63,6 +64,15 @@ export function useBillingMutations() {
       return await api.createPortalSession();
     },
     // No invalidation needed here as it redirects
+  });
+
+  const createCreditCheckoutSession = useMutation({
+    mutationFn: async (params: CreateCreditCheckoutParams) => {
+      const api = RootApi.getInstance().getBillingApi();
+      return await api.createCreditCheckoutSession(params);
+    },
+    // No invalida aquí: redirige a Stripe. El saldo se refresca al volver, igual que con el
+    // checkout de planes (ver el `visibilitychange`/`?topup=` en las páginas de billing).
   });
 
   const updateSubscription = useMutation({
@@ -128,6 +138,7 @@ export function useBillingMutations() {
 
   return {
     createCheckoutSession,
+    createCreditCheckoutSession,
     createPortalSession,
     updateSubscription,
     cancelSubscription,

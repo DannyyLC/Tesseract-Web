@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from '@/i18n/routing';
 import { useAuth } from '@/hooks/identity/use-auth';
 import {
   useBillingDashboard,
@@ -14,7 +16,16 @@ import BillingHero from './_components/billing-hero';
 import OverageCard from './_components/overage-card';
 import UsageCard from './_components/usage-card';
 import Loading from '@/app/[locale]/(dashboard)/loading';
-import { Workflow, Key, Users, Database, Rows3, ArrowUpRight, PartyPopper } from 'lucide-react';
+import {
+  Workflow,
+  Key,
+  Users,
+  Database,
+  Rows3,
+  ArrowUpRight,
+  PartyPopper,
+  Coins,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import PermissionGuard from '@/components/auth/permission-guard';
@@ -29,23 +40,49 @@ export default function BillingPage() {
   const { data: plansResponse } = usePlans();
   useSubscription();
   const { createPortalSession } = useBillingMutations();
+  const queryClient = useQueryClient();
+  const router = useRouter();
 
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
   const [portalUrl, setPortalUrl] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const searchParams = useSearchParams();
+  // Evita procesar el mismo query param dos veces (React Strict Mode, o una navegación rara que
+  // reejecute el efecto antes de que `router.replace` termine de limpiar la URL).
+  const hasHandledReturn = useRef(false);
 
   useEffect(() => {
-    if (searchParams.get('success') === 'true') {
+    if (hasHandledReturn.current) return;
+
+    const success = searchParams.get('success') === 'true';
+    const canceled = searchParams.get('canceled') === 'true';
+    const topup = searchParams.get('topup');
+
+    if (!success && !canceled && !topup) return;
+
+    hasHandledReturn.current = true;
+    // `router.replace` (del i18n routing) conserva el locale del path — a diferencia de
+    // `window.history.replaceState(null, '', '/billing')`, que lo tiraba.
+    router.replace('/billing', { scroll: false });
+
+    if (success) {
       setShowSuccessModal(true);
       triggerWowConfetti();
-      window.history.replaceState(null, '', '/billing');
-    } else if (searchParams.get('canceled') === 'true') {
+    } else if (canceled) {
       toast.error(t('cancelledPayment'));
-      window.history.replaceState(null, '', '/billing');
+    } else if (topup === 'success') {
+      // El saldo tarda lo que tarde el webhook en procesar la compra; se invalida igual para
+      // que se refresque en cuanto esté listo, en vez de quedarse con el dato viejo en caché.
+      toast.success(t('topUpSuccess'));
+    } else if (topup === 'canceled') {
+      toast.error(t('topUpCancelled'));
     }
-  }, [searchParams]);
+
+    if (success || topup === 'success') {
+      queryClient.invalidateQueries({ queryKey: ['billing'] });
+    }
+  }, [searchParams, router, queryClient, t]);
 
   const fetchPortalUrl = async () => {
     if (portalUrl) return portalUrl;
@@ -118,6 +155,15 @@ export default function BillingPage() {
                     {isOpeningPortal ? t('loading') : t('paymentPortal')}
                   </a>
                 )}
+              </PermissionGuard>
+              <PermissionGuard permissions="billing:checkout">
+                <Link
+                  href="/billing/plans?highlight=credits"
+                  className="flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface-secondary"
+                >
+                  <Coins size={16} />
+                  {t('buyCredits')}
+                </Link>
               </PermissionGuard>
               <Link
                 href="/billing/plans"

@@ -10,6 +10,13 @@ import {
   ToggleOveragesDto,
 } from '@tesseract/types';
 
+/** Cuerpo de `POST /billing/credits/checkout`. Espejo de `CreateCreditCheckoutDto` del gateway. */
+export interface CreateCreditCheckoutParams {
+  credits: number;
+  /** Solo si el usuario tiene 2FA activado. */
+  code2FA?: string;
+}
+
 class BillingApi {
   public apiRequestManager: ApiRequestManager;
   private static BASE_URL = '/billing';
@@ -31,6 +38,20 @@ class BillingApi {
       // El país solo se manda la primera vez; si la organización ya tiene uno, el gateway lo
       // ignora. No es editable después porque Stripe congela la moneda del cliente.
       country ? { plan, country } : { plan },
+    );
+    return response.data;
+  }
+
+  /**
+   * Creates a Stripe Checkout Session (mode: payment) for a one-time credit top-up.
+   * Endpoint: POST /billing/credits/checkout
+   */
+  public async createCreditCheckoutSession(
+    params: CreateCreditCheckoutParams,
+  ): Promise<CheckoutResponse> {
+    const response = await this.apiRequestManager.post<CheckoutResponse>(
+      `${BillingApi.BASE_URL}/credits/checkout`,
+      params,
     );
     return response.data;
   }

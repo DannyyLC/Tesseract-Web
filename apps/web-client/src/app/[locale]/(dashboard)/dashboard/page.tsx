@@ -30,6 +30,7 @@ import { useBillingDashboard } from '@/hooks/billing/use-billing';
 import { useUserStats } from '@/hooks/identity/use-users';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { BrokenIntegrationsBanner } from '@/components/integrations/broken-integrations-banner';
+import { PastDuePaymentBanner } from '@/components/billing/past-due-payment-banner';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -204,6 +205,9 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
+
+      {/* ── Pago vencido (no renderiza nada si la suscripción está al corriente) ──── */}
+      <PastDuePaymentBanner />
 
       {/* ── Integraciones sin acceso (no renderiza nada si todo está sano) ──── */}
       <BrokenIntegrationsBanner />

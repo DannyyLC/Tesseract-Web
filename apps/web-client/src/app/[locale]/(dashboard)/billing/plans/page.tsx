@@ -19,6 +19,7 @@ import { useOrganizationDashboard } from '@/hooks/identity/use-organizations';
 import PlanGrid from '../_components/plan-grid';
 import InfoSections from '../_components/info-sections';
 import SpecializedCards from '../_components/specialized-cards';
+import CreditTopUpCard from './_components/credit-topup-card';
 import { Modal } from '@/components/ui/modal';
 import {
   Loader2,
@@ -370,6 +371,16 @@ export default function PlansPage() {
             onUpgrade={handlePlanSelect}
             upgradingPlan={upgradingPlan}
           />
+
+          {/* Recarga de créditos — compra única, cantidad libre, independiente del plan */}
+          {subscription.plan !== SubscriptionPlan.FREE && plansResponse?.creditTopUp && (
+            <CreditTopUpCard
+              perCredit={plansResponse.creditTopUp.perCredit}
+              min={plansResponse.creditTopUp.min}
+              max={plansResponse.creditTopUp.max}
+              step={plansResponse.creditTopUp.step}
+            />
+          )}
         </div>
 
         {/* Cancel / Resume Subscription */}

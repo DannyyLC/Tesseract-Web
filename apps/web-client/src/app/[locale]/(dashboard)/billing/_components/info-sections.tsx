@@ -8,12 +8,16 @@ export default function InfoSections() {
   const t = useTranslations('BillingInfoSections');
   const { formatted: overagePrice } = useOveragePrice();
 
+  // Deliberadamente sin nombrar modelos específicos: no existe en el código ninguna relación
+  // fija entre la categoría de workflow y qué modelo se usa (son dos sistemas independientes,
+  // `WorkflowCategory` y `ModelTier`; el cliente elige el modelo libremente al configurar su
+  // workflow). Nombrar modelos puntuales aquí prometía algo que el backend no garantiza, y
+  // quedaba obsoleto cada vez que cambiaba el catálogo — ya pasó una vez.
   const TIERS = [
     {
       id: 'T1',
       name: t('t1Name'),
       cost: t('t1Cost'),
-      models: 'Gemini 1.5 Flash',
       context: t('t1Context'),
       description: t('t1Desc'),
       icon: <Zap size={18} />,
@@ -22,7 +26,6 @@ export default function InfoSections() {
       id: 'T2',
       name: t('t2Name'),
       cost: t('t2Cost'),
-      models: 'GPT-4o, Gemini 2.5 Pro',
       context: t('t2Context'),
       description: t('t2Desc'),
       icon: <Cpu size={18} />,
@@ -31,7 +34,6 @@ export default function InfoSections() {
       id: 'T3',
       name: t('t3Name'),
       cost: t('t3Cost'),
-      models: 'Claude 4.5 Opus, GPT-5.1',
       context: t('t3Context'),
       description: t('t3Desc'),
       icon: <Sparkles size={18} />,
@@ -92,9 +94,6 @@ export default function InfoSections() {
               </p>
 
               <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
-                <p className="text-text-secondary">
-                  <span className="font-bold text-text-primary">{t('models')}</span> {tier.models}
-                </p>
                 <p className="text-text-secondary">
                   <span className="font-bold text-text-primary">{t('context')}</span>{' '}
                   <span className="font-geist-mono">{tier.context}</span>

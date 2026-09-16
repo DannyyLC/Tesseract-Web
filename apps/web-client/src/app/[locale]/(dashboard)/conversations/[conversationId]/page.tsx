@@ -925,9 +925,23 @@ export default function WorkflowChatPage() {
                   <AlertCircle className="mt-0.5 flex-shrink-0 text-danger" size={18} />
                   <div className="text-sm text-danger-600">
                     <p className="font-medium">{t('sendError')}</p>
-                    {/* Error de créditos insuficientes */}
-                    {error?.statusCode === 403 ||
-                    error?.message?.includes('Insufficient credits') ? (
+                    {/* Error de suscripción inactiva/vencida — antes de créditos: un 403 por
+                        falta de suscripción no es un problema de saldo, y decirle "compra
+                        créditos" sería engañoso cuando lo que necesita es reactivar su plan. */}
+                    {error?.message?.includes('No active subscription') ||
+                    error?.message?.includes('Subscription canceled') ||
+                    error?.message?.includes('grace period has expired') ? (
+                      <p className="opacity-90">
+                        {t('subscriptionInactive')}{' '}
+                        <a
+                          href="/billing"
+                          className="font-semibold underline underline-offset-2 hover:opacity-75"
+                        >
+                          {t('goToBilling')}
+                        </a>
+                      </p>
+                    ) : error?.statusCode === 403 ||
+                      error?.message?.includes('Insufficient credits') ? (
                       <p className="opacity-90">
                         {t('insufficientCredits')}{' '}
                         <a

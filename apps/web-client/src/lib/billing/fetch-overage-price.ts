@@ -11,8 +11,12 @@ import { BillingPlansResponse, formatMoney } from '@tesseract/types';
  * `GET /billing/plans` es público, así que no hace falta autenticación. Si la llamada falla se
  * devuelve `null` y quien llame decide qué hacer: es preferible omitir la cifra a publicar una
  * equivocada en unas condiciones de servicio.
+ *
+ * No recibe el idioma de la página para formatear el importe: el formato del dinero (punto
+ * decimal, coma de millar) sigue el mercado al que se factura, no el idioma de la UI — mismo
+ * criterio que `useBillingCurrency`. `formatMoney` ya usa ese formato por default.
  */
-export async function fetchOveragePriceLabel(locale = 'es'): Promise<string | null> {
+export async function fetchOveragePriceLabel(): Promise<string | null> {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
 
   try {
@@ -29,8 +33,8 @@ export async function fetchOveragePriceLabel(locale = 'es'): Promise<string | nu
 
     // Ambas monedas, porque la página es pública y no hay organización de la que deducir una.
     return [
-      usd !== undefined ? `${formatMoney(usd, 'usd', locale)} USD` : null,
-      mxn !== undefined ? `${formatMoney(mxn, 'mxn', locale)} MXN` : null,
+      usd !== undefined ? `${formatMoney(usd, 'usd')} USD` : null,
+      mxn !== undefined ? `${formatMoney(mxn, 'mxn')} MXN` : null,
     ]
       .filter(Boolean)
       .join(' / ');
