@@ -5,6 +5,7 @@ import { SchedulingModule } from './scheduling/scheduling.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
 import { WebhookDedupModule } from './webhooks/webhook-dedup.module';
 import { HealthModule } from './health/health.module';
+import { AnnouncementsModule } from './announcements/announcements.module';
 
 /**
  * Infraestructura compartida (cross-cutting). Agrupa y reexporta:
@@ -22,6 +23,7 @@ import { HealthModule } from './health/health.module';
     SuperAdminModule,
     WebhookDedupModule,
     HealthModule,
+    AnnouncementsModule,
   ],
   exports: [DatabaseModule, UtilityModule, WebhookDedupModule],
 })

@@ -1376,6 +1376,11 @@
     "deleted": "Notificación eliminada",
     "deleteError": "Error al eliminar la notificación"
   },
+  "Announcements": {
+    "dismiss": "Entendido",
+    "close": "Cerrar",
+    "ctaFallbackLabel": "Ver más"
+  },
   "TwoFactorCodeInput": {
     "useBackupCode": "¿Perdiste tu dispositivo? Usa un código de respaldo",
     "useAuthenticator": "Volver al código de la aplicación"

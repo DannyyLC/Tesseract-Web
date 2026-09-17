@@ -1376,6 +1376,11 @@
     "deleted": "Notification deleted",
     "deleteError": "Error deleting the notification"
   },
+  "Announcements": {
+    "dismiss": "Got it",
+    "close": "Close",
+    "ctaFallbackLabel": "Learn more"
+  },
   "TwoFactorCodeInput": {
     "useBackupCode": "Lost your device? Use a backup code",
     "useAuthenticator": "Back to authenticator code"

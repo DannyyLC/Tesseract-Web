@@ -8,6 +8,7 @@ import TopBar from '@/components/layout/top-bar';
 import Loading from './loading';
 import { Suspense } from 'react';
 import { WelcomeOnboarding } from '@/components/ui/welcome-onboarding';
+import { AnnouncementGate } from '@/components/announcements/announcement-gate';
 import { useAuth } from '@/hooks/identity/use-auth';
 import { LogoLoader } from '@/components/ui/logo-loader';
 
@@ -95,6 +96,7 @@ export default function PanelLayout({ children }: PanelLayoutProps) {
       <Suspense fallback={null}>
         <WelcomeOnboarding />
       </Suspense>
+      <AnnouncementGate />
 
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">

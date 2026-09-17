@@ -191,6 +191,21 @@ enum MessengerConnectionStatus {
   ERROR
 }
 
+/// Discrimina las dos poblaciones que conviven en `notifications`: plantillas
+/// sembradas por seed (código '0000-xxxx', se instancian muchas veces) y
+/// anuncios creados desde /admin (una fila por anuncio, se instancia una vez).
+enum NotificationKind {
+  TEMPLATE
+  ANNOUNCEMENT
+}
+
+/// Plantilla visual del anuncio. NEWS es sobria con CTA opcional; CELEBRATION
+/// dispara confetti (regalos de créditos, hitos).
+enum AnnouncementTemplate {
+  NEWS
+  CELEBRATION
+}
+
 // ============================================
 // ORGANIZATION (Tenant principal)
 // ============================================
@@ -268,6 +283,11 @@ model Organization {
   messages           Message[]
   messageAttachments MessageAttachment[]
   userNotifications  UserNotification[]
+
+  // Anuncios del super admin dirigidos específicamente a esta organización
+  // (NULL en `targetOrganizationId` del anuncio = todas las organizaciones,
+  // así que esta relación solo enlaza los anuncios de una sola empresa).
+  targetedAnnouncements Notification[] @relation("AnnouncementTarget")
 
   @@index([deletedAt])
   @@index([isActive])
@@ -1861,8 +1881,49 @@ model Notification {
   users           UserNotification[]
   createdAt       DateTime           @default(now())
 
+  // ── Anuncios del super admin ──────────────────────────────────────────
+  // TEMPLATE = las filas sembradas de siempre (código '0000-xxxx', reusables).
+  // ANNOUNCEMENT = una fila por anuncio creado en /admin, se envía una sola vez.
+  kind                 NotificationKind      @default(TEMPLATE)
+  announcementTemplate AnnouncementTemplate?
+
+  // Contenido en inglés. NULL = solo hay español (siempre el caso de las
+  // plantillas sembradas y de cualquier anuncio que no se tradujo).
+  titleTemplateEn   String?
+  messageTemplateEn String?
+
+  ctaLabel   String?
+  ctaLabelEn String?
+  ctaUrl     String?
+
+  // NULL = todas las organizaciones. Con valor = una sola. onDelete: Cascade
+  // (no SetNull) para no promover en silencio un anuncio de una empresa a global
+  // si esa empresa se elimina.
+  targetOrganizationId String?
+  targetOrganization   Organization? @relation("AnnouncementTarget", fields: [targetOrganizationId], references: [id], onDelete: Cascade)
+
+  // Vigencia. NULL en expiresAt = sin caducidad. Caducar solo apaga el modal;
+  // el historial de la campana se queda (ver UserNotification.dismissedAt).
+  publishedAt DateTime?
+  expiresAt   DateTime?
+
+  // Candado de idempotencia del fan-out: se reclama con un updateMany
+  // condicional (WHERE fannedOutAt IS NULL) antes de crear filas, para que
+  // dos instancias de Cloud Run no dupliquen la entrega.
+  fannedOutAt DateTime?
+
+  // Denominador de las métricas, denormalizado para no depender de que las
+  // filas de UserNotification sigan vivas (borrado suave, purga de usuario).
+  deliveredCount Int @default(0)
+
+  createdById    String?
+  createdByEmail String?
+
+  updatedAt DateTime @updatedAt @default(now())
+
   @@unique([code, version])
   @@index([code, isActive])
+  @@index([kind, createdAt])
   @@map("notifications")
 }
 
@@ -1876,11 +1937,22 @@ model UserNotification {
   messageSnapshot String
   createdAt       DateTime     @default(now())
   deletedAt       DateTime?
+
+  // Estado del modal bloqueante, separado de `isRead` A PROPÓSITO:
+  // markAllNotificationsAsRead() voltea isRead de TODAS las filas del usuario
+  // y apagaría un anuncio que nunca llegó a verse.
+  dismissedAt  DateTime?
+  ctaClickedAt DateTime?
+
+  titleSnapshotEn   String?
+  messageSnapshotEn String?
+
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   notification    Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
 
   @@index([userId, organizationId])
+  @@index([notificationId])
   @@map("user_notifications")
 }
 

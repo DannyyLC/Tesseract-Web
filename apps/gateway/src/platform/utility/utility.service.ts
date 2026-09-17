@@ -3,6 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
+import { NotificationKind } from '@tesseract/database';
 
 @Injectable()
 export class UtilityService {
@@ -36,6 +37,9 @@ export class UtilityService {
         where: {
           code: notificationCode,
           isActive: true,
+          // Solo plantillas reusables: un anuncio del super admin (kind: ANNOUNCEMENT) es un
+          // envío de una sola vez y nunca debe poder dispararse por código desde este método.
+          kind: NotificationKind.TEMPLATE,
         },
         orderBy: {
           version: 'desc',

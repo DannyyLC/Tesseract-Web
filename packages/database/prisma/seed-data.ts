@@ -41,6 +41,8 @@ export type ToolCatalogSeed = {
   functions: ToolFunctionSeed[];
 };
 
+// Solo plantillas reusables (kind: TEMPLATE, el default de la columna). Los anuncios del
+// super admin (kind: ANNOUNCEMENT) se crean uno por uno desde /admin y nunca se siembran aquí.
 export type NotificationSeed = {
   code: string;
   version: number;

@@ -101,6 +101,24 @@ describe('UtilityService', () => {
       });
     });
 
+    it('should only look up TEMPLATE-kind rows, never one-off announcements', async () => {
+      mockPrismaService.user.findMany.mockResolvedValue([{ id: 'u-1' }]);
+      mockPrismaService.notification.findFirst.mockResolvedValue({
+        id: 'n-1',
+        titleTemplate: 'Subscripción',
+        messageTemplate: 'Plan %s activado',
+        targetRoles: ['OWNER', 'ADMIN'],
+      });
+
+      await service.sendNotificationToAppClients('org-1', ['admin'], '0000-0001', ['PRO']);
+
+      expect(mockPrismaService.notification.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ kind: 'TEMPLATE' }),
+        }),
+      );
+    });
+
     it('should handle errors gracefully and log them', async () => {
       mockPrismaService.user.findMany.mockRejectedValue(new Error('DB Error'));
 
