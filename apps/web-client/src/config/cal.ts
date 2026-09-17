@@ -18,4 +18,7 @@ export const CAL_CONFIG = {
 
   /** Default layout for embeds */
   defaultLayout: 'month_view' as const,
+
+  /** Se adapta al tema del OS */
+  defaultTheme: 'auto' as const,
 } as const;

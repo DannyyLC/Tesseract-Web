@@ -89,13 +89,29 @@ function SupportContent() {
 
   // Initialize Cal.com embed
   useEffect(() => {
-    (async function () {
+    let cancelled = false;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const applyCalUi = async () => {
       const cal = await getCalApi({ namespace: CAL_CONFIG.namespace });
+      if (cancelled) return;
+      const background = getComputedStyle(document.documentElement)
+        .getPropertyValue('--background')
+        .trim();
       cal('ui', {
         hideEventTypeDetails: false,
         layout: CAL_CONFIG.defaultLayout,
+        theme: CAL_CONFIG.defaultTheme,
+        styles: { body: { background } },
       });
-    })();
+    };
+
+    applyCalUi();
+    mediaQuery.addEventListener('change', applyCalUi);
+    return () => {
+      cancelled = true;
+      mediaQuery.removeEventListener('change', applyCalUi);
+    };
   }, []);
 
   const isNuevoWorkflow = reason === 'nuevo-workflow';
@@ -116,6 +132,7 @@ function SupportContent() {
             style={{ width: '100%', height: '100%', overflow: 'scroll' }}
             config={{
               layout: CAL_CONFIG.defaultLayout,
+              theme: CAL_CONFIG.defaultTheme,
               ...(user?.name ? { name: user.name } : {}),
               ...(user?.email ? { email: user.email } : {}),
             }}
