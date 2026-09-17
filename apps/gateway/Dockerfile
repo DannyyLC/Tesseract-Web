@@ -23,7 +23,12 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # Generar Prisma Client (DATABASE_URL dummy para satisfacer validación en build time)
-RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder" sh -c "cd packages/database && pnpm exec prisma generate"
+#
+# Se invoca el binario directo en vez de `pnpm exec`: antes de ejecutar nada, pnpm 11 corre un
+# chequeo de sincronía de dependencias y, si cree que node_modules no cuadra con el lockfile,
+# lanza un `pnpm install` por su cuenta. Ver la nota de la etapa de producción, donde eso
+# tumbaba el build.
+RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder" sh -c "cd packages/database && ./node_modules/.bin/prisma generate"
 
 # Construir paquetes compartidos del monorepo (Types y Database)
 RUN pnpm --filter @tesseract/types build
@@ -60,7 +65,18 @@ COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
 COPY --from=builder /app/packages/database/prisma.config.ts ./packages/database/prisma.config.ts
 
 # Generar Prisma Client (DATABASE_URL dummy: generate no necesita conexión real)
-RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder" sh -c "cd packages/database && pnpm exec prisma generate"
+#
+# **No usar `pnpm exec` aquí.** El install de arriba es `--prod`, así que node_modules no tiene
+# las devDependencies que el lockfile declara. pnpm 11 corre un chequeo de sincronía antes de
+# ejecutar cualquier comando, ve esa diferencia como "desincronizado" y dispara un
+# `pnpm install --production` completo de los 4 proyectos del workspace: re-resuelve ~1600
+# paquetes contra el registry y revienta el heap default de Node (~2 GB) con un
+# `heap out of memory` que tumba el build. Falla de forma intermitente —depende de qué tan
+# lento venga el registry—, lo que lo vuelve peor de diagnosticar.
+#
+# El binario directo evita el chequeo. `prisma` es dependency de producción de
+# packages/database (no dev), así que el `--prod` de arriba sí lo instala.
+RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder" sh -c "cd packages/database && ./node_modules/.bin/prisma generate"
 
 # Copiar los builds compilados (dist) del Gateway y paquetes dependientes
 COPY --from=builder /app/packages/contracts/proto ./packages/contracts/proto
