@@ -1,3 +1,4 @@
+import { useLocale } from 'next-intl';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
 import {
@@ -14,9 +15,11 @@ interface DashboardParams {
 
 export function useInfiniteTenantToolsDashboard(params: DashboardParams = {}) {
   const { pageSize = DEFAULT_PAGE_SIZE } = params;
+  // El gateway devuelve el nombre del catálogo según X-Locale: el idioma va en la clave.
+  const locale = useLocale();
 
   return useInfiniteQuery({
-    queryKey: ['tenant-tools', 'dashboard', 'infinite', { pageSize }],
+    queryKey: ['tenant-tools', 'dashboard', 'infinite', { pageSize }, locale],
     queryFn: async ({ pageParam }) => {
       const api = RootApi.getInstance().getTenantToolsApi();
       return await api.getDashboardData({
@@ -35,8 +38,9 @@ export function useInfiniteTenantToolsDashboard(params: DashboardParams = {}) {
 
 // ─── Detalle de un tenant tool ────────────────────────────────────────────────
 export function useTenantTool(id: string) {
+  const locale = useLocale();
   return useQuery({
-    queryKey: ['tenant-tools', 'detail', id],
+    queryKey: ['tenant-tools', 'detail', id, locale],
     queryFn: async () => {
       const api = RootApi.getInstance().getTenantToolsApi();
       return await api.getById(id);

@@ -1,3 +1,4 @@
+import { useLocale } from 'next-intl';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
 import { DEFAULT_PAGE_SIZE, GetToolsDto } from '@tesseract/types';
@@ -9,9 +10,11 @@ interface UseToolCatalogParams {
 
 export function useToolCatalog(params: UseToolCatalogParams = {}) {
   const { pageSize = DEFAULT_PAGE_SIZE, search } = params;
+  // Nombres y descripciones vienen en el idioma de X-Locale: el idioma va en la clave.
+  const locale = useLocale();
 
   return useInfiniteQuery({
-    queryKey: ['tool-catalog', 'infinite', { pageSize, search }],
+    queryKey: ['tool-catalog', 'infinite', { pageSize, search }, locale],
     queryFn: async ({ pageParam }) => {
       const api = RootApi.getInstance().getToolCatalogApi();
       return await api.getAllToolsWithFunctions({

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { MoreVertical, Unplug, Pencil, KeyRound, Trash2, AlertTriangle, RotateCw } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { toolCategoryLabel } from '@/lib/tool-category';
 import { DashboardTenantToolDto } from '@tesseract/types';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import PermissionGuard from '@/components/auth/permission-guard';
@@ -93,7 +94,7 @@ export function ConnectedIntegrationCard({
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold text-text-primary">{tool.displayName}</p>
         <p className="text-xs text-text-tertiary">
-          {tool.toolCatalog.displayName} · {tool.toolCatalog.category}
+          {tool.toolCatalog.displayName} · {toolCategoryLabel(tool.toolCatalog.category ?? '', t)}
         </p>
         {consequence ? (
           // Sustituye la fecha de conexión: cuando algo está roto, "conectado el

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Zap, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 import { GetToolsDto } from '@tesseract/types';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
+import { toolCategoryLabel } from '@/lib/tool-category';
 import PermissionGuard from '@/components/auth/permission-guard';
 
 interface CatalogIntegrationCardProps {
@@ -98,7 +99,7 @@ export function CatalogIntegrationCard({
         <div className="mt-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${CATEGORY_STYLE}`}>
-              {tool.category}
+              {toolCategoryLabel(tool.category, t)}
             </span>
             {tool.functions.length > 0 && (
               <span className="flex items-center gap-1 text-[10px] font-medium text-text-tertiary">

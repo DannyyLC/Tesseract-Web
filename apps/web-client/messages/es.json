@@ -828,7 +828,21 @@
     "missingScopesConsequence": "Sin permiso para: {functions}. Reconecta para autorizarlo.",
     "brokenBannerTitle": "{count, plural, one {Una integración perdió el acceso} other {{count} integraciones perdieron el acceso}}",
     "brokenBannerDesc": "Tus agentes no pueden usar {names}. Reconéctalas para que vuelvan a funcionar.",
-    "brokenBannerCta": "Revisar"
+    "brokenBannerCta": "Revisar",
+    "categories": {
+      "utility": "Utilidad",
+      "escalation": "Escalamiento",
+      "messaging": "Mensajería",
+      "data": "Datos",
+      "productivity": "Productividad",
+      "calculation": "Cálculo",
+      "conversion": "Conversión",
+      "read": "Lectura",
+      "write": "Escritura",
+      "delete": "Eliminación",
+      "chat": "Chat",
+      "general": "General"
+    }
   },
   "Billing": {
     "heading": "Resumen de Facturación",
@@ -1423,7 +1437,8 @@
       "hoursAgo": "hace {count} h",
       "daysAgo": "hace {count} d",
       "delete": "Eliminar"
-    }
+    },
+    "empty": "No tienes notificaciones"
   },
   "Announcements": {
     "dismiss": "Entendido",

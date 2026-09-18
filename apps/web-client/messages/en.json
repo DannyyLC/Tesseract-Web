@@ -828,7 +828,21 @@
     "missingScopesConsequence": "No permission for: {functions}. Reconnect to authorize it.",
     "brokenBannerTitle": "{count, plural, one {An integration lost access} other {{count} integrations lost access}}",
     "brokenBannerDesc": "Your agents cannot use {names}. Reconnect them to restore access.",
-    "brokenBannerCta": "Review"
+    "brokenBannerCta": "Review",
+    "categories": {
+      "utility": "Utility",
+      "escalation": "Escalation",
+      "messaging": "Messaging",
+      "data": "Data",
+      "productivity": "Productivity",
+      "calculation": "Calculation",
+      "conversion": "Conversion",
+      "read": "Read",
+      "write": "Write",
+      "delete": "Delete",
+      "chat": "Chat",
+      "general": "General"
+    }
   },
   "Billing": {
     "heading": "Billing Summary",
@@ -1423,7 +1437,8 @@
       "hoursAgo": "{count} h ago",
       "daysAgo": "{count} d ago",
       "delete": "Delete"
-    }
+    },
+    "empty": "You don't have any notifications"
   },
   "Announcements": {
     "dismiss": "Got it",

@@ -93,7 +93,7 @@ export default function NotificationList() {
         <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-secondary">
           <Bell size={20} className="text-text-tertiary" />
         </div>
-        <p className="text-sm text-text-secondary">No tienes notificaciones</p>
+        <p className="text-sm text-text-secondary">{t('empty')}</p>
       </div>
     );
   }
