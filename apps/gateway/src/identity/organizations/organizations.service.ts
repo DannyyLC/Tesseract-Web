@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { DEFAULT_LOCALE, SupportedLocale } from '@/platform/common/types/locale.type';
 import {
   ADMIN_PAGE_SIZE,
   ErrorStrings,
@@ -950,7 +951,11 @@ export class OrganizationsService {
   /**
    * Invitar usuario a la organización
    */
-  async invite(organizationId: string, email: string): Promise<boolean | InviteUserErrorsDto> {
+  async invite(
+    organizationId: string,
+    email: string,
+    locale: SupportedLocale = DEFAULT_LOCALE,
+  ): Promise<boolean | InviteUserErrorsDto> {
     // Validar que la organización existe y está activa
     const isOrganizationValid = await this.validateOrganization(organizationId);
 
@@ -973,7 +978,11 @@ export class OrganizationsService {
         return InviteUserErrorsDto.USER_ALREADY_REGISTERED;
       }
 
-      await this.emailService.sendOrganizationExistsEmail(email, isOrganizationValid.name);
+      await this.emailService.sendOrganizationExistsEmail(
+        email,
+        isOrganizationValid.name,
+        locale,
+      );
       return true;
     }
 
@@ -1001,6 +1010,7 @@ export class OrganizationsService {
     const emailSentInfo = await this.emailService.sendOrganizationInvitationToEmail(
       email,
       isOrganizationValid.name,
+      locale,
     );
 
     if (!emailSentInfo) {
@@ -1202,6 +1212,7 @@ export class OrganizationsService {
   async resendInvitation(
     userEmail: string,
     organizationId: string,
+    locale: SupportedLocale = DEFAULT_LOCALE,
   ): Promise<{ success: boolean; error?: string }> {
     const userVerification = await this.prisma.userVerification.findFirst({
       where: {
@@ -1219,6 +1230,7 @@ export class OrganizationsService {
     const emailSentInfo = await this.emailService.sendOrganizationInvitationToEmail(
       userEmail,
       organizationId,
+      locale,
     );
     if (!emailSentInfo) {
       this.logger.error(`resendInvitation >> Error sending invitation email to ${maskEmail(userEmail)}`);

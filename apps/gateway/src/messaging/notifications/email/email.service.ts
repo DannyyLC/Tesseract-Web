@@ -7,15 +7,33 @@ import { StartVerificationFlowDto } from '@/identity/auth/dto/start-verification
 import { PrismaService } from '@/platform/database/prisma.service';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
+import { DEFAULT_LOCALE, SupportedLocale } from '@/platform/common/types/locale.type';
+
+/** Compila las dos variantes de un template (`_es`/default y `_en`) y elige por locale. */
+class BilingualTemplate {
+  private readonly es: handlebars.TemplateDelegate;
+  private readonly en: handlebars.TemplateDelegate;
+
+  constructor(esFile: handlebars.TemplateDelegate, enFile: handlebars.TemplateDelegate) {
+    this.es = esFile;
+    this.en = enFile;
+  }
+
+  render(locale: SupportedLocale, context: Record<string, unknown>): string {
+    return (locale === 'en' ? this.en : this.es)(context);
+  }
+}
 
 @Injectable()
 export class EmailService {
   private transporter: nodemailer.Transporter;
-  private emailVerificationTemplate: handlebars.TemplateDelegate;
-  private emailInvitationTemplate: handlebars.TemplateDelegate;
-  private emailPasswordResetTemplate: handlebars.TemplateDelegate;
-  private emailOrganizationExistsTemplate: handlebars.TemplateDelegate;
+  private emailVerificationTemplate: BilingualTemplate;
+  private emailInvitationTemplate: BilingualTemplate;
+  private emailPasswordResetTemplate: BilingualTemplate;
+  private emailOrganizationExistsTemplate: BilingualTemplate;
   private emailServiceRequestTemplate: handlebars.TemplateDelegate;
+  // Alerta interna de un cron, sin request-context de locale, específica del régimen
+  // fiscal mexicano (CFDI/SAT) — se deja en español a propósito, no es contenido bilingüe.
   private cfdiFailuresAlertTemplate: handlebars.TemplateDelegate;
 
   constructor(
@@ -40,10 +58,22 @@ export class EmailService {
       },
     );
 
-    this.emailVerificationTemplate = this.loadTemplate('email_verification_view.hbs');
-    this.emailInvitationTemplate = this.loadTemplate('email_invitation_view.hbs');
-    this.emailPasswordResetTemplate = this.loadTemplate('restore_password_es.hbs');
-    this.emailOrganizationExistsTemplate = this.loadTemplate('email_organization_exists.hbs');
+    this.emailVerificationTemplate = new BilingualTemplate(
+      this.loadTemplate('email_verification_view.hbs'),
+      this.loadTemplate('email_verification_view_en.hbs'),
+    );
+    this.emailInvitationTemplate = new BilingualTemplate(
+      this.loadTemplate('email_invitation_view.hbs'),
+      this.loadTemplate('email_invitation_view_en.hbs'),
+    );
+    this.emailPasswordResetTemplate = new BilingualTemplate(
+      this.loadTemplate('restore_password_es.hbs'),
+      this.loadTemplate('restore_password_en.hbs'),
+    );
+    this.emailOrganizationExistsTemplate = new BilingualTemplate(
+      this.loadTemplate('email_organization_exists.hbs'),
+      this.loadTemplate('email_organization_exists_en.hbs'),
+    );
     this.emailServiceRequestTemplate = this.loadTemplate('request_services_info.hbs');
     this.cfdiFailuresAlertTemplate = this.loadTemplate('cfdi_failures_alert.hbs');
   }
@@ -58,6 +88,7 @@ export class EmailService {
 
   async sendVerificationCodeByEmail(
     payload: StartVerificationFlowDto,
+    locale: SupportedLocale = DEFAULT_LOCALE,
   ): Promise<
     | { sentMessageInfo: nodemailer.SentMessageInfo; verificationCode: string }
     | { sentMessageInfo: null; verificationCode: string }
@@ -67,8 +98,8 @@ export class EmailService {
     try {
       sentMessageInfo = await this.transporter.sendMail({
         to: payload.email,
-        subject: 'Verificacion de Email',
-        html: this.emailVerificationTemplate({
+        subject: locale === 'en' ? 'Email Verification' : 'Verificación de Email',
+        html: this.emailVerificationTemplate.render(locale, {
           verificationCode,
           name: payload.userName,
         }),
@@ -90,6 +121,7 @@ export class EmailService {
   async sendOrganizationInvitationToEmail(
     email: string,
     organizationName: string,
+    locale: SupportedLocale = DEFAULT_LOCALE,
   ): Promise<{ sentMessageInfo: nodemailer.SentMessageInfo; verificationCode: string } | null> {
     let sentMessageInfo: nodemailer.SentMessageInfo;
     const verificationCode = await this.generateVerificationCode();
@@ -97,8 +129,11 @@ export class EmailService {
     try {
       sentMessageInfo = await this.transporter.sendMail({
         to: email,
-        subject: `Invitación para unirte a ${organizationName}`,
-        html: this.emailInvitationTemplate({
+        subject:
+          locale === 'en'
+            ? `Invitation to join ${organizationName}`
+            : `Invitación para unirte a ${organizationName}`,
+        html: this.emailInvitationTemplate.render(locale, {
           inviteUrl: `${process.env.FRONTEND_URL ?? 'http://localhost:3001'}/accept-invitation?code=${verificationCode}&email=${encodeURIComponent(email)}`,
           organizationName,
         }),
@@ -125,7 +160,10 @@ export class EmailService {
     return verificationCode;
   }
 
-  async sendPasswordResetCodeByEmail(email: string): Promise<{
+  async sendPasswordResetCodeByEmail(
+    email: string,
+    locale: SupportedLocale = DEFAULT_LOCALE,
+  ): Promise<{
     sentMessageInfo: unknown;
     verificationCode: string;
   } | null> {
@@ -134,8 +172,8 @@ export class EmailService {
     try {
       sentMessageInfo = await this.transporter.sendMail({
         to: email,
-        subject: 'Código de restablecimiento de contraseña',
-        html: this.emailPasswordResetTemplate({
+        subject: locale === 'en' ? 'Password reset code' : 'Código de restablecimiento de contraseña',
+        html: this.emailPasswordResetTemplate.render(locale, {
           verificationCode,
         }),
       });
@@ -149,12 +187,19 @@ export class EmailService {
     return { sentMessageInfo, verificationCode };
   }
 
-  async sendOrganizationExistsEmail(email: string, organizationName: string): Promise<unknown> {
+  async sendOrganizationExistsEmail(
+    email: string,
+    organizationName: string,
+    locale: SupportedLocale = DEFAULT_LOCALE,
+  ): Promise<unknown> {
     try {
       return await this.transporter.sendMail({
         to: email,
-        subject: `Invitación para unirte a ${organizationName}`,
-        html: this.emailOrganizationExistsTemplate({
+        subject:
+          locale === 'en'
+            ? `Invitation to join ${organizationName}`
+            : `Invitación para unirte a ${organizationName}`,
+        html: this.emailOrganizationExistsTemplate.render(locale, {
           organizationName,
         }),
       });

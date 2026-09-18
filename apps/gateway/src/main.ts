@@ -4,7 +4,7 @@ import { AppModule } from './app.module';
 import { validateEnv } from './platform/config/env-validation';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
-import { GlobalExceptionFilter } from './platform/common/exceptions';
+import { GlobalExceptionFilter, validationExceptionFactory } from './platform/common/exceptions';
 import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
@@ -57,7 +57,7 @@ async function bootstrap() {
       origin: process.env.FRONTEND_URL ?? 'http://localhost:3001', // URL del frontend
       credentials: true, // Permite envío de cookies
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Admin-Key'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Admin-Key', 'X-Locale'],
     });
 
     // Registro de Global exception filter
@@ -72,6 +72,10 @@ async function bootstrap() {
         whitelist: true, // Elimina propiedades no definidas en el DTO
         forbidNonWhitelisted: true, // Lanza error si hay propiedades extra
         transform: true, // Transforma tipos automáticamente
+        // Sin esto, el mensaje de cada decorador (hardcodeado en español en unos DTOs,
+        // en inglés por default en otros) llegaba tal cual al front. El front traduce
+        // por `constraints` (ver validationExceptionFactory), nunca por texto libre.
+        exceptionFactory: validationExceptionFactory,
       }),
     );
 

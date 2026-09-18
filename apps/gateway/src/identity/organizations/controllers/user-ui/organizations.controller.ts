@@ -26,6 +26,8 @@ import {
 } from '@/platform/api_docs/controllers/organization';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
+import { Locale } from '@/platform/common/decorators/locale.decorator';
+import { SupportedLocale } from '@/platform/common/types/locale.type';
 
 @Controller('organizations')
 export class OrganizationsController {
@@ -118,9 +120,14 @@ export class OrganizationsController {
     @CurrentUser() user: UserPayload,
     @Body() body: EmailDto,
     @Res() res: Response,
+    @Locale() locale: SupportedLocale,
   ): Promise<Response<ApiResponseBuilder<boolean | keyof typeof InviteUserErrorsDto>>> {
     const apiResponse = new ApiResponseBuilder<boolean | keyof typeof InviteUserErrorsDto>();
-    const result = await this.organizationsService.invite(user.organizationId, body.email);
+    const result = await this.organizationsService.invite(
+      user.organizationId,
+      body.email,
+      locale,
+    );
     if (typeof result !== 'string') {
       apiResponse.setStatusCode(200).setMessage('User invited successfully').setData(result);
       return res.status(200).json(apiResponse.build());
@@ -139,11 +146,13 @@ export class OrganizationsController {
     @CurrentUser() user: UserPayload,
     @Body() body: EmailDto,
     @Res() res: Response,
+    @Locale() locale: SupportedLocale,
   ): Promise<Response<ApiResponseBuilder<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
     const result = await this.organizationsService.resendInvitation(
       body.email,
       user.organizationId,
+      locale,
     );
     if (result.success) {
       apiResponse

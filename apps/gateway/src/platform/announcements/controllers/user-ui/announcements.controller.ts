@@ -1,11 +1,13 @@
-import { Controller, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { HttpStatusCode } from 'axios';
 import { ApiResponse, ApiResponseBuilder, PendingAnnouncementDto } from '@tesseract/types';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
+import { Locale } from '@/platform/common/decorators/locale.decorator';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
+import { SupportedLocale } from '@/platform/common/types/locale.type';
 import { AnnouncementsReadService } from '../../announcements.read.service';
 
 @Controller('announcements')
@@ -17,7 +19,7 @@ export class AnnouncementsController {
   async getPending(
     @CurrentUser() user: UserPayload,
     @Res() res: Response,
-    @Query('locale') locale = 'es',
+    @Locale() locale: SupportedLocale,
   ): Promise<Response<ApiResponse<PendingAnnouncementDto[]>>> {
     const apiResponse = new ApiResponseBuilder<PendingAnnouncementDto[]>();
     const pending = await this.announcementsReadService.getPending(

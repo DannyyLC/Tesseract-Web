@@ -105,7 +105,7 @@ describe('OrganizationsService invite', () => {
     const result = await service.invite(organizationId, email);
 
     expect(result).toBe(true);
-    expect(emailService.sendOrganizationExistsEmail).toHaveBeenCalledWith(email, 'Fractal');
+    expect(emailService.sendOrganizationExistsEmail).toHaveBeenCalledWith(email, 'Fractal', 'es');
     expect(emailService.sendOrganizationInvitationToEmail).not.toHaveBeenCalled();
   });
 });
