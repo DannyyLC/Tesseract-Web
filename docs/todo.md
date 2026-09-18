@@ -3,7 +3,13 @@ title: 'TODO — Deuda técnica detectada'
 description: 'Hallazgos pendientes de corregir: los tiers de modelo declarados y nunca aplicados, riesgos de despliegue, campos inertes en la config de WhatsApp, la imposibilidad deliberada de cambiar el país de facturación de una organización y el trato que debe recibir un downgrade de plan cuando lo que sobra son datos del cliente.'
 ---
 
-Debemos de traducir todo el texto del back y el servicio de agentes para que la aplicaicon sea completamente multiidioma.
+**Deploy del soporte bilingüe (ES/EN) — pasos manuales en producción.** Hacerlos en este orden:
+
+1. Aplicar a mano la migración `20260918000000_bilingual_tool_catalog` (solo `ADD COLUMN` nullable en `tool_catalog` y `tool_functions`) y registrarla en `_prisma_migrations` con el `sha256` de su `migration.sql`. **Antes** de desplegar el gateway: si no, el catálogo de Integrations responde 500.
+2. Ejecutar `packages/database/prisma/seed.sql` en Cloud SQL Studio (idempotente): llena los textos en inglés del catálogo de tools y de las plantillas de notificación. Sin esto todo sigue en español.
+3. Desplegar gateway y web-client. Sin variables nuevas: el idioma viaja en el header `X-Locale` y ya está en el CORS.
+4. Sabido: las notificaciones ya guardadas en `user_notifications` se quedan en español (no tienen copia en inglés), y `hubspot_crm` y `slack_notif` no tienen traducción en el seed.
+5. Tras la v3: quitar el fallback a las columnas base (`displayName`, `description`, `titleTemplate`, `titleSnapshot`…) y hacer obligatorias las `…En`.
 
 Revisar la posibilidad de replicar lo que hace Cal.com en nuestra aplicacion para no depender de un tercero para este aspecto.
 
@@ -37,3 +43,4 @@ Levantado al migrar a Cloud Tasks. Nada urgente.
   la guarda de ventana de contexto: el umbral cuelga del límite **efectivo**, no del configurado,
   así que un workflow puede empezar a compactar antes que ayer sin que nadie haya tocado su
   configuración.
+
