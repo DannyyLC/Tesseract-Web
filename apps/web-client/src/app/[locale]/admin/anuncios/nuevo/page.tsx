@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Eye, Newspaper, PartyPopper } from 'lucide-react';
 import {
@@ -19,6 +20,7 @@ import {
   useAdminAnnouncementMutations,
   useAudiencePreview,
 } from '@/hooks/platform/use-admin-announcements';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '../../_styles';
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
@@ -37,6 +39,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function NewAnnouncementPage() {
+  const t = useTranslations('Admin.NewAnnouncement');
+  const getApiErrorMessage = useApiErrorMessage();
   const router = useRouter();
 
   const [contentLocale, setContentLocale] = useState<'es' | 'en'>('es');
@@ -78,8 +82,8 @@ export default function NewAnnouncementPage() {
   const previewAnnouncement: PendingAnnouncementDto = {
     userNotificationId: 'preview',
     template,
-    title: (contentLocale === 'en' ? titleEn : title) || 'Título del anuncio',
-    message: (contentLocale === 'en' ? messageEn : message) || 'Cuerpo del anuncio…',
+    title: (contentLocale === 'en' ? titleEn : title) || t('previewTitleFallback'),
+    message: (contentLocale === 'en' ? messageEn : message) || t('previewBodyFallback'),
     ctaLabel: (contentLocale === 'en' ? ctaLabelEn : ctaLabel) || null,
     ctaUrl: ctaUrl || null,
     createdAt: new Date().toISOString(),
@@ -92,8 +96,8 @@ export default function NewAnnouncementPage() {
         onSuccess: (result) => {
           const scope =
             targetOrganizationIds.length > 0
-              ? `${targetOrganizationIds.length} organización(es) elegidas`
-              : 'TODAS las organizaciones';
+              ? t('someOrgsChosen', { count: targetOrganizationIds.length })
+              : t('allOrgsScope');
           setAudienceConfirm({ count: result.count, scope });
         },
       },
@@ -103,12 +107,12 @@ export default function NewAnnouncementPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (title.trim().length < 3) return toast.error('El título debe tener al menos 3 caracteres');
-    if (message.trim().length < 3) return toast.error('El cuerpo debe tener al menos 3 caracteres');
-    if (targetRoles.length === 0) return toast.error('Elige al menos un rol destino');
-    if (ctaUrl && !ctaLabel) return toast.error('Si pones un link, ponle también un texto de botón en español');
+    if (title.trim().length < 3) return toast.error(t('titleTooShort'));
+    if (message.trim().length < 3) return toast.error(t('bodyTooShort'));
+    if (targetRoles.length === 0) return toast.error(t('noRoleSelected'));
+    if (ctaUrl && !ctaLabel) return toast.error(t('ctaMissingLabel'));
     if (publishNow && !confirmedBroadcast) {
-      return toast.error('Primero confirma el tamaño de la audiencia con "Revisar destino"');
+      return toast.error(t('reviewFirst'));
     }
 
     const dto: CreateAnnouncementDto = {
@@ -128,10 +132,10 @@ export default function NewAnnouncementPage() {
 
     createAnnouncement.mutate(dto, {
       onSuccess: () => {
-        toast.success(publishNow ? 'Anuncio publicado' : 'Anuncio guardado como borrador');
+        toast.success(publishNow ? t('publishedSuccess') : t('draftSavedSuccess'));
         router.push('/admin/anuncios');
       },
-      onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo crear el anuncio'),
+      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
     });
   };
 
@@ -142,27 +146,30 @@ export default function NewAnnouncementPage() {
           type="button"
           onClick={() => router.push('/admin/anuncios')}
           className="rounded-lg p-2 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
-          aria-label="Volver a anuncios"
+          aria-label={t('backToAnnouncements')}
         >
           <ArrowLeft size={18} />
         </button>
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">Nuevo anuncio</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Se muestra como un mensaje a pantalla completa la próxima vez que el usuario entre a la app.
-          </p>
+          <h1 className="text-xl font-semibold text-text-primary">{t('title')}</h1>
+          <p className="mt-1 text-sm text-text-secondary">{t('subtitle')}</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
-            <Section title="Plantilla">
+            <Section title={t('templateSection')}>
               <div className="grid grid-cols-2 gap-2">
                 {(
                   [
-                    [AnnouncementTemplateKind.NEWS, 'Noticia', Newspaper, 'Sobria, con botón de enlace opcional'],
-                    [AnnouncementTemplateKind.CELEBRATION, 'Celebración', PartyPopper, 'Con confetti — regalos de créditos, hitos'],
+                    [AnnouncementTemplateKind.NEWS, t('templateNews'), Newspaper, t('templateNewsHint')],
+                    [
+                      AnnouncementTemplateKind.CELEBRATION,
+                      t('templateCelebration'),
+                      PartyPopper,
+                      t('templateCelebrationHint'),
+                    ],
                   ] as const
                 ).map(([value, label, Icon, hint]) => (
                   <button
@@ -189,11 +196,11 @@ export default function NewAnnouncementPage() {
                 className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:opacity-80"
               >
                 <Eye size={14} />
-                Ver vista previa a pantalla completa
+                {t('previewButton')}
               </button>
             </Section>
 
-            <Section title="Contenido">
+            <Section title={t('contentSection')}>
               <div className="mb-3 flex w-full gap-1 rounded-lg border border-border p-1">
                 {(['es', 'en'] as const).map((loc) => (
                   <button
@@ -206,7 +213,7 @@ export default function NewAnnouncementPage() {
                         : 'text-text-secondary hover:bg-surface-secondary'
                     }`}
                   >
-                    {loc === 'es' ? 'Español' : 'English (opcional)'}
+                    {loc === 'es' ? t('localeSpanish') : t('localeEnglishOptional')}
                   </button>
                 ))}
               </div>
@@ -214,16 +221,16 @@ export default function NewAnnouncementPage() {
               {contentLocale === 'es' ? (
                 <div className="space-y-3">
                   <div>
-                    <label className={labelClass}>Título (español)</label>
+                    <label className={labelClass}>{t('titleEsLabel')}</label>
                     <input
                       className={inputClass}
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Cambios en la forma de cobro"
+                      placeholder={t('titleEsPlaceholder')}
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>Cuerpo (español) — admite Markdown</label>
+                    <label className={labelClass}>{t('bodyEsLabel')}</label>
                     <textarea
                       className={`${inputClass} min-h-56 resize-y font-mono text-sm`}
                       value={message}
@@ -235,57 +242,53 @@ export default function NewAnnouncementPage() {
               ) : (
                 <div className="space-y-3">
                   <div>
-                    <label className={labelClass}>Título (inglés) — opcional</label>
+                    <label className={labelClass}>{t('titleEnLabel')}</label>
                     <input
                       className={inputClass}
                       value={titleEn}
                       onChange={(e) => setTitleEn(e.target.value)}
-                      placeholder="Billing changes"
+                      placeholder={t('titleEnPlaceholder')}
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>Cuerpo (inglés) — opcional, admite Markdown</label>
+                    <label className={labelClass}>{t('bodyEnLabel')}</label>
                     <textarea
                       className={`${inputClass} min-h-56 resize-y font-mono text-sm`}
                       value={messageEn}
                       onChange={(e) => setMessageEn(e.target.value)}
-                      placeholder="Starting today…"
+                      placeholder={t('bodyEnPlaceholder')}
                     />
                   </div>
-                  <p className="text-xs text-text-secondary">
-                    Si lo dejas vacío, los usuarios con la app en inglés verán el contenido en español.
-                  </p>
+                  <p className="text-xs text-text-secondary">{t('fallbackHint')}</p>
                 </div>
               )}
             </Section>
 
-            <Section title="Botón de acción (opcional)">
+            <Section title={t('ctaSection')}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className={labelClass}>Texto del botón (español)</label>
-                  <input className={inputClass} value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} placeholder="Ver detalles" />
+                  <label className={labelClass}>{t('ctaLabelEsLabel')}</label>
+                  <input className={inputClass} value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} placeholder={t('ctaLabelEsPlaceholder')} />
                 </div>
                 <div>
-                  <label className={labelClass}>Texto del botón (inglés)</label>
-                  <input className={inputClass} value={ctaLabelEn} onChange={(e) => setCtaLabelEn(e.target.value)} placeholder="See details" />
+                  <label className={labelClass}>{t('ctaLabelEnLabel')}</label>
+                  <input className={inputClass} value={ctaLabelEn} onChange={(e) => setCtaLabelEn(e.target.value)} placeholder={t('ctaLabelEnPlaceholder')} />
                 </div>
               </div>
               <div className="mt-3">
-                <label className={labelClass}>Link del botón</label>
-                <input className={inputClass} value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} placeholder="/billing o https://…" />
-                <p className="mt-1 text-xs text-text-secondary">
-                  Si no le pones texto al botón (en el idioma que corresponda), el botón no aparece.
-                </p>
+                <label className={labelClass}>{t('ctaUrlLabel')}</label>
+                <input className={inputClass} value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} placeholder={t('ctaUrlPlaceholder')} />
+                <p className="mt-1 text-xs text-text-secondary">{t('ctaHint')}</p>
               </div>
             </Section>
           </div>
 
           <div className="space-y-6">
-            <Section title="Destino">
+            <Section title={t('targetSection')}>
               <div className="space-y-4">
                 <OrganizationMultiSelect value={targetOrganizationIds} onChange={handleTargetOrganizationsChange} />
                 <div>
-                  <label className={labelClass}>Roles destino</label>
+                  <label className={labelClass}>{t('targetRolesLabel')}</label>
                   <div className="flex flex-wrap gap-3">
                     {ROLE_OPTIONS.map((r) => (
                       <label key={r.value} className="flex cursor-pointer items-center gap-2 text-sm text-text-primary">
@@ -303,26 +306,29 @@ export default function NewAnnouncementPage() {
               </div>
             </Section>
 
-            <Section title="Vigencia">
-              <label className={labelClass}>Caduca (opcional)</label>
+            <Section title={t('expirySection')}>
+              <label className={labelClass}>{t('expiresLabel')}</label>
               <input
                 type="datetime-local"
                 className={inputClass}
                 value={expiresAt}
                 onChange={(e) => setExpiresAt(e.target.value)}
               />
-              <p className="mt-1 text-xs text-text-secondary">
-                Apaga el modal en esa fecha, pero se queda visible en la campana de quien ya lo recibió.
-              </p>
+              <p className="mt-1 text-xs text-text-secondary">{t('expiresHint')}</p>
             </Section>
 
-            <Section title="Publicación">
+            <Section title={t('publishSection')}>
               <div className="space-y-3">
-                <Switch checked={publishNow} onChange={setPublishNow} label="Publicar de inmediato" hint="Si lo apagas, queda como borrador y lo publicas después con un botón." />
+                <Switch
+                  checked={publishNow}
+                  onChange={setPublishNow}
+                  label={t('publishNowLabel')}
+                  hint={t('publishNowHint')}
+                />
                 {publishNow && (
                   <div className="rounded-lg border border-border bg-surface-secondary p-3">
                     <p className="text-xs text-text-secondary">
-                      {confirmedBroadcast ? 'Destino confirmado.' : 'Revisa cuántos usuarios recibirán este anuncio antes de publicar.'}
+                      {confirmedBroadcast ? t('targetConfirmed') : t('reviewAudienceHint')}
                     </p>
                     <button
                       type="button"
@@ -330,7 +336,7 @@ export default function NewAnnouncementPage() {
                       disabled={audiencePreview.isPending || targetRoles.length === 0}
                       className={`${btnGhost} mt-2 w-full justify-center`}
                     >
-                      {audiencePreview.isPending ? 'Calculando…' : 'Revisar destino'}
+                      {audiencePreview.isPending ? t('calculating') : t('reviewTarget')}
                     </button>
                   </div>
                 )}
@@ -341,10 +347,10 @@ export default function NewAnnouncementPage() {
 
         <div className="sticky bottom-0 -mx-4 mt-6 flex justify-end gap-2 border-t border-border bg-dashboard-background/95 px-4 py-4 backdrop-blur-sm md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
           <button type="button" className={btnGhost} onClick={() => router.push('/admin/anuncios')} disabled={createAnnouncement.isPending}>
-            Cancelar
+            {t('cancel')}
           </button>
           <button type="submit" className={btnPrimary} disabled={createAnnouncement.isPending}>
-            {createAnnouncement.isPending ? 'Guardando…' : publishNow ? 'Publicar' : 'Guardar borrador'}
+            {createAnnouncement.isPending ? t('saving') : publishNow ? t('publish') : t('saveDraft')}
           </button>
         </div>
       </form>
@@ -368,14 +374,14 @@ export default function NewAnnouncementPage() {
           setConfirmedBroadcast(true);
           setAudienceConfirm(null);
         }}
-        title="Confirmar destino"
+        title={t('confirmTargetTitle')}
         message={
           audienceConfirm
-            ? `Este anuncio llegará a ${audienceConfirm.count} usuario(s) en ${audienceConfirm.scope}. ¿Confirmas el envío?`
+            ? t('confirmTargetMessage', { count: audienceConfirm.count, scope: audienceConfirm.scope })
             : ''
         }
-        confirmLabel="Confirmar"
-        cancelLabel="Revisar de nuevo"
+        confirmLabel={t('confirm')}
+        cancelLabel={t('reviewAgain')}
         variant="warning"
       />
     </div>

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { toIntlLocale } from '@/lib/intl-locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -47,6 +48,8 @@ interface PendingInvitationItem {
 
 export default function UsersPage() {
   const t = useTranslations('Users');
+  const tTimeAgo = useTranslations('Shared.TimeAgo');
+  const intlLocale = toIntlLocale(useLocale());
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterRole, setFilterRole] = useState<FilterRole>('all');
@@ -472,7 +475,7 @@ export default function UsersPage() {
                             </div>
                             <p className="truncate text-sm text-text-secondary">
                               {t('sentTimeAgo', {
-                                time: formatTimeAgo(invitation.createdAt as any),
+                                time: formatTimeAgo(invitation.createdAt as any, tTimeAgo, intlLocale),
                               })}
                             </p>
                           </div>
@@ -484,7 +487,7 @@ export default function UsersPage() {
                                 isExpired ? 'text-danger-600' : 'text-text-primary'
                               }`}
                             >
-                              {new Date(invitation.expiresAt).toLocaleString('es-ES')}
+                              {new Date(invitation.expiresAt).toLocaleString(intlLocale)}
                             </p>
                           </div>
                         </div>
@@ -494,7 +497,7 @@ export default function UsersPage() {
                 })
               : usersData?.items.map((user, index) => {
                   const roleConfig = getRoleConfig(user.role);
-                  const statusConfig = getStatusConfig(user.isActive);
+                  const statusConfig = getStatusConfig(user.isActive, tTimeAgo);
                   const isExpanded = expandedUserId === user.id;
 
                   return (
@@ -552,7 +555,7 @@ export default function UsersPage() {
                           <div className="hidden text-right md:block">
                             <p className="text-xs text-text-tertiary">{t('lastAccess')}</p>
                             <p className="text-sm text-text-primary">
-                              {formatTimeAgo(user.lastLoginAt)}
+                              {formatTimeAgo(user.lastLoginAt, tTimeAgo, intlLocale)}
                             </p>
                           </div>
                         </div>
@@ -708,9 +711,11 @@ export default function UsersPage() {
                         key={role}
                         type="button"
                         onClick={() => setEditFormData({ ...editFormData, role })}
+                        title={t(role === UserRole.ADMIN ? 'roleDescAdmin' : 'roleDescViewer')}
+                        aria-pressed={isSelected}
                         className={`rounded-xl border px-4 py-3 transition-all ${
                           isSelected
-                            ? 'border-border-focus bg-surface-secondary ring-2 ring-border-focus'
+                            ? `bg-surface-secondary ring-2 ${config.selected}`
                             : 'border-border bg-surface hover:bg-surface-secondary'
                         }`}
                       >
@@ -721,6 +726,9 @@ export default function UsersPage() {
                     );
                   })}
                 </div>
+                <p className="mt-2 rounded-lg bg-surface-secondary px-3 py-2 text-xs leading-relaxed text-text-secondary">
+                  {t(editFormData.role === UserRole.ADMIN ? 'roleDescAdmin' : 'roleDescViewer')}
+                </p>
                 <p className="mt-1 text-xs text-text-tertiary">{t('ownerNote')}</p>
               </div>
 
@@ -831,6 +839,7 @@ export default function UsersPage() {
                   <AlertTriangle className="h-5 w-5 flex-shrink-0" />
                   <p className="text-sm font-medium">{t('transferWarningHeading')}</p>
                 </div>
+                <p className="mt-2 text-sm opacity-90">{t('transferWhatIsOwner')}</p>
                 <p className="mt-2 text-sm opacity-90">
                   {t('transferWarningBefore')} <strong>{modalUser.name}</strong>{' '}
                   {t('transferWarningAfter')}

@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { useLocale, useTranslations } from 'next-intl';
 import { Loader2, Save } from 'lucide-react';
 import { useUpdateAdminSubscription } from '@/hooks/billing/use-admin-billing';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
+import { toIntlLocale } from '@/lib/intl-locale';
 import type { AdminOrganizationDetail } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import { btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 
@@ -36,6 +39,9 @@ const toForm = (org: AdminOrganizationDetail): Form => ({
  * organizaciones de facturación manual (transferencia).
  */
 export function SubscriptionTab({ org }: Props) {
+  const t = useTranslations('Admin.SubscriptionTab');
+  const intlLocale = toIntlLocale(useLocale());
+  const getApiErrorMessage = useApiErrorMessage();
   const isStripeManaged = !!org.subscription?.stripeSubscriptionId;
   const [form, setForm] = useState<Form>(() => toForm(org));
   const updateSubscription = useUpdateAdminSubscription();
@@ -61,8 +67,8 @@ export function SubscriptionTab({ org }: Props) {
         },
       },
       {
-        onSuccess: () => toast.success('Suscripción actualizada'),
-        onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo actualizar'),
+        onSuccess: () => toast.success(t('updated')),
+        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -71,29 +77,28 @@ export function SubscriptionTab({ org }: Props) {
     return (
       <div className="w-full space-y-4">
         <p className="rounded-lg border border-border bg-surface-secondary px-3 py-2 text-xs text-text-secondary">
-          Esta organización factura por Stripe. La suscripción se gestiona desde ahí (o desde el
-          flujo normal de cambio de plan) — editarla a mano se perdería en el próximo webhook.
+          {t('stripeManagedHint')}
         </p>
         <dl className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <dt className="text-xs text-text-secondary">Plan</dt>
+            <dt className="text-xs text-text-secondary">{t('plan')}</dt>
             <dd className="text-sm text-text-primary">{org.subscription?.plan}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-secondary">Estado</dt>
+            <dt className="text-xs text-text-secondary">{t('status')}</dt>
             <dd className="text-sm text-text-primary">{org.subscription?.status}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-secondary">Período actual</dt>
+            <dt className="text-xs text-text-secondary">{t('currentPeriod')}</dt>
             <dd className="text-sm text-text-primary">
-              {new Date(org.subscription!.currentPeriodStart).toLocaleDateString('es-MX')} –{' '}
-              {new Date(org.subscription!.currentPeriodEnd).toLocaleDateString('es-MX')}
+              {new Date(org.subscription!.currentPeriodStart).toLocaleDateString(intlLocale)} –{' '}
+              {new Date(org.subscription!.currentPeriodEnd).toLocaleDateString(intlLocale)}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-text-secondary">Se cancela al fin del período</dt>
+            <dt className="text-xs text-text-secondary">{t('cancelsAtEnd')}</dt>
             <dd className="text-sm text-text-primary">
-              {org.subscription?.cancelAtPeriodEnd ? 'Sí' : 'No'}
+              {org.subscription?.cancelAtPeriodEnd ? t('yes') : t('no')}
             </dd>
           </div>
         </dl>
@@ -103,14 +108,11 @@ export function SubscriptionTab({ org }: Props) {
 
   return (
     <div className="w-full space-y-4">
-      <p className="text-xs text-text-secondary">
-        Organización de facturación manual (sin Stripe). Estos valores se guardan directo, sin
-        pasar por ningún checkout.
-      </p>
+      <p className="text-xs text-text-secondary">{t('manualBillingHint')}</p>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <label className={labelClass}>Plan</label>
+          <label className={labelClass}>{t('plan')}</label>
           <select className={inputClass} value={form.plan} onChange={(e) => set('plan', e.target.value as Form['plan'])}>
             {PLANS.map((p) => (
               <option key={p} value={p}>
@@ -120,7 +122,7 @@ export function SubscriptionTab({ org }: Props) {
           </select>
         </div>
         <div>
-          <label className={labelClass}>Estado</label>
+          <label className={labelClass}>{t('status')}</label>
           <select
             className={inputClass}
             value={form.status}
@@ -134,7 +136,7 @@ export function SubscriptionTab({ org }: Props) {
           </select>
         </div>
         <div>
-          <label className={labelClass}>Fin del período actual</label>
+          <label className={labelClass}>{t('periodEnd')}</label>
           <input
             type="date"
             className={inputClass}
@@ -150,7 +152,7 @@ export function SubscriptionTab({ org }: Props) {
               onChange={(e) => set('cancelAtPeriodEnd', e.target.checked)}
               className="h-4 w-4 shrink-0 accent-accent"
             />
-            No renovar al final del período
+            {t('noRenew')}
           </label>
         </div>
       </div>
@@ -166,7 +168,7 @@ export function SubscriptionTab({ org }: Props) {
           ) : (
             <Save size={14} />
           )}
-          Guardar
+          {t('save')}
         </button>
       </div>
     </div>

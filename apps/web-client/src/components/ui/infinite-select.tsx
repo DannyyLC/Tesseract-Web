@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, Check, Search } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -38,7 +39,7 @@ export function InfiniteSelect({
   value,
   onChange,
   options,
-  placeholder = 'Seleccionar...',
+  placeholder,
   isLoading,
   hasNextPage,
   isFetchingNextPage,
@@ -46,8 +47,11 @@ export function InfiniteSelect({
   className = '',
   searchValue,
   onSearchChange,
-  searchPlaceholder = 'Buscar...',
+  searchPlaceholder,
 }: InfiniteSelectProps) {
+  const tShared = useTranslations('Shared.Loader');
+  placeholder = placeholder ?? tShared('select');
+  searchPlaceholder = searchPlaceholder ?? tShared('search');
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [panel, setPanel] = useState<{
@@ -242,7 +246,7 @@ export function InfiniteSelect({
                 {/* Elemento final para Infinite Scroll */}
                 {hasNextPage && (
                   <div ref={loadMoreRef} className="py-2 text-center text-xs text-text-secondary">
-                    {isFetchingNextPage ? 'Cargando más...' : ''}
+                    {isFetchingNextPage ? tShared('loadingMore') : ''}
                   </div>
                 )}
                 </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
@@ -27,6 +28,7 @@ import {
 } from '@/hooks/messaging/use-admin-conversations';
 import { useDictation } from '@/hooks/use-dictation';
 import RecordingBar from '@/components/ui/recording-bar';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { ConversationHistoryMenu } from './conversation-history-menu';
 import type {
   AdminTestExecutionDetail,
@@ -51,13 +53,13 @@ interface ExecRecord {
   detail: AdminTestExecutionDetail | null;
 }
 
-const STATUS_STYLE: Record<string, { label: string; className: string }> = {
-  COMPLETED: { label: '✔ Completado', className: 'bg-success/10 text-success-600' },
-  FAILED: { label: '✖ Falló', className: 'bg-danger/10 text-danger-600' },
-  RUNNING: { label: '⏳ Corriendo', className: 'bg-warning/10 text-warning-600' },
-  PENDING: { label: '⏳ Pendiente', className: 'bg-warning/10 text-warning-600' },
-  CANCELLED: { label: 'Cancelada', className: 'bg-neutral-500/10 text-neutral-600' },
-  TIMEOUT: { label: 'Tiempo agotado', className: 'bg-neutral-500/10 text-neutral-600' },
+const STATUS_STYLE_KEY: Record<string, { labelKey: string; className: string }> = {
+  COMPLETED: { labelKey: 'statusCompleted', className: 'bg-success/10 text-success-600' },
+  FAILED: { labelKey: 'statusFailed', className: 'bg-danger/10 text-danger-600' },
+  RUNNING: { labelKey: 'statusRunning', className: 'bg-warning/10 text-warning-600' },
+  PENDING: { labelKey: 'statusPending', className: 'bg-warning/10 text-warning-600' },
+  CANCELLED: { labelKey: 'statusCancelled', className: 'bg-neutral-500/10 text-neutral-600' },
+  TIMEOUT: { labelKey: 'statusTimeout', className: 'bg-neutral-500/10 text-neutral-600' },
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -84,6 +86,8 @@ const POLL_MAX_TRIES = 10;
  * del backend quedan sin usar hasta que haga falta un caso que streaming no cubra.
  */
 export function TestTab({ workflow }: Props) {
+  const t = useTranslations('Admin.TestTab');
+  const getApiErrorMessage = useApiErrorMessage();
   const [thread, setThread] = useState<ThreadMessage[]>([]);
   const [input, setInput] = useState('');
   const [conversationId, setConversationId] = useState<string | undefined>();
@@ -142,13 +146,9 @@ export function TestTab({ workflow }: Props) {
     return (
       <div className="mx-auto max-w-2xl py-16 text-center text-sm">
         <p className="flex items-center justify-center gap-2 font-medium text-text-primary">
-          <AlertTriangle size={14} /> Este workflow ya está publicado
+          <AlertTriangle size={14} /> {t('alreadyPublished')}
         </p>
-        <p className="mt-1 text-text-secondary">
-          Solo se pueden probar acá los workflows internos — el backend rechaza la prueba de uno
-          ya publicado para no descontarle créditos ni ejecuciones falsas al cliente. Márcalo como
-          "Interno" de nuevo desde Ajustes si necesitas seguir probándolo.
-        </p>
+        <p className="mt-1 text-text-secondary">{t('alreadyPublishedHint')}</p>
       </div>
     );
   }
@@ -269,7 +269,7 @@ export function TestTab({ workflow }: Props) {
         })),
       );
     } catch (err: any) {
-      toast.error(err?.message ?? 'No se pudo cargar la conversación');
+      toast.error(getApiErrorMessage(err));
     }
   };
 
@@ -292,7 +292,7 @@ export function TestTab({ workflow }: Props) {
           setIsEditingTitle(false);
         },
         onError: (err: any) => {
-          toast.error(err?.message ?? 'No se pudo renombrar la conversación');
+          toast.error(getApiErrorMessage(err));
           setIsEditingTitle(false);
         },
       },
@@ -312,7 +312,7 @@ export function TestTab({ workflow }: Props) {
         <div className="mb-3 flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
             {!conversationId ? (
-              <span className="text-sm font-medium text-text-secondary">Nueva conversación</span>
+              <span className="text-sm font-medium text-text-secondary">{t('newConversation')}</span>
             ) : isEditingTitle ? (
               <input
                 value={titleDraft}
@@ -333,10 +333,10 @@ export function TestTab({ workflow }: Props) {
               <button
                 type="button"
                 onClick={startEditingTitle}
-                title="Renombrar conversación"
+                title={t('renameConversationTitle')}
                 className="max-w-xs truncate text-sm font-medium text-text-primary transition-opacity hover:opacity-70"
               >
-                {title || 'Sin título'}
+                {title || t('untitled')}
               </button>
             )}
           </div>
@@ -351,8 +351,8 @@ export function TestTab({ workflow }: Props) {
               type="button"
               onClick={handleReset}
               disabled={thread.length === 0 && !conversationId}
-              title="Nueva conversación de prueba"
-              aria-label="Nueva conversación de prueba"
+              title={t('newTestConversation')}
+              aria-label={t('newTestConversation')}
               className="flex-shrink-0 rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30"
             >
               <SquarePen size={18} />
@@ -363,7 +363,7 @@ export function TestTab({ workflow }: Props) {
         <div className="flex-1 overflow-y-auto p-4">
           {thread.length === 0 ? (
             <p className="flex h-full items-center justify-center text-center text-sm text-text-secondary">
-              Escribe un mensaje para empezar a probar "{workflow.name}".
+              {t('startPrompt', { name: workflow.name })}
             </p>
           ) : (
             <div className="space-y-4">
@@ -421,7 +421,7 @@ export function TestTab({ workflow }: Props) {
           )}
           {error && (
             <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger-600">
-              {error?.message ?? 'No se pudo ejecutar el workflow'}
+              {error ? getApiErrorMessage(error) : t('executeError')}
             </p>
           )}
           <div ref={bottomRef} />
@@ -445,15 +445,15 @@ export function TestTab({ workflow }: Props) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Escribe como si fueras el cliente… (Enter envía, Shift+Enter salto de línea)"
+                placeholder={t('inputPlaceholder')}
                 className="scrollbar-hide max-h-[120px] min-h-[24px] flex-1 resize-none overflow-y-auto bg-transparent py-2 text-sm leading-relaxed text-text-primary outline-none placeholder:text-input-placeholder"
               />
               <button
                 type="button"
                 onClick={dictation.start}
                 disabled={isStreaming}
-                title="Dictar por voz"
-                aria-label="Dictar por voz"
+                title={t('dictateByVoice')}
+                aria-label={t('dictateByVoice')}
                 className="flex-shrink-0 rounded-full p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <Mic size={20} />
@@ -476,11 +476,11 @@ export function TestTab({ workflow }: Props) {
           sin tope de ancho, dejar el panel angosto se sentía desperdiciado — más aire
           para leer un stack trace sin que se vuelva un scroll horizontal. */}
       <div className="hidden w-96 shrink-0 flex-col lg:flex">
-        <p className="mb-3 text-xs font-medium text-text-secondary">Ejecuciones de esta sesión</p>
+        <p className="mb-3 text-xs font-medium text-text-secondary">{t('sessionExecutions')}</p>
         <div className="flex-1 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
           {execHistory.length === 0 ? (
             <p className="flex h-full items-center justify-center text-center text-xs text-text-secondary">
-              Cuando mandes un mensaje, el resultado de cada ejecución aparece acá.
+              {t('noExecutionsYet')}
             </p>
           ) : (
             execHistory.map((rec, i) => <ExecutionCard key={rec.turnId} record={rec} turn={i + 1} />)
@@ -493,25 +493,26 @@ export function TestTab({ workflow }: Props) {
 }
 
 function ExecutionCard({ record, turn }: { record: ExecRecord; turn: number }) {
+  const t = useTranslations('Admin.TestTab');
   const { detail, status } = record;
-  const style = detail ? (STATUS_STYLE[detail.status] ?? STATUS_STYLE.PENDING) : null;
+  const style = detail ? (STATUS_STYLE_KEY[detail.status] ?? STATUS_STYLE_KEY.PENDING) : null;
   const cost = detail ? Number(detail.cost) : 0;
 
   return (
     <div className="rounded-lg border border-border bg-surface-secondary/40 p-2.5 text-xs">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-medium text-text-primary">Turno {turn}</span>
+        <span className="font-medium text-text-primary">{t('turnLabel', { turn })}</span>
         {status !== 'done' ? (
           <span className="inline-flex items-center gap-1 text-text-secondary">
             <Loader2 size={11} className="animate-spin" />
-            {status === 'starting' ? 'ejecutando…' : 'procesando…'}
+            {status === 'starting' ? t('executing') : t('processing')}
           </span>
         ) : style ? (
           <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${style.className}`}>
-            {style.label}
+            {t(style.labelKey)}
           </span>
         ) : (
-          <span className="text-text-tertiary">sin detalle</span>
+          <span className="text-text-tertiary">{t('noDetail')}</span>
         )}
       </div>
 
@@ -525,7 +526,7 @@ function ExecutionCard({ record, turn }: { record: ExecRecord; turn: number }) {
               <Clock size={11} /> {detail.duration ?? 0}s
             </span>
             <span className="inline-flex items-center gap-1">
-              <Zap size={11} /> {detail.tokensUsed ?? 0} tok
+              <Zap size={11} /> {t('tokensAbbrev', { count: detail.tokensUsed ?? 0 })}
             </span>
             <span className="inline-flex items-center gap-1">
               <Coins size={11} /> ${cost.toFixed(4)}
@@ -538,7 +539,7 @@ function ExecutionCard({ record, turn }: { record: ExecRecord; turn: number }) {
               {detail.errorStack && (
                 <details className="mt-1">
                   <summary className="flex cursor-pointer items-center gap-1 text-[10px] font-medium select-none">
-                    <ChevronDown size={10} /> stack trace
+                    <ChevronDown size={10} /> {t('stackTrace')}
                   </summary>
                   <pre className="mt-1 max-h-40 overflow-auto rounded bg-surface-secondary p-1.5 text-[10px] whitespace-pre-wrap text-text-secondary">
                     {detail.errorStack}

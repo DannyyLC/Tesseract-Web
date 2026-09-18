@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Database, Plus, Rows3, Workflow } from 'lucide-react';
 import { DatasetField } from '@tesseract/types';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
 import { useAdminDatasetMutations, useAdminDatasets } from '@/hooks/automation/use-admin-datasets';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import { SchemaBuilder } from './schema-builder';
 
@@ -16,6 +18,8 @@ interface DatasetListProps {
 
 /** Listado de catálogos de una organización + alta. Clon admin de `(dashboard)/datasets/page.tsx`. */
 export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
+  const t = useTranslations('Admin.DatasetList');
+  const getApiErrorMessage = useApiErrorMessage();
   const { data, isLoading } = useAdminDatasets(organizationId);
   const { createDataset } = useAdminDatasetMutations();
 
@@ -45,14 +49,14 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
         onSelect(created.id);
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'No se pudo crear el catálogo');
+      setError(getApiErrorMessage(caught as any));
     }
   };
 
   if (isLoading || !data) {
     return (
       <div className="flex justify-center py-16">
-        <LogoLoader text="Cargando catálogos" />
+        <LogoLoader text={t('loading')} />
       </div>
     );
   }
@@ -61,14 +65,18 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-text-primary">Catálogos</h2>
+          <h2 className="text-sm font-semibold text-text-primary">{t('title')}</h2>
           {usage && (
             <p className="mt-1 text-xs text-text-secondary">
-              {usage.datasets} / {usage.maxDatasets === -1 ? '∞' : usage.maxDatasets} catálogos ·{' '}
-              {usage.rows} / {usage.maxDatasetRows === -1 ? '∞' : usage.maxDatasetRows} filas
+              {t('usageSummary', {
+                count: usage.datasets,
+                max: usage.maxDatasets === -1 ? '∞' : usage.maxDatasets,
+                rows: usage.rows,
+                maxRows: usage.maxDatasetRows === -1 ? '∞' : usage.maxDatasetRows,
+              })}
               {usage.writesBlocked && (
                 <span className="ml-2 rounded-md bg-warning-500/10 px-1.5 py-0.5 text-warning-600">
-                  Altas bloqueadas por límite de plan
+                  {t('writesBlocked')}
                 </span>
               )}
             </p>
@@ -78,16 +86,16 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
           className={btnPrimary}
           onClick={() => setIsCreating(true)}
           disabled={atDatasetLimit}
-          title={atDatasetLimit ? 'Esta organización ya alcanzó su límite de catálogos' : undefined}
+          title={atDatasetLimit ? t('atLimitTitle') : undefined}
         >
-          <Plus size={16} /> Nuevo catálogo
+          <Plus size={16} /> {t('newDataset')}
         </button>
       </div>
 
       {data.datasets.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border py-16 text-center">
           <Database size={28} className="mx-auto text-text-tertiary" />
-          <p className="mt-3 text-sm text-text-secondary">Esta organización no tiene catálogos todavía.</p>
+          <p className="mt-3 text-sm text-text-secondary">{t('empty')}</p>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -110,11 +118,11 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
               </div>
               <div className="mt-3 flex flex-wrap gap-3 text-xs text-text-tertiary">
                 <span className="flex items-center gap-1">
-                  <Rows3 size={13} /> {dataset.recordCount} filas
+                  <Rows3 size={13} /> {t('rowsCount', { count: dataset.recordCount })}
                 </span>
-                <span>{dataset.fieldCount} columnas</span>
+                <span>{t('columnsCount', { count: dataset.fieldCount })}</span>
                 <span className="flex items-center gap-1">
-                  <Workflow size={13} /> {dataset.workflowIds.length} workflows
+                  <Workflow size={13} /> {t('workflowsCount', { count: dataset.workflowIds.length })}
                 </span>
               </div>
             </button>
@@ -122,24 +130,24 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
         </div>
       )}
 
-      <Modal isOpen={isCreating} onClose={closeCreate} title="Nuevo catálogo" size="lg">
+      <Modal isOpen={isCreating} onClose={closeCreate} title={t('newDataset')} size="lg">
         <div className="space-y-4">
           <div>
-            <label className={labelClass}>Nombre</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Ej. Vehículos blindados" />
+            <label className={labelClass}>{t('nameLabel')}</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder={t('namePlaceholder')} />
           </div>
           <div>
-            <label className={labelClass}>Descripción</label>
+            <label className={labelClass}>{t('descriptionLabel')}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               className={inputClass}
-              placeholder="Para qué sirve — se lo dice al modelo"
+              placeholder={t('descriptionPlaceholder')}
             />
           </div>
           <div>
-            <label className={labelClass}>Columnas</label>
+            <label className={labelClass}>{t('columnsLabel')}</label>
             <SchemaBuilder fields={fields} onChange={setFields} />
           </div>
 
@@ -147,10 +155,10 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
 
           <div className="flex justify-end gap-2">
             <button className={btnGhost} onClick={closeCreate}>
-              Cancelar
+              {t('cancel')}
             </button>
             <button className={btnPrimary} onClick={handleCreate} disabled={!name.trim() || createDataset.isPending}>
-              {createDataset.isPending ? 'Creando…' : 'Crear'}
+              {createDataset.isPending ? t('creating') : t('create')}
             </button>
           </div>
         </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import { Check, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,6 +29,7 @@ export function ConnectWorkflowModal({
   onClose,
   connectedIds,
 }: ConnectWorkflowModalProps) {
+  const t = useTranslations('Datasets');
   const { linkWorkflow } = useAdminDatasetMutations();
   const [workflowId, setWorkflowId] = useState('');
   const [query, setQuery] = useState('');
@@ -56,18 +58,16 @@ export function ConnectWorkflowModal({
     try {
       await linkWorkflow.mutateAsync({ organizationId, id: datasetId, workflowId });
       close();
-      toast.success('Workflow conectado');
+      toast.success(t('workflowConnected'));
     } catch {
-      toast.error('No se pudo conectar el workflow');
+      toast.error(t('connectError'));
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={close} title="Conectar workflow">
+    <Modal isOpen={isOpen} onClose={close} title={t('connectWorkflowTitle')}>
       <div className="space-y-4">
-        <p className="text-sm text-text-secondary">
-          El workflow podrá consultar este catálogo desde su agente.
-        </p>
+        <p className="text-sm text-text-secondary">{t('connectWorkflowHint')}</p>
 
         <div className="space-y-2">
           <div className="relative">
@@ -75,7 +75,7 @@ export function ConnectWorkflowModal({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar workflow…"
+              placeholder={t('searchWorkflowPlaceholder')}
               className="w-full rounded-lg border border-border bg-surface py-2 pl-9 pr-3 text-sm text-text-primary outline-none focus:border-border-focus"
             />
           </div>
@@ -87,7 +87,9 @@ export function ConnectWorkflowModal({
               </div>
             ) : workflows.length === 0 ? (
               <p className="px-3 py-6 text-center text-sm text-text-secondary">
-                {debouncedQuery ? `Sin resultados para "${debouncedQuery}"` : 'Todos los workflows ya están conectados'}
+                {debouncedQuery
+                  ? t('noResultsFor', { query: debouncedQuery })
+                  : t('allWorkflowsAlreadyConnected')}
               </p>
             ) : (
               workflows.map((workflow) => {
@@ -112,11 +114,11 @@ export function ConnectWorkflowModal({
 
         <div className="flex justify-end gap-2">
           <button className={btnGhost} onClick={close}>
-            Cancelar
+            {t('cancel')}
           </button>
           <button className={btnPrimary} onClick={handleConnect} disabled={!workflowId || linkWorkflow.isPending}>
             {linkWorkflow.isPending && <Loader2 size={16} className="animate-spin" />}
-            {linkWorkflow.isPending ? 'Conectando…' : 'Conectar'}
+            {linkWorkflow.isPending ? t('connecting') : t('connect')}
           </button>
         </div>
       </div>

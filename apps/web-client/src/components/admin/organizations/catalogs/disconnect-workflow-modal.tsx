@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { DatasetWorkflowRef } from '@tesseract/types';
@@ -21,6 +22,7 @@ export function DisconnectWorkflowModal({
   workflow,
   onClose,
 }: DisconnectWorkflowModalProps) {
+  const t = useTranslations('Datasets');
   const { unlinkWorkflow } = useAdminDatasetMutations();
 
   const handleDisconnect = async () => {
@@ -28,22 +30,22 @@ export function DisconnectWorkflowModal({
     try {
       await unlinkWorkflow.mutateAsync({ organizationId, id: datasetId, workflowId: workflow.id });
       onClose();
-      toast.success(`"${workflow.name}" desconectado`);
+      toast.success(t('disconnected', { name: workflow.name }));
     } catch {
-      toast.error('No se pudo desconectar el workflow');
+      toast.error(t('disconnectError'));
     }
   };
 
   return (
-    <Modal isOpen={Boolean(workflow)} onClose={onClose} title="Desconectar workflow">
+    <Modal isOpen={Boolean(workflow)} onClose={onClose} title={t('disconnectWorkflowTitle')}>
       <div className="space-y-4">
         <p className="text-sm text-text-secondary">
-          "{workflow?.name}" dejará de poder consultar este catálogo.
+          {t('disconnectWorkflowBody', { name: workflow?.name ?? '' })}
         </p>
 
         <div className="flex justify-end gap-2">
           <button className={btnGhost} onClick={onClose}>
-            Cancelar
+            {t('cancel')}
           </button>
           <button
             onClick={handleDisconnect}
@@ -51,7 +53,7 @@ export function DisconnectWorkflowModal({
             className="flex items-center gap-2 rounded-lg bg-danger-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             {unlinkWorkflow.isPending && <Loader2 size={16} className="animate-spin" />}
-            {unlinkWorkflow.isPending ? 'Desconectando…' : 'Desconectar'}
+            {unlinkWorkflow.isPending ? t('disconnecting') : t('disconnectAction')}
           </button>
         </div>
       </div>

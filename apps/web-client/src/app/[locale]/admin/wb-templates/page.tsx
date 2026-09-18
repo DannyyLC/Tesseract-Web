@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { MessageSquareText } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { InfiniteSelect } from '@/components/ui/infinite-select';
@@ -24,6 +25,7 @@ const CONNECTION_STYLE: Record<string, string> = {
  * usa la pestaña "Canales" del detalle de organización.
  */
 export default function AdminWbTemplatesPage() {
+  const t = useTranslations('Admin.WbTemplates');
   const [organizationId, setOrganizationId] = useState('');
   const [orgSearchInput, setOrgSearchInput] = useState('');
   const [templatesTarget, setTemplatesTarget] = useState<WhatsAppConfig | null>(null);
@@ -49,10 +51,8 @@ export default function AdminWbTemplatesPage() {
   return (
     <div className="w-full">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-text-primary">Templates de WhatsApp</h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          Elegí una organización y un número para administrar sus templates.
-        </p>
+        <h1 className="text-xl font-semibold text-text-primary">{t('title')}</h1>
+        <p className="mt-1 text-sm text-text-secondary">{t('subtitle')}</p>
       </div>
 
       <div className="mb-4 max-w-sm">
@@ -60,30 +60,26 @@ export default function AdminWbTemplatesPage() {
           value={organizationId}
           onChange={setOrganizationId}
           options={orgOptions}
-          placeholder="Selecciona una organización"
+          placeholder={t('selectOrgPlaceholder')}
           isLoading={orgsLoading}
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingNextPage}
           fetchNextPage={fetchNextPage}
           searchValue={orgSearchInput}
           onSearchChange={setOrgSearchInput}
-          searchPlaceholder="Buscar organización..."
+          searchPlaceholder={t('orgSearchPlaceholder')}
         />
       </div>
 
       <section className="rounded-xl border border-border bg-surface">
         {!organizationId ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">
-            Selecciona una organización para ver sus números.
-          </p>
+          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('selectOrgFirst')}</p>
         ) : configsLoading ? (
           <div className="flex justify-center py-16">
-            <LogoLoader text="Cargando números" />
+            <LogoLoader text={t('loading')} />
           </div>
         ) : !configs?.length ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">
-            Esta organización no tiene números de WhatsApp.
-          </p>
+          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('noNumbers')}</p>
         ) : (
           <ul className="divide-y divide-border">
             {configs.map((config) => (
@@ -99,7 +95,9 @@ export default function AdminWbTemplatesPage() {
                     {config.displayName && (
                       <span className="text-xs text-text-secondary">{config.phoneNumber}</span>
                     )}
-                    {!config.isActive && <span className="text-xs text-danger">desactivado</span>}
+                    {!config.isActive && (
+                      <span className="text-xs text-danger">{t('inactiveBadge')}</span>
+                    )}
                   </div>
                   <span
                     className={`text-xs ${CONNECTION_STYLE[config.connectionStatus] ?? 'text-text-tertiary'}`}
@@ -112,7 +110,7 @@ export default function AdminWbTemplatesPage() {
                   className="flex shrink-0 items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
                 >
                   <MessageSquareText size={14} />
-                  Templates
+                  {t('templatesButton')}
                 </button>
               </li>
             ))}

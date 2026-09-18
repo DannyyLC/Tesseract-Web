@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ADMIN_PAGE_SIZE } from '@tesseract/types';
 import { ChevronDown, Search } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
@@ -10,13 +11,13 @@ import { OrganizationSummary } from '@/components/admin/organizations/organizati
 import { inputClass } from '../_styles';
 import { PagePager } from '@/components/ui/page-pager';
 
-const STATUS_FILTERS = [
-  { label: 'Todas', value: '' },
-  { label: 'Activas', value: 'true' },
-  { label: 'Inactivas', value: 'false' },
-] as const;
-
 export default function AdminOrganizationsPage() {
+  const t = useTranslations('Admin.Organizations');
+  const STATUS_FILTERS = [
+    { label: t('statusAll'), value: '' },
+    { label: t('statusActive'), value: 'true' },
+    { label: t('statusInactive'), value: 'false' },
+  ] as const;
   const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]['value']>('');
   const [page, setPage] = useState(1);
@@ -38,10 +39,8 @@ export default function AdminOrganizationsPage() {
   return (
     <div className="w-full">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-text-primary">Organizaciones</h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          Créditos, suscripción y límites de cada organización cliente.
-        </p>
+        <h1 className="text-xl font-semibold text-text-primary">{t('title')}</h1>
+        <p className="mt-1 text-sm text-text-secondary">{t('subtitle')}</p>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-3">
@@ -52,7 +51,7 @@ export default function AdminOrganizationsPage() {
           />
           <input
             className={`${inputClass} pl-9`}
-            placeholder="Buscar por nombre o slug"
+            placeholder={t('searchPlaceholder')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
           />
@@ -77,16 +76,12 @@ export default function AdminOrganizationsPage() {
       <section className="rounded-xl border border-border bg-surface">
         {isLoading ? (
           <div className="flex justify-center py-16">
-            <LogoLoader text="Cargando organizaciones" />
+            <LogoLoader text={t('loading')} />
           </div>
         ) : error ? (
-          <p className="px-4 py-10 text-center text-sm text-danger">
-            No se pudieron cargar las organizaciones.
-          </p>
+          <p className="px-4 py-10 text-center text-sm text-danger">{t('loadError')}</p>
         ) : !data?.data.length ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">
-            No hay organizaciones que coincidan.
-          </p>
+          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('empty')}</p>
         ) : (
           <ul className="divide-y divide-border">
             {data.data.map((org) => {
@@ -101,7 +96,9 @@ export default function AdminOrganizationsPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="truncate font-medium text-text-primary">{org.name}</span>
-                        {!org.isActive && <span className="text-xs text-danger">inactiva</span>}
+                        {!org.isActive && (
+                          <span className="text-xs text-danger">{t('inactiveBadge')}</span>
+                        )}
                       </div>
                       <p className="mt-0.5 text-xs text-text-secondary">{org.slug}</p>
                     </div>
@@ -130,7 +127,11 @@ export default function AdminOrganizationsPage() {
           page={data.meta.page}
           totalPages={data.meta.totalPages}
           onPageChange={setPage}
-          summary={`Página ${data.meta.page} de ${data.meta.totalPages} · ${data.meta.total} organizaciones`}
+          summary={t('pagerSummary', {
+            page: data.meta.page,
+            totalPages: data.meta.totalPages,
+            total: data.meta.total,
+          })}
           className="mt-4"
         />
       )}

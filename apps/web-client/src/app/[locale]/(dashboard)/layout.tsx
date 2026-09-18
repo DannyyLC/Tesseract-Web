@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/routing';
 import { AnimatePresence, motion } from 'framer-motion';
 import Sidebar from '@/components/layout/side-bar';
@@ -26,6 +27,7 @@ export default function PanelLayout({ children }: PanelLayoutProps) {
   // El super admin es operador de plataforma: no pertenece al panel de
   // inquilino (scopeado por organización). Si cae aquí por cualquier vía
   // (navegación directa, refresh, redirect raíz), lo mandamos a /admin.
+  const tLoader = useTranslations('Shared.Loader');
   const { data: user, isLoading: isLoadingUser } = useAuth();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
@@ -77,7 +79,7 @@ export default function PanelLayout({ children }: PanelLayoutProps) {
   if (isSuperAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-dashboard-background">
-        <LogoLoader text="Redirigiendo a Super Admin" />
+        <LogoLoader text={tLoader('redirectingSuperAdmin')} />
       </div>
     );
   }
@@ -86,7 +88,7 @@ export default function PanelLayout({ children }: PanelLayoutProps) {
   if (!isLoadingUser && !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-dashboard-background">
-        <LogoLoader text="Redirigiendo a inicio de sesión" />
+        <LogoLoader text={tLoader('redirectingLogin')} />
       </div>
     );
   }

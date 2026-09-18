@@ -1,24 +1,28 @@
 import { AnimatePresence, PanInfo, motion, useMotionValue, useTransform } from 'framer-motion';
+import { useLocale, useTranslations } from 'next-intl';
 import { Trash2 } from 'lucide-react';
 import { NotificationEventDto } from '@tesseract/types';
+import { toIntlLocale } from '@/lib/intl-locale';
 
-const formatTimeAgo = (date: Date | string) => {
+type T = (key: string, params?: Record<string, string | number>) => string;
+
+const formatTimeAgo = (date: Date | string, t: T, intlLocale: string) => {
   const now = new Date();
   const past = new Date(date);
   const diffInSeconds = Math.floor((now.getTime() - past.getTime()) / 1000);
 
-  if (diffInSeconds < 60) return 'hace unos segundos';
+  if (diffInSeconds < 60) return t('justNow');
 
   const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) return `hace ${diffInMinutes} min`;
+  if (diffInMinutes < 60) return t('minutesAgo', { count: diffInMinutes });
 
   const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `hace ${diffInHours} h`;
+  if (diffInHours < 24) return t('hoursAgo', { count: diffInHours });
 
   const diffInDays = Math.floor(diffInHours / 24);
-  if (diffInDays < 7) return `hace ${diffInDays} d`;
+  if (diffInDays < 7) return t('daysAgo', { count: diffInDays });
 
-  return past.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  return past.toLocaleDateString(intlLocale, { day: 'numeric', month: 'short' });
 };
 
 interface NotificationItemProps {
@@ -36,6 +40,8 @@ export default function NotificationItem({
   isExpanded,
   onToggle,
 }: NotificationItemProps) {
+  const t = useTranslations('Notifications.Item');
+  const intlLocale = toIntlLocale(useLocale());
   const x = useMotionValue(0);
   const bgOpacity = useTransform(x, [-5, 0, 5], [1, 0, 1]);
 
@@ -95,7 +101,7 @@ export default function NotificationItem({
                 {notification.title}
               </p>
               <span className="whitespace-nowrap text-[10px] text-text-tertiary">
-                {formatTimeAgo(notification.createdAt)}
+                {formatTimeAgo(notification.createdAt, t, intlLocale)}
               </span>
             </div>
 
@@ -125,7 +131,7 @@ export default function NotificationItem({
                       className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-danger hover:bg-danger-50"
                     >
                       <Trash2 size={12} />
-                      Eliminar
+                      {t('delete')}
                     </button>
                   </div>
                 </motion.div>

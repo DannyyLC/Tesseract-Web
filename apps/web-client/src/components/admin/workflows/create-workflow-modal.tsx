@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { AlertTriangle, Copy, FilePlus2 } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { InfiniteSelect } from '@/components/ui/infinite-select';
@@ -11,6 +12,7 @@ import {
   useAdminWorkflows,
   useEditorContext,
 } from '@/hooks/automation/use-admin-workflows';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import type { AdminOrganization } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 
@@ -46,6 +48,8 @@ function blankConfig(model: string) {
 }
 
 export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props) {
+  const t = useTranslations('Admin.CreateWorkflowModal');
+  const getApiErrorMessage = useApiErrorMessage();
   const [mode, setMode] = useState<Mode>('clone');
   const [targetOrgId, setTargetOrgId] = useState('');
   const [sourceOrgId, setSourceOrgId] = useState('');
@@ -78,11 +82,11 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!targetOrgId) return toast.error('Elige la organización destino');
-    if (name.trim().length < 3) return toast.error('El nombre debe tener al menos 3 caracteres');
+    if (!targetOrgId) return toast.error(t('chooseTargetOrg'));
+    if (name.trim().length < 3) return toast.error(t('nameTooShort'));
 
     if (mode === 'clone') {
-      if (!sourceWorkflowId) return toast.error('Elige el workflow a clonar');
+      if (!sourceWorkflowId) return toast.error(t('chooseSourceWorkflow'));
 
       cloneWorkflow.mutate(
         { id: sourceWorkflowId, data: { targetOrganizationId: targetOrgId, name: name.trim() } },
@@ -91,21 +95,20 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
             // Las tool instances son por organización: copiarlas en silencio dejaría
             // un workflow que parece bien y falla al ejecutarse.
             if (result.toolReferences.length > 0) {
-              toast.warning(
-                `Hay ${result.toolReferences.length} referencia(s) a tools de la organización origen que debes reasignar.`,
-                { duration: 8000 },
-              );
+              toast.warning(t('toolReferencesWarning', { count: result.toolReferences.length }), {
+                duration: 8000,
+              });
             }
-            onCreated(result.workflow.id, 'Workflow clonado');
+            onCreated(result.workflow.id, t('workflowCloned'));
           },
-          onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo clonar'),
+          onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
         },
       );
       return;
     }
 
     const model = editorContext?.models[0]?.modelName;
-    if (!model) return toast.error('No hay modelos LLM activos para la plantilla');
+    if (!model) return toast.error(t('noActiveModels'));
 
     createWorkflow.mutate(
       {
@@ -118,20 +121,20 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
         isInternal,
       },
       {
-        onSuccess: (workflow) => onCreated(workflow.id, 'Workflow creado'),
-        onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo crear'),
+        onSuccess: (workflow) => onCreated(workflow.id, t('workflowCreated')),
+        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
       },
     );
   };
 
   return (
-    <Modal isOpen onClose={onClose} title="Nuevo workflow">
+    <Modal isOpen onClose={onClose} title={t('modalTitle')}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-2">
           {(
             [
-              ['clone', 'Clonar existente', Copy, 'Parte de un workflow que ya funciona'],
-              ['blank', 'Plantilla mínima', FilePlus2, 'Un agente, START → agente → END'],
+              ['clone', t('modeCloneLabel'), Copy, t('modeCloneHint')],
+              ['blank', t('modeBlankLabel'), FilePlus2, t('modeBlankHint')],
             ] as const
           ).map(([value, label, Icon, hint]) => (
             <button
@@ -156,7 +159,7 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
         {mode === 'clone' && (
           <div className="space-y-3 rounded-lg border border-border p-3">
             <div>
-              <label className={labelClass}>Organización origen</label>
+              <label className={labelClass}>{t('sourceOrgLabel')}</label>
               <InfiniteSelect
                 value={sourceOrgId}
                 onChange={(v) => {
@@ -164,63 +167,62 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
                   setSourceWorkflowId('');
                 }}
                 options={orgOptions}
-                placeholder="Elige de dónde copiar"
+                placeholder={t('sourceOrgPlaceholder')}
               />
             </div>
             <div>
-              <label className={labelClass}>Workflow a clonar</label>
+              <label className={labelClass}>{t('sourceWorkflowLabel')}</label>
               <InfiniteSelect
                 value={sourceWorkflowId}
                 onChange={setSourceWorkflowId}
                 options={workflowOptions}
-                placeholder={sourceOrgId ? 'Elige el workflow' : 'Primero elige la organización'}
+                placeholder={sourceOrgId ? t('chooseWorkflow') : t('chooseOrgFirst')}
                 isLoading={sourceLoading}
               />
             </div>
             <p className="flex gap-2 text-xs text-text-secondary">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              Las tool instances son de cada organización. Si el workflow usa alguna, habrá que
-              reasignarla después de clonar.
+              {t('toolInstancesWarning')}
             </p>
           </div>
         )}
 
         <div>
-          <label className={labelClass}>Organización destino</label>
+          <label className={labelClass}>{t('targetOrgLabel')}</label>
           <InfiniteSelect
             value={targetOrgId}
             onChange={setTargetOrgId}
             options={orgOptions}
-            placeholder="Elige el cliente"
+            placeholder={t('targetOrgPlaceholder')}
           />
         </div>
 
         <div>
-          <label className={labelClass}>Nombre</label>
+          <label className={labelClass}>{t('nameLabel')}</label>
           <input
             className={inputClass}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Asistente de ventas WhatsApp"
+            placeholder={t('namePlaceholder')}
           />
         </div>
 
         {mode === 'blank' && (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClass}>Categoría</label>
+              <label className={labelClass}>{t('categoryLabel')}</label>
               <select
                 className={inputClass}
                 value={category}
                 onChange={(e) => setCategory(e.target.value as typeof category)}
               >
-                <option value="LIGHT">LIGHT (1 crédito)</option>
-                <option value="STANDARD">STANDARD (5 créditos)</option>
-                <option value="ADVANCED">ADVANCED (25 créditos)</option>
+                <option value="LIGHT">{t('categoryLight')}</option>
+                <option value="STANDARD">{t('categoryStandard')}</option>
+                <option value="ADVANCED">{t('categoryAdvanced')}</option>
               </select>
             </div>
             <div>
-              <label className={labelClass}>Tokens máx. por ejecución</label>
+              <label className={labelClass}>{t('maxTokensLabel')}</label>
               <input
                 type="number"
                 className={inputClass}
@@ -234,8 +236,8 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
               <Switch
                 checked={isInternal}
                 onChange={setIsInternal}
-                label="Interno (oculto para el cliente)"
-                hint="No aparece en su panel, no gasta sus créditos ni cuenta en sus estadísticas. Solo lo puedes ejecutar tú, desde Test Execute."
+                label={t('internalLabel')}
+                hint={t('internalHint')}
               />
             </div>
           </div>
@@ -243,10 +245,10 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
 
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" className={btnGhost} onClick={onClose} disabled={pending}>
-            Cancelar
+            {t('cancel')}
           </button>
           <button type="submit" className={btnPrimary} disabled={pending}>
-            {pending ? 'Creando…' : mode === 'clone' ? 'Clonar' : 'Crear'}
+            {pending ? t('creating') : mode === 'clone' ? t('clone') : t('create')}
           </button>
         </div>
       </form>

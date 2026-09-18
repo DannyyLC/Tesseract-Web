@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { AlertTriangle, GripVertical, Plus, Sigma, Trash2 } from 'lucide-react';
 import {
   DATASET_FIELD_TYPES,
@@ -18,13 +19,6 @@ import {
  * La `key` no se edita una vez guardada: es el nombre del parámetro que ve el modelo, y
  * renombrarla rompería el agente del cliente en silencio.
  */
-
-const TYPE_LABEL: Record<DatasetFieldType, string> = {
-  text: 'Texto',
-  number: 'Número',
-  select: 'Selección',
-  date: 'Fecha',
-};
 
 const formulaUsesKey = (formula: string, key: string): boolean =>
   new RegExp(`(^|[^a-z0-9_])${key}($|[^a-z0-9_])`).test(formula);
@@ -91,6 +85,13 @@ interface SchemaBuilderProps {
 }
 
 export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuilderProps) {
+  const t = useTranslations('Datasets');
+  const TYPE_LABEL: Record<DatasetFieldType, string> = {
+    text: t('type_text'),
+    number: t('type_number'),
+    select: t('type_select'),
+    date: t('type_date'),
+  };
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const lockedKeys = new Set(savedFields.map((field) => field.key));
 
@@ -161,7 +162,7 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                 <input
                   value={field.label}
                   onChange={(event) => update(index, { label: event.target.value })}
-                  placeholder="Nombre de la columna"
+                  placeholder={t('columnNamePlaceholder')}
                   className="min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-border-focus"
                 />
 
@@ -176,7 +177,7 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                     })
                   }
                   className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-border-focus disabled:opacity-60 sm:w-44 sm:shrink-0"
-                  title={locked ? 'El tipo no se puede cambiar una vez guardado' : undefined}
+                  title={locked ? t('typeLockedHint') : undefined}
                 >
                   {DATASET_FIELD_TYPES.map((type) => (
                     <option key={type} value={type}>
@@ -191,12 +192,9 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                   <OptionsEditor
                     options={field.options ?? []}
                     onChange={(options) => update(index, { options })}
-                    placeholder={'Nivel III\nNivel IV\nNivel IV Plus'}
+                    placeholder={t('optionsPlaceholder')}
                   />
-                  <p className="mt-1 text-xs text-text-tertiary">
-                    Una opción por renglón, separadas con Enter. Estas opciones son las únicas que el
-                    agente podrá usar.
-                  </p>
+                  <p className="mt-1 text-xs text-text-tertiary">{t('optionsHint')}</p>
                 </div>
               )}
 
@@ -209,34 +207,34 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                       className="flex items-center gap-1.5 text-xs font-medium text-text-secondary transition-colors hover:text-accent"
                     >
                       <Sigma size={13} />
-                      Calcular con fórmula
+                      {t('formulaEnable')}
                     </button>
                   ) : (
                     <div className="space-y-2 rounded-lg border border-border bg-surface p-3">
                       <div className="flex items-center justify-between gap-2">
                         <span className="flex items-center gap-1.5 text-xs font-medium text-text-secondary">
                           <Sigma size={13} />
-                          Fórmula
+                          {t('formulaLabel')}
                         </span>
                         <button
                           type="button"
                           onClick={() => update(index, { formula: undefined })}
                           className="text-xs text-text-tertiary transition-colors hover:text-danger"
                         >
-                          Quitar
+                          {t('formulaRemove')}
                         </button>
                       </div>
 
                       <input
                         value={field.formula}
                         onChange={(event) => update(index, { formula: event.target.value })}
-                        placeholder="Ej. precio_base * 1.16"
+                        placeholder={t('formulaPlaceholder')}
                         className="w-full rounded-lg border border-border bg-surface-elevated px-3 py-2 font-mono text-xs text-text-primary outline-none focus:border-border-focus"
                       />
 
                       {peers.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-xs text-text-tertiary">Columnas:</span>
+                          <span className="text-xs text-text-tertiary">{t('formulaColumnsHint')}</span>
                           {peers.map((peer) => (
                             <button
                               key={peer.key}
@@ -251,28 +249,28 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                       )}
 
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-xs text-text-tertiary">Funciones:</span>
+                        <span className="text-xs text-text-tertiary">{t('formulaFunctionsHint')}</span>
                         <button
                           type="button"
                           onClick={() => update(index, { formula: `${field.formula ?? ''}${ROUND_FUNCTION}()` })}
-                          title="Redondea a N decimales: round(valor, decimales)"
+                          title={t('formulaRoundTitle')}
                           className="rounded-md border border-border px-2 py-0.5 font-mono text-xs text-text-secondary transition-colors hover:border-border-focus hover:text-text-primary"
                         >
-                          round()
+                          {t('formulaRoundButton')}
                         </button>
                       </div>
 
                       {missingDependencies(field).map((missing) => (
                         <p key={missing} className="flex items-start gap-1.5 text-xs text-warning-600">
                           <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-                          Esta fórmula usa "{missing}", que se está quitando en esta edición.
+                          {t('formulaMissingDependency', { column: missing })}
                         </p>
                       ))}
 
                       {stale.map((label) => (
                         <p key={label} className="flex items-start gap-1.5 text-xs text-warning-600">
                           <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-                          "{label}" ya no coincide con ninguna columna válida.
+                          {t('formulaStaleKey', { column: label })}
                         </p>
                       ))}
                     </div>
@@ -285,7 +283,7 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
               type="button"
               onClick={() => removeField(index)}
               className="hover:bg-danger/10 shrink-0 self-start rounded-lg p-2 text-text-tertiary transition-colors hover:text-danger"
-              aria-label="Quitar columna"
+              aria-label={t('removeColumn')}
             >
               <Trash2 size={16} />
             </button>
@@ -300,10 +298,10 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
           className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-medium text-text-secondary transition-colors hover:border-border-focus hover:text-text-primary"
         >
           <Plus size={16} />
-          Agregar columna
+          {t('addColumn')}
         </button>
       ) : (
-        <p className="text-xs text-text-tertiary">Máximo {MAX_DATASET_FIELDS} columnas.</p>
+        <p className="text-xs text-text-tertiary">{t('maxColumnsReached', { max: MAX_DATASET_FIELDS })}</p>
       )}
     </div>
   );

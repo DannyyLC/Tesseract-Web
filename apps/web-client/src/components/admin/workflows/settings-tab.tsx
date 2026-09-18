@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { useLocale, useTranslations } from 'next-intl';
 import { Loader2, RotateCcw, Save, Trash2 } from 'lucide-react';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { Switch } from '@/components/ui/switch';
 import { useAdminWorkflowMutations } from '@/hooks/automation/use-admin-workflows';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
+import { toIntlLocale } from '@/lib/intl-locale';
 import type { AdminWorkflowDetail } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import { WorkflowChannelsSection } from './workflow-channels-section';
@@ -43,6 +46,9 @@ const toForm = (w: AdminWorkflowDetail): Form => ({
  * genera una versión nueva ni invalida una sesión de edición de prompts en curso.
  */
 export function SettingsTab({ workflow }: Props) {
+  const t = useTranslations('Admin.SettingsTab');
+  const intlLocale = toIntlLocale(useLocale());
+  const getApiErrorMessage = useApiErrorMessage();
   const [form, setForm] = useState<Form>(() => toForm(workflow));
   const [confirmPublishOpen, setConfirmPublishOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -70,22 +76,22 @@ export function SettingsTab({ workflow }: Props) {
   const handleDelete = async () => {
     try {
       await removeWorkflow.mutateAsync(workflow.id);
-      toast.success('Workflow eliminado');
+      toast.success(t('workflowDeleted'));
       setConfirmDeleteOpen(false);
     } catch (e: any) {
-      if (!e?.toastHandled) toast.error(e?.message ?? 'No se pudo eliminar');
+      if (!e?.toastHandled) toast.error(getApiErrorMessage(e));
     }
   };
 
   const handleRestore = () => {
     restoreWorkflow.mutate(workflow.id, {
-      onSuccess: () => toast.success('Workflow restaurado'),
-      onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo restaurar'),
+      onSuccess: () => toast.success(t('workflowRestored')),
+      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
     });
   };
 
   const handleSave = () => {
-    if (form.name.trim().length < 3) return toast.error('El nombre debe tener al menos 3 caracteres');
+    if (form.name.trim().length < 3) return toast.error(t('nameTooShort'));
 
     updateMeta.mutate(
       {
@@ -93,26 +99,23 @@ export function SettingsTab({ workflow }: Props) {
         data: { ...form, description: form.description.trim() || undefined },
       },
       {
-        onSuccess: () => toast.success('Ajustes guardados'),
-        onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo guardar'),
+        onSuccess: () => toast.success(t('settingsSaved')),
+        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
       },
     );
   };
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-text-secondary">
-        Estos ajustes no forman parte del config, así que guardarlos no crea una versión nueva ni
-        interfiere con los cambios que tengas pendientes en las otras pestañas.
-      </p>
+      <p className="text-xs text-text-secondary">{t('intro')}</p>
 
       <div>
-        <label className={labelClass}>Nombre</label>
+        <label className={labelClass}>{t('nameLabel')}</label>
         <input className={inputClass} value={form.name} onChange={(e) => set('name', e.target.value)} />
       </div>
 
       <div>
-        <label className={labelClass}>Descripción</label>
+        <label className={labelClass}>{t('descriptionLabel')}</label>
         <textarea
           rows={2}
           className={inputClass}
@@ -123,19 +126,19 @@ export function SettingsTab({ workflow }: Props) {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className={labelClass}>Categoría (define el costo en créditos)</label>
+          <label className={labelClass}>{t('categoryLabel')}</label>
           <select
             className={inputClass}
             value={form.category}
             onChange={(e) => set('category', e.target.value as Form['category'])}
           >
-            <option value="LIGHT">LIGHT (1 crédito)</option>
-            <option value="STANDARD">STANDARD (5 créditos)</option>
-            <option value="ADVANCED">ADVANCED (25 créditos)</option>
+            <option value="LIGHT">{t('categoryLight')}</option>
+            <option value="STANDARD">{t('categoryStandard')}</option>
+            <option value="ADVANCED">{t('categoryAdvanced')}</option>
           </select>
         </div>
         <div>
-          <label className={labelClass}>Tokens máx. por ejecución</label>
+          <label className={labelClass}>{t('maxTokensLabel')}</label>
           <input
             type="number"
             min={1000}
@@ -146,7 +149,7 @@ export function SettingsTab({ workflow }: Props) {
           />
         </div>
         <div>
-          <label className={labelClass}>Timeout (segundos, 30–3600)</label>
+          <label className={labelClass}>{t('timeoutLabel')}</label>
           <input
             type="number"
             min={30}
@@ -157,7 +160,7 @@ export function SettingsTab({ workflow }: Props) {
           />
         </div>
         <div>
-          <label className={labelClass}>Reintentos máximos (0–10)</label>
+          <label className={labelClass}>{t('maxRetriesLabel')}</label>
           <input
             type="number"
             min={0}
@@ -174,24 +177,24 @@ export function SettingsTab({ workflow }: Props) {
           <Switch
             checked={form.isActive}
             onChange={(v) => set('isActive', v)}
-            label="Activo"
-            hint="Si se desactiva, el workflow deja de ejecutarse por completo."
+            label={t('activeLabel')}
+            hint={t('activeHint')}
           />
         </div>
         <div className="rounded-lg border border-border p-3">
           <Switch
             checked={form.isPaused}
             onChange={(v) => set('isPaused', v)}
-            label="Pausado"
-            hint="Sigue activo pero rechaza ejecuciones temporalmente."
+            label={t('pausedLabel')}
+            hint={t('pausedHint')}
           />
         </div>
         <div className="rounded-lg border border-border p-3 sm:col-span-2">
           <Switch
             checked={form.isInternal}
             onChange={setIsInternal}
-            label="Interno (oculto para el cliente)"
-            hint="No aparece en su panel, no gasta sus créditos ni cuenta en sus estadísticas. Apagarlo lo publica."
+            label={t('internalLabel')}
+            hint={t('internalHint')}
           />
         </div>
       </div>
@@ -199,13 +202,11 @@ export function SettingsTab({ workflow }: Props) {
       <WorkflowChannelsSection workflowId={workflow.id} organizationId={workflow.organization.id} />
 
       <div className="rounded-lg border border-danger p-3">
-        <p className="text-xs font-medium text-danger">Zona de peligro</p>
+        <p className="text-xs font-medium text-danger">{t('dangerZone')}</p>
         {workflow.deletedAt ? (
           <>
             <p className="mt-1 text-xs text-text-secondary">
-              Este workflow está eliminado desde el {new Date(workflow.deletedAt).toLocaleString()}.
-              Restaurarlo no lo reactiva solo — sigue con "Activo" apagado hasta que lo prendas
-              aquí arriba.
+              {t('deletedSince', { date: new Date(workflow.deletedAt).toLocaleString(intlLocale) })}
             </p>
             <button
               className={`${btnGhost} mt-2`}
@@ -217,14 +218,12 @@ export function SettingsTab({ workflow }: Props) {
               ) : (
                 <RotateCcw size={14} />
               )}
-              Restaurar workflow
+              {t('restoreWorkflow')}
             </button>
           </>
         ) : (
           <>
-            <p className="mt-1 text-xs text-text-secondary">
-              Deja de ejecutarse de inmediato (cron, API, WhatsApp). Se puede restaurar después.
-            </p>
+            <p className="mt-1 text-xs text-text-secondary">{t('stopsImmediatelyHint')}</p>
             <button
               className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-danger px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
               onClick={() => setConfirmDeleteOpen(true)}
@@ -235,7 +234,7 @@ export function SettingsTab({ workflow }: Props) {
               ) : (
                 <Trash2 size={14} />
               )}
-              Eliminar workflow
+              {t('deleteWorkflow')}
             </button>
           </>
         )}
@@ -244,7 +243,7 @@ export function SettingsTab({ workflow }: Props) {
       <div className="flex justify-end pt-2">
         <button className={btnPrimary} onClick={handleSave} disabled={!dirty || updateMeta.isPending}>
           {updateMeta.isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-          Guardar ajustes
+          {t('saveSettings')}
         </button>
       </div>
 
@@ -256,9 +255,9 @@ export function SettingsTab({ workflow }: Props) {
           setConfirmPublishOpen(false);
         }}
         variant="warning"
-        title="Publicar workflow"
-        message="Vas a publicar este workflow: el cliente lo va a ver en su panel y va a poder ejecutarlo. ¿Ya está listo?"
-        confirmLabel="Publicar"
+        title={t('publishModalTitle')}
+        message={t('publishModalMessage')}
+        confirmLabel={t('publish')}
       />
 
       <ConfirmModal
@@ -266,9 +265,9 @@ export function SettingsTab({ workflow }: Props) {
         onClose={() => setConfirmDeleteOpen(false)}
         onConfirm={handleDelete}
         variant="danger"
-        title="Eliminar workflow"
-        message="Vas a eliminar este workflow. Deja de ejecutarse de inmediato (cron, API, WhatsApp) y se puede restaurar después desde aquí mismo."
-        confirmLabel="Eliminar"
+        title={t('deleteModalTitle')}
+        message={t('deleteModalMessage')}
+        confirmLabel={t('delete')}
       />
     </div>
   );

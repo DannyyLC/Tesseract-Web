@@ -28,6 +28,8 @@ interface PermissionGuardProps {
   requireAll?: boolean;
 }
 
+import { useTranslations } from 'next-intl';
+
 export default function PermissionGuard({
   children,
   permissions,
@@ -35,6 +37,7 @@ export default function PermissionGuard({
   fallbackRoute = '/dashboard',
   requireAll = false,
 }: PermissionGuardProps) {
+  const tLoader = useTranslations('Shared.Loader');
   const { data: user, isLoading } = useAuth();
   const router = useRouter();
 
@@ -75,7 +78,7 @@ export default function PermissionGuard({
 
   // Handle loading state only if it's a route guard (redirect = true)
   if (isLoading && redirect) {
-    return <LogoLoader text="Verificando permisos" />;
+    return <LogoLoader text={tLoader('checkingPermissions')} />;
   }
 
   // Do not block rendering if still loading but not a route guard

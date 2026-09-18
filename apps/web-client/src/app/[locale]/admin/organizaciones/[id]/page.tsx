@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/routing';
 import { Building2, CreditCard, Database, Radio, Receipt, SlidersHorizontal } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
@@ -15,25 +16,17 @@ import { CatalogsTab } from '@/components/admin/organizations/catalogs/catalogs-
 
 type TabId = 'general' | 'credits' | 'subscription' | 'limits' | 'channels' | 'catalogs';
 
-const TABS: { id: TabId; label: string; icon: typeof Building2 }[] = [
-  { id: 'general', label: 'General', icon: Building2 },
-  { id: 'credits', label: 'Créditos', icon: CreditCard },
-  { id: 'subscription', label: 'Suscripción', icon: Receipt },
-  { id: 'limits', label: 'Límites', icon: SlidersHorizontal },
-  { id: 'channels', label: 'Canales', icon: Radio },
-  { id: 'catalogs', label: 'Catálogos', icon: Database },
-];
-
 /**
  * `useSearchParams` obliga a Next a tener un límite de Suspense para poder
  * prerenderizar; sin él, el build falla al exportar la ruta.
  */
 export default function AdminOrganizationDetailPage() {
+  const t = useTranslations('Admin.OrganizationDetail');
   return (
     <Suspense
       fallback={
         <div className="flex min-h-[60vh] items-center justify-center">
-          <LogoLoader text="Cargando organización" />
+          <LogoLoader text={t('loading')} />
         </div>
       }
     >
@@ -43,6 +36,15 @@ export default function AdminOrganizationDetailPage() {
 }
 
 function OrganizationDetail() {
+  const t = useTranslations('Admin.OrganizationDetail');
+  const TABS: { id: TabId; label: string; icon: typeof Building2 }[] = [
+    { id: 'general', label: t('tabs.general'), icon: Building2 },
+    { id: 'credits', label: t('tabs.credits'), icon: CreditCard },
+    { id: 'subscription', label: t('tabs.subscription'), icon: Receipt },
+    { id: 'limits', label: t('tabs.limits'), icon: SlidersHorizontal },
+    { id: 'channels', label: t('tabs.channels'), icon: Radio },
+    { id: 'catalogs', label: t('tabs.catalogs'), icon: Database },
+  ];
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -69,9 +71,9 @@ function OrganizationDetail() {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         {error ? (
-          <p className="text-sm text-danger">No se pudo cargar la organización.</p>
+          <p className="text-sm text-danger">{t('loadError')}</p>
         ) : (
-          <LogoLoader text="Cargando organización" />
+          <LogoLoader text={t('loading')} />
         )}
       </div>
     );
@@ -85,7 +87,7 @@ function OrganizationDetail() {
           <p className="flex flex-wrap items-center gap-x-3 text-xs text-text-secondary">
             <span>{org.slug}</span>
             <span>{org.plan}</span>
-            {!org.isActive && <span className="text-danger">inactiva</span>}
+            {!org.isActive && <span className="text-danger">{t('inactiveBadge')}</span>}
           </p>
         </div>
 

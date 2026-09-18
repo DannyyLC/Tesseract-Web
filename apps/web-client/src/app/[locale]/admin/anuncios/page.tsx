@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { Building2, Plus, Send, EyeOff } from 'lucide-react';
 import { AdminAnnouncementDto, AnnouncementStatus } from '@tesseract/types';
 import { useRouter } from '@/i18n/routing';
@@ -11,14 +12,8 @@ import { PagePager } from '@/components/ui/page-pager';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { useInfiniteAdminOrganizations } from '@/hooks/automation/use-admin-workflows';
 import { useAdminAnnouncements, useAdminAnnouncementMutations } from '@/hooks/platform/use-admin-announcements';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass } from '../_styles';
-
-const STATUS_LABEL: Record<AnnouncementStatus, string> = {
-  [AnnouncementStatus.DRAFT]: 'Borrador',
-  [AnnouncementStatus.PUBLISHED]: 'Publicado',
-  [AnnouncementStatus.EXPIRED]: 'Caducado',
-  [AnnouncementStatus.UNPUBLISHED]: 'Despublicado',
-};
 
 const STATUS_CLASS: Record<AnnouncementStatus, string> = {
   [AnnouncementStatus.DRAFT]: 'text-text-tertiary',
@@ -27,14 +22,23 @@ const STATUS_CLASS: Record<AnnouncementStatus, string> = {
   [AnnouncementStatus.UNPUBLISHED]: 'text-danger',
 };
 
-function targetLabel(a: AdminAnnouncementDto): string {
-  if (a.targetOrganizations.length === 0) return 'Todas las organizaciones';
-  if (a.targetOrganizations.length <= 2) return a.targetOrganizations.map((o) => o.name).join(', ');
-  return `${a.targetOrganizations.length} organizaciones`;
-}
-
 export default function AdminAnnouncementsPage() {
+  const t = useTranslations('Admin.Announcements');
+  const getApiErrorMessage = useApiErrorMessage();
   const router = useRouter();
+
+  const STATUS_LABEL: Record<AnnouncementStatus, string> = {
+    [AnnouncementStatus.DRAFT]: t('statusDraft'),
+    [AnnouncementStatus.PUBLISHED]: t('statusPublished'),
+    [AnnouncementStatus.EXPIRED]: t('statusExpired'),
+    [AnnouncementStatus.UNPUBLISHED]: t('statusUnpublished'),
+  };
+
+  const targetLabel = (a: AdminAnnouncementDto): string => {
+    if (a.targetOrganizations.length === 0) return t('allOrganizations');
+    if (a.targetOrganizations.length <= 2) return a.targetOrganizations.map((o) => o.name).join(', ');
+    return t('multipleOrgs', { count: a.targetOrganizations.length });
+  };
   const [organizationId, setOrganizationId] = useState('');
   const [orgSearchInput, setOrgSearchInput] = useState('');
   const [status, setStatus] = useState<AnnouncementStatus | ''>('');
@@ -57,10 +61,10 @@ export default function AdminAnnouncementsPage() {
   const organizations = useMemo(() => orgPages?.pages.flatMap((p) => p.data) ?? [], [orgPages]);
   const orgOptions = useMemo(
     () => [
-      { label: 'Todas las organizaciones', value: '' },
+      { label: t('allOrganizations'), value: '' },
       ...organizations.map((o) => ({ label: o.name, value: o.id })),
     ],
-    [organizations],
+    [organizations, t],
   );
 
   const { data, isLoading, error } = useAdminAnnouncements({
@@ -75,14 +79,12 @@ export default function AdminAnnouncementsPage() {
     <div className="w-full">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">Anuncios</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Comunica cambios importantes a todas las organizaciones o a una o varias en particular.
-          </p>
+          <h1 className="text-xl font-semibold text-text-primary">{t('title')}</h1>
+          <p className="mt-1 text-sm text-text-secondary">{t('subtitle')}</p>
         </div>
         <button className={btnPrimary} onClick={() => router.push('/admin/anuncios/nuevo')}>
           <Plus size={16} />
-          Nuevo anuncio
+          {t('newAnnouncement')}
         </button>
       </div>
 
@@ -92,14 +94,14 @@ export default function AdminAnnouncementsPage() {
             value={organizationId}
             onChange={setOrganizationId}
             options={orgOptions}
-            placeholder="Organización"
+            placeholder={t('orgFilterPlaceholder')}
             isLoading={orgsLoading}
             hasNextPage={hasNextPage}
             isFetchingNextPage={isFetchingNextPage}
             fetchNextPage={fetchNextPage}
             searchValue={orgSearchInput}
             onSearchChange={setOrgSearchInput}
-            searchPlaceholder="Buscar organización..."
+            searchPlaceholder={t('orgSearchPlaceholder')}
           />
         </div>
         <select
@@ -107,7 +109,7 @@ export default function AdminAnnouncementsPage() {
           value={status}
           onChange={(e) => setStatus(e.target.value as AnnouncementStatus | '')}
         >
-          <option value="">Todos los estados</option>
+          <option value="">{t('allStatuses')}</option>
           {Object.values(AnnouncementStatus).map((s) => (
             <option key={s} value={s}>
               {STATUS_LABEL[s]}
@@ -119,12 +121,12 @@ export default function AdminAnnouncementsPage() {
       <section className="rounded-xl border border-border bg-surface">
         {isLoading ? (
           <div className="flex justify-center py-16">
-            <LogoLoader text="Cargando anuncios" />
+            <LogoLoader text={t('loading')} />
           </div>
         ) : error ? (
-          <p className="px-4 py-10 text-center text-sm text-danger">No se pudieron cargar los anuncios.</p>
+          <p className="px-4 py-10 text-center text-sm text-danger">{t('loadError')}</p>
         ) : !data?.data.length ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">No hay anuncios que coincidan.</p>
+          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('empty')}</p>
         ) : (
           <ul className="divide-y divide-border">
             {data.data.map((a) => (
@@ -133,7 +135,7 @@ export default function AdminAnnouncementsPage() {
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <span className="truncate font-medium text-text-primary">{a.title}</span>
                     <span className="text-xs text-text-tertiary">
-                      {a.template === 'CELEBRATION' ? 'celebración' : 'noticia'}
+                      {a.template === 'CELEBRATION' ? t('templateCelebration') : t('templateNews')}
                     </span>
                     <span className={`text-xs font-medium ${STATUS_CLASS[a.status]}`}>
                       {STATUS_LABEL[a.status]}
@@ -145,23 +147,27 @@ export default function AdminAnnouncementsPage() {
                       {targetLabel(a)}
                     </span>
                     <span>{a.targetRoles.join(', ')}</span>
-                    {a.createdByEmail && <span>por {a.createdByEmail}</span>}
+                    {a.createdByEmail && <span>{t('byAuthor', { email: a.createdByEmail })}</span>}
                   </p>
                 </div>
 
                 <div className="hidden shrink-0 items-center gap-4 text-xs text-text-secondary md:flex">
-                  <span>Entregados {a.metrics.delivered}</span>
+                  <span>{t('delivered', { count: a.metrics.delivered })}</span>
                   <span>
-                    Vistos {a.metrics.dismissed}
                     {a.metrics.delivered > 0
-                      ? ` (${Math.round((a.metrics.dismissed / a.metrics.delivered) * 100)}%)`
-                      : ''}
+                      ? t('viewedPct', {
+                          count: a.metrics.dismissed,
+                          pct: Math.round((a.metrics.dismissed / a.metrics.delivered) * 100),
+                        })
+                      : t('viewed', { count: a.metrics.dismissed })}
                   </span>
                   <span>
-                    CTA {a.metrics.ctaClicked}
                     {a.metrics.delivered > 0
-                      ? ` (${Math.round((a.metrics.ctaClicked / a.metrics.delivered) * 100)}%)`
-                      : ''}
+                      ? t('ctaClicksPct', {
+                          count: a.metrics.ctaClicked,
+                          pct: Math.round((a.metrics.ctaClicked / a.metrics.delivered) * 100),
+                        })
+                      : t('ctaClicks', { count: a.metrics.ctaClicked })}
                   </span>
                 </div>
 
@@ -169,13 +175,13 @@ export default function AdminAnnouncementsPage() {
                   {a.status === AnnouncementStatus.DRAFT && (
                     <button className={btnGhost} disabled={publish.isPending} onClick={() => setPendingPublish(a)}>
                       <Send size={14} />
-                      Publicar
+                      {t('publish')}
                     </button>
                   )}
                   {(a.status === AnnouncementStatus.PUBLISHED || a.status === AnnouncementStatus.EXPIRED) && (
                     <button className={btnGhost} disabled={unpublish.isPending} onClick={() => setPendingUnpublish(a)}>
                       <EyeOff size={14} />
-                      Despublicar
+                      {t('unpublish')}
                     </button>
                   )}
                 </div>
@@ -190,7 +196,11 @@ export default function AdminAnnouncementsPage() {
           page={data.meta.page}
           totalPages={data.meta.totalPages}
           onPageChange={setPage}
-          summary={`Página ${data.meta.page} de ${data.meta.totalPages} · ${data.meta.total} anuncios`}
+          summary={t('pagerSummary', {
+            page: data.meta.page,
+            totalPages: data.meta.totalPages,
+            total: data.meta.total,
+          })}
           className="mt-4"
         />
       )}
@@ -199,18 +209,22 @@ export default function AdminAnnouncementsPage() {
         isOpen={!!pendingPublish}
         onClose={() => setPendingPublish(null)}
         variant="warning"
-        title="Publicar anuncio"
+        title={t('publishModalTitle')}
         message={
           pendingPublish
-            ? `"${pendingPublish.title}" se enviará a ${targetLabel(pendingPublish).toLowerCase()} (${pendingPublish.targetRoles.join(', ')}). No se puede deshacer.`
+            ? t('publishModalMessage', {
+                title: pendingPublish.title,
+                target: targetLabel(pendingPublish).toLowerCase(),
+                roles: pendingPublish.targetRoles.join(', '),
+              })
             : ''
         }
-        confirmLabel="Publicar"
+        confirmLabel={t('publish')}
         onConfirm={async () => {
           if (!pendingPublish) return;
           await publish.mutateAsync(pendingPublish.id, {
-            onSuccess: (result) => toast.success(`Enviado a ${result.delivered} usuario(s)`),
-            onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo publicar'),
+            onSuccess: (result) => toast.success(t('sentToUsers', { count: result.delivered })),
+            onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
           });
           setPendingPublish(null);
         }}
@@ -220,17 +234,15 @@ export default function AdminAnnouncementsPage() {
         isOpen={!!pendingUnpublish}
         onClose={() => setPendingUnpublish(null)}
         variant="danger"
-        title="Despublicar anuncio"
+        title={t('unpublishModalTitle')}
         message={
-          pendingUnpublish
-            ? `"${pendingUnpublish.title}" se retira del modal y de la campana de todos los que ya lo recibieron.`
-            : ''
+          pendingUnpublish ? t('unpublishModalMessage', { title: pendingUnpublish.title }) : ''
         }
-        confirmLabel="Despublicar"
+        confirmLabel={t('unpublish')}
         onConfirm={async () => {
           if (!pendingUnpublish) return;
           await unpublish.mutateAsync(pendingUnpublish.id, {
-            onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo despublicar'),
+            onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
           });
           setPendingUnpublish(null);
         }}

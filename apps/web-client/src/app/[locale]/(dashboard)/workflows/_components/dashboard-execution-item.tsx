@@ -1,30 +1,34 @@
 import { useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Loader2, AlertCircle, Zap, Clock, Coins } from 'lucide-react';
 import { DashboardExecutionDataDto } from '@tesseract/types';
 import { useExecution } from '@/hooks/automation/use-executions';
+import { toIntlLocale } from '@/lib/intl-locale';
 
 interface DashboardExecutionItemProps {
   execution: DashboardExecutionDataDto;
 }
 
-const formatDate = (dateString: string | Date | undefined): string => {
+type T = (key: string, params?: Record<string, string | number>) => string;
+
+const formatDate = (dateString: string | Date | undefined, intlLocale: string): string => {
   if (!dateString) return '-';
   const date = new Date(dateString);
-  return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+  return date.toLocaleDateString(intlLocale, { day: '2-digit', month: 'short' });
 };
 
-const formatTime = (dateString: string | Date | undefined): string => {
+const formatTime = (dateString: string | Date | undefined, intlLocale: string): string => {
   if (!dateString) return '-';
   const date = new Date(dateString);
-  return date.toLocaleTimeString('es-MX', {
+  return date.toLocaleTimeString(intlLocale, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
   });
 };
 
-const formatTimeAgo = (dateString: string | Date | undefined): string => {
+const formatTimeAgo = (dateString: string | Date | undefined, t: T, intlLocale: string): string => {
   if (!dateString) return '-';
   const date = new Date(dateString);
   const now = new Date();
@@ -32,52 +36,52 @@ const formatTimeAgo = (dateString: string | Date | undefined): string => {
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
 
-  if (diffMins < 1) return 'Ahora';
-  if (diffMins < 60) return `Hace ${diffMins} min`;
-  if (diffHours < 24) return `Hace ${diffHours}h`;
-  return formatDate(dateString);
+  if (diffMins < 1) return t('now');
+  if (diffMins < 60) return t('minutesAgo', { count: diffMins });
+  if (diffHours < 24) return t('hoursAgo', { count: diffHours });
+  return formatDate(dateString, intlLocale);
 };
 
-const getStatusConfig = (status: string) => {
+const getStatusConfig = (status: string, t: T) => {
   switch (status) {
     case 'COMPLETED':
       return {
-        label: 'Completada',
+        label: t('completed'),
         color: 'text-success-500',
         statusColor: 'bg-success-500',
         bgColor: 'bg-success-500/10',
       };
     case 'FAILED':
       return {
-        label: 'Fallida',
+        label: t('failed'),
         color: 'text-danger',
         statusColor: 'bg-danger',
         bgColor: 'bg-danger/10',
       };
     case 'RUNNING':
       return {
-        label: 'Ejecutando',
+        label: t('running'),
         color: 'text-info',
         statusColor: 'bg-info',
         bgColor: 'bg-info/10',
       };
     case 'CANCELLED':
       return {
-        label: 'Cancelada',
+        label: t('cancelled'),
         color: 'text-neutral-500',
         statusColor: 'bg-neutral-500',
         bgColor: 'bg-neutral-500/10',
       };
     case 'PENDING':
       return {
-        label: 'Pendiente',
+        label: t('pending'),
         color: 'text-neutral-400',
         statusColor: 'bg-neutral-400',
         bgColor: 'bg-neutral-400/10',
       };
     case 'TIMEOUT':
       return {
-        label: 'Timeout',
+        label: t('timeout'),
         color: 'text-[var(--chart-timeout)]',
         statusColor: 'bg-[var(--chart-timeout)]',
         bgColor: 'bg-[var(--chart-timeout)]/10',
@@ -92,21 +96,23 @@ const getStatusConfig = (status: string) => {
   }
 };
 
-const getTriggerLabel = (trigger: string): string => {
+const getTriggerLabel = (trigger: string, t: T): string => {
   const labels: Record<string, string> = {
-    WHATSAPP: 'WhatsApp',
-    WEBHOOK: 'Webhook',
-    SCHEDULE: 'Programado',
-    EMAIL: 'Email',
-    API: 'API',
-    MANUAL: 'Panel Web',
+    WHATSAPP: t('triggerWhatsapp'),
+    WEBHOOK: t('triggerWebhook'),
+    SCHEDULE: t('triggerSchedule'),
+    EMAIL: t('triggerEmail'),
+    API: t('triggerApi'),
+    MANUAL: t('triggerManual'),
   };
   return labels[trigger] || trigger;
 };
 
 export default function DashboardExecutionItem({ execution }: DashboardExecutionItemProps) {
+  const t = useTranslations('Workflows.ExecutionItem');
+  const intlLocale = toIntlLocale(useLocale());
   const [isExpanded, setIsExpanded] = useState(false);
-  const statusConfig = getStatusConfig(execution.status);
+  const statusConfig = getStatusConfig(execution.status, t);
   // const StatusIcon removed as we use dots now
 
   // Fetch full details only when expanded.
@@ -123,13 +129,13 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
     execution.workflowName ||
     displayData.workflow?.name ||
     displayData.workflowName ||
-    'Workflow';
+    t('defaultWorkflowName');
   const userName =
     execution.user?.name ||
     execution.userName ||
     displayData.user?.name ||
     displayData.userName ||
-    'Sistema';
+    t('systemUser');
 
   return (
     <motion.div
@@ -161,7 +167,9 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                 <p className="truncate text-sm font-medium text-text-primary">{workflowName}</p>
               </div>
               <div className="mt-0.5 flex items-center gap-1.5">
-                <span className="truncate text-xs text-text-tertiary">by {userName}</span>
+                <span className="truncate text-xs text-text-tertiary">
+                  {t('byUser', { name: userName })}
+                </span>
               </div>
             </div>
 
@@ -173,7 +181,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                 </span>
               </div>
               <span className="mt-0.5 text-xs text-text-tertiary">
-                {formatTimeAgo(execution.startedAt)}
+                {formatTimeAgo(execution.startedAt, t, intlLocale)}
               </span>
             </div>
 
@@ -181,7 +189,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
             <div className="hidden items-center justify-end gap-6 md:col-span-4 md:flex">
               <div className="flex flex-col items-end">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
-                  Duration
+                  {t('duration')}
                 </span>
                 <span className="font-mono text-sm text-text-primary">
                   {execution.duration !== null ? `${execution.duration}s` : '-'}
@@ -189,7 +197,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
               </div>
               <div className="flex min-w-[60px] flex-col items-end">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
-                  Credits
+                  {t('credits')}
                 </span>
                 <span className="font-mono text-sm text-text-primary">
                   {execution.credits !== null ? execution.credits : '-'}
@@ -197,10 +205,10 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
               </div>
               <div className="flex min-w-[60px] flex-col items-end">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
-                  Trigger
+                  {t('trigger')}
                 </span>
                 <span className="text-xs text-text-primary">
-                  {getTriggerLabel(execution.trigger)}
+                  {getTriggerLabel(execution.trigger, t)}
                 </span>
               </div>
             </div>
@@ -218,7 +226,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
         {execution.status === 'FAILED' && !isExpanded && (
           <div className="ml-12 mt-2 pl-1">
             <p className="bg-danger/5 text-danger/80 w-fit max-w-full truncate rounded px-2 py-1 font-mono text-xs">
-              Error en la ejecución.
+              {t('errorInExecution')}
             </p>
           </div>
         )}
@@ -247,7 +255,9 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                       <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3">
                         <div className="mb-1 flex items-center gap-2">
                           <Zap size={12} className="text-text-tertiary" />
-                          <span className="text-xs font-medium text-text-secondary">Credits</span>
+                          <span className="text-xs font-medium text-text-secondary">
+                            {t('credits')}
+                          </span>
                         </div>
                         <p className="font-mono text-sm font-medium text-text-primary">
                           {displayData.credits !== null ? displayData.credits : '0'}
@@ -257,22 +267,24 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                       <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3 md:col-span-2">
                         <div className="mb-1 flex items-center gap-2">
                           <Clock size={12} className="text-text-tertiary" />
-                          <span className="text-xs font-medium text-text-secondary">Timing</span>
+                          <span className="text-xs font-medium text-text-secondary">
+                            {t('timing')}
+                          </span>
                         </div>
                         <div className="flex flex-col gap-x-6 gap-y-1 sm:flex-row">
                           <div className="text-xs text-text-primary">
-                            <span className="mr-1 text-text-tertiary">Start:</span>
+                            <span className="mr-1 text-text-tertiary">{t('start')}</span>
                             <span className="font-mono">
-                              {formatDate(displayData.startedAt)}{' '}
-                              {formatTime(displayData.startedAt)}
+                              {formatDate(displayData.startedAt, intlLocale)}{' '}
+                              {formatTime(displayData.startedAt, intlLocale)}
                             </span>
                           </div>
                           {displayData.finishedAt && (
                             <div className="text-xs text-text-primary">
-                              <span className="mr-1 text-text-tertiary">End:</span>
+                              <span className="mr-1 text-text-tertiary">{t('end')}</span>
                               <span className="font-mono">
-                                {formatDate(displayData.finishedAt)}{' '}
-                                {formatTime(displayData.finishedAt)}
+                                {formatDate(displayData.finishedAt, intlLocale)}{' '}
+                                {formatTime(displayData.finishedAt, intlLocale)}
                               </span>
                             </div>
                           )}
@@ -284,13 +296,15 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                         <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-3">
                           <div className="mb-2 flex items-center gap-2">
                             <Coins size={12} className="text-text-tertiary" />
-                            <span className="text-xs font-medium text-text-secondary">Balance</span>
+                            <span className="text-xs font-medium text-text-secondary">
+                              {t('balance')}
+                            </span>
                           </div>
                           <div className="flex flex-col gap-1">
                             {displayData.balanceBefore !== undefined &&
                               displayData.balanceBefore !== null && (
                                 <div className="flex items-center justify-between text-xs">
-                                  <span className="text-text-tertiary">Antes:</span>
+                                  <span className="text-text-tertiary">{t('before')}</span>
                                   <span className="font-mono text-text-primary">
                                     {displayData.balanceBefore}
                                   </span>
@@ -299,7 +313,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                             {displayData.balanceAfter !== undefined &&
                               displayData.balanceAfter !== null && (
                                 <div className="flex items-center justify-between text-xs">
-                                  <span className="text-text-tertiary">Despues:</span>
+                                  <span className="text-text-tertiary">{t('after')}</span>
                                   <span className="font-mono font-medium text-text-primary">
                                     {displayData.balanceAfter}
                                   </span>
@@ -321,7 +335,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                                 className="text-[var(--danger-text-adaptive)]"
                               />
                               <span className="text-xs font-medium text-[var(--danger-text-adaptive)]">
-                                Error Details
+                                {t('errorDetails')}
                               </span>
                             </div>
                             <code className="block break-all font-mono text-xs text-[var(--danger-text-adaptive)]">
@@ -338,11 +352,11 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                                 className="text-[var(--warning-text-adaptive)]"
                               />
                               <span className="text-xs font-medium text-[var(--warning-text-adaptive)]">
-                                Limit Exceeded
+                                {t('limitExceeded')}
                               </span>
                             </div>
                             <p className="text-xs text-[var(--warning-text-adaptive)]">
-                              This execution exceeded the credit limit.
+                              {t('overageMessage')}
                             </p>
                           </div>
                         )}
@@ -354,7 +368,7 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                       {displayData.apiKeyName && (
                         <div className="flex items-center gap-1.5 rounded border border-[var(--border-subtle)] bg-[var(--surface-subtle)] px-2 py-1">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
-                            API Key
+                            {t('apiKey')}
                           </span>
                           <span className="font-mono text-xs text-text-primary">
                             {displayData.apiKeyName}

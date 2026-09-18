@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { Loader2, Pencil, Plus, Power, Trash2, X } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import {
   useAdminWhatsappTemplateMutations,
   useAdminWhatsappTemplates,
 } from '@/hooks/messaging/use-admin-whatsapp-config';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import type { WhatsAppTemplate } from '@tesseract/types';
 
@@ -41,6 +43,8 @@ const EMPTY_FORM: FormState = { id: null, name: '', displayName: '', language: '
  * siempre variables del cuerpo.
  */
 export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, configId, configLabel }: Props) {
+  const t = useTranslations('Admin.WhatsappTemplatesModal');
+  const getApiErrorMessage = useApiErrorMessage();
   const { data: templates, isLoading } = useAdminWhatsappTemplates(organizationId, isOpen ? configId : null);
   const { createTemplate, updateTemplate, deleteTemplate } = useAdminWhatsappTemplateMutations(
     organizationId,
@@ -88,36 +92,33 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
 
     mutation
       .then(() => {
-        toast.success(form.id ? 'Template actualizado' : 'Template creado');
+        toast.success(form.id ? t('templateUpdated') : t('templateCreated'));
         setIsFormOpen(false);
         setForm(EMPTY_FORM);
       })
-      .catch((e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo guardar el template'));
+      .catch((e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)));
   };
 
   const handleDelete = (template: WhatsAppTemplate) => {
     deleteTemplate.mutate(template.id, {
-      onSuccess: () => toast.success('Template eliminado'),
-      onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo eliminar'),
+      onSuccess: () => toast.success(t('templateDeleted')),
+      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
     });
   };
 
   const handleToggleActive = (template: WhatsAppTemplate) => {
     updateTemplate.mutate(
       { id: template.id, data: { isActive: !template.isActive } },
-      { onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo guardar') },
+      { onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)) },
     );
   };
 
   const isSaving = createTemplate.isPending || updateTemplate.isPending;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Templates de ${configLabel}`} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('modalTitle', { config: configLabel })} size="lg">
       <div className="space-y-4">
-        <p className="text-xs text-text-secondary">
-          Registrados en Meta para este número. Cualquier workflow con acceso a este número puede
-          usarlos.
-        </p>
+        <p className="text-xs text-text-secondary">{t('subtitle')}</p>
 
         {isLoading ? (
           <div className="flex justify-center py-8">
@@ -125,7 +126,7 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
           </div>
         ) : !templates?.length ? (
           <p className="rounded-xl border border-dashed border-border py-6 text-center text-sm text-text-secondary">
-            Todavía no hay templates.
+            {t('empty')}
           </p>
         ) : (
           <ul className="space-y-2">
@@ -140,7 +141,7 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
                   </p>
                   <p className="truncate text-xs text-text-tertiary">
                     {template.name} · {template.language}
-                    {!template.isActive && ' · inactivo'}
+                    {!template.isActive && t('inactiveSuffix')}
                   </p>
                   <p className="mt-0.5 truncate font-mono text-[11px] text-text-tertiary">
                     {template.id}
@@ -149,7 +150,7 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
                 <div className="flex shrink-0 items-center gap-1">
                   <button
                     onClick={() => handleToggleActive(template)}
-                    title={template.isActive ? 'Desactivar' : 'Activar'}
+                    title={template.isActive ? t('deactivateTitle') : t('activateTitle')}
                     className={`rounded-lg p-1.5 transition-colors hover:bg-surface-secondary ${
                       template.isActive ? 'text-success-500' : 'text-text-tertiary'
                     }`}
@@ -158,14 +159,14 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
                   </button>
                   <button
                     onClick={() => startEdit(template)}
-                    title="Editar"
+                    title={t('editTitle')}
                     className="rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-surface-secondary"
                   >
                     <Pencil size={14} />
                   </button>
                   <button
                     onClick={() => handleDelete(template)}
-                    title="Eliminar"
+                    title={t('deleteTitle')}
                     className="hover:bg-danger/10 rounded-lg p-1.5 text-danger transition-colors"
                   >
                     <Trash2 size={14} />
@@ -180,7 +181,7 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
           <div className="space-y-3 rounded-xl border border-border p-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-text-primary">
-                {form.id ? 'Editar template' : 'Nuevo template'}
+                {form.id ? t('editFormTitle') : t('newFormTitle')}
               </p>
               <button
                 onClick={() => setIsFormOpen(false)}
@@ -191,21 +192,19 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
             </div>
 
             <div>
-              <label className={labelClass}>Nombre registrado en Meta</label>
+              <label className={labelClass}>{t('nameLabel')}</label>
               <input
                 className={inputClass}
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="recordatorio_cita"
+                placeholder={t('namePlaceholder')}
               />
-              <p className="mt-1 text-[11px] text-text-tertiary">
-                Debe coincidir exacto con el nombre aprobado en Meta Business Manager.
-              </p>
+              <p className="mt-1 text-[11px] text-text-tertiary">{t('nameHint')}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelClass}>Nombre para mostrar</label>
+                <label className={labelClass}>{t('displayNameLabel')}</label>
                 <input
                   className={inputClass}
                   value={form.displayName}
@@ -213,7 +212,7 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
                 />
               </div>
               <div>
-                <label className={labelClass}>Idioma</label>
+                <label className={labelClass}>{t('languageLabel')}</label>
                 <input
                   className={inputClass}
                   value={form.language}
@@ -224,16 +223,14 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
             </div>
 
             <div>
-              <label className={labelClass}>Variables del cuerpo</label>
+              <label className={labelClass}>{t('bodyVariablesLabel')}</label>
               <input
                 className={inputClass}
                 value={form.bodyVariables}
                 onChange={(e) => setForm((f) => ({ ...f, bodyVariables: e.target.value }))}
-                placeholder="nombre_paciente, fecha_cita"
+                placeholder={t('bodyVariablesPlaceholder')}
               />
-              <p className="mt-1 text-[11px] text-text-tertiary">
-                Separadas por coma, en el mismo orden que {'{{1}}'}, {'{{2}}'}... del template.
-              </p>
+              <p className="mt-1 text-[11px] text-text-tertiary">{t('bodyVariablesHint')}</p>
             </div>
 
             <button
@@ -242,7 +239,7 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
               disabled={!form.name.trim() || isSaving}
             >
               {isSaving && <Loader2 size={14} className="animate-spin" />}
-              {form.id ? 'Guardar' : 'Crear template'}
+              {form.id ? t('save') : t('createTemplate')}
             </button>
           </div>
         ) : (
@@ -251,13 +248,13 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border py-2.5 text-sm font-medium text-text-secondary transition-colors hover:border-border-hover hover:text-text-primary"
           >
             <Plus size={16} />
-            Agregar template
+            {t('addTemplate')}
           </button>
         )}
 
         <div className="flex justify-end pt-1">
           <button className={btnGhost} onClick={onClose}>
-            Cerrar
+            {t('close')}
           </button>
         </div>
       </div>

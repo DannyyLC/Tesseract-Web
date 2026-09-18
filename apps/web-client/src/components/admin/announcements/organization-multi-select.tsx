@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Search, X } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -20,6 +21,7 @@ interface Props {
  * hook de paginación (`useInfiniteAdminOrganizations`) por debajo.
  */
 export function OrganizationMultiSelect({ value, onChange }: Props) {
+  const t = useTranslations('Admin.OrganizationMultiSelect');
   // "Todas" es el estado inicial siempre que no vengan ids ya elegidos (edición futura).
   const [mode, setMode] = useState<'all' | 'specific'>(value.length > 0 ? 'specific' : 'all');
   const [searchInput, setSearchInput] = useState('');
@@ -52,8 +54,8 @@ export function OrganizationMultiSelect({ value, onChange }: Props) {
         <Switch
           checked={mode === 'all'}
           onChange={toggleAll}
-          label="Todas las organizaciones"
-          hint="Apágalo para elegir una o varias organizaciones específicas."
+          label={t('allOrganizations')}
+          hint={t('allOrgsHint')}
         />
       </div>
 
@@ -71,7 +73,7 @@ export function OrganizationMultiSelect({ value, onChange }: Props) {
                     type="button"
                     onClick={() => toggleOrg(id)}
                     className="text-text-secondary hover:text-text-primary"
-                    aria-label={`Quitar ${nameById.get(id) ?? id}`}
+                    aria-label={t('removeOrg', { name: nameById.get(id) ?? id })}
                   >
                     <X size={12} />
                   </button>
@@ -87,7 +89,7 @@ export function OrganizationMultiSelect({ value, onChange }: Props) {
             />
             <input
               className={`${inputClass} pl-8`}
-              placeholder="Buscar organización..."
+              placeholder={t('searchPlaceholder')}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
             />
@@ -95,9 +97,9 @@ export function OrganizationMultiSelect({ value, onChange }: Props) {
 
           <div className="max-h-56 overflow-y-auto rounded-lg border border-border">
             {isLoading ? (
-              <p className="p-3 text-center text-xs text-text-secondary">Cargando…</p>
+              <p className="p-3 text-center text-xs text-text-secondary">{t('loading')}</p>
             ) : organizations.length === 0 ? (
-              <p className="p-3 text-center text-xs text-text-secondary">Sin resultados.</p>
+              <p className="p-3 text-center text-xs text-text-secondary">{t('noResults')}</p>
             ) : (
               <ul className="divide-y divide-border">
                 {organizations.map((org) => (
@@ -122,7 +124,7 @@ export function OrganizationMultiSelect({ value, onChange }: Props) {
                 disabled={isFetchingNextPage}
                 className={`${labelClass} w-full border-t border-border py-2 text-center hover:bg-surface-secondary`}
               >
-                {isFetchingNextPage ? 'Cargando…' : 'Cargar más'}
+                {isFetchingNextPage ? t('loading') : t('loadMore')}
               </button>
             )}
           </div>

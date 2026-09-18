@@ -230,7 +230,7 @@ export default function DashboardConversationItem({
                       setIsDeleteOpen(true);
                     }}
                     className="rounded-full p-2 text-text-tertiary opacity-0 transition-colors hover:bg-surface-secondary hover:text-danger group-hover:opacity-100"
-                    title="Eliminar"
+                    title={t('deleteButton')}
                   >
                     {deleteConversation.isPending ? (
                       <Loader2 size={14} className="animate-spin" />

@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { AlertTriangle, Check, Download } from 'lucide-react';
 import type { WorkflowConfig } from '@/lib/workflow-config/config-edit';
 import { btnGhost, monoClass } from '@/app/[locale]/admin/_styles';
+import { toIntlLocale } from '@/lib/intl-locale';
 
 interface Props {
   config: WorkflowConfig;
@@ -19,6 +21,8 @@ interface Props {
  * ~100 KB de golpe.
  */
 export function RawJsonTab({ config, onChange, workflowName }: Props) {
+  const t = useTranslations('Admin.RawJsonTab');
+  const intlLocale = toIntlLocale(useLocale());
   const serialized = JSON.stringify(config, null, 2);
   const [draft, setDraft] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +31,7 @@ export function RawJsonTab({ config, onChange, workflowName }: Props) {
     try {
       const parsed = JSON.parse(text);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        setError('El config debe ser un objeto JSON');
+        setError(t('invalidConfigError'));
         return;
       }
       onChange(parsed);
@@ -56,11 +60,13 @@ export function RawJsonTab({ config, onChange, workflowName }: Props) {
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs text-text-secondary">
-          {serialized.length.toLocaleString('es')} caracteres ·{' '}
-          {serialized.split('\n').length.toLocaleString('es')} líneas
+          {t('charsAndLines', {
+            chars: serialized.length.toLocaleString(intlLocale),
+            lines: serialized.split('\n').length.toLocaleString(intlLocale),
+          })}
         </div>
         <button className={btnGhost} onClick={download} type="button">
-          <Download size={14} /> Descargar JSON
+          <Download size={14} /> {t('downloadJson')}
         </button>
       </div>
 
@@ -78,16 +84,14 @@ export function RawJsonTab({ config, onChange, workflowName }: Props) {
 
       {error ? (
         <p className="flex items-center gap-1 text-xs text-danger">
-          <AlertTriangle size={13} /> JSON inválido: {error}. No se aplicó ningún cambio.
+          <AlertTriangle size={13} /> {t('invalidJson', { error })}
         </p>
       ) : draft === null ? (
         <p className="flex items-center gap-1 text-xs text-text-secondary">
-          <Check size={13} /> Sincronizado con las demás pestañas.
+          <Check size={13} /> {t('synced')}
         </p>
       ) : (
-        <p className="text-xs text-text-secondary">
-          Los cambios se aplican al salir del campo.
-        </p>
+        <p className="text-xs text-text-secondary">{t('changesApplyOnBlur')}</p>
       )}
     </div>
   );

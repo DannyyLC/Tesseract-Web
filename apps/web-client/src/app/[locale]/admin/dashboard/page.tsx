@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import {
   useAdminAnalyticsOrganizationsMargin,
@@ -14,17 +15,17 @@ import { CostExecutionsTimeseriesChart } from './_components/cost-executions-tim
 import { TopWorkflowsTable } from './_components/top-workflows-table';
 import { OrganizationsMarginTable } from './_components/organizations-margin-table';
 
-const PERIODS = [
-  { label: 'Hoy', value: '24h' },
-  { label: '7d', value: '7d' },
-  { label: '30d', value: '30d' },
-  { label: '90d', value: '90d' },
-  { label: 'Todo', value: 'all' },
-];
-
 const MARGIN_PAGE_SIZE = 10;
 
 export default function AdminDashboardPage() {
+  const t = useTranslations('Admin.Dashboard');
+  const PERIODS = [
+    { label: t('periods.today'), value: '24h' },
+    { label: t('periods.d7'), value: '7d' },
+    { label: t('periods.d30'), value: '30d' },
+    { label: t('periods.d90'), value: '90d' },
+    { label: t('periods.all'), value: 'all' },
+  ];
   const [period, setPeriod] = useState('30d');
   const [topWorkflowsMetric, setTopWorkflowsMetric] = useState<'cost' | 'executions'>('cost');
   const [marginPage, setMarginPage] = useState(1);
@@ -54,11 +55,8 @@ export default function AdminDashboardPage() {
     <div className="w-full space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-base font-semibold text-text-primary">Dashboard</h1>
-          <p className="text-xs text-text-secondary">
-            Costo real de ejecutar workflows vs. lo que se cobra en créditos, y salud general de la
-            plataforma.
-          </p>
+          <h1 className="text-base font-semibold text-text-primary">{t('title')}</h1>
+          <p className="text-xs text-text-secondary">{t('subtitle')}</p>
         </div>
         <div className="flex items-center gap-1 rounded-lg bg-surface-secondary p-1">
           {PERIODS.map((p) => (
@@ -79,7 +77,7 @@ export default function AdminDashboardPage() {
 
       {isInitialLoading ? (
         <div className="flex min-h-[40vh] items-center justify-center">
-          <LogoLoader text="Cargando dashboard" />
+          <LogoLoader text={t('loading')} />
         </div>
       ) : (
         <>

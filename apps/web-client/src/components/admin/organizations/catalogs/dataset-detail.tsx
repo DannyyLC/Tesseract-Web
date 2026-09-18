@@ -21,12 +21,7 @@ import {
   useAdminDatasets,
 } from '@/hooks/automation/use-admin-datasets';
 import { btnGhost, btnPrimary, inputClass } from '@/app/[locale]/admin/_styles';
-
-// Mismo texto que Datasets.writesBlocked en es.json: este archivo no usa next-intl (todo el
-// admin de catálogos está hardcodeado en español), así que se repite literal.
-const ROW_LIMIT_REACHED_REASON =
-  'Alcanzaste el límite de filas: tus datos siguen intactos y tu agente los sigue consultando, ' +
-  'pero no puedes agregar más hasta liberar espacio o subir de plan.';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { ConnectedWorkflowsSection } from './connected-workflows-section';
 import { SchemaBuilder } from './schema-builder';
 
@@ -42,9 +37,8 @@ interface DatasetDetailProps {
  * workflows conectados. Clon admin de `(dashboard)/datasets/[id]/page.tsx`.
  */
 export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDetailProps) {
-  // El resto del archivo va en español duro, pero la rejilla y el modal de import ahora son los
-  // mismos componentes que usa el cliente y traen sus textos de aquí.
   const t = useTranslations('Datasets');
+  const getApiErrorMessage = useApiErrorMessage();
   const { data: dataset, isLoading } = useAdminDataset(organizationId, datasetId);
   // El límite de filas es por organización, no por catálogo: se pide de la misma lista que ya
   // usa la pantalla de "Catálogos" en vez de exponer un endpoint nuevo solo para esto.
@@ -100,7 +94,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
   if (isLoading || !dataset) {
     return (
       <div className="flex justify-center py-16">
-        <LogoLoader text="Cargando catálogo" />
+        <LogoLoader text={t('loadingDataset')} />
       </div>
     );
   }
@@ -128,7 +122,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
       await updateFields.mutateAsync({ organizationId, id: datasetId, fields: draftFields });
       closeSchemaEditor();
     } catch (caught) {
-      setSchemaError(caught instanceof Error ? caught.message : 'No se pudo guardar');
+      setSchemaError(getApiErrorMessage(caught as any));
     }
   };
 
@@ -145,7 +139,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
       await deleteDataset.mutateAsync({ organizationId, id: datasetId });
       onBack();
     } catch {
-      toast.error('No se pudo eliminar el catálogo');
+      toast.error(t('deleteDatasetError'));
     }
   };
 
@@ -177,7 +171,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
       await clearRecords.mutateAsync({ organizationId, id: datasetId });
       closeClear();
     } catch {
-      toast.error('No se pudieron eliminar los datos del catálogo');
+      toast.error(t('clearDataError'));
     }
   };
 
@@ -191,7 +185,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
             onClick={onBack}
             className="mb-2 flex items-center gap-1 text-xs font-medium text-text-secondary hover:text-text-primary"
           >
-            <ArrowLeft size={14} /> Catálogos
+            <ArrowLeft size={14} /> {t('backToDatasets')}
           </button>
           <h2 className="text-base font-semibold text-text-primary">{dataset.name}</h2>
           {dataset.description && <p className="mt-1 max-w-2xl text-sm text-text-secondary">{dataset.description}</p>}
@@ -199,27 +193,27 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
 
         <div className="flex flex-wrap gap-2">
           <button className={btnGhost} onClick={() => setIsEditingSchema(true)}>
-            <Settings2 size={14} /> Columnas
+            <Settings2 size={14} /> {t('columnsLabel')}
           </button>
           <button
             className={btnGhost}
             onClick={() => setIsImporting(true)}
             disabled={atRowLimit}
-            title={atRowLimit ? ROW_LIMIT_REACHED_REASON : undefined}
+            title={atRowLimit ? t('writesBlocked') : undefined}
           >
-            <FileUp size={14} /> Importar
+            <FileUp size={14} /> {t('import')}
           </button>
           <button
             onClick={() => setIsClearing(true)}
             className="hover:bg-danger/10 flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-danger-600"
           >
-            <Eraser size={14} /> Vaciar datos
+            <Eraser size={14} /> {t('clearData')}
           </button>
           <button
             onClick={() => setIsDeleting(true)}
             className="hover:bg-danger/10 flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-danger-600"
           >
-            <Trash2 size={14} /> Eliminar
+            <Trash2 size={14} /> {t('delete')}
           </button>
         </div>
       </div>
@@ -228,7 +222,9 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-text-primary">Filas ({records?.total ?? 0})</h3>
+          <h3 className="text-sm font-semibold text-text-primary">
+            {t('rowsHeading', { count: records?.total ?? 0 })}
+          </h3>
           <PagePager
             page={page}
             totalPages={totalPages}
@@ -240,13 +236,13 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
 
         {usage && (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-elevated px-4 py-2.5 text-sm">
-            <span className="text-text-tertiary">Filas: </span>
+            <span className="text-text-tertiary">{t('rowsUsageLabel')}</span>
             <span className="font-medium text-text-primary">
               {usage.rows} / {usage.maxDatasetRows === -1 ? '∞' : usage.maxDatasetRows}
             </span>
             {atRowLimit && (
               <span className="rounded-lg bg-warning-500/10 px-2 py-1 text-xs font-medium text-warning-600">
-                Altas bloqueadas por límite de plan
+                {t('rowsBlockedBadge')}
               </span>
             )}
           </div>
@@ -264,7 +260,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
         <RecordsGrid
           fields={dataset.fields}
           records={records?.items ?? []}
-          createDisabledReason={atRowLimit ? ROW_LIMIT_REACHED_REASON : undefined}
+          createDisabledReason={atRowLimit ? t('writesBlocked') : undefined}
           selection={selection}
           onCreate={async (data) => {
             await createRecord.mutateAsync({ organizationId, id: datasetId, data });
@@ -275,19 +271,18 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
         />
       </section>
 
-      <Modal isOpen={isEditingSchema} onClose={closeSchemaEditor} title="Editar columnas" size="lg">
+      <Modal isOpen={isEditingSchema} onClose={closeSchemaEditor} title={t('editColumns')} size="lg">
         <div className="space-y-4">
-          <p className="text-sm text-text-secondary">
-            Lo que se quite no se borra de verdad: sus valores siguen en las filas y se restauran al volver a mandar
-            la columna.
-          </p>
+          <p className="text-sm text-text-secondary">{t('schemaEditIntro')}</p>
 
           <SchemaBuilder fields={draftFields} onChange={setDraftFields} savedFields={dataset.fields} />
 
           {overwriteConfirmed && columnsLosingManualValues.length > 0 && (
             <div className="bg-warning/10 rounded-lg px-4 py-3 text-sm text-warning-600">
-              Esto reemplaza lo capturado a mano en {columnsLosingManualValues.join(', ')} por el resultado de la
-              fórmula, en las {dataset.recordCount} filas existentes.
+              {t('schemaOverwriteWarning', {
+                columns: columnsLosingManualValues.join(', '),
+                count: dataset.recordCount,
+              })}
             </div>
           )}
 
@@ -295,10 +290,12 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
 
           <div className="flex justify-end gap-2">
             <button className={btnGhost} onClick={closeSchemaEditor}>
-              Cancelar
+              {t('cancel')}
             </button>
             <button className={btnPrimary} onClick={saveSchema} disabled={updateFields.isPending}>
-              {overwriteConfirmed && columnsLosingManualValues.length > 0 ? 'Confirmar y sobrescribir' : 'Guardar'}
+              {overwriteConfirmed && columnsLosingManualValues.length > 0
+                ? t('confirmAndOverwrite')
+                : t('save')}
             </button>
           </div>
         </div>
@@ -327,10 +324,10 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
         variant="danger"
       />
 
-      <Modal isOpen={isDeleting} onClose={closeDelete} title="Eliminar catálogo">
+      <Modal isOpen={isDeleting} onClose={closeDelete} title={t('deleteDatasetTitle')}>
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">
-            Se eliminará "{dataset.name}" con sus {records?.total ?? 0} filas. Para confirmar, escribe su nombre.
+            {t('deleteDatasetBody', { name: dataset.name, count: records?.total ?? 0 })}
           </p>
           <input
             value={deleteConfirmName}
@@ -341,7 +338,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
           />
           <div className="flex justify-end gap-2">
             <button className={btnGhost} onClick={closeDelete}>
-              Cancelar
+              {t('cancel')}
             </button>
             <button
               onClick={handleDelete}
@@ -349,17 +346,16 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
               className="flex items-center gap-2 rounded-lg bg-danger-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
               {deleteDataset.isPending && <Loader2 size={16} className="animate-spin" />}
-              {deleteDataset.isPending ? 'Eliminando…' : 'Eliminar'}
+              {deleteDataset.isPending ? t('deletingDataset') : t('delete')}
             </button>
           </div>
         </div>
       </Modal>
 
-      <Modal isOpen={isClearing} onClose={closeClear} title="Vaciar datos">
+      <Modal isOpen={isClearing} onClose={closeClear} title={t('clearDataTitle')}>
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">
-            Se eliminarán las {records?.total ?? 0} filas de "{dataset.name}". El catálogo y sus columnas se
-            conservan. Para confirmar, escribe su nombre.
+            {t('clearDataBody', { name: dataset.name, count: records?.total ?? 0 })}
           </p>
           <input
             value={clearConfirmName}
@@ -370,7 +366,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
           />
           <div className="flex justify-end gap-2">
             <button className={btnGhost} onClick={closeClear}>
-              Cancelar
+              {t('cancel')}
             </button>
             <button
               onClick={handleClear}
@@ -378,7 +374,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
               className="flex items-center gap-2 rounded-lg bg-danger-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
               {clearRecords.isPending && <Loader2 size={16} className="animate-spin" />}
-              {clearRecords.isPending ? 'Vaciando…' : 'Vaciar datos'}
+              {clearRecords.isPending ? t('clearingData') : t('clearData')}
             </button>
           </div>
         </div>

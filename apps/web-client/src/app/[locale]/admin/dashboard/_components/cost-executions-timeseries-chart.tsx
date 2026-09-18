@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Activity } from 'lucide-react';
 import type { AdminAnalyticsTimeseriesPoint } from '@/lib/api/endpoints/billing/analytics-admin-api';
@@ -16,18 +17,17 @@ function formatDate(value: string): string {
 
 /** Tendencia diaria de ejecuciones (barras/área, eje izquierdo) y costo real (línea, eje derecho), en UTC. */
 export function CostExecutionsTimeseriesChart({ points }: Props) {
+  const t = useTranslations('Admin.Dashboard.TimeseriesChart');
   const hasData = points.some((point) => point.executions > 0);
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
-      <h3 className="mb-4 text-sm font-semibold text-text-primary">
-        Ejecuciones y costo real por día (hora de Ciudad de México)
-      </h3>
+      <h3 className="mb-4 text-sm font-semibold text-text-primary">{t('title')}</h3>
 
       {!hasData ? (
         <div className="flex h-64 flex-col items-center justify-center text-center text-text-tertiary">
           <Activity size={28} className="opacity-40" />
-          <p className="mt-3 text-sm">Sin ejecuciones en el rango seleccionado.</p>
+          <p className="mt-3 text-sm">{t('noData')}</p>
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={280} minWidth={0}>
@@ -78,10 +78,11 @@ export function CostExecutionsTimeseriesChart({ points }: Props) {
                     </div>
                     <div className="flex flex-col gap-1">
                       <span>
-                        Ejecuciones: <span className="font-medium">{point.executions}</span>
+                        {t('tooltipExecutions')}: <span className="font-medium">{point.executions}</span>
                       </span>
                       <span>
-                        Costo real: <span className="font-medium">{formatUSD(point.costUSD)}</span>
+                        {t('tooltipRealCost')}:{' '}
+                        <span className="font-medium">{formatUSD(point.costUSD)}</span>
                       </span>
                     </div>
                   </div>
