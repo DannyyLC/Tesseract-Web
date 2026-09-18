@@ -284,10 +284,9 @@ model Organization {
   messageAttachments MessageAttachment[]
   userNotifications  UserNotification[]
 
-  // Anuncios del super admin dirigidos específicamente a esta organización
-  // (NULL en `targetOrganizationId` del anuncio = todas las organizaciones,
-  // así que esta relación solo enlaza los anuncios de una sola empresa).
-  targetedAnnouncements Notification[] @relation("AnnouncementTarget")
+  // Anuncios del super admin dirigidos específicamente a esta organización (vía la
+  // tabla puente). Sin filas aquí para un anuncio dado = ese anuncio es para todas.
+  targetedByAnnouncements AnnouncementTargetOrganization[]
 
   @@index([deletedAt])
   @@index([isActive])
@@ -1896,11 +1895,11 @@ model Notification {
   ctaLabelEn String?
   ctaUrl     String?
 
-  // NULL = todas las organizaciones. Con valor = una sola. onDelete: Cascade
-  // (no SetNull) para no promover en silencio un anuncio de una empresa a global
-  // si esa empresa se elimina.
-  targetOrganizationId String?
-  targetOrganization   Organization? @relation("AnnouncementTarget", fields: [targetOrganizationId], references: [id], onDelete: Cascade)
+  // Sin filas relacionadas = todas las organizaciones. Con una o más filas = solo esas.
+  // Tabla puente (no un array de ids) para poder hacer JOIN/index por organización sin
+  // escanear el Json de vuelta; cascada en ambos lados así que borrar la organización o
+  // el anuncio limpia la relación sola.
+  targetOrganizations AnnouncementTargetOrganization[]
 
   // Vigencia. NULL en expiresAt = sin caducidad. Caducar solo apaga el modal;
   // el historial de la campana se queda (ver UserNotification.dismissedAt).
@@ -1954,6 +1953,22 @@ model UserNotification {
   @@index([userId, organizationId])
   @@index([notificationId])
   @@map("user_notifications")
+}
+
+/// Tabla puente del targeting de anuncios: qué organizaciones específicas recibe un
+/// anuncio. Sin filas para un `notificationId` dado = todas las organizaciones (la
+/// convención vive en el servicio, no aquí). PK compuesta: no tiene sentido la misma
+/// org repetida en el mismo anuncio.
+model AnnouncementTargetOrganization {
+  notificationId String
+  organizationId String
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([notificationId, organizationId])
+  @@index([organizationId])
+  @@map("announcement_target_organizations")
 }
 
 /// Deduplicación de webhooks entrantes.

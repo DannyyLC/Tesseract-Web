@@ -31,8 +31,8 @@ export interface CreateAnnouncementDto {
   ctaLabel?: string;
   ctaLabelEn?: string;
   ctaUrl?: string;
-  /** undefined/null = todas las organizaciones. */
-  targetOrganizationId?: string | null;
+  /** Vacío/ausente = todas las organizaciones. Con valores = solo esas. */
+  targetOrganizationIds?: string[];
   targetRoles: UserRole[];
   expiresAt?: string | null;
   publishNow: boolean;
@@ -68,9 +68,8 @@ export interface AdminAnnouncementDto {
   ctaLabel: string | null;
   ctaLabelEn: string | null;
   ctaUrl: string | null;
-  targetOrganizationId: string | null;
-  /** null cuando `targetOrganizationId` también es null (destino: todas). */
-  targetOrganizationName: string | null;
+  /** Vacío = todas las organizaciones. */
+  targetOrganizations: { id: string; name: string }[];
   targetRoles: UserRole[];
   status: AnnouncementStatus;
   isActive: boolean;

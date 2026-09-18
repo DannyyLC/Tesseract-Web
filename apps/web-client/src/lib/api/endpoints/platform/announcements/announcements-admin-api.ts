@@ -51,11 +51,11 @@ class AnnouncementsAdminApi {
   }
 
   public async audiencePreview(
-    organizationId: string | undefined,
+    organizationIds: string[],
     roles: UserRole[],
   ): Promise<AudiencePreviewDto> {
     const params = new URLSearchParams();
-    if (organizationId) params.append('organizationId', organizationId);
+    if (organizationIds.length) params.append('organizationIds', organizationIds.join(','));
     if (roles.length) params.append('roles', roles.join(','));
 
     const result = await this.apiRequestManager.get<ApiResponse<AudiencePreviewDto>>(

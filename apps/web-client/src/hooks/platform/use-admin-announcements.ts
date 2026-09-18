@@ -32,12 +32,12 @@ export function useAdminAnnouncement(id: string) {
 export function useAudiencePreview() {
   return useMutation({
     mutationFn: async ({
-      organizationId,
+      organizationIds,
       roles,
     }: {
-      organizationId?: string;
+      organizationIds: string[];
       roles: UserRole[];
-    }) => api().audiencePreview(organizationId, roles),
+    }) => api().audiencePreview(organizationIds, roles),
   });
 }
 

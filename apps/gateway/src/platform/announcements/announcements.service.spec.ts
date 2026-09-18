@@ -12,7 +12,7 @@ describe('AnnouncementsService', () => {
 
   beforeEach(async () => {
     prisma = {
-      organization: { findUnique: jest.fn() },
+      organization: { findUnique: jest.fn(), findMany: jest.fn() },
       notification: {
         create: jest.fn(),
         update: jest.fn(),
@@ -22,6 +22,7 @@ describe('AnnouncementsService', () => {
         findUniqueOrThrow: jest.fn(),
         count: jest.fn(),
       },
+      announcementTargetOrganization: { findMany: jest.fn().mockResolvedValue([]) },
       user: { findMany: jest.fn(), count: jest.fn() },
       userNotification: { createMany: jest.fn(), updateMany: jest.fn() },
       $transaction: jest.fn().mockImplementation((ops: any[]) => Promise.all(ops)),
@@ -43,7 +44,6 @@ describe('AnnouncementsService', () => {
     const baseNotification = {
       id: 'ann-1',
       targetRoles: ['OWNER', 'ADMIN'],
-      targetOrganizationId: null,
       titleTemplate: 'Hola',
       messageTemplate: 'Cuerpo',
       titleTemplateEn: null,
@@ -53,6 +53,7 @@ describe('AnnouncementsService', () => {
     it('excludes the platform org and inactive/deleted users on an all-orgs broadcast', async () => {
       prisma.notification.updateMany.mockResolvedValue({ count: 1 });
       prisma.notification.findUniqueOrThrow.mockResolvedValue(baseNotification);
+      prisma.announcementTargetOrganization.findMany.mockResolvedValue([]);
       prisma.user.findMany.mockResolvedValueOnce([]).mockResolvedValue([]);
 
       await service.fanOut('ann-1');
@@ -72,12 +73,12 @@ describe('AnnouncementsService', () => {
       );
     });
 
-    it('does not exclude the platform org when it is the explicit target', async () => {
+    it('does not exclude the platform org when it is one of the explicit targets', async () => {
       prisma.notification.updateMany.mockResolvedValue({ count: 1 });
-      prisma.notification.findUniqueOrThrow.mockResolvedValue({
-        ...baseNotification,
-        targetOrganizationId: 'platform-org-id',
-      });
+      prisma.notification.findUniqueOrThrow.mockResolvedValue(baseNotification);
+      prisma.announcementTargetOrganization.findMany.mockResolvedValue([
+        { organizationId: 'platform-org-id' },
+      ]);
       prisma.user.findMany.mockResolvedValue([]);
 
       await service.fanOut('ann-1');
@@ -85,12 +86,27 @@ describe('AnnouncementsService', () => {
       expect(prisma.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            organization: expect.objectContaining({ id: 'platform-org-id' }),
+            organization: expect.objectContaining({ id: { in: ['platform-org-id'] } }),
           }),
         }),
       );
       const call = prisma.user.findMany.mock.calls[0][0];
       expect(call.where.organization.slug).toBeUndefined();
+    });
+
+    it('targets every organization in the list when several are selected', async () => {
+      prisma.notification.updateMany.mockResolvedValue({ count: 1 });
+      prisma.notification.findUniqueOrThrow.mockResolvedValue(baseNotification);
+      prisma.announcementTargetOrganization.findMany.mockResolvedValue([
+        { organizationId: 'org-a' },
+        { organizationId: 'org-b' },
+      ]);
+      prisma.user.findMany.mockResolvedValue([]);
+
+      await service.fanOut('ann-1');
+
+      const call = prisma.user.findMany.mock.calls[0][0];
+      expect(call.where.organization.id).toEqual({ in: ['org-a', 'org-b'] });
     });
 
     it('stamps each row with the delivered user own organizationId, not a shared one', async () => {
@@ -201,8 +217,7 @@ describe('AnnouncementsService', () => {
         ctaLabel: null,
         ctaLabelEn: null,
         ctaUrl: null,
-        targetOrganizationId: null,
-        targetOrganization: null,
+        targetOrganizations: [],
         targetRoles: ['OWNER'],
         isActive: true,
         publishedAt: null,
@@ -222,8 +237,8 @@ describe('AnnouncementsService', () => {
   });
 
   describe('create', () => {
-    it('rejects a target organization that does not exist', async () => {
-      prisma.organization.findUnique.mockResolvedValue(null);
+    it('rejects when some target organization does not exist', async () => {
+      prisma.organization.findMany.mockResolvedValue([{ id: 'org-a' }]);
 
       await expect(
         service.create(
@@ -231,7 +246,7 @@ describe('AnnouncementsService', () => {
             title: 'Hola',
             message: 'Cuerpo',
             template: 'NEWS' as any,
-            targetOrganizationId: 'missing-org',
+            targetOrganizationIds: ['org-a', 'missing-org'],
             targetRoles: ['OWNER'] as any,
             publishNow: false,
           },
@@ -239,6 +254,34 @@ describe('AnnouncementsService', () => {
         ),
       ).rejects.toThrow(NotFoundException);
       expect(prisma.notification.create).not.toHaveBeenCalled();
+    });
+
+    it('creates with a nested write for each selected organization', async () => {
+      prisma.organization.findMany.mockResolvedValue([{ id: 'org-a' }, { id: 'org-b' }]);
+      prisma.notification.create.mockResolvedValue({ id: 'ann-1' });
+      jest.spyOn(service, 'getById').mockResolvedValue({} as any);
+
+      await service.create(
+        {
+          title: 'Hola',
+          message: 'Cuerpo',
+          template: 'NEWS' as any,
+          targetOrganizationIds: ['org-a', 'org-b'],
+          targetRoles: ['OWNER'] as any,
+          publishNow: false,
+        },
+        ACTOR,
+      );
+
+      expect(prisma.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            targetOrganizations: {
+              create: [{ organizationId: 'org-a' }, { organizationId: 'org-b' }],
+            },
+          }),
+        }),
+      );
     });
   });
 

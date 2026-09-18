@@ -6,7 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { NotificationKind, Notification, Organization, Prisma } from '@tesseract/database';
+import { NotificationKind, Notification, Prisma } from '@tesseract/database';
 import {
   ADMIN_PAGE_SIZE,
   AdminAnnouncementDto,
@@ -25,7 +25,9 @@ import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { PLATFORM_ORG_SLUG } from '@/platform/common/constants/platform-org.constant';
 import { ListAnnouncementsQueryDto } from './dto';
 
-type NotificationWithTarget = Notification & { targetOrganization: Pick<Organization, 'id' | 'name'> | null };
+type NotificationWithTargets = Notification & {
+  targetOrganizations: { organization: { id: string; name: string } }[];
+};
 
 interface MetricsRow {
   notificationId: string;
@@ -52,12 +54,15 @@ export class AnnouncementsService {
   ) {}
 
   async create(dto: CreateAnnouncementDto, actor: UserPayload): Promise<AdminAnnouncementDto> {
-    if (dto.targetOrganizationId) {
-      const org = await this.prisma.organization.findUnique({
-        where: { id: dto.targetOrganizationId },
+    const targetOrganizationIds = [...new Set(dto.targetOrganizationIds ?? [])];
+    if (targetOrganizationIds.length > 0) {
+      const found = await this.prisma.organization.findMany({
+        where: { id: { in: targetOrganizationIds } },
         select: { id: true },
       });
-      if (!org) throw new NotFoundException('La organización destino no existe');
+      if (found.length !== targetOrganizationIds.length) {
+        throw new NotFoundException('Alguna de las organizaciones destino no existe');
+      }
     }
     this.assertFutureOrNull(dto.expiresAt);
 
@@ -74,12 +79,14 @@ export class AnnouncementsService {
         ctaLabel: dto.ctaLabel ?? null,
         ctaLabelEn: dto.ctaLabelEn ?? null,
         ctaUrl: dto.ctaUrl ?? null,
-        targetOrganizationId: dto.targetOrganizationId ?? null,
         targetRoles: dto.targetRoles,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
         isActive: true,
         createdById: actor.sub,
         createdByEmail: actor.email,
+        targetOrganizations: {
+          create: targetOrganizationIds.map((organizationId) => ({ organizationId })),
+        },
       },
     });
 
@@ -166,6 +173,11 @@ export class AnnouncementsService {
 
     const notification = await this.prisma.notification.findUniqueOrThrow({ where: { id } });
     const roles = (notification.targetRoles as string[]) ?? [];
+    const targetOrgRows = await this.prisma.announcementTargetOrganization.findMany({
+      where: { notificationId: id },
+      select: { organizationId: true },
+    });
+    const targetOrganizationIds = targetOrgRows.map((r) => r.organizationId);
 
     const where: Prisma.UserWhereInput = {
       isActive: true,
@@ -174,10 +186,11 @@ export class AnnouncementsService {
       organization: {
         isActive: true,
         deletedAt: null,
-        // Si el operador apunta explícitamente a la org de plataforma se respeta (útil para
-        // probar una plantilla); solo se excluye en el envío global.
-        ...(notification.targetOrganizationId
-          ? { id: notification.targetOrganizationId }
+        // Si el operador eligió organizaciones específicas, se respeta tal cual (incluso si
+        // alguna fuera la de plataforma — útil para probar una plantilla). Sin ninguna
+        // elegida, es un envío global y ahí sí se excluye la de plataforma.
+        ...(targetOrganizationIds.length > 0
+          ? { id: { in: targetOrganizationIds } }
           : { slug: { not: PLATFORM_ORG_SLUG } }),
       },
     };
@@ -218,7 +231,7 @@ export class AnnouncementsService {
     return { delivered };
   }
 
-  async audiencePreview(organizationId: string | undefined, roles: UserRole[]): Promise<AudiencePreviewDto> {
+  async audiencePreview(organizationIds: string[], roles: UserRole[]): Promise<AudiencePreviewDto> {
     const count = await this.prisma.user.count({
       where: {
         isActive: true,
@@ -227,7 +240,9 @@ export class AnnouncementsService {
         organization: {
           isActive: true,
           deletedAt: null,
-          ...(organizationId ? { id: organizationId } : { slug: { not: PLATFORM_ORG_SLUG } }),
+          ...(organizationIds.length > 0
+            ? { id: { in: organizationIds } }
+            : { slug: { not: PLATFORM_ORG_SLUG } }),
         },
       },
     });
@@ -237,7 +252,7 @@ export class AnnouncementsService {
   async getById(id: string): Promise<AdminAnnouncementDto> {
     const row = await this.prisma.notification.findFirst({
       where: { id, kind: NotificationKind.ANNOUNCEMENT },
-      include: { targetOrganization: { select: { id: true, name: true } } },
+      include: { targetOrganizations: { include: { organization: { select: { id: true, name: true } } } } },
     });
     if (!row) throw new NotFoundException('Anuncio no encontrado');
     const metrics = await this.getMetrics(id);
@@ -252,7 +267,14 @@ export class AnnouncementsService {
 
     const where: Prisma.NotificationWhereInput = {
       kind: NotificationKind.ANNOUNCEMENT,
-      ...(query.organizationId && { targetOrganizationId: query.organizationId }),
+      // Sin filas en la tabla puente = "todas las organizaciones", así que filtrar por una
+      // organización debe incluir tanto los anuncios dirigidos a ella como los globales.
+      ...(query.organizationId && {
+        OR: [
+          { targetOrganizations: { none: {} } },
+          { targetOrganizations: { some: { organizationId: query.organizationId } } },
+        ],
+      }),
       ...(query.status && this.statusWhere(query.status, now)),
     };
 
@@ -262,7 +284,7 @@ export class AnnouncementsService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { targetOrganization: { select: { id: true, name: true } } },
+        include: { targetOrganizations: { include: { organization: { select: { id: true, name: true } } } } },
       }),
       this.prisma.notification.count({ where }),
     ]);
@@ -348,7 +370,7 @@ export class AnnouncementsService {
     );
   }
 
-  private toAdminDto(row: NotificationWithTarget, metrics?: AnnouncementMetricsDto): AdminAnnouncementDto {
+  private toAdminDto(row: NotificationWithTargets, metrics?: AnnouncementMetricsDto): AdminAnnouncementDto {
     const m = metrics ?? { delivered: 0, dismissed: 0, ctaClicked: 0, read: 0 };
     return {
       id: row.id,
@@ -360,8 +382,7 @@ export class AnnouncementsService {
       ctaLabel: row.ctaLabel,
       ctaLabelEn: row.ctaLabelEn,
       ctaUrl: row.ctaUrl,
-      targetOrganizationId: row.targetOrganizationId,
-      targetOrganizationName: row.targetOrganization?.name ?? null,
+      targetOrganizations: row.targetOrganizations.map((t) => t.organization),
       targetRoles: (row.targetRoles as string[]) as UserRole[],
       status: this.deriveStatus(row),
       isActive: row.isActive,

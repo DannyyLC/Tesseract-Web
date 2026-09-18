@@ -38,7 +38,9 @@ export class AnnouncementsAdminController {
   @ApiOperation({ summary: 'Conteo estimado de destinatarios antes de publicar' })
   async audiencePreview(@Query() query: AudiencePreviewQueryDto): Promise<ApiResponse> {
     const roles = (query.roles?.split(',').map((r) => r.trim().toUpperCase()) ?? []) as UserRole[];
-    const result = await this.announcementsService.audiencePreview(query.organizationId, roles);
+    const organizationIds =
+      query.organizationIds?.split(',').map((id) => id.trim()).filter(Boolean) ?? [];
+    const result = await this.announcementsService.audiencePreview(organizationIds, roles);
     return new ApiResponseBuilder().setData(result).build();
   }
 

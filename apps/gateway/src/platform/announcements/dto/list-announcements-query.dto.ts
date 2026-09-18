@@ -31,10 +31,10 @@ export class ListAnnouncementsQueryDto {
 }
 
 export class AudiencePreviewQueryDto {
-  @ApiPropertyOptional({ description: 'Ausente = todas las organizaciones.' })
+  @ApiPropertyOptional({ description: 'Ids de organización separados por coma. Ausente = todas.' })
   @IsOptional()
   @IsString()
-  organizationId?: string;
+  organizationIds?: string;
 
   @ApiPropertyOptional({ description: 'Roles separados por coma, ej: OWNER,ADMIN' })
   @IsOptional()

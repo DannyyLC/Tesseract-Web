@@ -71,12 +71,14 @@ export class CreateAnnouncementDto implements ICreateAnnouncementDto {
   ctaUrl?: string;
 
   @ApiPropertyOptional({
-    description: 'Organización destino. Ausente/null = todas las organizaciones.',
-    nullable: true,
+    description: 'Organizaciones destino. Vacío/ausente = todas las organizaciones.',
+    type: [String],
   })
   @IsOptional()
-  @IsString()
-  targetOrganizationId?: string | null;
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  targetOrganizationIds?: string[];
 
   @ApiProperty({
     description: 'Roles destino. SUPER_ADMIN nunca puede incluirse.',

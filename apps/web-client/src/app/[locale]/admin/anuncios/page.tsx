@@ -2,15 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { AnimatePresence } from 'framer-motion';
 import { Building2, Plus, Send, EyeOff } from 'lucide-react';
-import { AnnouncementStatus } from '@tesseract/types';
+import { AdminAnnouncementDto, AnnouncementStatus } from '@tesseract/types';
+import { useRouter } from '@/i18n/routing';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { InfiniteSelect } from '@/components/ui/infinite-select';
 import { PagePager } from '@/components/ui/page-pager';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { useInfiniteAdminOrganizations } from '@/hooks/automation/use-admin-workflows';
 import { useAdminAnnouncements, useAdminAnnouncementMutations } from '@/hooks/platform/use-admin-announcements';
-import { CreateAnnouncementModal } from '@/components/admin/announcements/create-announcement-modal';
 import { btnGhost, btnPrimary, inputClass } from '../_styles';
 
 const STATUS_LABEL: Record<AnnouncementStatus, string> = {
@@ -27,12 +27,20 @@ const STATUS_CLASS: Record<AnnouncementStatus, string> = {
   [AnnouncementStatus.UNPUBLISHED]: 'text-danger',
 };
 
+function targetLabel(a: AdminAnnouncementDto): string {
+  if (a.targetOrganizations.length === 0) return 'Todas las organizaciones';
+  if (a.targetOrganizations.length <= 2) return a.targetOrganizations.map((o) => o.name).join(', ');
+  return `${a.targetOrganizations.length} organizaciones`;
+}
+
 export default function AdminAnnouncementsPage() {
+  const router = useRouter();
   const [organizationId, setOrganizationId] = useState('');
   const [orgSearchInput, setOrgSearchInput] = useState('');
   const [status, setStatus] = useState<AnnouncementStatus | ''>('');
   const [page, setPage] = useState(1);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [pendingPublish, setPendingPublish] = useState<AdminAnnouncementDto | null>(null);
+  const [pendingUnpublish, setPendingUnpublish] = useState<AdminAnnouncementDto | null>(null);
 
   useEffect(() => {
     setPage(1);
@@ -69,10 +77,10 @@ export default function AdminAnnouncementsPage() {
         <div>
           <h1 className="text-xl font-semibold text-text-primary">Anuncios</h1>
           <p className="mt-1 text-sm text-text-secondary">
-            Comunica cambios importantes a todas las organizaciones o a una en particular.
+            Comunica cambios importantes a todas las organizaciones o a una o varias en particular.
           </p>
         </div>
-        <button className={btnPrimary} onClick={() => setCreateOpen(true)}>
+        <button className={btnPrimary} onClick={() => router.push('/admin/anuncios/nuevo')}>
           <Plus size={16} />
           Nuevo anuncio
         </button>
@@ -134,7 +142,7 @@ export default function AdminAnnouncementsPage() {
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
                     <span className="inline-flex items-center gap-1">
                       <Building2 size={11} />
-                      {a.targetOrganizationName ?? 'Todas las organizaciones'}
+                      {targetLabel(a)}
                     </span>
                     <span>{a.targetRoles.join(', ')}</span>
                     {a.createdByEmail && <span>por {a.createdByEmail}</span>}
@@ -159,31 +167,13 @@ export default function AdminAnnouncementsPage() {
 
                 <div className="flex shrink-0 items-center gap-2">
                   {a.status === AnnouncementStatus.DRAFT && (
-                    <button
-                      className={btnGhost}
-                      disabled={publish.isPending}
-                      onClick={() =>
-                        publish.mutate(a.id, {
-                          onSuccess: (result) => toast.success(`Enviado a ${result.delivered} usuario(s)`),
-                          onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo publicar'),
-                        })
-                      }
-                    >
+                    <button className={btnGhost} disabled={publish.isPending} onClick={() => setPendingPublish(a)}>
                       <Send size={14} />
                       Publicar
                     </button>
                   )}
                   {(a.status === AnnouncementStatus.PUBLISHED || a.status === AnnouncementStatus.EXPIRED) && (
-                    <button
-                      className={btnGhost}
-                      disabled={unpublish.isPending}
-                      onClick={() => {
-                        if (!window.confirm('¿Despublicar este anuncio? Se retira del modal y de la campana.')) return;
-                        unpublish.mutate(a.id, {
-                          onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo despublicar'),
-                        });
-                      }}
-                    >
+                    <button className={btnGhost} disabled={unpublish.isPending} onClick={() => setPendingUnpublish(a)}>
                       <EyeOff size={14} />
                       Despublicar
                     </button>
@@ -205,17 +195,46 @@ export default function AdminAnnouncementsPage() {
         />
       )}
 
-      <AnimatePresence>
-        {createOpen && (
-          <CreateAnnouncementModal
-            onClose={() => setCreateOpen(false)}
-            onCreated={(message) => {
-              toast.success(message);
-              setCreateOpen(false);
-            }}
-          />
-        )}
-      </AnimatePresence>
+      <ConfirmModal
+        isOpen={!!pendingPublish}
+        onClose={() => setPendingPublish(null)}
+        variant="warning"
+        title="Publicar anuncio"
+        message={
+          pendingPublish
+            ? `"${pendingPublish.title}" se enviará a ${targetLabel(pendingPublish).toLowerCase()} (${pendingPublish.targetRoles.join(', ')}). No se puede deshacer.`
+            : ''
+        }
+        confirmLabel="Publicar"
+        onConfirm={async () => {
+          if (!pendingPublish) return;
+          await publish.mutateAsync(pendingPublish.id, {
+            onSuccess: (result) => toast.success(`Enviado a ${result.delivered} usuario(s)`),
+            onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo publicar'),
+          });
+          setPendingPublish(null);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={!!pendingUnpublish}
+        onClose={() => setPendingUnpublish(null)}
+        variant="danger"
+        title="Despublicar anuncio"
+        message={
+          pendingUnpublish
+            ? `"${pendingUnpublish.title}" se retira del modal y de la campana de todos los que ya lo recibieron.`
+            : ''
+        }
+        confirmLabel="Despublicar"
+        onConfirm={async () => {
+          if (!pendingUnpublish) return;
+          await unpublish.mutateAsync(pendingUnpublish.id, {
+            onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo despublicar'),
+          });
+          setPendingUnpublish(null);
+        }}
+      />
     </div>
   );
 }

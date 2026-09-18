@@ -1378,8 +1378,7 @@
   },
   "Announcements": {
     "dismiss": "Got it",
-    "close": "Close",
-    "ctaFallbackLabel": "Learn more"
+    "close": "Close"
   },
   "TwoFactorCodeInput": {
     "useBackupCode": "Lost your device? Use a backup code",
