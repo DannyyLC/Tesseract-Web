@@ -179,7 +179,7 @@ export default function OverageCard({
                 <div>
                   <p className="text-sm font-medium text-text-primary">{t('limitHeading')}</p>
                   <p className="text-xs text-text-tertiary">
-                    {t('maxCredits', { max: maxOverageLimit.toLocaleString() })}
+                    {t('maxCredits', { max: maxOverageLimit.toLocaleString('es-MX') })}
                   </p>
                 </div>
 
@@ -196,7 +196,7 @@ export default function OverageCard({
                   <input
                     type="text"
                     inputMode="numeric"
-                    value={isEditingInput ? localLimit : localLimit.toLocaleString()}
+                    value={isEditingInput ? localLimit : localLimit.toLocaleString('es-MX')}
                     onFocus={() => setIsEditingInput(true)}
                     onChange={(e) => handleInputChange(e.target.value)}
                     onBlur={handleInputBlur}

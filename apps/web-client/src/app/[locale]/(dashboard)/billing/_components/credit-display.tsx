@@ -11,8 +11,9 @@ export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDi
   const t = useTranslations('BillingCredits');
   const isNegative = balance < 0;
 
-  // Format number with commas
-  const formattedBalance = Math.abs(balance).toLocaleString();
+  // Convención mexicana explícita: sin locale, toLocaleString usa el idioma del navegador y
+  // puede mostrar "11.700" (punto de millar) en vez de "11,700".
+  const formattedBalance = Math.abs(balance).toLocaleString('es-MX');
 
   return (
     <div className="relative overflow-hidden rounded-3xl bg-accent p-8 text-text-inverse shadow-2xl">

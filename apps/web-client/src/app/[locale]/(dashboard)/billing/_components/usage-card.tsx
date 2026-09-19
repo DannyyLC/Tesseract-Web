@@ -37,10 +37,10 @@ export default function UsageCard({ title, icon, used, limit, unit }: UsageCardP
         <h3 className="text-sm font-medium text-text-secondary">{title}</h3>
         <div className="mt-1 flex items-baseline gap-1">
           <span className="font-geist-mono text-3xl font-light tracking-tight text-text-primary">
-            {used.toLocaleString()}
+            {used.toLocaleString('es-MX')}
           </span>
           {!isUnlimited && (
-            <span className="text-sm text-text-tertiary">/ {limit.toLocaleString()}</span>
+            <span className="text-sm text-text-tertiary">/ {limit.toLocaleString('es-MX')}</span>
           )}
         </div>
       </div>

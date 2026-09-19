@@ -74,7 +74,7 @@ function ChartTooltip({ active, payload, label }: any) {
       {displayLabel && <p className="mb-1 text-xs text-text-tertiary">{displayLabel}</p>}
       {payload.map((p: any, i: number) => (
         <p key={i} className="text-sm font-semibold" style={{ color: p.color }}>
-          {p.name}: {p.value?.toLocaleString()}
+          {p.name}: {p.value?.toLocaleString('es-MX')}
         </p>
       ))}
     </div>
@@ -258,7 +258,7 @@ export default function DashboardPage() {
             ) : (
               <>
                 <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
-                  {(statsToday?.total ?? 0).toLocaleString()}
+                  {(statsToday?.total ?? 0).toLocaleString('es-MX')}
                 </p>
                 {(statsToday?.successful ?? 0) > 0 && (
                   <span className="text-xs font-medium text-success">
@@ -287,10 +287,10 @@ export default function DashboardPage() {
               ) : (
                 <>
                   <p className="font-geist-mono text-4xl font-light tracking-tight text-text-primary">
-                    {creditData.available.toLocaleString()}
+                    {creditData.available.toLocaleString('es-MX')}
                   </p>
                   <span className="text-xs font-medium text-text-tertiary">
-                    {creditData.used.toLocaleString()} {t('usedThisMonth')}
+                    {creditData.used.toLocaleString('es-MX')} {t('usedThisMonth')}
                   </span>
                 </>
               )}
@@ -502,7 +502,7 @@ export default function DashboardPage() {
                       {/* Execution count */}
                       <div className="flex-shrink-0 text-right">
                         <p className="font-geist-mono text-sm font-light text-text-primary">
-                          {wf.executions.toLocaleString()}
+                          {wf.executions.toLocaleString('es-MX')}
                         </p>
                         <p className="text-xs text-text-tertiary">{t('executions')}</p>
                       </div>
@@ -590,7 +590,7 @@ export default function DashboardPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-text-secondary">
-                        {typeof credits === 'number' ? credits.toLocaleString() : credits}
+                        {typeof credits === 'number' ? credits.toLocaleString('es-MX') : credits}
                       </td>
                       <td className="px-5 py-3.5 text-text-secondary">{date}</td>
                     </tr>

@@ -156,7 +156,7 @@ export default function CreditTopUpCard({ perCredit, min, max, step }: CreditTop
                     : 'border-border text-text-primary hover:bg-surface-secondary'
                 }`}
               >
-                {amount.toLocaleString()}
+                {amount.toLocaleString('es-MX')}
               </button>
             ))}
           </div>
@@ -226,7 +226,7 @@ export default function CreditTopUpCard({ perCredit, min, max, step }: CreditTop
         <div className="space-y-4">
           <div className="bg-info/10 rounded-lg p-4 text-sm text-info-600">
             <p>
-              {t('confirmIntroBefore')} <strong>{credits.toLocaleString()}</strong>{' '}
+              {t('confirmIntroBefore')} <strong>{credits.toLocaleString('es-MX')}</strong>{' '}
               {t('confirmIntroMiddle')}{' '}
               <strong>
                 {totalMinor !== undefined ? `${format(totalMinor)} ${currency.toUpperCase()}` : '—'}
