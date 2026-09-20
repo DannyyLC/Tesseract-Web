@@ -741,7 +741,31 @@
     "subjectAccountIssues": "Account or access issues",
     "subjectBillingPayments": "Billing & Payments",
     "subjectBugReport": "Bug Report",
-    "subjectOther": "Other"
+    "subjectOther": "Other",
+    "booking": {
+      "selectEventTypeHeading": "What kind of session do you need?",
+      "changeType": "Change session type",
+      "selectDateLabel": "Select a day",
+      "selectTimeLabel": "Select a time",
+      "timezoneNote": "Times shown in your local timezone",
+      "noSlotsForDay": "No time slots available on this day.",
+      "pickDayPrompt": "Pick a day to see available times.",
+      "backButton": "Back",
+      "nameLabel": "Name",
+      "emailLabel": "Email",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Anything we should know before the session? (optional)",
+      "confirmButton": "Confirm booking",
+      "confirmingButton": "Booking...",
+      "bookingErrorSlotTaken": "That time slot is no longer available. Pick another one.",
+      "bookingErrorGeneric": "We couldn't complete the booking. Please try again.",
+      "successHeading": "Session confirmed!",
+      "successDesc": "We sent the invite to your email with the Google Meet link.",
+      "joinMeetButton": "Join with Google Meet",
+      "viewInCalendarButton": "View in Google Calendar",
+      "bookAnotherButton": "Book another session",
+      "minutesSuffix": "min"
+    }
   },
   "Integrations": {
     "heading": "Integrations",

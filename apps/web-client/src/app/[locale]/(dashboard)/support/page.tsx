@@ -7,8 +7,7 @@ import { Loader2, Send, ChevronDown, Check, CalendarDays, Mail } from 'lucide-re
 import { useTranslations } from 'next-intl';
 import { useSupportMutations } from '@/hooks/platform/use-support';
 import { useAuth } from '@/hooks/identity/use-auth';
-import Cal, { getCalApi } from '@calcom/embed-react';
-import { CAL_CONFIG } from '@/config/cal';
+import { BookingWidget } from './_components/booking-widget';
 
 function SupportContent() {
   const t = useTranslations('Support');
@@ -87,33 +86,6 @@ function SupportContent() {
   const isSubjectValid =
     selectedSubject && (selectedSubject !== t('subjectOther') || customSubject.trim().length > 0);
 
-  // Initialize Cal.com embed
-  useEffect(() => {
-    let cancelled = false;
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-    const applyCalUi = async () => {
-      const cal = await getCalApi({ namespace: CAL_CONFIG.namespace });
-      if (cancelled) return;
-      const background = getComputedStyle(document.documentElement)
-        .getPropertyValue('--background')
-        .trim();
-      cal('ui', {
-        hideEventTypeDetails: false,
-        layout: CAL_CONFIG.defaultLayout,
-        theme: CAL_CONFIG.defaultTheme,
-        styles: { body: { background } },
-      });
-    };
-
-    applyCalUi();
-    mediaQuery.addEventListener('change', applyCalUi);
-    return () => {
-      cancelled = true;
-      mediaQuery.removeEventListener('change', applyCalUi);
-    };
-  }, []);
-
   const isNuevoWorkflow = reason === 'nuevo-workflow';
 
   if (isNuevoWorkflow) {
@@ -126,16 +98,10 @@ function SupportContent() {
           <p className="text-text-secondary">{t('scheduleDesc')}</p>
         </div>
         <div className="h-[650px] overflow-hidden rounded-2xl border border-border shadow-sm">
-          <Cal
-            namespace={CAL_CONFIG.namespace}
-            calLink={CAL_CONFIG.events.nuevoWorkflow}
-            style={{ width: '100%', height: '100%', overflow: 'scroll' }}
-            config={{
-              layout: CAL_CONFIG.defaultLayout,
-              theme: CAL_CONFIG.defaultTheme,
-              ...(user?.name ? { name: user.name } : {}),
-              ...(user?.email ? { email: user.email } : {}),
-            }}
+          <BookingWidget
+            fixedEventTypeId="nuevo-workflow"
+            attendeeName={user?.name}
+            attendeeEmail={user?.email}
           />
         </div>
       </div>
@@ -260,7 +226,7 @@ function SupportContent() {
           </div>
         </div>
 
-        {/* BOTTOM — Cal.com Calendar */}
+        {/* BOTTOM — Booking calendar */}
         <div className="flex flex-col gap-4">
           {/* Section label */}
           <div className="flex items-center gap-2">
@@ -271,16 +237,7 @@ function SupportContent() {
           </div>
 
           <div className="h-[650px] overflow-hidden rounded-2xl border border-border shadow-sm">
-            <Cal
-              namespace={CAL_CONFIG.namespace}
-              calLink={CAL_CONFIG.allEvents}
-              style={{ width: '100%', height: '100%', overflow: 'scroll' }}
-              config={{
-                layout: CAL_CONFIG.defaultLayout,
-                ...(user?.name ? { name: user.name } : {}),
-                ...(user?.email ? { email: user.email } : {}),
-              }}
-            />
+            <BookingWidget attendeeName={user?.name} attendeeEmail={user?.email} />
           </div>
         </div>
       </div>

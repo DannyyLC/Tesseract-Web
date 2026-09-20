@@ -10,6 +10,8 @@ import InvoiceApi from './billing/invoice-api';
 import OrganizationsApi from './identity/organizations/organizations-api';
 import NotificationsApi from './messaging/notifications/notifications-api';
 import SupportApi from './platform/support/support-api';
+import BookingApi from './platform/booking/booking-api';
+import BookingAdminApi from './platform/booking/booking-admin-api';
 import ToolCatalogApi from './automation/tools/tool-catalog-api';
 import TenantToolsApi from './automation/tools/tenant-tools-api';
 import ToolsOauthApi from './automation/tools/tools-oauth-api';
@@ -42,6 +44,8 @@ class RootApi {
   private organizationsApi: OrganizationsApi;
   private notificationsApi: NotificationsApi;
   private supportApi: SupportApi;
+  private bookingApi: BookingApi;
+  private bookingAdminApi: BookingAdminApi;
   private toolCatalogApi: ToolCatalogApi;
   private tenantToolsApi: TenantToolsApi;
   private toolsOauthApi: ToolsOauthApi;
@@ -73,6 +77,8 @@ class RootApi {
     this.organizationsApi = new OrganizationsApi();
     this.notificationsApi = new NotificationsApi();
     this.supportApi = new SupportApi();
+    this.bookingApi = new BookingApi();
+    this.bookingAdminApi = new BookingAdminApi();
     this.toolCatalogApi = new ToolCatalogApi();
     this.tenantToolsApi = new TenantToolsApi();
     this.toolsOauthApi = new ToolsOauthApi();
@@ -145,6 +151,14 @@ class RootApi {
 
   public getSupportApi(): SupportApi {
     return this.supportApi;
+  }
+
+  public getBookingApi(): BookingApi {
+    return this.bookingApi;
+  }
+
+  public getBookingAdminApi(): BookingAdminApi {
+    return this.bookingAdminApi;
   }
 
   public getToolCatalogApi(): ToolCatalogApi {
