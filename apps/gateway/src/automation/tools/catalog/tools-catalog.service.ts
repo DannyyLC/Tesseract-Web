@@ -3,6 +3,7 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
 import { DEFAULT_PAGE_SIZE, GetToolsDto, PaginatedResponse } from '@tesseract/types';
 import { Prisma } from '@tesseract/database';
+import { DEFAULT_LOCALE, SupportedLocale } from '@/platform/common/types/locale.type';
 
 @Injectable()
 export class ToolsCatalogService {
@@ -15,6 +16,7 @@ export class ToolsCatalogService {
     filters?: {
       search?: string;
     },
+    locale: SupportedLocale = DEFAULT_LOCALE,
   ): Promise<PaginatedResponse<GetToolsDto>> {
     const where: Prisma.ToolCatalogWhereInput = {
       ...(filters?.search && {
@@ -37,11 +39,15 @@ export class ToolsCatalogService {
       orderBy: { displayName: 'asc' },
     });
 
+    // Los textos en inglés son opcionales: si faltan (NULL) se muestra el texto base en español.
+    const wantsEnglish = locale === 'en';
+    const pick = (en: string | null, es: string | null) => (wantsEnglish && en ? en : (es ?? ''));
+
     const sanitizedTools = tools.map((tool) => ({
       id: tool.id,
       toolName: tool.toolName,
-      displayName: tool.displayName ?? '',
-      description: tool.description ?? '',
+      displayName: pick(tool.displayNameEn, tool.displayName),
+      description: pick(tool.descriptionEn, tool.description),
       provider: tool.provider ?? '',
       isActive: tool.isActive,
       isInBeta: tool.isInBeta,
@@ -50,8 +56,8 @@ export class ToolsCatalogService {
       functions: tool.functions.map((fn) => ({
         id: fn.id,
         functionName: fn.functionName,
-        displayName: fn.displayName ?? '',
-        description: fn.description ?? '',
+        displayName: pick(fn.displayNameEn, fn.displayName),
+        description: pick(fn.descriptionEn, fn.description),
         category: fn.category ?? '',
         isActive: fn.isActive,
         isInBeta: fn.isInBeta,

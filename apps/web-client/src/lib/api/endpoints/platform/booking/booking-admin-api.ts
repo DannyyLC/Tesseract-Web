@@ -1,5 +1,10 @@
 import ApiRequestManager from '../../../api-request-manager';
-import { ApiResponse, BookingCalendarStatus } from '@tesseract/types';
+import {
+  ApiResponse,
+  BookingCalendarListItem,
+  BookingCalendarStatus,
+  SelectBookingCalendarDto,
+} from '@tesseract/types';
 
 /**
  * Separado de `BookingApi` (que sirve el widget de reservas dentro del dashboard de cualquier
@@ -38,6 +43,22 @@ class BookingAdminApi {
       '/booking/admin/disconnect',
     );
     return result.data.data ?? false;
+  }
+
+  public async getCalendars(): Promise<BookingCalendarListItem[]> {
+    const result = await this.apiRequestManager.get<ApiResponse<BookingCalendarListItem[]>>(
+      '/booking/admin/calendars',
+    );
+    return result.data.data ?? [];
+  }
+
+  public async selectCalendar(calendarId: string): Promise<BookingCalendarStatus> {
+    const body: SelectBookingCalendarDto = { calendarId };
+    const result = await this.apiRequestManager.patch<ApiResponse<BookingCalendarStatus>>(
+      '/booking/admin/calendar',
+      body,
+    );
+    return result.data.data as BookingCalendarStatus;
   }
 }
 

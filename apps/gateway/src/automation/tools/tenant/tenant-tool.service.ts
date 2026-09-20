@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { DEFAULT_LOCALE, SupportedLocale } from '@/platform/common/types/locale.type';
 import {
   ADMIN_PAGE_SIZE,
   DEFAULT_PAGE_SIZE,
@@ -32,10 +33,18 @@ const HEALTH_SELECT = {
     select: {
       toolName: true,
       displayName: true,
+      displayNameEn: true,
       icon: true,
       category: true,
       provider: true,
-      functions: { select: { functionName: true, displayName: true, oauthScopes: true } },
+      functions: {
+        select: {
+          functionName: true,
+          displayName: true,
+          displayNameEn: true,
+          oauthScopes: true,
+        },
+      },
     },
   },
 } as const;
@@ -49,9 +58,17 @@ export class TenantToolService {
   ) {}
 
   /** Quita del payload lo que solo servía para calcular la salud. */
-  private toDashboardDto(tool: any): DashboardTenantToolDto {
+  private toDashboardDto(tool: any, locale: SupportedLocale = DEFAULT_LOCALE): DashboardTenantToolDto {
     const { credential, toolCatalog, ...rest } = tool;
-    const { functions = [], ...catalog } = toolCatalog ?? {};
+    const { functions: rawFunctions = [], displayNameEn, ...catalogRest } = toolCatalog ?? {};
+    // Inglés opcional: si falta (NULL) se conserva el texto base en español.
+    const pick = (en: string | null | undefined, es: string) =>
+      locale === 'en' && en ? en : es;
+    const catalog = { ...catalogRest, displayName: pick(displayNameEn, catalogRest.displayName) };
+    const functions = rawFunctions.map(({ displayNameEn: fnEn, ...fn }: any) => ({
+      ...fn,
+      displayName: pick(fnEn, fn.displayName),
+    }));
 
     return {
       ...rest,
@@ -69,6 +86,7 @@ export class TenantToolService {
     cursor: string | null = null,
     pageSize = DEFAULT_PAGE_SIZE,
     paginationAction: 'next' | 'prev' | null = null,
+    locale: SupportedLocale = DEFAULT_LOCALE,
   ): Promise<PaginatedResponse<DashboardTenantToolDto> | null> {
     try {
       const tenantTools = await this.prismaService.tenantTool.findMany({
@@ -95,7 +113,7 @@ export class TenantToolService {
         orderBy: { createdAt: 'desc' },
       });
       return await CursorPaginatedResponseUtils.getInstance().build(
-        tenantTools.map((tool) => this.toDashboardDto(tool)),
+        tenantTools.map((tool) => this.toDashboardDto(tool, locale)),
         pageSize,
         paginationAction,
       );
@@ -163,7 +181,10 @@ export class TenantToolService {
     };
   }
 
-  async getTenantToolById(id: string): Promise<DashboardTenantToolDto | null> {
+  async getTenantToolById(
+    id: string,
+    locale: SupportedLocale = DEFAULT_LOCALE,
+  ): Promise<DashboardTenantToolDto | null> {
     try {
       const tenantTool = await this.prismaService.tenantTool.findUnique({
         where: { id },
@@ -178,7 +199,7 @@ export class TenantToolService {
           ...HEALTH_SELECT,
         },
       });
-      return tenantTool ? this.toDashboardDto(tenantTool) : null;
+      return tenantTool ? this.toDashboardDto(tenantTool, locale) : null;
     } catch (error: any) {
       this.logger.error(
         `Error fetching tenant tool with ID ${id}: ${error?.message ?? 'Unknown error'}`,

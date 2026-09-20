@@ -1,13 +1,16 @@
 'use client';
 
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 
 interface LogoLoaderProps {
   text?: string;
   className?: string;
 }
 
-export function LogoLoader({ text = 'Cargando', className = '' }: LogoLoaderProps) {
+export function LogoLoader({ text, className = '' }: LogoLoaderProps) {
+  const t = useTranslations('Shared.Loader');
+  const label = text ?? t('loading');
   return (
     <div className={`flex min-h-[50vh] flex-1 flex-col items-center justify-center ${className}`}>
       <div className="relative flex flex-col items-center">
@@ -63,7 +66,7 @@ export function LogoLoader({ text = 'Cargando', className = '' }: LogoLoaderProp
           <div className="flex items-center gap-3">
             <span className="h-[1px] w-6 bg-gradient-to-r from-transparent to-border" />
             <p className="text-[11px] font-bold uppercase tracking-[0.4em] text-[var(--logo-loader-text)] opacity-80">
-              {text}
+              {label}
             </p>
             <span className="h-[1px] w-6 bg-gradient-to-l from-transparent to-border" />
           </div>

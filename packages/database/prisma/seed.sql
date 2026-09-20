@@ -205,11 +205,13 @@ ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
 
 -- Catálogo de tools y funciones
 
-INSERT INTO "tool_catalog" ("id", "toolName", "displayName", "description", "provider", "category", "icon", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'calculator', 'Calculator', 'Herramienta de calculo matematico. Soporta operaciones basicas, porcentajes y conversiones de moneda.', 'none', 'utility', 'mdi:calculator', true, false, now(), now())
+INSERT INTO "tool_catalog" ("id", "toolName", "displayName", "description", "displayNameEn", "descriptionEn", "provider", "category", "icon", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'calculator', 'Calculator', 'Herramienta de calculo matematico. Soporta operaciones basicas, porcentajes y conversiones de moneda.', 'Calculator', 'Math calculation tool. Supports basic operations, percentages and currency conversions.', 'none', 'utility', 'mdi:calculator', true, false, now(), now())
 ON CONFLICT ("toolName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "provider" = EXCLUDED."provider",
   "category" = EXCLUDED."category",
   "icon" = EXCLUDED."icon",
@@ -221,11 +223,13 @@ DELETE FROM "tool_functions"
 WHERE "toolCatalogId" = (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'calculator')
   AND "functionName" NOT IN ('calculator', 'percentage', 'currency_convert');
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'calculator'), 'calculator', 'Calcular expresion', 'Evalua expresiones matematicas de forma segura. Soporta +, -, *, /, parentesis, decimales, modulo y potencias.', 'mdi:calculator-variant-outline', 'calculation', 'SAFE', ARRAY[]::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'calculator'), 'calculator', 'Calcular expresion', 'Evalua expresiones matematicas de forma segura. Soporta +, -, *, /, parentesis, decimales, modulo y potencias.', 'Calculate expression', 'Safely evaluates math expressions. Supports +, -, *, /, parentheses, decimals, modulo and powers.', 'mdi:calculator-variant-outline', 'calculation', 'SAFE', ARRAY[]::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -234,11 +238,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'calculator'), 'percentage', 'Calcular porcentaje', 'Calcula el porcentaje de un valor.', 'mdi:percent-outline', 'calculation', 'SAFE', ARRAY[]::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'calculator'), 'percentage', 'Calcular porcentaje', 'Calcula el porcentaje de un valor.', 'Calculate percentage', 'Calculates the percentage of a value.', 'mdi:percent-outline', 'calculation', 'SAFE', ARRAY[]::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -247,11 +253,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'calculator'), 'currency_convert', 'Convertir moneda', 'Convierte entre monedas (version mock para testing).', 'mdi:cash-multiple', 'conversion', 'SAFE', ARRAY[]::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'calculator'), 'currency_convert', 'Convertir moneda', 'Convierte entre monedas (version mock para testing).', 'Convert currency', 'Converts between currencies (mock version for testing).', 'mdi:cash-multiple', 'conversion', 'SAFE', ARRAY[]::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -260,11 +268,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_catalog" ("id", "toolName", "displayName", "description", "provider", "category", "icon", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'human_handoff', 'Human Handoff', 'Escala la conversacion para atencion humana cuando el agente detecta que se requiere un miembro de la organizacion.', 'none', 'escalation', 'mdi:account-arrow-up', true, false, now(), now())
+INSERT INTO "tool_catalog" ("id", "toolName", "displayName", "description", "displayNameEn", "descriptionEn", "provider", "category", "icon", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'human_handoff', 'Human Handoff', 'Escala la conversacion para atencion humana cuando el agente detecta que se requiere un miembro de la organizacion.', 'Human Handoff', 'Escalates the conversation to a human when the agent detects a team member is needed.', 'none', 'escalation', 'mdi:account-arrow-up', true, false, now(), now())
 ON CONFLICT ("toolName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "provider" = EXCLUDED."provider",
   "category" = EXCLUDED."category",
   "icon" = EXCLUDED."icon",
@@ -276,11 +286,13 @@ DELETE FROM "tool_functions"
 WHERE "toolCatalogId" = (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'human_handoff')
   AND "functionName" NOT IN ('request_human_handoff');
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'human_handoff'), 'request_human_handoff', 'Solicitar intervencion humana', 'Marca la conversacion para Human in the Loop y notifica a miembros de la organizacion.', 'mdi:account-arrow-up-outline', 'escalation', 'SAFE', ARRAY[]::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'human_handoff'), 'request_human_handoff', 'Solicitar intervencion humana', 'Marca la conversacion para Human in the Loop y notifica a miembros de la organizacion.', 'Request human intervention', 'Flags the conversation for Human in the Loop and notifies the organization members.', 'mdi:account-arrow-up-outline', 'escalation', 'SAFE', ARRAY[]::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -289,11 +301,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_catalog" ("id", "toolName", "displayName", "description", "provider", "category", "icon", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'send_bulk_whatsapp', 'WhatsApp Outbound', 'Envia mensajes de plantilla de WhatsApp a multiples destinatarios usando templates pre-aprobados por Meta.', 'platform', 'messaging', 'logos:whatsapp-icon', true, false, now(), now())
+INSERT INTO "tool_catalog" ("id", "toolName", "displayName", "description", "displayNameEn", "descriptionEn", "provider", "category", "icon", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'send_bulk_whatsapp', 'WhatsApp Outbound', 'Envia mensajes de plantilla de WhatsApp a multiples destinatarios usando templates pre-aprobados por Meta.', 'WhatsApp Outbound', 'Sends WhatsApp template messages to multiple recipients using Meta pre-approved templates.', 'platform', 'messaging', 'logos:whatsapp-icon', true, false, now(), now())
 ON CONFLICT ("toolName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "provider" = EXCLUDED."provider",
   "category" = EXCLUDED."category",
   "icon" = EXCLUDED."icon",
@@ -305,11 +319,13 @@ DELETE FROM "tool_functions"
 WHERE "toolCatalogId" = (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'send_bulk_whatsapp')
   AND "functionName" NOT IN ('send_bulk_whatsapp');
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'send_bulk_whatsapp'), 'send_bulk_whatsapp', 'Enviar mensajes masivos', 'Envia mensajes de plantilla de WhatsApp a una lista de destinatarios. El numero remitente siempre es determinado por el sistema.', 'mdi:whatsapp', 'write', 'WARNING', ARRAY[]::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'send_bulk_whatsapp'), 'send_bulk_whatsapp', 'Enviar mensajes masivos', 'Envia mensajes de plantilla de WhatsApp a una lista de destinatarios. El numero remitente siempre es determinado por el sistema.', 'Send bulk messages', 'Sends WhatsApp template messages to a list of recipients. The sender number is always set by the system.', 'mdi:whatsapp', 'write', 'WARNING', ARRAY[]::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -318,11 +334,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_catalog" ("id", "toolName", "displayName", "description", "provider", "category", "icon", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'dataset', 'Datos propios', 'Consulta los catalogos que la organizacion captura en Tesseract: productos, vehiculos, servicios o cualquier tabla propia.', 'platform', 'data', 'mdi:database-search', true, false, now(), now())
+INSERT INTO "tool_catalog" ("id", "toolName", "displayName", "description", "displayNameEn", "descriptionEn", "provider", "category", "icon", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'dataset', 'Datos propios', 'Consulta los catalogos que la organizacion captura en Tesseract: productos, vehiculos, servicios o cualquier tabla propia.', 'Your data', 'Queries the catalogs the organization captures in Tesseract: products, vehicles, services or any custom table.', 'platform', 'data', 'mdi:database-search', true, false, now(), now())
 ON CONFLICT ("toolName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "provider" = EXCLUDED."provider",
   "category" = EXCLUDED."category",
   "icon" = EXCLUDED."icon",
@@ -334,11 +352,13 @@ DELETE FROM "tool_functions"
 WHERE "toolCatalogId" = (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'dataset')
   AND "functionName" NOT IN ('search_dataset', 'get_dataset_item', 'list_dataset_values');
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'dataset'), 'search_dataset', 'Buscar en el catalogo', 'Busca filas del catalogo combinando filtros por columna y texto libre. Devuelve el total de coincidencias y las primeras filas.', 'mdi:table-search', 'read', 'SAFE', ARRAY[]::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'dataset'), 'search_dataset', 'Buscar en el catalogo', 'Busca filas del catalogo combinando filtros por columna y texto libre. Devuelve el total de coincidencias y las primeras filas.', 'Search the catalog', 'Searches catalog rows combining column filters and free text. Returns the total matches and the first rows.', 'mdi:table-search', 'read', 'SAFE', ARRAY[]::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -347,11 +367,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'dataset'), 'get_dataset_item', 'Ver una ficha completa', 'Devuelve todos los datos de una fila del catalogo a partir de su id.', 'mdi:card-account-details-outline', 'read', 'SAFE', ARRAY[]::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'dataset'), 'get_dataset_item', 'Ver una ficha completa', 'Devuelve todos los datos de una fila del catalogo a partir de su id.', 'View a full record', 'Returns all the data of a catalog row given its id.', 'mdi:card-account-details-outline', 'read', 'SAFE', ARRAY[]::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -360,11 +382,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'dataset'), 'list_dataset_values', 'Listar valores de una columna', 'Devuelve los valores distintos de una columna con su conteo. Sirve para responder que opciones existen cuando son demasiadas para caber en la firma de la busqueda.', 'mdi:format-list-bulleted', 'read', 'SAFE', ARRAY[]::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'dataset'), 'list_dataset_values', 'Listar valores de una columna', 'Devuelve los valores distintos de una columna con su conteo. Sirve para responder que opciones existen cuando son demasiadas para caber en la firma de la busqueda.', 'List a column''s values', 'Returns the distinct values of a column with their count. Useful to answer which options exist when there are too many to fit in the search signature.', 'mdi:format-list-bulleted', 'read', 'SAFE', ARRAY[]::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -373,11 +397,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_catalog" ("id", "toolName", "displayName", "description", "provider", "category", "icon", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'google_calendar', 'Google Calendar', 'Gestion de agenda y eventos en Google Calendar.', 'google', 'productivity', 'logos:google-calendar', true, false, now(), now())
+INSERT INTO "tool_catalog" ("id", "toolName", "displayName", "description", "displayNameEn", "descriptionEn", "provider", "category", "icon", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'google_calendar', 'Google Calendar', 'Gestion de agenda y eventos en Google Calendar.', 'Google Calendar', 'Calendar and event management in Google Calendar.', 'google', 'productivity', 'logos:google-calendar', true, false, now(), now())
 ON CONFLICT ("toolName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "provider" = EXCLUDED."provider",
   "category" = EXCLUDED."category",
   "icon" = EXCLUDED."icon",
@@ -389,11 +415,13 @@ DELETE FROM "tool_functions"
 WHERE "toolCatalogId" = (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar')
   AND "functionName" NOT IN ('check_calendar_availability', 'create_calendar_event', 'list_calendar_events', 'update_calendar_event', 'delete_calendar_event', 'get_calendar_event_details');
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar'), 'check_calendar_availability', 'Verificar disponibilidad', 'Verifica si un horario esta disponible en el calendario.', 'mdi:calendar-check-outline', 'read', 'SAFE', ARRAY['https://www.googleapis.com/auth/calendar.events.readonly']::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar'), 'check_calendar_availability', 'Verificar disponibilidad', 'Verifica si un horario esta disponible en el calendario.', 'Check availability', 'Checks whether a time slot is available on the calendar.', 'mdi:calendar-check-outline', 'read', 'SAFE', ARRAY['https://www.googleapis.com/auth/calendar.events.readonly']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -402,11 +430,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar'), 'create_calendar_event', 'Crear evento', 'Crea un nuevo evento en Google Calendar.', 'mdi:calendar-plus', 'write', 'SAFE', ARRAY['https://www.googleapis.com/auth/calendar.events']::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar'), 'create_calendar_event', 'Crear evento', 'Crea un nuevo evento en Google Calendar.', 'Create event', 'Creates a new event in Google Calendar.', 'mdi:calendar-plus', 'write', 'SAFE', ARRAY['https://www.googleapis.com/auth/calendar.events']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -415,11 +445,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar'), 'list_calendar_events', 'Listar eventos', 'Lista eventos en un rango de fechas.', 'mdi:calendar-month-outline', 'read', 'SAFE', ARRAY['https://www.googleapis.com/auth/calendar.events.readonly']::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar'), 'list_calendar_events', 'Listar eventos', 'Lista eventos en un rango de fechas.', 'List events', 'Lists events within a date range.', 'mdi:calendar-month-outline', 'read', 'SAFE', ARRAY['https://www.googleapis.com/auth/calendar.events.readonly']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -428,11 +460,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar'), 'update_calendar_event', 'Actualizar evento', 'Actualiza un evento existente en Google Calendar.', 'mdi:calendar-edit', 'write', 'WARNING', ARRAY['https://www.googleapis.com/auth/calendar.events']::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar'), 'update_calendar_event', 'Actualizar evento', 'Actualiza un evento existente en Google Calendar.', 'Update event', 'Updates an existing event in Google Calendar.', 'mdi:calendar-edit', 'write', 'WARNING', ARRAY['https://www.googleapis.com/auth/calendar.events']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -441,11 +475,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar'), 'delete_calendar_event', 'Eliminar evento', 'Elimina un evento de Google Calendar.', 'mdi:calendar-remove', 'delete', 'DANGER', ARRAY['https://www.googleapis.com/auth/calendar.events']::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar'), 'delete_calendar_event', 'Eliminar evento', 'Elimina un evento de Google Calendar.', 'Delete event', 'Deletes an event from Google Calendar.', 'mdi:calendar-remove', 'delete', 'DANGER', ARRAY['https://www.googleapis.com/auth/calendar.events']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -454,11 +490,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar'), 'get_calendar_event_details', 'Obtener detalle de evento', 'Obtiene los detalles completos de un evento.', 'mdi:calendar-text-outline', 'read', 'SAFE', ARRAY['https://www.googleapis.com/auth/calendar.events.readonly']::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar'), 'get_calendar_event_details', 'Obtener detalle de evento', 'Obtiene los detalles completos de un evento.', 'Get event details', 'Gets the full details of an event.', 'mdi:calendar-text-outline', 'read', 'SAFE', ARRAY['https://www.googleapis.com/auth/calendar.events.readonly']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -467,11 +505,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_catalog" ("id", "toolName", "displayName", "description", "provider", "category", "icon", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'google_sheets', 'Google Sheets', 'Gestión y manipulación de hojas de cálculo en Google Sheets.', 'google', 'productivity', 'selfhst:google-sheets', true, false, now(), now())
+INSERT INTO "tool_catalog" ("id", "toolName", "displayName", "description", "displayNameEn", "descriptionEn", "provider", "category", "icon", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'google_sheets', 'Google Sheets', 'Gestión y manipulación de hojas de cálculo en Google Sheets.', 'Google Sheets', 'Management and manipulation of spreadsheets in Google Sheets.', 'google', 'productivity', 'selfhst:google-sheets', true, false, now(), now())
 ON CONFLICT ("toolName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "provider" = EXCLUDED."provider",
   "category" = EXCLUDED."category",
   "icon" = EXCLUDED."icon",
@@ -483,11 +523,13 @@ DELETE FROM "tool_functions"
 WHERE "toolCatalogId" = (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets')
   AND "functionName" NOT IN ('read_sheet', 'append_row', 'update_sheet_range', 'create_spreadsheet', 'add_sheet', 'delete_sheet', 'clear_sheet_range', 'format_cells');
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'read_sheet', 'Leer hoja de cálculo', 'Lee datos de una hoja de cálculo en Google Sheets.', 'mdi:table-search', 'read', 'SAFE', ARRAY['https://www.googleapis.com/auth/spreadsheets.readonly']::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'read_sheet', 'Leer hoja de cálculo', 'Lee datos de una hoja de cálculo en Google Sheets.', 'Read spreadsheet', 'Reads data from a Google Sheets spreadsheet.', 'mdi:table-search', 'read', 'SAFE', ARRAY['https://www.googleapis.com/auth/spreadsheets.readonly']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -496,11 +538,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'append_row', 'Añadir fila', 'Añade una fila al final de una hoja de cálculo.', 'mdi:table-row-plus-after', 'write', 'SAFE', ARRAY['https://www.googleapis.com/auth/spreadsheets']::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'append_row', 'Añadir fila', 'Añade una fila al final de una hoja de cálculo.', 'Append row', 'Appends a row at the end of a spreadsheet.', 'mdi:table-row-plus-after', 'write', 'SAFE', ARRAY['https://www.googleapis.com/auth/spreadsheets']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -509,11 +553,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'update_sheet_range', 'Actualizar rango', 'Actualiza o sobrescribe un rango de celdas.', 'mdi:table-edit', 'write', 'WARNING', ARRAY['https://www.googleapis.com/auth/spreadsheets']::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'update_sheet_range', 'Actualizar rango', 'Actualiza o sobrescribe un rango de celdas.', 'Update range', 'Updates or overwrites a range of cells.', 'mdi:table-edit', 'write', 'WARNING', ARRAY['https://www.googleapis.com/auth/spreadsheets']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -522,11 +568,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'create_spreadsheet', 'Crear spreadsheet', 'Crea un nuevo archivo de hoja de cálculo.', 'mdi:file-table-outline', 'write', 'SAFE', ARRAY['https://www.googleapis.com/auth/spreadsheets']::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'create_spreadsheet', 'Crear spreadsheet', 'Crea un nuevo archivo de hoja de cálculo.', 'Create spreadsheet', 'Creates a new spreadsheet file.', 'mdi:file-table-outline', 'write', 'SAFE', ARRAY['https://www.googleapis.com/auth/spreadsheets']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -535,11 +583,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'add_sheet', 'Añadir pestaña', 'Añade una nueva pestaña dentro del spreadsheet.', 'mdi:tab-plus', 'write', 'SAFE', ARRAY['https://www.googleapis.com/auth/spreadsheets']::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'add_sheet', 'Añadir pestaña', 'Añade una nueva pestaña dentro del spreadsheet.', 'Add tab', 'Adds a new tab inside the spreadsheet.', 'mdi:tab-plus', 'write', 'SAFE', ARRAY['https://www.googleapis.com/auth/spreadsheets']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -548,11 +598,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'delete_sheet', 'Eliminar pestaña', 'Elimina una pestaña completa del spreadsheet.', 'mdi:tab-remove', 'delete', 'DANGER', ARRAY['https://www.googleapis.com/auth/spreadsheets']::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'delete_sheet', 'Eliminar pestaña', 'Elimina una pestaña completa del spreadsheet.', 'Delete tab', 'Deletes an entire tab from the spreadsheet.', 'mdi:tab-remove', 'delete', 'DANGER', ARRAY['https://www.googleapis.com/auth/spreadsheets']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -561,11 +613,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'clear_sheet_range', 'Limpiar rango', 'Limpia el contenido de un rango.', 'mdi:eraser', 'delete', 'DANGER', ARRAY['https://www.googleapis.com/auth/spreadsheets']::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'clear_sheet_range', 'Limpiar rango', 'Limpia el contenido de un rango.', 'Clear range', 'Clears the contents of a range.', 'mdi:eraser', 'delete', 'DANGER', ARRAY['https://www.googleapis.com/auth/spreadsheets']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -574,11 +628,13 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "isInBeta" = false,
   "updatedAt" = now();
 
-INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'format_cells', 'Formatear celdas', 'Aplica formatos (color, estilos, etc) a un rango.', 'mdi:format-paint', 'write', 'SAFE', ARRAY['https://www.googleapis.com/auth/spreadsheets']::text[], true, false, now(), now())
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_sheets'), 'format_cells', 'Formatear celdas', 'Aplica formatos (color, estilos, etc) a un rango.', 'Format cells', 'Applies formatting (color, styles, etc.) to a range.', 'mdi:format-paint', 'write', 'SAFE', ARRAY['https://www.googleapis.com/auth/spreadsheets']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
   "icon" = EXCLUDED."icon",
   "category" = EXCLUDED."category",
   "dangerLevel" = EXCLUDED."dangerLevel",
@@ -589,131 +645,163 @@ ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
 
 -- Templates de notificación
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0001', 1, 'Subscripcion', 'Felicidades, de ahora en adelante cuentas con la subscripcion %s, la cual comienza hoy %s. El proximo pago se realizara automaticamente el %s en caso de que desee continuar con los beneficios del paquete. Estamos muy contentos de tenerte en nuestra aplicacion ya que formas parte fundamental de ella. Gracias por tu confianza.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0001', 1, 'Subscripcion', 'Felicidades, de ahora en adelante cuentas con la subscripcion %s, la cual comienza hoy %s. El proximo pago se realizara automaticamente el %s en caso de que desee continuar con los beneficios del paquete. Estamos muy contentos de tenerte en nuestra aplicacion ya que formas parte fundamental de ella. Gracias por tu confianza.', 'Subscription', 'Congratulations, you now have the %s subscription, which starts today %s. The next payment will be made automatically on %s if you wish to continue enjoying the plan''s benefits. We are very happy to have you in our app, as you are a fundamental part of it. Thank you for your trust.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0010', 1, 'Invitacion De Email.', 'La invitacion para %s fue exitosamente enviada, tan pronto como el email invitado acepte la invitacion, te lo haremos saber a traves de una notificacion.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0010', 1, 'Invitacion De Email.', 'La invitacion para %s fue exitosamente enviada, tan pronto como el email invitado acepte la invitacion, te lo haremos saber a traves de una notificacion.', 'Email Invitation.', 'The invitation for %s was successfully sent. As soon as the invited email accepts the invitation, we will let you know through a notification.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0011', 1, 'Cancelacion De Invitacion.', 'La invitacion para %s ha sido reenviada exitosamente, por favor revisa tu correo electronico.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0011', 1, 'Cancelacion De Invitacion.', 'La invitacion para %s ha sido reenviada exitosamente, por favor revisa tu correo electronico.', 'Invitation Cancelled.', 'The invitation for %s has been successfully resent, please check your email.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0100', 1, 'Cancelacion De Subscripcion.', 'La subscripcion %s ha sido cancelada. Muchas gracias por la preferencia, sigue disfrutando nuestros servicios en el plan free.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0100', 1, 'Cancelacion De Subscripcion.', 'La subscripcion %s ha sido cancelada. Muchas gracias por la preferencia, sigue disfrutando nuestros servicios en el plan free.', 'Subscription Cancelled.', 'The %s subscription has been cancelled. Thank you very much, keep enjoying our services on the free plan.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0101', 1, 'Cambio De Subscripcion.', 'La subscripcion %s ha sido cambiada (aun asi los beneficios de esta no seran cancelados hasta el inicio de la siguiente subscripcion). Muchas gracias por la preferencia, sigue disfrutando nuestros servicios en el plan %s a partir de %s al %s.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0101', 1, 'Cambio De Subscripcion.', 'La subscripcion %s ha sido cambiada (aun asi los beneficios de esta no seran cancelados hasta el inicio de la siguiente subscripcion). Muchas gracias por la preferencia, sigue disfrutando nuestros servicios en el plan %s a partir de %s al %s.', 'Subscription Change.', 'The %s subscription has been changed (its benefits will still not be cancelled until the start of the next subscription). Thank you very much, keep enjoying our services on the %s plan from %s to %s.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0110', 1, 'Aviso De Creditos Bajos.', 'Tu organizacion tiene pocos creditos disponibles. Te quedan %s creditos.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0110', 1, 'Aviso De Creditos Bajos.', 'Tu organizacion tiene pocos creditos disponibles. Te quedan %s creditos.', 'Low Credits Notice.', 'Your organization has few credits available. You have %s credits left.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0111', 1, 'Reenvio De Invitacion.', 'La invitacion para %s ha sido exitosamente reenviada, una vez que sea aceptada recibiras una notificacion.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0111', 1, 'Reenvio De Invitacion.', 'La invitacion para %s ha sido exitosamente reenviada, una vez que sea aceptada recibiras una notificacion.', 'Invitation Resent.', 'The invitation for %s has been successfully resent; once it is accepted you will receive a notification.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0112', 1, 'Sin Creditos Disponibles.', 'Tu organizacion se ha quedado sin creditos disponibles. Adquiere creditos o actualiza tu plan para continuar ejecutando workflows.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0112', 1, 'Sin Creditos Disponibles.', 'Tu organizacion se ha quedado sin creditos disponibles. Adquiere creditos o actualiza tu plan para continuar ejecutando workflows.', 'No Credits Available.', 'Your organization has run out of credits. Buy credits or upgrade your plan to keep running workflows.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0113', 1, 'Limite De Overage Alcanzado.', 'No se puede ejecutar el workflow porque se alcanzo el limite de overage (%s/%s).', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0113', 1, 'Limite De Overage Alcanzado.', 'No se puede ejecutar el workflow porque se alcanzo el limite de overage (%s/%s).', 'Overage Limit Reached.', 'The workflow cannot run because the overage limit was reached (%s/%s).', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0114', 1, 'Intervencion Humana Requerida.', 'La conversacion %s del workflow %s requiere atencion humana. Motivo: %s.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0114', 1, 'Intervencion Humana Requerida.', 'La conversacion %s del workflow %s requiere atencion humana. Motivo: %s.', 'Human Intervention Required.', 'Conversation %s of workflow %s requires human attention. Reason: %s.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0115', 1, 'Conversacion Requiere Seguimiento.', 'La conversacion %s del workflow %s quedo marcada para seguimiento. Motivo: %s.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0115', 1, 'Conversacion Requiere Seguimiento.', 'La conversacion %s del workflow %s quedo marcada para seguimiento. Motivo: %s.', 'Conversation Needs Follow-up.', 'Conversation %s of workflow %s was flagged for follow-up. Reason: %s.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0116', 1, 'Integracion Sin Acceso.', 'La integracion %s (%s) perdio el acceso y tu agente ya no puede usarla. Alguien revoco el permiso o cambio la contrasena de la cuenta. La conecto %s; para restablecerla hay que volver a conectarla desde Integraciones.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0116', 1, 'Integracion Sin Acceso.', 'La integracion %s (%s) perdio el acceso y tu agente ya no puede usarla. Alguien revoco el permiso o cambio la contrasena de la cuenta. La conecto %s; para restablecerla hay que volver a conectarla desde Integraciones.', 'Integration Lost Access.', 'The integration %s (%s) lost access and your agent can no longer use it. Someone revoked the permission or changed the account password. It was connected by %s; to restore it you need to reconnect it from Integrations.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0117', 1, 'Pago Fallido.', 'No pudimos cobrar tu suscripcion. Tienes %s dias para actualizar tu metodo de pago antes de que se suspenda la ejecucion de tus workflows.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0117', 1, 'Pago Fallido.', 'No pudimos cobrar tu suscripcion. Tienes %s dias para actualizar tu metodo de pago antes de que se suspenda la ejecucion de tus workflows.', 'Payment Failed.', 'We could not charge your subscription. You have %s days to update your payment method before your workflows stop running.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0118', 1, 'Servicio Suspendido Por Falta De Pago.', 'Tu suscripcion sigue sin pagarse y ya no puedes ejecutar workflows. Tu saldo de creditos no se perdio: se reactivara en cuanto actualices tu metodo de pago.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0118', 1, 'Servicio Suspendido Por Falta De Pago.', 'Tu suscripcion sigue sin pagarse y ya no puedes ejecutar workflows. Tu saldo de creditos no se perdio: se reactivara en cuanto actualices tu metodo de pago.', 'Service Suspended For Non-Payment.', 'Your subscription is still unpaid and you can no longer run workflows. Your credit balance was not lost: it will be reactivated as soon as you update your payment method.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-0119', 1, 'Recarga De Creditos.', 'Se agregaron %s creditos a tu organizacion tras tu compra.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-0119', 1, 'Recarga De Creditos.', 'Se agregaron %s creditos a tu organizacion tras tu compra.', 'Credit Top-up.', '%s credits were added to your organization after your purchase.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 
-INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", "isActive", "createdAt")
-VALUES (gen_random_uuid(), '0000-1000', 1, 'Aceptacion De Invitacion.', 'La invitacion para %s ha sido exitosamente procesada y aceptada por lo que ahora es parte de tu organizacion. Puedes gestionar su informacion desde el panel de administracion.', '["OWNER","ADMIN"]'::jsonb, true, now())
+INSERT INTO "notifications" ("id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", "messageTemplateEn", "targetRoles", "isActive", "createdAt")
+VALUES (gen_random_uuid(), '0000-1000', 1, 'Aceptacion De Invitacion.', 'La invitacion para %s ha sido exitosamente procesada y aceptada por lo que ahora es parte de tu organizacion. Puedes gestionar su informacion desde el panel de administracion.', 'Invitation Accepted.', 'The invitation for %s has been successfully processed and accepted, so they are now part of your organization. You can manage their information from the admin panel.', '["OWNER","ADMIN"]'::jsonb, true, now())
 ON CONFLICT ("code", "version") DO UPDATE SET
   "titleTemplate" = EXCLUDED."titleTemplate",
   "messageTemplate" = EXCLUDED."messageTemplate",
+  "titleTemplateEn" = EXCLUDED."titleTemplateEn",
+  "messageTemplateEn" = EXCLUDED."messageTemplateEn",
   "targetRoles" = EXCLUDED."targetRoles",
   "isActive" = EXCLUDED."isActive";
 

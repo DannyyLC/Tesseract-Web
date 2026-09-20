@@ -8,6 +8,10 @@ import {
   setAtPath,
 } from './config-edit';
 
+/** Traductor de prueba: mete los valores interpolados en el string, sin depender del copy real. */
+const testT = (_key: string, params: Record<string, unknown> = {}) =>
+  Object.values(params).join(' ');
+
 /** Config de forma realista: incluye claves que ningún formulario del editor toca. */
 const baseConfig = () => ({
   type: 'agent',
@@ -104,7 +108,7 @@ describe('diffLocal / isEqualConfig', () => {
 
 describe('lintConfig — referencias sin integridad referencial', () => {
   it('acepta un config coherente', () => {
-    const issues = lintConfig(baseConfig(), ['uuid-tool-1']);
+    const issues = lintConfig(baseConfig(), ['uuid-tool-1'], testT);
     expect(issues.filter((i) => i.severity === 'error')).toHaveLength(0);
   });
 
@@ -114,7 +118,7 @@ describe('lintConfig — referencias sin integridad referencial', () => {
     const config = baseConfig();
     config.agents = { ventas: config.agents.general } as any;
 
-    const errors = lintConfig(config, ['uuid-tool-1']).filter((i) => i.severity === 'error');
+    const errors = lintConfig(config, ['uuid-tool-1'], testT).filter((i) => i.severity === 'error');
     expect(errors.some((e) => e.message.includes('general'))).toBe(true);
   });
 
@@ -122,17 +126,17 @@ describe('lintConfig — referencias sin integridad referencial', () => {
     const config = baseConfig();
     (config.graph.nodes[0] as any).config.routes.general = 'nodo_fantasma';
 
-    const errors = lintConfig(config, ['uuid-tool-1']).filter((i) => i.severity === 'error');
+    const errors = lintConfig(config, ['uuid-tool-1'], testT).filter((i) => i.severity === 'error');
     expect(errors.some((e) => e.message.includes('nodo_fantasma'))).toBe(true);
   });
 
   it('detecta una tool instance que no pertenece a la organización', () => {
-    const errors = lintConfig(baseConfig(), ['otro-uuid']).filter((i) => i.severity === 'error');
+    const errors = lintConfig(baseConfig(), ['otro-uuid'], testT).filter((i) => i.severity === 'error');
     expect(errors.some((e) => e.message.includes('uuid-tool-1'))).toBe(true);
   });
 
   it('no inventa errores de tools cuando no se le pasa la lista', () => {
-    const errors = lintConfig(baseConfig(), []).filter((i) => i.severity === 'error');
+    const errors = lintConfig(baseConfig(), [], testT).filter((i) => i.severity === 'error');
     expect(errors).toHaveLength(0);
   });
 
@@ -140,7 +144,7 @@ describe('lintConfig — referencias sin integridad referencial', () => {
     const config = baseConfig();
     config.graph.nodes.push({ id: 'suelto', type: 'set_variables', config: {} } as any);
 
-    const issues = lintConfig(config, ['uuid-tool-1']);
+    const issues = lintConfig(config, ['uuid-tool-1'], testT);
     const orphan = issues.find((i) => i.message.includes('suelto'));
     expect(orphan?.severity).toBe('warning');
   });

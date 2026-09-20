@@ -7,6 +7,8 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { Locale } from '@/platform/common/decorators/locale.decorator';
+import { SupportedLocale } from '@/platform/common/types/locale.type';
 import {
   ApiResponse,
   ApiResponseBuilder,
@@ -35,6 +37,7 @@ export class ToolsCatalogController {
     @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('search') search: string | null = null,
+    @Locale() locale: SupportedLocale,
   ): Promise<Response<ApiResponse<PaginatedResponse<GetToolsDto>>>> {
     const apiResponse = new ApiResponseBuilder<PaginatedResponse<GetToolsDto>>();
 
@@ -43,6 +46,7 @@ export class ToolsCatalogController {
       pageSize,
       action,
       search ? { search } : undefined,
+      locale,
     );
 
     if (result.items.length === 0) {

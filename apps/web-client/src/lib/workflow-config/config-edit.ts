@@ -159,9 +159,13 @@ export interface LintIssue {
  * Todo se resuelve contra índices (Set/Map) y en un solo recorrido, así que el costo
  * no se dispara si un workflow crece a cientos de nodos.
  */
+type LintTranslator = (key: string, params?: Record<string, string | number>) => string;
+
+/** `t` es `useTranslations('Admin.LintConfig')` del caller — esta función no es un componente. */
 export function lintConfig(
   config: WorkflowConfig,
   knownToolInstanceIds: string[] = [],
+  t: LintTranslator,
 ): LintIssue[] {
   const issues: LintIssue[] = [];
   if (!config || typeof config !== 'object') return issues;
@@ -176,19 +180,19 @@ export function lintConfig(
     if (typeof target !== 'string' || !target) return;
     if (target === 'END' || target === 'START') return;
     if (!nodeIds.has(target)) {
-      issues.push({ severity: 'error', message: `El nodo "${target}" no existe`, location });
+      issues.push({ severity: 'error', message: t('nodeMissing', { target }), location });
     }
   };
 
   for (const node of nodes) {
-    const at = `nodo "${node?.id ?? '?'}"`;
+    const at = t('nodeLocation', { id: node?.id ?? '?' });
 
     // Los nodos agent y synthesizer llevan `agent` en el nivel superior, no en config.
     if ((node?.type === 'agent' || node?.type === 'synthesizer') && node?.agent) {
       if (!agentKeys.has(node.agent)) {
         issues.push({
           severity: 'error',
-          message: `Referencia al agente "${node.agent}", que no existe en agents`,
+          message: t('agentMissing', { agent: node.agent }),
           location: at,
         });
       }
@@ -208,7 +212,7 @@ export function lintConfig(
       if (!toolIds.has(cfg.tool_instance)) {
         issues.push({
           severity: 'error',
-          message: `La tool instance ${cfg.tool_instance} no pertenece a esta organización`,
+          message: t('toolNotOwned', { id: cfg.tool_instance }),
           location: at,
         });
       }
@@ -221,8 +225,8 @@ export function lintConfig(
       if (id && toolIds.size > 0 && !toolIds.has(id)) {
         issues.push({
           severity: 'error',
-          message: `La tool instance ${id} no pertenece a esta organización`,
-          location: `agente "${agentKey}"`,
+          message: t('toolNotOwned', { id }),
+          location: t('agentLocation', { key: agentKey }),
         });
       }
     }
@@ -251,8 +255,8 @@ export function lintConfig(
     if (node?.id && !entryNodes.has(node.id) && !reachable.has(node.id)) {
       issues.push({
         severity: 'warning',
-        message: `El nodo "${node.id}" no es destino de ninguna arista ni condición`,
-        location: `nodo "${node.id}"`,
+        message: t('nodeUnreachable', { id: node.id }),
+        location: t('nodeLocation', { id: node.id }),
       });
     }
   }
@@ -262,8 +266,8 @@ export function lintConfig(
     if (!agentsUsed.has(key)) {
       issues.push({
         severity: 'warning',
-        message: `El agente "${key}" no lo usa ningún nodo`,
-        location: `agente "${key}"`,
+        message: t('agentUnused', { key }),
+        location: t('agentLocation', { key }),
       });
     }
   }

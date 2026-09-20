@@ -35,51 +35,55 @@ export function NodeIcon({ type, size = 14 }: { type: string; size?: number }) {
  * Ojo: los nodos `agent` y `synthesizer` guardan sus propiedades en el nivel superior
  * del nodo; el resto las guarda en `node.config`.
  */
-export function summarizeNode(node: any, toolNames?: Map<string, string>): string {
+type Translator = (key: string, params?: Record<string, string | number | Date>) => string;
+
+/** `t` es `useTranslations('Admin.NodeSummary')` del caller — esta función no es un componente. */
+export function summarizeNode(t: Translator, node: any, toolNames?: Map<string, string>): string {
   if (!node) return '';
   const cfg = node.config ?? {};
 
   switch (node.type) {
     case 'agent': {
-      const parts = [`agente: ${node.agent ?? '—'}`];
-      if (node.max_iterations > 0) parts.push(`${node.max_iterations} iteraciones`);
-      if (node.silent) parts.push('silencioso');
-      if (node.output_variable) parts.push(`→ ${node.output_variable}`);
+      const parts = [t('agentLabel', { agent: node.agent ?? '—' })];
+      if (node.max_iterations > 0) parts.push(t('iterationsCount', { count: node.max_iterations }));
+      if (node.silent) parts.push(t('silent'));
+      if (node.output_variable) parts.push(t('outputArrow', { variable: node.output_variable }));
       return parts.join(' · ');
     }
 
     case 'synthesizer':
-      return `agente: ${node.agent ?? 'synthesizer'}`;
+      return t('agentLabel', { agent: node.agent ?? 'synthesizer' });
 
     case 'tool': {
       const name = toolNames?.get(cfg.tool_instance) ?? cfg.tool_instance?.slice(0, 8) ?? '—';
-      return `${cfg.function ?? '—'} · ${name}`;
+      return t('toolSummary', { function: cfg.function ?? '—', name });
     }
 
     case 'set_variables': {
       const keys = Object.keys(cfg.variables ?? {});
       const parts = [];
-      if (keys.length) parts.push(`${keys.length} variable(s): ${keys.slice(0, 3).join(', ')}`);
-      if (cfg.append_system_message) parts.push('+ mensaje de sistema');
-      return parts.join(' · ') || 'sin cambios';
+      if (keys.length)
+        parts.push(t('variablesCount', { count: keys.length, names: keys.slice(0, 3).join(', ') }));
+      if (cfg.append_system_message) parts.push(t('appendSystemMessage'));
+      return parts.join(' · ') || t('noChanges');
     }
 
     case 'condition': {
       if (cfg.mode === 'router') {
         const routes = Object.keys(cfg.routes ?? {}).length;
-        return `router · ${routes} ruta(s) · fallback: ${cfg.fallback ?? '—'}`;
+        return t('routerSummary', { count: routes, fallback: cfg.fallback ?? '—' });
       }
       if (cfg.mode === 'rules') {
-        return `reglas · ${(cfg.rules ?? []).length} regla(s) · default: ${cfg.default ?? '—'}`;
+        return t('rulesSummary', { count: (cfg.rules ?? []).length, default: cfg.default ?? '—' });
       }
       const branches = Object.keys(cfg.branches ?? {}).length;
-      return `switch sobre ${cfg.source ?? '—'} · ${branches} rama(s)`;
+      return t('switchSummary', { source: cfg.source ?? '—', count: branches });
     }
 
     default: {
       // Tipo desconocido: mostrar sus claves es más útil que no mostrar nada.
       const keys = Object.keys(cfg);
-      return keys.length ? `config: ${keys.slice(0, 4).join(', ')}` : 'sin config';
+      return keys.length ? t('configKeys', { keys: keys.slice(0, 4).join(', ') }) : t('noConfig');
     }
   }
 }

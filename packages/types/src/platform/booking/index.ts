@@ -42,4 +42,17 @@ export interface BookingConfirmation {
 export interface BookingCalendarStatus {
   connected: boolean;
   googleAccountEmail: string | null;
+  /** Calendario activo donde se crean los eventos ("primary" u otro de la cuenta conectada). */
+  calendarId: string | null;
+}
+
+export interface BookingCalendarListItem {
+  /** Id que espera `calendarId` al crear/consultar eventos (p.ej. "primary" o un email de grupo). */
+  id: string;
+  summary: string;
+  primary: boolean;
+}
+
+export interface SelectBookingCalendarDto {
+  calendarId: string;
 }

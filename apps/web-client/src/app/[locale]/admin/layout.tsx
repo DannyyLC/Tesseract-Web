@@ -3,31 +3,34 @@
 import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { useAuth, useLogout } from '@/hooks/identity/use-auth';
 import { LogoLoader } from '@/components/ui/logo-loader';
-import { Blocks, Building2, Calendar, Cpu, LayoutDashboard, MessageSquareText, Settings, LogOut, Menu, PanelLeftClose, PanelLeftOpen, User as UserIcon, Workflow } from 'lucide-react';
-
-const ADMIN_NAV = [
-  { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-  { label: 'Organizaciones', href: '/admin/organizaciones', icon: Building2 },
-  { label: 'Workflows', href: '/admin/workflows', icon: Workflow },
-  { label: 'Integraciones', href: '/admin/integraciones', icon: Blocks },
-  { label: 'Templates WhatsApp', href: '/admin/wb-templates', icon: MessageSquareText },
-  { label: 'Modelos LLM', href: '/admin/llm-models', icon: Cpu },
-  { label: 'Calendario', href: '/admin/calendario', icon: Calendar },
-  { label: 'Configuración', href: '/admin/configuracion', icon: Settings },
-];
+import { LocaleSwitcher } from '@/components/locale';
+import { Blocks, Building2, Cpu, LayoutDashboard, Calendar, Megaphone, MessageSquareText, Settings, LogOut, Menu, PanelLeftClose, PanelLeftOpen, User as UserIcon, Workflow } from 'lucide-react';
 
 /**
  * Área de super admin: layout propio y mínimo, separado del panel de inquilino.
  */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const t = useTranslations('Admin.Layout');
+  const ADMIN_NAV = [
+    { label: t('nav.dashboard'), href: '/admin/dashboard', icon: LayoutDashboard },
+    { label: t('nav.organizations'), href: '/admin/organizaciones', icon: Building2 },
+    { label: t('nav.workflows'), href: '/admin/workflows', icon: Workflow },
+    { label: t('nav.announcements'), href: '/admin/anuncios', icon: Megaphone },
+    { label: t('nav.integrations'), href: '/admin/integraciones', icon: Blocks },
+    { label: t('nav.whatsappTemplates'), href: '/admin/wb-templates', icon: MessageSquareText },
+    { label: t('nav.llmModels'), href: '/admin/llm-models', icon: Cpu },
+    { label: t('nav.calendar'), href: '/admin/calendario', icon: Calendar },
+    { label: t('nav.settings'), href: '/admin/configuracion', icon: Settings },
+  ];
   const { data: user, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const logout = useLogout();
-  
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -63,7 +66,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (isLoading || !isSuperAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-dashboard-background">
-        <LogoLoader text="Verificando acceso" />
+        <LogoLoader text={t('checkingAccess')} />
       </div>
     );
   }
@@ -80,11 +83,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }
           }}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
-          title={isCollapsed ? 'Expandir menú' : 'Colapsar menú'}
+          title={isCollapsed ? t('expandMenu') : t('collapseMenu')}
         >
           {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
         </button>
-        
+
         {!isCollapsed && (
           <div className="ml-2 flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
             <div className="relative h-6 w-6 shrink-0">
@@ -97,7 +100,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               />
             </div>
             <span className="truncate text-sm font-semibold text-text-primary">
-              Tesseract Admin
+              {t('brandName')}
             </span>
           </div>
         )}
@@ -138,12 +141,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 isCollapsed ? 'left-3 right-3' : 'left-3 right-3'
               }`}
             >
+              {!isCollapsed && (
+                <div className="flex items-center justify-between gap-2 px-4 py-2">
+                  <LocaleSwitcher />
+                </div>
+              )}
               <button
                 onClick={() => logout.mutate()}
                 className="flex w-full items-center gap-3 px-4 py-2 text-sm text-danger-600 transition-colors hover:bg-surface-secondary"
               >
                 <LogOut size={16} />
-                {!isCollapsed && <span>Cerrar sesión</span>}
+                {!isCollapsed && <span>{t('logout')}</span>}
               </button>
             </motion.div>
           )}
@@ -161,10 +169,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {!isCollapsed && (
             <div className="flex min-w-0 flex-1 flex-col text-left">
               <span className="truncate text-sm font-medium text-text-primary">
-                {user?.name || 'Usuario'}
+                {user?.name || t('userFallback')}
               </span>
               <span className="truncate text-xs text-text-secondary">
-                {user?.email || 'admin@tesseract.com'}
+                {user?.email || ''}
               </span>
             </div>
           )}
@@ -190,13 +198,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Top bar con hamburguesa (solo móvil) */}
       <header className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-surface px-4 lg:hidden">
         <button
-          aria-label="Abrir menú"
+          aria-label={t('openMenu')}
           onClick={() => setMobileOpen(true)}
           className="rounded-lg p-2 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
         >
           <Menu size={20} />
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-1 items-center gap-2">
           <div className="relative h-6 w-6 shrink-0">
             <Image
               src="/favicon.svg"
@@ -206,8 +214,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               className="object-contain [filter:var(--logo-filter)]"
             />
           </div>
-          <span className="text-sm font-semibold text-text-primary">Tesseract Admin</span>
+          <span className="text-sm font-semibold text-text-primary">{t('brandName')}</span>
         </div>
+        <LocaleSwitcher />
       </header>
 
       {/* Drawer móvil */}

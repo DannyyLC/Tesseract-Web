@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { Maximize2, Minimize2 } from 'lucide-react';
+import { toIntlLocale } from '@/lib/intl-locale';
 
 interface Props {
   value: string;
@@ -25,6 +27,8 @@ export function PromptEditor({
   placeholder,
   minRows = 12,
 }: Props) {
+  const t = useTranslations('Admin.PromptEditor');
+  const intlLocale = toIntlLocale(useLocale());
   const ref = useRef<HTMLTextAreaElement>(null);
   const [expanded, setExpanded] = useState(false);
 
@@ -45,13 +49,13 @@ export function PromptEditor({
         <label className="text-xs font-medium text-text-secondary">{label}</label>
         <div className="flex items-center gap-3">
           <span className="text-[11px] tabular-nums text-text-secondary">
-            {chars.toLocaleString('es')} caracteres · {lines} líneas
+            {t('charsAndLines', { chars: chars.toLocaleString(intlLocale), lines })}
           </span>
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
             className="rounded p-1 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
-            title={expanded ? 'Salir de pantalla completa' : 'Pantalla completa'}
+            title={expanded ? t('exitFullscreen') : t('fullscreen')}
           >
             {expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           </button>

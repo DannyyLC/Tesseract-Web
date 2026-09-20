@@ -180,7 +180,7 @@ export class BillingController {
    */
   @Post('credits/checkout')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @Roles(UserRole.OWNER)
   async createCreditCheckoutSession(
     @Req() req: Request & { user: UserPayload },
     @Body() body: CreateCreditCheckoutDto,

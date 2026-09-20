@@ -5,4 +5,6 @@ export interface NotificationEventDto {
   title: string;
   desc: string;
   createdAt?: Date;
+  isAnnouncement?: boolean;
+  announcementTemplate?: 'NEWS' | 'CELEBRATION';
 }

@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { Loader2, Plus, Radio } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { Link } from '@/i18n/routing';
 import { useAdminWhatsappMutations, useAdminWhatsappNumbers } from '@/hooks/messaging/use-admin-whatsapp-config';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 
 interface Props {
@@ -26,6 +28,8 @@ const WHATSAPP_PHONE_REGEX = /^\+\d{8,15}$/;
  * nuevo solo para esto: una organización real tiene un puñado de números, no miles.
  */
 export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
+  const t = useTranslations('Admin.WorkflowChannelsSection');
+  const getApiErrorMessage = useApiErrorMessage();
   const { data: configs, isLoading } = useAdminWhatsappNumbers(organizationId);
   const { createConfig } = useAdminWhatsappMutations(organizationId);
 
@@ -58,10 +62,10 @@ export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
       },
       {
         onSuccess: () => {
-          toast.success('Número creado');
+          toast.success(t('createdSuccess'));
           closeCreate();
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo crear el número'),
+        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -70,13 +74,11 @@ export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
     <div className="rounded-lg border border-border p-3">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-medium text-text-primary">Canales de WhatsApp</p>
-          <p className="text-xs text-text-secondary">
-            Números que rutean sus mensajes entrantes a este workflow.
-          </p>
+          <p className="text-sm font-medium text-text-primary">{t('title')}</p>
+          <p className="text-xs text-text-secondary">{t('subtitle')}</p>
         </div>
         <button className={btnGhost} onClick={() => setIsCreateOpen(true)}>
-          <Plus size={14} /> Agregar número
+          <Plus size={14} /> {t('addNumber')}
         </button>
       </div>
 
@@ -85,7 +87,7 @@ export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
           <Loader2 size={16} className="animate-spin text-text-tertiary" />
         </div>
       ) : channels.length === 0 ? (
-        <p className="mt-2 text-xs text-text-secondary">Ningún número rutea a este workflow todavía.</p>
+        <p className="mt-2 text-xs text-text-secondary">{t('empty')}</p>
       ) : (
         <ul className="mt-2 space-y-1.5">
           {channels.map((c) => (
@@ -95,7 +97,9 @@ export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
               {c.displayName && (
                 <span className="shrink-0 text-xs text-text-secondary">{c.phoneNumber}</span>
               )}
-              {!c.isActive && <span className="shrink-0 text-xs text-danger">desactivado</span>}
+              {!c.isActive && (
+                <span className="shrink-0 text-xs text-danger">{t('inactiveBadge')}</span>
+              )}
             </li>
           ))}
         </ul>
@@ -105,13 +109,13 @@ export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
         href={`/admin/organizaciones/${organizationId}?tab=channels`}
         className="mt-3 inline-block text-xs text-accent hover:underline"
       >
-        Administrar todos los canales de la organización →
+        {t('manageAllLink')}
       </Link>
 
-      <Modal isOpen={isCreateOpen} onClose={closeCreate} title="Agregar número de WhatsApp">
+      <Modal isOpen={isCreateOpen} onClose={closeCreate} title={t('modalTitle')}>
         <div className="space-y-4">
           <div>
-            <label className={labelClass}>Número de teléfono</label>
+            <label className={labelClass}>{t('phoneNumberLabel')}</label>
             <input
               className={inputClass}
               value={phoneNumber}
@@ -123,25 +127,23 @@ export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
               maxLength={16}
             />
             {phoneNumber.length > 11 && !isPhoneValid && (
-              <p className="mt-1 text-xs text-danger">Formato inválido. Ejemplo: +52234567890</p>
+              <p className="mt-1 text-xs text-danger">{t('phoneInvalid')}</p>
             )}
-            <p className="mt-1 text-xs text-text-tertiary">
-              Queda ligado a este workflow. Se puede reasignar después desde Canales.
-            </p>
+            <p className="mt-1 text-xs text-text-tertiary">{t('linkedHint')}</p>
           </div>
 
           <div>
-            <label className={labelClass}>Nombre para mostrar (opcional)</label>
+            <label className={labelClass}>{t('displayNameLabel')}</label>
             <input
               className={inputClass}
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Ej. WhatsApp Ventas"
+              placeholder={t('displayNamePlaceholder')}
             />
           </div>
 
           <div>
-            <label className={labelClass}>Descripción (opcional)</label>
+            <label className={labelClass}>{t('descriptionLabel')}</label>
             <input
               className={inputClass}
               value={description}
@@ -151,7 +153,7 @@ export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
 
           <div className="flex justify-end gap-2">
             <button className={btnGhost} onClick={closeCreate}>
-              Cancelar
+              {t('cancel')}
             </button>
             <button
               className={btnPrimary}
@@ -159,7 +161,7 @@ export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
               disabled={!isPhoneValid || createConfig.isPending}
             >
               {createConfig.isPending && <Loader2 size={14} className="animate-spin" />}
-              Crear
+              {t('create')}
             </button>
           </div>
         </div>

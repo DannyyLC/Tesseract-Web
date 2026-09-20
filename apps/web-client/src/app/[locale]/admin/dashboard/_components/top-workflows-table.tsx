@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import { ListOrdered } from 'lucide-react';
 import type { AdminAnalyticsTopWorkflow } from '@/lib/api/endpoints/billing/analytics-admin-api';
 import { formatUSD } from './format';
@@ -9,15 +10,16 @@ interface Props {
 }
 
 export function TopWorkflowsTable({ items, metric, onMetricChange }: Props) {
+  const t = useTranslations('Admin.Dashboard.TopWorkflows');
   return (
     <section className="rounded-xl border border-border bg-surface">
       <div className="flex items-center justify-between gap-3 border-b border-border p-4">
-        <h3 className="text-sm font-semibold text-text-primary">Top workflows</h3>
+        <h3 className="text-sm font-semibold text-text-primary">{t('title')}</h3>
         <div className="flex items-center gap-1 rounded-lg bg-surface-secondary p-1">
           {(
             [
-              { value: 'cost', label: 'Por costo' },
-              { value: 'executions', label: 'Por ejecuciones' },
+              { value: 'cost', label: t('byCost') },
+              { value: 'executions', label: t('byExecutions') },
             ] as const
           ).map((option) => (
             <button
@@ -38,7 +40,7 @@ export function TopWorkflowsTable({ items, metric, onMetricChange }: Props) {
       {items.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-10 text-center text-text-tertiary">
           <ListOrdered size={24} className="opacity-40" />
-          <p className="mt-3 text-sm">Sin workflows con ejecuciones en el rango.</p>
+          <p className="mt-3 text-sm">{t('empty')}</p>
         </div>
       ) : (
         <ul className="divide-y divide-border">
@@ -52,7 +54,9 @@ export function TopWorkflowsTable({ items, metric, onMetricChange }: Props) {
               </div>
               <div className="shrink-0 text-right">
                 <p className="text-sm font-medium text-text-primary">{formatUSD(item.costUSD)}</p>
-                <p className="text-xs text-text-secondary">{item.executions} ejecuciones</p>
+                <p className="text-xs text-text-secondary">
+                  {t('executionsCount', { count: item.executions })}
+                </p>
               </div>
             </li>
           ))}

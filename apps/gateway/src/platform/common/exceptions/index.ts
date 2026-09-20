@@ -10,6 +10,11 @@ export * from './base/error-codes.enum';
 export * from './filters/global-exception.filter';
 
 // ============================================
+// EXPORTS: Validation
+// ============================================
+export * from './validation-exception-factory';
+
+// ============================================
 // EXPORTS: Business Exceptions
 // ============================================
 export * from './business/auth.exceptions';

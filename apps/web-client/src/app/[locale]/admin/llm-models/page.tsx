@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { ADMIN_PAGE_SIZE } from '@tesseract/types';
 import { toast } from 'sonner';
 import { Plus, Pencil, DollarSign, Power, Search, AlertTriangle } from 'lucide-react';
@@ -10,6 +11,7 @@ import { LogoLoader } from '@/components/ui/logo-loader';
 import { PagePager } from '@/components/ui/page-pager';
 import { useLlmModels, useLlmModelMutations } from '@/hooks/automation/use-llm-models';
 import { useInfiniteLlmCategories } from '@/hooks/automation/use-llm-categories';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { useDebounce } from '@/hooks/use-debounce';
 import { InfiniteSelect } from '@/components/ui/infinite-select';
 import type {
@@ -33,6 +35,8 @@ function fmtPrice(v: string) {
 }
 
 export default function LlmModelsAdminPage() {
+  const tt = useTranslations('Admin.LlmModels');
+  const getApiErrorMessage = useApiErrorMessage();
   const [searchFilter, setSearchFilter] = useState('');
   const debouncedSearch = useDebounce(searchFilter, 400);
 
@@ -66,7 +70,7 @@ export default function LlmModelsAdminPage() {
   
   const categories = categoriesPages?.pages.flatMap((p) => p.data) ?? [];
   const categoryOptions = [
-    { label: 'Todas las categorías', value: '' },
+    { label: tt('allCategories'), value: '' },
     ...categories.map((c) => ({ label: c.name, value: c.id })),
   ];
 
@@ -84,13 +88,11 @@ export default function LlmModelsAdminPage() {
     <div className="w-full">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary">Modelos LLM</h1>
-          <p className="text-sm text-text-secondary">
-            Administra los modelos disponibles y sus precios.
-          </p>
+          <h1 className="text-2xl font-semibold text-text-primary">{tt('title')}</h1>
+          <p className="text-sm text-text-secondary">{tt('subtitle')}</p>
         </div>
         <button className={btnPrimary} onClick={() => setCreateOpen(true)}>
-          <Plus size={16} /> Nuevo modelo
+          <Plus size={16} /> {tt('newModel')}
         </button>
       </div>
 
@@ -103,7 +105,7 @@ export default function LlmModelsAdminPage() {
           />
           <input
             className={`${inputClass} pl-9 w-full`}
-            placeholder="Buscar por proveedor o modelo..."
+            placeholder={tt('searchPlaceholder')}
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
           />
@@ -113,7 +115,7 @@ export default function LlmModelsAdminPage() {
           value={tierFilter}
           onChange={(e) => setTierFilter(e.target.value as ModelTier | '')}
         >
-          <option value="">Todos los tiers</option>
+          <option value="">{tt('allTiers')}</option>
           {TIERS.map((t) => (
             <option key={t} value={t}>
               {t}
@@ -125,7 +127,7 @@ export default function LlmModelsAdminPage() {
           value={categoryFilter}
           onChange={setCategoryFilter}
           options={categoryOptions}
-          placeholder="Todas las categorías"
+          placeholder={tt('allCategories')}
           isLoading={isCategoriesLoading}
           fetchNextPage={fetchNextCategoryPage}
           hasNextPage={hasNextCategoryPage}
@@ -136,9 +138,9 @@ export default function LlmModelsAdminPage() {
           value={activeFilter}
           onChange={(e) => setActiveFilter(e.target.value as typeof activeFilter)}
         >
-          <option value="active">Activos</option>
-          <option value="inactive">Inactivos</option>
-          <option value="all">Todos</option>
+          <option value="active">{tt('statusActive')}</option>
+          <option value="inactive">{tt('statusInactive')}</option>
+          <option value="all">{tt('statusAll')}</option>
         </select>
       </div>
 
@@ -146,27 +148,25 @@ export default function LlmModelsAdminPage() {
       <div className="overflow-x-auto rounded-xl border border-border bg-surface">
         {isLoading ? (
           <div className="flex justify-center py-16">
-            <LogoLoader text="Cargando modelos" />
+            <LogoLoader text={tt('loading')} />
           </div>
         ) : isError ? (
-          <p className="py-16 text-center text-sm text-text-secondary">
-            No se pudieron cargar los modelos.
-          </p>
+          <p className="py-16 text-center text-sm text-text-secondary">{tt('loadError')}</p>
         ) : models.length === 0 ? (
-          <p className="py-16 text-center text-sm text-text-secondary">Sin modelos.</p>
+          <p className="py-16 text-center text-sm text-text-secondary">{tt('empty')}</p>
         ) : (
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="border-b border-border text-xs uppercase text-text-secondary">
               <tr>
-                <th className="px-4 py-3">Provider</th>
-                <th className="px-4 py-3">Modelo</th>
-                <th className="px-4 py-3">Tier</th>
-                <th className="px-4 py-3">Categoría</th>
-                <th className="px-4 py-3">Input /1M</th>
-                <th className="px-4 py-3">Output /1M</th>
-                <th className="px-4 py-3">Contexto</th>
-                <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3 text-right">Acciones</th>
+                <th className="px-4 py-3">{tt('colProvider')}</th>
+                <th className="px-4 py-3">{tt('colModel')}</th>
+                <th className="px-4 py-3">{tt('colTier')}</th>
+                <th className="px-4 py-3">{tt('colCategory')}</th>
+                <th className="px-4 py-3">{tt('colInput')}</th>
+                <th className="px-4 py-3">{tt('colOutput')}</th>
+                <th className="px-4 py-3">{tt('colContext')}</th>
+                <th className="px-4 py-3">{tt('colStatus')}</th>
+                <th className="px-4 py-3 text-right">{tt('colActions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -190,27 +190,27 @@ export default function LlmModelsAdminPage() {
                           : 'bg-gray-500/10 text-text-secondary'
                         }`}
                     >
-                      {m.isActive ? 'Activo' : 'Inactivo'}
+                      {m.isActive ? tt('active') : tt('inactive')}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button
-                        title="Editar"
+                        title={tt('editTitle')}
                         className="rounded-lg p-2 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
                         onClick={() => setEditModel(m)}
                       >
                         <Pencil size={16} />
                       </button>
                       <button
-                        title="Cambiar precio"
+                        title={tt('changePriceTitle')}
                         className="rounded-lg p-2 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
                         onClick={() => setPriceModel(m)}
                       >
                         <DollarSign size={16} />
                       </button>
                       <button
-                        title="Desactivar"
+                        title={tt('deactivateTitle')}
                         disabled={!m.isActive || deactivateModel.isPending}
                         className="rounded-lg p-2 text-text-secondary hover:bg-red-500/10 hover:text-red-600 disabled:opacity-40"
                         onClick={() => setDeactivateModelConfirm(m)}
@@ -231,7 +231,7 @@ export default function LlmModelsAdminPage() {
             page={page}
             totalPages={meta.totalPages}
             onPageChange={setPage}
-            summary={`Página ${page} de ${meta.totalPages}`}
+            summary={tt('pagerSummary', { page, totalPages: meta.totalPages })}
             className="border-t border-border p-4"
           />
         )}
@@ -240,7 +240,7 @@ export default function LlmModelsAdminPage() {
       {/* Modal: crear */}
       <AnimatePresence>
         {createOpen && (
-          <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title="Nuevo modelo LLM">
+          <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title={tt('newModelModalTitle')}>
             <CreateForm
               categories={categories}
               isCategoriesLoading={isCategoriesLoading}
@@ -252,11 +252,11 @@ export default function LlmModelsAdminPage() {
               onSubmit={(input) =>
                 createModel.mutate(input, {
                   onSuccess: () => {
-                    toast.success('Modelo creado');
+                    toast.success(tt('modelCreated'));
                     setCreateOpen(false);
                   },
                   onError: (e: any) =>
-                    !e?.toastHandled && toast.error(e?.message || 'No se pudo crear'),
+                    !e?.toastHandled && toast.error(getApiErrorMessage(e)),
                 })
               }
             />
@@ -270,7 +270,7 @@ export default function LlmModelsAdminPage() {
           <Modal
             isOpen={!!editModel}
             onClose={() => setEditModel(null)}
-            title={`Editar ${editModel.modelName}`}
+            title={tt('editModalTitle', { name: editModel.modelName })}
           >
             <EditForm
               model={editModel}
@@ -286,11 +286,11 @@ export default function LlmModelsAdminPage() {
                   { id: editModel.id, data: patch },
                   {
                     onSuccess: () => {
-                      toast.success('Modelo actualizado');
+                      toast.success(tt('modelUpdated'));
                       setEditModel(null);
                     },
                     onError: (e: any) =>
-                      !e?.toastHandled && toast.error(e?.message || 'No se pudo actualizar'),
+                      !e?.toastHandled && toast.error(getApiErrorMessage(e)),
                   },
                 )
               }
@@ -305,7 +305,7 @@ export default function LlmModelsAdminPage() {
           <Modal
             isOpen={!!priceModel}
             onClose={() => setPriceModel(null)}
-            title={`Cambiar precio · ${priceModel.modelName}`}
+            title={tt('changePriceModalTitle', { name: priceModel.modelName })}
           >
             <PriceForm
               model={priceModel}
@@ -316,11 +316,11 @@ export default function LlmModelsAdminPage() {
                   { id: priceModel.id, data },
                   {
                     onSuccess: () => {
-                      toast.success('Precio actualizado (nueva versión creada)');
+                      toast.success(tt('priceUpdated'));
                       setPriceModel(null);
                     },
                     onError: (e: any) =>
-                      !e?.toastHandled && toast.error(e?.message || 'No se pudo actualizar el precio'),
+                      !e?.toastHandled && toast.error(getApiErrorMessage(e)),
                   },
                 )
               }
@@ -335,16 +335,18 @@ export default function LlmModelsAdminPage() {
           <Modal
             isOpen={!!deactivateModelConfirm}
             onClose={() => setDeactivateModelConfirm(null)}
-            title="Confirmar desactivación"
+            title={tt('confirmDeactivateTitle')}
           >
             <div className="space-y-4">
               <div className="bg-danger/10 flex items-center gap-3 rounded-xl p-4 text-danger-600">
                 <AlertTriangle size={24} />
-                <p className="text-sm font-medium">¿Estás seguro de que deseas desactivar este modelo?</p>
+                <p className="text-sm font-medium">{tt('confirmDeactivateWarning')}</p>
               </div>
 
               <p className="text-center text-sm text-text-secondary">
-                Se desactivará el modelo <strong>{deactivateModelConfirm.provider}/{deactivateModelConfirm.modelName}</strong>.
+                {tt('confirmDeactivateBody', {
+                  providerModel: `${deactivateModelConfirm.provider}/${deactivateModelConfirm.modelName}`,
+                })}
               </p>
 
               <div className="flex gap-3 pt-2">
@@ -353,7 +355,7 @@ export default function LlmModelsAdminPage() {
                   className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
                   onClick={() => setDeactivateModelConfirm(null)}
                 >
-                  Cancelar
+                  {tt('cancel')}
                 </button>
                 <button
                   type="button"
@@ -362,14 +364,14 @@ export default function LlmModelsAdminPage() {
                   onClick={() => {
                     deactivateModel.mutate(deactivateModelConfirm.id, {
                       onSuccess: () => {
-                        toast.success('Modelo desactivado');
+                        toast.success(tt('modelDeactivated'));
                         setDeactivateModelConfirm(null);
                       },
-                      onError: (e: any) => !e?.toastHandled && toast.error('No se pudo desactivar'),
+                      onError: (e: any) => !e?.toastHandled && toast.error(tt('deactivateError')),
                     });
                   }}
                 >
-                  {deactivateModel.isPending ? 'Desactivando…' : 'Desactivar modelo'}
+                  {deactivateModel.isPending ? tt('deactivating') : tt('deactivateModel')}
                 </button>
               </div>
             </div>
@@ -401,6 +403,7 @@ function CreateForm({
   onCancel: () => void;
   pending: boolean;
 }) {
+  const tt = useTranslations('Admin.LlmModels');
   const [f, setF] = useState({
     provider: '',
     modelName: '',
@@ -434,7 +437,7 @@ function CreateForm({
     <form onSubmit={submit} className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={labelClass}>Provider</label>
+          <label className={labelClass}>{tt('providerLabel')}</label>
           <input
             className={inputClass}
             required
@@ -444,7 +447,7 @@ function CreateForm({
           />
         </div>
         <div>
-          <label className={labelClass}>Nombre del modelo</label>
+          <label className={labelClass}>{tt('modelNameLabel')}</label>
           <input
             className={inputClass}
             required
@@ -454,7 +457,7 @@ function CreateForm({
           />
         </div>
         <div>
-          <label className={labelClass}>Tier</label>
+          <label className={labelClass}>{tt('tierLabel')}</label>
           <select
             className={inputClass}
             value={f.tier}
@@ -468,15 +471,15 @@ function CreateForm({
           </select>
         </div>
         <div className="flex flex-col h-full">
-          <label className={labelClass}>Categoría (opcional)</label>
+          <label className={labelClass}>{tt('categoryOptionalLabel')}</label>
           <InfiniteSelect
             value={f.llmCategoryId}
             onChange={(val) => setF({ ...f, llmCategoryId: val })}
             options={[
-              { label: 'Sin categoría', value: '' },
+              { label: tt('noCategoryOption'), value: '' },
               ...categories.map((c) => ({ label: c.name, value: c.id })),
             ]}
-            placeholder="Sin categoría"
+            placeholder={tt('noCategoryOption')}
             isLoading={isCategoriesLoading}
             fetchNextPage={fetchNextCategoryPage}
             hasNextPage={hasNextCategoryPage}
@@ -484,7 +487,7 @@ function CreateForm({
           />
         </div>
         <div>
-          <label className={labelClass}>Precio input /1M</label>
+          <label className={labelClass}>{tt('inputPriceLabel')}</label>
           <input
             className={inputClass}
             required
@@ -496,7 +499,7 @@ function CreateForm({
           />
         </div>
         <div>
-          <label className={labelClass}>Precio output /1M</label>
+          <label className={labelClass}>{tt('outputPriceLabel')}</label>
           <input
             className={inputClass}
             required
@@ -508,7 +511,7 @@ function CreateForm({
           />
         </div>
         <div>
-          <label className={labelClass}>Ventana de contexto</label>
+          <label className={labelClass}>{tt('contextWindowLabel')}</label>
           <input
             className={inputClass}
             required
@@ -519,7 +522,7 @@ function CreateForm({
           />
         </div>
         <div>
-          <label className={labelClass}>Tokens recomendados</label>
+          <label className={labelClass}>{tt('recommendedTokensLabel')}</label>
           <input
             className={inputClass}
             required
@@ -531,7 +534,7 @@ function CreateForm({
         </div>
       </div>
       <div>
-        <label className={labelClass}>Notas (opcional)</label>
+        <label className={labelClass}>{tt('notesOptionalLabel')}</label>
         <input
           className={inputClass}
           value={f.notes}
@@ -539,19 +542,19 @@ function CreateForm({
         />
       </div>
       <div className="flex gap-3 pt-4">
-        <button 
-          type="button" 
-          className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated" 
+        <button
+          type="button"
+          className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
           onClick={onCancel}
         >
-          Cancelar
+          {tt('cancel')}
         </button>
-        <button 
-          type="submit" 
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50" 
+        <button
+          type="submit"
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={pending}
         >
-          {pending ? 'Creando…' : 'Crear modelo'}
+          {pending ? tt('creating') : tt('createModel')}
         </button>
       </div>
     </form>
@@ -586,6 +589,7 @@ function EditForm({
   onCancel: () => void;
   pending: boolean;
 }) {
+  const tt = useTranslations('Admin.LlmModels');
   const [f, setF] = useState({
     tier: model.tier,
     llmCategoryId: model.llmCategoryId ?? '',
@@ -610,11 +614,11 @@ function EditForm({
   return (
     <form onSubmit={submit} className="space-y-3">
       <p className="rounded-lg bg-surface-secondary p-2 text-xs text-text-secondary">
-        Para cambiar el precio usa la acción “Cambiar precio” (crea una versión nueva).
+        {tt('editPriceHint')}
       </p>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={labelClass}>Tier</label>
+          <label className={labelClass}>{tt('tierLabel')}</label>
           <select
             className={inputClass}
             value={f.tier}
@@ -628,15 +632,15 @@ function EditForm({
           </select>
         </div>
         <div className="flex flex-col h-full">
-          <label className={labelClass}>Categoría</label>
+          <label className={labelClass}>{tt('categoryLabel')}</label>
           <InfiniteSelect
             value={f.llmCategoryId}
             onChange={(val) => setF({ ...f, llmCategoryId: val })}
             options={[
-              { label: 'Sin categoría', value: '' },
+              { label: tt('noCategoryOption'), value: '' },
               ...categories.map((c) => ({ label: c.name, value: c.id })),
             ]}
-            placeholder="Sin categoría"
+            placeholder={tt('noCategoryOption')}
             isLoading={isCategoriesLoading}
             fetchNextPage={fetchNextCategoryPage}
             hasNextPage={hasNextCategoryPage}
@@ -644,7 +648,7 @@ function EditForm({
           />
         </div>
         <div>
-          <label className={labelClass}>Ventana de contexto</label>
+          <label className={labelClass}>{tt('contextWindowLabel')}</label>
           <input
             className={inputClass}
             type="number"
@@ -654,7 +658,7 @@ function EditForm({
           />
         </div>
         <div>
-          <label className={labelClass}>Tokens recomendados</label>
+          <label className={labelClass}>{tt('recommendedTokensLabel')}</label>
           <input
             className={inputClass}
             type="number"
@@ -665,7 +669,7 @@ function EditForm({
         </div>
       </div>
       <div>
-        <label className={labelClass}>Notas</label>
+        <label className={labelClass}>{tt('notesLabel')}</label>
         <input
           className={inputClass}
           value={f.notes}
@@ -687,23 +691,23 @@ function EditForm({
           />
         </button>
         <span className="text-sm text-text-primary">
-          {f.isActive ? 'Activo' : 'Inactivo'}
+          {f.isActive ? tt('active') : tt('inactive')}
         </span>
       </div>
       <div className="flex gap-3 pt-4">
-        <button 
-          type="button" 
-          className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated" 
+        <button
+          type="button"
+          className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
           onClick={onCancel}
         >
-          Cancelar
+          {tt('cancel')}
         </button>
-        <button 
-          type="submit" 
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50" 
+        <button
+          type="submit"
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={pending}
         >
-          {pending ? 'Guardando…' : 'Guardar cambios'}
+          {pending ? tt('saving') : tt('saveChanges')}
         </button>
       </div>
     </form>
@@ -721,6 +725,7 @@ function PriceForm({
   onCancel: () => void;
   pending: boolean;
 }) {
+  const tt = useTranslations('Admin.LlmModels');
   const [f, setF] = useState({
     inputPricePer1m: model.inputPricePer1m,
     outputPricePer1m: model.outputPricePer1m,
@@ -739,11 +744,11 @@ function PriceForm({
   return (
     <form onSubmit={submit} className="space-y-3">
       <p className="rounded-lg bg-surface-secondary p-2 text-xs text-text-secondary">
-        Se cerrará el precio vigente y se creará una nueva versión activa. El historial se conserva.
+        {tt('priceChangeHint')}
       </p>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={labelClass}>Precio input /1M</label>
+          <label className={labelClass}>{tt('inputPriceLabel')}</label>
           <input
             className={inputClass}
             required
@@ -755,7 +760,7 @@ function PriceForm({
           />
         </div>
         <div>
-          <label className={labelClass}>Precio output /1M</label>
+          <label className={labelClass}>{tt('outputPriceLabel')}</label>
           <input
             className={inputClass}
             required
@@ -768,28 +773,28 @@ function PriceForm({
         </div>
       </div>
       <div>
-        <label className={labelClass}>Notas (opcional)</label>
+        <label className={labelClass}>{tt('notesOptionalLabel')}</label>
         <input
           className={inputClass}
           value={f.notes}
           onChange={(e) => setF({ ...f, notes: e.target.value })}
-          placeholder="Motivo del cambio de precio"
+          placeholder={tt('priceChangeReasonPlaceholder')}
         />
       </div>
       <div className="flex gap-3 pt-4">
-        <button 
-          type="button" 
-          className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated" 
+        <button
+          type="button"
+          className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
           onClick={onCancel}
         >
-          Cancelar
+          {tt('cancel')}
         </button>
-        <button 
-          type="submit" 
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50" 
+        <button
+          type="submit"
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={pending}
         >
-          {pending ? 'Actualizando…' : 'Actualizar precio'}
+          {pending ? tt('updating') : tt('updatePrice')}
         </button>
       </div>
     </form>

@@ -84,6 +84,7 @@ export class UsersController {
     @Res() res: Response,
     @Query('cursor') cursor: string | null = null,
     @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
+    @Query('locale') locale = 'es',
   ): Promise<Response<ApiResponse<PaginatedResponse<NotificationEventDto>>>> {
     const apiResponse = new ApiResponseBuilder<PaginatedResponse<NotificationEventDto>>();
     // Cast to any if needed or ensure service returns strict match
@@ -92,6 +93,7 @@ export class UsersController {
       user.organizationId,
       cursor,
       pageSize,
+      locale,
     );
     apiResponse
       .setStatusCode(HttpStatusCode.Ok)

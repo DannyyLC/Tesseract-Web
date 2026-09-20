@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ADMIN_PAGE_SIZE } from '@tesseract/types';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react';
@@ -9,6 +10,7 @@ import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { PagePager } from '@/components/ui/page-pager';
 import { useLlmCategories, useLlmCategoryMutations } from '@/hooks/automation/use-llm-categories';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import type {
   LlmCategory,
   CreateLlmCategoryInput,
@@ -21,6 +23,8 @@ const btnPrimary =
   'inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:opacity-50';
 
 export default function AdminConfiguracionPage() {
+  const tt = useTranslations('Admin.Configuration');
+  const getApiErrorMessage = useApiErrorMessage();
   const [page, setPage] = useState(1);
   const { data: response, isLoading, isError } = useLlmCategories({ page, limit: ADMIN_PAGE_SIZE });
   const categories = response?.data ?? [];
@@ -34,38 +38,30 @@ export default function AdminConfiguracionPage() {
   return (
     <div className="w-full">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-text-primary">Configuración</h1>
-        <p className="text-sm text-text-secondary">
-          Ajustes globales de la plataforma. Aquí se gestionan las categorías de modelos LLM.
-        </p>
+        <h1 className="text-2xl font-semibold text-text-primary">{tt('title')}</h1>
+        <p className="text-sm text-text-secondary">{tt('subtitle')}</p>
       </div>
 
       {/* Categorías de modelos LLM */}
       <section className="rounded-xl border border-border bg-surface">
         <div className="flex items-center justify-between border-b border-border p-4">
           <div>
-            <h2 className="text-base font-semibold text-text-primary">Categorías de modelos LLM</h2>
-            <p className="text-xs text-text-secondary">
-              Agrupan los modelos (habilitan estadísticas y routing/failover a futuro).
-            </p>
+            <h2 className="text-base font-semibold text-text-primary">{tt('categoriesTitle')}</h2>
+            <p className="text-xs text-text-secondary">{tt('categoriesSubtitle')}</p>
           </div>
           <button className={btnPrimary} onClick={() => setCreateOpen(true)}>
-            <Plus size={16} /> Nueva categoría
+            <Plus size={16} /> {tt('newCategory')}
           </button>
         </div>
 
         {isLoading ? (
           <div className="flex justify-center py-16">
-            <LogoLoader text="Cargando categorías" />
+            <LogoLoader text={tt('loading')} />
           </div>
         ) : isError ? (
-          <p className="py-16 text-center text-sm text-text-secondary">
-            No se pudieron cargar las categorías.
-          </p>
+          <p className="py-16 text-center text-sm text-text-secondary">{tt('loadError')}</p>
         ) : categories.length === 0 ? (
-          <p className="py-16 text-center text-sm text-text-secondary">
-            Aún no hay categorías. Crea la primera.
-          </p>
+          <p className="py-16 text-center text-sm text-text-secondary">{tt('empty')}</p>
         ) : (
           <ul className="divide-y divide-border">
             {categories.map((c) => (
@@ -75,11 +71,11 @@ export default function AdminConfiguracionPage() {
                     <span className="font-medium text-text-primary">{c.name}</span>
                     {!c.isActive && (
                       <span className="rounded-full bg-gray-500/10 px-2 py-0.5 text-xs text-text-secondary">
-                        Inactiva
+                        {tt('inactiveBadge')}
                       </span>
                     )}
                     <span className="rounded-full bg-surface-secondary px-2 py-0.5 text-xs text-text-secondary">
-                      {c._count?.models ?? 0} modelo(s)
+                      {tt('modelsCount', { count: c._count?.models ?? 0 })}
                     </span>
                   </div>
                   {c.description && (
@@ -88,14 +84,14 @@ export default function AdminConfiguracionPage() {
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <button
-                    title="Editar"
+                    title={tt('editTitle')}
                     className="rounded-lg p-2 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
                     onClick={() => setEditCategory(c)}
                   >
                     <Pencil size={16} />
                   </button>
                   <button
-                    title="Eliminar"
+                    title={tt('deleteTitle')}
                     disabled={deleteCategory.isPending}
                     className="rounded-lg p-2 text-text-secondary hover:bg-red-500/10 hover:text-red-600 disabled:opacity-40"
                     onClick={() => setDeleteCategoryConfirm(c)}
@@ -114,7 +110,7 @@ export default function AdminConfiguracionPage() {
             page={page}
             totalPages={meta.totalPages}
             onPageChange={setPage}
-            summary={`Página ${page} de ${meta.totalPages}`}
+            summary={tt('pagerSummary', { page, totalPages: meta.totalPages })}
             className="border-t border-border p-4"
           />
         )}
@@ -123,17 +119,17 @@ export default function AdminConfiguracionPage() {
       {/* Modal: crear */}
       <AnimatePresence>
         {createOpen && (
-          <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title="Nueva categoría">
+          <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title={tt('newCategoryModalTitle')}>
             <CategoryForm
               pending={createCategory.isPending}
               onCancel={() => setCreateOpen(false)}
               onSubmit={(input) =>
                 createCategory.mutate(input, {
                   onSuccess: () => {
-                    toast.success('Categoría creada');
+                    toast.success(tt('categoryCreated'));
                     setCreateOpen(false);
                   },
-                  onError: (e: any) => !e?.toastHandled && toast.error(e?.message || 'No se pudo crear'),
+                  onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
                 })
               }
             />
@@ -147,7 +143,7 @@ export default function AdminConfiguracionPage() {
           <Modal
             isOpen={!!editCategory}
             onClose={() => setEditCategory(null)}
-            title={`Editar "${editCategory.name}"`}
+            title={tt('editCategoryModalTitle', { name: editCategory.name })}
           >
             <CategoryForm
               category={editCategory}
@@ -158,11 +154,11 @@ export default function AdminConfiguracionPage() {
                   { id: editCategory.id, data: input },
                   {
                     onSuccess: () => {
-                      toast.success('Categoría actualizada');
+                      toast.success(tt('categoryUpdated'));
                       setEditCategory(null);
                     },
                     onError: (e: any) =>
-                      !e?.toastHandled && toast.error(e?.message || 'No se pudo actualizar'),
+                      !e?.toastHandled && toast.error(getApiErrorMessage(e)),
                   },
                 )
               }
@@ -177,19 +173,19 @@ export default function AdminConfiguracionPage() {
           <Modal
             isOpen={!!deleteCategoryConfirm}
             onClose={() => setDeleteCategoryConfirm(null)}
-            title="Confirmar eliminación"
+            title={tt('confirmDeleteTitle')}
           >
             <div className="space-y-4">
               <div className="bg-danger/10 flex items-center gap-3 rounded-xl p-4 text-danger-600">
                 <AlertTriangle size={24} />
-                <p className="text-sm font-medium">¿Estás seguro de que deseas eliminar esta categoría?</p>
+                <p className="text-sm font-medium">{tt('confirmDeleteWarning')}</p>
               </div>
 
               <p className="text-center text-sm text-text-secondary">
-                Se eliminará la categoría <strong>{deleteCategoryConfirm.name}</strong>.
+                {tt('confirmDeleteBody', { name: deleteCategoryConfirm.name })}
                 {deleteCategoryConfirm._count?.models ? (
                   <span className="mt-2 block font-medium text-danger-600">
-                    {deleteCategoryConfirm._count.models} modelo(s) quedarán sin categoría.
+                    {tt('confirmDeleteModelsWarning', { count: deleteCategoryConfirm._count.models })}
                   </span>
                 ) : null}
               </p>
@@ -200,7 +196,7 @@ export default function AdminConfiguracionPage() {
                   className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
                   onClick={() => setDeleteCategoryConfirm(null)}
                 >
-                  Cancelar
+                  {tt('cancel')}
                 </button>
                 <button
                   type="button"
@@ -209,14 +205,14 @@ export default function AdminConfiguracionPage() {
                   onClick={() => {
                     deleteCategory.mutate(deleteCategoryConfirm.id, {
                       onSuccess: () => {
-                        toast.success('Categoría eliminada');
+                        toast.success(tt('categoryDeleted'));
                         setDeleteCategoryConfirm(null);
                       },
-                      onError: (e: any) => !e?.toastHandled && toast.error('No se pudo eliminar'),
+                      onError: (e: any) => !e?.toastHandled && toast.error(tt('deleteError')),
                     });
                   }}
                 >
-                  {deleteCategory.isPending ? 'Eliminando…' : 'Eliminar categoría'}
+                  {deleteCategory.isPending ? tt('deleting') : tt('deleteCategory')}
                 </button>
               </div>
             </div>
@@ -238,6 +234,7 @@ function CategoryForm({
   onCancel: () => void;
   pending: boolean;
 }) {
+  const tt = useTranslations('Admin.Configuration');
   const [f, setF] = useState({
     name: category?.name ?? '',
     description: category?.description ?? '',
@@ -256,23 +253,23 @@ function CategoryForm({
   return (
     <form onSubmit={submit} className="space-y-3">
       <div>
-        <label className={labelClass}>Nombre</label>
+        <label className={labelClass}>{tt('nameLabel')}</label>
         <input
           className={inputClass}
           required
           minLength={2}
           value={f.name}
           onChange={(e) => setF({ ...f, name: e.target.value })}
-          placeholder="chat, reasoning, ..."
+          placeholder={tt('namePlaceholder')}
         />
       </div>
       <div>
-        <label className={labelClass}>Descripción (opcional)</label>
+        <label className={labelClass}>{tt('descriptionOptionalLabel')}</label>
         <input
           className={inputClass}
           value={f.description}
           onChange={(e) => setF({ ...f, description: e.target.value })}
-          placeholder="Ej: modelos rápidos para respuestas cortas"
+          placeholder={tt('descriptionPlaceholder')}
         />
       </div>
       <div className="flex items-center gap-3">
@@ -290,23 +287,23 @@ function CategoryForm({
           />
         </button>
         <span className="text-sm text-text-primary">
-          {f.isActive ? 'Activa' : 'Inactiva'}
+          {f.isActive ? tt('active') : tt('inactive')}
         </span>
       </div>
       <div className="flex gap-3 pt-4">
-        <button 
-          type="button" 
-          className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated" 
+        <button
+          type="button"
+          className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
           onClick={onCancel}
         >
-          Cancelar
+          {tt('cancel')}
         </button>
-        <button 
-          type="submit" 
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50" 
+        <button
+          type="submit"
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={pending}
         >
-          {pending ? 'Guardando…' : category ? 'Guardar cambios' : 'Crear categoría'}
+          {pending ? tt('saving') : category ? tt('saveChanges') : tt('createCategory')}
         </button>
       </div>
     </form>

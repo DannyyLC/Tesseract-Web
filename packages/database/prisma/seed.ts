@@ -4,6 +4,7 @@ import { Pool } from 'pg';
 import { config } from 'dotenv';
 import { resolve } from 'node:path';
 import { MODEL_EFFECTIVE_FROM, llmModels, toolCatalogs, notifications } from './seed-data';
+import { notificationTranslationsEn, toolTranslationsEn } from './seed-translations-en';
 
 // El .env vive en la raíz del monorepo (mismo criterio que prisma.config.ts)
 config({ path: resolve(__dirname, '../../../.env') });
@@ -79,6 +80,8 @@ async function seedToolCatalog() {
         icon: catalog.icon,
         isActive: catalog.isActive,
         isInBeta: catalog.isInBeta,
+        displayNameEn: toolTranslationsEn[catalog.toolName]?.displayName ?? null,
+        descriptionEn: toolTranslationsEn[catalog.toolName]?.description ?? null,
       },
       update: {
         displayName: catalog.displayName,
@@ -88,6 +91,8 @@ async function seedToolCatalog() {
         icon: catalog.icon,
         isActive: catalog.isActive,
         isInBeta: catalog.isInBeta,
+        displayNameEn: toolTranslationsEn[catalog.toolName]?.displayName ?? null,
+        descriptionEn: toolTranslationsEn[catalog.toolName]?.description ?? null,
       },
     });
 
@@ -113,6 +118,8 @@ async function seedToolCatalog() {
           functionName: fn.functionName,
           displayName: fn.displayName,
           description: fn.description,
+          displayNameEn: toolTranslationsEn[catalog.toolName]?.functions[fn.functionName]?.displayName ?? null,
+          descriptionEn: toolTranslationsEn[catalog.toolName]?.functions[fn.functionName]?.description ?? null,
           icon: fn.icon,
           category: fn.category,
           dangerLevel: fn.dangerLevel,
@@ -123,6 +130,8 @@ async function seedToolCatalog() {
         update: {
           displayName: fn.displayName,
           description: fn.description,
+          displayNameEn: toolTranslationsEn[catalog.toolName]?.functions[fn.functionName]?.displayName ?? null,
+          descriptionEn: toolTranslationsEn[catalog.toolName]?.functions[fn.functionName]?.description ?? null,
           icon: fn.icon,
           category: fn.category,
           dangerLevel: fn.dangerLevel,
@@ -149,12 +158,16 @@ async function seedNotifications() {
         version: item.version,
         titleTemplate: item.titleTemplate,
         messageTemplate: item.messageTemplate,
+        titleTemplateEn: notificationTranslationsEn[item.code]?.title ?? null,
+        messageTemplateEn: notificationTranslationsEn[item.code]?.message ?? null,
         targetRoles: item.targetRoles,
         isActive: item.isActive,
       },
       update: {
         titleTemplate: item.titleTemplate,
         messageTemplate: item.messageTemplate,
+        titleTemplateEn: notificationTranslationsEn[item.code]?.title ?? null,
+        messageTemplateEn: notificationTranslationsEn[item.code]?.message ?? null,
         targetRoles: item.targetRoles,
         isActive: item.isActive,
       },

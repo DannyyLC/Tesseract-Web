@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import { google } from 'googleapis';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { KmsService } from '@/automation/tools/core/kms.service';
-import { BookingCalendarStatus } from '@tesseract/types';
+import { BookingCalendarListItem, BookingCalendarStatus } from '@tesseract/types';
 
 const CALENDAR_SCOPES = [
   'https://www.googleapis.com/auth/calendar',
@@ -89,12 +90,20 @@ export class BookingOauthService {
     const encryptedRefreshToken = await this.kms.encrypt(data.refresh_token);
     const scopes = data.scope ? data.scope.split(' ') : CALENDAR_SCOPES;
 
-    // Fila única: si ya había una credencial conectada, esta reserva la reemplaza.
+    // Fila única: si ya había una credencial conectada, esta reserva la reemplaza. El
+    // `calendarId` seleccionado vuelve a "primary": la cuenta cambió, así que un id de
+    // calendario secundario de la cuenta anterior ya no significa nada.
     const existing = await this.prisma.bookingCalendarCredential.findFirst();
     if (existing) {
       await this.prisma.bookingCalendarCredential.update({
         where: { id: existing.id },
-        data: { googleAccountEmail: profile.email, encryptedRefreshToken, scopes, connectedByUserId },
+        data: {
+          googleAccountEmail: profile.email,
+          encryptedRefreshToken,
+          scopes,
+          connectedByUserId,
+          calendarId: 'primary',
+        },
       });
     } else {
       await this.prisma.bookingCalendarCredential.create({
@@ -110,11 +119,64 @@ export class BookingOauthService {
     return {
       connected: !!credential,
       googleAccountEmail: credential?.googleAccountEmail ?? null,
+      calendarId: credential?.calendarId ?? null,
     };
+  }
+
+  /**
+   * Calendarios visibles para la cuenta conectada (los propios y los compartidos que aceptó),
+   * para que el admin elija en cuál se crean los eventos en vez de asumir siempre "primary".
+   */
+  async getCalendars(): Promise<BookingCalendarListItem[]> {
+    const credential = await this.prisma.bookingCalendarCredential.findFirst();
+    if (!credential) {
+      throw new BadRequestException('No booking calendar connected yet.');
+    }
+
+    const calendar = await this.buildCalendarClient(credential.encryptedRefreshToken);
+    const { data } = await calendar.calendarList.list({ minAccessRole: 'writer' });
+
+    return (data.items ?? [])
+      .filter((item) => !!item.id)
+      .map((item) => ({
+        id: item.id!,
+        summary: item.summaryOverride ?? item.summary ?? item.id!,
+        primary: !!item.primary,
+      }));
+  }
+
+  async selectCalendar(calendarId: string): Promise<void> {
+    const credential = await this.prisma.bookingCalendarCredential.findFirst();
+    if (!credential) {
+      throw new BadRequestException('No booking calendar connected yet.');
+    }
+
+    // Valida contra la lista real de Google: evita guardar un id que no existe o al que la
+    // cuenta perdió acceso, lo que rompería silenciosamente cada booking futuro.
+    const calendars = await this.getCalendars();
+    if (!calendars.some((c) => c.id === calendarId)) {
+      throw new NotFoundException('That calendar is not accessible from the connected account.');
+    }
+
+    await this.prisma.bookingCalendarCredential.update({
+      where: { id: credential.id },
+      data: { calendarId },
+    });
   }
 
   async disconnect(): Promise<void> {
     await this.prisma.bookingCalendarCredential.deleteMany({});
+  }
+
+  private async buildCalendarClient(encryptedRefreshToken: string) {
+    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+    const clientSecret = this.configService.get<string>('GOOGLE_CLIENT_SECRET');
+    const refreshToken = await this.kms.decrypt(encryptedRefreshToken);
+
+    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+    oauth2Client.setCredentials({ refresh_token: refreshToken });
+
+    return google.calendar({ version: 'v3', auth: oauth2Client });
   }
 
   private getRedirectUri(): string {

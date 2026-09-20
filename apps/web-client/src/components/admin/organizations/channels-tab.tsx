@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { Loader2, MessageSquareText, Pencil, Plus, Power, PowerOff, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useAdminWorkflows } from '@/hooks/automation/use-admin-workflows';
 import { useAdminWhatsappMutations, useAdminWhatsappNumbers } from '@/hooks/messaging/use-admin-whatsapp-config';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import type { WhatsAppConfig } from '@tesseract/types';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import { WhatsappTemplatesAdminModal } from './whatsapp-templates-admin-modal';
@@ -32,6 +34,8 @@ const CONNECTION_STYLE: Record<string, string> = {
  * de "mover" un número solía ser borrarlo y crearlo de nuevo.
  */
 export function ChannelsTab({ organizationId }: Props) {
+  const t = useTranslations('Admin.ChannelsTab');
+  const getApiErrorMessage = useApiErrorMessage();
   const { data: configs, isLoading } = useAdminWhatsappNumbers(organizationId);
   const { data: workflowsPage } = useAdminWorkflows({ organizationId, limit: 100 });
   const { createConfig, updateConfig, deleteConfig, setActive } = useAdminWhatsappMutations(organizationId);
@@ -89,10 +93,10 @@ export function ChannelsTab({ organizationId }: Props) {
       },
       {
         onSuccess: () => {
-          toast.success('Número creado');
+          toast.success(t('createdSuccess'));
           closeCreate();
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo crear el número'),
+        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -110,25 +114,25 @@ export function ChannelsTab({ organizationId }: Props) {
       },
       {
         onSuccess: () => {
-          toast.success('Cambios guardados');
+          toast.success(t('savedSuccess'));
           setEditTarget(null);
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo guardar'),
+        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
       },
     );
   };
 
   const handleDelete = (config: WhatsAppConfig) => {
     deleteConfig.mutate(config.id, {
-      onSuccess: () => toast.success('Número eliminado'),
-      onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo eliminar'),
+      onSuccess: () => toast.success(t('deletedSuccess')),
+      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
     });
   };
 
   const handleToggleActive = (config: WhatsAppConfig) => {
     setActive.mutate(
       { id: config.id, isActive: !config.isActive },
-      { onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo actualizar') },
+      { onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)) },
     );
   };
 
@@ -137,30 +141,25 @@ export function ChannelsTab({ organizationId }: Props) {
       <section className="rounded-xl border border-border bg-surface p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-text-primary">Números de WhatsApp</h2>
-            <p className="mt-1 text-xs text-text-secondary">
-              Son de la organización, no de un workflow — se pueden crear sin asignar y reasignar
-              sin perder sus templates.
-            </p>
+            <h2 className="text-sm font-semibold text-text-primary">{t('title')}</h2>
+            <p className="mt-1 text-xs text-text-secondary">{t('subtitle')}</p>
           </div>
           <button className={btnPrimary} onClick={() => setIsCreateOpen(true)}>
-            <Plus size={14} /> Agregar número
+            <Plus size={14} /> {t('addNumber')}
           </button>
         </div>
 
         {isLoading ? (
           <div className="flex justify-center py-10">
-            <LogoLoader text="Cargando números" />
+            <LogoLoader text={t('loading')} />
           </div>
         ) : !configs?.length ? (
-          <p className="px-2 py-8 text-center text-sm text-text-secondary">
-            Todavía no hay números de WhatsApp en esta organización.
-          </p>
+          <p className="px-2 py-8 text-center text-sm text-text-secondary">{t('empty')}</p>
         ) : (
           <ul className="divide-y divide-border">
             {configs.map((config) => {
               const workflowName = config.defaultWorkflowId
-                ? (workflowNameById.get(config.defaultWorkflowId) ?? 'Workflow eliminado')
+                ? (workflowNameById.get(config.defaultWorkflowId) ?? t('deletedWorkflow'))
                 : null;
               return (
                 <li key={config.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
@@ -172,41 +171,45 @@ export function ChannelsTab({ organizationId }: Props) {
                       {config.displayName && (
                         <span className="text-xs text-text-secondary">{config.phoneNumber}</span>
                       )}
-                      {!config.isActive && <span className="text-xs text-danger">desactivado</span>}
+                      {!config.isActive && (
+                        <span className="text-xs text-danger">{t('inactiveBadge')}</span>
+                      )}
                     </div>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
                       <span className={CONNECTION_STYLE[config.connectionStatus] ?? 'text-text-tertiary'}>
                         {config.connectionStatus}
                       </span>
-                      <span>{workflowName ? `Rutea a ${workflowName}` : 'Sin workflow asignado'}</span>
+                      <span>
+                        {workflowName ? t('routesTo', { workflow: workflowName }) : t('noWorkflowAssigned')}
+                      </span>
                     </p>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-1">
                     <button
                       onClick={() => setTemplatesTarget(config)}
-                      title="Templates"
+                      title={t('templatesTitle')}
                       className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
                     >
                       <MessageSquareText size={16} />
                     </button>
                     <button
                       onClick={() => openEdit(config)}
-                      title="Editar"
+                      title={t('editTitle')}
                       className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
                     >
                       <Pencil size={16} />
                     </button>
                     <button
                       onClick={() => handleToggleActive(config)}
-                      title={config.isActive ? 'Desactivar' : 'Activar'}
+                      title={config.isActive ? t('deactivateTitle') : t('activateTitle')}
                       className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
                     >
                       {config.isActive ? <PowerOff size={16} /> : <Power size={16} />}
                     </button>
                     <button
                       onClick={() => handleDelete(config)}
-                      title="Eliminar"
+                      title={t('deleteTitle')}
                       className="hover:bg-danger/10 rounded-lg p-2 text-danger transition-colors"
                     >
                       <Trash2 size={16} />
@@ -220,10 +223,10 @@ export function ChannelsTab({ organizationId }: Props) {
       </section>
 
       {/* Crear */}
-      <Modal isOpen={isCreateOpen} onClose={closeCreate} title="Nuevo número de WhatsApp">
+      <Modal isOpen={isCreateOpen} onClose={closeCreate} title={t('createModalTitle')}>
         <div className="space-y-4">
           <div>
-            <label className={labelClass}>Número de teléfono</label>
+            <label className={labelClass}>{t('phoneNumberLabel')}</label>
             <input
               className={inputClass}
               value={phoneNumber}
@@ -235,22 +238,22 @@ export function ChannelsTab({ organizationId }: Props) {
               maxLength={16}
             />
             {phoneNumber.length > 11 && !isPhoneValid && (
-              <p className="mt-1 text-xs text-danger">Formato inválido. Ejemplo: +52234567890</p>
+              <p className="mt-1 text-xs text-danger">{t('phoneInvalid')}</p>
             )}
           </div>
 
           <div>
-            <label className={labelClass}>Nombre para mostrar (opcional)</label>
+            <label className={labelClass}>{t('displayNameLabel')}</label>
             <input
               className={inputClass}
               value={createDisplayName}
               onChange={(e) => setCreateDisplayName(e.target.value)}
-              placeholder="Ej. WhatsApp Ventas"
+              placeholder={t('displayNamePlaceholder')}
             />
           </div>
 
           <div>
-            <label className={labelClass}>Descripción (opcional)</label>
+            <label className={labelClass}>{t('descriptionLabel')}</label>
             <input
               className={inputClass}
               value={createDescription}
@@ -259,14 +262,14 @@ export function ChannelsTab({ organizationId }: Props) {
           </div>
 
           <div>
-            <label className={labelClass}>Workflow</label>
+            <label className={labelClass}>{t('workflowLabel')}</label>
             <select
               className={inputClass}
               value={createWorkflowId}
               onChange={(e) => setCreateWorkflowId(e.target.value)}
             >
               <option value="" disabled>
-                Selecciona un workflow
+                {t('selectWorkflow')}
               </option>
               {workflows.map((w) => (
                 <option key={w.id} value={w.id}>
@@ -274,15 +277,12 @@ export function ChannelsTab({ organizationId }: Props) {
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-text-tertiary">
-              El número nace ligado a este workflow; se puede reasignar después desde Editar sin
-              perder sus templates.
-            </p>
+            <p className="mt-1 text-xs text-text-tertiary">{t('createWorkflowHint')}</p>
           </div>
 
           <div className="flex justify-end gap-2">
             <button className={btnGhost} onClick={closeCreate}>
-              Cancelar
+              {t('cancel')}
             </button>
             <button
               className={btnPrimary}
@@ -290,18 +290,18 @@ export function ChannelsTab({ organizationId }: Props) {
               disabled={!canCreate || createConfig.isPending}
             >
               {createConfig.isPending && <Loader2 size={14} className="animate-spin" />}
-              Crear
+              {t('create')}
             </button>
           </div>
         </div>
       </Modal>
 
       {/* Editar */}
-      <Modal isOpen={!!editTarget} onClose={() => setEditTarget(null)} title="Editar número">
+      <Modal isOpen={!!editTarget} onClose={() => setEditTarget(null)} title={t('editModalTitle')}>
         {editTarget && (
           <div className="space-y-4">
             <div>
-              <label className={labelClass}>Nombre para mostrar</label>
+              <label className={labelClass}>{t('editDisplayNameLabel')}</label>
               <input
                 className={inputClass}
                 value={editDisplayName}
@@ -309,7 +309,7 @@ export function ChannelsTab({ organizationId }: Props) {
               />
             </div>
             <div>
-              <label className={labelClass}>Descripción</label>
+              <label className={labelClass}>{t('editDescriptionLabel')}</label>
               <input
                 className={inputClass}
                 value={editDescription}
@@ -317,31 +317,29 @@ export function ChannelsTab({ organizationId }: Props) {
               />
             </div>
             <div>
-              <label className={labelClass}>Workflow</label>
+              <label className={labelClass}>{t('workflowLabel')}</label>
               <select
                 className={inputClass}
                 value={editWorkflowId}
                 onChange={(e) => setEditWorkflowId(e.target.value)}
               >
-                <option value={UNASSIGNED}>Sin asignar</option>
+                <option value={UNASSIGNED}>{t('unassigned')}</option>
                 {workflows.map((w) => (
                   <option key={w.id} value={w.id}>
                     {w.name}
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-text-tertiary">
-                Cambiar el workflow no borra los templates de este número.
-              </p>
+              <p className="mt-1 text-xs text-text-tertiary">{t('editWorkflowHint')}</p>
             </div>
 
             <div className="flex justify-end gap-2">
               <button className={btnGhost} onClick={() => setEditTarget(null)}>
-                Cancelar
+                {t('cancel')}
               </button>
               <button className={btnPrimary} onClick={handleSaveEdit} disabled={updateConfig.isPending}>
                 {updateConfig.isPending && <Loader2 size={14} className="animate-spin" />}
-                Guardar
+                {t('save')}
               </button>
             </div>
           </div>

@@ -85,7 +85,7 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium text-text-primary">
                   <strong className="font-geist-mono text-text-primary">
-                    {plan.limits.monthlyCredits.toLocaleString()}
+                    {plan.limits.monthlyCredits.toLocaleString('es-MX')}
                   </strong>{' '}
                   {t('creditsPerMonth')}
                 </span>

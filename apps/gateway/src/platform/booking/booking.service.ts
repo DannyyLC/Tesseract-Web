@@ -45,15 +45,15 @@ export class BookingService {
       return [];
     }
 
-    const calendar = await this.getCalendarClient();
+    const { calendar, calendarId } = await this.getCalendarClient();
     const freeBusy = await calendar.freebusy.query({
       requestBody: {
         timeMin: dayStart.toISOString(),
         timeMax: dayEnd.toISOString(),
-        items: [{ id: 'primary' }],
+        items: [{ id: calendarId }],
       },
     });
-    const busy = freeBusy.data.calendars?.primary?.busy ?? [];
+    const busy = freeBusy.data.calendars?.[calendarId]?.busy ?? [];
 
     const durationMs = eventType.durationMinutes * 60 * 1000;
     const intervalMs = BOOKING_SLOT_INTERVAL_MINUTES * 60 * 1000;
@@ -85,7 +85,7 @@ export class BookingService {
       throw new BadRequestException('Invalid or past startTime');
     }
 
-    const calendar = await this.getCalendarClient();
+    const { calendar, calendarId } = await this.getCalendarClient();
 
     // Revalida justo antes de crear el evento: el slot pudo ocuparse entre que el usuario lo
     // vio en pantalla y le dio a confirmar.
@@ -93,16 +93,16 @@ export class BookingService {
       requestBody: {
         timeMin: startTime.toISOString(),
         timeMax: endTime.toISOString(),
-        items: [{ id: 'primary' }],
+        items: [{ id: calendarId }],
       },
     });
-    const busy = freeBusy.data.calendars?.primary?.busy ?? [];
+    const busy = freeBusy.data.calendars?.[calendarId]?.busy ?? [];
     if (busy.length > 0) {
       throw new BadRequestException('This time slot is no longer available');
     }
 
     const { data: event } = await calendar.events.insert({
-      calendarId: 'primary',
+      calendarId,
       conferenceDataVersion: 1,
       sendUpdates: 'all',
       requestBody: {
@@ -149,7 +149,10 @@ export class BookingService {
     const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
     oauth2Client.setCredentials({ refresh_token: refreshToken });
 
-    return google.calendar({ version: 'v3', auth: oauth2Client });
+    return {
+      calendar: google.calendar({ version: 'v3', auth: oauth2Client }),
+      calendarId: credential.calendarId,
+    };
   }
 }
 

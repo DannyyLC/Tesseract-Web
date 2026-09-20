@@ -11,6 +11,8 @@
  * - 7000-7999: Errores de WhatsApp/Baileys
  * - 8000-8999: Errores de rate limiting y quotas
  * - 9000-9999: Errores de tags y categorización
+ * - 11000-11999: Errores de facturación fiscal (CFDI/SAT)
+ * - 12000-12999: Genéricos por status HTTP (fallback de traducción, ver bloque al final)
  */
 export enum ErrorCode {
   // ============================================
@@ -500,4 +502,37 @@ export enum ErrorCode {
    * HTTP Status: 409 Conflict
    */
   CFDI_DISABLED = 'FISCAL_11006',
+
+  // ============================================
+  // 12000-12999: GENÉRICOS POR STATUS HTTP
+  // ============================================
+  // Red de seguridad para excepciones nativas de Nest lanzadas con un string literal
+  // (`throw new BadRequestException('texto')`) que todavía no tienen un ErrorCode propio.
+  // `GlobalExceptionFilter` los asigna según el status cuando no hay uno más específico, para
+  // que el front SIEMPRE tenga una clave que traducir y nunca le llegue el string crudo del
+  // `throw` (que puede estar en español o en inglés según quién lo escribió).
+
+  /** HTTP Status: 400 Bad Request, sin errorCode propio */
+  GENERIC_BAD_REQUEST = 'GENERIC_12000',
+
+  /** HTTP Status: 401 Unauthorized, sin errorCode propio */
+  GENERIC_UNAUTHORIZED = 'GENERIC_12001',
+
+  /** HTTP Status: 403 Forbidden, sin errorCode propio */
+  GENERIC_FORBIDDEN = 'GENERIC_12002',
+
+  /** HTTP Status: 404 Not Found, sin errorCode propio */
+  GENERIC_NOT_FOUND = 'GENERIC_12003',
+
+  /** HTTP Status: 409 Conflict, sin errorCode propio */
+  GENERIC_CONFLICT = 'GENERIC_12004',
+
+  /** HTTP Status: 422 Unprocessable Entity, sin errorCode propio */
+  GENERIC_UNPROCESSABLE_ENTITY = 'GENERIC_12005',
+
+  /** HTTP Status: 429 Too Many Requests, sin errorCode propio */
+  GENERIC_TOO_MANY_REQUESTS = 'GENERIC_12006',
+
+  /** Cualquier otro status sin errorCode propio */
+  GENERIC_HTTP_ERROR = 'GENERIC_12007',
 }

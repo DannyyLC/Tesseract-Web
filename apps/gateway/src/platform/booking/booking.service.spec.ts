@@ -26,6 +26,7 @@ describe('BookingService', () => {
         id: 'cred-1',
         googleAccountEmail: 'ventas@tesseract.dev',
         encryptedRefreshToken: 'encrypted',
+        calendarId: 'primary',
       }),
     },
   };
@@ -50,6 +51,7 @@ describe('BookingService', () => {
       id: 'cred-1',
       googleAccountEmail: 'ventas@tesseract.dev',
       encryptedRefreshToken: 'encrypted',
+      calendarId: 'primary',
     });
     mockKms.decrypt.mockResolvedValue('plain-refresh-token');
     (google.calendar as jest.Mock).mockReturnValue({
@@ -123,6 +125,36 @@ describe('BookingService', () => {
       await expect(service.getAvailability('soporte', '2026-01-06')).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    it('queries free/busy on the selected non-primary calendar, not "primary"', async () => {
+      mockPrisma.bookingCalendarCredential.findFirst.mockResolvedValue({
+        id: 'cred-1',
+        googleAccountEmail: 'ventas@tesseract.dev',
+        encryptedRefreshToken: 'encrypted',
+        calendarId: 'equipo.ventas@group.calendar.google.com',
+      });
+      freebusyQuery.mockResolvedValue({
+        data: {
+          calendars: {
+            'equipo.ventas@group.calendar.google.com': {
+              busy: [{ start: '2026-01-06T15:00:00.000Z', end: '2026-01-06T16:00:00.000Z' }],
+            },
+          },
+        },
+      });
+
+      const slots = await service.getAvailability('soporte', '2026-01-06');
+
+      expect(freebusyQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestBody: expect.objectContaining({
+            items: [{ id: 'equipo.ventas@group.calendar.google.com' }],
+          }),
+        }),
+      );
+      expect(slots).toHaveLength(8);
+      expect(slots).not.toContain('2026-01-06T15:00:00.000Z');
     });
   });
 
@@ -199,6 +231,36 @@ describe('BookingService', () => {
           attendeeEmail: 'jane@example.com',
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('creates the event on the selected non-primary calendar, not "primary"', async () => {
+      mockPrisma.bookingCalendarCredential.findFirst.mockResolvedValue({
+        id: 'cred-1',
+        googleAccountEmail: 'ventas@tesseract.dev',
+        encryptedRefreshToken: 'encrypted',
+        calendarId: 'equipo.ventas@group.calendar.google.com',
+      });
+      freebusyQuery.mockResolvedValue({
+        data: { calendars: { 'equipo.ventas@group.calendar.google.com': { busy: [] } } },
+      });
+      eventsInsert.mockResolvedValue({
+        data: {
+          id: 'evt-2',
+          hangoutLink: 'https://meet.google.com/abc-defg-hij',
+          htmlLink: 'https://calendar.google.com/event?eid=abc',
+        },
+      });
+
+      await service.createBooking({
+        eventTypeId: 'soporte',
+        startTime: '2026-01-06T15:00:00.000Z',
+        attendeeName: 'Jane Doe',
+        attendeeEmail: 'jane@example.com',
+      });
+
+      expect(eventsInsert).toHaveBeenCalledWith(
+        expect.objectContaining({ calendarId: 'equipo.ventas@group.calendar.google.com' }),
+      );
     });
   });
 });

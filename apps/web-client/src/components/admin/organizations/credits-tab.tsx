@@ -2,11 +2,14 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useLocale, useTranslations } from 'next-intl';
 import { Loader2, Plus } from 'lucide-react';
 import { CursorPager } from '@/components/ui/cursor-pager';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useAdjustAdminCredits, useAdminOrgCredits } from '@/hooks/billing/use-admin-billing';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
+import { toIntlLocale } from '@/lib/intl-locale';
 import type { AdminOrganizationDetail } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 
@@ -16,6 +19,9 @@ interface Props {
 }
 
 export function CreditsTab({ organizationId, org }: Props) {
+  const t = useTranslations('Admin.CreditsTab');
+  const intlLocale = toIntlLocale(useLocale());
+  const getApiErrorMessage = useApiErrorMessage();
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [direction, setDirection] = useState<'next' | 'prev' | undefined>(undefined);
   const { data, isLoading } = useAdminOrgCredits(organizationId, cursor, direction);
@@ -40,12 +46,12 @@ export function CreditsTab({ organizationId, org }: Props) {
       { organizationId, data: { amount: amountValue, reason: reason.trim() } },
       {
         onSuccess: () => {
-          toast.success('Créditos ajustados');
+          toast.success(t('adjustedSuccess'));
           closeAdjust();
           setCursor(undefined);
           setDirection(undefined);
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo ajustar'),
+        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -58,7 +64,7 @@ export function CreditsTab({ organizationId, org }: Props) {
   if (isLoading || !data) {
     return (
       <div className="flex justify-center py-16">
-        <LogoLoader text="Cargando créditos" />
+        <LogoLoader text={t('loading')} />
       </div>
     );
   }
@@ -79,27 +85,29 @@ export function CreditsTab({ organizationId, org }: Props) {
       <section className="p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-text-primary">Balance</h2>
+            <h2 className="text-sm font-semibold text-text-primary">{t('balanceTitle')}</h2>
             <p className="mt-1 flex items-baseline gap-1.5">
               <span
                 className={`text-2xl font-semibold ${
                   data.balance < 0 ? 'text-danger' : 'text-text-primary'
                 }`}
               >
-                {data.balance.toLocaleString('es-MX')}
+                {data.balance.toLocaleString(intlLocale)}
               </span>
               {/* El denominador es lo que vuelve legible el balance: 750 no dice nada sin saber
                   de cuántos son, y los créditos del plan cambian con cada recalibración. */}
               <span className="text-sm text-text-secondary">
-                / {monthlyCredits === -1 ? '∞' : monthlyCredits.toLocaleString('es-MX')} del plan
+                {t('ofPlan', {
+                  limit: monthlyCredits === -1 ? '∞' : monthlyCredits.toLocaleString(intlLocale),
+                })}
               </span>
             </p>
             <p className="text-xs text-text-secondary">
-              {data.currentMonthSpent.toLocaleString('es-MX')} créditos gastados este mes
+              {t('spentThisMonth', { amount: data.currentMonthSpent.toLocaleString(intlLocale) })}
             </p>
           </div>
           <button className={btnPrimary} onClick={() => setIsAdjusting(true)}>
-            <Plus size={16} /> Ajustar créditos
+            <Plus size={16} /> {t('adjustCredits')}
           </button>
         </div>
       </section>
@@ -108,46 +116,44 @@ export function CreditsTab({ organizationId, org }: Props) {
           lugar donde un balance negativo tiene sentido: sin el límite al lado no se sabe
           cuánto le queda antes del corte. */}
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-3 text-sm font-semibold text-text-primary">Sobregiro</h2>
+        <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('overageTitle')}</h2>
         {org.allowOverages ? (
           <dl className="grid gap-3 sm:grid-cols-3">
             <div>
-              <dt className="text-xs text-text-secondary">Estado</dt>
-              <dd className="text-sm text-success-600">Permitido</dd>
+              <dt className="text-xs text-text-secondary">{t('statusLabel')}</dt>
+              <dd className="text-sm text-success-600">{t('statusAllowed')}</dd>
             </div>
             <div>
-              <dt className="text-xs text-text-secondary">Límite</dt>
+              <dt className="text-xs text-text-secondary">{t('limitLabel')}</dt>
               <dd className="text-sm text-text-primary">
-                {overageLimit === -1 ? '∞' : `${overageLimit.toLocaleString('es-MX')} créditos`}
+                {overageLimit === -1
+                  ? '∞'
+                  : t('limitCredits', { limit: overageLimit.toLocaleString(intlLocale) })}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-text-secondary">Consumido</dt>
+              <dt className="text-xs text-text-secondary">{t('usedLabel')}</dt>
               <dd className={`text-sm ${overageUsed > 0 ? 'text-danger' : 'text-text-primary'}`}>
                 {overageUsed > 0
-                  ? `${overageUsed.toLocaleString('es-MX')} créditos` +
+                  ? t('usedCredits', { used: overageUsed.toLocaleString(intlLocale) }) +
                     (overageRemaining === null
                       ? ''
-                      : ` · quedan ${overageRemaining.toLocaleString('es-MX')}`)
-                  : 'Ninguno'}
+                      : t('usedRemaining', { remaining: overageRemaining.toLocaleString(intlLocale) }))
+                  : t('usedNone')}
               </dd>
             </div>
           </dl>
         ) : (
-          <p className="text-sm text-text-secondary">
-            No permitido. Al quedarse sin créditos, la organización deja de ejecutar workflows.
-          </p>
+          <p className="text-sm text-text-secondary">{t('overageNotAllowed')}</p>
         )}
       </section>
 
       <section className="rounded-xl border border-border bg-surface">
         <div className="border-b border-border p-4">
-          <h2 className="text-sm font-semibold text-text-primary">Historial</h2>
+          <h2 className="text-sm font-semibold text-text-primary">{t('historyTitle')}</h2>
         </div>
         {items.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">
-            Sin transacciones todavía.
-          </p>
+          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('historyEmpty')}</p>
         ) : (
           <ul className="divide-y divide-border">
             {items.map((tx) => (
@@ -157,7 +163,7 @@ export function CreditsTab({ organizationId, org }: Props) {
                     {tx.description ?? tx.type}
                   </p>
                   <p className="text-xs text-text-secondary">
-                    {new Date(tx.createdAt).toLocaleString('es-MX')} · {tx.type}
+                    {new Date(tx.createdAt).toLocaleString(intlLocale)} · {tx.type}
                   </p>
                 </div>
                 <span
@@ -177,41 +183,38 @@ export function CreditsTab({ organizationId, org }: Props) {
           prevCursor={prevCursor}
           nextCursor={nextCursor}
           nextPageAvailable={nextPageAvailable}
-          prevLabel="Anterior"
-          nextLabel="Siguiente"
+          prevLabel={t('prevPage')}
+          nextLabel={t('nextPage')}
           onNavigate={navigate}
           className="border-t border-border p-3"
         />
       </section>
 
-      <Modal isOpen={isAdjusting} onClose={closeAdjust} title="Ajustar créditos">
+      <Modal isOpen={isAdjusting} onClose={closeAdjust} title={t('adjustModalTitle')}>
         <div className="space-y-4">
-          <p className="text-sm text-text-secondary">
-            Usa un monto negativo para restar créditos. Queda registrado en el historial con el
-            motivo que pongas.
-          </p>
+          <p className="text-sm text-text-secondary">{t('adjustHint')}</p>
           <div>
-            <label className={labelClass}>Monto (+/-)</label>
+            <label className={labelClass}>{t('amountLabel')}</label>
             <input
               type="number"
               className={inputClass}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="Ej. 500 o -200"
+              placeholder={t('amountPlaceholder')}
             />
           </div>
           <div>
-            <label className={labelClass}>Motivo</label>
+            <label className={labelClass}>{t('reasonLabel')}</label>
             <input
               className={inputClass}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Compensación por incidencia del 10/08"
+              placeholder={t('reasonPlaceholder')}
             />
           </div>
           <div className="flex justify-end gap-2">
             <button className={btnGhost} onClick={closeAdjust}>
-              Cancelar
+              {t('cancel')}
             </button>
             <button
               className={btnPrimary}
@@ -219,7 +222,7 @@ export function CreditsTab({ organizationId, org }: Props) {
               disabled={!canAdjust || adjustCredits.isPending}
             >
               {adjustCredits.isPending && <Loader2 size={14} className="animate-spin" />}
-              {adjustCredits.isPending ? 'Ajustando…' : 'Ajustar'}
+              {adjustCredits.isPending ? t('adjusting') : t('adjust')}
             </button>
           </div>
         </div>

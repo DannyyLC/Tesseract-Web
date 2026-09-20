@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/routing';
 import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
@@ -43,20 +44,10 @@ import { RawJsonTab } from '@/components/admin/workflows/raw-json-tab';
 import { HistoryTab } from '@/components/admin/workflows/history-tab';
 import { SettingsTab } from '@/components/admin/workflows/settings-tab';
 import { TestTab } from '@/components/admin/workflows/test-tab';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '../../_styles';
 
 type TabId = 'agents' | 'nodes' | 'graph' | 'media' | 'json' | 'test' | 'settings' | 'history';
-
-const TABS: { id: TabId; label: string; icon: typeof Bot }[] = [
-  { id: 'agents', label: 'Agentes', icon: Bot },
-  { id: 'nodes', label: 'Nodos', icon: Boxes },
-  { id: 'graph', label: 'Grafo', icon: GitBranch },
-  { id: 'media', label: 'Media', icon: ImageIcon },
-  { id: 'json', label: 'JSON', icon: FileJson },
-  { id: 'test', label: 'Probar', icon: FlaskConical },
-  { id: 'settings', label: 'Ajustes', icon: SlidersHorizontal },
-  { id: 'history', label: 'Historial', icon: History },
-];
 
 /** Pestañas que no tocan `draft` (ver `showConfigFooter` más abajo). */
 const NON_DRAFT_TABS: TabId[] = ['settings', 'history', 'test'];
@@ -83,11 +74,12 @@ function discardStaleDrafts(workflowId: string, currentVersion: number) {
  * prerenderizar; sin él, el build falla al exportar la ruta.
  */
 export default function WorkflowEditorPage() {
+  const t = useTranslations('Admin.WorkflowEditor');
   return (
     <Suspense
       fallback={
         <div className="flex min-h-[60vh] items-center justify-center">
-          <LogoLoader text="Cargando workflow" />
+          <LogoLoader text={t('loading')} />
         </div>
       }
     >
@@ -97,11 +89,24 @@ export default function WorkflowEditorPage() {
 }
 
 function WorkflowEditor() {
+  const t = useTranslations('Admin.WorkflowEditor');
+  const getApiErrorMessage = useApiErrorMessage();
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const workflowId = String(params.id);
+
+  const TABS: { id: TabId; label: string; icon: typeof Bot }[] = [
+    { id: 'agents', label: t('tabs.agents'), icon: Bot },
+    { id: 'nodes', label: t('tabs.nodes'), icon: Boxes },
+    { id: 'graph', label: t('tabs.graph'), icon: GitBranch },
+    { id: 'media', label: t('tabs.media'), icon: ImageIcon },
+    { id: 'json', label: t('tabs.json'), icon: FileJson },
+    { id: 'test', label: t('tabs.test'), icon: FlaskConical },
+    { id: 'settings', label: t('tabs.settings'), icon: SlidersHorizontal },
+    { id: 'history', label: t('tabs.history'), icon: History },
+  ];
 
   const { data: workflow, isLoading, error } = useAdminWorkflow(workflowId);
   const { data: editorContext } = useEditorContext();
@@ -159,7 +164,7 @@ function WorkflowEditor() {
         const parsed = JSON.parse(stored);
         if (!isEqualConfig(parsed, workflow.config)) {
           setDraft(parsed);
-          toast.info('Se recuperó un borrador sin guardar de esta versión.');
+          toast.info(t('draftRecovered'));
           return;
         }
       } catch {
@@ -187,9 +192,11 @@ function WorkflowEditor() {
     [original, draft],
   );
 
+  const tLint = useTranslations('Admin.LintConfig');
   const lintIssues = useMemo(
-    () => (draft ? lintConfig(draft, (workflow?.tenantTools ?? []).map((t) => t.id)) : []),
-    [draft, workflow],
+    () =>
+      draft ? lintConfig(draft, (workflow?.tenantTools ?? []).map((tool) => tool.id), tLint) : [],
+    [draft, workflow, tLint],
   );
   const lintErrors = lintIssues.filter((i) => i.severity === 'error');
 
@@ -220,7 +227,7 @@ function WorkflowEditor() {
     setValidation(null);
     localStorage.removeItem(draftKey(workflowId, loadedVersion));
     setDiscardOpen(false);
-    toast.info('Cambios descartados');
+    toast.info(t('changesDiscarded'));
   };
 
   const handleValidate = () => {
@@ -230,10 +237,10 @@ function WorkflowEditor() {
       {
         onSuccess: (result) => {
           setValidation(result);
-          if (result.valid) toast.success('El config es válido');
-          else toast.error(`${result.errors.length} problema(s) encontrados`);
+          if (result.valid) toast.success(t('configValid'));
+          else toast.error(t('validationIssues', { count: result.errors.length }));
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo validar'),
+        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -264,22 +271,19 @@ function WorkflowEditor() {
             setOriginal(draft);
             setLoadedVersion(result.workflow.version);
             setLoadedHash(result.version?.configHash ?? null);
-            toast.success(`Guardado como v${result.workflow.version}`);
+            toast.success(t('savedAsVersion', { version: result.workflow.version }));
           } else {
-            toast.info('No había cambios que guardar');
+            toast.info(t('nothingToSave'));
           }
         },
         onError: (e: any) => {
           if (e?.toastHandled) return;
           const status = e?.response?.status ?? e?.statusCode;
           if (status === 409) {
-            toast.error(
-              'Alguien más guardó este workflow mientras editabas. Recarga la página para no pisar sus cambios.',
-              { duration: 10000 },
-            );
+            toast.error(t('conflictError'), { duration: 10000 });
             return;
           }
-          toast.error(e?.message ?? 'No se pudo guardar');
+          toast.error(getApiErrorMessage(e));
         },
       },
     );
@@ -289,9 +293,9 @@ function WorkflowEditor() {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         {error ? (
-          <p className="text-sm text-danger">No se pudo cargar el workflow.</p>
+          <p className="text-sm text-danger">{t('loadError')}</p>
         ) : (
-          <LogoLoader text="Cargando workflow" />
+          <LogoLoader text={t('loading')} />
         )}
       </div>
     );
@@ -313,11 +317,11 @@ function WorkflowEditor() {
               <span>{workflow.organization.name}</span>
               <span>v{loadedVersion ?? workflow.version}</span>
               <span>{workflow.category}</span>
-              {!workflow.isActive && <span className="text-danger">inactivo</span>}
-              {workflow.isPaused && <span className="text-danger">pausado</span>}
+              {!workflow.isActive && <span className="text-danger">{t('inactiveBadge')}</span>}
+              {workflow.isPaused && <span className="text-danger">{t('pausedBadge')}</span>}
               {workflow.deletedAt && (
                 <span className="font-medium text-danger">
-                  eliminado el {new Date(workflow.deletedAt).toLocaleDateString()}
+                  {t('deletedOn', { date: new Date(workflow.deletedAt).toLocaleDateString() })}
                 </span>
               )}
             </p>
@@ -326,7 +330,7 @@ function WorkflowEditor() {
               viven todas juntas abajo, en la barra sticky. Un solo lugar. */}
           {isDirty && (
             <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs text-accent">
-              {changes.length} cambio(s) sin guardar
+              {t('unsavedChanges', { count: changes.length })}
             </span>
           )}
         </div>
@@ -353,7 +357,7 @@ function WorkflowEditor() {
       {lintErrors.length > 0 && (
         <div className="mb-4 space-y-1 rounded-lg border border-danger/40 p-3">
           <p className="flex items-center gap-1 text-xs font-medium text-danger">
-            <AlertTriangle size={13} /> Referencias rotas ({lintErrors.length})
+            <AlertTriangle size={13} /> {t('brokenReferences', { count: lintErrors.length })}
           </p>
           {lintErrors.slice(0, 5).map((issue, i) => (
             <p key={i} className="text-[11px] text-danger">
@@ -398,7 +402,7 @@ function WorkflowEditor() {
       {showConfigFooter && validation && !validation.valid && (
         <div className="mt-4 space-y-1 rounded-lg border border-danger/40 p-3">
           <p className="text-xs font-medium text-danger">
-            La validación del servidor encontró {validation.errors.length} problema(s):
+            {t('serverValidationIssues', { count: validation.errors.length })}
           </p>
           {validation.errors.map((e, i) => (
             <p key={i} className="text-[11px] text-danger">
@@ -433,7 +437,7 @@ function WorkflowEditor() {
           <div className="flex h-full flex-nowrap items-center justify-end gap-2 overflow-x-auto">
             {validation?.valid && (
               <span className="mr-auto inline-flex shrink-0 items-center gap-1 text-xs whitespace-nowrap text-success-500">
-                <CheckCircle2 size={13} /> Config válido
+                <CheckCircle2 size={13} /> {t('configValid')}
               </span>
             )}
             <button
@@ -446,28 +450,28 @@ function WorkflowEditor() {
               ) : (
                 <ListChecks size={14} />
               )}
-              Validar
+              {t('validate')}
             </button>
             <button
               className={`${btnGhost} shrink-0 whitespace-nowrap`}
               onClick={() => setChangesOpen(true)}
               disabled={!isDirty}
             >
-              Ver cambios ({changes.length})
+              {t('viewChanges', { count: changes.length })}
             </button>
             <button
               className={`${btnGhost} shrink-0 whitespace-nowrap text-danger hover:bg-danger/10`}
               onClick={() => setDiscardOpen(true)}
               disabled={!isDirty}
             >
-              <Undo2 size={14} /> Descartar
+              <Undo2 size={14} /> {t('discard')}
             </button>
             <button
               className={`${btnPrimary} shrink-0 whitespace-nowrap`}
               onClick={() => setSaveOpen(true)}
               disabled={!isDirty}
             >
-              <Save size={14} /> Guardar
+              <Save size={14} /> {t('save')}
             </button>
           </div>
         </div>
@@ -475,9 +479,9 @@ function WorkflowEditor() {
 
       <AnimatePresence>
         {changesOpen && (
-          <Modal isOpen onClose={() => setChangesOpen(false)} title="Cambios sin guardar">
+          <Modal isOpen onClose={() => setChangesOpen(false)} title={t('unsavedChangesModalTitle')}>
             {changes.length === 0 ? (
-              <p className="py-6 text-center text-sm text-text-secondary">No hay cambios.</p>
+              <p className="py-6 text-center text-sm text-text-secondary">{t('noChanges')}</p>
             ) : (
               <div className="space-y-3">
                 {changes.map((entry, i) => (
@@ -502,33 +506,31 @@ function WorkflowEditor() {
         )}
 
         {saveOpen && (
-          <Modal isOpen onClose={() => setSaveOpen(false)} title="Guardar cambios">
+          <Modal isOpen onClose={() => setSaveOpen(false)} title={t('saveChangesModalTitle')}>
             <div className="space-y-4">
               <p className="text-sm text-text-secondary">
-                Se guardarán {changes.length} cambio(s). El config anterior queda en el historial y
-                puedes volver a él cuando quieras.
+                {t('saveChangesHint', { count: changes.length })}
               </p>
               {lintErrors.length > 0 && (
                 <p className="rounded-lg border border-danger/40 px-3 py-2 text-xs text-danger">
-                  Hay {lintErrors.length} referencia(s) rota(s). El motor fallará al ejecutar este
-                  workflow aunque el guardado se acepte.
+                  {t('brokenReferencesWarning', { count: lintErrors.length })}
                 </p>
               )}
               <div>
-                <label className={labelClass}>Nota del cambio (opcional)</label>
+                <label className={labelClass}>{t('noteLabel')}</label>
                 <input
                   className={inputClass}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="El cliente pidió un tono más formal"
+                  placeholder={t('notePlaceholder')}
                 />
               </div>
               <div className="flex justify-end gap-2">
                 <button className={btnGhost} onClick={() => setSaveOpen(false)}>
-                  Cancelar
+                  {t('cancel')}
                 </button>
                 <button className={btnPrimary} onClick={handleSave} disabled={saveConfig.isPending}>
-                  {saveConfig.isPending ? 'Guardando…' : 'Guardar'}
+                  {saveConfig.isPending ? t('saving') : t('save')}
                 </button>
               </div>
             </div>
@@ -541,9 +543,9 @@ function WorkflowEditor() {
         onClose={() => setDiscardOpen(false)}
         onConfirm={handleDiscard}
         variant="danger"
-        title="Descartar cambios"
-        message={`Vas a perder ${changes.length} cambio(s) sin guardar en este workflow. No se puede deshacer.`}
-        confirmLabel="Descartar"
+        title={t('discardModalTitle')}
+        message={t('discardModalMessage', { count: changes.length })}
+        confirmLabel={t('discard')}
       />
     </div>
   );

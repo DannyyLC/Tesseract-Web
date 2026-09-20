@@ -6,6 +6,7 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { UtilityService } from '@/platform/utility/utility.service';
 import { maskEmail } from '@/platform/common/utils/mask-email';
 import { normalizeEmail } from '@/platform/common/utils/normalize-email';
+import { PLATFORM_ORG_SLUG } from '@/platform/common/constants/platform-org.constant';
 
 /**
  * Crea (o actualiza de forma idempotente) la cuenta super admin a partir de
@@ -24,8 +25,6 @@ import { normalizeEmail } from '@/platform/common/utils/normalize-email';
 export class SuperAdminBootstrapService implements OnApplicationBootstrap {
   private readonly logger = new Logger(SuperAdminBootstrapService.name);
 
-  // Slug fijo y reservado de la organización de plataforma.
-  private static readonly PLATFORM_ORG_SLUG = 'platform';
   private static readonly PLATFORM_ORG_NAME = 'Platform';
 
   constructor(
@@ -51,11 +50,11 @@ export class SuperAdminBootstrapService implements OnApplicationBootstrap {
 
       // 1. Organización de plataforma (dedicada y vacía).
       const platformOrg = await this.prisma.organization.upsert({
-        where: { slug: SuperAdminBootstrapService.PLATFORM_ORG_SLUG },
+        where: { slug: PLATFORM_ORG_SLUG },
         update: {},
         create: {
           name: SuperAdminBootstrapService.PLATFORM_ORG_NAME,
-          slug: SuperAdminBootstrapService.PLATFORM_ORG_SLUG,
+          slug: PLATFORM_ORG_SLUG,
           plan: SubscriptionPlan.FREE,
           isActive: true,
           allowOverages: false,

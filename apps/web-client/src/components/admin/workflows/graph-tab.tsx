@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { ArrowRight, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { NodeIcon } from './node-presentation';
 import { lintConfig, type WorkflowConfig } from '@/lib/workflow-config/config-edit';
@@ -16,6 +17,8 @@ interface Props {
  * JSON crudo; aquí lo valioso es ver de un vistazo cómo está conectado y qué está roto.
  */
 export function GraphTab({ config, tenantTools }: Props) {
+  const t = useTranslations('Admin.GraphTab');
+  const tLint = useTranslations('Admin.LintConfig');
   const nodes: any[] = config.graph?.nodes ?? [];
   const edges: any[] = config.graph?.edges ?? [];
 
@@ -34,8 +37,8 @@ export function GraphTab({ config, tenantTools }: Props) {
   }, [edges]);
 
   const issues = useMemo(
-    () => lintConfig(config, tenantTools.map((t) => t.id)),
-    [config, tenantTools],
+    () => lintConfig(config, tenantTools.map((tool) => tool.id), tLint),
+    [config, tenantTools, tLint],
   );
 
   const errors = issues.filter((i) => i.severity === 'error');
@@ -44,16 +47,16 @@ export function GraphTab({ config, tenantTools }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 text-xs text-text-secondary">
-        <span>{nodes.length} nodos</span>
-        <span>{edges.length} aristas</span>
-        <span>tipo: {config.graph?.type ?? '—'}</span>
-        <span>schema_version: {config.graph?.schema_version ?? 1}</span>
+        <span>{t('nodesCount', { count: nodes.length })}</span>
+        <span>{t('edgesCount', { count: edges.length })}</span>
+        <span>{t('typeLabel', { type: config.graph?.type ?? '—' })}</span>
+        <span>{t('schemaVersion', { version: config.graph?.schema_version ?? 1 })}</span>
       </div>
 
       {issues.length === 0 ? (
         <p className="flex items-center gap-2 rounded-lg border border-border bg-surface-secondary px-3 py-2 text-xs text-text-primary">
           <CheckCircle2 size={14} className="text-success-500" />
-          Sin referencias rotas ni nodos huérfanos.
+          {t('noIssues')}
         </p>
       ) : (
         <div className="space-y-2">
@@ -78,7 +81,7 @@ export function GraphTab({ config, tenantTools }: Props) {
 
       <div className="rounded-lg border border-border">
         <div className="border-b border-border px-3 py-2 text-xs font-medium text-text-primary">
-          Aristas declaradas
+          {t('declaredEdges')}
         </div>
         <ul className="divide-y divide-border">
           {grouped.map(([from, targets]) => (
@@ -106,9 +109,7 @@ export function GraphTab({ config, tenantTools }: Props) {
 
       {config.graph?.persist_variables?.length > 0 && (
         <div className="rounded-lg border border-border px-3 py-2">
-          <span className="text-xs font-medium text-text-primary">
-            Variables que se persisten entre turnos
-          </span>
+          <span className="text-xs font-medium text-text-primary">{t('persistedVariables')}</span>
           <div className="mt-1 flex flex-wrap gap-1">
             {config.graph.persist_variables.map((v: string) => (
               <span
@@ -119,10 +120,7 @@ export function GraphTab({ config, tenantTools }: Props) {
               </span>
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-text-secondary">
-            Renombrar o quitar una variable deja valores viejos guardados en las conversaciones que
-            ya existen.
-          </p>
+          <p className="mt-2 text-[11px] text-text-secondary">{t('persistedVariablesHint')}</p>
         </div>
       )}
     </div>

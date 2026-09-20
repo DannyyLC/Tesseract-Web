@@ -671,6 +671,7 @@ export class UsersService {
     organizationId: string,
     cursor?: string | null,
     pageSize = DEFAULT_PAGE_SIZE,
+    locale = 'es',
   ): Promise<PaginatedResponse<NotificationEventDto>> {
     const where: Prisma.UserNotificationWhereInput = {
       userId,
@@ -694,16 +695,22 @@ export class UsersService {
       null, // action not needed for simple next/prev based purely on ID cursor
     );
 
+    const wantsEnglish = locale === 'en';
     const items = paginatedResponse.items.map((userNotification) => {
-      const code = userNotification.notification.code;
+      const { notification } = userNotification;
+      const isAnnouncement = notification.kind === 'ANNOUNCEMENT';
 
       return {
         id: userNotification.id, // Now using the unique UUID of the UserNotification
-        notificationCode: code,
+        notificationCode: notification.code,
         isRead: userNotification.isRead,
-        title: userNotification.titleSnapshot,
-        desc: userNotification.messageSnapshot,
+        title: (wantsEnglish && userNotification.titleSnapshotEn) || userNotification.titleSnapshot,
+        desc: (wantsEnglish && userNotification.messageSnapshotEn) || userNotification.messageSnapshot,
         createdAt: userNotification.createdAt,
+        ...(isAnnouncement && {
+          isAnnouncement: true,
+          announcementTemplate: notification.announcementTemplate as 'NEWS' | 'CELEBRATION',
+        }),
       };
     });
 

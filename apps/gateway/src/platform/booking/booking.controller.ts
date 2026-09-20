@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Logger,
+  Patch,
   Post,
   Query,
   Res,
@@ -22,6 +23,7 @@ import {
   ApiResponse,
   ApiResponseBuilder,
   BookingAvailabilityResponse,
+  BookingCalendarListItem,
   BookingCalendarStatus,
   BookingConfirmation,
   BookingEventType,
@@ -31,6 +33,7 @@ import { BookingService } from './booking.service';
 import { BookingOauthService } from './booking-oauth.service';
 import { BOOKING_EVENT_TYPES, BOOKING_TIMEZONE } from './booking-event-types.config';
 import { CreateBookingRequestDto } from './dto/create-booking.dto';
+import { SelectBookingCalendarRequestDto } from './dto/select-booking-calendar.dto';
 
 @Controller('booking')
 export class BookingController {
@@ -97,6 +100,25 @@ export class BookingController {
   async disconnect(): Promise<ApiResponse<boolean>> {
     await this.bookingOauthService.disconnect();
     return new ApiResponseBuilder<boolean>().setData(true).build();
+  }
+
+  @Get('admin/calendars')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  async calendars(): Promise<ApiResponse<BookingCalendarListItem[]>> {
+    const calendars = await this.bookingOauthService.getCalendars();
+    return new ApiResponseBuilder<BookingCalendarListItem[]>().setData(calendars).build();
+  }
+
+  @Patch('admin/calendar')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  async selectCalendar(
+    @Body() dto: SelectBookingCalendarRequestDto,
+  ): Promise<ApiResponse<BookingCalendarStatus>> {
+    await this.bookingOauthService.selectCalendar(dto.calendarId);
+    const status = await this.bookingOauthService.getStatus();
+    return new ApiResponseBuilder<BookingCalendarStatus>().setData(status).build();
   }
 
   @Get('admin/callback')

@@ -32,6 +32,7 @@ import {
 import { Prisma, UserRole } from '@tesseract/database';
 import { maskEmail } from '@/platform/common/utils/mask-email';
 import { normalizeEmail } from '@/platform/common/utils/normalize-email';
+import { DEFAULT_LOCALE, SupportedLocale } from '@/platform/common/types/locale.type';
 import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
 
 /**
@@ -818,7 +819,10 @@ export class AuthService {
     }
   }
 
-  async signupStepOne(payload: StartVerificationFlowDto): Promise<StepOneErrors | object> {
+  async signupStepOne(
+    payload: StartVerificationFlowDto,
+    locale: SupportedLocale = DEFAULT_LOCALE,
+  ): Promise<StepOneErrors | object> {
     const emailExists = await this.prisma.user.findUnique({
       where: { email: payload.email },
     });
@@ -839,7 +843,7 @@ export class AuthService {
     }
 
     const { sentMessageInfo, verificationCode } =
-      await this.emailService.sendVerificationCodeByEmail(payload);
+      await this.emailService.sendVerificationCodeByEmail(payload, locale);
 
     if (!sentMessageInfo || sentMessageInfo.success === false) {
       this.logger.error(`authService >> signupStepOne >> Email no aceptado para ${maskEmail(payload.email)}`);
@@ -1063,7 +1067,10 @@ export class AuthService {
     return true;
   }
 
-  async resetPasswordStepOne(email: string): Promise<ForgotPassErrors | object> {
+  async resetPasswordStepOne(
+    email: string,
+    locale: SupportedLocale = DEFAULT_LOCALE,
+  ): Promise<ForgotPassErrors | object> {
     const user = await this.prisma.user.findUnique({
       where: { email },
       include: { organization: true },
@@ -1084,7 +1091,7 @@ export class AuthService {
     }
 
     // Usar EmailService para generar y enviar el código
-    const emailResult = await this.emailService.sendPasswordResetCodeByEmail(email);
+    const emailResult = await this.emailService.sendPasswordResetCodeByEmail(email, locale);
 
     if (
       !emailResult?.sentMessageInfo ||
