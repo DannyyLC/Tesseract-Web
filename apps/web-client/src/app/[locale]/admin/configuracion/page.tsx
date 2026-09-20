@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ADMIN_PAGE_SIZE } from '@tesseract/types';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { PagePager } from '@/components/ui/page-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 import { useLlmCategories, useLlmCategoryMutations } from '@/hooks/automation/use-llm-categories';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import type {
@@ -25,8 +25,9 @@ const btnPrimary =
 export default function AdminConfiguracionPage() {
   const tt = useTranslations('Admin.Configuration');
   const getApiErrorMessage = useApiErrorMessage();
+  const { pageSize, setPageSize } = usePageSize('admin-llm-categories');
   const [page, setPage] = useState(1);
-  const { data: response, isLoading, isError } = useLlmCategories({ page, limit: ADMIN_PAGE_SIZE });
+  const { data: response, isLoading, isError } = useLlmCategories({ page, limit: pageSize });
   const categories = response?.data ?? [];
   const meta = response?.meta;
   const { createCategory, updateCategory, deleteCategory } = useLlmCategoryMutations();
@@ -110,6 +111,11 @@ export default function AdminConfiguracionPage() {
             page={page}
             totalPages={meta.totalPages}
             onPageChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
             summary={tt('pagerSummary', { page, totalPages: meta.totalPages })}
             className="border-t border-border p-4"
           />

@@ -2925,6 +2925,9 @@
     }
   },
   "Shared": {
+    "PageSize": {
+      "label": "Per page"
+    },
     "TimeAgo": {
       "never": "Never",
       "minutesAgo": "{count}m ago",

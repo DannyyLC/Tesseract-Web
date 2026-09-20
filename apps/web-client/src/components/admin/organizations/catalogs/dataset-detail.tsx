@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, Eraser, FileUp, Loader2, Settings2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { DatasetField, DENSE_PAGE_SIZE } from '@tesseract/types';
+import { DatasetField } from '@tesseract/types';
 import { ImportCsvModal } from '@/components/datasets/import-csv-modal';
 import { RecordsGrid } from '@/components/datasets/records-grid';
 import { RecordsToolbar } from '@/components/datasets/records-toolbar';
 import { useRecordSelection } from '@/components/datasets/use-record-selection';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { PagePager } from '@/components/ui/page-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -46,6 +47,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
   const usage = list?.usage;
   const atRowLimit = !!usage && usage.writesBlocked;
 
+  const { pageSize, setPageSize } = usePageSize('admin-catalog-records');
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 400);
@@ -57,8 +59,8 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
   const { data: records } = useAdminDatasetRecords(
     organizationId,
     datasetId,
-    DENSE_PAGE_SIZE,
-    (page - 1) * DENSE_PAGE_SIZE,
+    pageSize,
+    (page - 1) * pageSize,
     search,
   );
   const {
@@ -73,7 +75,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
 
   const selection = useRecordSelection(
     (records?.items ?? []).map((record) => record.id),
-    `${page}|${search}`,
+    `${page}|${pageSize}|${search}`,
   );
 
   const [isEditingSchema, setIsEditingSchema] = useState(false);
@@ -175,7 +177,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil((records?.total ?? 0) / DENSE_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil((records?.total ?? 0) / pageSize));
 
   return (
     <div className="w-full space-y-6">
@@ -229,6 +231,11 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
             page={page}
             totalPages={totalPages}
             onPageChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
             emphasis="plain"
             className="shrink-0"
           />

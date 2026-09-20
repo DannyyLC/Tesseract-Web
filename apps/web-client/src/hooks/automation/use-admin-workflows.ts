@@ -70,12 +70,14 @@ export function useEditorContext() {
   });
 }
 
-export function useWorkflowVersions(id: string, page = 1, enabled = true) {
+export function useWorkflowVersions(id: string, page = 1, enabled = true, limit?: number) {
   return useQuery({
-    queryKey: [KEY, 'versions', id, page],
-    queryFn: async () => api().listVersions(id, page),
+    queryKey: [KEY, 'versions', id, page, limit ?? null],
+    queryFn: async () => api().listVersions(id, page, limit),
     enabled: !!id && enabled,
     retry: false,
+    // Sin esto, cambiar de página o de tamaño vacía la lista y la pestaña cae al loader.
+    placeholderData: (previous) => previous,
   });
 }
 

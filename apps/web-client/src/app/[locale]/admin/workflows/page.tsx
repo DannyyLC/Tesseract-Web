@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ADMIN_PAGE_SIZE } from '@tesseract/types';
 import { useRouter } from '@/i18n/routing';
 import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
@@ -16,6 +15,7 @@ import {
 } from '@/hooks/automation/use-admin-workflows';
 import { btnPrimary, inputClass } from '../_styles';
 import { PagePager } from '@/components/ui/page-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 import { CreateWorkflowModal } from '@/components/admin/workflows/create-workflow-modal';
 
 export default function AdminWorkflowsPage() {
@@ -25,6 +25,7 @@ export default function AdminWorkflowsPage() {
   const [organizationId, setOrganizationId] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [orgSearchInput, setOrgSearchInput] = useState('');
+  const { pageSize, setPageSize } = usePageSize('admin-workflows');
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [includeDeleted, setIncludeDeleted] = useState(false);
@@ -65,7 +66,7 @@ export default function AdminWorkflowsPage() {
     search: search || undefined,
     includeDeleted,
     page,
-    limit: ADMIN_PAGE_SIZE,
+    limit: pageSize,
   });
 
   return (
@@ -182,6 +183,11 @@ export default function AdminWorkflowsPage() {
           page={data.meta.page}
           totalPages={data.meta.totalPages}
           onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
           summary={t('pagerSummary', {
             page: data.meta.page,
             totalPages: data.meta.totalPages,

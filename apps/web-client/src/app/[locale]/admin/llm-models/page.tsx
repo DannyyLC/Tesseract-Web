@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { ADMIN_PAGE_SIZE } from '@tesseract/types';
 import { toast } from 'sonner';
 import { Plus, Pencil, DollarSign, Power, Search, AlertTriangle } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { PagePager } from '@/components/ui/page-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 import { useLlmModels, useLlmModelMutations } from '@/hooks/automation/use-llm-models';
 import { useInfiniteLlmCategories } from '@/hooks/automation/use-llm-categories';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
@@ -43,6 +43,7 @@ export default function LlmModelsAdminPage() {
   const [tierFilter, setTierFilter] = useState<ModelTier | ''>('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('active');
+  const { pageSize, setPageSize } = usePageSize('admin-llm-models');
   const [page, setPage] = useState(1);
 
   // Reiniciar a la página 1 cuando cambian los filtros
@@ -55,7 +56,7 @@ export default function LlmModelsAdminPage() {
     tier: tierFilter || undefined,
     llmCategoryId: categoryFilter || undefined,
     isActive: activeFilter === 'all' ? undefined : activeFilter === 'active',
-    limit: ADMIN_PAGE_SIZE,
+    limit: pageSize,
     page,
   };
 
@@ -231,6 +232,11 @@ export default function LlmModelsAdminPage() {
             page={page}
             totalPages={meta.totalPages}
             onPageChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
             summary={tt('pagerSummary', { page, totalPages: meta.totalPages })}
             className="border-t border-border p-4"
           />

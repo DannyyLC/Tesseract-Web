@@ -5,10 +5,11 @@ import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Search, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { DEFAULT_PAGE_SIZE, DashboardEndUserDto, EndUserBlockedFilter } from '@tesseract/types';
+import { DashboardEndUserDto, EndUserBlockedFilter } from '@tesseract/types';
 import { useEndUsers, useEndUserMutations } from '@/hooks/identity/use-end-users';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { CursorPager } from '@/components/ui/cursor-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import {
   AddContactMenu,
@@ -28,6 +29,7 @@ export default function ContactsPage() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [blocked, setBlocked] = useState<EndUserBlockedFilter>('all');
+  const { pageSize, setPageSize } = usePageSize('contacts');
   const [cursor, setCursor] = useState<string | null>(null);
   const [action, setAction] = useState<'next' | 'prev' | null>(null);
   const [contactToBlock, setContactToBlock] = useState<DashboardEndUserDto | null>(null);
@@ -46,7 +48,7 @@ export default function ContactsPage() {
   const { data, isLoading } = useEndUsers({
     cursor,
     action,
-    pageSize: DEFAULT_PAGE_SIZE,
+    pageSize,
     search: searchQuery || undefined,
     blocked,
   });
@@ -171,6 +173,12 @@ export default function ContactsPage() {
           onNavigate={(nextCursor, nextAction) => {
             setCursor(nextCursor);
             setAction(nextAction);
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCursor(null);
+            setAction(null);
           }}
         />
       </div>

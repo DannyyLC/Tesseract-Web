@@ -9,8 +9,9 @@ import { Search, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDashboardWorkflows, useWorkflowStats } from '@/hooks/automation/use-workflows';
 import { useSupportMutations } from '@/hooks/platform/use-support';
-import { DEFAULT_PAGE_SIZE, WorkflowCategory } from '@tesseract/types';
+import { WorkflowCategory } from '@tesseract/types';
 import { CursorPager } from '@/components/ui/cursor-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
 import DashboardWorkflowItem from './_components/dashboard-workflow-item';
@@ -44,7 +45,7 @@ export default function WorkflowsPage() {
 
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const pageSize = DEFAULT_PAGE_SIZE;
+  const { pageSize, setPageSize } = usePageSize('workflows');
 
   // Sync debounced search with input (local input state needed for typing)
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -326,6 +327,11 @@ export default function WorkflowsPage() {
           nextLabel={t('next')}
           summary={t('showingItems', { count: workflows.length })}
           onNavigate={(cursor, action) => updateUrl({ cursor, action })}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            updateUrl({ cursor: null, action: null });
+          }}
           className="border-t border-border pt-4"
         />
 

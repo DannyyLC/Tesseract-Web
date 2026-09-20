@@ -7,6 +7,7 @@ import { AlertTriangle, Clock, Download, Loader2, RefreshCw } from 'lucide-react
 import { DashboardInvoiceDto } from '@tesseract/types';
 import { useInvoices, useInvoiceMutations } from '@/hooks/billing/use-invoices';
 import { CursorPager } from '@/components/ui/cursor-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 
 /**
  * Histórico de facturas con el estado de su CFDI.
@@ -23,8 +24,9 @@ export default function InvoiceList({ isMexican }: { isMexican: boolean }) {
   const t = useTranslations('Invoices');
   const [cursor, setCursor] = useState<string | null>(null);
   const [action, setAction] = useState<'next' | 'prev' | null>(null);
+  const { pageSize, setPageSize } = usePageSize('invoices');
 
-  const { data, isLoading } = useInvoices(cursor, action);
+  const { data, isLoading } = useInvoices(cursor, action, pageSize);
   const { generateCfdi, downloadCfdi } = useInvoiceMutations();
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
@@ -179,6 +181,12 @@ export default function InvoiceList({ isMexican }: { isMexican: boolean }) {
           }}
           prevLabel={t('previous')}
           nextLabel={t('next')}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCursor(null);
+            setAction(null);
+          }}
         />
       </div>
     </section>

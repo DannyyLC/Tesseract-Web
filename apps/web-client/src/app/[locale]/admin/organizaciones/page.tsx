@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ADMIN_PAGE_SIZE } from '@tesseract/types';
 import { ChevronDown, Search } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -10,6 +9,7 @@ import { useAdminOrganizations } from '@/hooks/identity/use-admin-organizations'
 import { OrganizationSummary } from '@/components/admin/organizations/organization-summary';
 import { inputClass } from '../_styles';
 import { PagePager } from '@/components/ui/page-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 
 export default function AdminOrganizationsPage() {
   const t = useTranslations('Admin.Organizations');
@@ -20,6 +20,7 @@ export default function AdminOrganizationsPage() {
   ] as const;
   const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]['value']>('');
+  const { pageSize, setPageSize } = usePageSize('admin-organizations');
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -33,7 +34,7 @@ export default function AdminOrganizationsPage() {
     search: search || undefined,
     isActive: statusFilter === '' ? undefined : statusFilter === 'true',
     page,
-    limit: ADMIN_PAGE_SIZE,
+    limit: pageSize,
   });
 
   return (
@@ -127,6 +128,11 @@ export default function AdminOrganizationsPage() {
           page={data.meta.page}
           totalPages={data.meta.totalPages}
           onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
           summary={t('pagerSummary', {
             page: data.meta.page,
             totalPages: data.meta.totalPages,

@@ -8,6 +8,7 @@ import { CursorPager } from '@/components/ui/cursor-pager';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useAdjustAdminCredits, useAdminOrgCredits } from '@/hooks/billing/use-admin-billing';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { toIntlLocale } from '@/lib/intl-locale';
 import type { AdminOrganizationDetail } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
@@ -24,7 +25,8 @@ export function CreditsTab({ organizationId, org }: Props) {
   const getApiErrorMessage = useApiErrorMessage();
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [direction, setDirection] = useState<'next' | 'prev' | undefined>(undefined);
-  const { data, isLoading } = useAdminOrgCredits(organizationId, cursor, direction);
+  const { pageSize, setPageSize } = usePageSize('admin-org-credits');
+  const { data, isLoading } = useAdminOrgCredits(organizationId, cursor, direction, pageSize);
   const adjustCredits = useAdjustAdminCredits();
 
   const [isAdjusting, setIsAdjusting] = useState(false);
@@ -186,6 +188,12 @@ export function CreditsTab({ organizationId, org }: Props) {
           prevLabel={t('prevPage')}
           nextLabel={t('nextPage')}
           onNavigate={navigate}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCursor(undefined);
+            setDirection(undefined);
+          }}
           className="border-t border-border p-3"
         />
       </section>

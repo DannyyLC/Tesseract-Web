@@ -16,6 +16,7 @@ import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { toIntlLocale } from '@/lib/intl-locale';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import { PagePager } from '@/components/ui/page-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 
 interface Props {
   workflowId: string;
@@ -33,12 +34,13 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
     RESTORE: t('sourceRestore'),
     CLONE: t('sourceClone'),
   };
+  const { pageSize, setPageSize } = usePageSize('admin-workflow-versions');
   const [page, setPage] = useState(1);
   const [diffVersionId, setDiffVersionId] = useState<string | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<{ id: string; version: number } | null>(null);
   const [restoreNote, setRestoreNote] = useState('');
 
-  const { data, isLoading } = useWorkflowVersions(workflowId, page);
+  const { data, isLoading } = useWorkflowVersions(workflowId, page, true, pageSize);
   const { data: diff, isLoading: diffLoading } = useVersionDiff(workflowId, diffVersionId);
   const { restoreVersion } = useAdminWorkflowMutations();
 
@@ -137,6 +139,11 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
         page={data.meta.page}
         totalPages={data.meta.totalPages}
         onPageChange={setPage}
+        pageSize={pageSize}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
         summary={t('pagerSummary', { page: data.meta.page, totalPages: data.meta.totalPages })}
       />
 

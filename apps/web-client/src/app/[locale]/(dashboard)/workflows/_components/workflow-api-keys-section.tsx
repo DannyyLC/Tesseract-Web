@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AnimatePresence } from 'framer-motion';
 import { Loader2, Plus } from 'lucide-react';
-import { ApiKeyListDto, DEFAULT_PAGE_SIZE } from '@tesseract/types';
+import { ApiKeyListDto } from '@tesseract/types';
 import { useApiKeys } from '@/hooks/identity/use-api-key';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { CursorPager } from '@/components/ui/cursor-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 import {
   ApiKeyCreatedModal,
   ApiKeyRow,
@@ -26,13 +27,14 @@ export default function WorkflowApiKeysSection({ workflowId }: { workflowId: str
 
   const [cursor, setCursor] = useState<string | null>(null);
   const [action, setAction] = useState<'next' | 'prev' | null>(null);
+  const { pageSize, setPageSize } = usePageSize('workflow-api-keys');
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [keyToEdit, setKeyToEdit] = useState<ApiKeyListDto | null>(null);
   const [keyToDelete, setKeyToDelete] = useState<ApiKeyListDto | null>(null);
   const [createdToken, setCreatedToken] = useState<string | null>(null);
 
-  const { data, isLoading } = useApiKeys({ workflowId, cursor, action, pageSize: DEFAULT_PAGE_SIZE });
+  const { data, isLoading } = useApiKeys({ workflowId, cursor, action, pageSize });
   const apiKeys = data?.items ?? [];
 
   return (
@@ -80,6 +82,12 @@ export default function WorkflowApiKeysSection({ workflowId }: { workflowId: str
               onNavigate={(nextCursor, nextAction) => {
                 setCursor(nextCursor);
                 setAction(nextAction);
+              }}
+              pageSize={pageSize}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setCursor(null);
+                setAction(null);
               }}
             />
           </>

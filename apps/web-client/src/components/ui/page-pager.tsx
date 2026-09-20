@@ -2,6 +2,7 @@
 
 import { ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { PageSizeSelect } from './page-size-select';
 
 /**
  * Anterior/Siguiente sobre páginas numeradas, para los listados que devuelven `meta.totalPages` en
@@ -41,6 +42,12 @@ interface PagePagerProps {
   nextLabel?: string;
   emphasis?: PagerEmphasis;
   className?: string;
+  /**
+   * Tamaño de página actual y su cambio. Con `onPageSizeChange` se muestra el selector, y se muestra
+   * aunque haya una sola página: si no, quien subió a 100 no podría volver a bajar.
+   */
+  pageSize?: number;
+  onPageSizeChange?: (pageSize: number) => void;
 }
 
 export function PagePager({
@@ -52,37 +59,45 @@ export function PagePager({
   nextLabel = 'Siguiente',
   emphasis = 'bordered',
   className = '',
+  pageSize,
+  onPageSizeChange,
 }: PagePagerProps) {
-  // Con una sola página no hay nada que ofrecer.
-  if (totalPages <= 1) return null;
+  const showPageSize = pageSize !== undefined && !!onPageSizeChange;
+  const hasNavigation = totalPages > 1;
+
+  // Con una sola página y sin selector no hay nada que ofrecer.
+  if (!hasNavigation && !showPageSize) return null;
 
   const buttonClass = BUTTON_CLASSES[emphasis];
 
   return (
     <div className={`flex items-center justify-between gap-2 ${className}`}>
-      <span className="text-sm text-text-tertiary">
-        {summary ?? `${page} / ${totalPages}`}
-      </span>
+      <span className="text-sm text-text-tertiary">{summary ?? `${page} / ${totalPages}`}</span>
 
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => onPageChange(page - 1)}
-          disabled={page <= 1}
-          className={buttonClass}
-        >
-          <ChevronLeft size={14} />
-          {prevLabel}
-        </button>
-        <button
-          type="button"
-          onClick={() => onPageChange(page + 1)}
-          disabled={page >= totalPages}
-          className={buttonClass}
-        >
-          {nextLabel}
-          <ChevronRight size={14} />
-        </button>
+        {showPageSize && <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />}
+        {hasNavigation && (
+          <>
+            <button
+              type="button"
+              onClick={() => onPageChange(page - 1)}
+              disabled={page <= 1}
+              className={buttonClass}
+            >
+              <ChevronLeft size={14} />
+              {prevLabel}
+            </button>
+            <button
+              type="button"
+              onClick={() => onPageChange(page + 1)}
+              disabled={page >= totalPages}
+              className={buttonClass}
+            >
+              {nextLabel}
+              <ChevronRight size={14} />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

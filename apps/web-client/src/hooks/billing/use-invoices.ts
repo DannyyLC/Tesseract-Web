@@ -1,14 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
-import { UpsertFiscalProfileDto } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, UpsertFiscalProfileDto } from '@tesseract/types';
 
 /** Histórico de facturas de la organización. */
-export function useInvoices(cursor: string | null = null, action: 'next' | 'prev' | null = null) {
+export function useInvoices(
+  cursor: string | null = null,
+  action: 'next' | 'prev' | null = null,
+  pageSize: number = DEFAULT_PAGE_SIZE,
+) {
   return useQuery({
-    queryKey: ['invoices', cursor, action],
+    queryKey: ['invoices', cursor, action, pageSize],
     queryFn: async () => {
       const api = RootApi.getInstance().getInvoiceApi();
-      return await api.list(cursor, 10, action);
+      return await api.list(cursor, pageSize, action);
     },
   });
 }

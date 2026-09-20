@@ -9,6 +9,7 @@ import { useRouter } from '@/i18n/routing';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { InfiniteSelect } from '@/components/ui/infinite-select';
 import { PagePager } from '@/components/ui/page-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { useInfiniteAdminOrganizations } from '@/hooks/automation/use-admin-workflows';
 import { useAdminAnnouncements, useAdminAnnouncementMutations } from '@/hooks/platform/use-admin-announcements';
@@ -42,6 +43,7 @@ export default function AdminAnnouncementsPage() {
   const [organizationId, setOrganizationId] = useState('');
   const [orgSearchInput, setOrgSearchInput] = useState('');
   const [status, setStatus] = useState<AnnouncementStatus | ''>('');
+  const { pageSize, setPageSize } = usePageSize('admin-announcements');
   const [page, setPage] = useState(1);
   const [pendingPublish, setPendingPublish] = useState<AdminAnnouncementDto | null>(null);
   const [pendingUnpublish, setPendingUnpublish] = useState<AdminAnnouncementDto | null>(null);
@@ -71,6 +73,7 @@ export default function AdminAnnouncementsPage() {
     organizationId: organizationId || undefined,
     status: status || undefined,
     page,
+    limit: pageSize,
   });
 
   const { publish, unpublish } = useAdminAnnouncementMutations();
@@ -196,6 +199,11 @@ export default function AdminAnnouncementsPage() {
           page={data.meta.page}
           totalPages={data.meta.totalPages}
           onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
           summary={t('pagerSummary', {
             page: data.meta.page,
             totalPages: data.meta.totalPages,

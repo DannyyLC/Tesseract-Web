@@ -21,9 +21,10 @@ import {
   usePendingInvitations,
 } from '@/hooks/identity/use-users';
 import { useAuth } from '@/hooks/identity/use-auth';
-import { DashboardUserDataDto, DEFAULT_PAGE_SIZE, UserRole } from '@tesseract/types';
+import { DashboardUserDataDto, UserRole } from '@tesseract/types';
 import { toast } from 'sonner';
 import { CursorPager } from '@/components/ui/cursor-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import {
@@ -55,6 +56,7 @@ export default function UsersPage() {
   const [filterRole, setFilterRole] = useState<FilterRole>('all');
   const [extraDataSection, setExtraDataSection] = useState<ExtraDataSection | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const { pageSize, setPageSize } = usePageSize('users');
   const [cursor, setCursor] = useState<string | null>(null);
   const [action, setAction] = useState<'next' | 'prev' | null>(null);
 
@@ -91,7 +93,7 @@ export default function UsersPage() {
   const { data: usersData, isLoading: isLoadingUsers } = useUsersDashboard({
     cursor,
     action,
-    pageSize: DEFAULT_PAGE_SIZE,
+    pageSize,
     search: debouncedSearch,
     role: filterRole === 'all' ? undefined : filterRole,
   });
@@ -680,6 +682,12 @@ export default function UsersPage() {
             onNavigate={(nextCursor, nextAction) => {
               setCursor(nextCursor);
               setAction(nextAction);
+            }}
+            pageSize={pageSize}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCursor(null);
+              setAction(null);
             }}
           />
         )}

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ADMIN_PAGE_SIZE } from '@tesseract/types';
 import { Search } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { InfiniteSelect } from '@/components/ui/infinite-select';
@@ -12,6 +11,7 @@ import { useInfiniteAdminOrganizations } from '@/hooks/automation/use-admin-work
 import { useAdminTenantTools } from '@/hooks/automation/use-admin-tenant-tools';
 import { inputClass } from '../_styles';
 import { PagePager } from '@/components/ui/page-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 
 const STATUS_STYLE: Record<string, string> = {
   CONNECTED: 'text-success-600',
@@ -35,6 +35,7 @@ export default function AdminIntegracionesPage() {
   const [organizationId, setOrganizationId] = useState('');
   const [orgSearchInput, setOrgSearchInput] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const { pageSize, setPageSize } = usePageSize('admin-integrations');
   const [page, setPage] = useState(1);
 
   const search = useDebounce(searchInput, 400);
@@ -66,7 +67,7 @@ export default function AdminIntegracionesPage() {
     organizationId: organizationId || undefined,
     search: search || undefined,
     page,
-    limit: ADMIN_PAGE_SIZE,
+    limit: pageSize,
   });
 
   return (
@@ -147,6 +148,11 @@ export default function AdminIntegracionesPage() {
           page={data.meta.page}
           totalPages={data.meta.totalPages}
           onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
           summary={t('pagerSummary', {
             page: data.meta.page,
             totalPages: data.meta.totalPages,
