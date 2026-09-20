@@ -1,3 +1,4 @@
+import { ParsePageSizePipe } from '@/platform/common/pipes/parse-page-size.pipe';
 import {
   Controller,
   Post,
@@ -10,8 +11,6 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
-  DefaultValuePipe,
-  ParseIntPipe,
 } from '@nestjs/common';
 import { ApiKeysService } from '../../api-keys.service';
 import { CreateApiKeyDto } from '../../dto/create-api-key.dto';
@@ -22,7 +21,7 @@ import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { UserPayload } from '@/platform/common/types/user-payload.type';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
-import { DEFAULT_PAGE_SIZE, PaginatedResponse, UserRole } from '@tesseract/types';
+import { PaginatedResponse, UserRole } from '@tesseract/types';
 
 /**
  * Controller de API Keys
@@ -57,7 +56,7 @@ export class ApiKeysController {
   async findAll(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
+    @Query('pageSize', ParsePageSizePipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('workflowId') workflowId?: string,
     @Query('search') search?: string,

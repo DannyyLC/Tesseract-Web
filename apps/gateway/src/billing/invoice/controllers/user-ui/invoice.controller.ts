@@ -1,9 +1,8 @@
+import { ParsePageSizePipe } from '@/platform/common/pipes/parse-page-size.pipe';
 import {
   Controller,
-  DefaultValuePipe,
   Get,
   Param,
-  ParseIntPipe,
   Post,
   Query,
   Res,
@@ -12,7 +11,6 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import {
   ApiResponseBuilder,
-  DEFAULT_PAGE_SIZE,
   PaginatedResponse,
   UserRole,
 } from '@tesseract/types';
@@ -45,7 +43,7 @@ export class InvoiceController {
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
+    @Query('pageSize', ParsePageSizePipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Res() res: Response,
   ): Promise<Response<ApiResponseBuilder<PaginatedResponse<DashboardInvoiceDto>>>> {

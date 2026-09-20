@@ -1,11 +1,10 @@
+import { ParsePageSizePipe } from '@/platform/common/pipes/parse-page-size.pipe';
 import {
   Body,
   Controller,
-  DefaultValuePipe,
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Post,
   Put,
   Query,
@@ -16,7 +15,6 @@ import { Locale } from '@/platform/common/decorators/locale.decorator';
 import { SupportedLocale } from '@/platform/common/types/locale.type';
 import {
   ApiResponseBuilder,
-  DEFAULT_PAGE_SIZE,
   PaginatedResponse,
   UserRole,
   WhatsappOutboundStatusDto,
@@ -44,7 +42,7 @@ export class TenantToolController {
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
+    @Query('pageSize', ParsePageSizePipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Res() res: Response,
     @Locale() locale: SupportedLocale,

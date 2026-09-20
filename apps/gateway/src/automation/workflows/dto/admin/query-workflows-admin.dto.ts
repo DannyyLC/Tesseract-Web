@@ -1,7 +1,7 @@
 import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ADMIN_PAGE_SIZE, MAX_PAGE_SIZE } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@tesseract/types';
 
 export class QueryWorkflowsAdminDto {
   @ApiPropertyOptional({ description: 'Filtrar por organización' })
@@ -29,8 +29,8 @@ export class QueryWorkflowsAdminDto {
 
   @ApiPropertyOptional({
     description: 'Elementos por página',
-    example: ADMIN_PAGE_SIZE,
-    default: ADMIN_PAGE_SIZE,
+    example: DEFAULT_PAGE_SIZE,
+    default: DEFAULT_PAGE_SIZE,
   })
   @IsOptional()
   @Type(() => Number)
@@ -51,8 +51,8 @@ export class QueryVersionsDto {
 
   @ApiPropertyOptional({
     description: 'Elementos por página',
-    example: ADMIN_PAGE_SIZE,
-    default: ADMIN_PAGE_SIZE,
+    example: DEFAULT_PAGE_SIZE,
+    default: DEFAULT_PAGE_SIZE,
   })
   @IsOptional()
   @Type(() => Number)

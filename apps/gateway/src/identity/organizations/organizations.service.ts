@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { DEFAULT_LOCALE, SupportedLocale } from '@/platform/common/types/locale.type';
 import {
-  ADMIN_PAGE_SIZE,
+  DEFAULT_PAGE_SIZE,
   ErrorStrings,
   NOTIFICATIONSENUM,
   OPERATIONS,
@@ -99,7 +99,7 @@ export class OrganizationsService {
    * Devuelve lo mínimo para poblar un selector; el detalle se pide con findOne().
    */
   async findAllForAdmin(query: QueryOrganizationsAdminDto) {
-    const { search, isActive, page = 1, limit = ADMIN_PAGE_SIZE } = query;
+    const { search, isActive, page = 1, limit = DEFAULT_PAGE_SIZE } = query;
     const skip = (page - 1) * limit;
 
     const where = {

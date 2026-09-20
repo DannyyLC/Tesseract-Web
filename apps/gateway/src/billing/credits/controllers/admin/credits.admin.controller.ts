@@ -1,17 +1,15 @@
+import { ParsePageSizePipe } from '@/platform/common/pipes/parse-page-size.pipe';
 import {
   Body,
   Controller,
-  DefaultValuePipe,
   Get,
   Param,
-  ParseIntPipe,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import {
-  ADMIN_PAGE_SIZE,
   ApiResponse,
   ApiResponseBuilder,
   UserRole,
@@ -42,7 +40,7 @@ export class CreditsAdminController {
   @ApiOperation({ summary: 'Balance de créditos + historial paginado por cursor' })
   async getDashboard(
     @Param('id') id: string,
-    @Query('pageSize', new DefaultValuePipe(ADMIN_PAGE_SIZE), ParseIntPipe) pageSize: number,
+    @Query('pageSize', ParsePageSizePipe) pageSize: number,
     @Query('cursor') cursor?: string,
     @Query('direction') direction?: 'next' | 'prev',
   ): Promise<ApiResponse> {

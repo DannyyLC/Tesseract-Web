@@ -3,12 +3,12 @@
  *
  * Viven aquí, y no como una constante por pantalla, porque antes el número aparecía suelto en una
  * veintena de sitios entre el Gateway y el front: cambiar "cuántas filas se ven" obligaba a
- * encontrarlos todos y acertar en los dos lados. Lo que hace defendible cada valor no es que esté
- * centralizado, es el porqué que lleva escrito debajo.
+ * encontrarlos todos y acertar en los dos lados.
  */
 
 /**
- * Panel de usuario, y default de los controladores del Gateway.
+ * Tamaño con el que arranca todo listado paginado, en el panel de usuario y en el de super admin, y
+ * default de los controladores del Gateway.
  *
  * 20 llena una pantalla normal sin dejar hueco muerto y sigue siendo una sola consulta barata. Es
  * también el default del servidor a propósito: una pantalla que no manda `pageSize` recibe lo mismo
@@ -17,31 +17,32 @@
 export const DEFAULT_PAGE_SIZE = 20;
 
 /**
- * Listados del panel de super admin.
- *
- * Más alto que el del cliente porque ahí no se navega un listado, se barre: el operador busca una
- * organización concreta entre cientos, y de 20 en 20 cuesta más clics que desplazarse. Las consultas
- * admin son `select` estrecho más `_count`, así que 50 filas no cambian su perfil.
- *
- * Está separado de `DEFAULT_PAGE_SIZE` aunque hoy nadie los mueva por su cuenta: comparten valor
- * ninguno, comparten motivo ninguno, y unirlos significaría que subir el admin suba en silencio
- * todas las pantallas de cliente.
- */
-export const ADMIN_PAGE_SIZE = 50;
-
-/**
- * Tablas densas: filas de catálogo y demás rejillas de captura.
- *
- * Son `<tr>` de una línea, sin avatar ni animación, así que 50 caben en pantalla y paginar menos
- * sería estorbar. Coincide en valor con `ADMIN_PAGE_SIZE` por casualidad, no por parentesco: si
- * mañana el admin baja a 30, estas tablas se quedan en 50.
- */
-export const DENSE_PAGE_SIZE = 50;
-
-/**
  * Techo de lo que se acepta por HTTP en `?limit=` o `?pageSize=`.
  *
  * No es una preferencia de interfaz: es lo que impide que un `?limit=100000` convierta un listado en
- * un volcado de tabla. Va en `@Max()`, nunca como valor por defecto.
+ * un volcado de tabla. Va en la validación, nunca como valor por defecto.
  */
 export const MAX_PAGE_SIZE = 100;
+
+/**
+ * Tamaños que la persona puede elegir en el selector de un listado.
+ *
+ * Cada equipo aguanta cosas distintas: 10 para pantallas o dispositivos justos, 100 para barrer un
+ * listado sin cambiar de página. El último coincide con `MAX_PAGE_SIZE`, así que ninguna opción
+ * puede ser rechazada por el servidor.
+ */
+export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
+
+export type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
+
+/**
+ * Convierte una entrada no confiable (localStorage, query string, lo que sea) en un tamaño de página
+ * permitido. Solo acepta un entero que esté en `PAGE_SIZE_OPTIONS`; cualquier otra cosa cae a
+ * `DEFAULT_PAGE_SIZE`. Acepta número o cadena de dígitos ("50"), pero no notación científica ni
+ * espacios ("1e2", " 50 ").
+ */
+export function sanitizePageSize(value: unknown): PageSizeOption {
+  const parsed =
+    typeof value === 'number' ? value : typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : NaN;
+  return (PAGE_SIZE_OPTIONS as readonly number[]).includes(parsed) ? (parsed as PageSizeOption) : DEFAULT_PAGE_SIZE;
+}

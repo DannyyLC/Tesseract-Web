@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { DEFAULT_LOCALE, SupportedLocale } from '@/platform/common/types/locale.type';
 import {
-  ADMIN_PAGE_SIZE,
   DEFAULT_PAGE_SIZE,
   DashboardTenantToolDto,
   PaginatedResponse,
@@ -139,7 +138,7 @@ export class TenantToolService {
     page?: number;
     limit?: number;
   }) {
-    const { search, organizationId, page = 1, limit = ADMIN_PAGE_SIZE } = query;
+    const { search, organizationId, page = 1, limit = DEFAULT_PAGE_SIZE } = query;
     const skip = (page - 1) * limit;
 
     const where = {

@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ADMIN_PAGE_SIZE, AnnouncementStatus, MAX_PAGE_SIZE } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, AnnouncementStatus, MAX_PAGE_SIZE } from '@tesseract/types';
 
 export class ListAnnouncementsQueryDto {
   @ApiPropertyOptional({ description: 'Filtrar por estado derivado.', enum: AnnouncementStatus })
@@ -21,7 +21,7 @@ export class ListAnnouncementsQueryDto {
   @Min(1)
   page?: number;
 
-  @ApiPropertyOptional({ description: 'Elementos por página', default: ADMIN_PAGE_SIZE })
+  @ApiPropertyOptional({ description: 'Elementos por página', default: DEFAULT_PAGE_SIZE })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

@@ -1,8 +1,7 @@
+import { ParsePageSizePipe } from '@/platform/common/pipes/parse-page-size.pipe';
 import {
   Controller,
-  DefaultValuePipe,
   Get,
-  ParseIntPipe,
   Query,
   Res,
   UseGuards,
@@ -12,7 +11,6 @@ import { SupportedLocale } from '@/platform/common/types/locale.type';
 import {
   ApiResponse,
   ApiResponseBuilder,
-  DEFAULT_PAGE_SIZE,
   GetToolsDto,
   PaginatedResponse,
   UserRole,
@@ -34,7 +32,7 @@ export class ToolsCatalogController {
   async getAllToolsWithFunctions(
     @Res() res: Response,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
+    @Query('pageSize', ParsePageSizePipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('search') search: string | null = null,
     @Locale() locale: SupportedLocale,

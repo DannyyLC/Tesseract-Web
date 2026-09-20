@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { NotificationKind, Notification, Prisma } from '@tesseract/database';
 import {
-  ADMIN_PAGE_SIZE,
+  DEFAULT_PAGE_SIZE,
   AdminAnnouncementDto,
   AnnouncementMetricsDto,
   AnnouncementStatus,
@@ -261,7 +261,7 @@ export class AnnouncementsService {
 
   async list(query: ListAnnouncementsQueryDto) {
     const page = query.page ?? 1;
-    const limit = query.limit ?? ADMIN_PAGE_SIZE;
+    const limit = query.limit ?? DEFAULT_PAGE_SIZE;
     const skip = (page - 1) * limit;
     const now = new Date();
 
