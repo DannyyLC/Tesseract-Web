@@ -748,6 +748,7 @@
       "changeType": "Cambiar tipo de sesión",
       "selectDateLabel": "Selecciona un día",
       "selectTimeLabel": "Selecciona un horario",
+      "availableOnlyNote": "Solo horarios disponibles",
       "timezoneNote": "Horarios mostrados en tu zona horaria local",
       "noSlotsForDay": "No hay horarios disponibles este día.",
       "pickDayPrompt": "Elige un día para ver los horarios disponibles.",

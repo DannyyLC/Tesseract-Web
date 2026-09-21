@@ -25,6 +25,23 @@ export function useBookingAvailability(eventTypeId: string | undefined, date: st
   });
 }
 
+/** Días con hueco del rango visible, para apagar en la rejilla los que están llenos. */
+export function useBookingAvailableDays(
+  eventTypeId: string | undefined,
+  from: string | undefined,
+  to: string | undefined,
+) {
+  return useQuery({
+    queryKey: ['booking', 'available-days', eventTypeId, from, to],
+    queryFn: async () => {
+      const api = RootApi.getInstance().getBookingApi();
+      return await api.getAvailableDays(eventTypeId!, from!, to!);
+    },
+    enabled: !!eventTypeId && !!from && !!to,
+    staleTime: 1000 * 30,
+  });
+}
+
 export function useCreateBooking() {
   return useMutation({
     mutationFn: async (dto: CreateBookingDto) => {

@@ -8,6 +8,7 @@ import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, Loader2, Vid
 import { BookingConfirmation, BookingEventTypeId } from '@tesseract/types';
 import {
   useBookingAvailability,
+  useBookingAvailableDays,
   useBookingEventTypes,
   useCreateBooking,
 } from '@/hooks/platform/use-booking';
@@ -80,6 +81,17 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
     return d;
   }, [today]);
   const monthGrid = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
+
+  // Qué días del mes visible tienen hueco, en una sola consulta. Sin esto habría que clicar día
+  // por día para descubrir cuáles están llenos.
+  const monthFrom = dateKey(visibleMonth);
+  const monthTo = dateKey(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0));
+  const { data: availableDays, isLoading: loadingDays } = useBookingAvailableDays(
+    eventTypeId,
+    monthFrom,
+    monthTo,
+  );
+  const availableDaySet = useMemo(() => new Set(availableDays?.days ?? []), [availableDays]);
   const canGoPrevMonth = startOfMonth(today).getTime() < visibleMonth.getTime();
 
   const weekdayLabels = useMemo(() => {
@@ -333,7 +345,10 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
             const isWeekend = day.getDay() === 0 || day.getDay() === 6;
             const isPast = day < new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const isTooFar = day > maxAdvanceDate;
-            const disabled = !inMonth || isWeekend || isPast || isTooFar;
+            // Mientras carga no se apaga nada: dejar el mes entero en gris por un instante se
+            // ve como si estuviera roto.
+            const isFull = !loadingDays && !availableDaySet.has(dateKey(day));
+            const disabled = !inMonth || isWeekend || isPast || isTooFar || isFull;
             const isSelected = selectedDate && isSameDay(day, selectedDate);
 
             return (
@@ -374,7 +389,9 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
           <p className="text-sm text-text-tertiary">{t('booking.noSlotsForDay')}</p>
         ) : (
           <>
-            <p className="text-xs text-text-tertiary">{t('booking.timezoneNote')}</p>
+            <p className="text-xs text-text-tertiary">
+              {t('booking.availableOnlyNote')} · {t('booking.timezoneNote')}
+            </p>
             <div className="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto pr-1">
               {availability.slots.map((slot) => (
                 <button

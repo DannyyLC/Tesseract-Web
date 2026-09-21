@@ -21,6 +21,12 @@ export interface BookingAvailabilityResponse {
   timezone: string;
 }
 
+export interface BookingAvailableDaysResponse {
+  /** Claves `YYYY-MM-DD` con al menos un hueco libre. Las demás del rango están llenas. */
+  days: string[];
+  timezone: string;
+}
+
 export interface CreateBookingDto {
   eventTypeId: BookingEventTypeId;
   /**

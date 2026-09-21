@@ -7,6 +7,7 @@ import {
   ApiResponse,
   ApiResponseBuilder,
   BookingAvailabilityResponse,
+  BookingAvailableDaysResponse,
   BookingConfirmation,
   BookingEventType,
 } from '@tesseract/types';
@@ -38,6 +39,22 @@ export class BookingController {
     const slots = await this.bookingService.getAvailability(eventTypeId, date);
     return new ApiResponseBuilder<BookingAvailabilityResponse>()
       .setData({ slots, timezone: BOOKING_TIMEZONE })
+      .build();
+  }
+
+  @Get('available-days')
+  @UseGuards(JwtAuthGuard)
+  async getAvailableDays(
+    @Query('eventTypeId') eventTypeId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ): Promise<ApiResponse<BookingAvailableDaysResponse>> {
+    if (!eventTypeId || !from || !to) {
+      throw new BadRequestException('eventTypeId, from and to are required');
+    }
+    const days = await this.bookingService.getAvailableDays(eventTypeId, from, to);
+    return new ApiResponseBuilder<BookingAvailableDaysResponse>()
+      .setData({ days, timezone: BOOKING_TIMEZONE })
       .build();
   }
 

@@ -2,6 +2,7 @@ import ApiRequestManager from '../../../api-request-manager';
 import {
   ApiResponse,
   BookingAvailabilityResponse,
+  BookingAvailableDaysResponse,
   BookingEventType,
   CreateBookingDto,
   BookingConfirmation,
@@ -29,6 +30,17 @@ class BookingApi {
       `/booking/availability?eventTypeId=${encodeURIComponent(eventTypeId)}&date=${encodeURIComponent(date)}`,
     );
     return result.data.data ?? { slots: [], timezone: 'America/Mexico_City' };
+  }
+
+  public async getAvailableDays(
+    eventTypeId: string,
+    from: string,
+    to: string,
+  ): Promise<BookingAvailableDaysResponse> {
+    const result = await this.apiRequestManager.get<ApiResponse<BookingAvailableDaysResponse>>(
+      `/booking/available-days?eventTypeId=${encodeURIComponent(eventTypeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    );
+    return result.data.data ?? { days: [], timezone: 'America/Mexico_City' };
   }
 
   public async createBooking(dto: CreateBookingDto): Promise<BookingConfirmation> {

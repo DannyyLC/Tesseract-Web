@@ -23,6 +23,14 @@ interface BusyPeriod {
   end: number;
 }
 
+interface BookableWindow {
+  start: Date;
+  end: Date;
+}
+
+/** Tope del rango que puede pedir la rejilla: dos meses cubren cualquier vista razonable. */
+const MAX_RANGE_DAYS = 62;
+
 @Injectable()
 export class BookingService {
   private readonly logger = new Logger(BookingService.name);
@@ -31,33 +39,90 @@ export class BookingService {
 
   async getAvailability(eventTypeId: string, dateKey: string): Promise<string[]> {
     const eventType = getBookingEventType(eventTypeId);
-    const { year, month, day } = parseDateKey(dateKey);
+    const now = Date.now();
 
-    const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
-    if (!BOOKING_BUSINESS_HOURS.workDays.includes(weekday)) {
-      return [];
-    }
-
-    const dayStart = zonedTimeToUtc(year, month, day, BOOKING_BUSINESS_HOURS.startHour, BOOKING_TIMEZONE);
-    const dayEnd = zonedTimeToUtc(year, month, day, BOOKING_BUSINESS_HOURS.endHour, BOOKING_TIMEZONE);
-
-    const now = new Date();
-    const earliestBookable = new Date(now.getTime() + BOOKING_MIN_NOTICE_HOURS * 60 * 60 * 1000);
-    const latestBookable = new Date(now.getTime() + BOOKING_MAX_ADVANCE_DAYS * 24 * 60 * 60 * 1000);
-    if (dayStart > latestBookable || dayEnd < earliestBookable) {
+    const window = this.bookableWindow(dateKey, now);
+    if (!window) {
       return [];
     }
 
     const calendar = await this.calendarClient.getClient();
-    const busy = await this.queryBusy(calendar, dayStart.toISOString(), dayEnd.toISOString());
+    const busy = await this.queryBusy(calendar, window.start.toISOString(), window.end.toISOString());
 
+    return this.slotsInWindow(eventType, window, busy, now);
+  }
+
+  /**
+   * Qué días del rango tienen al menos un hueco. La rejilla del mes lo usa para deshabilitar los
+   * días llenos en vez de hacer que el usuario los descubra clicando uno por uno.
+   *
+   * Es **una** consulta de free/busy para todo el rango, no una por día: Google cobra latencia
+   * por llamada y un mes serían más de veinte.
+   */
+  async getAvailableDays(eventTypeId: string, fromKey: string, toKey: string): Promise<string[]> {
+    const eventType = getBookingEventType(eventTypeId);
+    const now = Date.now();
+
+    const windows = eachDateKey(fromKey, toKey)
+      .map((key) => ({ key, window: this.bookableWindow(key, now) }))
+      .filter((entry): entry is { key: string; window: BookableWindow } => entry.window !== null);
+
+    if (windows.length === 0) {
+      return [];
+    }
+
+    const calendar = await this.calendarClient.getClient();
+    const busy = await this.queryBusy(
+      calendar,
+      windows[0].window.start.toISOString(),
+      windows[windows.length - 1].window.end.toISOString(),
+    );
+
+    return windows
+      .filter(({ window }) => this.slotsInWindow(eventType, window, busy, now).length > 0)
+      .map(({ key }) => key);
+  }
+
+  /** Ventana laboral de un día, o `null` si ese día no admite reservas. */
+  private bookableWindow(dateKey: string, now: number): BookableWindow | null {
+    const { year, month, day } = parseDateKey(dateKey);
+
+    const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+    if (!BOOKING_BUSINESS_HOURS.workDays.includes(weekday)) {
+      return null;
+    }
+
+    const start = zonedTimeToUtc(year, month, day, BOOKING_BUSINESS_HOURS.startHour, BOOKING_TIMEZONE);
+    const end = zonedTimeToUtc(year, month, day, BOOKING_BUSINESS_HOURS.endHour, BOOKING_TIMEZONE);
+
+    const earliestBookable = now + BOOKING_MIN_NOTICE_HOURS * 60 * 60 * 1000;
+    const latestBookable = now + BOOKING_MAX_ADVANCE_DAYS * 24 * 60 * 60 * 1000;
+    if (start.getTime() > latestBookable || end.getTime() < earliestBookable) {
+      return null;
+    }
+
+    return { start, end };
+  }
+
+  /** Huecos libres de una ventana. `busy` puede cubrir más días que la ventana; no importa. */
+  private slotsInWindow(
+    eventType: { durationMinutes: number },
+    window: BookableWindow,
+    busy: BusyPeriod[],
+    now: number,
+  ): string[] {
     const durationMs = eventType.durationMinutes * 60 * 1000;
     const intervalMs = BOOKING_SLOT_INTERVAL_MINUTES * 60 * 1000;
+    const earliestBookable = now + BOOKING_MIN_NOTICE_HOURS * 60 * 60 * 1000;
     const slots: string[] = [];
 
-    for (let slotStart = dayStart.getTime(); slotStart + durationMs <= dayEnd.getTime(); slotStart += intervalMs) {
+    for (
+      let slotStart = window.start.getTime();
+      slotStart + durationMs <= window.end.getTime();
+      slotStart += intervalMs
+    ) {
       const slotEnd = slotStart + durationMs;
-      if (slotStart < earliestBookable.getTime()) continue;
+      if (slotStart < earliestBookable) continue;
 
       const overlaps = busy.some((period) => slotStart < period.end && slotEnd > period.start);
       if (!overlaps) {
@@ -208,4 +273,30 @@ function parseDateKey(dateKey: string): { year: number; month: number; day: numb
   }
   const [, year, month, day] = match;
   return { year: Number(year), month: Number(month), day: Number(day) };
+}
+
+/** Días naturales de `from` a `to`, ambos incluidos. En UTC no hay DST que desalinee el paso. */
+function eachDateKey(fromKey: string, toKey: string): string[] {
+  const from = parseDateKey(fromKey);
+  const to = parseDateKey(toKey);
+
+  let cursor = Date.UTC(from.year, from.month - 1, from.day);
+  const end = Date.UTC(to.year, to.month - 1, to.day);
+  if (end < cursor) {
+    throw new BadRequestException('from must not be after to');
+  }
+  if ((end - cursor) / 86_400_000 + 1 > MAX_RANGE_DAYS) {
+    throw new BadRequestException(`Range must not exceed ${MAX_RANGE_DAYS} days`);
+  }
+
+  const keys: string[] = [];
+  while (cursor <= end) {
+    const day = new Date(cursor);
+    const month = String(day.getUTCMonth() + 1).padStart(2, '0');
+    const date = String(day.getUTCDate()).padStart(2, '0');
+    keys.push(`${day.getUTCFullYear()}-${month}-${date}`);
+    cursor += 86_400_000;
+  }
+
+  return keys;
 }

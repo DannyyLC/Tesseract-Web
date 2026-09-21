@@ -221,6 +221,78 @@ describe('BookingService', () => {
     });
   });
 
+  // La rejilla del mes pinta en gris los días sin hueco, así que necesita saberlo de todos los
+  // días de golpe. Antes había que clicar día por día para descubrirlo.
+  describe('getAvailableDays', () => {
+    it('returns the weekdays that have at least one slot, skipping the weekend', async () => {
+      freebusyQuery.mockResolvedValue(freeDay());
+
+      const days = await service.getAvailableDays('soporte', '2026-01-05', '2026-01-11');
+
+      // 10 y 11 de enero son sábado y domingo.
+      expect(days).toEqual(['2026-01-05', '2026-01-06', '2026-01-07', '2026-01-08', '2026-01-09']);
+    });
+
+    it('drops a day whose business hours are fully booked', async () => {
+      freebusyQuery.mockResolvedValue({
+        data: {
+          calendars: {
+            primary: {
+              busy: [{ start: '2026-01-06T15:00:00.000Z', end: '2026-01-07T00:00:00.000Z' }],
+            },
+          },
+        },
+      });
+
+      const days = await service.getAvailableDays('soporte', '2026-01-05', '2026-01-09');
+
+      expect(days).not.toContain('2026-01-06');
+      expect(days).toContain('2026-01-07');
+    });
+
+    it('queries free/busy once for the whole range, not once per day', async () => {
+      freebusyQuery.mockResolvedValue(freeDay());
+
+      await service.getAvailableDays('soporte', '2026-01-05', '2026-01-09');
+
+      expect(freebusyQuery).toHaveBeenCalledTimes(1);
+      expect(freebusyQuery).toHaveBeenCalledWith({
+        requestBody: expect.objectContaining({
+          timeMin: '2026-01-05T15:00:00.000Z',
+          timeMax: '2026-01-10T00:00:00.000Z',
+        }),
+      });
+    });
+
+    it('returns nothing, and asks Google nothing, for a weekend-only range', async () => {
+      const days = await service.getAvailableDays('soporte', '2026-01-10', '2026-01-11');
+
+      expect(days).toEqual([]);
+      expect(freebusyQuery).not.toHaveBeenCalled();
+    });
+
+    it('rejects an inverted range', async () => {
+      await expect(service.getAvailableDays('soporte', '2026-01-09', '2026-01-05')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('rejects a range wider than the cap', async () => {
+      await expect(service.getAvailableDays('soporte', '2026-01-05', '2026-04-05')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('excludes days beyond the maximum advance window', async () => {
+      freebusyQuery.mockResolvedValue(freeDay());
+
+      // 30 días desde el 5 de enero llegan al 4 de febrero: el 9 de febrero queda fuera.
+      const days = await service.getAvailableDays('soporte', '2026-02-05', '2026-02-10');
+
+      expect(days).not.toContain('2026-02-09');
+    });
+  });
+
   describe('createBooking', () => {
     it('creates a calendar event with Meet conferencing and returns the confirmation', async () => {
       freebusyQuery.mockResolvedValue(freeDay());

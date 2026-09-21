@@ -748,6 +748,7 @@
       "changeType": "Change session type",
       "selectDateLabel": "Select a day",
       "selectTimeLabel": "Select a time",
+      "availableOnlyNote": "Available times only",
       "timezoneNote": "Times shown in your local timezone",
       "noSlotsForDay": "No time slots available on this day.",
       "pickDayPrompt": "Pick a day to see available times.",
