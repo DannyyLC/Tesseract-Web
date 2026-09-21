@@ -19,6 +19,7 @@
     "loginTab": "Login",
     "signupTab": "Sign Up",
     "emailLabel": "Email",
+    "emailHint": "La invitación llega a este correo, el de tu cuenta.",
     "emailPlaceholder": "ejemplo@empresa.com",
     "passwordLabel": "Contraseña",
     "passwordPlaceholder": "••••••••",
@@ -2041,7 +2042,6 @@
         "integrations": "Integraciones",
         "whatsappTemplates": "Templates WhatsApp",
         "llmModels": "Modelos LLM",
-        "calendar": "Calendario",
         "settings": "Configuración"
       }
     },
@@ -2891,37 +2891,6 @@
       "noDetail": "sin detalle",
       "stackTrace": "stack trace",
       "tokensAbbrev": "{count} tok"
-    },
-    "Calendario": {
-      "title": "Calendario de reservas",
-      "subtitle": "Agrega un email al cual las citas solicitadas por clientes llegarán.",
-      "connectedAccountTitle": "Cuenta conectada",
-      "connectedAccountSubtitle": "Solo puede haber una cuenta conectada a la vez; conectar una nueva reemplaza a la anterior.",
-      "loadingStatus": "Cargando estado del calendario",
-      "loadStatusError": "No se pudo cargar el estado del calendario.",
-      "connectedBadge": "Conectado",
-      "eventsHint": "Los eventos con Google Meet se crean en el calendario elegido abajo de esta cuenta.",
-      "disconnectButton": "Desconectar",
-      "targetCalendarTitle": "Calendario de destino",
-      "targetCalendarSubtitle": "Entre los calendarios de {email}, elige en cuál se crean los eventos de las reservas. Por defecto es el principal de la cuenta.",
-      "calendarsLoadError": "No se pudo cargar la lista de calendarios.",
-      "primaryTag": " (principal)",
-      "emptyStateDescription": "Ningún calendario conectado. El widget de soporte no puede mostrar disponibilidad ni crear reservas hasta que se conecte una cuenta.",
-      "connectButton": "Conectar con Google",
-      "disconnectModalTitle": "Desconectar calendario",
-      "disconnectModalWarning": "El widget de reservas de soporte dejará de funcionar hasta que se conecte otra cuenta. Las reservas ya creadas en Google Calendar no se ven afectadas.",
-      "cancel": "Cancelar",
-      "disconnecting": "Desconectando…",
-      "toastConnected": "Calendario conectado correctamente.",
-      "toastDisconnected": "Calendario desconectado.",
-      "toastDisconnectError": "No se pudo desconectar el calendario.",
-      "toastCalendarUpdated": "Calendario actualizado.",
-      "toastCalendarUpdateError": "No se pudo cambiar el calendario.",
-      "errorAccessDenied": "Se canceló la autorización en Google.",
-      "errorMissingCode": "Google no devolvió un código de autorización.",
-      "errorCallbackFailed": "Falló el intercambio del código con Google. Revisa los logs del gateway.",
-      "errorGeneric": "No se pudo conectar el calendario.",
-      "loadingFallback": "Cargando"
     }
   },
   "Shared": {

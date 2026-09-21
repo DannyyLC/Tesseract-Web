@@ -8,7 +8,7 @@ import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { useAuth, useLogout } from '@/hooks/identity/use-auth';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { LocaleSwitcher } from '@/components/locale';
-import { Blocks, Building2, Cpu, LayoutDashboard, Calendar, Megaphone, MessageSquareText, Settings, LogOut, Menu, PanelLeftClose, PanelLeftOpen, User as UserIcon, Workflow } from 'lucide-react';
+import { Blocks, Building2, Cpu, LayoutDashboard, Megaphone, MessageSquareText, Settings, LogOut, Menu, PanelLeftClose, PanelLeftOpen, User as UserIcon, Workflow } from 'lucide-react';
 
 /**
  * Área de super admin: layout propio y mínimo, separado del panel de inquilino.
@@ -23,7 +23,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: t('nav.integrations'), href: '/admin/integraciones', icon: Blocks },
     { label: t('nav.whatsappTemplates'), href: '/admin/wb-templates', icon: MessageSquareText },
     { label: t('nav.llmModels'), href: '/admin/llm-models', icon: Cpu },
-    { label: t('nav.calendar'), href: '/admin/calendario', icon: Calendar },
     { label: t('nav.settings'), href: '/admin/configuracion', icon: Settings },
   ];
   const { data: user, isLoading } = useAuth();

@@ -2,9 +2,9 @@ import { BadRequestException } from '@nestjs/common';
 import { BookingEventType, BookingEventTypeId } from '@tesseract/types';
 
 /**
- * Reemplaza los "event types" que antes vivían en el dashboard de Cal.com. Son ofertas fijas
- * del propio equipo de Tesseract (no configurables por tenant), así que viven en código y no
- * en la base de datos — igual que antes vivían en la cuenta de Cal.com, no en nuestro repo.
+ * Las sesiones que ofrece el propio equipo de Tesseract. No son configurables por tenant, así
+ * que viven en código y no en la base de datos: cambiarlas es un cambio de producto, no un dato
+ * que nadie vaya a editar desde un panel.
  */
 export const BOOKING_EVENT_TYPES: Record<BookingEventTypeId, BookingEventType> = {
   'nuevo-workflow': {
@@ -69,7 +69,8 @@ export const BOOKING_MAX_ADVANCE_DAYS = 30;
 /**
  * Recordatorios del evento, aparte de la invitación inicial que ya manda `sendUpdates: 'all'`
  * al crearlo. `useDefault: false` en el evento para que Calendar use estos en vez de los
- * recordatorios por defecto de la cuenta conectada (que podrían no existir o ser otros).
+ * recordatorios por defecto de la cuenta de Workspace suplantada (que podrían no existir o
+ * ser otros).
  */
 export const BOOKING_REMINDERS: { method: 'email' | 'popup'; minutes: number }[] = [
   { method: 'email', minutes: 60 },

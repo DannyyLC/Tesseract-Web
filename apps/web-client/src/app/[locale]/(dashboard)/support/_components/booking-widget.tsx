@@ -13,7 +13,7 @@ import {
 } from '@/hooks/platform/use-booking';
 
 interface BookingWidgetProps {
-  /** Si se fija, se salta el paso de elegir tipo de sesión (equivalente al calLink de un solo evento). */
+  /** Si se fija, se salta el paso de elegir tipo de sesión y se reserva directo ese tipo. */
   fixedEventTypeId?: BookingEventTypeId;
   attendeeName?: string;
   attendeeEmail?: string;
@@ -63,7 +63,6 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [name, setName] = useState(attendeeName ?? '');
-  const [email, setEmail] = useState(attendeeEmail ?? '');
   const [notes, setNotes] = useState('');
   const [confirmation, setConfirmation] = useState<BookingConfirmation | null>(null);
 
@@ -111,7 +110,6 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
         eventTypeId,
         startTime: selectedSlot,
         attendeeName: name,
-        attendeeEmail: email,
         notes: notes || undefined,
       });
       setConfirmation(result);
@@ -253,13 +251,10 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-text-primary">{t('booking.emailLabel')}</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm outline-none transition-all focus:border-border-focus focus:ring-1 focus:ring-border-focus"
-            />
+            <p className="rounded-xl border border-border bg-surface-secondary px-4 py-2.5 text-sm text-text-secondary">
+              {attendeeEmail}
+            </p>
+            <p className="text-xs text-text-tertiary">{t('booking.emailHint')}</p>
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-text-primary">
@@ -277,7 +272,7 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
 
         <button
           type="button"
-          disabled={!name || !email || createBooking.isPending}
+          disabled={!name || createBooking.isPending}
           onClick={handleSubmit}
           className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-bold text-text-inverse transition-all hover:bg-accent-hover disabled:opacity-50"
         >

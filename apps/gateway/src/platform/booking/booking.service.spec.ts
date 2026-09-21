@@ -1,70 +1,50 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
-import { BadRequestException } from '@nestjs/common';
-import { google } from 'googleapis';
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { BookingService } from './booking.service';
-import { PrismaService } from '@/platform/database/prisma.service';
-import { KmsService } from '@/automation/tools/core/kms.service';
+import { BookingCalendarService } from './booking-calendar.service';
 
-jest.mock('googleapis', () => ({
-  google: {
-    auth: {
-      OAuth2: jest.fn().mockImplementation(() => ({ setCredentials: jest.fn() })),
-    },
-    calendar: jest.fn(),
-  },
-}));
+const GROUP = 'soporte@fractalops.com.mx';
 
 describe('BookingService', () => {
   let service: BookingService;
   const freebusyQuery = jest.fn();
   const eventsInsert = jest.fn();
 
-  const mockPrisma = {
-    bookingCalendarCredential: {
-      findFirst: jest.fn().mockResolvedValue({
-        id: 'cred-1',
-        googleAccountEmail: 'ventas@tesseract.dev',
-        encryptedRefreshToken: 'encrypted',
-        calendarId: 'primary',
-      }),
-    },
+  const mockCalendarClient = {
+    getClient: jest.fn(),
+    calendarId: 'primary',
+    availabilityGroupEmail: null as string | null,
   };
 
-  const mockKms = {
-    decrypt: jest.fn().mockResolvedValue('plain-refresh-token'),
-  };
+  /** Atajo: el caso normal es un solo calendario destino sin nada ocupado. */
+  const freeDay = () => ({ data: { calendars: { primary: { busy: [] } } } });
 
-  const mockConfig = {
-    get: jest.fn((key: string) => {
-      const map: Record<string, string> = {
-        GOOGLE_CLIENT_ID: 'client-id',
-        GOOGLE_CLIENT_SECRET: 'client-secret',
-      };
-      return map[key];
-    }),
+  const bookingDto = {
+    eventTypeId: 'soporte' as const,
+    startTime: '2026-01-06T15:00:00.000Z',
+    attendeeName: 'Jane Doe',
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    mockPrisma.bookingCalendarCredential.findFirst.mockResolvedValue({
-      id: 'cred-1',
-      googleAccountEmail: 'ventas@tesseract.dev',
-      encryptedRefreshToken: 'encrypted',
-      calendarId: 'primary',
-    });
-    mockKms.decrypt.mockResolvedValue('plain-refresh-token');
-    (google.calendar as jest.Mock).mockReturnValue({
+    mockCalendarClient.calendarId = 'primary';
+    mockCalendarClient.availabilityGroupEmail = null;
+    mockCalendarClient.getClient.mockResolvedValue({
       freebusy: { query: freebusyQuery },
       events: { insert: eventsInsert },
+    });
+    eventsInsert.mockResolvedValue({
+      data: {
+        id: 'evt-1',
+        hangoutLink: 'https://meet.google.com/abc-defg-hij',
+        htmlLink: 'https://calendar.google.com/event?eid=abc',
+      },
     });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BookingService,
-        { provide: PrismaService, useValue: mockPrisma },
-        { provide: KmsService, useValue: mockKms },
-        { provide: ConfigService, useValue: mockConfig },
+        { provide: BookingCalendarService, useValue: mockCalendarClient },
       ],
     }).compile();
 
@@ -80,8 +60,8 @@ describe('BookingService', () => {
   });
 
   describe('getAvailability', () => {
-    it('returns 9 hourly slots for a full free business day (9am-6pm, 30min event)', async () => {
-      freebusyQuery.mockResolvedValue({ data: { calendars: { primary: { busy: [] } } } });
+    it('returns 9 hourly slots for a full free business day (9am-6pm, 60min event)', async () => {
+      freebusyQuery.mockResolvedValue(freeDay());
 
       const slots = await service.getAvailability('soporte', '2026-01-06');
 
@@ -119,21 +99,8 @@ describe('BookingService', () => {
       );
     });
 
-    it('throws when no calendar has been connected yet', async () => {
-      mockPrisma.bookingCalendarCredential.findFirst.mockResolvedValue(null);
-
-      await expect(service.getAvailability('soporte', '2026-01-06')).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('queries free/busy on the selected non-primary calendar, not "primary"', async () => {
-      mockPrisma.bookingCalendarCredential.findFirst.mockResolvedValue({
-        id: 'cred-1',
-        googleAccountEmail: 'ventas@tesseract.dev',
-        encryptedRefreshToken: 'encrypted',
-        calendarId: 'equipo.ventas@group.calendar.google.com',
-      });
+    it('queries free/busy on the configured non-primary calendar, not "primary"', async () => {
+      mockCalendarClient.calendarId = 'equipo.ventas@group.calendar.google.com';
       freebusyQuery.mockResolvedValue({
         data: {
           calendars: {
@@ -158,23 +125,107 @@ describe('BookingService', () => {
     });
   });
 
-  describe('createBooking', () => {
-    it('creates a calendar event with Meet conferencing and returns the confirmation', async () => {
-      freebusyQuery.mockResolvedValue({ data: { calendars: { primary: { busy: [] } } } });
-      eventsInsert.mockResolvedValue({
+  describe('getAvailability — free/busy del grupo de soporte', () => {
+    it('asks for the group alongside the target calendar, with both expansion caps', async () => {
+      mockCalendarClient.availabilityGroupEmail = GROUP;
+      freebusyQuery.mockResolvedValue(freeDay());
+
+      await service.getAvailability('soporte', '2026-01-06');
+
+      expect(freebusyQuery).toHaveBeenCalledWith({
+        requestBody: expect.objectContaining({
+          items: [{ id: 'primary' }, { id: GROUP }],
+          groupExpansionMax: 100,
+          calendarExpansionMax: 50,
+        }),
+      });
+    });
+
+    it('asks only for the target calendar when no group is configured', async () => {
+      freebusyQuery.mockResolvedValue(freeDay());
+
+      await service.getAvailability('soporte', '2026-01-06');
+
+      expect(freebusyQuery).toHaveBeenCalledWith({
+        requestBody: expect.objectContaining({ items: [{ id: 'primary' }] }),
+      });
+    });
+
+    // El test que falla si alguien vuelve a leer solo `data.calendars[calendarId]`: Google no
+    // devuelve una entrada con la clave del grupo, sino una por cada calendario miembro.
+    it('excludes a slot busy on an expanded group member calendar', async () => {
+      mockCalendarClient.availabilityGroupEmail = GROUP;
+      freebusyQuery.mockResolvedValue({
         data: {
-          id: 'evt-1',
-          hangoutLink: 'https://meet.google.com/abc-defg-hij',
-          htmlLink: 'https://calendar.google.com/event?eid=abc',
+          calendars: {
+            primary: { busy: [] },
+            'ana@fractalops.com.mx': {
+              busy: [{ start: '2026-01-06T15:00:00.000Z', end: '2026-01-06T16:00:00.000Z' }],
+            },
+          },
         },
       });
 
-      const confirmation = await service.createBooking({
-        eventTypeId: 'soporte',
-        startTime: '2026-01-06T15:00:00.000Z',
-        attendeeName: 'Jane Doe',
-        attendeeEmail: 'jane@example.com',
+      const slots = await service.getAvailability('soporte', '2026-01-06');
+
+      expect(slots).toHaveLength(8);
+      expect(slots).not.toContain('2026-01-06T15:00:00.000Z');
+    });
+
+    it('ignores a member calendar that came back with errors', async () => {
+      mockCalendarClient.availabilityGroupEmail = GROUP;
+      freebusyQuery.mockResolvedValue({
+        data: {
+          calendars: {
+            primary: { busy: [] },
+            'ana@fractalops.com.mx': { errors: [{ domain: 'global', reason: 'notFound' }] },
+          },
+        },
       });
+
+      const slots = await service.getAvailability('soporte', '2026-01-06');
+
+      expect(slots).toHaveLength(9);
+    });
+
+    it('fails closed when the target calendar itself came back with errors', async () => {
+      freebusyQuery.mockResolvedValue({
+        data: { calendars: { primary: { errors: [{ domain: 'global', reason: 'notFound' }] } } },
+      });
+
+      await expect(service.getAvailability('soporte', '2026-01-06')).rejects.toThrow(
+        ServiceUnavailableException,
+      );
+    });
+
+    it('fails closed when free/busy returned no calendars at all', async () => {
+      freebusyQuery.mockResolvedValue({ data: { calendars: {} } });
+
+      await expect(service.getAvailability('soporte', '2026-01-06')).rejects.toThrow(
+        ServiceUnavailableException,
+      );
+    });
+
+    it('survives a group that could not be expanded', async () => {
+      mockCalendarClient.availabilityGroupEmail = GROUP;
+      freebusyQuery.mockResolvedValue({
+        data: {
+          calendars: { primary: { busy: [] } },
+          groups: { [GROUP]: { errors: [{ domain: 'global', reason: 'groupTooLarge' }] } },
+        },
+      });
+
+      const slots = await service.getAvailability('soporte', '2026-01-06');
+
+      expect(slots).toHaveLength(9);
+    });
+  });
+
+  describe('createBooking', () => {
+    it('creates a calendar event with Meet conferencing and returns the confirmation', async () => {
+      freebusyQuery.mockResolvedValue(freeDay());
+
+      const confirmation = await service.createBooking(bookingDto, 'jane@example.com');
 
       expect(confirmation.eventId).toBe('evt-1');
       expect(confirmation.meetLink).toBe('https://meet.google.com/abc-defg-hij');
@@ -202,65 +253,135 @@ describe('BookingService', () => {
       );
     });
 
+    it('invites the attendee from the caller, never one carried in the payload', async () => {
+      freebusyQuery.mockResolvedValue(freeDay());
+
+      await service.createBooking(
+        { ...bookingDto, attendeeEmail: 'spoofed@evil.example' } as never,
+        'jwt@example.com',
+      );
+
+      const { requestBody } = eventsInsert.mock.calls[0][0];
+      expect(requestBody.attendees).toEqual([
+        { email: 'jwt@example.com', displayName: 'Jane Doe' },
+      ]);
+    });
+
+    it('adds the support group as a second attendee when configured', async () => {
+      mockCalendarClient.availabilityGroupEmail = GROUP;
+      freebusyQuery.mockResolvedValue(freeDay());
+
+      await service.createBooking(bookingDto, 'jane@example.com');
+
+      const { requestBody } = eventsInsert.mock.calls[0][0];
+      expect(requestBody.attendees).toEqual([
+        { email: 'jane@example.com', displayName: 'Jane Doe' },
+        { email: GROUP },
+      ]);
+    });
+
     it('rejects a slot that got booked in the meantime', async () => {
       freebusyQuery.mockResolvedValue({
         data: {
           calendars: {
-            primary: { busy: [{ start: '2026-01-06T15:00:00.000Z', end: '2026-01-06T15:30:00.000Z' }] },
+            primary: { busy: [{ start: '2026-01-06T15:00:00.000Z', end: '2026-01-06T16:00:00.000Z' }] },
           },
         },
       });
 
-      await expect(
-        service.createBooking({
-          eventTypeId: 'soporte',
-          startTime: '2026-01-06T15:00:00.000Z',
-          attendeeName: 'Jane Doe',
-          attendeeEmail: 'jane@example.com',
-        }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.createBooking(bookingDto, 'jane@example.com')).rejects.toThrow(
+        BadRequestException,
+      );
       expect(eventsInsert).not.toHaveBeenCalled();
     });
 
     it('rejects a startTime in the past', async () => {
       await expect(
-        service.createBooking({
-          eventTypeId: 'soporte',
-          startTime: '2020-01-01T00:00:00.000Z',
-          attendeeName: 'Jane Doe',
-          attendeeEmail: 'jane@example.com',
-        }),
+        service.createBooking({ ...bookingDto, startTime: '2020-01-01T00:00:00.000Z' }, 'jane@example.com'),
       ).rejects.toThrow(BadRequestException);
+      expect(freebusyQuery).not.toHaveBeenCalled();
     });
 
-    it('creates the event on the selected non-primary calendar, not "primary"', async () => {
-      mockPrisma.bookingCalendarCredential.findFirst.mockResolvedValue({
-        id: 'cred-1',
-        googleAccountEmail: 'ventas@tesseract.dev',
-        encryptedRefreshToken: 'encrypted',
-        calendarId: 'equipo.ventas@group.calendar.google.com',
-      });
+    it('creates the event on the configured non-primary calendar, not "primary"', async () => {
+      mockCalendarClient.calendarId = 'equipo.ventas@group.calendar.google.com';
       freebusyQuery.mockResolvedValue({
         data: { calendars: { 'equipo.ventas@group.calendar.google.com': { busy: [] } } },
       });
-      eventsInsert.mockResolvedValue({
-        data: {
-          id: 'evt-2',
-          hangoutLink: 'https://meet.google.com/abc-defg-hij',
-          htmlLink: 'https://calendar.google.com/event?eid=abc',
-        },
-      });
 
-      await service.createBooking({
-        eventTypeId: 'soporte',
-        startTime: '2026-01-06T15:00:00.000Z',
-        attendeeName: 'Jane Doe',
-        attendeeEmail: 'jane@example.com',
-      });
+      await service.createBooking(bookingDto, 'jane@example.com');
 
       expect(eventsInsert).toHaveBeenCalledWith(
         expect.objectContaining({ calendarId: 'equipo.ventas@group.calendar.google.com' }),
       );
+    });
+
+    it('queries free/busy exactly once', async () => {
+      freebusyQuery.mockResolvedValue(freeDay());
+
+      await service.createBooking(bookingDto, 'jane@example.com');
+
+      expect(freebusyQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it('accepts the last slot of the business day', async () => {
+      freebusyQuery.mockResolvedValue(freeDay());
+
+      await service.createBooking(
+        { ...bookingDto, startTime: '2026-01-06T23:00:00.000Z' },
+        'jane@example.com',
+      );
+
+      expect(eventsInsert).toHaveBeenCalled();
+    });
+  });
+
+  // Antes `createBooking` solo comprobaba que el hueco estuviera libre en free/busy, así que
+  // aceptaba cualquier hora que nadie hubiera ocupado — domingo a las 3 AM incluido. Ahora se
+  // revalida contra los slots que de verdad se ofrecen.
+  describe('createBooking — startTime fuera de los slots ofrecidos', () => {
+    beforeEach(() => {
+      freebusyQuery.mockResolvedValue(freeDay());
+    });
+
+    it('rejects a startTime that is off the hourly grid', async () => {
+      await expect(
+        service.createBooking({ ...bookingDto, startTime: '2026-01-06T15:17:00.000Z' }, 'jane@example.com'),
+      ).rejects.toThrow(BadRequestException);
+      expect(eventsInsert).not.toHaveBeenCalled();
+    });
+
+    it('rejects a startTime on a weekend without even asking Google', async () => {
+      // 2026-01-11 es domingo; 15:00 UTC son las 09:00 locales.
+      await expect(
+        service.createBooking({ ...bookingDto, startTime: '2026-01-11T15:00:00.000Z' }, 'jane@example.com'),
+      ).rejects.toThrow(BadRequestException);
+      expect(freebusyQuery).not.toHaveBeenCalled();
+      expect(eventsInsert).not.toHaveBeenCalled();
+    });
+
+    it('rejects a startTime outside business hours', async () => {
+      // 09:00 UTC son las 03:00 en Ciudad de México.
+      await expect(
+        service.createBooking({ ...bookingDto, startTime: '2026-01-06T09:00:00.000Z' }, 'jane@example.com'),
+      ).rejects.toThrow(BadRequestException);
+      expect(eventsInsert).not.toHaveBeenCalled();
+    });
+
+    it('rejects a startTime inside the minimum-notice window', async () => {
+      // Ahora son las 12:00 UTC del lunes 5 y la anticipación mínima es de 4 h: el slot de las
+      // 15:00 UTC de hoy sigue siendo un hueco válido de la rejilla, pero llega demasiado justo.
+      await expect(
+        service.createBooking({ ...bookingDto, startTime: '2026-01-05T15:00:00.000Z' }, 'jane@example.com'),
+      ).rejects.toThrow(BadRequestException);
+      expect(eventsInsert).not.toHaveBeenCalled();
+    });
+
+    it('rejects a startTime beyond the maximum advance window', async () => {
+      // 30 días desde el 5 de enero llegan al 4 de febrero; el lunes 9 queda fuera.
+      await expect(
+        service.createBooking({ ...bookingDto, startTime: '2026-02-09T15:00:00.000Z' }, 'jane@example.com'),
+      ).rejects.toThrow(BadRequestException);
+      expect(eventsInsert).not.toHaveBeenCalled();
     });
   });
 });

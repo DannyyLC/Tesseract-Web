@@ -23,10 +23,12 @@ export interface BookingAvailabilityResponse {
 
 export interface CreateBookingDto {
   eventTypeId: BookingEventTypeId;
-  /** ISO 8601 en UTC — debe ser uno de los valores devueltos por /booking/availability. */
+  /**
+   * ISO 8601 en UTC — debe ser uno de los valores devueltos por /booking/availability. El
+   * gateway lo revalida contra esa misma lista antes de crear el evento.
+   */
   startTime: string;
   attendeeName: string;
-  attendeeEmail: string;
   notes?: string;
 }
 
@@ -37,22 +39,4 @@ export interface BookingConfirmation {
   startTime: string;
   endTime: string;
   eventTypeId: BookingEventTypeId;
-}
-
-export interface BookingCalendarStatus {
-  connected: boolean;
-  googleAccountEmail: string | null;
-  /** Calendario activo donde se crean los eventos ("primary" u otro de la cuenta conectada). */
-  calendarId: string | null;
-}
-
-export interface BookingCalendarListItem {
-  /** Id que espera `calendarId` al crear/consultar eventos (p.ej. "primary" o un email de grupo). */
-  id: string;
-  summary: string;
-  primary: boolean;
-}
-
-export interface SelectBookingCalendarDto {
-  calendarId: string;
 }

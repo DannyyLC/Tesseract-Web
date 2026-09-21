@@ -19,6 +19,7 @@
     "loginTab": "Login",
     "signupTab": "Sign Up",
     "emailLabel": "Email",
+    "emailHint": "The invitation goes to this address, the one on your account.",
     "emailPlaceholder": "example@company.com",
     "passwordLabel": "Password",
     "passwordPlaceholder": "••••••••",
@@ -2041,7 +2042,6 @@
         "integrations": "Integrations",
         "whatsappTemplates": "WhatsApp Templates",
         "llmModels": "LLM Models",
-        "calendar": "Calendar",
         "settings": "Settings"
       }
     },
@@ -2891,37 +2891,6 @@
       "noDetail": "no detail",
       "stackTrace": "stack trace",
       "tokensAbbrev": "{count} tok"
-    },
-    "Calendario": {
-      "title": "Booking calendar",
-      "subtitle": "Add an email that client-requested meetings will be sent to.",
-      "connectedAccountTitle": "Connected account",
-      "connectedAccountSubtitle": "Only one account can be connected at a time; connecting a new one replaces the previous one.",
-      "loadingStatus": "Loading calendar status",
-      "loadStatusError": "Couldn't load the calendar status.",
-      "connectedBadge": "Connected",
-      "eventsHint": "Meet events are created on the calendar chosen below for this account.",
-      "disconnectButton": "Disconnect",
-      "targetCalendarTitle": "Destination calendar",
-      "targetCalendarSubtitle": "Among {email}'s calendars, choose which one bookings are created on. Defaults to the account's primary calendar.",
-      "calendarsLoadError": "Couldn't load the calendar list.",
-      "primaryTag": " (primary)",
-      "emptyStateDescription": "No calendar connected. The support widget can't show availability or create bookings until an account is connected.",
-      "connectButton": "Connect with Google",
-      "disconnectModalTitle": "Disconnect calendar",
-      "disconnectModalWarning": "The support booking widget will stop working until another account is connected. Bookings already created in Google Calendar are not affected.",
-      "cancel": "Cancel",
-      "disconnecting": "Disconnecting…",
-      "toastConnected": "Calendar connected successfully.",
-      "toastDisconnected": "Calendar disconnected.",
-      "toastDisconnectError": "Couldn't disconnect the calendar.",
-      "toastCalendarUpdated": "Calendar updated.",
-      "toastCalendarUpdateError": "Couldn't change the calendar.",
-      "errorAccessDenied": "Authorization was cancelled in Google.",
-      "errorMissingCode": "Google didn't return an authorization code.",
-      "errorCallbackFailed": "Exchanging the code with Google failed. Check the gateway logs.",
-      "errorGeneric": "Couldn't connect the calendar.",
-      "loadingFallback": "Loading"
     }
   },
   "Shared": {

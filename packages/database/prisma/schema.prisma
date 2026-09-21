@@ -1138,37 +1138,6 @@ model TenantToolCredential {
 }
 
 // ============================================
-// BOOKING CALENDAR CREDENTIAL (reemplazo de Cal.com)
-// ============================================
-/// Fila única (no hay tenantId: es la agenda propia de Tesseract, no una integración por
-/// cliente). Un SUPER_ADMIN conecta una vez la cuenta de Google del equipo de ventas/soporte
-/// vía OAuth; el refresh token cifrado con KMS es lo único que se persiste — el access token
-/// se pide a Google en cada request y nunca se guarda, porque no sobrevive al primer refresh.
-model BookingCalendarCredential {
-  id String @id @default(uuid())
-
-  /// Solo para mostrarlo en el panel de administración ("Conectado como ventas@empresa.com").
-  googleAccountEmail String
-
-  encryptedRefreshToken String @db.Text
-
-  /// Scopes realmente otorgados por Google en el consentimiento.
-  scopes Json? @db.JsonB
-
-  /// Calendario del `googleAccountEmail` conectado donde se crean los eventos ("primary" o el
-  /// id de uno secundario, p.ej. "equipo.ventas@group.calendar.google.com"). Se guarda tal cual
-  /// lo devuelve `calendarList.list`, no se reescribe.
-  calendarId String @default("primary")
-
-  connectedByUserId String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("booking_calendar_credentials")
-}
-
-// ============================================
 // DATASET (Mini base de datos del tenant, consultable por el LLM)
 // ============================================
 /// Los datos propios del cliente que su agente necesita conocer: un catálogo de vehículos, de
