@@ -31,6 +31,32 @@ Esta estrategia está diseñada para ser un MVP altamente eficiente en costos (a
   - `JWT_SECRET`, credenciales de Stripe reales, etc.
   - `AGENTS_GRPC_URL`: URL del servicio de agentes en Cloud Run, **con** el `https://` — de ahí sale la audiencia del ID token (ver §5).
 
+### Identidades (service accounts)
+
+Con qué cuenta corre cada cosa en `fractal-tesseract`. Importa porque el código que usa ADC
+(KMS, Cloud Storage, Cloud Tasks, la agenda de reservas) hereda **la identidad de ejecución del
+servicio**, no la de quien desplegó.
+
+| Servicio | Service account |
+| --- | --- |
+| Cloud Run `gateway` | `tesseract-gateway-sa@fractal-tesseract.iam.gserviceaccount.com` |
+
+Se fija con `--service-account` en `gcloud run deploy`. Hoy **no** está en `cloudbuild.yaml`: se
+configuró a mano en el servicio y Cloud Run la conserva entre despliegues. Confirmar antes de
+concederle permisos nuevos, porque un servicio sin esa bandera cae en la cuenta por defecto de
+Compute y el permiso terminaría en la identidad equivocada:
+
+```bash
+gcloud run services describe gateway --region=us-central1 --project=fractal-tesseract \
+  --format="value(spec.template.spec.serviceAccountName)"
+```
+
+Permisos no obvios que tiene concedidos:
+
+- `roles/iam.serviceAccountTokenCreator` **sobre sí misma**, para firmarse la aserción de
+  domain-wide delegation con la que la agenda de reservas actúa como `daniel@fractalops.com.mx`.
+  Es lo que sustituye a un archivo de llave.
+
 ### Base de Datos Relacional
 
 - **Plataforma:** Google Cloud SQL (PostgreSQL).

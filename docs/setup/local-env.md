@@ -133,6 +133,25 @@ _Solo si vas a probar el flujo de Login o Registro usando "Continuar con Google"
 - `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`: Credenciales de tu proyecto en Google Cloud Console.
 - `GOOGLE_CALLBACK_URL`: Usualmente `http://localhost:3000/api/auth/google/callback` para el entorno local.
 
+### Agenda de reservas (Opcional)
+
+_Solo si vas a tocar el widget de agendar citas de `/support`. Sin estas variables el booking
+responde 503; el resto de la aplicación funciona igual._
+
+La agenda no usa OAuth: la service account del Gateway suplanta a una cuenta de Workspace por
+domain-wide delegation y se firma a sí misma con `iamcredentials.signJwt`. En local eso significa
+que tu usuario necesita `roles/iam.serviceAccountTokenCreator` sobre esa service account — si no lo
+tienes, el 503 es el comportamiento esperado y no un bug.
+
+- `BOOKING_IMPERSONATED_USER`: Cuenta de Workspace a suplantar (ej. `agenda@fractalops.com.mx`).
+- `BOOKING_SERVICE_ACCOUNT_EMAIL`: Email de la service account. Solo hace falta en local: con ADC
+  de usuario no hay `client_email` que descubrir, mientras que en Cloud Run se deduce del metadata
+  server.
+- `BOOKING_CALENDAR_ID`: Calendario donde se crean los eventos. Por defecto `primary`.
+- `BOOKING_AVAILABILITY_GROUP_EMAIL`: Google Group del equipo de soporte. Si se define, su
+  disponibilidad se cruza con la del calendario destino y se le invita a cada evento. Déjalo vacío
+  en local salvo que quieras mandarle correos de verdad al grupo.
+
 ### Facturación y Stripe (Opcionales)
 
 _Solo requieres estas variables si vas a hacer cambios en el código de cobros, suscripciones o overages._

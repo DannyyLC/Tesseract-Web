@@ -11,8 +11,6 @@ description: 'Hallazgos pendientes de corregir: los tiers de modelo declarados y
 4. Sabido: las notificaciones ya guardadas en `user_notifications` se quedan en español (no tienen copia en inglés), y `hubspot_crm` y `slack_notif` no tienen traducción en el seed.
 5. Tras la v3: quitar el fallback a las columnas base (`displayName`, `description`, `titleTemplate`, `titleSnapshot`…) y hacer obligatorias las `…En`.
 
-Revisar la posibilidad de replicar lo que hace Cal.com en nuestra aplicacion para no depender de un tercero para este aspecto.
-
 ## 8. Pipeline de WhatsApp — deuda menor
 
 Levantado al migrar a Cloud Tasks. Nada urgente.
