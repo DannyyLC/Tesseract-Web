@@ -177,13 +177,24 @@ export function useExecuteStream() {
     setMessages('');
     setError(null);
 
-    // Solo sincronizamos con el servidor cuando el stream falla o se trunca.
-    // En el caso normal el estado local ya tiene todo lo que el servidor guardaría.
+    // Solo sincronizamos el detalle con el servidor cuando el stream falla o se trunca.
+    // En el caso normal el estado local ya tiene todo lo que el servidor guardaría, y
+    // refetchear el detalle con la conversación abierta cambia los ids temporales de los
+    // mensajes recién creados por los reales: como la lista se renderiza con `key={msg.id}`
+    // sobre un `motion.div`, React remonta esos nodos y framer-motion vuelve a animarlos
+    // de entrada. El detalle ya se revalida al montar (ver `useConversation`).
     const syncOnFailure = (resolvedId?: string) => {
       const idToSync = resolvedId ?? conversationId;
       if (idToSync) {
         queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', idToSync] });
       }
+    };
+
+    // El listado sí hay que refrescarlo pase lo que pase: el preview del último mensaje y
+    // el orden por actividad quedan viejos en cuanto termina el stream. Invalidar solo el
+    // dashboard no toca la conversación abierta, así que no provoca la re-animación.
+    const syncDashboard = () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations', 'dashboard'] });
     };
 
     // Capturar el conversationId que llega por el evento SSE (para conversaciones nuevas)
@@ -205,16 +216,19 @@ export function useExecuteStream() {
           setIsStreaming(false);
           // Stream fallido o truncado: ir al servidor para mostrar la respuesta guardada en DB
           syncOnFailure(resolvedConversationId);
+          syncDashboard();
         },
         onComplete: () => {
           setIsStreaming(false);
-          // Stream exitoso: el estado local ya tiene los tokens, no se necesita refetch
+          // Stream exitoso: el estado local ya tiene los tokens, el detalle no se refetchea
+          syncDashboard();
         },
       });
     } catch (e) {
       setError(e);
       setIsStreaming(false);
       syncOnFailure(resolvedConversationId);
+      syncDashboard();
     }
   };
 
