@@ -6,6 +6,7 @@ import {
   DatasetRecordDto,
   DatasetSearchRequest,
   DatasetSearchResponse,
+  MAX_DATASET_FIELDS,
 } from '@tesseract/types';
 import { PrismaService } from '../../../platform/database/prisma.service';
 import { liveFields } from './dataset-schema.validator';
@@ -24,6 +25,20 @@ import { liveFields } from './dataset-schema.validator';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+
+// Tope de palabras del texto libre: como cada una se compara contra cada columna de texto, el
+// peor caso razonable es una palabra por columna posible. Se ata a `MAX_DATASET_FIELDS` (el
+// límite real de columnas por dataset) en vez de un número inventado.
+const MAX_QUERY_TOKENS = MAX_DATASET_FIELDS;
+
+/**
+ * `translate(lower(...))` en vez de `unaccent()`: evita depender de una extensión de Postgres
+ * (riesgo de permisos en Cloud SQL). Se aplica la MISMA función a columna y a patrón para que la
+ * normalización sea simétrica por construcción.
+ */
+function normalized(expr: Prisma.Sql): Prisma.Sql {
+  return Prisma.sql`translate(lower(${expr}), 'áéíóúñü', 'aeiounu')`;
+}
 
 @Injectable()
 export class DatasetQueryService {
@@ -149,12 +164,24 @@ export class DatasetQueryService {
       const textFields = live.filter((field) => field.type === 'text');
 
       if (textFields.length > 0) {
-        const pattern = `%${query.replace(/[%_\\]/g, (char) => `\\${char}`)}%`;
-        const matches = textFields.map(
-          (field) => Prisma.sql`"data"->>${field.key} ILIKE ${pattern}`,
-        );
+        // "BYD M9" busca "BYD" y "M9" por separado (AND entre palabras) en vez de la frase
+        // completa: si "BYD" y "M9" viven en columnas distintas (marca/modelo), la frase completa
+        // nunca matchea ninguna columna aunque la fila sea la correcta.
+        const tokens = query.split(/\s+/).filter(Boolean).slice(0, MAX_QUERY_TOKENS);
 
-        conditions.push(Prisma.sql`(${Prisma.join(matches, ' OR ')})`);
+        const tokenConditions = tokens.map((token) => {
+          const escaped = token.replace(/[%_\\]/g, (char) => `\\${char}`);
+          const pattern = `%${escaped}%`;
+
+          const matches = textFields.map(
+            (field) =>
+              Prisma.sql`${normalized(Prisma.sql`"data"->>${field.key}`)} LIKE ${normalized(Prisma.sql`${pattern}`)}`,
+          );
+
+          return Prisma.sql`(${Prisma.join(matches, ' OR ')})`;
+        });
+
+        conditions.push(Prisma.sql`(${Prisma.join(tokenConditions, ' AND ')})`);
       }
     }
 
