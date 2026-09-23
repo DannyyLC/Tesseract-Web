@@ -28,6 +28,7 @@ import { collectConfiguredModels, resolveContextWindowBudget } from './context-w
 import { AgentsService } from '../agents/agents.service';
 import { ToolsService } from '../tools/core/tools.service';
 import { DatasetTokenService } from '../datasets/core/dataset-token.service';
+import { InterventionTokenService } from '@/messaging/conversations/core/intervention-token.service';
 import { EndUsersService } from '@/identity/end-users/end-users.service';
 import { UserType } from '../agents/dto/agent-execution-request.dto';
 import {
@@ -116,6 +117,7 @@ export class WorkflowsService {
     private readonly configService: ConfigService,
     private readonly configValidator: WorkflowConfigValidator,
     private readonly datasetTokenService: DatasetTokenService,
+    private readonly interventionTokenService: InterventionTokenService,
     private readonly endUsersService: EndUsersService,
   ) {
     this.compactionApiBaseUrl = this.configService
@@ -2127,6 +2129,29 @@ export class WorkflowsService {
         } else {
           this.logger.warn(`dataset tool ${toolId}: falta dataset_id en TenantTool.config`);
         }
+      }
+
+      // Enriquecer la tool de human_handoff con el token que le permite a
+      // `activate_human_intervention` (la variante determinista, invocada desde un nodo `tool`
+      // del graph, sin pasar por el LLM) activar HITL en ESTA conversación y ninguna otra.
+      if (toolName === 'human_handoff') {
+        toolInstances[toolId].config = {
+          ...toolInstances[toolId].config,
+          api_base: this.configService.get<string>('GATEWAY_INTERNAL_URL', ''),
+        };
+
+        // El token va por `credentials`, igual que dataset, para que la redacción de logs ya
+        // existente lo tape.
+        toolInstances[toolId].credentials = {
+          access_token: await this.interventionTokenService.sign(
+            {
+              organizationId: workflow.organizationId,
+              conversationId: conversation.id,
+              workflowId: workflow.id,
+            },
+            workflow.timeout ?? 300,
+          ),
+        };
       }
     }
 

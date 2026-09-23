@@ -246,6 +246,15 @@ export const toolCatalogs: ToolCatalogSeed[] = [
         category: 'escalation',
         dangerLevel: 'SAFE',
       },
+      {
+        functionName: 'activate_human_intervention',
+        displayName: 'Activar intervencion humana (determinista)',
+        description:
+          'Igual que "Solicitar intervencion humana", pero invocada desde un nodo del workflow en vez de por decision del LLM: pausa la IA de inmediato y notifica al equipo.',
+        icon: 'mdi:account-arrow-up-outline',
+        category: 'escalation',
+        dangerLevel: 'SAFE',
+      },
     ],
   },
   {
