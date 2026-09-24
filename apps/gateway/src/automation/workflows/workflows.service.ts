@@ -1963,9 +1963,7 @@ export class WorkflowsService {
     activeSummary?: string | null,
     whatsAppConfigId?: string,
     // Datos del canal para este turno (p.ej. {client_number}). Se exponen en
-    // user_metadata (→ {{context.user_metadata.*}} en el motor) y como
-    // auto_fill_variables de send_bulk_whatsapp (variables de plantilla que el
-    // sistema llena en su posición declarada; el modelo nunca las controla).
+    // user_metadata (→ {{context.user_metadata.*}} en el motor).
     channelContext?: Record<string, any>
   ) {
     // 1. Extraer nueva estructura unificada de config
@@ -2062,9 +2060,6 @@ export class WorkflowsService {
               from_number: wac.phoneNumber,
               api_key: process.env.Y_CLOUD_API_KEY,
               available_templates: availableTemplates,
-              ...(channelContext && Object.keys(channelContext).length > 0
-                ? { auto_fill_variables: channelContext }
-                : {}),
             };
           } else {
             this.logger.warn(
