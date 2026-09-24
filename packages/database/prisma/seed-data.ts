@@ -41,6 +41,8 @@ export type ToolCatalogSeed = {
   functions: ToolFunctionSeed[];
 };
 
+// Solo plantillas reusables (kind: TEMPLATE, el default de la columna). Los anuncios del
+// super admin (kind: ANNOUNCEMENT) se crean uno por uno desde /admin y nunca se siembran aquí.
 export type NotificationSeed = {
   code: string;
   version: number;
@@ -240,6 +242,15 @@ export const toolCatalogs: ToolCatalogSeed[] = [
         displayName: 'Solicitar intervencion humana',
         description:
           'Marca la conversacion para Human in the Loop y notifica a miembros de la organizacion.',
+        icon: 'mdi:account-arrow-up-outline',
+        category: 'escalation',
+        dangerLevel: 'SAFE',
+      },
+      {
+        functionName: 'activate_human_intervention',
+        displayName: 'Activar intervencion humana (determinista)',
+        description:
+          'Igual que "Solicitar intervencion humana", pero invocada desde un nodo del workflow en vez de por decision del LLM: pausa la IA de inmediato y notifica al equipo.',
         icon: 'mdi:account-arrow-up-outline',
         category: 'escalation',
         dangerLevel: 'SAFE',

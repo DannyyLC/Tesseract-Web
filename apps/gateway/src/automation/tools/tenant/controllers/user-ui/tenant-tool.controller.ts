@@ -1,20 +1,20 @@
+import { ParsePageSizePipe } from '@/platform/common/pipes/parse-page-size.pipe';
 import {
   Body,
   Controller,
-  DefaultValuePipe,
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Post,
   Put,
   Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { Locale } from '@/platform/common/decorators/locale.decorator';
+import { SupportedLocale } from '@/platform/common/types/locale.type';
 import {
   ApiResponseBuilder,
-  DEFAULT_PAGE_SIZE,
   PaginatedResponse,
   UserRole,
   WhatsappOutboundStatusDto,
@@ -42,9 +42,10 @@ export class TenantToolController {
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
+    @Query('pageSize', ParsePageSizePipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Res() res: Response,
+    @Locale() locale: SupportedLocale,
   ): Promise<Response<PaginatedResponse<DashboardTenantToolDto>>> {
     const apiResponse = new ApiResponseBuilder<PaginatedResponse<DashboardTenantToolDto>>();
     const result = await this.tenantToolService.getDashboardData(
@@ -52,6 +53,7 @@ export class TenantToolController {
       cursor,
       pageSize,
       action,
+      locale,
     );
     if (!result) {
       apiResponse
@@ -206,9 +208,13 @@ export class TenantToolController {
 
   @Get(':id')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
-  async getTenantToolById(@Param('id') id: string, @Res() res: Response) {
+  async getTenantToolById(
+    @Param('id') id: string,
+    @Res() res: Response,
+    @Locale() locale: SupportedLocale,
+  ) {
     const apiResponse = new ApiResponseBuilder<any>();
-    const tenantTool = await this.tenantToolService.getTenantToolById(id);
+    const tenantTool = await this.tenantToolService.getTenantToolById(id, locale);
     if (!tenantTool) {
       apiResponse.setSuccess(false).setMessage('Tenant tool not found');
       return res.status(HttpStatusCode.NotFound).json(apiResponse.build());

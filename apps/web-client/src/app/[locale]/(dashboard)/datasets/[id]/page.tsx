@@ -4,12 +4,13 @@ import { use, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Eraser, FileUp, Loader2, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { DatasetField, DENSE_PAGE_SIZE } from '@tesseract/types';
+import { DatasetField } from '@tesseract/types';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { ImportCsvModal } from '@/components/datasets/import-csv-modal';
 import { RecordsGrid } from '@/components/datasets/records-grid';
 import { RecordsToolbar } from '@/components/datasets/records-toolbar';
 import { PagePager } from '@/components/ui/page-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 import { useRecordSelection } from '@/components/datasets/use-record-selection';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { Modal } from '@/components/ui/modal';
@@ -39,6 +40,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
   const usage = list?.usage;
   const atRowLimit = !!usage && usage.writesBlocked;
 
+  const { pageSize, setPageSize } = usePageSize('datasets-records');
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 400);
@@ -47,14 +49,14 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
     setPage(1);
   }, [search]);
 
-  const { data: records } = useDatasetRecords(id, DENSE_PAGE_SIZE, (page - 1) * DENSE_PAGE_SIZE, search);
+  const { data: records } = useDatasetRecords(id, pageSize, (page - 1) * pageSize, search);
   const { updateFields, clearRecords, createRecord, updateRecord, deleteRecords, importCsv } =
     useDatasetMutations();
 
   // La selección abarca solo la página visible, así que se vacía al paginar o al buscar.
   const selection = useRecordSelection(
     (records?.items ?? []).map((record) => record.id),
-    `${page}|${search}`,
+    `${page}|${pageSize}|${search}`,
   );
 
   const [isEditingSchema, setIsEditingSchema] = useState(false);
@@ -151,7 +153,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil((records?.total ?? 0) / DENSE_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil((records?.total ?? 0) / pageSize));
 
   return (
     <PermissionGuard permissions="datasets:read" redirect fallbackRoute="/dashboard">
@@ -210,6 +212,11 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
               page={page}
               totalPages={totalPages}
               onPageChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
               prevLabel={t('previous')}
               nextLabel={t('next')}
               emphasis="plain"

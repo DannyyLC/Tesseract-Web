@@ -9,7 +9,7 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
-import { DENSE_PAGE_SIZE, MAX_PAGE_SIZE } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@tesseract/types';
 
 /**
  * DTO para query params de listado de ejecuciones
@@ -20,7 +20,7 @@ export class ExecutionQueryDto {
   @IsInt()
   @Min(1)
   @Max(MAX_PAGE_SIZE)
-  limit?: number = DENSE_PAGE_SIZE;
+  limit?: number = DEFAULT_PAGE_SIZE;
 
   @IsOptional()
   @IsString()

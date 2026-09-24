@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useLocale, useTranslations } from 'next-intl';
 import { AnimatePresence } from 'framer-motion';
 import { RotateCcw, Anchor, GitCompare } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
@@ -11,8 +12,11 @@ import {
   useVersionDiff,
   useWorkflowVersions,
 } from '@/hooks/automation/use-admin-workflows';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
+import { toIntlLocale } from '@/lib/intl-locale';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import { PagePager } from '@/components/ui/page-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 
 interface Props {
   workflowId: string;
@@ -20,20 +24,23 @@ interface Props {
   hasUnsavedChanges: boolean;
 }
 
-const SOURCE_LABEL: Record<string, string> = {
-  BASELINE: 'estado previo',
-  ADMIN_UI: 'edición',
-  RESTORE: 'restauración',
-  CLONE: 'clonado',
-};
-
 export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Props) {
+  const t = useTranslations('Admin.HistoryTab');
+  const intlLocale = toIntlLocale(useLocale());
+  const getApiErrorMessage = useApiErrorMessage();
+  const SOURCE_LABEL: Record<string, string> = {
+    BASELINE: t('sourceBaseline'),
+    ADMIN_UI: t('sourceAdminUi'),
+    RESTORE: t('sourceRestore'),
+    CLONE: t('sourceClone'),
+  };
+  const { pageSize, setPageSize } = usePageSize('admin-workflow-versions');
   const [page, setPage] = useState(1);
   const [diffVersionId, setDiffVersionId] = useState<string | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<{ id: string; version: number } | null>(null);
   const [restoreNote, setRestoreNote] = useState('');
 
-  const { data, isLoading } = useWorkflowVersions(workflowId, page);
+  const { data, isLoading } = useWorkflowVersions(workflowId, page, true, pageSize);
   const { data: diff, isLoading: diffLoading } = useVersionDiff(workflowId, diffVersionId);
   const { restoreVersion } = useAdminWorkflowMutations();
 
@@ -50,13 +57,16 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
         onSuccess: (result) => {
           toast.success(
             result.changed
-              ? `Restaurado a la versión ${restoreTarget.version} (guardado como v${result.workflow?.version})`
-              : 'Esa versión ya era la vigente',
+              ? t('restoredTo', {
+                  version: restoreTarget.version,
+                  savedVersion: result.workflow?.version ?? '',
+                })
+              : t('alreadyCurrent'),
           );
           setRestoreTarget(null);
           setRestoreNote('');
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo restaurar'),
+        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -64,25 +74,18 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
-        <LogoLoader text="Cargando historial" />
+        <LogoLoader text={t('loading')} />
       </div>
     );
   }
 
   if (!data?.data.length) {
-    return (
-      <p className="p-8 text-center text-sm text-text-secondary">
-        Todavía no hay versiones guardadas. La primera vez que guardes se conservará también el
-        estado previo.
-      </p>
-    );
+    return <p className="p-8 text-center text-sm text-text-secondary">{t('noVersions')}</p>;
   }
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-text-secondary">
-        Se conservan las últimas 30 versiones. El estado previo a la primera edición nunca se borra.
-      </p>
+      <p className="text-xs text-text-secondary">{t('retentionHint')}</p>
 
       <ul className="divide-y divide-border rounded-lg border border-border">
         {data.data.map((v) => (
@@ -92,7 +95,7 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
                 <span className="font-mono text-sm text-text-primary">v{v.version}</span>
                 {v.isBaseline && (
                   <span className="inline-flex items-center gap-1 rounded bg-surface-secondary px-1.5 py-0.5 text-[10px] text-text-secondary">
-                    <Anchor size={10} /> permanente
+                    <Anchor size={10} /> {t('permanentBadge')}
                   </span>
                 )}
                 <span className="text-[11px] text-text-secondary">
@@ -100,14 +103,14 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
                 </span>
                 {v.version === currentVersion && (
                   <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[10px] text-accent">
-                    vigente
+                    {t('currentBadge')}
                   </span>
                 )}
               </div>
               <p className="mt-0.5 text-[11px] text-text-secondary">
-                {new Date(v.createdAt).toLocaleString('es')}
+                {new Date(v.createdAt).toLocaleString(intlLocale)}
                 {v.createdByEmail && ` · ${v.createdByEmail}`}
-                {` · ${Math.round(v.sizeBytes / 1024)} KB`}
+                {` · ${t('sizeKb', { size: Math.round(v.sizeBytes / 1024) })}`}
               </p>
               {v.note && <p className="mt-0.5 text-xs text-text-primary">{v.note}</p>}
             </div>
@@ -116,16 +119,16 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
               <button
                 className={btnGhost}
                 onClick={() => setDiffVersionId(v.id)}
-                title="Comparar con el config vigente"
+                title={t('compareTitle')}
               >
-                <GitCompare size={13} /> Comparar
+                <GitCompare size={13} /> {t('compare')}
               </button>
               <button
                 className={btnGhost}
                 disabled={v.version === currentVersion}
                 onClick={() => setRestoreTarget({ id: v.id, version: v.version })}
               >
-                <RotateCcw size={13} /> Restaurar
+                <RotateCcw size={13} /> {t('restore')}
               </button>
             </div>
           </li>
@@ -136,24 +139,31 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
         page={data.meta.page}
         totalPages={data.meta.totalPages}
         onPageChange={setPage}
-        summary={`Página ${data.meta.page} de ${data.meta.totalPages}`}
+        pageSize={pageSize}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+        summary={t('pagerSummary', { page: data.meta.page, totalPages: data.meta.totalPages })}
       />
 
       <AnimatePresence>
         {diffVersionId && (
-          <Modal isOpen onClose={() => setDiffVersionId(null)} title="Comparar con el vigente">
+          <Modal isOpen onClose={() => setDiffVersionId(null)} title={t('compareModalTitle')}>
             {diffLoading ? (
               <div className="flex justify-center py-8">
-                <LogoLoader text="Calculando diferencias" />
+                <LogoLoader text={t('calculatingDiff')} />
               </div>
             ) : !diff?.entries.length ? (
-              <p className="py-6 text-center text-sm text-text-secondary">
-                No hay diferencias con el config vigente.
-              </p>
+              <p className="py-6 text-center text-sm text-text-secondary">{t('noDiff')}</p>
             ) : (
               <div className="space-y-3">
                 <p className="text-xs text-text-secondary">
-                  v{diff.fromVersion} → v{diff.toVersion} · {diff.entries.length} cambio(s)
+                  {t('diffSummary', {
+                    from: diff.fromVersion,
+                    to: diff.toVersion,
+                    count: diff.entries.length,
+                  })}
                 </p>
                 {diff.entries.map((entry, i) => (
                   <div key={i} className="rounded-lg border border-border p-2">
@@ -171,7 +181,7 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
                     )}
                     {entry.truncated && (
                       <p className="mt-1 text-[10px] text-text-secondary">
-                        (valor recortado para la vista)
+                        {t('truncatedValue')}
                       </p>
                     )}
                   </div>
@@ -185,37 +195,36 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
           <Modal
             isOpen
             onClose={() => setRestoreTarget(null)}
-            title={`Restaurar la versión ${restoreTarget.version}`}
+            title={t('restoreModalTitle', { version: restoreTarget.version })}
           >
             <div className="space-y-4">
               <p className="text-sm text-text-secondary">
-                El config de la versión {restoreTarget.version} pasará a ser el vigente. No se borra
-                nada: queda registrado como una versión nueva, así que puedes deshacerlo.
+                {t('restoreExplanation', { version: restoreTarget.version })}
               </p>
               {hasUnsavedChanges && (
                 <p className="rounded-lg border border-danger/40 px-3 py-2 text-xs text-danger">
-                  Tienes cambios sin guardar en el editor. Si restauras, se perderán.
+                  {t('unsavedWarning')}
                 </p>
               )}
               <div>
-                <label className={labelClass}>Nota (opcional)</label>
+                <label className={labelClass}>{t('noteLabel')}</label>
                 <input
                   className={inputClass}
                   value={restoreNote}
                   onChange={(e) => setRestoreNote(e.target.value)}
-                  placeholder="Revertir cambio de tono"
+                  placeholder={t('notePlaceholder')}
                 />
               </div>
               <div className="flex justify-end gap-2">
                 <button className={btnGhost} onClick={() => setRestoreTarget(null)}>
-                  Cancelar
+                  {t('cancel')}
                 </button>
                 <button
                   className={btnPrimary}
                   onClick={handleRestore}
                   disabled={restoreVersion.isPending}
                 >
-                  {restoreVersion.isPending ? 'Restaurando…' : 'Restaurar'}
+                  {restoreVersion.isPending ? t('restoring') : t('restore')}
                 </button>
               </div>
             </div>

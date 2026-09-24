@@ -1,5 +1,5 @@
 import { TenantToolService } from './tenant-tool.service';
-import { ADMIN_PAGE_SIZE } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../../../platform/common/responses/cursor-paginated-response';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 
@@ -71,7 +71,7 @@ describe('TenantToolService', () => {
       // Sin `limit` explícito cae en el tamaño de página de los listados admin.
       expect(res).toEqual({
         data: tools,
-        meta: { total: 1, page: 1, limit: ADMIN_PAGE_SIZE, totalPages: 1 },
+        meta: { total: 1, page: 1, limit: DEFAULT_PAGE_SIZE, totalPages: 1 },
       });
     });
 

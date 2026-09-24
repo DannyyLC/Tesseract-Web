@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, WorkflowVersionSource } from '@tesseract/database';
-import { ADMIN_PAGE_SIZE, WorkflowCategory } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, WorkflowCategory } from '@tesseract/types';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { InvalidWorkflowConfigException } from '@/platform/common/exceptions';
@@ -91,7 +91,7 @@ export class WorkflowsAdminService {
 
   /** Listado de workflows. Nunca selecciona `config`: son ~100 KB por fila. */
   async findAll(query: QueryWorkflowsAdminDto) {
-    const { organizationId, search, includeDeleted, page = 1, limit = ADMIN_PAGE_SIZE } = query;
+    const { organizationId, search, includeDeleted, page = 1, limit = DEFAULT_PAGE_SIZE } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.WorkflowWhereInput = {
@@ -437,7 +437,7 @@ export class WorkflowsAdminService {
 
   /** Listado del historial. Nunca selecciona `config`: 30 snapshots serían megabytes. */
   async listVersions(workflowId: string, query: QueryVersionsDto) {
-    const { page = 1, limit = ADMIN_PAGE_SIZE } = query;
+    const { page = 1, limit = DEFAULT_PAGE_SIZE } = query;
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([

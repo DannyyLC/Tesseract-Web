@@ -38,7 +38,16 @@ export function useConversationsStats() {
   });
 }
 
-// Hook para traer los detalles de una conversación especifica
+/**
+ * Detalle de una conversación. Revalida siempre al montar, a propósito.
+ *
+ * El `staleTime` global de 5 minutos sirve para catálogos, no para esto: los mensajes de
+ * la página viven en un `useState` que se pierde al desmontar, así que al volver a entrar
+ * la lista se reconstruye desde esta query. Sirviendo caché, la conversación reaparecía
+ * sin los últimos mensajes hasta recargar la página (F5 crea un QueryClient nuevo).
+ * Además el historial cambia por fuera de esta pestaña —WhatsApp entrante, otro agente en
+ * HITL—, así que la caché nunca es autoridad.
+ */
 export function useConversation(conversationId: string) {
   return useQuery({
     queryKey: ['conversations', 'detail', conversationId],
@@ -47,6 +56,8 @@ export function useConversation(conversationId: string) {
       return await api.getById(conversationId);
     },
     enabled: !!conversationId,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 }
 

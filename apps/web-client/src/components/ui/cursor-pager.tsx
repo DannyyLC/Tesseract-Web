@@ -2,6 +2,7 @@
 
 import { ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { PageSizeSelect } from './page-size-select';
 
 interface CursorPagerProps {
   prevCursor: string | null;
@@ -17,6 +18,13 @@ interface CursorPagerProps {
   summary?: ReactNode;
   /** Para la variante con separador superior (`border-t border-border pt-4`). */
   className?: string;
+  /**
+   * Tamaño de página actual y su cambio. Con `onPageSizeChange` se muestra el selector, y se muestra
+   * aunque no haya páginas a los lados: si no, quien subió a 100 y cabe todo en una sola página no
+   * podría volver a bajar.
+   */
+  pageSize?: number;
+  onPageSizeChange?: (pageSize: number) => void;
 }
 
 /**
@@ -34,9 +42,14 @@ export function CursorPager({
   nextLabel,
   summary,
   className = '',
+  pageSize,
+  onPageSizeChange,
 }: CursorPagerProps) {
-  // Sin páginas a los lados no hay nada que ofrecer.
-  if (!prevCursor && !nextPageAvailable) return null;
+  const showPageSize = pageSize !== undefined && !!onPageSizeChange;
+  const hasNavigation = !!prevCursor || nextPageAvailable;
+
+  // Sin páginas a los lados ni selector no hay nada que ofrecer.
+  if (!hasNavigation && !showPageSize) return null;
 
   return (
     <div
@@ -45,22 +58,27 @@ export function CursorPager({
       {summary && <span className="text-xs text-text-tertiary">{summary}</span>}
 
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => prevCursor && onNavigate(prevCursor, 'prev')}
-          disabled={!prevCursor}
-          className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary transition-all hover:bg-[var(--surface-tint)] hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <ChevronLeft size={14} />
-          {prevLabel}
-        </button>
-        <button
-          onClick={() => nextCursor && onNavigate(nextCursor, 'next')}
-          disabled={!nextPageAvailable || !nextCursor}
-          className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary transition-all hover:bg-[var(--surface-tint)] hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {nextLabel}
-          <ChevronRight size={14} />
-        </button>
+        {showPageSize && <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />}
+        {hasNavigation && (
+          <>
+            <button
+              onClick={() => prevCursor && onNavigate(prevCursor, 'prev')}
+              disabled={!prevCursor}
+              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary transition-all hover:bg-[var(--surface-tint)] hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronLeft size={14} />
+              {prevLabel}
+            </button>
+            <button
+              onClick={() => nextCursor && onNavigate(nextCursor, 'next')}
+              disabled={!nextPageAvailable || !nextCursor}
+              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary transition-all hover:bg-[var(--surface-tint)] hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {nextLabel}
+              <ChevronRight size={14} />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

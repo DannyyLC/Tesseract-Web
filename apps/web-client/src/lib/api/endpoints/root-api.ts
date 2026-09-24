@@ -10,6 +10,7 @@ import InvoiceApi from './billing/invoice-api';
 import OrganizationsApi from './identity/organizations/organizations-api';
 import NotificationsApi from './messaging/notifications/notifications-api';
 import SupportApi from './platform/support/support-api';
+import BookingApi from './platform/booking/booking-api';
 import ToolCatalogApi from './automation/tools/tool-catalog-api';
 import TenantToolsApi from './automation/tools/tenant-tools-api';
 import ToolsOauthApi from './automation/tools/tools-oauth-api';
@@ -27,6 +28,8 @@ import WhatsappConfigAdminApi from './messaging/whatsapp-config/whatsapp-config-
 import TenantToolsAdminApi from './automation/tools/tenant-tools-admin-api';
 import AnalyticsAdminApi from './billing/analytics-admin-api';
 import DatasetsAdminApi from './automation/datasets/datasets-admin-api';
+import AnnouncementsApi from './platform/announcements/announcements-api';
+import AnnouncementsAdminApi from './platform/announcements/announcements-admin-api';
 
 class RootApi {
   private static instance: RootApi;
@@ -42,6 +45,7 @@ class RootApi {
   private organizationsApi: OrganizationsApi;
   private notificationsApi: NotificationsApi;
   private supportApi: SupportApi;
+  private bookingApi: BookingApi;
   private toolCatalogApi: ToolCatalogApi;
   private tenantToolsApi: TenantToolsApi;
   private toolsOauthApi: ToolsOauthApi;
@@ -59,6 +63,8 @@ class RootApi {
   private tenantToolsAdminApi: TenantToolsAdminApi;
   private analyticsAdminApi: AnalyticsAdminApi;
   private datasetsAdminApi: DatasetsAdminApi;
+  private announcementsApi: AnnouncementsApi;
+  private announcementsAdminApi: AnnouncementsAdminApi;
 
   private constructor() {
     this.authApi = new AuthApi();
@@ -73,6 +79,7 @@ class RootApi {
     this.organizationsApi = new OrganizationsApi();
     this.notificationsApi = new NotificationsApi();
     this.supportApi = new SupportApi();
+    this.bookingApi = new BookingApi();
     this.toolCatalogApi = new ToolCatalogApi();
     this.tenantToolsApi = new TenantToolsApi();
     this.toolsOauthApi = new ToolsOauthApi();
@@ -90,6 +97,8 @@ class RootApi {
     this.tenantToolsAdminApi = new TenantToolsAdminApi();
     this.analyticsAdminApi = new AnalyticsAdminApi();
     this.datasetsAdminApi = new DatasetsAdminApi();
+    this.announcementsApi = new AnnouncementsApi();
+    this.announcementsAdminApi = new AnnouncementsAdminApi();
   }
 
   public static getInstance(): RootApi {
@@ -145,6 +154,10 @@ class RootApi {
 
   public getSupportApi(): SupportApi {
     return this.supportApi;
+  }
+
+  public getBookingApi(): BookingApi {
+    return this.bookingApi;
   }
 
   public getToolCatalogApi(): ToolCatalogApi {
@@ -213,6 +226,14 @@ class RootApi {
 
   public getDatasetsAdminApi(): DatasetsAdminApi {
     return this.datasetsAdminApi;
+  }
+
+  public getAnnouncementsApi(): AnnouncementsApi {
+    return this.announcementsApi;
+  }
+
+  public getAnnouncementsAdminApi(): AnnouncementsAdminApi {
+    return this.announcementsAdminApi;
   }
 }
 

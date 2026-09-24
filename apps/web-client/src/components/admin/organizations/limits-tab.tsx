@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { Loader2, Save } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAdminOrganizationMutations } from '@/hooks/identity/use-admin-organizations';
+import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import type {
   AdminOrganizationDetail,
   UpdateAdminCustomLimitsInput,
@@ -22,14 +24,6 @@ type LimitKey =
   | 'customMaxDatasets'
   | 'customMaxDatasetRows';
 
-const LIMIT_FIELDS: { key: LimitKey; label: string; planLimitKey: keyof AdminOrganizationDetail['planLimits']['limits'] }[] = [
-  { key: 'customMaxUsers', label: 'Usuarios', planLimitKey: 'maxUsers' },
-  { key: 'customMaxApiKeys', label: 'API keys', planLimitKey: 'maxApiKeys' },
-  { key: 'customMaxWorkflows', label: 'Workflows', planLimitKey: 'maxWorkflows' },
-  { key: 'customMaxDatasets', label: 'Datasets', planLimitKey: 'maxDatasets' },
-  { key: 'customMaxDatasetRows', label: 'Filas de datasets (todas sumadas)', planLimitKey: 'maxDatasetRows' },
-];
-
 type LimitsForm = Record<LimitKey, string>;
 
 const toForm = (org: AdminOrganizationDetail): LimitsForm => ({
@@ -41,6 +35,19 @@ const toForm = (org: AdminOrganizationDetail): LimitsForm => ({
 });
 
 export function LimitsTab({ org }: Props) {
+  const t = useTranslations('Admin.LimitsTab');
+  const getApiErrorMessage = useApiErrorMessage();
+  const LIMIT_FIELDS: {
+    key: LimitKey;
+    label: string;
+    planLimitKey: keyof AdminOrganizationDetail['planLimits']['limits'];
+  }[] = [
+    { key: 'customMaxUsers', label: t('users'), planLimitKey: 'maxUsers' },
+    { key: 'customMaxApiKeys', label: t('apiKeys'), planLimitKey: 'maxApiKeys' },
+    { key: 'customMaxWorkflows', label: t('workflows'), planLimitKey: 'maxWorkflows' },
+    { key: 'customMaxDatasets', label: t('datasets'), planLimitKey: 'maxDatasets' },
+    { key: 'customMaxDatasetRows', label: t('datasetRows'), planLimitKey: 'maxDatasetRows' },
+  ];
   const { updateCustomLimits, toggleOverage } = useAdminOrganizationMutations();
 
   const [form, setForm] = useState<LimitsForm>(() => toForm(org));
@@ -70,8 +77,8 @@ export function LimitsTab({ org }: Props) {
     updateCustomLimits.mutate(
       { id: org.id, data: payload },
       {
-        onSuccess: () => toast.success('Límites actualizados'),
-        onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo guardar'),
+        onSuccess: () => toast.success(t('limitsUpdated')),
+        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -86,8 +93,8 @@ export function LimitsTab({ org }: Props) {
         },
       },
       {
-        onSuccess: () => toast.success('Sobregiro actualizado'),
-        onError: (e: any) => !e?.toastHandled && toast.error(e?.message ?? 'No se pudo guardar'),
+        onSuccess: () => toast.success(t('overageUpdated')),
+        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -95,11 +102,8 @@ export function LimitsTab({ org }: Props) {
   return (
     <div className="w-full space-y-6">
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 text-sm font-semibold text-text-primary">Límites custom</h2>
-        <p className="mb-4 text-xs text-text-secondary">
-          Vacío = usa el default del plan ({org.plan}). <strong>-1</strong> = ilimitado. Si un
-          campo ya tenía un override, dejarlo vacío y guardar lo borra.
-        </p>
+        <h2 className="mb-1 text-sm font-semibold text-text-primary">{t('customLimitsTitle')}</h2>
+        <p className="mb-4 text-xs text-text-secondary">{t('customLimitsHint', { plan: org.plan })}</p>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {LIMIT_FIELDS.map(({ key, label, planLimitKey }) => {
@@ -112,7 +116,9 @@ export function LimitsTab({ org }: Props) {
                   className={inputClass}
                   value={form[key]}
                   onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                  placeholder={`Plan: ${planDefault === -1 ? 'ilimitado' : planDefault}`}
+                  placeholder={t('planPlaceholder', {
+                    value: planDefault === -1 ? t('unlimited') : planDefault,
+                  })}
                 />
               </div>
             );
@@ -130,29 +136,29 @@ export function LimitsTab({ org }: Props) {
             ) : (
               <Save size={14} />
             )}
-            Guardar límites
+            {t('saveLimits')}
           </button>
         </div>
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-3 text-sm font-semibold text-text-primary">Sobregiro de créditos</h2>
+        <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('overageTitle')}</h2>
         <div className="space-y-3">
           <Switch
             checked={allowOverages}
             onChange={setAllowOverages}
-            label="Permitir balance negativo"
-            hint="La organización puede seguir ejecutando workflows aunque se quede sin créditos, hasta el límite de abajo."
+            label={t('allowNegativeBalance')}
+            hint={t('allowNegativeBalanceHint')}
           />
           <div className="max-w-xs">
-            <label className={labelClass}>Límite de sobregiro (créditos)</label>
+            <label className={labelClass}>{t('overageLimitLabel')}</label>
             <input
               type="number"
               min={0}
               className={inputClass}
               value={overageLimit}
               onChange={(e) => setOverageLimit(e.target.value)}
-              placeholder={`Máx. ${org.planLimits.limits.monthlyCredits} (créditos del plan)`}
+              placeholder={t('overageLimitPlaceholder', { value: org.planLimits.limits.monthlyCredits })}
               disabled={!allowOverages}
             />
           </div>
@@ -168,7 +174,7 @@ export function LimitsTab({ org }: Props) {
             ) : (
               <Save size={14} />
             )}
-            Guardar sobregiro
+            {t('saveOverage')}
           </button>
         </div>
       </section>

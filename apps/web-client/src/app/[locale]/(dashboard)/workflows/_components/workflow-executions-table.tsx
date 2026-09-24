@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Activity } from 'lucide-react';
-import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import { CursorPager } from '@/components/ui/cursor-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 import { useDashboardExecutions } from '@/hooks/automation/use-executions';
 import DashboardExecutionItem from './dashboard-execution-item';
 import { useTranslations } from 'next-intl';
@@ -30,6 +30,7 @@ export default function WorkflowExecutionsTable({
   period,
 }: WorkflowExecutionsTableProps) {
   const t = useTranslations('WorkflowDetail');
+  const { pageSize, setPageSize } = usePageSize('workflow-executions');
   const [cursor, setCursor] = useState<string | null>(null);
   const [action, setAction] = useState<'next' | 'prev' | null>(null);
 
@@ -47,7 +48,7 @@ export default function WorkflowExecutionsTable({
     workflowId,
     cursor,
     action,
-    pageSize: DEFAULT_PAGE_SIZE,
+    pageSize,
     ...dateRange,
   });
 
@@ -87,6 +88,12 @@ export default function WorkflowExecutionsTable({
         onNavigate={(nextCursor, nextAction) => {
           setCursor(nextCursor);
           setAction(nextAction);
+        }}
+        pageSize={pageSize}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setCursor(null);
+          setAction(null);
         }}
       />
     </div>

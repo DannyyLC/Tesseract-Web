@@ -34,6 +34,8 @@ import {
 
 import { CreateUserDto } from '@/identity/users/dto';
 import { UserPayload } from '@/platform/common/types/user-payload.type';
+import { Locale } from '@/platform/common/decorators/locale.decorator';
+import { SupportedLocale } from '@/platform/common/types/locale.type';
 import { AuthService } from '../../auth.service';
 import { TurnstileService } from '../../turnstile.service';
 import { CurrentUser } from '../../decorators/current-user.decorator';
@@ -709,6 +711,7 @@ export class AuthController {
   async signupStep1(
     @Body() payload: StartVerificationFlowDto,
     @Res() response: Response,
+    @Locale() locale: SupportedLocale,
   ): Promise<Response<ApiResponseBuilder<object | keyof typeof StepOneErrors>>> {
     const apiResponseBuilder = new ApiResponseBuilder<object | keyof typeof StepOneErrors>();
     try {
@@ -722,7 +725,7 @@ export class AuthController {
       return response.send(apiResponseBuilder.build());
     }
 
-    const result = await this.authService.signupStepOne(payload);
+    const result = await this.authService.signupStepOne(payload, locale);
 
     if (typeof result !== 'string') {
       apiResponseBuilder
@@ -857,6 +860,7 @@ export class AuthController {
   async resetPasswordStepOne(
     @Body() body: ForgotPassDto,
     @Res() response: Response,
+    @Locale() locale: SupportedLocale,
   ): Promise<Response<ApiResponse<boolean | keyof typeof ForgotPassErrors>>> {
     const responseBuilder = new ApiResponseBuilder<boolean | keyof typeof ForgotPassErrors>();
 
@@ -883,7 +887,7 @@ export class AuthController {
       return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(responseBuilder.build());
     }
 
-    const result = await this.authService.resetPasswordStepOne(body.email);
+    const result = await this.authService.resetPasswordStepOne(body.email, locale);
     if (!Object.values(ForgotPassErrors).includes(result as ForgotPassErrors)) {
       responseBuilder
         .setSuccess(true)

@@ -8,6 +8,7 @@ import { useRouter, usePathname } from '@/i18n/routing';
 import { MessageSquare, Search, Loader2 } from 'lucide-react';
 import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import { CursorPager } from '@/components/ui/cursor-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 import { Modal } from '@/components/ui/modal';
 import {
   useConversationsDashboard,
@@ -49,7 +50,7 @@ export default function ConversationsPage() {
   // y sigue siendo válida si mañana cambia qué canales cubre un grupo.
   const selectedChannelGroup = searchParams.get('channel') || undefined;
 
-  const pageSize = DEFAULT_PAGE_SIZE;
+  const { pageSize, setPageSize } = usePageSize('conversations');
 
   // Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -393,6 +394,11 @@ export default function ConversationsPage() {
           nextLabel={t('next')}
           summary={t('showingItems', { count: conversations.length })}
           onNavigate={(cursor, action) => updateUrl({ cursor, action })}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            updateUrl({ cursor: null, action: null });
+          }}
           className="border-t border-border pt-4"
         />
 

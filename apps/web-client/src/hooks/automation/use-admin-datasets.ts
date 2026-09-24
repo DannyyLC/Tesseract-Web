@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
-import { DENSE_PAGE_SIZE, DatasetField } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, DatasetField } from '@tesseract/types';
 
 const KEY = 'admin-datasets';
 
@@ -29,7 +29,7 @@ export function useAdminDataset(organizationId: string, id: string) {
 export function useAdminDatasetRecords(
   organizationId: string,
   id: string,
-  limit = DENSE_PAGE_SIZE,
+  limit = DEFAULT_PAGE_SIZE,
   offset = 0,
   query = '',
 ) {

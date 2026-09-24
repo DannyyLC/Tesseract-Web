@@ -5,10 +5,11 @@ import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Key, Plus, Search } from 'lucide-react';
 import { useApiKeys } from '@/hooks/identity/use-api-key';
-import { ApiKeyListDto, DEFAULT_PAGE_SIZE } from '@tesseract/types';
+import { ApiKeyListDto } from '@tesseract/types';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { CursorPager } from '@/components/ui/cursor-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 import {
   ApiKeyCreatedModal,
   ApiKeyRow,
@@ -22,6 +23,7 @@ export default function ApiKeysPage() {
   const t = useTranslations('ApiKeys');
 
   const [searchQuery, setSearchQuery] = useState('');
+  const { pageSize, setPageSize } = usePageSize('api-keys');
   const [cursor, setCursor] = useState<string | null>(null);
   const [action, setAction] = useState<'next' | 'prev' | null>(null);
 
@@ -40,7 +42,7 @@ export default function ApiKeysPage() {
   const { data, isLoading } = useApiKeys({
     cursor,
     action,
-    pageSize: DEFAULT_PAGE_SIZE,
+    pageSize,
     search: searchQuery || undefined,
   });
 
@@ -125,6 +127,12 @@ export default function ApiKeysPage() {
           prevLabel={t('prev')}
           nextLabel={t('next')}
           onNavigate={handleNavigate}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCursor(null);
+            setAction(null);
+          }}
         />
       </div>
 

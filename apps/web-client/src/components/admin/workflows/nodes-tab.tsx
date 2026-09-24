@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Search, AlertTriangle } from 'lucide-react';
 import { NodeIcon, summarizeNode } from './node-presentation';
 import { setAtPath, type WorkflowConfig } from '@/lib/workflow-config/config-edit';
@@ -22,6 +23,8 @@ interface Props {
  * catálogo al lado. Es la diferencia entre buscar dentro de 100 KB y editar 15 líneas.
  */
 export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) {
+  const tt = useTranslations('Admin.NodesTab');
+  const tSummary = useTranslations('Admin.NodeSummary');
   const nodes: any[] = config.graph?.nodes ?? [];
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filter, setFilter] = useState('');
@@ -63,7 +66,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
     try {
       const parsed = JSON.parse(text);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        setParseError('El nodo debe ser un objeto JSON');
+        setParseError(tt('invalidNodeError'));
         return;
       }
       onChange(setAtPath(config, ['graph', 'nodes', selectedIndex], parsed));
@@ -76,9 +79,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
 
   if (nodes.length === 0) {
     return (
-      <p className="p-8 text-center text-sm text-text-secondary">
-        Este workflow no usa un grafo de tipo pipeline (no tiene nodos).
-      </p>
+      <p className="p-8 text-center text-sm text-text-secondary">{tt('noNodes')}</p>
     );
   }
 
@@ -93,7 +94,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder="Buscar por id, tipo o agente"
+            placeholder={tt('searchPlaceholder')}
             className="w-full rounded-md border border-border bg-surface py-1.5 pl-7 pr-2 text-xs text-text-primary outline-none focus:border-border-focus"
           />
         </div>
@@ -117,7 +118,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
                   <span className="block truncate text-[11px] text-text-secondary">
                     {nodeCatalog?.node_types?.[node?.type]?.label ?? node?.type}
                     {' · '}
-                    {summarizeNode(node, toolNames)}
+                    {summarizeNode(tSummary, node, toolNames)}
                   </span>
                 </div>
               </button>
@@ -136,7 +137,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
             </span>
             {!schema && nodeCatalog && (
               <span className="inline-flex items-center gap-1 text-[11px] text-danger">
-                <AlertTriangle size={12} /> tipo desconocido para el motor
+                <AlertTriangle size={12} /> {tt('unknownTypeWarning')}
               </span>
             )}
           </div>
@@ -148,7 +149,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
           <div className="grid gap-3 xl:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-text-secondary">
-                JSON del nodo
+                {tt('nodeJsonLabel')}
               </label>
               <textarea
                 rows={22}
@@ -162,17 +163,17 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
                 onBlur={(e) => commit(e.target.value)}
               />
               {parseError ? (
-                <p className="mt-1 text-[11px] text-danger">JSON inválido: {parseError}</p>
-              ) : (
-                <p className="mt-1 text-[11px] text-text-secondary">
-                  Los cambios se aplican al salir del campo.
+                <p className="mt-1 text-[11px] text-danger">
+                  {tt('invalidJson', { error: parseError })}
                 </p>
+              ) : (
+                <p className="mt-1 text-[11px] text-text-secondary">{tt('changesApplyOnBlur')}</p>
               )}
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-medium text-text-secondary">
-                Campos que acepta este tipo (catálogo del motor)
+                {tt('acceptedFieldsLabel')}
               </label>
               {schema ? (
                 <div className="max-h-[430px] overflow-y-auto rounded-lg border border-border p-3">
@@ -183,7 +184,9 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
                           <span className="font-mono text-text-primary">{key}</span>
                           <span className="ml-2 text-text-secondary">{prop.type}</span>
                           {schema.config_schema?.required?.includes(key) && (
-                            <span className="ml-2 text-[10px] uppercase text-danger">requerido</span>
+                            <span className="ml-2 text-[10px] uppercase text-danger">
+                              {tt('required')}
+                            </span>
                           )}
                           {prop.enum && (
                             <span className="ml-2 text-text-secondary">
@@ -200,16 +203,12 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
                     )}
                   </ul>
                   <p className="mt-3 border-t border-border pt-2 text-[11px] text-text-secondary">
-                    Los nodos <span className="font-mono">agent</span> y{' '}
-                    <span className="font-mono">synthesizer</span> llevan estos campos en el nivel
-                    superior del nodo; los demás tipos, dentro de{' '}
-                    <span className="font-mono">config</span>.
+                    {tt('agentSynthesizerHint')}
                   </p>
                 </div>
               ) : (
                 <p className="rounded-lg border border-border p-3 text-xs text-text-secondary">
-                  El motor no está disponible o no conoce este tipo de nodo. Puedes seguir editando
-                  el JSON, pero sin la ayuda del catálogo.
+                  {tt('engineUnavailable')}
                 </p>
               )}
             </div>

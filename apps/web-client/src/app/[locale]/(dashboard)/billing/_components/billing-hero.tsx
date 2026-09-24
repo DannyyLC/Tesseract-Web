@@ -31,7 +31,7 @@ export default function BillingHero({
   const t = useTranslations('BillingHero');
   const { formatted: overagePrice } = useOveragePrice();
   const isNegative = credits.available < 0;
-  const formattedBalance = Math.abs(credits.available).toLocaleString();
+  const formattedBalance = Math.abs(credits.available).toLocaleString('es-MX');
   const nextDateFormatted = nextBillingDate
     ? new Date(nextBillingDate).toLocaleDateString('es-MX', { timeZone: 'UTC' })
     : 'N/A';

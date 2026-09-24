@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { MessageSquare } from 'lucide-react';
 import { useRouter, Link } from '@/i18n/routing';
 import { DashboardWorkflowDto } from '@tesseract/types';
@@ -10,9 +11,11 @@ interface DashboardWorkflowItemProps {
   workflow: DashboardWorkflowDto;
 }
 
-// Utilidades (Duplicadas por ahora, idealmente en un utils/format.ts)
-const formatTimeAgo = (dateInput: Date | string | null): string => {
-  if (!dateInput) return 'Nunca';
+function formatTimeAgo(
+  dateInput: Date | string | null,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  if (!dateInput) return t('never');
   try {
     const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
     const now = new Date();
@@ -21,23 +24,25 @@ const formatTimeAgo = (dateInput: Date | string | null): string => {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Hace un momento';
-    if (diffMins < 60) return `Hace ${diffMins} min`;
-    if (diffHours < 24) return `Hace ${diffHours}h`;
-    return `Hace ${diffDays}d`;
-  } catch (e) {
-    return 'Fecha inválida';
+    if (diffMins < 1) return t('justNow');
+    if (diffMins < 60) return t('minutesAgo', { count: diffMins });
+    if (diffHours < 24) return t('hoursAgo', { count: diffHours });
+    return t('daysAgo', { count: diffDays });
+  } catch {
+    return t('invalidDate');
   }
-};
+}
 
-const getStatusConfig = (isActive: boolean) => {
+function getStatusConfig(isActive: boolean, t: (key: string) => string) {
   if (!isActive)
-    return { label: 'Inactivo', color: 'bg-neutral-400', textColor: 'text-neutral-400' };
-  return { label: 'Activo', color: 'bg-success-500', textColor: 'text-success-500' };
-};
+    return { label: t('inactive'), color: 'bg-neutral-400', textColor: 'text-neutral-400' };
+  return { label: t('active'), color: 'bg-success-500', textColor: 'text-success-500' };
+}
 
 export default function DashboardWorkflowItem({ workflow }: DashboardWorkflowItemProps) {
-  const statusConfig = getStatusConfig(workflow.isActive);
+  const t = useTranslations('Workflows.DashboardItem');
+  const tTimeAgo = useTranslations('Shared.TimeAgo');
+  const statusConfig = getStatusConfig(workflow.isActive, tTimeAgo);
 
   const router = useRouter();
 
@@ -70,21 +75,21 @@ export default function DashboardWorkflowItem({ workflow }: DashboardWorkflowIte
               </div>
             </div>
             <p className="line-clamp-2 text-sm text-text-secondary">
-              {workflow.description || 'Sin descripción'}
+              {workflow.description || t('noDescription')}
             </p>
           </div>
 
           {/* Chat Action - Always visible but subtle */}
           <div className="flex items-center gap-2">
             <span className="mr-2 hidden text-xs font-medium text-text-tertiary transition-all group-hover:inline-block">
-              Ver detalles
+              {t('viewDetails')}
             </span>
             <PermissionGuard permissions="workflows:execute">
               <Link
                 href={`/conversations/new?workflowId=${workflow.id}`}
                 onClick={(e) => e.stopPropagation()}
                 className="rounded-full p-2 text-text-tertiary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-secondary"
-                title="Iniciar Chat"
+                title={t('startChat')}
               >
                 <MessageSquare size={18} />
               </Link>
@@ -102,7 +107,9 @@ export default function DashboardWorkflowItem({ workflow }: DashboardWorkflowIte
 
           {workflow.lastExecutedAt && (
             <div className="flex items-center gap-2 text-sm text-text-tertiary">
-              <span className="text-xs">Ejecutado {formatTimeAgo(workflow.lastExecutedAt)}</span>
+              <span className="text-xs">
+                {t('executedAgo', { time: formatTimeAgo(workflow.lastExecutedAt, tTimeAgo) })}
+              </span>
             </div>
           )}
         </div>

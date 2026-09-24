@@ -15,6 +15,7 @@
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { MODEL_EFFECTIVE_FROM, llmModels, toolCatalogs, notifications } from './seed-data';
+import { notificationTranslationsEn, toolTranslationsEn } from './seed-translations-en';
 
 /** Escapa comillas simples para un literal de texto Postgres. `null`/`undefined` -> `NULL`. */
 function sqlString(value: string | null | undefined): string {
@@ -102,16 +103,20 @@ function buildSql(): string {
   for (const catalog of toolCatalogs) {
     push(
       `INSERT INTO "tool_catalog" (` +
-        `"id", "toolName", "displayName", "description", "provider", "category", "icon", ` +
-        `"isActive", "isInBeta", "createdAt", "updatedAt")` +
+        `"id", "toolName", "displayName", "description", "displayNameEn", "descriptionEn", ` +
+        `"provider", "category", "icon", "isActive", "isInBeta", "createdAt", "updatedAt")` +
         `\nVALUES (` +
         `gen_random_uuid(), ${sqlString(catalog.toolName)}, ${sqlString(catalog.displayName)}, ` +
-        `${sqlString(catalog.description)}, ${sqlString(catalog.provider)}, ` +
+        `${sqlString(catalog.description)}, ` +
+        `${sqlString(toolTranslationsEn[catalog.toolName]?.displayName)}, ` +
+        `${sqlString(toolTranslationsEn[catalog.toolName]?.description)}, ${sqlString(catalog.provider)}, ` +
         `${sqlString(catalog.category)}, ${sqlString(catalog.icon)}, ` +
         `${sqlBool(catalog.isActive)}, ${sqlBool(catalog.isInBeta)}, now(), now())` +
         `\nON CONFLICT ("toolName") DO UPDATE SET` +
         `\n  "displayName" = EXCLUDED."displayName",` +
         `\n  "description" = EXCLUDED."description",` +
+        `\n  "displayNameEn" = EXCLUDED."displayNameEn",` +
+        `\n  "descriptionEn" = EXCLUDED."descriptionEn",` +
         `\n  "provider" = EXCLUDED."provider",` +
         `\n  "category" = EXCLUDED."category",` +
         `\n  "icon" = EXCLUDED."icon",` +
@@ -134,16 +139,22 @@ function buildSql(): string {
     for (const fn of catalog.functions) {
       push(
         `INSERT INTO "tool_functions" (` +
-          `"id", "toolCatalogId", "functionName", "displayName", "description", "icon", ` +
+          `"id", "toolCatalogId", "functionName", "displayName", "description", ` +
+          `"displayNameEn", "descriptionEn", "icon", ` +
           `"category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")` +
           `\nVALUES (` +
           `gen_random_uuid(), ${toolCatalogIdSubquery}, ${sqlString(fn.functionName)}, ` +
-          `${sqlString(fn.displayName)}, ${sqlString(fn.description)}, ${sqlString(fn.icon)}, ` +
+          `${sqlString(fn.displayName)}, ${sqlString(fn.description)}, ` +
+          `${sqlString(toolTranslationsEn[catalog.toolName]?.functions[fn.functionName]?.displayName)}, ` +
+          `${sqlString(toolTranslationsEn[catalog.toolName]?.functions[fn.functionName]?.description)}, ` +
+          `${sqlString(fn.icon)}, ` +
           `${sqlString(fn.category)}, ${sqlString(fn.dangerLevel)}, ${sqlArray(fn.oauthScopes ?? [])}, ` +
           `true, false, now(), now())` +
           `\nON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET` +
           `\n  "displayName" = EXCLUDED."displayName",` +
           `\n  "description" = EXCLUDED."description",` +
+          `\n  "displayNameEn" = EXCLUDED."displayNameEn",` +
+          `\n  "descriptionEn" = EXCLUDED."descriptionEn",` +
           `\n  "icon" = EXCLUDED."icon",` +
           `\n  "category" = EXCLUDED."category",` +
           `\n  "dangerLevel" = EXCLUDED."dangerLevel",` +
@@ -160,15 +171,19 @@ function buildSql(): string {
   for (const item of notifications) {
     push(
       `INSERT INTO "notifications" (` +
-        `"id", "code", "version", "titleTemplate", "messageTemplate", "targetRoles", ` +
-        `"isActive", "createdAt")` +
+        `"id", "code", "version", "titleTemplate", "messageTemplate", "titleTemplateEn", ` +
+        `"messageTemplateEn", "targetRoles", "isActive", "createdAt")` +
         `\nVALUES (` +
         `gen_random_uuid(), ${sqlString(item.code)}, ${item.version}, ` +
         `${sqlString(item.titleTemplate)}, ${sqlString(item.messageTemplate)}, ` +
+        `${sqlString(notificationTranslationsEn[item.code]?.title)}, ` +
+        `${sqlString(notificationTranslationsEn[item.code]?.message)}, ` +
         `${sqlJsonb(item.targetRoles)}, ${sqlBool(item.isActive)}, now())` +
         `\nON CONFLICT ("code", "version") DO UPDATE SET` +
         `\n  "titleTemplate" = EXCLUDED."titleTemplate",` +
         `\n  "messageTemplate" = EXCLUDED."messageTemplate",` +
+        `\n  "titleTemplateEn" = EXCLUDED."titleTemplateEn",` +
+        `\n  "messageTemplateEn" = EXCLUDED."messageTemplateEn",` +
         `\n  "targetRoles" = EXCLUDED."targetRoles",` +
         `\n  "isActive" = EXCLUDED."isActive";`,
     );

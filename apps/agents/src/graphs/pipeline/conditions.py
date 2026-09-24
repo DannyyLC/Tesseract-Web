@@ -28,6 +28,7 @@ def evaluate_condition(op: str, field_value: Any, compare_value: Any) -> bool:
         lte      → field_value <= compare_value
         contains → compare_value in str(field_value)
         in       → field_value in compare_value (compare_value debe ser lista)
+        starts_with → str(field_value) empieza con str(compare_value)
     """
     try:
         if op == "eq":       return field_value == compare_value
@@ -38,6 +39,7 @@ def evaluate_condition(op: str, field_value: Any, compare_value: Any) -> bool:
         if op == "lte":      return field_value <= compare_value
         if op == "contains": return compare_value in str(field_value)
         if op == "in":       return field_value in compare_value
+        if op == "starts_with": return str(field_value).startswith(str(compare_value))
     except (TypeError, ValueError):
         return False
 

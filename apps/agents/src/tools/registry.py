@@ -483,7 +483,12 @@ def _load_calculator(credentials, config, ctx):
 
 def _load_human_handoff(credentials, config, ctx):
     from tools.human_handoff import load_human_handoff_tools
-    return load_human_handoff_tools()
+    from tools.human_intervention import load_human_intervention_tools
+    # Dos formas de activar HITL bajo el mismo tool_instance: `request_human_handoff` (el LLM
+    # decide llamarla en su turno) y `activate_human_intervention` (determinista, invocada desde
+    # un nodo `tool` del graph, sin que el LLM intervenga). Un solo TenantTool por organización
+    # habilita ambas.
+    return load_human_handoff_tools() + load_human_intervention_tools(credentials, config)
 
 
 def _load_send_bulk_whatsapp(credentials, config, ctx):

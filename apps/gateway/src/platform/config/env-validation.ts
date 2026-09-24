@@ -57,6 +57,11 @@ const REQUIRED_IN_PRODUCTION: string[] = [
   'GOOGLE_CLIENT_SECRET',
   'GOOGLE_CALLBACK_URL',
 
+  // Booking (agenda propia). La service account del Gateway suplanta a esta cuenta de Workspace
+  // por domain-wide delegation; sin ella no hay calendario que consultar y el widget de soporte
+  // responde 503.
+  'BOOKING_IMPERSONATED_USER',
+
   // GCP Cloud KMS (cifrado de tokens OAuth de integraciones)
   'GCP_PROJECT_ID',
   'GCP_KMS_LOCATION',
@@ -108,6 +113,14 @@ const REQUIRED_IN_PRODUCTION_CFDI: string[] = [
 //   Si se definen, SuperAdminBootstrapService crea/actualiza el super admin al
 //   arrancar. Si faltan, simplemente no se hace nada — por eso NO son
 //   obligatorias (no romper entornos existentes). Ver .env.example.
+// BOOKING_CALENDAR_ID:
+//   Calendario del usuario suplantado donde se crean los eventos. Por defecto "primary".
+// BOOKING_AVAILABILITY_GROUP_EMAIL:
+//   Google Group del equipo de soporte. Si se define, su disponibilidad se cruza con la del
+//   calendario destino y se le invita a cada evento. Vacío = solo cuenta el calendario destino.
+// BOOKING_SERVICE_ACCOUNT_EMAIL:
+//   Solo para desarrollo local: con ADC de usuario no hay `client_email` que descubrir en el
+//   metadata server. En Cloud Run se deduce solo.
 
 // ─── Validator ────────────────────────────────────────────────────────────────
 

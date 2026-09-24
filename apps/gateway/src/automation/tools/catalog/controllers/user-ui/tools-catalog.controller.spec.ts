@@ -39,7 +39,7 @@ describe('ToolsCatalogController', () => {
         items: [],
       });
 
-      await controller.getAllToolsWithFunctions(res, null, 10, null, null);
+      await controller.getAllToolsWithFunctions(res, null, 10, null, null, 'es');
 
       expect(res.status).toHaveBeenCalledWith(HttpStatusCode.NotFound);
       expect(res.json).toHaveBeenCalledWith(
@@ -53,13 +53,14 @@ describe('ToolsCatalogController', () => {
         items: [{ id: 't-1' }],
       });
 
-      await controller.getAllToolsWithFunctions(res, 'cursor-1', 5, 'next', 'searchQuery');
+      await controller.getAllToolsWithFunctions(res, 'cursor-1', 5, 'next', 'searchQuery', 'es');
 
       expect(mockToolsCatalogService.getAllToolsWithFunctions).toHaveBeenCalledWith(
         'cursor-1',
         5,
         'next',
         { search: 'searchQuery' },
+        'es',
       );
       expect(res.status).toHaveBeenCalledWith(HttpStatusCode.Ok);
       expect(res.json).toHaveBeenCalledWith(

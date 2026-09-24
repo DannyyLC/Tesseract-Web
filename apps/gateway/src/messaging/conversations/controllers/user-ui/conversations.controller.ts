@@ -1,7 +1,7 @@
+import { ParsePageSizePipe } from '@/platform/common/pipes/parse-page-size.pipe';
 import { UpdateConversationDto, ConversationDetailDto } from '../../dto';
 import {
   ConversationsStatsDto as ConversationStatsDto,
-  DEFAULT_PAGE_SIZE,
   DashboardConversationDto,
 } from '@tesseract/types';
 import { ConversationsService } from '../../conversations.service';
@@ -20,7 +20,6 @@ import {
   Res,
   UseGuards,
   DefaultValuePipe,
-  ParseIntPipe,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
@@ -138,7 +137,7 @@ export class ConversationsController {
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
+    @Query('pageSize', ParsePageSizePipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('status') status: string | undefined,
     @Query('isIntervened') isIntervened: string | undefined,

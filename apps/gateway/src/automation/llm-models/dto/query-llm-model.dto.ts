@@ -2,7 +2,7 @@ import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ModelTier } from '@tesseract/database';
 import { Type } from 'class-transformer';
-import { ADMIN_PAGE_SIZE, MAX_PAGE_SIZE } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@tesseract/types';
 
 export class QueryLlmModelsDto {
   @ApiPropertyOptional({
@@ -50,8 +50,8 @@ export class QueryLlmModelsDto {
 
   @ApiPropertyOptional({
     description: 'Elementos por página',
-    example: ADMIN_PAGE_SIZE,
-    default: ADMIN_PAGE_SIZE,
+    example: DEFAULT_PAGE_SIZE,
+    default: DEFAULT_PAGE_SIZE,
   })
   @IsOptional()
   @Type(() => Number)

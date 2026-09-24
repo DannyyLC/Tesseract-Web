@@ -1,3 +1,4 @@
+import { ParsePageSizePipe } from '@/platform/common/pipes/parse-page-size.pipe';
 import {
   Controller,
   Get,
@@ -9,7 +10,6 @@ import {
   HttpStatus,
   Delete,
   Res,
-  ParseIntPipe,
   DefaultValuePipe,
 } from '@nestjs/common';
 import { ExecutionsService } from '../../executions.service';
@@ -20,7 +20,6 @@ import { DashboardExecutionDto, ExecutionStatsQueryDto } from '../../dto';
 import {
   ApiResponse,
   ApiResponseBuilder,
-  DEFAULT_PAGE_SIZE,
   HourlyDistributionDto,
   PaginatedResponse,
   UserRole,
@@ -55,7 +54,7 @@ export class ExecutionsController {
   async getDashboardData(
     @CurrentUser() user: UserPayload,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
+    @Query('pageSize', ParsePageSizePipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('workflowId') workflowId: string | undefined,
     @Query('userId') userId: string | undefined,

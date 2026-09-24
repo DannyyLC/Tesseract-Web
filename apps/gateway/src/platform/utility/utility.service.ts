@@ -3,6 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
+import { NotificationKind } from '@tesseract/database';
 
 @Injectable()
 export class UtilityService {
@@ -36,6 +37,9 @@ export class UtilityService {
         where: {
           code: notificationCode,
           isActive: true,
+          // Solo plantillas reusables: un anuncio del super admin (kind: ANNOUNCEMENT) es un
+          // envío de una sola vez y nunca debe poder dispararse por código desde este método.
+          kind: NotificationKind.TEMPLATE,
         },
         orderBy: {
           version: 'desc',
@@ -44,6 +48,8 @@ export class UtilityService {
           id: true,
           titleTemplate: true,
           messageTemplate: true,
+          titleTemplateEn: true,
+          messageTemplateEn: true,
           targetRoles: true,
         },
       });
@@ -64,6 +70,16 @@ export class UtilityService {
 
       const messageSnapshot = this.applyTemplateArguments(notification.messageTemplate, args);
       const titleSnapshot = notification.titleTemplate;
+      // Inglés opcional: solo si la plantilla en inglés tiene los mismos %s (si no, se omite y
+      // el lector cae al texto en español).
+      const hasEnglish =
+        !!notification.titleTemplateEn &&
+        !!notification.messageTemplateEn &&
+        this.countTemplatePlaceholders(notification.messageTemplateEn) === placeholdersCount;
+      const titleSnapshotEn = hasEnglish ? notification.titleTemplateEn : null;
+      const messageSnapshotEn = hasEnglish
+        ? this.applyTemplateArguments(notification.messageTemplateEn as string, args)
+        : null;
       const templateRoles = this.normalizeRoleList(notification.targetRoles);
       const requestedRoles = this.normalizeRoleList(userRoles);
       const rolesToNotify =
@@ -101,6 +117,8 @@ export class UtilityService {
         isRead: false,
         titleSnapshot,
         messageSnapshot,
+        titleSnapshotEn,
+        messageSnapshotEn,
       }));
 
       await this.prismaService.userNotification.createMany({

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ADMIN_PAGE_SIZE } from '@tesseract/types';
+import { useTranslations } from 'next-intl';
 import { Search } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { InfiniteSelect } from '@/components/ui/infinite-select';
@@ -11,6 +11,7 @@ import { useInfiniteAdminOrganizations } from '@/hooks/automation/use-admin-work
 import { useAdminTenantTools } from '@/hooks/automation/use-admin-tenant-tools';
 import { inputClass } from '../_styles';
 import { PagePager } from '@/components/ui/page-pager';
+import { usePageSize } from '@/hooks/shared/use-page-size';
 
 const STATUS_STYLE: Record<string, string> = {
   CONNECTED: 'text-success-600',
@@ -30,9 +31,11 @@ const STATUS_STYLE: Record<string, string> = {
  * id, para no terminar vinculando por error la tool de otra organización a un workflow.
  */
 export default function AdminIntegracionesPage() {
+  const t = useTranslations('Admin.Integrations');
   const [organizationId, setOrganizationId] = useState('');
   const [orgSearchInput, setOrgSearchInput] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const { pageSize, setPageSize } = usePageSize('admin-integrations');
   const [page, setPage] = useState(1);
 
   const search = useDebounce(searchInput, 400);
@@ -54,27 +57,24 @@ export default function AdminIntegracionesPage() {
 
   const orgOptions = useMemo(
     () => [
-      { label: 'Todas las organizaciones', value: '' },
+      { label: t('allOrganizations'), value: '' },
       ...organizations.map((o) => ({ label: o.name, value: o.id })),
     ],
-    [organizations],
+    [organizations, t],
   );
 
   const { data, isLoading, error } = useAdminTenantTools({
     organizationId: organizationId || undefined,
     search: search || undefined,
     page,
-    limit: ADMIN_PAGE_SIZE,
+    limit: pageSize,
   });
 
   return (
     <div className="w-full">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-text-primary">Integraciones</h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          Tenant tools de todas las organizaciones — para ubicar a qué organización y qué
-          workflows pertenece un id.
-        </p>
+        <h1 className="text-xl font-semibold text-text-primary">{t('title')}</h1>
+        <p className="mt-1 text-sm text-text-secondary">{t('subtitle')}</p>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-3">
@@ -83,14 +83,14 @@ export default function AdminIntegracionesPage() {
             value={organizationId}
             onChange={setOrganizationId}
             options={orgOptions}
-            placeholder="Organización"
+            placeholder={t('orgFilterPlaceholder')}
             isLoading={orgsLoading}
             hasNextPage={hasNextPage}
             isFetchingNextPage={isFetchingNextPage}
             fetchNextPage={fetchNextPage}
             searchValue={orgSearchInput}
             onSearchChange={setOrgSearchInput}
-            searchPlaceholder="Buscar organización..."
+            searchPlaceholder={t('orgSearchPlaceholder')}
           />
         </div>
         <div className="relative min-w-[240px] flex-1">
@@ -100,7 +100,7 @@ export default function AdminIntegracionesPage() {
           />
           <input
             className={`${inputClass} pl-9`}
-            placeholder="Buscar por nombre o id"
+            placeholder={t('searchPlaceholder')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
           />
@@ -110,16 +110,12 @@ export default function AdminIntegracionesPage() {
       <section className="rounded-xl border border-border bg-surface">
         {isLoading ? (
           <div className="flex justify-center py-16">
-            <LogoLoader text="Cargando integraciones" />
+            <LogoLoader text={t('loading')} />
           </div>
         ) : error ? (
-          <p className="px-4 py-10 text-center text-sm text-danger">
-            No se pudieron cargar las integraciones.
-          </p>
+          <p className="px-4 py-10 text-center text-sm text-danger">{t('loadError')}</p>
         ) : !data?.data.length ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">
-            No hay integraciones que coincidan.
-          </p>
+          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('empty')}</p>
         ) : (
           <ul className="divide-y divide-border">
             {data.data.map((tool) => (
@@ -138,9 +134,7 @@ export default function AdminIntegracionesPage() {
                   >
                     {tool.organization.name}
                   </Link>
-                  <span>
-                    {tool._count.workflows} {tool._count.workflows === 1 ? 'workflow' : 'workflows'}
-                  </span>
+                  <span>{t('workflowsCount', { count: tool._count.workflows })}</span>
                 </p>
                 <p className="mt-1 font-mono text-[11px] text-text-tertiary">{tool.id}</p>
               </li>
@@ -154,7 +148,16 @@ export default function AdminIntegracionesPage() {
           page={data.meta.page}
           totalPages={data.meta.totalPages}
           onPageChange={setPage}
-          summary={`Página ${data.meta.page} de ${data.meta.totalPages} · ${data.meta.total} integraciones`}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          summary={t('pagerSummary', {
+            page: data.meta.page,
+            totalPages: data.meta.totalPages,
+            total: data.meta.total,
+          })}
           className="mt-4"
         />
       )}

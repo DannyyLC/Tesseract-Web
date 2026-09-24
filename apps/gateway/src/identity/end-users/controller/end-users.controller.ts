@@ -15,6 +15,7 @@ import { Response } from 'express';
 import {
   ApiResponse,
   ApiResponseBuilder,
+  DEFAULT_PAGE_SIZE,
   PaginatedResponse,
   UserRole,
   DashboardEndUserDto,
@@ -45,7 +46,7 @@ export class EndUsersController {
     const result = await this.endUsersService.getDashboardData(
       user.organizationId,
       query.cursor ?? null,
-      query.pageSize ?? 10,
+      query.pageSize ?? DEFAULT_PAGE_SIZE,
       query.paginationAction ?? null,
       { search: query.search, blocked: query.blocked },
     );

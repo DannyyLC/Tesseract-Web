@@ -96,9 +96,52 @@ describe('UtilityService', () => {
             isRead: false,
             titleSnapshot: 'Subscripción',
             messageSnapshot: 'Plan PRO activado',
+            titleSnapshotEn: null,
+            messageSnapshotEn: null,
           },
         ],
       });
+    });
+
+    it('also stores the English snapshot when the template has an English version', async () => {
+      mockPrismaService.user.findMany.mockResolvedValue([{ id: 'u-1' }]);
+      mockPrismaService.notification.findFirst.mockResolvedValue({
+        id: 'n-1',
+        titleTemplate: 'Subscripción',
+        messageTemplate: 'Plan %s activado',
+        titleTemplateEn: 'Subscription',
+        messageTemplateEn: '%s plan activated',
+        targetRoles: ['OWNER', 'ADMIN'],
+      });
+
+      await service.sendNotificationToAppClients('org-1', ['admin'], '0000-0001', ['PRO']);
+
+      expect(mockPrismaService.userNotification.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            titleSnapshotEn: 'Subscription',
+            messageSnapshotEn: 'PRO plan activated',
+          }),
+        ],
+      });
+    });
+
+    it('should only look up TEMPLATE-kind rows, never one-off announcements', async () => {
+      mockPrismaService.user.findMany.mockResolvedValue([{ id: 'u-1' }]);
+      mockPrismaService.notification.findFirst.mockResolvedValue({
+        id: 'n-1',
+        titleTemplate: 'Subscripción',
+        messageTemplate: 'Plan %s activado',
+        targetRoles: ['OWNER', 'ADMIN'],
+      });
+
+      await service.sendNotificationToAppClients('org-1', ['admin'], '0000-0001', ['PRO']);
+
+      expect(mockPrismaService.notification.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ kind: 'TEMPLATE' }),
+        }),
+      );
     });
 
     it('should handle errors gracefully and log them', async () => {

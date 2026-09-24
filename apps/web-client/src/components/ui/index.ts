@@ -6,5 +6,6 @@ export * from './expanding-action-button';
 export * from './infinite-select';
 export * from './logo-loader';
 export * from './modal';
+export * from './page-size-select';
 export * from './two-factor-code-input';
 export * from './welcome-onboarding';

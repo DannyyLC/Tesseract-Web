@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { WorkflowsService } from './workflows.service';
 import { WorkflowConfigValidator } from './workflow-config.validator';
 import { DatasetTokenService } from '../datasets/core/dataset-token.service';
+import { InterventionTokenService } from '@/messaging/conversations/core/intervention-token.service';
 import { EndUsersService } from '@/identity/end-users/end-users.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { ExecutionsService } from '@/automation/executions/executions.service';
@@ -107,6 +108,10 @@ describe('WorkflowsService', () => {
     sign: jest.fn().mockResolvedValue('dataset-token'),
   };
 
+  const mockInterventionTokenService = {
+    sign: jest.fn().mockResolvedValue('intervention-token'),
+  };
+
   // Por defecto nadie está bloqueado: la lista negra es la excepción, no el caso normal.
   const mockEndUsersService = {
     isBlockedById: jest.fn().mockResolvedValue(false),
@@ -127,6 +132,7 @@ describe('WorkflowsService', () => {
         { provide: MediaProcessingService, useValue: mockMediaProcessingService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: DatasetTokenService, useValue: mockDatasetTokenService },
+        { provide: InterventionTokenService, useValue: mockInterventionTokenService },
         { provide: EndUsersService, useValue: mockEndUsersService },
         // El validador real, no un mock: los tests de config de abajo existen para
         // ejercer esa lógica, y mockearla los dejaría sin verificar nada.
@@ -459,6 +465,66 @@ describe('WorkflowsService', () => {
           expect.any(Object),
         );
         expect(result.id).toBe('exec1');
+      });
+
+      it('inyecta el token de intervención con alcance a la conversación en la tool human_handoff', async () => {
+        prisma.workflow.findFirst = jest.fn().mockResolvedValue({
+          ...wfMock,
+          timeout: 120,
+          tenantTools: [
+            {
+              id: 'tt-hh-1',
+              toolCatalog: {
+                toolName: 'human_handoff',
+                functions: [
+                  { functionName: 'request_human_handoff' },
+                  { functionName: 'activate_human_intervention' },
+                ],
+              },
+              config: {},
+            },
+          ],
+          config: {
+            ...wfMock.config,
+            agents: { agent1: { model: 'gpt-4o', tools: ['tt-hh-1'] } },
+          },
+        });
+        (mockCreditsService as any).canExecuteWorkflow = jest
+          .fn()
+          .mockResolvedValue({ allowed: true });
+        (mockExecutionsService as any).create = jest.fn().mockResolvedValue({ id: 'exec1' });
+        (mockExecutionsService as any).linkToConversation = jest.fn();
+        (mockExecutionsService as any).getByIdFull = jest
+          .fn()
+          .mockResolvedValue({ id: 'exec1', status: 'completed' });
+        (mockExecutionsService as any).updateStatus = jest.fn();
+        (mockExecutionsService as any).updateUsageStats = jest.fn();
+        (mockConversationsService as any).findOrCreateConversation = jest
+          .fn()
+          .mockResolvedValue({ id: 'conv1', isHumanInTheLoop: false });
+        (mockConversationsService as any).getMessageHistory = jest.fn().mockResolvedValue([]);
+        (mockConversationsService as any).addMessage = jest.fn();
+
+        (mockAgentsService as any).execute = jest.fn().mockResolvedValue({
+          messages: [{ role: 'assistant', content: 'Success response' }],
+          metadata: { total_tokens: 15, usage_by_model: { 'gpt-4o': 15 } },
+        });
+        (prisma as any).modelPrice = {
+          findMany: jest.fn().mockResolvedValue([{ modelName: 'gpt-4o', tokenGenPriceBase: 0.01 }]),
+        };
+
+        await service.execute(orgId, wfId, { message: 'Hello' });
+
+        expect(mockInterventionTokenService.sign).toHaveBeenCalledWith(
+          { organizationId: orgId, conversationId: 'conv1', workflowId: wfId },
+          120,
+        );
+
+        const payload = (mockAgentsService as any).execute.mock.calls[0][0];
+        const toolInstance = payload.agent_tool_instances.agent1['tt-hh-1'];
+
+        expect(toolInstance.credentials.access_token).toBe('intervention-token');
+        expect(toolInstance.config.api_base).toBeDefined();
       });
 
       it('no persiste sourceUrl de los adjuntos en triggerData, aunque sí lo use para armar el mensaje', async () => {

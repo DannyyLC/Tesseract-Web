@@ -1,3 +1,4 @@
+import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import { Test, TestingModule } from '@nestjs/testing';
 import { EndUsersController } from './end-users.controller';
 import { EndUsersService } from '../end-users.service';
@@ -87,7 +88,7 @@ describe('EndUsersController', () => {
       expect(service.getDashboardData).toHaveBeenCalledWith(
         'org-123', // ← del mockUser.organizationId
         null, // cursor
-        10, // pageSize
+        DEFAULT_PAGE_SIZE, // pageSize
         null, // paginationAction
         { search: undefined, blocked: undefined },
       );
@@ -140,7 +141,7 @@ describe('EndUsersController', () => {
       expect(service.getDashboardData).toHaveBeenCalledWith(
         'org-123',
         'eu-cursor-456',
-        10,
+        DEFAULT_PAGE_SIZE,
         'prev',
         { search: undefined, blocked: undefined },
       );
@@ -200,7 +201,7 @@ describe('EndUsersController', () => {
       expect(service.getDashboardData).toHaveBeenCalledWith(
         'org-different-456', // ← debe usar el org del usuario actual
         null,
-        10,
+        DEFAULT_PAGE_SIZE,
         null,
         { search: undefined, blocked: undefined },
       );

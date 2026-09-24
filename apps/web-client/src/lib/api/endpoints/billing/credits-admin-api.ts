@@ -44,8 +44,10 @@ class CreditsAdminApi {
     organizationId: string,
     cursor?: string,
     direction?: 'next' | 'prev',
+    pageSize?: number,
   ): Promise<AdminCreditsDashboard> {
     const params = new URLSearchParams();
+    if (pageSize) params.append('pageSize', String(pageSize));
     if (cursor) params.append('cursor', cursor);
     if (direction) params.append('direction', direction);
     const qs = params.toString();

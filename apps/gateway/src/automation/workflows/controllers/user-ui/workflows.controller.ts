@@ -1,3 +1,4 @@
+import { ParsePageSizePipe } from '@/platform/common/pipes/parse-page-size.pipe';
 import { TriggerType } from '@tesseract/database';
 import {
   Controller,
@@ -15,7 +16,6 @@ import {
   Header,
   StreamableFile,
   Res,
-  ParseIntPipe,
 } from '@nestjs/common';
 import { WorkflowsService } from '../../workflows.service';
 import { ExecutionsService } from '@/automation/executions/executions.service';
@@ -25,7 +25,6 @@ import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import {
   ApiResponseBuilder,
-  DEFAULT_PAGE_SIZE,
   DashboardWorkflowDto,
   PaginatedResponse,
   UserRole,
@@ -75,7 +74,7 @@ export class WorkflowsController {
     @CurrentUser() user: UserPayload,
     @Res() res: Response,
     @Query('cursor') cursor: string | null = null,
-    @Query('pageSize', new DefaultValuePipe(DEFAULT_PAGE_SIZE), ParseIntPipe) pageSize: number,
+    @Query('pageSize', ParsePageSizePipe) pageSize: number,
     @Query('action') action: 'next' | 'prev' | null = null,
     @Query('search') search?: string,
     @Query('isActive') isActive?: string,

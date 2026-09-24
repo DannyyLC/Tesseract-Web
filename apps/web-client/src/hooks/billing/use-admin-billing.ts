@@ -10,15 +10,18 @@ export function useAdminOrgCredits(
   organizationId: string,
   cursor?: string,
   direction?: 'next' | 'prev',
+  pageSize?: number,
 ) {
   return useQuery({
-    queryKey: [CREDITS_KEY, organizationId, cursor ?? null, direction ?? null],
+    queryKey: [CREDITS_KEY, organizationId, cursor ?? null, direction ?? null, pageSize ?? null],
     queryFn: async () => {
       const api = RootApi.getInstance().getCreditsAdminApi();
-      return await api.getDashboard(organizationId, cursor, direction);
+      return await api.getDashboard(organizationId, cursor, direction, pageSize);
     },
     enabled: !!organizationId,
     retry: false,
+    // Sin esto, cambiar de página o de tamaño vacía los datos y la pestaña entera cae al loader.
+    placeholderData: (previous) => previous,
   });
 }
 

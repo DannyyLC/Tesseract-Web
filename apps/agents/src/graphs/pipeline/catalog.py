@@ -20,7 +20,7 @@ _CONDITION_RULE_SCHEMA = {
             "type": "object",
             "properties": {
                 "field": {"type": "string", "description": "Path en el estado (variables.x / context.x)"},
-                "op": {"type": "string", "enum": ["eq", "neq", "gt", "gte", "lt", "lte", "contains", "in"]},
+                "op": {"type": "string", "enum": ["eq", "neq", "gt", "gte", "lt", "lte", "contains", "in", "starts_with"]},
                 "value": {"description": "Valor a comparar (soporta templates)"},
             },
             "required": ["field"],
@@ -35,7 +35,7 @@ _DISABLE_TOOLS_RULE_SCHEMA = {
     "properties": {
         "tool": {"type": "string", "description": "Nombre de la tool (base o completo); ausente = todas"},
         "field": {"type": "string"},
-        "op": {"type": "string", "enum": ["eq", "neq", "gt", "gte", "lt", "lte", "contains", "in"]},
+        "op": {"type": "string", "enum": ["eq", "neq", "gt", "gte", "lt", "lte", "contains", "in", "starts_with"]},
         "value": {},
     },
     "required": ["field"],

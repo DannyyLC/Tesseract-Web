@@ -37,7 +37,7 @@ export default function StatusSection({ subscription, onCancel, isCanceling }: S
             <div className="mb-1 flex justify-between text-sm">
               <span className="font-medium text-text-secondary">{t('creditBag')}</span>
               <span className="font-bold text-text-primary">
-                {creditsUsed.toLocaleString()} / {creditsTotal.toLocaleString()}
+                {creditsUsed.toLocaleString('es-MX')} / {creditsTotal.toLocaleString('es-MX')}
               </span>
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-secondary">

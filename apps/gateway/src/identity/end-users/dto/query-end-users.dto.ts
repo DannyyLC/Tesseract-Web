@@ -1,7 +1,7 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { EndUserBlockedFilter } from '@tesseract/types';
+import { DEFAULT_PAGE_SIZE, EndUserBlockedFilter, MAX_PAGE_SIZE } from '@tesseract/types';
 
 const BLOCKED_FILTERS: EndUserBlockedFilter[] = ['all', 'blocked', 'active'];
 
@@ -16,9 +16,12 @@ export class QueryEndUsersDto {
   @IsIn(['next', 'prev'])
   paginationAction?: 'next' | 'prev';
 
-  @ApiPropertyOptional({ description: 'Tamaño de página', default: 10 })
+  @ApiPropertyOptional({ description: 'Tamaño de página', default: DEFAULT_PAGE_SIZE })
   @IsOptional()
   @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(MAX_PAGE_SIZE)
   pageSize?: number;
 
   @ApiPropertyOptional({ description: 'Busca en nombre, email, identificador externo y teléfono' })

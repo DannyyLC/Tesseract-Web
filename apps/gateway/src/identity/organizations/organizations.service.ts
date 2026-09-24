@@ -5,8 +5,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { DEFAULT_LOCALE, SupportedLocale } from '@/platform/common/types/locale.type';
 import {
-  ADMIN_PAGE_SIZE,
+  DEFAULT_PAGE_SIZE,
   ErrorStrings,
   NOTIFICATIONSENUM,
   OPERATIONS,
@@ -98,7 +99,7 @@ export class OrganizationsService {
    * Devuelve lo mínimo para poblar un selector; el detalle se pide con findOne().
    */
   async findAllForAdmin(query: QueryOrganizationsAdminDto) {
-    const { search, isActive, page = 1, limit = ADMIN_PAGE_SIZE } = query;
+    const { search, isActive, page = 1, limit = DEFAULT_PAGE_SIZE } = query;
     const skip = (page - 1) * limit;
 
     const where = {
@@ -950,7 +951,11 @@ export class OrganizationsService {
   /**
    * Invitar usuario a la organización
    */
-  async invite(organizationId: string, email: string): Promise<boolean | InviteUserErrorsDto> {
+  async invite(
+    organizationId: string,
+    email: string,
+    locale: SupportedLocale = DEFAULT_LOCALE,
+  ): Promise<boolean | InviteUserErrorsDto> {
     // Validar que la organización existe y está activa
     const isOrganizationValid = await this.validateOrganization(organizationId);
 
@@ -973,7 +978,11 @@ export class OrganizationsService {
         return InviteUserErrorsDto.USER_ALREADY_REGISTERED;
       }
 
-      await this.emailService.sendOrganizationExistsEmail(email, isOrganizationValid.name);
+      await this.emailService.sendOrganizationExistsEmail(
+        email,
+        isOrganizationValid.name,
+        locale,
+      );
       return true;
     }
 
@@ -1001,6 +1010,7 @@ export class OrganizationsService {
     const emailSentInfo = await this.emailService.sendOrganizationInvitationToEmail(
       email,
       isOrganizationValid.name,
+      locale,
     );
 
     if (!emailSentInfo) {
@@ -1202,6 +1212,7 @@ export class OrganizationsService {
   async resendInvitation(
     userEmail: string,
     organizationId: string,
+    locale: SupportedLocale = DEFAULT_LOCALE,
   ): Promise<{ success: boolean; error?: string }> {
     const userVerification = await this.prisma.userVerification.findFirst({
       where: {
@@ -1219,6 +1230,7 @@ export class OrganizationsService {
     const emailSentInfo = await this.emailService.sendOrganizationInvitationToEmail(
       userEmail,
       organizationId,
+      locale,
     );
     if (!emailSentInfo) {
       this.logger.error(`resendInvitation >> Error sending invitation email to ${maskEmail(userEmail)}`);

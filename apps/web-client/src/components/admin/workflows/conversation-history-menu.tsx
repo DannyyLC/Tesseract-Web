@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { AlertCircle, Clock, Loader2 } from 'lucide-react';
 import { useInfiniteAdminConversations } from '@/hooks/messaging/use-admin-conversations';
 import { formatTimeAgo } from '@/utils/users.utils';
+import { toIntlLocale } from '@/lib/intl-locale';
 
 interface Props {
   organizationId: string;
@@ -18,6 +20,9 @@ interface Props {
  * si todo funciona no hay nada que revisar.
  */
 export function ConversationHistoryMenu({ organizationId, workflowId, onSelect }: Props) {
+  const t = useTranslations('Admin.ConversationHistoryMenu');
+  const tTimeAgo = useTranslations('Shared.TimeAgo');
+  const intlLocale = toIntlLocale(useLocale());
   const [isOpen, setIsOpen] = useState(false);
   const [onlyErrors, setOnlyErrors] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -56,8 +61,8 @@ export function ConversationHistoryMenu({ organizationId, workflowId, onSelect }
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        title="Conversaciones de este workflow"
-        aria-label="Conversaciones de este workflow"
+        title={t('conversationsTooltip')}
+        aria-label={t('conversationsTooltip')}
         className="flex-shrink-0 rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
       >
         <Clock size={18} />
@@ -66,7 +71,7 @@ export function ConversationHistoryMenu({ organizationId, workflowId, onSelect }
       {isOpen && (
         <div className="absolute right-0 top-full z-30 mt-2 w-80 overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-lg">
           <div className="flex items-center justify-between border-b border-border px-3 py-2">
-            <span className="text-xs font-medium text-text-secondary">Conversaciones</span>
+            <span className="text-xs font-medium text-text-secondary">{t('conversationsLabel')}</span>
             <label className="flex cursor-pointer items-center gap-1.5 text-xs text-text-secondary">
               <input
                 type="checkbox"
@@ -74,7 +79,7 @@ export function ConversationHistoryMenu({ organizationId, workflowId, onSelect }
                 onChange={(e) => setOnlyErrors(e.target.checked)}
                 className="h-3.5 w-3.5 accent-danger-500"
               />
-              Solo con error
+              {t('onlyWithError')}
             </label>
           </div>
 
@@ -85,7 +90,7 @@ export function ConversationHistoryMenu({ organizationId, workflowId, onSelect }
               </div>
             ) : items.length === 0 ? (
               <p className="px-3 py-6 text-center text-xs text-text-secondary">
-                {onlyErrors ? 'Sin conversaciones con error.' : 'Sin conversaciones todavía.'}
+                {onlyErrors ? t('noErrorConversations') : t('noConversations')}
               </p>
             ) : (
               items.map((c) => (
@@ -100,9 +105,10 @@ export function ConversationHistoryMenu({ organizationId, workflowId, onSelect }
                 >
                   {c.hasError && <AlertCircle size={13} className="mt-0.5 shrink-0 text-danger-500" />}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-text-primary">{c.title || 'Sin título'}</p>
+                    <p className="truncate text-sm text-text-primary">{c.title || t('untitled')}</p>
                     <p className="mt-0.5 text-xs text-text-secondary">
-                      {formatTimeAgo(c.lastMessageAt)} · {c.messageCount} mensajes
+                      {formatTimeAgo(c.lastMessageAt, tTimeAgo, intlLocale)} ·{' '}
+                      {t('messagesCount', { count: c.messageCount })}
                     </p>
                   </div>
                 </button>
@@ -110,7 +116,7 @@ export function ConversationHistoryMenu({ organizationId, workflowId, onSelect }
             )}
             {hasNextPage && (
               <div ref={loadMoreRef} className="py-2 text-center text-xs text-text-secondary">
-                {isFetchingNextPage ? 'Cargando más…' : ''}
+                {isFetchingNextPage ? t('loadingMore') : ''}
               </div>
             )}
           </div>

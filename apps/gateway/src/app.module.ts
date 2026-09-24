@@ -11,6 +11,7 @@ import { AutomationModule } from './automation/automation.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { PlatformModule } from './platform/platform.module';
 import { GoogleDriveModule } from './platform/cloud/google-drive/google-drive.module';
+import { BookingModule } from './platform/booking/booking.module';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -40,6 +41,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     AutomationModule,
     MessagingModule,
     GoogleDriveModule,
+    BookingModule,
   ],
   controllers: [],
   providers: [

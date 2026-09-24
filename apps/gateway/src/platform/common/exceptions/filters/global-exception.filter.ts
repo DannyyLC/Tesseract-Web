@@ -20,6 +20,38 @@ interface ErrorResponse {
   message: string;
   statusCode: number;
   timestamp: string;
+  // Detalle por campo de errores de validación (DTOs). El front traduce por
+  // `constraints` (nombres estables de class-validator, ej. "isEmail", "minLength"),
+  // nunca por `message`.
+  errors?: Array<{ field: string; constraints: string[] }>;
+}
+
+/**
+ * Errores nativos de Nest (`BadRequestException('texto')`, etc.) lanzados sin un
+ * `ErrorCode` propio. Sin esto, el `message` del `throw` original —en el idioma que haya
+ * escrito quien lo puso, sin garantía de ser siempre el mismo— es lo único que tendría el
+ * front para mostrar. Con este mapeo, el front siempre tiene una clave (`Errors.GENERIC_*`)
+ * que traducir, aunque el mensaje específico se pierda a favor de uno genérico.
+ */
+function genericErrorCodeForStatus(status: number): string {
+  switch (status) {
+    case HttpStatus.BAD_REQUEST:
+      return ErrorCode.GENERIC_BAD_REQUEST;
+    case HttpStatus.UNAUTHORIZED:
+      return ErrorCode.GENERIC_UNAUTHORIZED;
+    case HttpStatus.FORBIDDEN:
+      return ErrorCode.GENERIC_FORBIDDEN;
+    case HttpStatus.NOT_FOUND:
+      return ErrorCode.GENERIC_NOT_FOUND;
+    case HttpStatus.CONFLICT:
+      return ErrorCode.GENERIC_CONFLICT;
+    case HttpStatus.UNPROCESSABLE_ENTITY:
+      return ErrorCode.GENERIC_UNPROCESSABLE_ENTITY;
+    case HttpStatus.TOO_MANY_REQUESTS:
+      return ErrorCode.GENERIC_TOO_MANY_REQUESTS;
+    default:
+      return ErrorCode.GENERIC_HTTP_ERROR;
+  }
 }
 
 /**
@@ -82,12 +114,14 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // Excepciones custom (AppException)
     // ============================================
     if (exception instanceof AppException) {
+      const errors = exception.metadata?.errors;
       return {
         success: false,
         errorCode: exception.errorCode,
         message: exception.message,
         statusCode: exception.getStatus(),
         timestamp,
+        ...(errors ? { errors } : {}),
       };
     }
 
@@ -99,19 +133,21 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       const exceptionResponse = exception.getResponse();
 
       let message = 'An error occurred';
-      let errorCode = 'HTTP_ERROR';
+      let errorCode: string | undefined;
 
       // El response puede ser string u objeto
       if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
       } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         message = (exceptionResponse as any).message ?? message;
-        errorCode = (exceptionResponse as any).errorCode ?? errorCode;
+        errorCode = (exceptionResponse as any).errorCode;
       }
 
+      // Sin errorCode propio (throw nativo de Nest, ej. `new NotFoundException('texto')'`):
+      // se asigna uno genérico por status para que el front siempre tenga clave que traducir.
       return {
         success: false,
-        errorCode,
+        errorCode: errorCode ?? genericErrorCodeForStatus(status),
         message,
         statusCode: status,
         timestamp,
@@ -166,6 +202,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message: `A record with this ${field} already exists`,
         statusCode: HttpStatus.CONFLICT,
         timestamp,
+        errors: [{ field, constraints: ['unique'] }],
       };
     }
 

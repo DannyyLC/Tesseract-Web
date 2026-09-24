@@ -191,6 +191,21 @@ enum MessengerConnectionStatus {
   ERROR
 }
 
+/// Discrimina las dos poblaciones que conviven en `notifications`: plantillas
+/// sembradas por seed (código '0000-xxxx', se instancian muchas veces) y
+/// anuncios creados desde /admin (una fila por anuncio, se instancia una vez).
+enum NotificationKind {
+  TEMPLATE
+  ANNOUNCEMENT
+}
+
+/// Plantilla visual del anuncio. NEWS es sobria con CTA opcional; CELEBRATION
+/// dispara confetti (regalos de créditos, hitos).
+enum AnnouncementTemplate {
+  NEWS
+  CELEBRATION
+}
+
 // ============================================
 // ORGANIZATION (Tenant principal)
 // ============================================
@@ -268,6 +283,10 @@ model Organization {
   messages           Message[]
   messageAttachments MessageAttachment[]
   userNotifications  UserNotification[]
+
+  // Anuncios del super admin dirigidos específicamente a esta organización (vía la
+  // tabla puente). Sin filas aquí para un anuncio dado = ese anuncio es para todas.
+  targetedByAnnouncements AnnouncementTargetOrganization[]
 
   @@index([deletedAt])
   @@index([isActive])
@@ -963,6 +982,10 @@ model ToolCatalog {
   toolName    String  @unique // "google_calendar", "hubspot", "slack"
   displayName String // "Google Calendar", "HubSpot", "Slack"
   description String? // Descripción de qué hace esta tool
+  // Inglés opcional: NULL = solo existe el texto base (español). `displayName`/`description`
+  // siguen siendo la fuente y el fallback; no se renombran para no tocar lo que ya hay en prod.
+  displayNameEn String?
+  descriptionEn String?
   provider    String? // "google", "microsoft", "custom"
 
   // Control de disponibilidad (sistema)
@@ -1001,6 +1024,9 @@ model ToolFunction {
   functionName String // "check_availability", "create_event", "delete_event"
   displayName  String // "Verificar Disponibilidad", "Crear Evento"
   description  String? // Descripción de qué hace esta función
+  // Inglés opcional (NULL = se usa el texto base en español).
+  displayNameEn String?
+  descriptionEn String?
 
   // Categorización (para UI y control)
   category String? @default("general") // "read", "write", "delete"
@@ -1861,8 +1887,49 @@ model Notification {
   users           UserNotification[]
   createdAt       DateTime           @default(now())
 
+  // ── Anuncios del super admin ──────────────────────────────────────────
+  // TEMPLATE = las filas sembradas de siempre (código '0000-xxxx', reusables).
+  // ANNOUNCEMENT = una fila por anuncio creado en /admin, se envía una sola vez.
+  kind                 NotificationKind      @default(TEMPLATE)
+  announcementTemplate AnnouncementTemplate?
+
+  // Contenido en inglés. NULL = solo hay español (siempre el caso de las
+  // plantillas sembradas y de cualquier anuncio que no se tradujo).
+  titleTemplateEn   String?
+  messageTemplateEn String?
+
+  ctaLabel   String?
+  ctaLabelEn String?
+  ctaUrl     String?
+
+  // Sin filas relacionadas = todas las organizaciones. Con una o más filas = solo esas.
+  // Tabla puente (no un array de ids) para poder hacer JOIN/index por organización sin
+  // escanear el Json de vuelta; cascada en ambos lados así que borrar la organización o
+  // el anuncio limpia la relación sola.
+  targetOrganizations AnnouncementTargetOrganization[]
+
+  // Vigencia. NULL en expiresAt = sin caducidad. Caducar solo apaga el modal;
+  // el historial de la campana se queda (ver UserNotification.dismissedAt).
+  publishedAt DateTime?
+  expiresAt   DateTime?
+
+  // Candado de idempotencia del fan-out: se reclama con un updateMany
+  // condicional (WHERE fannedOutAt IS NULL) antes de crear filas, para que
+  // dos instancias de Cloud Run no dupliquen la entrega.
+  fannedOutAt DateTime?
+
+  // Denominador de las métricas, denormalizado para no depender de que las
+  // filas de UserNotification sigan vivas (borrado suave, purga de usuario).
+  deliveredCount Int @default(0)
+
+  createdById    String?
+  createdByEmail String?
+
+  updatedAt DateTime @updatedAt @default(now())
+
   @@unique([code, version])
   @@index([code, isActive])
+  @@index([kind, createdAt])
   @@map("notifications")
 }
 
@@ -1876,12 +1943,39 @@ model UserNotification {
   messageSnapshot String
   createdAt       DateTime     @default(now())
   deletedAt       DateTime?
+
+  // Estado del modal bloqueante, separado de `isRead` A PROPÓSITO:
+  // markAllNotificationsAsRead() voltea isRead de TODAS las filas del usuario
+  // y apagaría un anuncio que nunca llegó a verse.
+  dismissedAt  DateTime?
+  ctaClickedAt DateTime?
+
+  titleSnapshotEn   String?
+  messageSnapshotEn String?
+
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   notification    Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
 
   @@index([userId, organizationId])
+  @@index([notificationId])
   @@map("user_notifications")
+}
+
+/// Tabla puente del targeting de anuncios: qué organizaciones específicas recibe un
+/// anuncio. Sin filas para un `notificationId` dado = todas las organizaciones (la
+/// convención vive en el servicio, no aquí). PK compuesta: no tiene sentido la misma
+/// org repetida en el mismo anuncio.
+model AnnouncementTargetOrganization {
+  notificationId String
+  organizationId String
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([notificationId, organizationId])
+  @@index([organizationId])
+  @@map("announcement_target_organizations")
 }
 
 /// Deduplicación de webhooks entrantes.

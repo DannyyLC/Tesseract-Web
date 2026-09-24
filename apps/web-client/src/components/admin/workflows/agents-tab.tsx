@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { Search, Plus, Trash2, ChevronRight, AlertTriangle } from 'lucide-react';
 import { PromptEditor } from './prompt-editor';
 import {
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
+  const t = useTranslations('Admin.AgentsTab');
   const agents: Record<string, any> = config.agents ?? {};
   const agentKeys = useMemo(() => Object.keys(agents), [agents]);
 
@@ -53,7 +55,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
   }, [agentKeys, agents, filter]);
 
   const toolNames = useMemo(
-    () => new Map(tenantTools.map((t) => [t.id, t.displayName])),
+    () => new Map(tenantTools.map((tool) => [tool.id, tool.displayName])),
     [tenantTools],
   );
 
@@ -65,7 +67,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
     const next = renaming.trim();
     if (!next || next === selected) return setRenaming('');
     if (agents[next]) {
-      toast.error(`Ya existe un agente llamado "${next}"`);
+      toast.error(t('agentAlreadyExists', { name: next }));
       return;
     }
 
@@ -83,7 +85,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
     setSelected(next);
     setRenaming('');
     if (referencing.length) {
-      toast.success(`Agente renombrado y ${referencing.length} nodo(s) actualizados`);
+      toast.success(t('agentRenamedWithNodes', { count: referencing.length }));
     }
   };
 
@@ -104,7 +106,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
   const handleDelete = (key: string) => {
     const referencing = nodesReferencingAgent(config, key);
     if (referencing.length) {
-      toast.error(`No se puede borrar: lo usan los nodos ${referencing.join(', ')}`);
+      toast.error(t('cannotDeleteInUse', { nodes: referencing.join(', ') }));
       return;
     }
     onChange(deleteAtPath(config, ['agents', key]));
@@ -114,9 +116,9 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
   if (agentKeys.length === 0) {
     return (
       <div className="p-8 text-center text-sm text-text-secondary">
-        Este workflow no tiene agentes configurados.
+        {t('noAgentsConfigured')}
         <button className={`${btnGhost} mx-auto mt-4`} onClick={handleAdd}>
-          <Plus size={14} /> Agregar agente
+          <Plus size={14} /> {t('addAgent')}
         </button>
       </div>
     );
@@ -134,7 +136,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder="Buscar agente o texto"
+            placeholder={t('searchAgentPlaceholder')}
             className="w-full rounded-md border border-border bg-surface py-1.5 pl-7 pr-2 text-xs text-text-primary outline-none focus:border-border-focus"
           />
         </div>
@@ -153,7 +155,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
                     {key}
                   </span>
                   <span className="mt-0.5 block truncate text-[11px] text-text-secondary">
-                    {(agents[key]?.system_prompt ?? '').slice(0, 80) || 'sin prompt'}
+                    {(agents[key]?.system_prompt ?? '').slice(0, 80) || t('noPrompt')}
                   </span>
                 </div>
                 {selected === key && (
@@ -163,7 +165,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
             </li>
           ))}
           {visible.length === 0 && (
-            <li className="px-3 py-4 text-center text-xs text-text-secondary">Sin coincidencias</li>
+            <li className="px-3 py-4 text-center text-xs text-text-secondary">{t('noMatches')}</li>
           )}
         </ul>
 
@@ -171,7 +173,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
           onClick={handleAdd}
           className="flex items-center justify-center gap-1 border-t border-border py-2 text-xs text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
         >
-          <Plus size={13} /> Agregar agente
+          <Plus size={13} /> {t('addAgent')}
         </button>
       </div>
 
@@ -180,7 +182,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
         <div className="space-y-4 rounded-lg border border-border p-4">
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div className="min-w-[200px] flex-1">
-              <label className={labelClass}>Clave del agente</label>
+              <label className={labelClass}>{t('agentKeyLabel')}</label>
               <input
                 className={inputClass}
                 value={renaming || selected}
@@ -193,13 +195,13 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
               onClick={() => handleDelete(selected)}
               className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-danger transition-colors hover:bg-surface-secondary"
             >
-              <Trash2 size={13} /> Borrar
+              <Trash2 size={13} /> {t('deleteButton')}
             </button>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className={labelClass}>Modelo</label>
+              <label className={labelClass}>{t('modelLabel')}</label>
               <select
                 className={inputClass}
                 value={current.model ?? ''}
@@ -208,7 +210,10 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
                 {/* Un modelo fuera de la lista haría fallar el guardado; conservarlo
                     visible evita cambiarlo sin querer al abrir el desplegable. */}
                 {current.model && !models.some((m) => m.modelName === current.model) && (
-                  <option value={current.model}>{current.model} (inactivo)</option>
+                  <option value={current.model}>
+                    {current.model}
+                    {t('inactiveModelSuffix')}
+                  </option>
                 )}
                 {models.map((m) => (
                   <option key={m.id} value={m.modelName}>
@@ -219,14 +224,14 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
               {current.model && !models.some((m) => m.modelName === current.model) && (
                 <p className="mt-1 flex items-start gap-1 text-[11px] text-danger">
                   <AlertTriangle size={12} className="mt-0.5 shrink-0" />
-                  Este modelo no está activo: el guardado será rechazado hasta cambiarlo.
+                  {t('inactiveModelWarning')}
                 </p>
               )}
             </div>
 
             <div>
               <label className={labelClass}>
-                Temperature <span className="font-normal">(vacío = no se envía al proveedor)</span>
+                {t('temperatureLabel')} <span className="font-normal">{t('temperatureHint')}</span>
               </label>
               <input
                 type="number"
@@ -252,13 +257,13 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
           <PromptEditor
             value={current.system_prompt ?? ''}
             onChange={(v) => setField('system_prompt', v)}
-            placeholder="Instrucciones del agente…"
+            placeholder={t('promptPlaceholder')}
           />
 
           {Array.isArray(current.signal_tools) && current.signal_tools.length > 0 && (
             <details className="rounded-lg border border-border p-3">
               <summary className="cursor-pointer text-xs font-medium text-text-primary">
-                signal_tools ({current.signal_tools.length})
+                {t('signalToolsSummary', { count: current.signal_tools.length })}
               </summary>
               <div className="mt-3 space-y-3">
                 {current.signal_tools.map((signal: any, i: number) => (
@@ -318,7 +323,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
           {Array.isArray(current.tools) && current.tools.length > 0 && (
             <div className="rounded-lg border border-border p-3">
               <span className="text-xs font-medium text-text-primary">
-                tools ({current.tools.length})
+                {t('toolsSummary', { count: current.tools.length })}
               </span>
               <ul className="mt-2 space-y-1">
                 {current.tools.map((tool: any, i: number) => {
@@ -327,7 +332,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
                   return (
                     <li key={i} className="flex items-center gap-2 text-xs">
                       <span className={known ? 'text-text-primary' : 'text-danger'}>
-                        {known ?? `${id?.slice(0, 8)}… (no pertenece a esta organización)`}
+                        {known ?? t('toolNotOwned', { id: id?.slice(0, 8) })}
                       </span>
                     </li>
                   );
@@ -338,7 +343,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
         </div>
       ) : (
         <div className="rounded-lg border border-border p-8 text-center text-sm text-text-secondary">
-          Elige un agente de la lista.
+          {t('selectAgentPrompt')}
         </div>
       )}
     </div>
