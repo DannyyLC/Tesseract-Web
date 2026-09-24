@@ -125,7 +125,29 @@ def _send_single_message(api_key: str, payload: dict, timeout: float = 15.0) -> 
         response = httpx.post(url, json=payload, headers=headers, timeout=timeout)
         response.raise_for_status()
         data = response.json()
-        return {"ok": True, "message_id": data.get("id", "unknown")}
+        message_id = data.get("id", "unknown")
+        status = data.get("status")
+
+        # Un 2xx solo dice que YCloud recibió la petición; si Meta la rechaza, YCloud lo
+        # reporta en `status`/`errorCode`. Sin registrarlo, un envío fallido se veía igual
+        # que uno exitoso.
+        logger.info(
+            "YCloud respuesta: to=%s id=%s status=%s errorCode=%s errorMessage=%s",
+            mask_phone(payload.get("to")),
+            message_id,
+            status,
+            data.get("errorCode"),
+            data.get("errorMessage"),
+        )
+
+        if status == "failed":
+            return {
+                "ok": False,
+                "message_id": message_id,
+                "error": f"YCloud status=failed errorCode={data.get('errorCode')}: {data.get('errorMessage')}",
+            }
+
+        return {"ok": True, "message_id": message_id, "status": status}
     except httpx.HTTPStatusError as exc:
         error_body = exc.response.text[:200]
         logger.error(
@@ -153,15 +175,10 @@ def load_whatsapp_outbound_tools(
         from_number         str  — número remitente (E.164)
         api_key             str  — YCloud API key
         available_templates dict — {template_uuid: {name, language, variables}}
-        auto_fill_variables dict — opcional: {nombre_variable: valor}. Si una
-                                   plantilla declara una variable con ese nombre,
-                                   el valor se inserta en su posición declarada
-                                   (el modelo no la provee ni la controla).
     """
     from_number: str = config.get("from_number", "")
     api_key: str = config.get("api_key", "")
     available_templates: dict = config.get("available_templates", {})
-    auto_fill_variables: dict = config.get("auto_fill_variables", {}) or {}
 
     if not from_number or not api_key:
         logger.error(
@@ -204,19 +221,6 @@ def load_whatsapp_outbound_tools(
                     "error": f"Template '{msg.template_id}' no disponible para este workflow",
                 })
                 continue
-
-            # Auto-fill: variables declaradas por la plantilla cuyo valor lo pone
-            # el sistema (p.ej. client_number), insertadas en su posición declarada.
-            if auto_fill_variables:
-                for channel in ("header", "body"):
-                    declared = tpl.get(channel) or []
-                    if not isinstance(declared, list):
-                        continue
-                    values = msg.variables.setdefault(channel, [])
-                    for idx, var_name in enumerate(declared):
-                        if var_name in auto_fill_variables:
-                            fill_value = str(auto_fill_variables[var_name] or "No disponible")
-                            values.insert(min(idx, len(values)), fill_value)
 
             payload = _build_template_payload(
                 from_number=from_number,  # SISTEMA — el modelo nunca lo controla
