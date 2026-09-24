@@ -251,6 +251,7 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
 
             messages = convert_message_history_to_langchain(validated.message_history)
             messages.append(HumanMessage(content=validated.user_message))
+            input_count = len(messages)
 
             # Cargar variables persistidas de la conversación (las popula el Gateway). Las variables
             # efímeras (p.ej. reroute_count) no llegan aquí y el grafo las inicializa cuando las necesita.
@@ -284,9 +285,14 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
 
             usage_by_model = accumulator.totals()
 
-            all_messages = convert_langchain_messages_to_dict(output_messages)
+            # Solo lo que produjo ESTE turno. El historial + mensaje del cliente quedan intactos al
+            # inicio del estado porque todos los grafos usan el reducer add_messages, que solo
+            # agrega. Sin el recorte, un turno que termina sin respuesta nueva (p. ej. una rama del
+            # graph que no pasa por ningún agente) devolvía la última respuesta del historial y el
+            # gateway se la reenviaba al cliente.
+            turn_messages = convert_langchain_messages_to_dict(output_messages[input_count:])
             human_handoff = extract_human_handoff_from_messages(output_messages)
-            response_messages = [m for m in all_messages if m.get("role") == "assistant"]
+            response_messages = [m for m in turn_messages if m.get("role") == "assistant"]
 
             proto_messages = [
                 agents_pb2.Message(role=m["role"], content=m["content"])
