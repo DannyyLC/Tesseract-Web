@@ -64,6 +64,7 @@ import {
   toAttachmentInput,
 } from '@/automation/media-processing/media-processing.service';
 import { MediaPolicy, resolveMediaPolicy } from '@/automation/media-processing/media-policy';
+import { resolvePresenceIndicators } from './presence-indicators';
 import { selectMessagesToArchive } from './compaction-window';
 import { WorkflowConfigValidator } from './workflow-config.validator';
 
@@ -758,18 +759,25 @@ export class WorkflowsService {
   }
 
   /**
-   * Política de media del workflow, con los defaults ya aplicados.
+   * Lo que los workers de canal necesitan saber del workflow antes de ejecutarlo, con los
+   * defaults ya aplicados: si mostrar visto/escribiendo y qué hacer con la media entrante.
    *
-   * Lee solo `config` porque quien la necesita —el worker de WhatsApp— decide con ella
-   * si vale la pena descargar y transcribir un archivo, mucho antes de ejecutar nada.
+   * Lee solo `config`, en una sola consulta, porque se usa antes del acuse de lectura y mucho
+   * antes de ejecutar nada.
    */
-  async getMediaPolicy(organizationId: string, workflowId: string): Promise<MediaPolicy> {
+  async getChannelPolicy(
+    organizationId: string,
+    workflowId: string,
+  ): Promise<{ mediaPolicy: MediaPolicy; presenceIndicators: boolean }> {
     const workflow = await this.prisma.workflow.findFirst({
       where: { id: workflowId, organizationId, deletedAt: null },
       select: { config: true },
     });
 
-    return resolveMediaPolicy(workflow?.config);
+    return {
+      mediaPolicy: resolveMediaPolicy(workflow?.config),
+      presenceIndicators: resolvePresenceIndicators(workflow?.config),
+    };
   }
 
   /**

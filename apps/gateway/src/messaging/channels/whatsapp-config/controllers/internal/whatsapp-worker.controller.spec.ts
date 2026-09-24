@@ -25,7 +25,7 @@ describe('WhatsappWorkerController', () => {
     error: jest.fn(),
     debug: jest.fn(),
   };
-  const mockWorkflowsService: any = { getMediaPolicy: jest.fn(), execute: jest.fn() };
+  const mockWorkflowsService: any = { getChannelPolicy: jest.fn(), execute: jest.fn() };
   const mockQueueService: any = {
     peekLastBufferedAt: jest.fn(),
     drainWindow: jest.fn(),
@@ -110,7 +110,10 @@ describe('WhatsappWorkerController', () => {
       phoneNumber: body.phoneNumber,
     });
     mockHttpService.post.mockReturnValue(of({ data: {} }));
-    mockWorkflowsService.getMediaPolicy.mockResolvedValue(policy);
+    mockWorkflowsService.getChannelPolicy.mockResolvedValue({
+      mediaPolicy: policy,
+      presenceIndicators: true,
+    });
     mockConversationsService.findActiveWhatsappConversation.mockResolvedValue({
       id: 'conv-1',
       isHumanInTheLoop: false,
@@ -183,6 +186,31 @@ describe('WhatsappWorkerController', () => {
         'Claro, con gusto te ayudo.',
       );
       expect(res.send).toHaveBeenCalledWith({ processed: true });
+    });
+
+    it('con presenceIndicators apagado responde igual pero sin visto ni escribiendo', async () => {
+      mockWorkflowsService.getChannelPolicy.mockResolvedValue({
+        mediaPolicy: policy,
+        presenceIndicators: false,
+      });
+      mockWorkflowsService.execute.mockResolvedValue({
+        id: 'exec-1',
+        result: {
+          messages: [{ role: 'assistant', content: 'Claro, con gusto te ayudo.' }],
+          conversationId: 'conv-1',
+        },
+      });
+
+      await controller.processWindow(body, buildResponse());
+
+      // El único uso de httpService en este flujo es el typing indicator / acuse de lectura.
+      expect(mockHttpService.post).not.toHaveBeenCalled();
+      expect(mockWorkflowsService.execute).toHaveBeenCalled();
+      expect(mockWhatsappConfigService.sendTextMessage).toHaveBeenCalledWith(
+        body.phoneNumber,
+        body.userNumber,
+        'Claro, con gusto te ayudo.',
+      );
     });
 
     it('sin mensaje del asistente y sin motivo declarado: no inventa respuesta y lo reporta', async () => {

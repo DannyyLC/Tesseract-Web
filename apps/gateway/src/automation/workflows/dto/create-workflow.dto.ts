@@ -135,4 +135,9 @@ export interface WorkflowConfig {
     };
     ocrPrompt?: string;
   };
+  /**
+   * Si el canal muestra "visto" y "escribiendo" al recibir un mensaje. Ausente = `true`.
+   * Resolución en `../presence-indicators`.
+   */
+  presenceIndicators?: boolean;
 }

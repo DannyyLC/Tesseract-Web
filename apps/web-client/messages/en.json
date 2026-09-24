@@ -2746,6 +2746,8 @@
       "imageHint": "Reads the content of the photos the client sends.",
       "maxSizeLabel": "Max size (bytes)",
       "videoLabel": "Process video",
+      "presenceLabel": "Show \"seen\" and \"typing\"",
+      "presenceHint": "When a message arrives, the channel marks it as read and shows the bot is typing. If you turn this off, no client of this workflow will see them, though they still get a reply. Use it on workflows that sometimes decide not to answer.",
       "userMessagesSummary": "Messages to the user",
       "defaultMessagePlaceholder": "(uses the default message)",
       "messageAudioDisabled": "Audio not enabled",

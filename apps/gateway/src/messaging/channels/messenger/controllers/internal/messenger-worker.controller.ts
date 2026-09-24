@@ -119,8 +119,15 @@ export class MessengerWorkerController {
         return res.status(HttpStatus.OK).send({ processed: false, reason: 'missing-config' });
       }
 
-      // Marcar como leído cuanto antes: es la señal de vida que ve el usuario.
-      await this.messengerConfigService.markSeenAndSendTypingIndicator(account, senderId);
+      const { mediaPolicy: policy, presenceIndicators } =
+        await this.workflowsService.getChannelPolicy(organizationId, account.defaultWorkflowId);
+
+      // El workflow puede apagar visto/escribiendo (`presenceIndicators`); ver el worker de
+      // WhatsApp para el porqué.
+      if (presenceIndicators) {
+        // Marcar como leído cuanto antes: es la señal de vida que ve el usuario.
+        await this.messengerConfigService.markSeenAndSendTypingIndicator(account, senderId);
+      }
 
       if (account.connectionStatus !== MessengerConnectionStatus.CONNECTED) {
         await this.messengerConfigService.updateConnectionStatus(
@@ -128,11 +135,6 @@ export class MessengerWorkerController {
           MessengerConnectionStatus.CONNECTED,
         );
       }
-
-      const policy = await this.workflowsService.getMediaPolicy(
-        organizationId,
-        account.defaultWorkflowId,
-      );
 
       const interpreted = await this.interpretMessages(
         organizationId,

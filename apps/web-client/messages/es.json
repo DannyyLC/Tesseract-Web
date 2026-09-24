@@ -2746,6 +2746,8 @@
       "imageHint": "Lee el contenido de las fotos que envía el cliente.",
       "maxSizeLabel": "Tamaño máximo (bytes)",
       "videoLabel": "Procesar video",
+      "presenceLabel": "Mostrar \"visto\" y \"escribiendo\"",
+      "presenceHint": "Al recibir un mensaje, el canal lo marca como leído y muestra que el bot está escribiendo. Si lo apagas, ningún cliente de este workflow los verá, aunque sí reciba respuesta. Úsalo en workflows que a veces deciden no contestar.",
       "userMessagesSummary": "Mensajes al usuario",
       "defaultMessagePlaceholder": "(usa el mensaje por defecto)",
       "messageAudioDisabled": "Audio no habilitado",

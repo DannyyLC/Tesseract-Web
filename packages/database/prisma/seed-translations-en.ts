@@ -35,6 +35,11 @@ export const toolTranslationsEn: Record<
         displayName: 'Request human intervention',
         description: 'Flags the conversation for Human in the Loop and notifies the organization members.',
       },
+      activate_human_intervention: {
+        displayName: 'Activate human intervention (deterministic)',
+        description:
+          'Same as "Request human intervention", but triggered from a workflow node instead of by the LLM: pauses the AI immediately and notifies the team.',
+      },
     },
   },
   send_bulk_whatsapp: {
@@ -44,6 +49,18 @@ export const toolTranslationsEn: Record<
       send_bulk_whatsapp: {
         displayName: 'Send bulk messages',
         description: 'Sends WhatsApp template messages to a list of recipients. The sender number is always set by the system.',
+      },
+    },
+  },
+  http_request: {
+    displayName: 'HTTP Request',
+    description:
+      'Calls any REST API. The base URL, allowed methods and headers live in the instance configuration; the model only chooses the path and the parameters.',
+    functions: {
+      http_request: {
+        displayName: 'HTTP request',
+        description:
+          'Executes an HTTP request (GET, POST, PUT, PATCH or DELETE) against the configured API and returns the response.',
       },
     },
   },

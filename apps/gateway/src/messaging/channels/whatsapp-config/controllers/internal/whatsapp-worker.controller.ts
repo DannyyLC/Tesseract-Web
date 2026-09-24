@@ -144,7 +144,13 @@ export class WhatsappWorkerController {
       );
       const isIntervened = conversation?.isHumanInTheLoop === true;
 
-      if (!isIntervened) {
+      const { mediaPolicy: policy, presenceIndicators } =
+        await this.workflowsService.getChannelPolicy(organizationId, account.defaultWorkflowId);
+
+      // El workflow puede apagar visto/escribiendo (`presenceIndicators`): el acuse sale antes
+      // de ejecutarlo, y en un workflow que a veces decide no contestar prometería una
+      // respuesta que no va a llegar.
+      if (!isIntervened && presenceIndicators) {
         // Marcar como leído cuanto antes: es la señal de vida que ve el usuario.
         await this.markMsgsAsReadAndSendTypingIndicator(
           yCloudApiKey,
@@ -159,11 +165,6 @@ export class WhatsappWorkerController {
       if (account.phoneNumber == null || account.phoneNumber === '') {
         await this.whatsappConfigService.updatePhoneNumber(account.id, phoneNumber);
       }
-
-      const policy = await this.workflowsService.getMediaPolicy(
-        organizationId,
-        account.defaultWorkflowId,
-      );
 
       const interpreted = await this.interpretMessages(
         organizationId,
