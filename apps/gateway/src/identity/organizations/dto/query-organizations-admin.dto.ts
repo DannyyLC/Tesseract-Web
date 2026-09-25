@@ -1,6 +1,7 @@
 import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { QueryBoolean } from '@/platform/common/decorators/query-boolean.decorator';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@tesseract/types';
 
 export class QueryOrganizationsAdminDto {
@@ -12,7 +13,7 @@ export class QueryOrganizationsAdminDto {
   @ApiPropertyOptional({ description: 'Filtrar por estado activo' })
   @IsBoolean()
   @IsOptional()
-  @Type(() => Boolean)
+  @QueryBoolean()
   isActive?: boolean;
 
   @ApiPropertyOptional({ description: 'Página (1-indexed)', example: 1, default: 1 })

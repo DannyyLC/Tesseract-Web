@@ -1,6 +1,7 @@
 import { IsBoolean, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { QueryBoolean } from '@/platform/common/decorators/query-boolean.decorator';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@tesseract/types';
 
 export class QueryConversationsAdminDto {
@@ -28,6 +29,6 @@ export class QueryConversationsAdminDto {
   @ApiPropertyOptional({ description: 'Solo conversaciones con al menos una ejecución fallida' })
   @IsOptional()
   @IsBoolean()
-  @Type(() => Boolean)
+  @QueryBoolean()
   onlyErrors?: boolean;
 }
