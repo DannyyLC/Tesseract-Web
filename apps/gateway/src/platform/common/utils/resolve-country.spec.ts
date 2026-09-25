@@ -42,11 +42,11 @@ describe('resolve-country', () => {
     });
 
     it('cae a la moneda de respaldo cuando aún no hay país', () => {
-      // Organizaciones anteriores al campo, o que nunca han contratado. USD porque es lo que
-      // cobraba el sistema antes de esta distinción: no cambia nada para nadie.
+      // Organizaciones anteriores al campo, o que nunca han contratado. MXN porque el grueso
+      // de los clientes es de México.
       expect(resolveBillingCurrency(null)).toBe(FALLBACK_BILLING_CURRENCY);
       expect(resolveBillingCurrency(undefined)).toBe(FALLBACK_BILLING_CURRENCY);
-      expect(FALLBACK_BILLING_CURRENCY).toBe('usd');
+      expect(FALLBACK_BILLING_CURRENCY).toBe('mxn');
     });
 
     it('no confía en un país fuera del catálogo', () => {
