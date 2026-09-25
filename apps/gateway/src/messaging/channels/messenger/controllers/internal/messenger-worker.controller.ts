@@ -27,6 +27,10 @@ import { ConversationsService } from '@/messaging/conversations/conversations.se
 import { CloudTasksOidcGuard } from '@/platform/tasks/cloud-tasks-oidc.guard';
 import { CloudTasksService } from '@/platform/tasks/cloud-tasks.service';
 import { JsonObject } from '@prisma/client/runtime/client';
+import {
+  TURN_MAX_WAIT_SECONDS,
+  TURN_POLL_SECONDS,
+} from '../../../shared/channel-message-queue.service';
 import { MessengerInboundEvent } from '../../dto';
 import { MessengerConfigService } from '../../messenger-config.service';
 import {
@@ -46,9 +50,17 @@ interface ProcessWindowBody {
   windowId: string;
   /** Epoch ms del primer mensaje de la ventana; sirve para aplicar el tope total. */
   windowStartedAt?: number;
-  /** Cuántas veces se ha reagendado esta ventana porque la persona seguía escribiendo. */
+  /**
+   * Cuántas veces se ha reagendado esta ventana, porque la persona seguía escribiendo o
+   * porque había otro turno en curso. Hace único el nombre de cada tarea reagendada.
+   */
   extension?: number;
+  /** Epoch ms de la primera vez que esta ventana encontró la conversación ocupada. */
+  busySince?: number;
 }
+
+/** Lo que el worker le contesta a Cloud Tasks; el status decide si reintenta. */
+type WindowOutcome = { status: HttpStatus; body: Record<string, unknown> };
 
 /**
  * Procesamiento diferido de los mensajes de Messenger.
@@ -90,6 +102,48 @@ export class MessengerWorkerController {
       return res.status(HttpStatus.OK).send(deferred);
     }
 
+    // Un solo turno a la vez por conversación; ver el worker de WhatsApp para el porqué.
+    const turn = await this.messengerMessageQueueService.acquireTurn(
+      organizationId,
+      pageId,
+      senderId,
+    );
+    if (!turn.acquired) {
+      const waiting = await this.deferWhileBusy(body, logContext);
+      if (waiting) {
+        return res.status(HttpStatus.OK).send(waiting);
+      }
+    }
+
+    // La marca se suelta ANTES de contestarle a Cloud Tasks: en Cloud Run la CPU se
+    // estrangula en cuanto sale la respuesta, y un borrado posterior podría quedarse
+    // congelado y dejar la conversación ocupada hasta que la marca caduque.
+    let outcome: WindowOutcome;
+    try {
+      outcome = await this.processTurn(body, logContext);
+    } finally {
+      await this.messengerMessageQueueService.releaseTurn(
+        organizationId,
+        pageId,
+        senderId,
+        turn.token,
+      );
+    }
+
+    return res.status(outcome.status).send(outcome.body);
+  }
+
+  /**
+   * Procesa la ventana con el turno ya tomado: la drena, ejecuta el workflow y responde
+   * al cliente. Devuelve lo que hay que contestarle a Cloud Tasks en vez de contestarlo,
+   * para que `processWindow` suelte el turno antes.
+   */
+  private async processTurn(
+    body: ProcessWindowBody,
+    logContext: Record<string, unknown>,
+  ): Promise<WindowOutcome> {
+    const { organizationId, pageId, senderId, windowId } = body;
+
     const drained = await this.messengerMessageQueueService.drainWindow(
       organizationId,
       pageId,
@@ -101,7 +155,7 @@ export class MessengerWorkerController {
       // Puede pasar sin que nada esté mal: un reintento posterior al éxito, o una
       // ventana que expiró. No hay nada que hacer y no hay que reintentar.
       this.logger.warn('Ventana de Messenger vacía, no hay nada que procesar', logContext);
-      return res.status(HttpStatus.OK).send({ processed: false, reason: 'empty-window' });
+      return { status: HttpStatus.OK, body: { processed: false, reason: 'empty-window' } };
     }
 
     try {
@@ -110,13 +164,13 @@ export class MessengerWorkerController {
       if (!account?.isActive) {
         this.logger.warn('Config de Messenger ausente o inactiva al procesar la ventana', logContext);
         await this.commit(drained.processingKey);
-        return res.status(HttpStatus.OK).send({ processed: false, reason: 'inactive-config' });
+        return { status: HttpStatus.OK, body: { processed: false, reason: 'inactive-config' } };
       }
 
       if (!account.defaultWorkflowId) {
         this.logger.error('Falta defaultWorkflowId; no se puede responder', logContext);
         await this.commit(drained.processingKey);
-        return res.status(HttpStatus.OK).send({ processed: false, reason: 'missing-config' });
+        return { status: HttpStatus.OK, body: { processed: false, reason: 'missing-config' } };
       }
 
       const { mediaPolicy: policy, presenceIndicators } =
@@ -165,7 +219,7 @@ export class MessengerWorkerController {
           });
         }
         await this.commit(drained.processingKey);
-        return res.status(HttpStatus.OK).send({ processed: false, reason: 'no-text' });
+        return { status: HttpStatus.OK, body: { processed: false, reason: 'no-text' } };
       }
 
       // Mismo criterio que en el worker de WhatsApp: la longitud sirve para seguir el
@@ -235,7 +289,7 @@ export class MessengerWorkerController {
         });
       }
 
-      return res.status(HttpStatus.OK).send({ processed: true });
+      return { status: HttpStatus.OK, body: { processed: true } };
     } catch (error) {
       if (error instanceof ForbiddenException) {
         // Bloqueo de negocio (sin crédito o sin suscripción activa): reintentar no lo va a
@@ -247,7 +301,7 @@ export class MessengerWorkerController {
           ...logContext,
           reason: error.message,
         });
-        return res.status(HttpStatus.OK).send({ processed: false, reason: 'blocked' });
+        return { status: HttpStatus.OK, body: { processed: false, reason: 'blocked' } };
       }
 
       // La ventana NO se confirma: sigue en Redis para que el reintento la retome.
@@ -257,7 +311,7 @@ export class MessengerWorkerController {
         stack: error instanceof Error ? error.stack : undefined,
       });
 
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send({ processed: false });
+      return { status: HttpStatus.INTERNAL_SERVER_ERROR, body: { processed: false } };
     }
   }
 
@@ -329,6 +383,62 @@ export class MessengerWorkerController {
     });
 
     return { processed: false, reason: 'still-typing', extension };
+  }
+
+  /**
+   * Reagenda la ventana porque la conversación tiene un turno en curso. Gemelo del de
+   * WhatsApp: se vuelve a mirar cada `TURN_POLL_SECONDS` y, pasado el tope, se procesa
+   * sin turno para que el buffer no caduque con los mensajes adentro.
+   */
+  private async deferWhileBusy(
+    body: ProcessWindowBody,
+    logContext: Record<string, unknown>,
+  ): Promise<Record<string, unknown> | null> {
+    const { organizationId, pageId, senderId, windowId } = body;
+
+    const now = Date.now();
+    const busySince = body.busySince ?? now;
+
+    if (now - busySince >= TURN_MAX_WAIT_SECONDS * 1000) {
+      this.logger.error('La conversación sigue ocupada tras el tope de espera; se procesa sin turno', {
+        ...logContext,
+        waitedMs: now - busySince,
+      });
+      return null;
+    }
+
+    const extension = (body.extension ?? 0) + 1;
+
+    await this.cloudTasks.enqueue({
+      path: MESSENGER_WORKER_PATH,
+      delaySeconds: TURN_POLL_SECONDS,
+      taskId: [
+        MESSENGER_TASK_PREFIX,
+        CloudTasksService.sanitizeIdPart(organizationId),
+        CloudTasksService.sanitizeIdPart(pageId),
+        CloudTasksService.sanitizeIdPart(senderId),
+        windowId,
+        `x${extension}`,
+      ].join('-'),
+      payload: {
+        organizationId,
+        pageId,
+        senderId,
+        windowId,
+        // El tope de la ventana deslizante cuenta desde que se libera la conversación.
+        windowStartedAt: now,
+        extension,
+        busySince,
+      },
+    });
+
+    this.logger.info('Hay un turno en curso en la conversación, la ventana espera', {
+      ...logContext,
+      extension,
+      waitedMs: now - busySince,
+    });
+
+    return { processed: false, reason: 'busy', extension };
   }
 
   /**

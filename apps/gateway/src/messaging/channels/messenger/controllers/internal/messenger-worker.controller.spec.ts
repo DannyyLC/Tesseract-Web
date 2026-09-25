@@ -21,6 +21,8 @@ describe('MessengerWorkerController', () => {
     peekLastBufferedAt: jest.fn(),
     drainWindow: jest.fn(),
     commitWindow: jest.fn(),
+    acquireTurn: jest.fn(),
+    releaseTurn: jest.fn(),
   };
   const mockMediaProcessingService: any = { processIncomingAttachments: jest.fn() };
   const mockConversationsService: any = { findOne: jest.fn() };
@@ -67,6 +69,8 @@ describe('MessengerWorkerController', () => {
 
     // Buffer vacío: `deferIfStillTyping` no reagenda y la ventana se procesa de inmediato.
     mockQueueService.peekLastBufferedAt.mockResolvedValue(null);
+    // Conversación libre: el turno se toma a la primera.
+    mockQueueService.acquireTurn.mockResolvedValue({ acquired: true, token: 'tok-1' });
     mockQueueService.drainWindow.mockResolvedValue({
       messages: [{ messageId: 'm-1', bufferedAt: Date.now(), event: { messaging: { message: { text: 'hola' } } } }],
       processingKey: 'proc-1',
@@ -106,6 +110,37 @@ describe('MessengerWorkerController', () => {
       account,
       body.senderId,
       'Claro, te ayudo.',
+    );
+  });
+
+  it('con otro turno en curso reagenda sin tocar el buffer ni ejecutar', async () => {
+    withPresence(true);
+    mockQueueService.acquireTurn.mockResolvedValue({ acquired: false, token: null });
+    const res = buildResponse();
+
+    await controller.processWindow(body, res);
+
+    expect(mockQueueService.drainWindow).not.toHaveBeenCalled();
+    expect(mockWorkflowsService.execute).not.toHaveBeenCalled();
+    expect(mockQueueService.releaseTurn).not.toHaveBeenCalled();
+    expect(mockCloudTasks.enqueue).toHaveBeenCalledTimes(1);
+    expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'busy', extension: 1 });
+  });
+
+  it('suelta su turno antes de contestarle a Cloud Tasks', async () => {
+    withPresence(true);
+    const res = buildResponse();
+
+    await controller.processWindow(body, res);
+
+    expect(mockQueueService.releaseTurn).toHaveBeenCalledWith(
+      body.organizationId,
+      body.pageId,
+      body.senderId,
+      'tok-1',
+    );
+    expect(mockQueueService.releaseTurn.mock.invocationCallOrder[0]).toBeLessThan(
+      res.status.mock.invocationCallOrder[0],
     );
   });
 });

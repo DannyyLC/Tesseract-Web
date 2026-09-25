@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 
 export type ChannelBufferedMessage<TEvent> = {
   messageId: string;
@@ -14,6 +15,38 @@ export type ChannelDrainedWindow<TEvent> = {
   /** Clave temporal que sostiene los mensajes hasta confirmar el procesamiento. */
   processingKey: string | null;
 };
+
+export type ChannelTurn = {
+  /** `false` si otro turno de la misma conversación sigue en curso. */
+  acquired: boolean;
+  /**
+   * Prueba de propiedad de la marca, para soltar solo la propia. `null` cuando se sigue
+   * sin marca (Redis no disponible): no hay nada que soltar.
+   */
+  token: string | null;
+};
+
+/**
+ * Vida máxima de la marca de "turno en curso". Tiene que cubrir la ejecución más larga
+ * (agente + envío + acciones post-turno); si un turno la rebasa, la marca caduca y se
+ * vuelve al comportamiento sin marca, no a uno peor. También es lo que libera la
+ * conversación si la instancia muere sin soltarla.
+ */
+export const TURN_LOCK_TTL_SECONDS = 180;
+
+/** Cada cuánto vuelve a mirar una ventana que encontró la conversación ocupada. */
+export const TURN_POLL_SECONDS = 3;
+
+/**
+ * Tope de espera por un turno ajeno. Al alcanzarlo se procesa sin marca: vale más una
+ * respuesta en paralelo que dejar que caduque el buffer (`bufferTtlSeconds`) y perder
+ * los mensajes. Tiene que quedar muy por debajo de ese TTL.
+ */
+export const TURN_MAX_WAIT_SECONDS = 300;
+
+/** Borra la marca solo si sigue siendo la propia; si caducó y otro la tomó, no la toca. */
+const RELEASE_TURN_SCRIPT =
+  "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end";
 
 /**
  * Buffer compartido de mensajes entrantes, agnóstico del canal.
@@ -138,6 +171,79 @@ export abstract class ChannelMessageQueueService<TEvent> {
   }
 
   /**
+   * Marca la conversación como "turno en curso" para que no corran dos a la vez.
+   *
+   * Sin esto, una ventana que se cierra mientras el turno anterior sigue ejecutándose
+   * arranca su propio turno con un historial al que le faltan las respuestas del otro:
+   * el cliente recibe varias respuestas de golpe, cada una contestando como si fuera la
+   * primera. Quien no obtiene la marca no toca el buffer; los mensajes siguen
+   * acumulándose y los procesa un solo turno cuando la conversación se libera.
+   *
+   * La marca es independiente del buffer (`…:busy:…` junto a `…:inbox:…`) y caduca sola.
+   * Si Redis falla se sigue sin marca: es exactamente el comportamiento anterior a
+   * tenerla, y no vale la pena dejar sin respuesta al cliente por ella.
+   */
+  async acquireTurn(
+    organizationId: string,
+    accountId: string,
+    senderId: string,
+  ): Promise<ChannelTurn> {
+    if (!this.redisUrl) {
+      return { acquired: true, token: null };
+    }
+
+    const key = this.getTurnKey(organizationId, accountId, senderId);
+    const token = randomUUID();
+
+    try {
+      const result = await this.redisCommand([
+        'SET',
+        key,
+        token,
+        'NX',
+        'EX',
+        String(TURN_LOCK_TTL_SECONDS),
+      ]);
+      // `SET NX` responde "OK" si creó la clave y null si ya existía.
+      return result === 'OK' ? { acquired: true, token } : { acquired: false, token: null };
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo tomar el turno de ${key}, se sigue sin marca: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return { acquired: true, token: null };
+    }
+  }
+
+  /**
+   * Libera el turno. Nunca lanza: si falla, la marca caduca sola y un error aquí no debe
+   * tapar el resultado del turno.
+   */
+  async releaseTurn(
+    organizationId: string,
+    accountId: string,
+    senderId: string,
+    token: string | null,
+  ): Promise<void> {
+    if (!token || !this.redisUrl) {
+      return;
+    }
+
+    const key = this.getTurnKey(organizationId, accountId, senderId);
+
+    try {
+      await this.redisCommand(['EVAL', RELEASE_TURN_SCRIPT, '1', key, token]);
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo soltar el turno de ${key}; caducará en ${TURN_LOCK_TTL_SECONDS}s: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  /**
    * Identificador de la ventana. Todos los mensajes que caen en el mismo tramo de
    * `windowSeconds` comparten valor, así que generan el mismo nombre de tarea y
    * Cloud Tasks se queda solo con la primera. Eso reemplaza al lock.
@@ -152,6 +258,10 @@ export abstract class ChannelMessageQueueService<TEvent> {
     senderId: string,
   ): string {
     return `${this.keyPrefix}:inbox:${organizationId}:${accountId}:${senderId}`;
+  }
+
+  private getTurnKey(organizationId: string, accountId: string, senderId: string): string {
+    return `${this.keyPrefix}:busy:${organizationId}:${accountId}:${senderId}`;
   }
 
   /**
