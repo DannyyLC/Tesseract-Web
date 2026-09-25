@@ -1,4 +1,3 @@
-import { HttpService } from '@nestjs/axios';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   ChatRole,
@@ -8,7 +7,6 @@ import {
 } from '@tesseract/database';
 import * as crypto from 'crypto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { firstValueFrom } from 'rxjs';
 import { Logger } from 'winston';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
@@ -22,18 +20,22 @@ import {
   PostTurnActionHandler,
   runPostTurnActions,
 } from '@/messaging/post-turn-actions';
-
-const YCLOUD_API_BASE = process.env.YCLOUD_API_BASE ?? 'https://api.ycloud.com/v2';
+import { WBTransporterResolver } from './transporters/wb-transporter.resolver';
+import {
+  IWBTransporter,
+  WBFile,
+  WBSender,
+  WBTemplateVariables,
+} from './transporters/wb-transporter.interface';
 
 /** Ventana de tolerancia para el timestamp de la firma de webhooks (5 minutos). */
 const WEBHOOK_SIGNATURE_TOLERANCE_SECONDS = 300;
 
 @Injectable()
 export class WhatsappConfigService {
-  private readonly yCloudApiKey: string = process.env.Y_CLOUD_API_KEY || '';
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly httpService: HttpService,
+    private readonly transporterResolver: WBTransporterResolver,
     private readonly driveService: GoogleDriveService,
     private readonly conversationsService: ConversationsService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
@@ -301,6 +303,57 @@ export class WhatsappConfigService {
   }
 
   /**
+   * Resuelve el challenge de suscripción del webhook de la Cloud API de Meta (GET).
+   *
+   * Meta lo llama al dar de alta el endpoint y cada vez que se reconfigura. El token es
+   * el que se captura en el panel de la app de Meta y vive en `META_WHATSAPP_VERIFY_TOKEN`.
+   * La comparación es en tiempo constante para no filtrar el token por temporización.
+   */
+  verifySubscription(mode: string, token: string): boolean {
+    const verifyToken = process.env.META_WHATSAPP_VERIFY_TOKEN ?? 'Fr4cT4L-010126';
+    if (!verifyToken) {
+      this.logger.error('META_WHATSAPP_VERIFY_TOKEN no está configurado');
+      return false;
+    }
+
+    if (mode !== 'subscribe' || !token) return false;
+
+    // timingSafeEqual exige buffers de igual longitud.
+    const received = Buffer.from(token, 'utf8');
+    const expected = Buffer.from(verifyToken, 'utf8');
+    if (received.length !== expected.length) return false;
+
+    return crypto.timingSafeEqual(received, expected);
+  }
+
+  /**
+   * Verifica el `x-hub-signature-256` de un webhook de la Cloud API de Meta: `sha256=` más
+   * el HMAC del body crudo con el app secret (`META_WHATSAPP_APP_SECRET`).
+   *
+   * No hay timestamp, así que no se acota la frescura; el replay lo cierra la deduplicación
+   * por `wamid`. Tiene que ser el body crudo: Meta escapa los no-ASCII a su manera y
+   * `JSON.stringify(body)` no reproduce esos bytes.
+   */
+  verifyMetaSignature(rawBody: Buffer, signatureHeader: string): boolean {
+    const secret = process.env.META_WHATSAPP_APP_SECRET ?? '6515e815e54febf22701dfb043b9f6ef';
+    if (!secret) {
+      this.logger.error('');
+      return false;
+    }
+
+    const [algorithm, signature] = (signatureHeader || '').split('=');
+    if (algorithm !== 'sha256' || !signature) return false;
+
+    const expectedSignature = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+
+    const received = Buffer.from(signature, 'utf8');
+    const expected = Buffer.from(expectedSignature, 'utf8');
+    if (received.length !== expected.length) return false;
+
+    return crypto.timingSafeEqual(received, expected);
+  }
+
+  /**
    * Verifica la firma HMAC de un webhook de YCloud.
    *
    * El header viene con formato `t=<unix>,v1=<hmac_hex>` y se firma
@@ -367,18 +420,8 @@ export class WhatsappConfigService {
   // ─── Outbound messaging ───────────────────────────────────────────────
 
   async sendTextMessage(from: string, to: string, message: string): Promise<void> {
-    await firstValueFrom(
-      this.httpService.post(
-        `${YCLOUD_API_BASE}/whatsapp/messages/sendDirectly`,
-        {
-          from,
-          to,
-          type: 'text',
-          text: { body: await this.sanitizeOutput(message), preview_url: false },
-        },
-        { headers: { 'X-API-Key': this.yCloudApiKey, 'Content-Type': 'application/json' } },
-      ),
-    );
+    const { transporter, sender } = await this.resolveTransporter(from);
+    await transporter.sendTxtMessage(sender, to, await this.sanitizeOutput(message));
   }
 
   /**
@@ -393,51 +436,24 @@ export class WhatsappConfigService {
     to: string,
     templateName: string,
     language: string,
-    variables: { body?: string[]; header?: string[]; buttons?: string[] },
+    variables: WBTemplateVariables,
   ): Promise<void> {
-    const components: object[] = [];
+    const { transporter, sender } = await this.resolveTransporter(from);
+    await transporter.sendTemplate(sender, to, { name: templateName, language, variables });
+  }
 
-    if (variables.header?.length) {
-      components.push({
-        type: 'header',
-        parameters: variables.header.map((text) => ({ type: 'text', text })),
-      });
+  /** El proveedor sale de la config del número remitente (`WhatsAppConfig.provider`). */
+  private async resolveTransporter(
+    from: string,
+  ): Promise<{ transporter: IWBTransporter; sender: WBSender }> {
+    const config = await this.getWhatsappConfigByPhoneNumber(from);
+    if (!config) {
+      throw new Error(`No hay WhatsAppConfig para el remitente ${maskPhone(from)}`);
     }
-
-    if (variables.body?.length) {
-      components.push({
-        type: 'body',
-        parameters: variables.body.map((text) => ({ type: 'text', text })),
-      });
-    }
-
-    if (variables.buttons?.length) {
-      variables.buttons.forEach((payload, index) => {
-        components.push({
-          type: 'button',
-          sub_type: 'quick_reply',
-          index,
-          parameters: [{ type: 'payload', payload }],
-        });
-      });
-    }
-
-    await firstValueFrom(
-      this.httpService.post(
-        `${YCLOUD_API_BASE}/whatsapp/messages/sendDirectly`,
-        {
-          from,
-          to,
-          type: 'template',
-          template: {
-            name: templateName,
-            language: { code: language, policy: 'deterministic' },
-            components,
-          },
-        },
-        { headers: { 'X-API-Key': this.yCloudApiKey, 'Content-Type': 'application/json' } },
-      ),
-    );
+    return {
+      transporter: this.transporterResolver.forProvider(config.provider),
+      sender: { configId: config.id, phoneNumber: from, sessionData: config.sessionData },
+    };
   }
 
   // ─── Template CRUD ────────────────────────────────────────────────────
@@ -708,49 +724,19 @@ export class WhatsappConfigService {
     
     this.logger.info(`Procesando ${files.length} archivos para el cliente.`);
 
-    // 2. Recorrer y enviar secuencialmente (evita saturar la API)
+    // 2. Descartar formatos no soportados y enviar el resto
+    const sendable: WBFile[] = [];
     for (const file of files) {
       if (file.type === 'unknown') {
         this.logger.warn(`Archivo ignorado por formato no soportado: ${file.name} (${file.mimeType})`);
         continue;
       }
-
-      try {
-        this.logger.info(`Enviando ${file.type}: ${file.name}...`);
-        // yCloud usa `link` (no `url`). WhatsApp exige `filename` para documentos.
-        const media =
-          file.type === 'document'
-            ? { link: file.downloadUrl, filename: file.name }
-            : { link: file.downloadUrl };
-
-        await firstValueFrom(
-          this.httpService.post(
-            `${YCLOUD_API_BASE}/whatsapp/messages/sendDirectly`,
-            {
-              from: fromPhoneNumber,
-              to: toPhoneNumber,
-              type: file.type,
-              [file.type]: media,
-            },
-            { headers: { 'X-API-Key': this.yCloudApiKey, 'Content-Type': 'application/json' } },
-          ),
-        );
-
-        this.logger.info(`Enviado con éxito: ${file.name}`);
-        
-        // Opcional: Pequeño delay de 500ms entre envíos para respetar límites de tasa (rate limiting)
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-      } catch (error: any) {
-        // El detalle real del rechazo de yCloud viene en la respuesta, no en el message.
-        const detail = error?.response?.data
-          ? JSON.stringify(error.response.data)
-          : error?.message;
-        this.logger.error(`Error enviando archivo ${file.name}: ${detail}`);
-        // Decisión arquitectónica: Continuar con el siguiente archivo aunque falle uno
-      }
+      sendable.push({ type: file.type, name: file.name, link: file.downloadUrl });
     }
-  } 
+
+    const { transporter, sender } = await this.resolveTransporter(fromPhoneNumber);
+    await transporter.sendFiles(sender, toPhoneNumber, sendable);
+  }
 
   async updateConnectionStatusByPhoneNumber(
     phoneNumber: string,

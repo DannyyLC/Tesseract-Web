@@ -24,9 +24,7 @@ describe('WhatsappConfigService', () => {
     },
   };
 
-  const mockHttpService: any = {
-    axiosRef: { post: jest.fn(), get: jest.fn() },
-  };
+  const mockTransporterResolver: any = { forProvider: jest.fn() };
 
   const mockLogger = { error: jest.fn(), warn: jest.fn(), info: jest.fn() } as any;
 
@@ -37,7 +35,7 @@ describe('WhatsappConfigService', () => {
     jest.clearAllMocks();
     service = new WhatsappConfigService(
       mockPrisma,
-      mockHttpService,
+      mockTransporterResolver,
       mockDriveService,
       mockConversationsService,
       mockLogger,
@@ -367,6 +365,31 @@ describe('WhatsappConfigService', () => {
       const res = await service.updateConnectionStatus('c1', 'DISCONNECTED');
       expect(res).toBe(false);
       expect(mockLogger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('verifySubscription', () => {
+    const origToken = process.env.META_WHATSAPP_VERIFY_TOKEN;
+    beforeEach(() => {
+      process.env.META_WHATSAPP_VERIFY_TOKEN = 'verify-me';
+    });
+    afterEach(() => {
+      process.env.META_WHATSAPP_VERIFY_TOKEN = origToken;
+    });
+
+    it('accepts the configured token', () => {
+      expect(service.verifySubscription('subscribe', 'verify-me')).toBe(true);
+    });
+
+    it('rejects a wrong token, a wrong mode and an empty token', () => {
+      expect(service.verifySubscription('subscribe', 'nope')).toBe(false);
+      expect(service.verifySubscription('unsubscribe', 'verify-me')).toBe(false);
+      expect(service.verifySubscription('subscribe', '')).toBe(false);
+    });
+
+    it('rejects everything when the token is not configured', () => {
+      process.env.META_WHATSAPP_VERIFY_TOKEN = '';
+      expect(service.verifySubscription('subscribe', '')).toBe(false);
     });
   });
 

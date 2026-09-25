@@ -13,11 +13,20 @@ import { CloudTasksModule } from '@/platform/tasks/cloud-tasks.module';
 import { WhatsappWorkerController } from './controllers/internal/whatsapp-worker.controller';
 import { WhatsappConfigAdminController } from './controllers/admin/whatsapp-config.admin.controller';
 import { EndUsersModule } from '@/identity/end-users/end-users.module';
+import { YCloudTransporter } from './transporters/ycloud.transporter';
+import { MetaTransporter } from './transporters/meta.transporter';
+import { WBTransporterResolver } from './transporters/wb-transporter.resolver';
 
 @Module({
   // `EndUsersModule` va por la lista negra: el webhook descarta lo que mande un contacto bloqueado.
   imports: [UtilityModule, HttpModule, WorkflowsModule, MediaProcessingModule, GoogleDriveModule, ConversationsModule, WebhookDedupModule, CloudTasksModule, EndUsersModule],
-  providers: [WhatsappConfigService, WhatsappMessageQueueService],
+  providers: [
+    WhatsappConfigService,
+    WhatsappMessageQueueService,
+    YCloudTransporter,
+    MetaTransporter,
+    WBTransporterResolver,
+  ],
   controllers: [WhatsappConfigController, WhatsappWorkerController, WhatsappConfigAdminController],
   exports: [WhatsappConfigService, WhatsappMessageQueueService],
 })

@@ -14,6 +14,7 @@ describe('WhatsappConfigController · webhook', () => {
 
   const mockWhatsappConfigService: any = {
     verifySignature: jest.fn(),
+    verifyMetaSignature: jest.fn(),
     getWhatsappConfigByPhoneNumber: jest.fn(),
     updateConnectionStatusByPhoneNumber: jest.fn(),
     updateConnectionErrorByPhoneNumber: jest.fn(),
@@ -81,6 +82,7 @@ describe('WhatsappConfigController · webhook', () => {
     );
 
     mockWhatsappConfigService.verifySignature.mockReturnValue(true);
+    mockWhatsappConfigService.verifyMetaSignature.mockReturnValue(true);
     mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
       id: 'wa-1',
       organizationId: 'org-1',
@@ -236,5 +238,110 @@ describe('WhatsappConfigController · webhook', () => {
     // La firma manda: un POST sin autenticar no debe poder sondear qué números están bloqueados.
     expect(mockEndUsersService.isBlocked).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+  });
+
+  describe('payload de la Cloud API de Meta', () => {
+    const metaMessage = (id: string) => ({
+      from: USER_NUMBER,
+      id,
+      timestamp: '1787000000',
+      type: 'text',
+      text: { body: 'hola' },
+    });
+    const metaBody = (...ids: string[]) => ({
+      object: 'whatsapp_business_account',
+      entry: [
+        {
+          id: 'waba-1',
+          changes: [
+            {
+              field: 'messages',
+              value: {
+                messaging_product: 'whatsapp',
+                metadata: { display_phone_number: PHONE_NUMBER, phone_number_id: 'pnid-1' },
+                contacts: [{ wa_id: USER_NUMBER, profile: { name: 'Ana' } }],
+                messages: ids.map(metaMessage),
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const createMetaResponse = () => {
+      const res = createMockResponse();
+      res.req = { rawBody: Buffer.from('{}') };
+      return res;
+    };
+
+    it('valida la firma de Meta y no la de YCloud', async () => {
+      const res = createMetaResponse();
+
+      await controller.handleWebhook(metaBody('wamid.A'), res, {
+        'x-hub-signature-256': 'sha256=abc',
+      });
+
+      expect(mockWhatsappConfigService.verifyMetaSignature).toHaveBeenCalledWith(
+        res.req.rawBody,
+        'sha256=abc',
+      );
+      expect(mockWhatsappConfigService.verifySignature).not.toHaveBeenCalled();
+    });
+
+    it('encola cada mensaje del lote con los números en E.164', async () => {
+      const res = createMetaResponse();
+
+      await controller.handleWebhook(metaBody('wamid.A', 'wamid.B'), res, {});
+
+      expect(mockWebhookDedup.claim).toHaveBeenCalledWith('meta-whatsapp', 'wamid.A', 'text');
+      expect(mockWebhookDedup.claim).toHaveBeenCalledWith('meta-whatsapp', 'wamid.B', 'text');
+      expect(mockWhatsappConfigService.getWhatsappConfigByPhoneNumber).toHaveBeenCalledWith(
+        `+${PHONE_NUMBER}`,
+      );
+      expect(mockQueueService.bufferMessage).toHaveBeenCalledTimes(2);
+      expect(mockQueueService.bufferMessage).toHaveBeenCalledWith(
+        'org-1',
+        `+${PHONE_NUMBER}`,
+        `+${USER_NUMBER}`,
+        expect.objectContaining({
+          messageId: 'wamid.A',
+          event: expect.objectContaining({
+            type: 'whatsapp.inbound_message.received',
+            whatsappInboundMessage: expect.objectContaining({ text: { body: 'hola' } }),
+          }),
+        }),
+      );
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+    });
+
+    it('rechaza con 401 sin tocar la base si la firma no es válida', async () => {
+      mockWhatsappConfigService.verifyMetaSignature.mockReturnValue(false);
+      const res = createMetaResponse();
+
+      await controller.handleWebhook(metaBody('wamid.A'), res, {});
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+      expect(mockWebhookDedup.claim).not.toHaveBeenCalled();
+      expect(mockWhatsappConfigService.updateConnectionStatusByPhoneNumber).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con 401 si no hay raw body para validar', async () => {
+      const res = createMockResponse();
+
+      await controller.handleWebhook(metaBody('wamid.A'), res, {});
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+      expect(mockWhatsappConfigService.verifyMetaSignature).not.toHaveBeenCalled();
+    });
+
+    it('contesta 500 al lote si un mensaje falla, para que Meta reintente', async () => {
+      mockCloudTasks.enqueue.mockRejectedValueOnce(new Error('tasks down'));
+      const res = createMetaResponse();
+
+      await controller.handleWebhook(metaBody('wamid.A', 'wamid.B'), res, {});
+
+      expect(mockQueueService.bufferMessage).toHaveBeenCalledTimes(2);
+      expect(mockWebhookDedup.release).toHaveBeenCalledWith('meta-whatsapp', 'wamid.A');
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    });
   });
 });
