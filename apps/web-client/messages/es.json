@@ -1768,7 +1768,9 @@
     "disconnectWorkflowBody": "\"{name}\" dejará de poder consultar este catálogo.",
     "disconnected": "\"{name}\" desconectado",
     "disconnectError": "No se pudo desconectar el workflow",
-    "disconnecting": "Desconectando…"
+    "disconnecting": "Desconectando…",
+    "expandRow": "Ver fila completa",
+    "collapseRow": "Cerrar fila"
   },
   "MessengerChannelEdit": {
     "title": "Editar canal de Messenger",

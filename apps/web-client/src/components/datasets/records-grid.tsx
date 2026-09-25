@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check, Plus, Sigma, X } from 'lucide-react';
+import { ChevronDown, Plus, Sigma } from 'lucide-react';
 import { DatasetField, DatasetRecordDto } from '@tesseract/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RecordsSelection } from './use-record-selection';
@@ -17,6 +17,12 @@ import { RecordsSelection } from './use-record-selection';
  *
  * Una columna con fórmula no se captura: se muestra su valor y ya. El cálculo ocurre en el Gateway
  * al guardar la fila, así que el valor nuevo aparece cuando la fila vuelve del servidor.
+ *
+ * Las celdas recortan el texto largo. Para leerlo completo, la flecha del final abre un panel
+ * debajo de la fila con cada columna en su propio renglón; solo una fila a la vez, como la vista
+ * de resultados de BigQuery. Editar una fila abre ese mismo panel y los editores viven ahí, con
+ * un `textarea` que crece para las columnas de texto: en un `input` de una línea había que
+ * recorrer el valor con el cursor para ver lo que se estaba escribiendo.
  *
  * El borrado no vive aquí. Se marcan filas con la casilla de la izquierda y se borran desde la
  * barra de la página, con confirmación: un botón de papelera por fila borraba al primer clic, sin
@@ -44,7 +50,7 @@ type RowDraft = Record<string, string>;
 /**
  * Ancho máximo de una celda de datos. Un valor largo se recorta con puntos suspensivos en vez de
  * estirar la columna: es lo que evita que la tabla se haga más ancha que su recuadro y aparezca
- * el scroll horizontal. El valor completo queda en el `title` y en el editor al abrir la fila.
+ * el scroll horizontal. El valor completo se lee en el panel que abre la flecha de la fila.
  */
 const CELL_MAX_WIDTH = 'max-w-[12rem]';
 
@@ -62,6 +68,42 @@ const toDraft = (fields: DatasetField[], record?: DatasetRecordDto): RowDraft =>
       ]),
   );
 
+const displayValue = (value: unknown): string =>
+  value != null && value !== '' ? String(value) : '—';
+
+/** `textarea` que crece con su contenido, para no tener que desplazarse dentro de él. */
+function AutoGrowTextarea({
+  value,
+  onChange,
+  className,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  className: string;
+  ariaLabel: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    element.style.height = 'auto';
+    element.style.height = `${element.scrollHeight}px`;
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      aria-label={ariaLabel}
+      className={`${className} resize-none overflow-hidden`}
+    />
+  );
+}
+
 export function RecordsGrid({
   fields,
   records,
@@ -77,18 +119,22 @@ export function RecordsGrid({
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const selectable = !!selection && !readOnly;
+  const columnCount = fields.length + (selectable ? 1 : 0) + (readOnly ? 0 : 1) + 1;
 
   const startEdit = (record: DatasetRecordDto) => {
     setCreating(false);
     setEditingId(record.id);
+    setExpandedId(record.id);
     setDraft(toDraft(fields, record));
     setError(null);
   };
 
   const startCreate = () => {
     setEditingId(null);
+    setExpandedId(null);
     setCreating(true);
     setDraft(toDraft(fields));
     setError(null);
@@ -124,7 +170,7 @@ export function RecordsGrid({
     const value = draft[field.key] ?? '';
     const onChange = (next: string) => setDraft((current) => ({ ...current, [field.key]: next }));
     const className =
-      'w-full min-w-[8rem] rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text-primary outline-none focus:border-accent';
+      'w-full rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text-primary outline-none focus:border-accent';
 
     // Una columna calculada no se edita: se muestra lo que hay y el valor nuevo aparece al guardar.
     if (field.formula) {
@@ -145,6 +191,7 @@ export function RecordsGrid({
         <select
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          aria-label={field.label}
           className={className}
         >
           <option value="">—</option>
@@ -157,17 +204,84 @@ export function RecordsGrid({
       );
     }
 
+    if (field.type === 'text') {
+      return (
+        <AutoGrowTextarea
+          value={value}
+          onChange={onChange}
+          ariaLabel={field.label}
+          className={className}
+        />
+      );
+    }
+
     return (
       <input
-        type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+        type={field.type === 'number' ? 'number' : 'date'}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        aria-label={field.label}
         className={className}
       />
     );
   };
 
   const isEditingRow = (id: string) => editingId === id;
+
+  // Guardar y cancelar viven solo al pie del panel: repetirlos en la fila daba dos formas de
+  // hacer lo mismo.
+  const saveCancelButtons = (
+    <div className="flex justify-end gap-2">
+      <button
+        onClick={cancel}
+        className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-[var(--surface-tint)]"
+      >
+        {t('cancel')}
+      </button>
+      <button
+        onClick={save}
+        disabled={saving}
+        className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-text-inverse disabled:opacity-50"
+      >
+        {t('save')}
+      </button>
+    </div>
+  );
+
+  /**
+   * Panel a todo lo ancho bajo la fila: una columna por renglón, con el valor completo. Al
+   * editar, cada renglón lleva su editor en lugar del valor.
+   */
+  const renderPanel = (editing: boolean, record?: DatasetRecordDto) => (
+    <td colSpan={columnCount} className="px-4 pb-4 pt-1">
+      <dl className="grid gap-x-6 gap-y-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-[minmax(8rem,14rem)_1fr]">
+        {fields.map((field) => (
+          <div key={field.key} className="contents">
+            <dt className="flex items-center gap-1 pt-1 text-xs font-medium text-text-secondary">
+              {field.label}
+              {field.formula && (
+                <Sigma
+                  size={12}
+                  className="text-text-tertiary"
+                  aria-label={t('formulaCalculated')}
+                />
+              )}
+            </dt>
+            <dd className="min-w-0 text-sm text-text-primary">
+              {editing ? (
+                renderEditor(field, record)
+              ) : (
+                <span className="block whitespace-pre-wrap break-words pt-1">
+                  {displayValue(record?.data?.[field.key])}
+                </span>
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {editing && <div className="mt-3">{saveCancelButtons}</div>}
+    </td>
+  );
 
   return (
     <div className="space-y-3">
@@ -214,114 +328,97 @@ export function RecordsGrid({
                 </th>
               ))}
               {!readOnly && <th className="w-px whitespace-nowrap px-4 py-3" />}
+              <th className="w-px px-2 py-3" />
             </tr>
           </thead>
 
           <tbody>
-            {records.map((record) => (
-              <tr key={record.id} className="border-t border-border">
-                {selectable && (
-                  <td className="w-px px-4 py-2 align-middle">
-                    <Checkbox
-                      checked={selection.selectedIds.has(record.id)}
-                      onChange={() => selection.toggle(record.id)}
-                      // La fila abierta en el editor tiene cambios sin guardar: marcarla para
-                      // borrarla en lote es pedir dos cosas contradictorias a la vez.
-                      disabled={isEditingRow(record.id)}
-                      aria-label={t('selectRow')}
-                    />
-                  </td>
-                )}
+            {records.map((record) => {
+              const editing = isEditingRow(record.id);
+              const expanded = expandedId === record.id;
 
-                {fields.map((field) => {
-                  const value =
-                    record.data?.[field.key] != null && record.data[field.key] !== ''
-                      ? String(record.data[field.key])
-                      : '—';
-
-                  return (
-                    <td key={field.key} className="px-4 py-2 align-middle text-text-primary">
-                      {isEditingRow(record.id) ? (
-                        renderEditor(field, record)
-                      ) : (
-                        <span className={`block truncate ${CELL_MAX_WIDTH}`} title={value}>
-                          {value}
-                        </span>
-                      )}
-                    </td>
-                  );
-                })}
-
-                {!readOnly && (
-                  <td className="w-px whitespace-nowrap px-4 py-2 align-middle">
-                    {isEditingRow(record.id) ? (
-                      <div className="flex gap-1">
-                        <button
-                          onClick={save}
-                          disabled={saving}
-                          className="rounded-lg p-1.5 text-success-600 hover:bg-[var(--success-tint-hover)] disabled:opacity-50"
-                          aria-label={t('save')}
-                        >
-                          <Check size={16} />
-                        </button>
-                        <button
-                          onClick={cancel}
-                          className="rounded-lg p-1.5 text-text-tertiary hover:bg-[var(--surface-tint)]"
-                          aria-label={t('cancel')}
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => startEdit(record)}
-                        className="rounded-lg px-2 py-1 text-xs font-medium text-text-secondary hover:bg-[var(--surface-tint)]"
-                      >
-                        {t('edit')}
-                      </button>
+              return (
+                <Fragment key={record.id}>
+                  <tr
+                    className={`border-t border-border ${expanded ? 'bg-[var(--surface-tint)]' : ''}`}
+                  >
+                    {selectable && (
+                      <td className="w-px px-4 py-2 align-middle">
+                        <Checkbox
+                          checked={selection.selectedIds.has(record.id)}
+                          onChange={() => selection.toggle(record.id)}
+                          // La fila abierta en el editor tiene cambios sin guardar: marcarla para
+                          // borrarla en lote es pedir dos cosas contradictorias a la vez.
+                          disabled={isEditingRow(record.id)}
+                          aria-label={t('selectRow')}
+                        />
+                      </td>
                     )}
-                  </td>
-                )}
-              </tr>
-            ))}
+
+                    {fields.map((field) => {
+                      // Mientras se edita, la fila refleja el borrador y los editores están en el
+                      // panel de abajo. Las calculadas no están en el borrador: se queda lo guardado.
+                      const value = displayValue(
+                        editing && !field.formula ? draft[field.key] : record.data?.[field.key],
+                      );
+
+                      return (
+                        <td key={field.key} className="px-4 py-2 align-middle text-text-primary">
+                          <span className={`block truncate ${CELL_MAX_WIDTH}`} title={value}>
+                            {value}
+                          </span>
+                        </td>
+                      );
+                    })}
+
+                    {!readOnly && (
+                      <td className="w-px whitespace-nowrap px-4 py-2 align-middle">
+                        {!editing && (
+                          <button
+                            onClick={() => startEdit(record)}
+                            className="rounded-lg px-2 py-1 text-xs font-medium text-text-secondary hover:bg-[var(--surface-tint)]"
+                          >
+                            {t('edit')}
+                          </button>
+                        )}
+                      </td>
+                    )}
+
+                    <td className="w-px px-2 py-2 align-middle">
+                      <button
+                        onClick={() => setExpandedId(expanded ? null : record.id)}
+                        // Mientras hay una fila en edición su panel se queda abierto: cerrarlo o abrir
+                        // otro escondería los editores con cambios sin guardar.
+                        disabled={editingId !== null}
+                        aria-expanded={expanded}
+                        aria-label={expanded ? t('collapseRow') : t('expandRow')}
+                        className="rounded-lg p-1.5 text-text-tertiary hover:bg-[var(--surface-tint)] disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <ChevronDown
+                          size={16}
+                          className={`transition-transform ${expanded ? 'rotate-180' : ''}`}
+                        />
+                      </button>
+                    </td>
+                  </tr>
+
+                  {expanded && (
+                    <tr className="bg-[var(--surface-tint)]">{renderPanel(editing, record)}</tr>
+                  )}
+                </Fragment>
+              );
+            })}
 
             {creating && (
               <tr className="border-t border-border bg-[var(--surface-tint)]">
-                {/* Sin esta celda líder la fila nueva sale corrida una columna respecto al
-                    encabezado y los editores no caen bajo su propia columna. */}
-                {selectable && <td className="w-px px-4 py-2" />}
-
-                {fields.map((field) => (
-                  <td key={field.key} className="px-4 py-2">
-                    {renderEditor(field)}
-                  </td>
-                ))}
-                <td className="w-px whitespace-nowrap px-4 py-2 align-middle">
-                  <div className="flex gap-1">
-                    <button
-                      onClick={save}
-                      disabled={saving}
-                      className="rounded-lg p-1.5 text-success-600 hover:bg-[var(--success-tint-hover)] disabled:opacity-50"
-                      aria-label={t('save')}
-                    >
-                      <Check size={16} />
-                    </button>
-                    <button
-                      onClick={cancel}
-                      className="rounded-lg p-1.5 text-text-tertiary hover:bg-[var(--surface-tint)]"
-                      aria-label={t('cancel')}
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                </td>
+                {renderPanel(true)}
               </tr>
             )}
 
             {records.length === 0 && !creating && (
               <tr>
                 <td
-                  colSpan={fields.length + (selectable ? 1 : 0) + (readOnly ? 0 : 1)}
+                  colSpan={columnCount}
                   className="px-4 py-10 text-center text-sm text-text-tertiary"
                 >
                   {t('noRecords')}

@@ -1768,7 +1768,9 @@
     "disconnectWorkflowBody": "\"{name}\" will no longer be able to query this catalog.",
     "disconnected": "\"{name}\" disconnected",
     "disconnectError": "Could not disconnect the workflow",
-    "disconnecting": "Disconnecting…"
+    "disconnecting": "Disconnecting…",
+    "expandRow": "Show full row",
+    "collapseRow": "Collapse row"
   },
   "MessengerChannelEdit": {
     "title": "Edit Messenger channel",
