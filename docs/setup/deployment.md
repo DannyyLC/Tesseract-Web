@@ -40,9 +40,10 @@ servicio**, no la de quien desplegó.
 | Servicio | Service account |
 | --- | --- |
 | Cloud Run `gateway` | `tesseract-gateway-sa@fractal-tesseract.iam.gserviceaccount.com` |
+| Cloud Run `agents` | `tesseract-agents-sa@fractal-tesseract.iam.gserviceaccount.com` |
 
-Se fija con `--service-account` en `gcloud run deploy`. Hoy **no** está en `cloudbuild.yaml`: se
-configuró a mano en el servicio y Cloud Run la conserva entre despliegues. Confirmar antes de
+Se fija con `--service-account` en `gcloud run deploy`. Hoy **no** está en `cloudbuild.yaml` para
+ninguno de los dos: se configuró a mano en cada servicio y Cloud Run la conserva entre despliegues. Confirmar antes de
 concederle permisos nuevos, porque un servicio sin esa bandera cae en la cuenta por defecto de
 Compute y el permiso terminaría en la identidad equivocada:
 
