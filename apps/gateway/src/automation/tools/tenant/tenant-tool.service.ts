@@ -57,12 +57,14 @@ export class TenantToolService {
   ) {}
 
   /** Quita del payload lo que solo servía para calcular la salud. */
-  private toDashboardDto(tool: any, locale: SupportedLocale = DEFAULT_LOCALE): DashboardTenantToolDto {
+  private toDashboardDto(
+    tool: any,
+    locale: SupportedLocale = DEFAULT_LOCALE,
+  ): DashboardTenantToolDto {
     const { credential, toolCatalog, ...rest } = tool;
     const { functions: rawFunctions = [], displayNameEn, ...catalogRest } = toolCatalog ?? {};
     // Inglés opcional: si falta (NULL) se conserva el texto base en español.
-    const pick = (en: string | null | undefined, es: string) =>
-      locale === 'en' && en ? en : es;
+    const pick = (en: string | null | undefined, es: string) => (locale === 'en' && en ? en : es);
     const catalog = { ...catalogRest, displayName: pick(displayNameEn, catalogRest.displayName) };
     const functions = rawFunctions.map(({ displayNameEn: fnEn, ...fn }: any) => ({
       ...fn,
@@ -182,11 +184,12 @@ export class TenantToolService {
 
   async getTenantToolById(
     id: string,
+    organizationId: string,
     locale: SupportedLocale = DEFAULT_LOCALE,
   ): Promise<DashboardTenantToolDto | null> {
     try {
-      const tenantTool = await this.prismaService.tenantTool.findUnique({
-        where: { id },
+      const tenantTool = await this.prismaService.tenantTool.findFirst({
+        where: { id, organizationId },
         select: {
           id: true,
           displayName: true,
@@ -233,6 +236,10 @@ export class TenantToolService {
 
       if (activeToolWithSameName) {
         throw new ConflictException('Ya existe una herramienta activa con ese nombre.');
+      }
+
+      if (data.workflowId) {
+        await this.assertWorkflowsBelongToOrg([data.workflowId], organizationId);
       }
 
       // Determine if it should be connected immediately
@@ -323,6 +330,8 @@ export class TenantToolService {
       throw new ForbiddenException('No tienes permisos para modificar esta herramienta');
     }
 
+    await this.assertWorkflowsBelongToOrg(workflowIds, orgId);
+
     try {
       return await this.prismaService.tenantTool.update({
         where: { id: tenantToolId },
@@ -358,6 +367,8 @@ export class TenantToolService {
     if (tool.createdByUserId && tool.createdByUserId !== userId && role !== UserRole.OWNER) {
       throw new ForbiddenException('No tienes permisos para modificar esta herramienta');
     }
+
+    await this.assertWorkflowsBelongToOrg(workflowIds, orgId);
 
     try {
       return await this.prismaService.tenantTool.update({
@@ -531,7 +542,6 @@ export class TenantToolService {
     }
   }
 
-
   /**
    * Executes a strict Hard-Delete on the OAuth credentials and a Soft-Delete on the tool instance.
    */
@@ -607,5 +617,19 @@ export class TenantToolService {
         },
       });
     });
+  }
+
+  /**
+   * Los ids de workflow llegan en el body. La tool ya está acotada a la organización, pero
+   * sin esto se podía colgar de un workflow ajeno (y aparecer en su ejecución).
+   */
+  private async assertWorkflowsBelongToOrg(workflowIds: string[], organizationId: string) {
+    const uniqueIds = [...new Set(workflowIds)];
+    const count = await this.prismaService.workflow.count({
+      where: { id: { in: uniqueIds }, organizationId },
+    });
+    if (count !== uniqueIds.length) {
+      throw new NotFoundException('One or more workflows do not belong to this organization');
+    }
   }
 }

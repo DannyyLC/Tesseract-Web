@@ -1240,6 +1240,8 @@ export class OrganizationsService {
     const modifiedRecords = await this.prisma.userVerification.updateMany({
       where: {
         email: userEmail,
+        organizationName: organizationId,
+        isFromInvitation: true,
       },
       data: {
         verificationCode: emailSentInfo.verificationCode,
@@ -1268,9 +1270,12 @@ export class OrganizationsService {
     userEmail: string,
     organizationId: string,
   ): Promise<{ success: boolean; error?: string }> {
+    // `organizationName` guarda el id de la organización que invitó. Sin él, cualquier
+    // OWNER/ADMIN podía cancelar la invitación pendiente de otro tenant con solo el email.
     const deletedRecords = await this.prisma.userVerification.deleteMany({
       where: {
         email: userEmail,
+        organizationName: organizationId,
         isFromInvitation: true,
       },
     });

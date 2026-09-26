@@ -14,12 +14,14 @@ import {
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ChatRole, WhatsAppConfig, WhatsAppTemplate } from '@tesseract/database';
-import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
+import { ApiResponse, ApiResponseBuilder, UserRole } from '@tesseract/types';
 import { Response } from 'express';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '@/identity/auth/guards/roles.guard';
+import { Roles } from '@/identity/auth/decorators/roles.decorator';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { maskPhone } from '@/platform/common/utils/mask-phone';
 import { WhatsappConfigService } from '../../whatsapp-config.service';
@@ -416,7 +418,8 @@ export class WhatsappConfigController {
   // ─── Config CRUD ──────────────────────────────────────────────────────
 
   @Post('create-config')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async createConfig(
     @CurrentUser() currUser: UserPayload,
     @Body() body: CreateConfigDto,
@@ -472,13 +475,17 @@ export class WhatsappConfigController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async deleteConfig(
-    @CurrentUser() _currUser: UserPayload,
+    @CurrentUser() currUser: UserPayload,
     @Param('id') id: string,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
+    if (!(await this.findOwnedConfig(currUser.organizationId, id))) {
+      return this.configNotFound(res);
+    }
     const deleted = await this.whatsappConfigService.deleteRecord(id);
     if (deleted) {
       apiResponse
@@ -496,7 +503,8 @@ export class WhatsappConfigController {
   }
 
   @Get('list/:workflowId')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async listConfigsByOrgAndWorkflow(
     @CurrentUser() currUser: UserPayload,
     @Param('workflowId') workflowId: string,
@@ -516,7 +524,8 @@ export class WhatsappConfigController {
 
   /** Edita los datos de un número desde la pantalla de configuración del canal. */
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async updateConfig(
     @CurrentUser() currUser: UserPayload,
     @Param('id') id: string,
@@ -525,15 +534,8 @@ export class WhatsappConfigController {
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
 
-    // El id viene de la URL, así que hay que comprobar que la fila es de la
-    // organización de quien llama antes de escribir en ella.
-    const config = await this.whatsappConfigService.getWhatsappConfigById(id);
-    if (!config || config.organizationId !== currUser.organizationId) {
-      apiResponse
-        .setStatusCode(HttpStatus.NOT_FOUND)
-        .setData(false)
-        .setMessage('WhatsApp config not found');
-      return res.status(HttpStatus.NOT_FOUND).json(apiResponse.build());
+    if (!(await this.findOwnedConfig(currUser.organizationId, id))) {
+      return this.configNotFound(res);
     }
 
     // Reasignar a un workflow ajeno no debería ser posible ni por error: se valida
@@ -568,7 +570,8 @@ export class WhatsappConfigController {
   }
 
   @Patch(':id/isActive')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async setIsActive(
     @CurrentUser() currUser: UserPayload,
     @Param('id') id: string,
@@ -576,6 +579,9 @@ export class WhatsappConfigController {
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
+    if (!(await this.findOwnedConfig(currUser.organizationId, id))) {
+      return this.configNotFound(res);
+    }
     const success = await this.whatsappConfigService.updateIsActive(id, isActive);
     if (success) {
       apiResponse
@@ -595,12 +601,17 @@ export class WhatsappConfigController {
   // ─── Templates ────────────────────────────────────────────────────────
 
   @Post(':configId/templates')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async createTemplate(
+    @CurrentUser() currUser: UserPayload,
     @Param('configId') configId: string,
     @Body() body: CreateTemplateDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<WhatsAppTemplate>>> {
+    if (!(await this.findOwnedConfig(currUser.organizationId, configId))) {
+      return this.configNotFound(res);
+    }
     const apiResponse = new ApiResponseBuilder<WhatsAppTemplate>();
     const template = await this.whatsappConfigService.createTemplate(configId, body);
     apiResponse.setStatusCode(HttpStatus.CREATED).setData(template).setMessage('Template created');
@@ -608,11 +619,16 @@ export class WhatsappConfigController {
   }
 
   @Get(':configId/templates')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async listTemplates(
+    @CurrentUser() currUser: UserPayload,
     @Param('configId') configId: string,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<WhatsAppTemplate[]>>> {
+    if (!(await this.findOwnedConfig(currUser.organizationId, configId))) {
+      return this.configNotFound(res);
+    }
     const apiResponse = new ApiResponseBuilder<WhatsAppTemplate[]>();
     const templates = await this.whatsappConfigService.listTemplates(configId);
     apiResponse.setStatusCode(HttpStatus.OK).setData(templates).setMessage('Templates retrieved');
@@ -620,12 +636,17 @@ export class WhatsappConfigController {
   }
 
   @Patch('templates/:templateId')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async updateTemplate(
+    @CurrentUser() currUser: UserPayload,
     @Param('templateId') templateId: string,
     @Body() body: UpdateTemplateDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<WhatsAppTemplate>>> {
+    if (!(await this.findOwnedTemplate(currUser.organizationId, templateId))) {
+      return this.templateNotFound(res);
+    }
     const apiResponse = new ApiResponseBuilder<WhatsAppTemplate>();
     const template = await this.whatsappConfigService.updateTemplate(templateId, body);
     apiResponse.setStatusCode(HttpStatus.OK).setData(template).setMessage('Template updated');
@@ -633,12 +654,16 @@ export class WhatsappConfigController {
   }
 
   @Delete('templates/:templateId')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async deleteTemplate(
-    @CurrentUser() _currUser: UserPayload,
+    @CurrentUser() currUser: UserPayload,
     @Param('templateId') templateId: string,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
+    if (!(await this.findOwnedTemplate(currUser.organizationId, templateId))) {
+      return this.templateNotFound(res);
+    }
     const apiResponse = new ApiResponseBuilder<boolean>();
     const deleted = await this.whatsappConfigService.deleteTemplate(templateId);
     if (deleted) {
@@ -653,32 +678,19 @@ export class WhatsappConfigController {
   }
 
   @Post('templates/:templateId/send')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async sendTemplate(
+    @CurrentUser() currUser: UserPayload,
     @Param('templateId') templateId: string,
     @Body() body: SendTemplateDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
-    const apiResponse = new ApiResponseBuilder<boolean>();
-    const template = await this.whatsappConfigService.getTemplate(templateId);
-    if (!template) {
-      apiResponse
-        .setStatusCode(HttpStatus.NOT_FOUND)
-        .setData(false)
-        .setMessage('Template not found');
-      return res.status(HttpStatus.NOT_FOUND).json(apiResponse.build());
+    const owned = await this.findOwnedTemplate(currUser.organizationId, templateId);
+    if (!owned) {
+      return this.templateNotFound(res);
     }
-
-    const config = await this.whatsappConfigService.getWhatsappConfigById(
-      template.whatsAppConfigId,
-    );
-    if (!config) {
-      apiResponse
-        .setStatusCode(HttpStatus.NOT_FOUND)
-        .setData(false)
-        .setMessage('WhatsApp config not found');
-      return res.status(HttpStatus.NOT_FOUND).json(apiResponse.build());
-    }
+    const { template, config } = owned;
 
     await this.whatsappConfigService.sendTemplateMessage(
       config.phoneNumber,
@@ -688,8 +700,50 @@ export class WhatsappConfigController {
       body.variables,
     );
 
+    const apiResponse = new ApiResponseBuilder<boolean>();
     apiResponse.setStatusCode(HttpStatus.OK).setData(true).setMessage('Template message sent');
     return res.status(HttpStatus.OK).json(apiResponse.build());
   }
 
+  // ─── Propiedad por organización ───────────────────────────────────────
+
+  /**
+   * Los ids de config y template llegan en la URL, así que ninguna ruta debe tocar la fila
+   * sin antes confirmar que es de la organización de quien llama. Una fila ajena se contesta
+   * igual que una inexistente (404), para no confirmar que el id existe.
+   */
+  private async findOwnedConfig(
+    organizationId: string,
+    configId: string,
+  ): Promise<WhatsAppConfig | null> {
+    const config = await this.whatsappConfigService.getWhatsappConfigById(configId);
+    return config && config.organizationId === organizationId ? config : null;
+  }
+
+  /** Un template no guarda la organización: se resuelve a través de su número. */
+  private async findOwnedTemplate(
+    organizationId: string,
+    templateId: string,
+  ): Promise<{ template: WhatsAppTemplate; config: WhatsAppConfig } | null> {
+    const template = await this.whatsappConfigService.getTemplate(templateId);
+    if (!template) return null;
+    const config = await this.findOwnedConfig(organizationId, template.whatsAppConfigId);
+    return config ? { template, config } : null;
+  }
+
+  private configNotFound(res: Response): Response {
+    const apiResponse = new ApiResponseBuilder<boolean>()
+      .setStatusCode(HttpStatus.NOT_FOUND)
+      .setData(false)
+      .setMessage('WhatsApp config not found');
+    return res.status(HttpStatus.NOT_FOUND).json(apiResponse.build());
+  }
+
+  private templateNotFound(res: Response): Response {
+    const apiResponse = new ApiResponseBuilder<boolean>()
+      .setStatusCode(HttpStatus.NOT_FOUND)
+      .setData(false)
+      .setMessage('Template not found');
+    return res.status(HttpStatus.NOT_FOUND).json(apiResponse.build());
+  }
 }

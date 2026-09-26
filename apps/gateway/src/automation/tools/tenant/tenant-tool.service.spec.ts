@@ -22,7 +22,7 @@ describe('TenantToolService', () => {
     },
     toolCatalog: { findUnique: jest.fn(), findFirst: jest.fn() },
     whatsAppConfig: { count: jest.fn(), findMany: jest.fn(), findFirst: jest.fn() },
-    workflow: { findMany: jest.fn() },
+    workflow: { findMany: jest.fn(), count: jest.fn() },
     tenantToolCredential: { deleteMany: jest.fn() },
     $transaction: jest.fn(),
   };
@@ -139,10 +139,11 @@ describe('TenantToolService', () => {
           functions: [{ functionName: 'create_event', oauthScopes: ['calendar.events'] }],
         },
       };
-      mockPrismaService.tenantTool.findUnique.mockResolvedValue(tool);
-      const res = await service.getTenantToolById('tt-1');
-      expect(mockPrismaService.tenantTool.findUnique).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 'tt-1' } }),
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue(tool);
+      const res = await service.getTenantToolById('tt-1', 'org-1');
+      // Acotada a la organización de quien pregunta: una tool ajena se ve como inexistente.
+      expect(mockPrismaService.tenantTool.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'tt-1', organizationId: 'org-1' } }),
       );
       // Ni las credenciales ni los scopes del catálogo deben salir al front.
       expect(res).toEqual({
@@ -154,8 +155,8 @@ describe('TenantToolService', () => {
     });
 
     it('logs and returns null when prisma throws', async () => {
-      mockPrismaService.tenantTool.findUnique.mockRejectedValue(new Error('boom'));
-      const res = await service.getTenantToolById('tt-2');
+      mockPrismaService.tenantTool.findFirst.mockRejectedValue(new Error('boom'));
+      const res = await service.getTenantToolById('tt-2', 'org-1');
       expect(mockLogger.error).toHaveBeenCalled();
       expect(res).toBeNull();
     });
@@ -285,6 +286,7 @@ describe('TenantToolService', () => {
         id: 't1',
         organizationId: 'org-1',
       });
+      mockPrismaService.workflow.count.mockResolvedValue(1);
       mockPrismaService.tenantTool.update.mockResolvedValue(updated);
       const res = await service.addWorkflowToTenantTool('t1', 'org-1', 'user-1', 'owner', ['w1']);
       expect(mockPrismaService.tenantTool.update).toHaveBeenCalledWith(
@@ -299,6 +301,7 @@ describe('TenantToolService', () => {
         id: 't1',
         organizationId: 'org-1',
       });
+      mockPrismaService.workflow.count.mockResolvedValue(1);
       mockPrismaService.tenantTool.update.mockResolvedValue(updated);
       const res = await service.removeWorkflowFromTenantTool('t1', 'org-1', 'user-1', 'owner', [
         'w1',
@@ -307,6 +310,47 @@ describe('TenantToolService', () => {
         expect.objectContaining({ where: { id: 't1' } }),
       );
       expect(res).toEqual(updated);
+    });
+  });
+
+  describe('workflows de otra organización', () => {
+    beforeEach(() => {
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue({
+        id: 't1',
+        organizationId: 'org-1',
+      });
+      // El workflow ajeno no cuenta: count filtra por org-1.
+      mockPrismaService.workflow.count.mockResolvedValue(0);
+    });
+
+    it('no los conecta a una tool propia', async () => {
+      await expect(
+        service.addWorkflowToTenantTool('t1', 'org-1', 'user-1', 'owner', ['wf-ajeno']),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(mockPrismaService.workflow.count).toHaveBeenCalledWith({
+        where: { id: { in: ['wf-ajeno'] }, organizationId: 'org-1' },
+      });
+      expect(mockPrismaService.tenantTool.update).not.toHaveBeenCalled();
+    });
+
+    it('no crea la tool colgada de un workflow ajeno', async () => {
+      mockPrismaService.toolCatalog.findUnique.mockResolvedValue({ provider: 'none' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.createTenantTool(
+          {
+            displayName: 'New Tool',
+            toolCatalogId: 'c1',
+            allowedFunctions: [],
+            config: {},
+            workflowId: 'wf-ajeno',
+          } as any,
+          'org-1',
+          'user-1',
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(mockPrismaService.tenantTool.create).not.toHaveBeenCalled();
     });
   });
 

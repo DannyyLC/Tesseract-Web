@@ -15,13 +15,15 @@ import {
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ChatRole, MessengerConfig } from '@tesseract/database';
-import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
+import { ApiResponse, ApiResponseBuilder, UserRole } from '@tesseract/types';
 import { Response } from 'express';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { WorkflowsService } from '@/automation/workflows/workflows.service';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '@/identity/auth/guards/roles.guard';
+import { Roles } from '@/identity/auth/decorators/roles.decorator';
 import {
   ConversationsService,
   OutsideWorkflowReason,
@@ -511,7 +513,8 @@ export class MessengerController {
   // ─── Config CRUD ──────────────────────────────────────────────────────
 
   @Post('create-config')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async createConfig(
     @CurrentUser() currUser: UserPayload,
     @Body() body: CreateConfigDto,
@@ -526,6 +529,19 @@ export class MessengerController {
         .setStatusCode(HttpStatus.BAD_REQUEST)
         .setData(false)
         .setMessage('A Messenger config with this page id already exists');
+      return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
+    }
+
+    // El workflow llega del body: tiene que ser de esta organización.
+    const workflow = await this.workflowsService.getRoutingState(
+      currUser.organizationId,
+      body.workflowId,
+    );
+    if (!workflow) {
+      apiResponse
+        .setStatusCode(HttpStatus.BAD_REQUEST)
+        .setData(false)
+        .setMessage('Workflow not found in this organization');
       return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
     }
 
@@ -554,13 +570,17 @@ export class MessengerController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async deleteConfig(
-    @CurrentUser() _currUser: UserPayload,
+    @CurrentUser() currUser: UserPayload,
     @Param('id') id: string,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
+    if (!(await this.findOwnedConfig(currUser.organizationId, id))) {
+      return this.configNotFound(res);
+    }
     const deleted = await this.messengerConfigService.deleteRecord(id);
     if (deleted) {
       apiResponse
@@ -578,7 +598,8 @@ export class MessengerController {
   }
 
   @Get('list/:workflowId')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async listConfigsByOrgAndWorkflow(
     @CurrentUser() currUser: UserPayload,
     @Param('workflowId') workflowId: string,
@@ -608,7 +629,8 @@ export class MessengerController {
    * cosa; este es el que respalda el formulario completo.
    */
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async updateConfig(
     @CurrentUser() currUser: UserPayload,
     @Param('id') id: string,
@@ -617,15 +639,8 @@ export class MessengerController {
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
 
-    // El id viene de la URL, así que hay que comprobar que la fila es de la
-    // organización de quien llama antes de escribir en ella.
-    const config = await this.messengerConfigService.getMessengerConfigById(id);
-    if (!config || config.organizationId !== currUser.organizationId) {
-      apiResponse
-        .setStatusCode(HttpStatus.NOT_FOUND)
-        .setData(false)
-        .setMessage('Messenger config not found');
-      return res.status(HttpStatus.NOT_FOUND).json(apiResponse.build());
+    if (!(await this.findOwnedConfig(currUser.organizationId, id))) {
+      return this.configNotFound(res);
     }
 
     const success = await this.messengerConfigService.updateConfig(id, body);
@@ -645,14 +660,18 @@ export class MessengerController {
   }
 
   @Patch(':id/isActive')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async setIsActive(
-    @CurrentUser() _currUser: UserPayload,
+    @CurrentUser() currUser: UserPayload,
     @Param('id') id: string,
     @Body('isActive') isActive: boolean,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
+    if (!(await this.findOwnedConfig(currUser.organizationId, id))) {
+      return this.configNotFound(res);
+    }
     const success = await this.messengerConfigService.updateIsActive(id, isActive);
     if (success) {
       apiResponse
@@ -670,14 +689,18 @@ export class MessengerController {
   }
 
   @Patch(':id/page-access-token')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async updatePageAccessToken(
-    @CurrentUser() _currUser: UserPayload,
+    @CurrentUser() currUser: UserPayload,
     @Param('id') id: string,
     @Body() body: UpdatePageAccessTokenDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
+    if (!(await this.findOwnedConfig(currUser.organizationId, id))) {
+      return this.configNotFound(res);
+    }
     const success = await this.messengerConfigService.updatePageAccessToken(
       id,
       body.pageAccessToken,
@@ -698,14 +721,18 @@ export class MessengerController {
   }
 
   @Patch(':id/app-secret')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async updateAppSecret(
-    @CurrentUser() _currUser: UserPayload,
+    @CurrentUser() currUser: UserPayload,
     @Param('id') id: string,
     @Body() body: UpdateAppSecretDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
+    if (!(await this.findOwnedConfig(currUser.organizationId, id))) {
+      return this.configNotFound(res);
+    }
     const success = await this.messengerConfigService.updateAppSecret(id, body.appSecret);
     if (success) {
       apiResponse
@@ -720,5 +747,28 @@ export class MessengerController {
       .setData(false)
       .setMessage('Failed to update app secret');
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
+  }
+
+  // ─── Propiedad por organización ───────────────────────────────────────
+
+  /**
+   * El id de la config llega en la URL, así que ninguna ruta debe tocar la fila sin antes
+   * confirmar que es de la organización de quien llama. Una fila ajena se contesta igual que
+   * una inexistente (404), para no confirmar que el id existe.
+   */
+  private async findOwnedConfig(
+    organizationId: string,
+    configId: string,
+  ): Promise<MessengerConfig | null> {
+    const config = await this.messengerConfigService.getMessengerConfigById(configId);
+    return config && config.organizationId === organizationId ? config : null;
+  }
+
+  private configNotFound(res: Response): Response {
+    const apiResponse = new ApiResponseBuilder<boolean>()
+      .setStatusCode(HttpStatus.NOT_FOUND)
+      .setData(false)
+      .setMessage('Messenger config not found');
+    return res.status(HttpStatus.NOT_FOUND).json(apiResponse.build());
   }
 }

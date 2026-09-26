@@ -77,7 +77,7 @@ export default function WorkflowMessengerPage() {
   };
 
   return (
-    <PermissionGuard permissions="workflows:update" redirect={true} fallbackRoute="/workflows">
+    <PermissionGuard permissions="channels:manage" redirect={true} fallbackRoute="/workflows">
       <div className="flex h-full flex-col overflow-y-auto">
         <div className="w-full space-y-8 px-6 py-8">
           <div className="flex flex-col gap-8">

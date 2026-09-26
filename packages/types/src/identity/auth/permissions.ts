@@ -45,6 +45,8 @@ export type AppPermission =
   | 'conversations:read'
   | 'conversations:update'
   | 'conversations:delete'
+  | 'channels:read'
+  | 'channels:manage'
   | 'invoice:read'
   | 'fiscal_profile:read'
   | 'fiscal_profile:update'
@@ -113,6 +115,11 @@ export const ROLE_PERMISSIONS: Record<string, AppPermission[]> = {
     'conversations:read',
     'conversations:update',
     'conversations:delete',
+
+    // Dar de alta, editar, apagar o borrar un número/página, rotar sus credenciales y
+    // mandar templates desde él. Un VIEWER solo los ve.
+    'channels:read',
+    'channels:manage',
 
     'invoice:read',
 
@@ -184,6 +191,11 @@ export const ROLE_PERMISSIONS: Record<string, AppPermission[]> = {
     'conversations:update',
     'conversations:delete',
 
+    // Dar de alta, editar, apagar o borrar un número/página, rotar sus credenciales y
+    // mandar templates desde él. Un VIEWER solo los ve.
+    'channels:read',
+    'channels:manage',
+
     'invoice:read',
 
     'fiscal_profile:read',
@@ -217,6 +229,8 @@ export const ROLE_PERMISSIONS: Record<string, AppPermission[]> = {
 
     'conversations:read',
     'conversations:update',
+
+    'channels:read',
 
     'invoice:read',
   ],

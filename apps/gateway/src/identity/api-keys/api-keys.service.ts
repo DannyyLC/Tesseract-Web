@@ -52,6 +52,17 @@ export class ApiKeysService {
       );
     }
 
+    // El workflow llega del body: tiene que ser de esta organización.
+    if (dto.workflowId) {
+      const workflow = await this.prisma.workflow.findFirst({
+        where: { id: dto.workflowId, organizationId },
+        select: { id: true },
+      });
+      if (!workflow) {
+        throw new NotFoundException('Workflow no encontrado en esta organización');
+      }
+    }
+
     // Generar API Key aleatorio
     const apiKey = ApiKeyUtil.generate('live');
 

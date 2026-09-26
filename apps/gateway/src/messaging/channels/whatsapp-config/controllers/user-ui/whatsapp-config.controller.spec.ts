@@ -1,4 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
+import { UserRole } from '@tesseract/types';
+import { ROLES_KEY } from '@/identity/auth/decorators/roles.decorator';
 import { WhatsappConfigController } from './whatsapp-config.controller';
 
 /**
@@ -236,5 +238,138 @@ describe('WhatsappConfigController · webhook', () => {
     // La firma manda: un POST sin autenticar no debe poder sondear qué números están bloqueados.
     expect(mockEndUsersService.isBlocked).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+  });
+});
+
+/**
+ * Las rutas de gestión reciben ids en la URL. Un número o template de otra organización tiene
+ * que contestarse como inexistente y, sobre todo, no llegar al servicio que escribe o envía.
+ */
+describe('WhatsappConfigController · gestión', () => {
+  const ORG = 'org-1';
+  const currUser: any = { organizationId: ORG, role: UserRole.ADMIN };
+  const ownConfig = { id: 'wa-1', organizationId: ORG, phoneNumber: '5211111111111' };
+  const foreignConfig = { id: 'wa-9', organizationId: 'org-9', phoneNumber: '5219999999999' };
+
+  const service: any = {
+    getWhatsappConfigById: jest.fn(async (id: string) =>
+      id === ownConfig.id ? ownConfig : id === foreignConfig.id ? foreignConfig : null,
+    ),
+    getTemplate: jest.fn(),
+    deleteRecord: jest.fn().mockResolvedValue(true),
+    updateIsActive: jest.fn().mockResolvedValue(true),
+    createTemplate: jest.fn(),
+    listTemplates: jest.fn().mockResolvedValue([]),
+    updateTemplate: jest.fn(),
+    deleteTemplate: jest.fn().mockResolvedValue(true),
+    sendTemplateMessage: jest.fn(),
+  };
+  const controller = new WhatsappConfigController(
+    service,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  const res = () => {
+    const r: any = {};
+    r.status = jest.fn().mockReturnValue(r);
+    r.json = jest.fn().mockReturnValue(r);
+    return r;
+  };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('no borra ni apaga un número de otra organización', async () => {
+    const r1 = res();
+    await controller.deleteConfig(currUser, foreignConfig.id, r1);
+    const r2 = res();
+    await controller.setIsActive(currUser, foreignConfig.id, false, r2);
+
+    expect(r1.status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(r2.status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(service.deleteRecord).not.toHaveBeenCalled();
+    expect(service.updateIsActive).not.toHaveBeenCalled();
+  });
+
+  it('borra un número propio', async () => {
+    const r = res();
+    await controller.deleteConfig(currUser, ownConfig.id, r);
+    expect(service.deleteRecord).toHaveBeenCalledWith(ownConfig.id);
+    expect(r.status).toHaveBeenCalledWith(HttpStatus.OK);
+  });
+
+  it('no crea ni lista templates en un número ajeno', async () => {
+    await controller.createTemplate(currUser, foreignConfig.id, { name: 'x' } as any, res());
+    await controller.listTemplates(currUser, foreignConfig.id, res());
+    expect(service.createTemplate).not.toHaveBeenCalled();
+    expect(service.listTemplates).not.toHaveBeenCalled();
+  });
+
+  it('no envía, edita ni borra un template cuyo número es de otra organización', async () => {
+    service.getTemplate.mockResolvedValue({
+      id: 'tpl-9',
+      whatsAppConfigId: foreignConfig.id,
+      name: 'promo',
+      language: 'es_MX',
+    });
+
+    const r = res();
+    await controller.sendTemplate(currUser, 'tpl-9', { to: '5215500000000' } as any, r);
+    await controller.updateTemplate(currUser, 'tpl-9', { name: 'y' } as any, res());
+    await controller.deleteTemplate(currUser, 'tpl-9', res());
+
+    expect(r.status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(service.sendTemplateMessage).not.toHaveBeenCalled();
+    expect(service.updateTemplate).not.toHaveBeenCalled();
+    expect(service.deleteTemplate).not.toHaveBeenCalled();
+  });
+
+  it('envía un template propio desde el número al que pertenece', async () => {
+    service.getTemplate.mockResolvedValue({
+      id: 'tpl-1',
+      whatsAppConfigId: ownConfig.id,
+      name: 'promo',
+      language: 'es_MX',
+    });
+
+    await controller.sendTemplate(currUser, 'tpl-1', { to: '5215500000000' } as any, res());
+
+    expect(service.sendTemplateMessage).toHaveBeenCalledWith(
+      ownConfig.phoneNumber,
+      '5215500000000',
+      'promo',
+      'es_MX',
+      undefined,
+    );
+  });
+
+  // Un VIEWER solo consulta: las escrituras exigen OWNER/ADMIN.
+  it.each([
+    'createConfig',
+    'deleteConfig',
+    'updateConfig',
+    'setIsActive',
+    'createTemplate',
+    'updateTemplate',
+    'deleteTemplate',
+    'sendTemplate',
+  ])('%s queda fuera de VIEWER', (handler) => {
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      (WhatsappConfigController.prototype as any)[handler],
+    );
+    expect(roles).toEqual([UserRole.OWNER, UserRole.ADMIN]);
+  });
+
+  it.each(['listConfigsByOrgAndWorkflow', 'listTemplates'])('%s admite VIEWER', (handler) => {
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      (WhatsappConfigController.prototype as any)[handler],
+    );
+    expect(roles).toContain(UserRole.VIEWER);
   });
 });

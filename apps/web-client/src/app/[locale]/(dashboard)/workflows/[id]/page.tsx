@@ -371,17 +371,19 @@ export default function WorkflowDetailPage() {
                   </Link>
                 </PermissionGuard>
 
-                <ExpandingActionButton
-                  href={`/workflows/${workflow.id}/messenger`}
-                  label={t('linkMessenger')}
-                  icon={<FaFacebookMessenger className="h-4 w-4 text-[#0084FF]" />}
-                />
+                <PermissionGuard permissions="channels:manage">
+                  <ExpandingActionButton
+                    href={`/workflows/${workflow.id}/messenger`}
+                    label={t('linkMessenger')}
+                    icon={<FaFacebookMessenger className="h-4 w-4 text-[#0084FF]" />}
+                  />
 
-                <ExpandingActionButton
-                  onClick={() => setIsWhatsappModalOpen(true)}
-                  label={t('linkWhatsapp')}
-                  icon={<WhatsappIcon className="h-4 w-4" />}
-                />
+                  <ExpandingActionButton
+                    onClick={() => setIsWhatsappModalOpen(true)}
+                    label={t('linkWhatsapp')}
+                    icon={<WhatsappIcon className="h-4 w-4" />}
+                  />
+                </PermissionGuard>
 
                 <PermissionGuard permissions="workflows:update">
                   <ExpandingActionButton

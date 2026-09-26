@@ -106,6 +106,8 @@ export function MessengerPageCard({
         </div>
       </div>
 
+      {/* Sin permiso de gestión el menú quedaría vacío: se oculta entero. */}
+      <PermissionGuard permissions="channels:manage">
       <div className="relative">
         <button
           onClick={() => setMenuOpen((v) => !v)}
@@ -119,7 +121,7 @@ export function MessengerPageCard({
           <>
             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
             <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-surface-popover shadow-xl">
-              <PermissionGuard permissions="workflows:update">
+              <PermissionGuard permissions="channels:manage">
                 <Link
                   href={`/workflows/${workflowId}/messenger/${page.id}/edit`}
                   onClick={() => setMenuOpen(false)}
@@ -132,7 +134,7 @@ export function MessengerPageCard({
 
               <div className="mx-3 my-1 h-px bg-surface-secondary" />
 
-              <PermissionGuard permissions="workflows:update">
+              <PermissionGuard permissions="channels:manage">
                 <button
                   onClick={() => {
                     setMenuOpen(false);
@@ -155,7 +157,7 @@ export function MessengerPageCard({
                 </button>
               </PermissionGuard>
 
-              <PermissionGuard permissions="workflows:delete">
+              <PermissionGuard permissions="channels:manage">
                 <button
                   onClick={() => {
                     setMenuOpen(false);
@@ -171,6 +173,7 @@ export function MessengerPageCard({
           </>
         )}
       </div>
+      </PermissionGuard>
 
       <Modal
         isOpen={isDisconnectOpen}

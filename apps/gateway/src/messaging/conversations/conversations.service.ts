@@ -296,19 +296,8 @@ export class ConversationsService {
     conversationId?: string,
     isInternalWorkflow = false,
   ) {
-    // Si viene un conversationId, buscar esa conversación
-    if (conversationId) {
-      const existing = await this.prisma.conversation.findUnique({
-        where: { id: conversationId },
-      });
-
-      if (existing) {
-        this.logger.debug(`Usando conversación existente: ${conversationId}`);
-        return existing;
-      }
-    }
-
-    // Obtener la organización del workflow para asignarla a la conversación
+    // Obtener la organización del workflow: acota la búsqueda de abajo y se asigna a la
+    // conversación nueva.
     const workflow = await this.prisma.workflow.findUnique({
       where: { id: workflowId },
       select: { organizationId: true },
@@ -316,6 +305,20 @@ export class ConversationsService {
 
     if (!workflow) {
       throw new Error(`Workflow no encontrado: ${workflowId}`);
+    }
+
+    // Si viene un conversationId, buscar esa conversación. El id llega en la metadata del
+    // execute, que controla quien llama (API key o dashboard): sin el filtro por
+    // organización, cualquier tenant podía leer el historial de otro y escribir en él.
+    if (conversationId) {
+      const existing = await this.prisma.conversation.findFirst({
+        where: { id: conversationId, organizationId: workflow.organizationId },
+      });
+
+      if (existing) {
+        this.logger.debug(`Usando conversación existente: ${conversationId}`);
+        return existing;
+      }
     }
 
     // Si no existe o no viene conversationId, crear una nueva
@@ -485,8 +488,21 @@ export class ConversationsService {
     senderId: string,
     isInternalWorkflow = false,
   ) {
-    const messengerConfig = await this.prisma.messengerConfig.findUnique({
-      where: { pageId },
+    // Obtener la organización del workflow para asignarla a la conversación
+    const workflow = await this.prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { organizationId: true },
+    });
+
+    if (!workflow) {
+      throw new Error(`Workflow no encontrado: ${workflowId}`);
+    }
+
+    // El pageId es público y puede llegar en la metadata del execute: la página tiene que
+    // ser de la misma organización que el workflow, o se estaría operando con la config
+    // (y el token) de otro tenant.
+    const messengerConfig = await this.prisma.messengerConfig.findFirst({
+      where: { pageId, organizationId: workflow.organizationId },
     });
     if (!messengerConfig) {
       throw new Error(`Messenger config no encontrada para la página: ${pageId}`);
@@ -499,16 +515,6 @@ export class ConversationsService {
         `Usando conversación existente para Messenger ${senderId} -> ${pageId} (config ${messengerConfig.id})`,
       );
       return existing;
-    }
-
-    // Obtener la organización del workflow para asignarla a la conversación
-    const workflow = await this.prisma.workflow.findUnique({
-      where: { id: workflowId },
-      select: { organizationId: true },
-    });
-
-    if (!workflow) {
-      throw new Error(`Workflow no encontrado: ${workflowId}`);
     }
 
     // El PSID no es un teléfono ni un email: encaja en `externalId`, que es el

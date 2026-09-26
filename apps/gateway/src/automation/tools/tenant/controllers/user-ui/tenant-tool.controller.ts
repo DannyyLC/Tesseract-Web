@@ -209,12 +209,17 @@ export class TenantToolController {
   @Get(':id')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getTenantToolById(
+    @CurrentUser() user: UserPayload,
     @Param('id') id: string,
     @Res() res: Response,
     @Locale() locale: SupportedLocale,
   ) {
     const apiResponse = new ApiResponseBuilder<any>();
-    const tenantTool = await this.tenantToolService.getTenantToolById(id, locale);
+    const tenantTool = await this.tenantToolService.getTenantToolById(
+      id,
+      user.organizationId,
+      locale,
+    );
     if (!tenantTool) {
       apiResponse.setSuccess(false).setMessage('Tenant tool not found');
       return res.status(HttpStatusCode.NotFound).json(apiResponse.build());
