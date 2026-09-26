@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
@@ -217,11 +218,15 @@ export class TenantToolService {
       // Fetch tool catalog to check provider
       const catalog = await this.prismaService.toolCatalog.findUnique({
         where: { id: data.toolCatalogId },
-        select: { provider: true },
+        select: { provider: true, toolName: true },
       });
 
       if (!catalog) {
         throw new NotFoundException('Tool catalog entry not found');
+      }
+
+      if (catalog.toolName === 'http_request') {
+        this.assertValidHttpRequestConfig(data.config);
       }
 
       // Only ACTIVE tools (deletedAt = null) block name reuse.
@@ -630,6 +635,43 @@ export class TenantToolService {
     });
     if (count !== uniqueIds.length) {
       throw new NotFoundException('One or more workflows do not belong to this organization');
+    }
+  }
+
+  /**
+   * `http_request` llama a la URL que diga su config desde dentro de Google Cloud. El filtro
+   * que de verdad importa (IPs internas, metadata) vive en el servicio de agentes, que es quien
+   * resuelve y conecta; esto solo evita guardar una config que allá se va a rechazar siempre,
+   * para que el error salga al crear la tool y no a media conversación.
+   */
+  private assertValidHttpRequestConfig(config: unknown) {
+    const cfg = (config ?? {}) as Record<string, unknown>;
+
+    if (cfg.base_url !== undefined && cfg.base_url !== '') {
+      let url: URL | null = null;
+      try {
+        url = typeof cfg.base_url === 'string' ? new URL(cfg.base_url) : null;
+      } catch {
+        url = null;
+      }
+      if (!url || url.protocol !== 'https:' || url.username || url.password) {
+        throw new BadRequestException('base_url debe ser una URL https sin usuario ni contraseña');
+      }
+    }
+
+    const headers = cfg.default_headers;
+    if (headers !== undefined) {
+      if (typeof headers !== 'object' || headers === null || Array.isArray(headers)) {
+        throw new BadRequestException('default_headers debe ser un objeto');
+      }
+      const forbidden = Object.keys(headers).find((name) =>
+        ['host', 'metadata-flavor', 'x-google-metadata-request'].includes(
+          name.trim().toLowerCase(),
+        ),
+      );
+      if (forbidden) {
+        throw new BadRequestException(`El header ${forbidden} no se puede configurar`);
+      }
     }
   }
 }
