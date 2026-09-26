@@ -1,6 +1,8 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/platform/database/prisma.service';
+import { UserRole } from '@tesseract/database';
+import { OauthStateClaims, OauthStateService } from './oauth-state.service';
 import axios from 'axios';
 
 @Injectable()
@@ -10,11 +12,12 @@ export class ToolsOauthService {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly oauthState: OauthStateService,
   ) {}
 
   /**
    * Genera la URL de autorización de Google para OAuth 2.0.
-   * Empaqueta el tenantToolId de forma segura en el parámetro 'state'.
+   * Empaqueta la tool, la organización y el usuario en un `state` firmado (ver OauthStateService).
    */
   async generateGoogleAuthUrl(
     tenantToolId: string,
@@ -73,13 +76,7 @@ export class ToolsOauthService {
 
     const scopes = scopesList.join(' ');
 
-    // Empaquetar IDs en el state
-    const statePayload = {
-      t: tenantToolId,
-      o: organizationId,
-      u: userId,
-    };
-    const state = Buffer.from(JSON.stringify(statePayload)).toString('base64');
+    const state = await this.oauthState.sign({ tenantToolId, organizationId, userId });
 
     const params = new URLSearchParams({
       client_id: clientId,
@@ -92,6 +89,30 @@ export class ToolsOauthService {
     });
 
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  }
+
+  /**
+   * Comprueba, al volver de Google, que quien inició la conexión todavía puede hacerla.
+   *
+   * El `state` firmado prueba quién la inició, no que siga siendo miembro: entre el clic y el
+   * callback pueden pasar minutos, y a alguien se le pudo quitar la cuenta o el rol en medio.
+   */
+  async assertCanConnect(claims: OauthStateClaims): Promise<void> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: claims.userId,
+        organizationId: claims.organizationId,
+        isActive: true,
+        deletedAt: null,
+        role: { in: [UserRole.OWNER, UserRole.ADMIN] },
+      },
+      select: { id: true },
+    });
+    if (!user) {
+      throw new ForbiddenException(
+        'El usuario ya no puede conectar herramientas en esta organización',
+      );
+    }
   }
 
   /**

@@ -116,6 +116,7 @@ Estas deben estar siempre configuradas o el gateway no inicializa.
 - `AGENTS_GRPC_URL`: Dirección del servicio de agentes gRPC (default `localhost:50051`).
 - `GATEWAY_INTERNAL_URL`: URL con la que agents alcanza al gateway (sentido inverso). Solo la usa la tool de catálogos, para consultar las filas en tiempo de llamada.
 - `DATASET_TOKEN_SECRET`: Firma los tokens de esa consulta. **Va solo en el gateway**: agents recibe el token ya firmado dentro del payload y lo reenvía, pero nunca lo emite. Compartir la llave le permitiría firmarse el acceso al catálogo de cualquier organización.
+- `OAUTH_STATE_SECRET`: Firma el `state` con el que se conecta una tool a Google (Calendar, Sheets). **Va solo en el gateway**. Sin ella, conectar una tool de Google falla con error; el resto de la app funciona igual.
 
 ### Seguridad Front-End (Obligatorio para Sign Up / Login)
 
