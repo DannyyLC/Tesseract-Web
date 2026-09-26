@@ -321,10 +321,12 @@ describe('AuthService', () => {
           organization: validOrg,
         });
 
+        const deleteInvitations = jest.fn().mockResolvedValue({ count: 1 });
         // Mock transaction
         prisma.$transaction = jest.fn().mockImplementation(async (cb) => {
           // Providing a stub transaction object
           const mockTx = {
+            userVerification: { deleteMany: deleteInvitations },
             organization: {
               create: jest
                 .fn()
@@ -349,13 +351,19 @@ describe('AuthService', () => {
         const result = await service.validateGoogleUser(googleDetails);
         expect(prisma.$transaction).toHaveBeenCalled();
         expect(result.user.id).toBe('u-deleted');
+        // Queda como OWNER de su organización nueva: una invitación pendiente no puede sobrevivir.
+        expect(deleteInvitations).toHaveBeenCalledWith({
+          where: { email: 'google@example.com', isFromInvitation: true },
+        });
       });
 
       it('should magically create user, org, and balance if user does not exist', async () => {
         prisma.user.findUnique = jest.fn().mockResolvedValue(null);
+        const deleteInvitations = jest.fn().mockResolvedValue({ count: 1 });
 
         prisma.$transaction = jest.fn().mockImplementation(async (cb) => {
           const mockTx = {
+            userVerification: { deleteMany: deleteInvitations },
             organization: {
               create: jest
                 .fn()
@@ -376,6 +384,10 @@ describe('AuthService', () => {
         const result = await service.validateGoogleUser(googleDetails);
         expect(prisma.$transaction).toHaveBeenCalled();
         expect(result.user.id).toBe('new-user');
+        // Sin esto, aceptar después una invitación mudaba a este OWNER a la organización que invitó.
+        expect(deleteInvitations).toHaveBeenCalledWith({
+          where: { email: 'google@example.com', isFromInvitation: true },
+        });
       });
     });
   });

@@ -1134,13 +1134,33 @@ export class OrganizationsService {
             isFromInvitation: true,
           },
         });
-        await this.prisma.user.update({
+
+        // Una cuenta viva no se muda por invitación: `invite()` ya no la invita (le avisa por
+        // correo), así que llegar aquí con una significa que se creó después, entre el envío y la
+        // aceptación. Con Google eso fabrica un OWNER de su propia organización que, al aceptar,
+        // se llevaba el rol a la organización que lo invitó.
+        if (!existingUser.deletedAt) {
+          return {
+            success: null,
+            error: ErrorStrings[OPERATIONS.ACCEPT_INVITATION].EMAIL_ALREADY_REGISTERED,
+          };
+        }
+
+        // Cuenta borrada que se vuelve a invitar: entra como un miembro nuevo. El rol que tenía
+        // antes era de otra organización y no se hereda.
+        const reactivated = await this.prisma.user.update({
           where: { email: userVerification.email },
           data: {
             emailVerified: true,
             isActive: true,
+            deletedAt: null,
+            role: UserRole.VIEWER,
             organizationId: userVerification.organizationName,
           },
+        });
+        await this.prisma.refreshToken.updateMany({
+          where: { userId: existingUser.id, revokedAt: null },
+          data: { revokedAt: new Date(), revokedReason: 'organization_changed' },
         });
         this.utilityService.sendNotificationToAppClients(
           userVerification.organizationName,
@@ -1150,14 +1170,14 @@ export class OrganizationsService {
         );
         return {
           success: {
-            email: existingUser.email,
-            name: existingUser.name,
-            role: existingUser.role,
-            isActive: existingUser.isActive,
-            lastLoginAt: existingUser.lastLoginAt,
-            createdAt: existingUser.createdAt,
-            avatar: existingUser.avatar,
-            emailVerified: existingUser.emailVerified,
+            email: reactivated.email,
+            name: reactivated.name,
+            role: reactivated.role,
+            isActive: reactivated.isActive,
+            lastLoginAt: reactivated.lastLoginAt,
+            createdAt: reactivated.createdAt,
+            avatar: reactivated.avatar,
+            emailVerified: reactivated.emailVerified,
           },
         };
       }

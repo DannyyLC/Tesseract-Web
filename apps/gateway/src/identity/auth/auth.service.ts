@@ -258,6 +258,8 @@ export class AuthService {
               },
             });
 
+            await this.discardPendingInvitations(tx, email);
+
             // Actualizar Usuario (Reciclar ID)
             const updatedUser = await tx.user.update({
               where: { id: userId },
@@ -329,6 +331,8 @@ export class AuthService {
         },
       });
 
+      await this.discardPendingInvitations(tx, email);
+
       // 3.3 Crear Usuario
       const newUser = await tx.user.create({
         data: {
@@ -348,6 +352,15 @@ export class AuthService {
     });
 
     return newUserResult;
+  }
+
+  /**
+   * Borra las invitaciones pendientes de un correo que se registra (o se reactiva) por su cuenta,
+   * como ya hace `signupStepOne`. Sin esto, la invitación sobrevivía al registro con Google y al
+   * aceptarla el usuario se mudaba a esa organización como OWNER.
+   */
+  private async discardPendingInvitations(tx: Prisma.TransactionClient, email: string) {
+    await tx.userVerification.deleteMany({ where: { email, isFromInvitation: true } });
   }
 
   /**
