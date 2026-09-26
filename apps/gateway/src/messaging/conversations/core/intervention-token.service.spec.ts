@@ -97,11 +97,11 @@ describe('InterventionTokenService', () => {
     });
   });
 
-  it('no recae en DATASET_TOKEN_SECRET ni AGENTS_INTERNAL_SECRET', async () => {
+  it('no recae en DATASET_TOKEN_SECRET', async () => {
     // Cada canal Agents→Gateway tiene su propio secreto a propósito: un respaldo "por si acaso"
     // le devolvería a un token de otro canal la capacidad de forjar intervenciones humanas.
     configService.get.mockImplementation((key: string) =>
-      ['DATASET_TOKEN_SECRET', 'AGENTS_INTERNAL_SECRET'].includes(key) ? 'otro-secreto' : undefined,
+      key === 'DATASET_TOKEN_SECRET' ? 'otro-secreto' : undefined,
     );
 
     await expect(service.sign(claims, 300)).rejects.toThrow(InternalServerErrorException);

@@ -111,35 +111,30 @@ No hay secreto que rotar ni revisión periódica que agendar: la credencial la e
 **Las probes no se ven afectadas.** Cloud Run las hace contra el puerto del contenedor, no a través del
 frontend con IAM, así que el `HealthServicer` de gRPC sigue respondiendo con el servicio cerrado.
 
-### Migración a OIDC (en curso — borrar esta subsección al terminarla)
+**Lo que lo mantiene cerrado.** Dos cosas, y hacen falta las dos:
 
-Hasta que se complete, el canal sigue usando también `AGENTS_INTERNAL_SECRET`, un secreto compartido
-que ambos servicios llevan como variable de entorno. Los pasos, **en este orden**:
+- La verificación de IAM activa en el servicio. `cloudbuild.yaml` despliega `agents` con
+  `--no-allow-unauthenticated --invoker-iam-check` para que ningún deploy la apague.
+- `roles/run.invoker` sobre `agents` para `tesseract-gateway-sa`, y para nadie más.
 
-1. **Desplegar el Gateway con el ID token.** Empieza a mandarlo con el servicio de agentes todavía
-   público, así que la cabecera de más se ignora y no hay riesgo. Verificar que las conversaciones
-   siguen corriendo.
+Hasta septiembre de 2026 había además un secreto compartido (`AGENTS_INTERNAL_SECRET`), y el
+servicio corría con la verificación de IAM **desactivada**: el secreto era la única barrera. Se
+retiró al cerrar el servicio.
 
-2. **Confirmar que el token de verdad viaja.** Este paso no es opcional: con el servicio abierto, las
-   conversaciones corren igual con token o sin él, así que un error del lado emisor no da ningún
-   síntoma hasta el paso 3 — y ahí se manifiesta como caída total. Dos señales:
+**Cómo comprobar que sigue cerrado**, desde Cloud Shell:
 
-   ```bash
-   gcloud run services describe agents --format='value(status.url)'
-   ```
+```bash
+curl -s -i -X POST -H "content-type: application/grpc" \
+  "$(gcloud run services describe agents --region=us-central1 --format='value(status.url)')/agents.AgentsService/Execute" | head -12
+```
 
-   Esa URL tiene que coincidir con la del log de arranque del Gateway
-   (`Agents gRPC ... — OIDC activo (audience: ...)`). Y en Cloud Logging, del lado de `agents`:
-   `OIDC: cabecera authorization presente`. Si dice `AUSENTE`, **no se cierra nada todavía**.
+Ojo al leerlo: con `content-type: application/grpc` Cloud Run contesta **`HTTP 200` también
+cuando rechaza**. Lo que decide es `grpc-status`:
 
-3. **Cerrar el servicio.** Quitar `allUsers` de `agents` y darle `roles/run.invoker` a la service
-   account del Gateway. Verificar desde Cloud Shell que una petición sin credencial ahora devuelve
-   **403** (hoy devuelve `200` con `grpc-status: 2`, que es la señal de que el tráfico anónimo entra).
+- `7` (`PERMISSION_DENIED`) con una página `403 Forbidden` de Google en `grpc-message`: cerrado.
+- Cualquier otro (`2`, `3`, …): la petición llegó al proceso de Python, así que **está abierto**.
 
-4. **Retirar el secreto compartido**, en un commit aparte: `AGENTS_INTERNAL_SECRET` del código y de
-   ambos servicios, y con él la línea de diagnóstico `_note_oidc_once` de
-   `apps/agents/src/grpc_servicer.py`, que existe solo para el paso 2.
-
-**Por qué este orden.** Cerrar primero y adaptar el Gateway después deja el sistema sin agentes hasta
-que termine el build y el deploy. Así no hay ventana muerta en ningún momento, y si el paso 3 sale mal
-se revierte con un comando de IAM — sin tocar código ni esperar un despliegue.
+Si alguna vez hay que abrirlo en caliente para diagnosticar, se revierte sin deploy:
+`gcloud run services update agents --region=us-central1 --no-invoker-iam-check`, y se vuelve a
+cerrar con `--invoker-iam-check`. Mientras esté abierto, cualquiera en internet puede ejecutar
+agentes: no hay otra capa detrás.

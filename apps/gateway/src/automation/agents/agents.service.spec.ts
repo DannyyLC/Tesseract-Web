@@ -116,15 +116,13 @@ describe('AgentsService', () => {
   });
 
   /**
-   * El Gateway se identifica ante Cloud Run con un ID token de Google además del secreto
-   * compartido. Mientras el servicio de agentes siga aceptando tráfico anónimo la cabecera se
-   * ignora, así que nada de esto se nota en producción hasta que se cierra el servicio con
-   * IAM — momento en el que un error aquí deja al sistema entero sin agentes. De ahí que la
-   * spec cubra también el modo local (sin token) y el manejo del fallo al pedirlo.
+   * El Gateway se identifica ante Cloud Run con un ID token de Google, y es su única credencial:
+   * el servicio de agentes está cerrado con IAM, así que un error aquí deja al sistema entero sin
+   * agentes. De ahí que la spec cubra también el modo local (sin token) y el manejo del fallo al
+   * pedirlo.
    */
   describe('ID token de Cloud Run', () => {
     const AGENTS_URL = 'https://agents-abc123-uc.a.run.app';
-    const SECRET = 'secreto-compartido';
 
     const mockRequest = {
       tenant_id: 'org1',
@@ -141,7 +139,6 @@ describe('AgentsService', () => {
             useValue: {
               get: jest.fn((key: string, defaultValue?: unknown) => {
                 if (key === 'AGENTS_GRPC_URL') return url;
-                if (key === 'AGENTS_INTERNAL_SECRET') return SECRET;
                 if (key === 'AGENTS_SERVICE_TIMEOUT') return 30000;
                 return defaultValue;
               }),
@@ -181,7 +178,8 @@ describe('AgentsService', () => {
       // El slash final no puede llegar a la audiencia: Cloud Run la compara literal.
       expect(mockGetIdTokenClient).toHaveBeenCalledWith(AGENTS_URL);
       expect(metadata.get('authorization')).toEqual(['Bearer fake-id-token']);
-      expect(metadata.get('x-internal-token')).toEqual([SECRET]);
+      // El secreto compartido ya no viaja: se retiró al cerrar el servicio con IAM.
+      expect(metadata.get('x-internal-token')).toEqual([]);
     });
 
     it('no lo adjunta en local, donde no hay metadata server', async () => {
@@ -190,8 +188,7 @@ describe('AgentsService', () => {
 
       expect(mockGetIdTokenClient).not.toHaveBeenCalled();
       expect(metadata.get('authorization')).toEqual([]);
-      // El secreto compartido sigue viajando en los dos modos.
-      expect(metadata.get('x-internal-token')).toEqual([SECRET]);
+      expect(metadata.get('x-internal-token')).toEqual([]);
     });
 
     it('reutiliza el mismo cliente en llamadas sucesivas', async () => {

@@ -19,14 +19,13 @@ export class AgentsService implements OnModuleInit {
   private readonly agentsGrpcUrl: string;
   private readonly agentsGrpcUseTls: boolean;
   private readonly agentsServiceTimeout: number;
-  private readonly internalSecret: string;
   private grpcClient: any;
 
   /**
    * Identidad del Gateway frente a Cloud Run. Google emite un ID token firmado que dice a
    * nombre de quién va (la service account del servicio) y para qué URL sirve; Cloud Run lo
-   * valida en el borde, antes de que la petición llegue al proceso de Python. Sustituye al
-   * secreto compartido, que es un string sin caducidad ni identidad detrás.
+   * valida en el borde, antes de que la petición llegue al proceso de Python. Es la única
+   * autenticación del canal: el servicio está cerrado con IAM y solo esta cuenta lo invoca.
    */
   private readonly auth = new GoogleAuth();
   private readonly agentsAudience: string;
@@ -41,7 +40,6 @@ export class AgentsService implements OnModuleInit {
     this.agentsAudience = this.agentsGrpcUseTls ? new URL(configuredUrl).origin : '';
     this.agentsGrpcUrl = configuredUrl.replace(/^https?:\/\//, '');
     this.agentsServiceTimeout = Number(this.configService.get<string>('AGENTS_SERVICE_TIMEOUT', '30000'));
-    this.internalSecret = this.configService.get<string>('AGENTS_INTERNAL_SECRET', '');
     // Sin bandera aparte para local: si la URL no trae TLS es localhost, y ahí no hay metadata
     // server al que pedirle el token. El log deja el modo por escrito para que no sea magia
     // silenciosa, y la audiencia impresa es con la que se compara la URL real del servicio
@@ -67,7 +65,6 @@ export class AgentsService implements OnModuleInit {
 
   private async buildMetadata(): Promise<grpc.Metadata> {
     const metadata = new grpc.Metadata();
-    if (this.internalSecret) metadata.add('x-internal-token', this.internalSecret);
     if (!this.agentsAudience) return metadata;
 
     try {

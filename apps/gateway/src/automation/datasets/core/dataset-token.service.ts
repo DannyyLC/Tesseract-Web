@@ -12,10 +12,10 @@ import { JwtService } from '@nestjs/jwt';
  * que nombra la organización y el dataset concretos, y caduca con la ejecución: si se filtra en un
  * log, sirve para leer un catálogo durante unos minutos y nada más.
  *
- * **Por qué su propio secreto y no `AGENTS_INTERNAL_SECRET`.** Ese autentica el sentido
- * Gateway→Agents y por tanto vive también en el servicio de agentes. Como HS256 firma y verifica con
- * la misma llave, reutilizarlo aquí le daría a ese servicio la capacidad de emitirse tokens para
- * cualquier organización y cualquier catálogo, no solo de usar los que recibe. Y es la pieza más
+ * **Por qué un secreto propio y no uno compartido con el servicio de agentes.** Como HS256 firma y
+ * verifica con la misma llave, una llave que también viviera allá le daría a ese servicio la
+ * capacidad de emitirse tokens para cualquier organización y cualquier catálogo, no solo de usar
+ * los que recibe. Y es la pieza más
  * expuesta que hay: ejecuta prompts escritos por clientes y habla con APIs de terceros.
  *
  * `DATASET_TOKEN_SECRET` no sale del Gateway. El servicio de agentes recibe estos tokens, nunca los
@@ -46,8 +46,8 @@ export class DatasetTokenService {
     const secret = this.configService.get<string>('DATASET_TOKEN_SECRET');
 
     if (!secret) {
-      // Fallar cerrado, y sin recaer en `AGENTS_INTERNAL_SECRET`: un respaldo así devolvería
-      // justo la capacidad de forjar que esta separación le quita al servicio de agentes.
+      // Fallar cerrado, sin recaer en ningún otro secreto: un respaldo compartido con el servicio
+      // de agentes le devolvería justo la capacidad de forjar que esta separación le quita.
       throw new InternalServerErrorException('DATASET_TOKEN_SECRET no está configurado');
     }
 

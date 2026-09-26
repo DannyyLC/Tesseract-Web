@@ -8,7 +8,7 @@ import { JwtService } from '@nestjs/jwt';
  * Mismo patrón que `DatasetTokenService` (apps/gateway/src/automation/datasets/core/dataset-token.service.ts):
  * un token con alcance, firmado por instancia de tool, que nombra la organización, la conversación
  * y el workflow concretos, y caduca con la ejecución. Secreto propio (`INTERVENTION_TOKEN_SECRET`),
- * no `DATASET_TOKEN_SECRET` ni `AGENTS_INTERNAL_SECRET` — cada canal Agents→Gateway tiene el suyo a
+ * no `DATASET_TOKEN_SECRET` — cada canal Agents→Gateway tiene el suyo a
  * propósito, para que un compromiso del servicio de agentes solo llegue hasta lo que ese canal
  * específico autoriza, no a forjar tokens de otro.
  *
