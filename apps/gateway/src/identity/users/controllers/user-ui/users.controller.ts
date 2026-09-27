@@ -114,7 +114,7 @@ export class UsersController {
 
   @Get('stats')
   async getStats(@CurrentUser() user: UserPayload, @Res() res: Response): Promise<Response> {
-    const apiResponse = new ApiResponseBuilder<any>();
+    const apiResponse = new ApiResponseBuilder<unknown>();
     const stats = await this.usersService.getStats(user.organizationId);
     apiResponse
       .setStatusCode(HttpStatusCode.Ok)
@@ -176,7 +176,7 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const apiResponse = new ApiResponseBuilder<any>();
+    const apiResponse = new ApiResponseBuilder<unknown>();
     let updatedUser;
 
     // 1. Update Role if provided
@@ -215,7 +215,7 @@ export class UsersController {
     @Body() updateProfileDto: UpdateProfileDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const apiResponse = new ApiResponseBuilder<any>();
+    const apiResponse = new ApiResponseBuilder<unknown>();
 
     // Solo permitir que el usuario edite su propio perfil
     if (id !== user.sub) {

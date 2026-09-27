@@ -189,7 +189,7 @@ export class TenantToolController {
     @CurrentUser() user: UserPayload,
     @Res() res: Response,
   ) {
-    const apiResponse = new ApiResponseBuilder<any>();
+    const apiResponse = new ApiResponseBuilder<unknown>();
     try {
       const updated = await this.tenantToolService.linkWhatsappOutboundWorkflows(
         user.organizationId,
@@ -215,7 +215,7 @@ export class TenantToolController {
     @Res() res: Response,
     @Locale() locale: SupportedLocale,
   ) {
-    const apiResponse = new ApiResponseBuilder<any>();
+    const apiResponse = new ApiResponseBuilder<unknown>();
     const tenantTool = await this.tenantToolService.getTenantToolById(
       id,
       user.organizationId,
