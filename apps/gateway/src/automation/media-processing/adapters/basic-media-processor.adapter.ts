@@ -8,7 +8,7 @@ export class BasicMediaProcessorAdapter implements MediaProcessorAdapter {
     sourceUrl: string;
     mimeType: string;
     sha256?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<MediaProcessResult> {
     // MVP adapter: dejar resultado determinista y trazable.
     // El reemplazo por OCR/STT real solo requiere cambiar este adapter.
@@ -49,7 +49,7 @@ export class BasicMediaProcessorAdapter implements MediaProcessorAdapter {
   transcribeBuffer(audio: {
     buffer: Buffer;
     mimeType: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<MediaProcessResult> {
     return Promise.resolve({
       status: 'PROCESSED',

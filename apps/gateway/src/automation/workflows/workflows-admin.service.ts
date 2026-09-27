@@ -191,7 +191,7 @@ export class WorkflowsAdminService {
    */
   async updateConfig(
     workflowId: string,
-    config: Record<string, any>,
+    config: Record<string, unknown>,
     expectedVersion: number,
     actor: Actor,
     options: { note?: string; source?: WorkflowVersionSource; expectedHash?: string } = {},
@@ -302,7 +302,7 @@ export class WorkflowsAdminService {
   }
 
   /** Dry-run de validación: mismos errores que al guardar, sin escribir. */
-  async validateConfig(config: Record<string, any>) {
+  async validateConfig(config: Record<string, unknown>) {
     return this.configValidator.collect(config);
   }
 
@@ -511,7 +511,7 @@ export class WorkflowsAdminService {
 
     return this.updateConfig(
       workflowId,
-      version.config as Record<string, any>,
+      version.config as Record<string, unknown>,
       expectedVersion,
       actor,
       {
@@ -628,7 +628,7 @@ export class WorkflowsAdminService {
     });
     if (!source) throw new NotFoundException('Workflow origen no encontrado');
 
-    const config = source.config as Record<string, any>;
+    const config = source.config as Record<string, unknown>;
     const toolReferences = this.collectToolReferences(config);
 
     const workflow = await this.create(
@@ -655,17 +655,22 @@ export class WorkflowsAdminService {
    * UUID de tool instances referenciados dentro del config, con el lugar donde
    * aparecen para que la UI pueda señalarlos.
    */
-  private collectToolReferences(config: Record<string, any>) {
+  private collectToolReferences(rawConfig: Record<string, unknown>) {
     const refs: { id: string; location: string }[] = [];
+    // Solo lo que este método lee de la config (JSON libre del workflow).
+    const config = rawConfig as {
+      agents?: Record<string, { tools?: (string | { id?: string })[] } | undefined>;
+      graph?: { nodes?: { id?: string; config?: { tool_instance?: string } }[] };
+    };
 
     for (const [agentKey, agent] of Object.entries(config?.agents ?? {})) {
-      for (const tool of (agent as any)?.tools ?? []) {
+      for (const tool of agent?.tools ?? []) {
         const id = typeof tool === 'string' ? tool : tool?.id;
         if (id) refs.push({ id, location: `agents.${agentKey}.tools` });
       }
     }
 
-    const nodes: any[] = config?.graph?.nodes ?? [];
+    const nodes = config?.graph?.nodes ?? [];
     nodes.forEach((node, index) => {
       const id = node?.config?.tool_instance;
       if (id) refs.push({ id, location: `graph.nodes[${index}] (${node.id})` });

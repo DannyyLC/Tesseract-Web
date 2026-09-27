@@ -9,7 +9,7 @@ export interface IncomingAttachment {
   mimeType: string;
   sourceUrl: string;
   sha256?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   /** Tope de tamaño para este adjunto. Lo fija la política del workflow. */
   maxBytes?: number;
 }

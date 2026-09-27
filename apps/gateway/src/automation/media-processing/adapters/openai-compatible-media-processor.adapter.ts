@@ -35,7 +35,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
     sourceUrl: string;
     mimeType: string;
     sha256?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     customOcrPrompt?: string;
     maxBytes?: number;
   }): Promise<MediaProcessResult> {
@@ -116,7 +116,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
   async transcribeBuffer(audio: {
     buffer: Buffer;
     mimeType: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<MediaProcessResult> {
     if (!this.apiKey) {
       return {

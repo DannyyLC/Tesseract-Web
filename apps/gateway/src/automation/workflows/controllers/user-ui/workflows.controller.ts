@@ -56,7 +56,7 @@ export class WorkflowsController {
   @Get('node-catalog')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getNodeCatalog(@Query('graphType', new DefaultValuePipe('pipeline')) graphType: string) {
-    const apiResponse = new ApiResponseBuilder<Record<string, any>>();
+    const apiResponse = new ApiResponseBuilder<Record<string, unknown>>();
     const catalog = await this.workflowsService.getNodeCatalog(graphType);
     apiResponse.setData(catalog).setMessage('Node catalog retrieved successfully').setSuccess(true);
     return apiResponse.build();

@@ -24,6 +24,19 @@ export enum UserType {
   EXTERNAL = 'external',
 }
 
+/**
+ * Una tool ya resuelta para un agente: lo que el Gateway le manda al motor por cada UUID.
+ * `config` y `credentials` son de forma libre (dependen de la tool) y viajan como JSON string.
+ */
+export interface AgentToolInstance {
+  tool_name?: string;
+  display_name?: string;
+  config?: Record<string, unknown>;
+  credentials?: Record<string, unknown> | null;
+  enabled_functions?: string[] | null;
+  [key: string]: unknown;
+}
+
 export class MessageHistoryDto {
   @ApiProperty({
     description: 'Rol del mensaje',
@@ -122,7 +135,7 @@ export class AgentExecutionRequestDto {
     },
   })
   @IsObject()
-  graph_config: Record<string, any>;
+  graph_config: Record<string, unknown>;
 
   @ApiProperty({
     description: `Configuración de agentes por nombre (default, sales, support, etc).
@@ -147,7 +160,7 @@ export class AgentExecutionRequestDto {
     },
   })
   @IsObject()
-  agents_config: Record<string, any>;
+  agents_config: Record<string, unknown>;
 
   @ApiProperty({
     description: 'Tool instances por agente con UUIDs como keys',
@@ -164,7 +177,7 @@ export class AgentExecutionRequestDto {
     },
   })
   @IsObject()
-  agent_tool_instances: Record<string, Record<string, any>>;
+  agent_tool_instances: Record<string, Record<string, AgentToolInstance>>;
 
   // ==========================================
   // HISTORIAL Y METADATA
@@ -188,7 +201,7 @@ export class AgentExecutionRequestDto {
   })
   @IsOptional()
   @IsObject()
-  user_metadata?: Record<string, any>;
+  user_metadata?: Record<string, unknown>;
 
   @ApiPropertyOptional({
     description: 'Zona horaria del workflow',

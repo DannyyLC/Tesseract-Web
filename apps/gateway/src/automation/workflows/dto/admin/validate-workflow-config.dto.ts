@@ -6,5 +6,5 @@ export class ValidateWorkflowConfigDto {
   @ApiProperty({ description: 'Config a validar' })
   @IsObject()
   @IsNotEmpty({ message: 'El config es requerido' })
-  config!: Record<string, any>;
+  config!: Record<string, unknown>;
 }

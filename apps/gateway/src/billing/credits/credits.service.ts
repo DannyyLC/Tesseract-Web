@@ -71,7 +71,7 @@ export class CreditsService {
     amount: number,
     type: TransactionType,
     description?: string,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
     costUSD?: number,
     subscriptionId?: string,
     invoiceId?: string,
@@ -103,7 +103,7 @@ export class CreditsService {
           balanceBefore,
           balanceAfter,
           description,
-          metadata: metadata ?? undefined,
+          metadata: metadata as Prisma.InputJsonObject | undefined,
           costUSD,
           subscriptionId,
           invoiceId,
@@ -136,7 +136,7 @@ export class CreditsService {
     amountMajor: number;
     cfdiStatus: CfdiStatus;
     stripePaymentIntentId?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<{ invoiceId: string; deduped: boolean }> {
     const balance = await this.prisma.creditBalance.findUnique({
       where: { organizationId: params.organizationId },
@@ -182,7 +182,7 @@ export class CreditsService {
             balanceBefore,
             balanceAfter,
             description: `Recarga de ${params.credits} créditos`,
-            metadata: params.metadata ?? undefined,
+            metadata: params.metadata as Prisma.InputJsonObject | undefined,
             invoiceId,
           },
         }),
@@ -315,7 +315,7 @@ export class CreditsService {
     workflowCategory: WorkflowCategory,
     workflowName: string,
     costUSD?: number,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): Promise<void> {
     // Obtener balance actual
     const balance = await this.prisma.creditBalance.findUnique({
@@ -355,7 +355,7 @@ export class CreditsService {
           workflowCategory,
           costUSD: costUSD ?? undefined,
           description: `Execution of ${workflowCategory} workflow: ${workflowName}`,
-          metadata: metadata ?? undefined,
+          metadata: metadata as Prisma.InputJsonObject | undefined,
         },
       }),
 

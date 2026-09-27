@@ -93,15 +93,15 @@ export class AgentsService implements OnModuleInit {
    * de cada tool, y por agente: model_params + signal_tools) viajan como JSON string.
    * Aquí los serializamos antes de enviar.
    */
-  private toWireRequest(request: AgentExecutionRequestDto): Record<string, any> {
+  private toWireRequest(request: AgentExecutionRequestDto): Record<string, unknown> {
     const toJson = (value: unknown): string =>
       value === undefined || value === null ? '' : JSON.stringify(value);
 
     // El proto define agent_tool_instances como map<string, AgentToolMap>,
     // donde AgentToolMap = { tools: map<string, ToolInstance> }. Envolvemos bajo `tools`.
-    const agentToolInstances: Record<string, { tools: Record<string, any> }> = {};
+    const agentToolInstances: Record<string, { tools: Record<string, unknown> }> = {};
     for (const [agentName, tools] of Object.entries(request.agent_tool_instances ?? {})) {
-      const wrappedTools: Record<string, any> = {};
+      const wrappedTools: Record<string, unknown> = {};
       for (const [toolId, tool] of Object.entries(tools)) {
         wrappedTools[toolId] = {
           ...tool,
@@ -115,9 +115,9 @@ export class AgentsService implements OnModuleInit {
     // El proto AgentConfig no tiene campos para model_params ni signal_tools:
     // viajan como JSON string (model_params_json / signal_tools_json). temperature
     // se deja tal cual — si el agente no la trae, el campo `optional` queda ausente.
-    const agentsConfig: Record<string, any> = {};
+    const agentsConfig: Record<string, unknown> = {};
     for (const [agentName, cfg] of Object.entries(request.agents_config ?? {})) {
-      const { model_params, signal_tools, tools, ...rest } = (cfg ?? {}) as Record<string, any>;
+      const { model_params, signal_tools, tools, ...rest } = (cfg ?? {}) as Record<string, unknown>;
       void tools; // `tools` no viaja en AgentConfig (se resuelve vía agent_tool_instances)
       agentsConfig[agentName] = {
         ...rest,
@@ -129,7 +129,7 @@ export class AgentsService implements OnModuleInit {
     return {
       ...request,
       graph_config: toJson(request.graph_config),
-      user_metadata: toJson((request as Record<string, any>).user_metadata),
+      user_metadata: toJson(request.user_metadata),
       agent_tool_instances: agentToolInstances,
       agents_config: agentsConfig,
     };
@@ -210,11 +210,11 @@ export class AgentsService implements OnModuleInit {
    * puertos, contrato de templates). Se usa para validar workflows al guardarlos
    * y será la fuente del futuro editor visual.
    */
-  async getNodeCatalog(graphType = 'pipeline'): Promise<Record<string, any>> {
+  async getNodeCatalog(graphType = 'pipeline'): Promise<Record<string, unknown>> {
     return this.withRetry(
       async () => {
         const metadata = await this.buildMetadata();
-        return new Promise<Record<string, any>>((resolve, reject) => {
+        return new Promise<Record<string, unknown>>((resolve, reject) => {
           const deadline = new Date(Date.now() + 10000);
           this.grpcClient.getNodeCatalog(
             { graph_type: graphType },

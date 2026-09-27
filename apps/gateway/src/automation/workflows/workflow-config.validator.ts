@@ -155,10 +155,12 @@ export class WorkflowConfigValidator {
    * este error es legítimo y hay que mostrarlo tal cual, no tratarlo como un fallo
    * interno.
    */
-  private async collectModelErrors(agentsConfig: Record<string, any>): Promise<string[]> {
+  private async collectModelErrors(agentsConfig: Record<string, unknown>): Promise<string[]> {
     const modelsToValidate = new Set<string>();
 
-    for (const agentConfig of Object.values(agentsConfig)) {
+    // Forma que se espera de cada agente; la config es JSON libre y se valida aquí mismo.
+    const agents = agentsConfig as Record<string, { model?: string; fallbacks?: string[] }>;
+    for (const agentConfig of Object.values(agents)) {
       if (agentConfig?.model) modelsToValidate.add(agentConfig.model);
       if (Array.isArray(agentConfig?.fallbacks)) {
         agentConfig.fallbacks.forEach((model: string) => modelsToValidate.add(model));

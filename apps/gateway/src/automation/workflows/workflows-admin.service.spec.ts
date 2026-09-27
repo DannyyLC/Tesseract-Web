@@ -148,7 +148,7 @@ describe('WorkflowsAdminService', () => {
         post_turn_actions: validConfig().post_turn_actions,
       };
 
-      const result = await service.updateConfig('wf-1', reordered as any, 9, ACTOR);
+      const result = await service.updateConfig('wf-1', reordered, 9, ACTOR);
 
       expect(result.changed).toBe(false);
     });

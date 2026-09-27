@@ -114,7 +114,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // Excepciones custom (AppException)
     // ============================================
     if (exception instanceof AppException) {
-      const errors = exception.metadata?.errors;
+      const errors = exception.metadata?.errors as ErrorResponse['errors'];
       return {
         success: false,
         errorCode: exception.errorCode,

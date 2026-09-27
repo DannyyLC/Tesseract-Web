@@ -31,5 +31,5 @@ export class UpsertCredentialsDto {
   @ApiPropertyOptional({
     description: 'User profile fetched from provider (e.g. email, name, picture)',
   })
-  profile?: Record<string, any>;
+  profile?: Record<string, unknown>;
 }

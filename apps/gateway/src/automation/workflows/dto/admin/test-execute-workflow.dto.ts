@@ -29,12 +29,12 @@ export class TestExecuteWorkflowDto {
   // `{}` pasaría la validación pese al mensaje. `@IsNotEmptyObject()` sí revisa que
   // tenga al menos una llave.
   @IsNotEmptyObject(undefined, { message: 'Los datos de entrada son requeridos' })
-  input!: Record<string, any>;
+  input!: Record<string, unknown>;
 
   @ApiPropertyOptional({ description: 'Metadata adicional; no se envía al workflow' })
   @IsObject()
   @IsOptional()
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 
   @ApiPropertyOptional({
     enum: TriggerType,
