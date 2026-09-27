@@ -1469,12 +1469,12 @@ export class BillingService {
       });
 
       // Sort by executions (DESC)
-      activeWorkflows.sort((a: any, b: any) => b._count.executions - a._count.executions);
+      activeWorkflows.sort((a, b) => b._count.executions - a._count.executions);
 
       if (activeWorkflows.length > maxWorkflows) {
         const workflowsToDeactivate = activeWorkflows.slice(maxWorkflows);
 
-        const idsToDeactivate = workflowsToDeactivate.map((w: any) => w.id);
+        const idsToDeactivate = workflowsToDeactivate.map((w) => w.id);
 
         if (idsToDeactivate.length > 0) {
           await this.prisma.workflow.updateMany({
@@ -1511,23 +1511,23 @@ export class BillingService {
       });
 
       // Filter: Only keep keys for currently active workflows
-      const validApiKeys = activeApiKeys.filter((k: any) =>
-        activeWorkflowIds.includes(k.workflowId),
+      const validApiKeys = activeApiKeys.filter(
+        (k) => k.workflowId !== null && activeWorkflowIds.includes(k.workflowId),
       );
       const invalidApiKeys = activeApiKeys.filter(
-        (k: any) => !activeWorkflowIds.includes(k.workflowId),
+        (k) => k.workflowId === null || !activeWorkflowIds.includes(k.workflowId),
       );
 
       // Sort valid keys by executions (DESC)
-      validApiKeys.sort((a: any, b: any) => b._count.executions - a._count.executions);
+      validApiKeys.sort((a, b) => b._count.executions - a._count.executions);
 
       // Determine which to keep from the valid ones
       const keysToDeactivateFromValid = validApiKeys.slice(maxApiKeys);
 
       // Collect all IDs to deactivate
       const idsToDeactivate = [
-        ...invalidApiKeys.map((k: any) => k.id),
-        ...keysToDeactivateFromValid.map((k: any) => k.id),
+        ...invalidApiKeys.map((k) => k.id),
+        ...keysToDeactivateFromValid.map((k) => k.id),
       ];
 
       if (idsToDeactivate.length > 0) {
@@ -1558,9 +1558,15 @@ export class BillingService {
         const usersToKeep: string[] = [];
         let slotsRemaining = maxUsers;
 
+        // Los roles en la base van en mayúsculas. Antes se comparaba con 'owner'/'admin'/
+        // 'viewer' (y el `any` lo escondía): nada coincidía, la lista de usuarios a conservar
+        // quedaba vacía y un downgrade desactivaba a TODOS, dueño incluido.
+        const byRecentLogin = (a: { lastLoginAt: Date | null }, b: { lastLoginAt: Date | null }) =>
+          (b.lastLoginAt?.getTime() ?? 0) - (a.lastLoginAt?.getTime() ?? 0);
+
         // Always keep OWNER
-        const owners = activeUsers.filter((u: any) => u.role === 'owner');
-        owners.forEach((u: any) => usersToKeep.push(u.id));
+        const owners = activeUsers.filter((u) => u.role === UserRole.OWNER);
+        owners.forEach((u) => usersToKeep.push(u.id));
         slotsRemaining -= owners.length;
 
         if (owners.length > 1) {
@@ -1569,36 +1575,28 @@ export class BillingService {
 
         // Keep ADMINs (sorted by recent login)
         if (slotsRemaining > 0) {
-          const admins = activeUsers.filter((u: any) => u.role === 'admin');
-          admins.sort((a: any, b: any) => {
-            const timeA = a.lastLoginAt ? a.lastLoginAt.getTime() : 0;
-            const timeB = b.lastLoginAt ? b.lastLoginAt.getTime() : 0;
-            return timeB - timeA;
-          });
+          const admins = activeUsers.filter((u) => u.role === UserRole.ADMIN);
+          admins.sort(byRecentLogin);
 
           const adminsToKeep = admins.slice(0, slotsRemaining);
-          adminsToKeep.forEach((u: any) => usersToKeep.push(u.id));
+          adminsToKeep.forEach((u) => usersToKeep.push(u.id));
           slotsRemaining -= adminsToKeep.length;
         }
 
         // Keep VIEWERS (sorted by recent login)
         if (slotsRemaining > 0) {
-          const viewers = activeUsers.filter((u: any) => u.role === 'viewer');
-          viewers.sort((a: any, b: any) => {
-            const timeA = a.lastLoginAt ? a.lastLoginAt.getTime() : 0;
-            const timeB = b.lastLoginAt ? b.lastLoginAt.getTime() : 0;
-            return timeB - timeA; // Descending
-          });
+          const viewers = activeUsers.filter((u) => u.role === UserRole.VIEWER);
+          viewers.sort(byRecentLogin);
           const viewersToKeep = viewers.slice(0, slotsRemaining);
-          viewersToKeep.forEach((u: any) => usersToKeep.push(u.id));
+          viewersToKeep.forEach((u) => usersToKeep.push(u.id));
           slotsRemaining -= viewersToKeep.length;
         }
 
-        const usersToDeactivate = activeUsers.filter((u: any) => !usersToKeep.includes(u.id));
+        const usersToDeactivate = activeUsers.filter((u) => !usersToKeep.includes(u.id));
 
         if (usersToDeactivate.length > 0) {
           await this.prisma.user.updateMany({
-            where: { id: { in: usersToDeactivate.map((u: any) => u.id) } },
+            where: { id: { in: usersToDeactivate.map((u) => u.id) } },
             data: { isActive: false },
           });
           this.logger.log(`Deactivated ${usersToDeactivate.length} excess users.`);

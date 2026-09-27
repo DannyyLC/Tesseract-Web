@@ -490,6 +490,40 @@ describe('BillingService', () => {
     });
   });
 
+  describe('enforceLimits · usuarios', () => {
+    const users = [
+      { id: 'viewer-old', role: 'VIEWER', lastLoginAt: new Date('2026-01-01') },
+      { id: 'owner', role: 'OWNER', lastLoginAt: null },
+      { id: 'admin', role: 'ADMIN', lastLoginAt: new Date('2026-02-01') },
+      { id: 'viewer-new', role: 'VIEWER', lastLoginAt: new Date('2026-03-01') },
+    ];
+    const withUserLimit = (maxUsers: number) => {
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        customMaxUsers: maxUsers,
+        customMaxWorkflows: -1,
+        customMaxApiKeys: -1,
+      });
+      mockPrismaService.user.findMany.mockResolvedValue(users);
+    };
+    const deactivated = () =>
+      (mockPrismaService.user.updateMany.mock.calls[0]?.[0]?.where?.id?.in ?? []) as string[];
+
+    // Los roles de la base van en mayúsculas; antes se comparaban en minúsculas y un downgrade
+    // desactivaba a todos, dueño incluido.
+    it('nunca desactiva al dueño', async () => {
+      withUserLimit(1);
+      await (service as any).enforceLimits('org-1', 'FREE');
+      expect(deactivated()).not.toContain('owner');
+      expect(deactivated()).toEqual(expect.arrayContaining(['admin', 'viewer-old', 'viewer-new']));
+    });
+
+    it('conserva por rol y luego por el login más reciente', async () => {
+      withUserLimit(3);
+      await (service as any).enforceLimits('org-1', 'FREE');
+      expect(deactivated()).toEqual(['viewer-old']);
+    });
+  });
+
   describe('getBillingDashboard', () => {
     it('no incluye workflows internos en usage.workflows.used', async () => {
       mockPrismaService.organization.findUnique.mockResolvedValue({
