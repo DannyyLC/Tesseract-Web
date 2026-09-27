@@ -21,7 +21,7 @@ describe('selectMessagesToArchive', () => {
 
     expect(result.messages).toHaveLength(13);
     expect(result.messages[0].id).toBe('m1');
-    expect(result.messages.at(-1)!.id).toBe('m13');
+    expect(result.messages.at(-1)?.id).toBe('m13');
   });
 
   it('solo considera lo posterior a la compactación anterior', () => {
@@ -100,7 +100,7 @@ describe('selectMessagesToArchive', () => {
       recentToKeep,
       minBatch,
     });
-    const firstEnd = first.messages.at(-1)!.id;
+    const firstEnd = first.messages.at(-1)?.id;
 
     const second = selectMessagesToArchive({
       fullHistory,

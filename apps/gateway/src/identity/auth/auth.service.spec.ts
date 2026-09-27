@@ -55,14 +55,19 @@ describe('AuthService', () => {
     decode: jest.fn(),
   };
 
+  const configValues: Record<string, string> = {
+    JWT_SECRET: 'secret',
+    JWT_REFRESH_SECRET: 'refresh_secret',
+    TEMP_TOKEN_SECRET: 'temp_secret',
+    JWT_EXPIRATION_TIME: '15m',
+    JWT_REFRESH_EXPIRATION_TIME: '7d',
+    FRONTEND_URL: 'http://localhost:3000',
+  };
   const mockConfigService = {
-    get: jest.fn().mockImplementation((key) => {
-      if (key === 'JWT_SECRET') return 'secret';
-      if (key === 'JWT_REFRESH_SECRET') return 'refresh_secret';
-      if (key === 'JWT_EXPIRATION_TIME') return '15m';
-      if (key === 'JWT_REFRESH_EXPIRATION_TIME') return '7d';
-      if (key === 'FRONTEND_URL') return 'http://localhost:3000';
-      return null;
+    get: jest.fn().mockImplementation((key: string) => configValues[key] ?? null),
+    getOrThrow: jest.fn().mockImplementation((key: string) => {
+      if (!(key in configValues)) throw new Error(`Missing ${key}`);
+      return configValues[key];
     }),
   };
 

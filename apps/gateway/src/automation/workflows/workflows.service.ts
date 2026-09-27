@@ -2647,7 +2647,7 @@ export class WorkflowsService {
     } else if (Array.isArray(content)) {
       summary = content
         .filter((part) => part?.type === 'text' && part?.text)
-        .map((part) => part.text!.trim())
+        .map((part) => (part.text ?? '').trim())
         .filter(Boolean)
         .join('\n');
     }

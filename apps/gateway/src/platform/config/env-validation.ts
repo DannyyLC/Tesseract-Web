@@ -139,6 +139,8 @@ export function validateEnv(): void {
 
   if (missing.length === 0) return;
 
+  // Corre antes de que exista el logger de Nest: la consola es la única salida disponible.
+  /* eslint-disable no-console */
   console.error('\nMissing required environment variables:\n');
   missing.forEach((key) => console.error(`    - ${key}`));
   console.error(
@@ -146,5 +148,6 @@ export function validateEnv(): void {
       ? '\nSet these variables in GCP Secret Manager and redeploy.\n'
       : '\nCopy .env.example to .env and fill in the missing values.\n',
   );
+  /* eslint-enable no-console */
   process.exit(1);
 }

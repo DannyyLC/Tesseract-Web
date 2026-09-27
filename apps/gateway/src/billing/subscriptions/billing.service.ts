@@ -107,7 +107,9 @@ export class BillingService {
         allow_promotion_codes: dto.allowPromotionCodes,
         metadata: dto.metadata,
       });
-      return session.url!; // Return the redirect URL
+      // Una sesión de checkout alojada siempre trae URL; sin ella no hay a dónde redirigir.
+      if (!session.url) throw new Error('Stripe no devolvió la URL de la sesión de checkout');
+      return session.url;
     } catch (error) {
       this.logger.error(`Failed to create checkout session for ${dto.customerId}`, error);
       throw error;
@@ -141,7 +143,8 @@ export class BillingService {
         },
         metadata: dto.metadata,
       });
-      return session.url!;
+      if (!session.url) throw new Error('Stripe no devolvió la URL de la sesión de checkout');
+      return session.url;
     } catch (error) {
       this.logger.error(
         `Failed to create credit top-up checkout session for ${dto.customerId}`,
@@ -1145,11 +1148,11 @@ export class BillingService {
     }
 
     const existing = organization.subscription;
-    if (!existing && !dto.plan) {
+    const plan = dto.plan ?? existing?.plan;
+    if (!plan) {
       throw new BadRequestException('Se requiere un plan para crear la suscripción');
     }
 
-    const plan = dto.plan ?? existing!.plan;
     const now = new Date();
     const defaultPeriodEnd = new Date(now);
     defaultPeriodEnd.setMonth(defaultPeriodEnd.getMonth() + 1);

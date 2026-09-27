@@ -12,6 +12,14 @@ export interface DatasetRequest extends Request {
   datasetClaims?: DatasetTokenClaims;
 }
 
+/** Claims que dejó `DatasetAccessGuard`. Falla cerrado si una ruta se quedó sin el guard. */
+export function datasetClaimsOf(request: DatasetRequest): DatasetTokenClaims {
+  if (!request.datasetClaims) {
+    throw new UnauthorizedException('Falta el token de consulta del dataset');
+  }
+  return request.datasetClaims;
+}
+
 @Injectable()
 export class DatasetAccessGuard implements CanActivate {
   constructor(private readonly datasetTokenService: DatasetTokenService) {}

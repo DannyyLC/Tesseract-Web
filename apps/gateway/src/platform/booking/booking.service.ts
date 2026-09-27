@@ -201,10 +201,13 @@ export class BookingService {
       },
     });
 
+    // Sin id no se puede cancelar ni reagendar después: mejor fallar aquí que guardar la cita.
+    if (!event.id) throw new Error('Google Calendar no devolvió el id del evento creado');
+
     return {
-      eventId: event.id!,
+      eventId: event.id,
       meetLink: event.hangoutLink ?? null,
-      htmlLink: event.htmlLink!,
+      htmlLink: event.htmlLink ?? '',
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       eventTypeId: eventType.id,
@@ -274,9 +277,11 @@ export class BookingService {
         continue;
       }
       for (const period of entry.busy ?? []) {
+        // Sin límites el intervalo sería NaN y no bloquearía nada: se omite explícitamente.
+        if (!period.start || !period.end) continue;
         busy.push({
-          start: new Date(period.start!).getTime(),
-          end: new Date(period.end!).getTime(),
+          start: new Date(period.start).getTime(),
+          end: new Date(period.end).getTime(),
         });
       }
     }

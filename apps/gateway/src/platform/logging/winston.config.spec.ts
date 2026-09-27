@@ -117,7 +117,6 @@ describe('configuración de Winston', () => {
     it('no emite códigos de color, que en Cloud Logging son basura', async () => {
       const [linea] = await capturarSalida(true, (logger) => logger.error('sin ansi'));
 
-      // eslint-disable-next-line no-control-regex
       expect(linea).not.toMatch(/\x1B\[/);
     });
 

@@ -261,7 +261,9 @@ export class AdminAnalyticsService {
         unpricedOrganizations,
       },
       byCategory: CATEGORY_ORDER.map((category) => {
-        const bucket = byCategory.get(category)!;
+        const bucket = byCategory.get(category);
+        // Se inicializa una por categoría arriba; que falte sería un bug, no un dato.
+        if (!bucket) throw new Error(`Sin acumulador para la categoría ${category}`);
         const bucketMarginUSD = bucket.estimatedRevenueUSD - bucket.costUSD;
         const bucketMarginPct =
           bucket.estimatedRevenueUSD > 0
@@ -435,8 +437,8 @@ export class AdminAnalyticsService {
       const estimatedRevenueUSD = creditValueUSD != null ? creditsCharged * creditValueUSD : null;
       const marginUSD = estimatedRevenueUSD != null ? estimatedRevenueUSD - costUSD : null;
       const marginPct =
-        marginUSD != null && estimatedRevenueUSD! > 0
-          ? (marginUSD / estimatedRevenueUSD!) * 100
+        marginUSD != null && estimatedRevenueUSD != null && estimatedRevenueUSD > 0
+          ? (marginUSD / estimatedRevenueUSD) * 100
           : null;
 
       return {

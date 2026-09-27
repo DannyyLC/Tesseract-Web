@@ -266,7 +266,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
         if (Array.isArray(content)) {
           const merged = content
             .filter((part) => part?.type === 'text' && part?.text)
-            .map((part) => part.text!.trim())
+            .map((part) => (part.text ?? '').trim())
             .filter(Boolean)
             .join('\n');
           return {

@@ -45,6 +45,10 @@ export default tseslint.config(
     files: ['**/*.spec.ts', '**/*.e2e-spec.ts'],
     rules: {
       '@typescript-eslint/unbound-method': 'off',
+      // Los specs arman mocks parciales (un PrismaService con solo los métodos que usa la
+      // prueba) y los pasan donde se espera el tipo real: `any` es la herramienta para eso.
+      // En el código de producción la regla sigue activa.
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
   prettierConfig,
