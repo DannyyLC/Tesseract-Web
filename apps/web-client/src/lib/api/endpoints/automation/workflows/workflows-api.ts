@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '../../../api-request-manager';
 import {
   WorkflowStatsDto,
@@ -49,7 +50,7 @@ class WorkflowsApi {
     const result = await this.apiRequestManager.get<ApiResponse<WorkflowStatsDto>>(
       `${WorkflowsApi.BASE_URL}/stats`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   /**

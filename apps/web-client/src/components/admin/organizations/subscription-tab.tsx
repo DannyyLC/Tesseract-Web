@@ -73,7 +73,7 @@ export function SubscriptionTab({ org }: Props) {
     );
   };
 
-  if (isStripeManaged) {
+  if (isStripeManaged && org.subscription) {
     return (
       <div className="w-full space-y-4">
         <p className="rounded-lg border border-border bg-surface-secondary px-3 py-2 text-xs text-text-secondary">
@@ -91,8 +91,8 @@ export function SubscriptionTab({ org }: Props) {
           <div>
             <dt className="text-xs text-text-secondary">{t('currentPeriod')}</dt>
             <dd className="text-sm text-text-primary">
-              {new Date(org.subscription!.currentPeriodStart).toLocaleDateString(intlLocale)} –{' '}
-              {new Date(org.subscription!.currentPeriodEnd).toLocaleDateString(intlLocale)}
+              {new Date(org.subscription.currentPeriodStart).toLocaleDateString(intlLocale)} –{' '}
+              {new Date(org.subscription.currentPeriodEnd).toLocaleDateString(intlLocale)}
             </dd>
           </div>
           <div>

@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '../../../api-request-manager';
 import {
   DashboardUserDataDto,
@@ -40,7 +41,7 @@ class UsersApi {
 
     const result =
       await this.apiRequestManager.get<ApiResponse<PaginatedResponse<DashboardUserDataDto>>>(url);
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   /**
@@ -60,7 +61,7 @@ class UsersApi {
     const result = await this.apiRequestManager.get<ApiResponse<DashboardUserDataDto>>(
       `${UsersApi.BASE_URL}/${id}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   /**
@@ -71,7 +72,7 @@ class UsersApi {
       `${UsersApi.BASE_URL}/${id}/update-status-or-role`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   /**
@@ -102,7 +103,7 @@ class UsersApi {
       `${UsersApi.BASE_URL}/me/organization`,
       { data },
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async getPendingInvitations(): Promise<any> {

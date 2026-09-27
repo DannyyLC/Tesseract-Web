@@ -1,5 +1,6 @@
 'use client';
 
+import { TURNSTILE_SITE_KEY } from '@/lib/turnstile';
 import { useState } from 'react';
 import { ArrowRight, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -151,7 +152,7 @@ export default function ForgotPasswordScreen() {
 
                 <div className="flex justify-center">
                   <Turnstile
-                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                    siteKey={TURNSTILE_SITE_KEY}
                     options={{ size: 'flexible' }}
                     onSuccess={(token) => setTurnstileToken(token)}
                     onExpire={() => setTurnstileToken(null)}

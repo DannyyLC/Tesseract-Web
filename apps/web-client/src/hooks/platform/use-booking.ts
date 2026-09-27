@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { skipToken, useQuery, useMutation } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
 import { CreateBookingDto } from '@tesseract/types';
 
@@ -16,11 +16,13 @@ export function useBookingEventTypes() {
 export function useBookingAvailability(eventTypeId: string | undefined, date: string | undefined) {
   return useQuery({
     queryKey: ['booking', 'availability', eventTypeId, date],
-    queryFn: async () => {
-      const api = RootApi.getInstance().getBookingApi();
-      return await api.getAvailability(eventTypeId!, date!);
-    },
-    enabled: !!eventTypeId && !!date,
+    queryFn:
+      eventTypeId && date
+        ? async () => {
+            const api = RootApi.getInstance().getBookingApi();
+            return await api.getAvailability(eventTypeId, date);
+          }
+        : skipToken,
     staleTime: 1000 * 30,
   });
 }
@@ -33,11 +35,13 @@ export function useBookingAvailableDays(
 ) {
   return useQuery({
     queryKey: ['booking', 'available-days', eventTypeId, from, to],
-    queryFn: async () => {
-      const api = RootApi.getInstance().getBookingApi();
-      return await api.getAvailableDays(eventTypeId!, from!, to!);
-    },
-    enabled: !!eventTypeId && !!from && !!to,
+    queryFn:
+      eventTypeId && from && to
+        ? async () => {
+            const api = RootApi.getInstance().getBookingApi();
+            return await api.getAvailableDays(eventTypeId, from, to);
+          }
+        : skipToken,
     staleTime: 1000 * 30,
   });
 }

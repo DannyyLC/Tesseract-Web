@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '@/lib/api/api-request-manager';
 import type { ApiResponse } from '@tesseract/types';
 
@@ -101,14 +102,14 @@ class OrganizationsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AdminOrganizationsResult>>(
       `${OrganizationsAdminApi.BASE_URL}${qs ? `?${qs}` : ''}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async findOne(id: string): Promise<AdminOrganizationDetail> {
     const result = await this.apiRequestManager.get<ApiResponse<AdminOrganizationDetail>>(
       `${OrganizationsAdminApi.BASE_URL}/${id}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async updateCustomLimits(
@@ -119,7 +120,7 @@ class OrganizationsAdminApi {
       `${OrganizationsAdminApi.BASE_URL}/${id}/custom-limits`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async toggleOverage(
@@ -130,7 +131,7 @@ class OrganizationsAdminApi {
       `${OrganizationsAdminApi.BASE_URL}/${id}/overage`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async deactivate(id: string, reason?: string): Promise<AdminOrganizationDetail> {
@@ -138,7 +139,7 @@ class OrganizationsAdminApi {
       `${OrganizationsAdminApi.BASE_URL}/${id}/deactivate`,
       { reason },
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async reactivate(id: string): Promise<AdminOrganizationDetail> {
@@ -146,7 +147,7 @@ class OrganizationsAdminApi {
       `${OrganizationsAdminApi.BASE_URL}/${id}/reactivate`,
       {},
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 }
 

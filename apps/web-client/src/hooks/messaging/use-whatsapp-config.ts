@@ -1,5 +1,5 @@
 import RootApi from '@/lib/api/endpoints/root-api';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import useEvents from '@/hooks/shared/use-events';
 import { ENDPOINT_EVENTS, TYPE_EVENTS } from '@tesseract/types';
@@ -89,11 +89,12 @@ export function useWhatsappNumbers(workflowId: string) {
 export function useWhatsappTemplates(configId: string | null) {
   return useQuery({
     queryKey: ['whatsapp', 'templates', configId],
-    queryFn: async () => {
-      const api = RootApi.getInstance().getWhatsappConfigApi();
-      return await api.listTemplates(configId!);
-    },
-    enabled: !!configId,
+    queryFn: configId
+      ? async () => {
+          const api = RootApi.getInstance().getWhatsappConfigApi();
+          return await api.listTemplates(configId);
+        }
+      : skipToken,
   });
 }
 

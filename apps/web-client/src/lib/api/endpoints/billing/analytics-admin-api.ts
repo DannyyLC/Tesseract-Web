@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '../../api-request-manager';
 import type { ApiResponse } from '@tesseract/types';
 
@@ -93,14 +94,14 @@ class AnalyticsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AdminAnalyticsOverview>>(
       `${AnalyticsAdminApi.BASE_URL}/overview?period=${period}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async getTimeseries(period: string): Promise<AdminAnalyticsTimeseries> {
     const result = await this.apiRequestManager.get<ApiResponse<AdminAnalyticsTimeseries>>(
       `${AnalyticsAdminApi.BASE_URL}/timeseries?period=${period}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async getTopWorkflows(
@@ -111,7 +112,7 @@ class AnalyticsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AdminAnalyticsTopWorkflows>>(
       `${AnalyticsAdminApi.BASE_URL}/top-workflows?period=${period}&metric=${metric}&limit=${limit}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async getOrganizationsMargin(
@@ -123,7 +124,7 @@ class AnalyticsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AdminAnalyticsOrganizationsMargin>>(
       `${AnalyticsAdminApi.BASE_URL}/organizations-margin?period=${period}&page=${page}&limit=${limit}&sortBy=${sortBy}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 }
 

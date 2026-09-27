@@ -51,9 +51,9 @@ export default function HourlyDistributionChart({
   // La hora punta solo se resalta si destaca de verdad; con la actividad repartida,
   // teñir la barra más alta sugiere un patrón que no existe.
   const peakHour = useMemo(() => {
-    if (!hasData || buckets.length === 0) return null;
+    if (!data || !hasData || buckets.length === 0) return null;
     const max = Math.max(...buckets.map((bucket) => bucket.count));
-    const average = data!.total / 24;
+    const average = data.total / 24;
     if (max < average * 1.5) return null;
     return buckets.find((bucket) => bucket.count === max)?.hour ?? null;
   }, [buckets, hasData, data]);

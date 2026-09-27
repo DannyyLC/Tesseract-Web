@@ -508,7 +508,7 @@ export default function UsersPage() {
                     >
                       <div
                         className="cursor-pointer p-5"
-                        onClick={() => setExpandedUserId(isExpanded ? null : user.id!)}
+                        onClick={() => setExpandedUserId(isExpanded ? null : (user.id ?? null))}
                       >
                         <div className="flex items-center gap-4">
                           {/* Avatar */}

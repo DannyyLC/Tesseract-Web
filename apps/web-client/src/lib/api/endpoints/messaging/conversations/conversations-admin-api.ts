@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '@/lib/api/api-request-manager';
 import type { ApiResponse } from '@tesseract/types';
 import type { AdminTestExecutionDetail } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
@@ -64,7 +65,7 @@ class ConversationsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AdminConversationsListResult>>(
       `${ConversationsAdminApi.BASE_URL}?${params.toString()}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async findOne(
@@ -76,7 +77,7 @@ class ConversationsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AdminConversationDetail>>(
       `${ConversationsAdminApi.BASE_URL}/${id}?${params.toString()}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async rename(id: string, organizationId: string, title: string): Promise<void> {

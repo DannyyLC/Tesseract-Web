@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '../../api-request-manager';
 import type { ApiResponse } from '@tesseract/types';
 
@@ -55,7 +56,7 @@ class CreditsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AdminCreditsDashboard>>(
       `${CreditsAdminApi.BASE_URL}/${organizationId}/credits${qs ? `?${qs}` : ''}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async adjust(
@@ -66,7 +67,7 @@ class CreditsAdminApi {
       `${CreditsAdminApi.BASE_URL}/${organizationId}/credits/adjust`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 }
 

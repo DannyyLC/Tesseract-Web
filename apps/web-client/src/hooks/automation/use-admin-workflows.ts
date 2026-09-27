@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import {
+  skipToken,
+  useQuery,
+  useMutation,
+  useQueryClient,
+  useInfiniteQuery,
+} from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
 import type {
   AdminWorkflowsQuery,
@@ -85,8 +91,7 @@ export function useWorkflowVersions(id: string, page = 1, enabled = true, limit?
 export function useVersionDiff(id: string, versionId: string | null) {
   return useQuery({
     queryKey: [KEY, 'diff', id, versionId],
-    queryFn: async () => api().diffVersion(id, versionId!),
-    enabled: !!id && !!versionId,
+    queryFn: id && versionId ? async () => api().diffVersion(id, versionId) : skipToken,
     retry: false,
   });
 }

@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '@/lib/api/api-request-manager';
 import type { ApiResponse } from '@tesseract/types';
 
@@ -54,7 +55,7 @@ class TenantToolsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AdminTenantToolsResult>>(
       `${TenantToolsAdminApi.BASE_URL}${qs ? `?${qs}` : ''}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 }
 

@@ -457,8 +457,8 @@ export default function DashboardPage() {
                 <div className="p-5">
                   <ChartSkeleton height={160} />
                 </div>
-              ) : (stats7d?.topWorkflows ?? []).length > 0 ? (
-                stats7d!.topWorkflows.slice(0, 5).map((wf, i) => {
+              ) : stats7d && stats7d.topWorkflows.length > 0 ? (
+                stats7d.topWorkflows.slice(0, 5).map((wf, i) => {
                   const successPct = Math.round(wf.successRate ?? 0);
                   const barColor =
                     successPct >= 90

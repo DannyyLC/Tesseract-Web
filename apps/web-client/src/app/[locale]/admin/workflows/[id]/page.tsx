@@ -260,14 +260,14 @@ function WorkflowEditor() {
         id: workflowId,
         input: {
           config: draft,
-          expectedVersion: loadedVersion!,
+          expectedVersion: loadedVersion,
           expectedHash: loadedHash ?? undefined,
           note: note.trim() || undefined,
         },
       },
       {
         onSuccess: (result) => {
-          localStorage.removeItem(draftKey(workflowId, loadedVersion!));
+          localStorage.removeItem(draftKey(workflowId, loadedVersion));
           setSaveOpen(false);
           setNote('');
 

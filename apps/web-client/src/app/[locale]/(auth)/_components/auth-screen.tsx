@@ -1,5 +1,6 @@
 'use client';
 
+import { TURNSTILE_SITE_KEY } from '@/lib/turnstile';
 import { useState, useEffect, useRef } from 'react';
 import { Eye, EyeOff, ArrowRight, Building2, Mail, Lock, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -551,7 +552,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                     <div className="flex justify-center">
                       <Turnstile
                         ref={turnstileRef}
-                        siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                        siteKey={TURNSTILE_SITE_KEY}
                         options={{ size: 'flexible' }}
                         onSuccess={(token) => setTurnstileToken(token)}
                         onExpire={() => setTurnstileToken(null)}
@@ -689,7 +690,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                         <div className="flex justify-center">
                           <Turnstile
-                            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                            siteKey={TURNSTILE_SITE_KEY}
                             options={{ size: 'flexible' }}
                             onSuccess={(token) => setTurnstileToken(token)}
                             onExpire={() => setTurnstileToken(null)}
@@ -821,7 +822,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                         <div className="flex justify-center">
                           <Turnstile
                             ref={resendTurnstileRef}
-                            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                            siteKey={TURNSTILE_SITE_KEY}
                             options={{ size: 'flexible' }}
                             onSuccess={(token) => setTurnstileToken(token)}
                             onExpire={() => setTurnstileToken(null)}

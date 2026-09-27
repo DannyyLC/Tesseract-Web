@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '@/lib/api/api-request-manager';
 import type { ApiResponse, WhatsAppConfig, WhatsAppTemplate } from '@tesseract/types';
 
@@ -62,7 +63,7 @@ class WhatsappConfigAdminApi {
       this.base(organizationId),
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   async update(
@@ -117,7 +118,7 @@ class WhatsappConfigAdminApi {
       `${this.base(organizationId)}/${configId}/templates`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   async updateTemplate(
@@ -129,7 +130,7 @@ class WhatsappConfigAdminApi {
       `${this.base(organizationId)}/templates/${templateId}`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   async deleteTemplate(organizationId: string, templateId: string): Promise<boolean> {
