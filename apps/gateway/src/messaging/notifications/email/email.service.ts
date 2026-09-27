@@ -3,6 +3,7 @@ import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
+import { randomInt } from 'crypto';
 import { StartVerificationFlowDto } from '@/identity/auth/dto/start-verification-flow.dto';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
@@ -152,7 +153,9 @@ export class EmailService {
     let verificationCode;
     let isVerificationCodeDuplicate;
     do {
-      verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      // `randomInt` y no `Math.random`: el código es una credencial y necesita un generador
+      // criptográfico, no uno cuya secuencia se puede reconstruir a partir de salidas previas.
+      verificationCode = randomInt(100000, 1000000).toString();
       isVerificationCodeDuplicate = await this.prisma.userVerification.findFirst({
         where: { verificationCode },
       });

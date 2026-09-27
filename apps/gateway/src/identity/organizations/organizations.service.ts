@@ -37,6 +37,7 @@ import {
   QueryOrganizationsAdminDto,
 } from './dto';
 import { maskEmail } from '@/platform/common/utils/mask-email';
+import { checkVerificationCode } from '@/identity/auth/utils/verification-code.util';
 
 /**
  * Servicio para gestionar organizaciones
@@ -1106,15 +1107,18 @@ export class OrganizationsService {
   async createUserFromInvitation(
     userName: string,
     pass: string,
+    email: string,
     verificationCode: string,
   ): Promise<{ success: DashboardUserDataDto | null; error?: string }> {
-    const userVerification = await this.prisma.userVerification.findFirst({
-      where: {
-        verificationCode,
-        isFromInvitation: true,
-      },
-    });
-    if (!userVerification || userVerification.expiresAt < new Date()) {
+    // El código solo vale junto con el correo invitado y con intentos acotados. Antes se buscaba
+    // solo por código: cualquiera podía probar códigos contra todas las invitaciones vivas y, al
+    // acertar, entrar a esa organización con la contraseña que eligiera.
+    const userVerification = await checkVerificationCode(
+      this.prisma,
+      { email, isFromInvitation: true },
+      verificationCode,
+    );
+    if (!userVerification) {
       return {
         success: null,
         error: ErrorStrings[OPERATIONS.ACCEPT_INVITATION].INVITATION_EXPIRED,

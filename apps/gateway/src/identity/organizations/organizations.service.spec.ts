@@ -128,7 +128,8 @@ describe('OrganizationsService createUserFromInvitation', () => {
   const createService = () => {
     const prisma = {
       userVerification: {
-        findFirst: jest.fn().mockResolvedValue(invitation),
+        findFirst: jest.fn().mockResolvedValue({ ...invitation, id: 'v-1', failedAttempts: 0 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       user: {
@@ -163,7 +164,7 @@ describe('OrganizationsService createUserFromInvitation', () => {
       deletedAt: null,
     });
 
-    const result = await service.createUserFromInvitation('x', 'password123', '123456');
+    const result = await service.createUserFromInvitation('x', 'password123', invitation.email, '123456');
 
     expect(result.success).toBeNull();
     expect(result.error).toBeDefined();
@@ -183,7 +184,7 @@ describe('OrganizationsService createUserFromInvitation', () => {
     });
     prisma.user.update.mockResolvedValue({ email: invitation.email, role: 'VIEWER' });
 
-    const result = await service.createUserFromInvitation('x', 'password123', '123456');
+    const result = await service.createUserFromInvitation('x', 'password123', invitation.email, '123456');
 
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { email: invitation.email },
@@ -204,7 +205,7 @@ describe('OrganizationsService createUserFromInvitation', () => {
     prisma.user.findUnique.mockResolvedValue(null);
     prisma.user.create.mockResolvedValue({ email: invitation.email, role: 'VIEWER' });
 
-    await service.createUserFromInvitation('Nombre', 'password123', '123456');
+    await service.createUserFromInvitation('Nombre', 'password123', invitation.email, '123456');
 
     const data = prisma.user.create.mock.calls[0][0].data;
     expect(data.organizationId).toBe(invitingOrg);

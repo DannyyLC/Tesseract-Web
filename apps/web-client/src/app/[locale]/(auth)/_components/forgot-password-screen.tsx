@@ -25,7 +25,8 @@ export default function ForgotPasswordScreen() {
     try {
       await sendResetCode({ email, turnstileToken });
       toast.success(t('successToast'));
-      router.push('/reset-password');
+      // El correo viaja a la siguiente pantalla: el código solo vale junto con él.
+      router.push(`/reset-password?email=${encodeURIComponent(email)}`);
     } catch (error: any) {
       toast.error(error.message || t('errorToast'));
     }

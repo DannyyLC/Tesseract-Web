@@ -266,7 +266,7 @@ export function useResetPasswordStepOne() {
 // Hook para Reset Password Paso 2 (Verificar código y cambiar password)
 export function useResetPasswordStepTwo() {
   return useMutation({
-    mutationFn: async (data: { verificationCode: string; newPassword: string }) => {
+    mutationFn: async (data: { email: string; verificationCode: string; newPassword: string }) => {
       const api = RootApi.getInstance().getAuthApi();
       return await api.resetPasswordStepTwo(data);
     },

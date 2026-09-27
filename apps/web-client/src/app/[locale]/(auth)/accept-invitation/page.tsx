@@ -25,17 +25,20 @@ function AcceptInvitationForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // El enlace del correo trae el código y el correo invitado; el código solo vale con ambos.
+  const hasInvitation = Boolean(code && email);
+
   useEffect(() => {
-    if (!code) {
+    if (!hasInvitation) {
       toast.error(t('invalidCodeToast'));
       // Redirigir o mostrar estado de error
     }
-  }, [code]);
+  }, [hasInvitation]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!code) {
+    if (!code || !email) {
       toast.error(t('noCodeToast'));
       return;
     }
@@ -54,6 +57,7 @@ function AcceptInvitationForm() {
       await acceptInvitation.mutateAsync({
         user: fullName,
         password,
+        email,
         verificationCode: code,
       });
       toast.success(t('successToast'));
@@ -63,7 +67,7 @@ function AcceptInvitationForm() {
     }
   };
 
-  if (!code) {
+  if (!hasInvitation) {
     return (
       <div className="flex flex-col items-center justify-center space-y-4 text-center">
         <div

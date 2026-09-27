@@ -913,6 +913,7 @@ export class AuthController {
   ): Promise<Response<ApiResponse<boolean | keyof typeof ForgotPassErrors>>> {
     const responseBuilder = new ApiResponseBuilder<boolean | keyof typeof ForgotPassErrors>();
     const result = await this.authService.resetPasswordStepTwo(
+      body.email,
       body.verificationCode,
       body.newPassword,
     );

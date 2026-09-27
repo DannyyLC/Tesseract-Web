@@ -85,6 +85,8 @@
     "brandingTagline": "Make sure to save your new password",
     "heading": "Reset password",
     "description": "Enter the code we sent to your email along with your new password.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "example@company.com",
     "verificationCodeLabel": "Verification code",
     "codePlaceholder": "000000",
     "newPasswordLabel": "New Password",

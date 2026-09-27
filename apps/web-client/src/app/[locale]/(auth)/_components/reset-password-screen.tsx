@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
@@ -14,6 +15,9 @@ export default function ResetPasswordScreen() {
   const router = useRouter();
   const { mutateAsync: resetPassword, isPending } = useResetPasswordStepTwo();
 
+  const searchParams = useSearchParams();
+  // Llega prellenado desde "olvidé mi contraseña"; editable por si se abrió la pantalla directo.
+  const [email, setEmail] = useState(searchParams.get('email') ?? '');
   const [verificationCode, setVerificationCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -36,7 +40,7 @@ export default function ResetPasswordScreen() {
     }
 
     try {
-      await resetPassword({ verificationCode, newPassword });
+      await resetPassword({ email: email.trim(), verificationCode, newPassword });
       toast.success(t('successToast'));
       router.push('/login');
     } catch (error: any) {
@@ -149,6 +153,20 @@ export default function ResetPasswordScreen() {
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-text-primary">
+                    {t('emailLabel')}
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder={t('emailPlaceholder')}
+                    className="w-full rounded-xl border-2 border-transparent bg-input-bg px-4 py-3.5 text-text-primary outline-none transition-all focus:border-input-border-focus focus:bg-input-bg-hover"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-text-primary">
                     {t('verificationCodeLabel')}
                   </label>
                   <input
@@ -213,7 +231,12 @@ export default function ResetPasswordScreen() {
 
                 <button
                   type="submit"
-                  disabled={isPending || verificationCode.length !== 6 || newPassword.length < 8}
+                  disabled={
+                    isPending ||
+                    !email.trim() ||
+                    verificationCode.length !== 6 ||
+                    newPassword.length < 8
+                  }
                   className="group flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-4 font-semibold text-text-inverse transition-all hover:bg-accent-hover"
                 >
                   {isPending ? (

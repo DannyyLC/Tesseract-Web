@@ -209,6 +209,7 @@ export class OrganizationsController {
     const result = await this.organizationsService.createUserFromInvitation(
       body.user,
       body.password,
+      body.email,
       body.verificationCode,
     );
     if (result.success && result.success != null) {

@@ -32,6 +32,7 @@ import {
 import { Prisma, UserRole } from '@tesseract/database';
 import { maskEmail } from '@/platform/common/utils/mask-email';
 import { normalizeEmail } from '@/platform/common/utils/normalize-email';
+import { checkVerificationCode } from './utils/verification-code.util';
 import { DEFAULT_LOCALE, SupportedLocale } from '@/platform/common/types/locale.type';
 import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
 
@@ -891,13 +892,11 @@ export class AuthService {
   }
 
   async signupStepTwo(data: VerificationCodeDto): Promise<boolean> {
-    const userVerificationRow = await this.prisma.userVerification.findFirst({
-      where: {
-        email: data.email,
-        verificationCode: data.verificationCode,
-        expiresAt: { gt: new Date() },
-      },
-    });
+    const userVerificationRow = await checkVerificationCode(
+      this.prisma,
+      { email: data.email, isFromInvitation: false },
+      data.verificationCode,
+    );
     if (!userVerificationRow) {
       return false;
     }
@@ -1129,17 +1128,25 @@ export class AuthService {
   }
 
   async resetPasswordStepTwo(
+    email: string,
     verificationCode: string,
     newPassword: string,
   ): Promise<boolean | ForgotPassErrors> {
-    const verification = await this.prisma.userVerification.findFirst({
-      where: {
-        verificationCode,
-        expiresAt: { gt: new Date() },
-      },
-    });
+    // El código solo vale junto con su correo y con intentos acotados: antes se buscaba solo por
+    // código, así que cada intento se probaba contra todos los resets vivos de la tabla.
+    const verification = await checkVerificationCode(
+      this.prisma,
+      { email, isFromInvitation: false },
+      verificationCode,
+    );
 
     if (!verification) {
+      return ForgotPassErrors.VERIFICATION_CODE_INVALID;
+    }
+
+    // Una fila de alta en curso (sin usuario todavía) comparte tabla con los resets.
+    const user = await this.prisma.user.findUnique({ where: { email: verification.email } });
+    if (!user) {
       return ForgotPassErrors.VERIFICATION_CODE_INVALID;
     }
 
@@ -1148,13 +1155,12 @@ export class AuthService {
 
     // Actualizar contraseña del usuario
     await this.prisma.user.update({
-      where: { email: verification.email },
+      where: { id: user.id },
       data: { password: hashedPassword },
     });
 
     // Revocar todos los refresh tokens (seguridad)
-    const user = await this.prisma.user.findUnique({ where: { email: verification.email } });
-    if (user) await this.logoutAll(user.id);
+    await this.logoutAll(user.id);
 
     // Eliminar registro de verificación
     await this.prisma.userVerification.deleteMany({

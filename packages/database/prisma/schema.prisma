@@ -1868,6 +1868,9 @@ model UserVerification {
   verificationCode String   @unique
   isEmailVerified  Boolean  @default(false)
   isFromInvitation Boolean  @default(false)
+  /// Códigos equivocados contra esta fila. Al llegar al tope la fila se borra: seis dígitos
+  /// solo resisten fuerza bruta si los intentos por código están acotados.
+  failedAttempts   Int      @default(0)
   expiresAt        DateTime
   createdAt        DateTime @default(now())
 

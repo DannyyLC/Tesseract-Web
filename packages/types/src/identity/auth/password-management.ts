@@ -9,6 +9,7 @@ export interface ForgotPassDto {
 
 /** Usar el código recibido para establecer nueva contraseña */
 export interface ResetPasswordDto {
+  email: string;
   verificationCode: string;
   newPassword: string;
 }

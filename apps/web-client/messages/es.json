@@ -85,6 +85,8 @@
     "brandingTagline": "Asegúrate de guardar tu nueva contraseña",
     "heading": "Restablecer contraseña",
     "description": "Ingresa el código que hemos enviado a tu correo junto con tu nueva contraseña.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "ejemplo@empresa.com",
     "verificationCodeLabel": "Código de verificación",
     "codePlaceholder": "000000",
     "newPasswordLabel": "Nueva Contraseña",

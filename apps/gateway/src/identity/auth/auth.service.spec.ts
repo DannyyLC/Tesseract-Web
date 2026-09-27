@@ -672,7 +672,9 @@ describe('AuthService', () => {
 
     describe('signupStepTwo', () => {
       it('should return true if code verified', async () => {
-        prisma.userVerification.findFirst = jest.fn().mockResolvedValue({ id: 'v1' });
+        prisma.userVerification.findFirst = jest
+          .fn()
+          .mockResolvedValue({ id: 'v1', verificationCode: '123456', failedAttempts: 0 });
         prisma.userVerification.updateMany = jest.fn().mockResolvedValue({ count: 1 });
         const result = await service.signupStepTwo({
           email: 'new@test.com',
@@ -770,20 +772,51 @@ describe('AuthService', () => {
     describe('resetPasswordStepTwo', () => {
       it('should return VERIFICATION_CODE_INVALID if not found', async () => {
         prisma.userVerification.findFirst = jest.fn().mockResolvedValue(null);
-        const result = await service.resetPasswordStepTwo('123', 'newpwd');
+        const result = await service.resetPasswordStepTwo('test@test.com', '123', 'newpwd');
         expect(result).toBe(ForgotPassErrors.VERIFICATION_CODE_INVALID);
       });
 
+      it('busca el código del correo dado, no el de cualquiera', async () => {
+        prisma.userVerification.findFirst = jest.fn().mockResolvedValue(null);
+        await service.resetPasswordStepTwo('test@test.com', '123456', 'newpwd');
+        expect(prisma.userVerification.findFirst).toHaveBeenCalledWith({
+          where: expect.objectContaining({ email: 'test@test.com', isFromInvitation: false }),
+        });
+      });
+
+      it('no toca contraseñas si el correo no tiene usuario (alta en curso)', async () => {
+        prisma.userVerification.findFirst = jest.fn().mockResolvedValue({
+          id: 'v1',
+          email: 'nuevo@test.com',
+          verificationCode: '123456',
+          failedAttempts: 0,
+        });
+        prisma.userVerification.updateMany = jest.fn().mockResolvedValue({ count: 1 });
+        prisma.user.findUnique = jest.fn().mockResolvedValue(null);
+        prisma.user.update = jest.fn();
+
+        const result = await service.resetPasswordStepTwo('nuevo@test.com', '123456', 'newpwd');
+
+        expect(result).toBe(ForgotPassErrors.VERIFICATION_CODE_INVALID);
+        expect(prisma.user.update).not.toHaveBeenCalled();
+      });
+
       it('should update password and revoke tokens', async () => {
-        prisma.userVerification.findFirst = jest.fn().mockResolvedValue({ email: 'test@test.com' });
+        prisma.userVerification.findFirst = jest.fn().mockResolvedValue({
+          id: 'v1',
+          email: 'test@test.com',
+          verificationCode: '123456',
+          failedAttempts: 0,
+        });
+        prisma.userVerification.updateMany = jest.fn().mockResolvedValue({ count: 1 });
         mockUtilityService.hashPassword.mockResolvedValue('hashed2');
         prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1' });
         jest.spyOn(service, 'logoutAll').mockResolvedValue({} as any);
 
-        const result = await service.resetPasswordStepTwo('123', 'newpwd');
+        const result = await service.resetPasswordStepTwo('test@test.com', '123456', 'newpwd');
 
         expect(prisma.user.update).toHaveBeenCalledWith({
-          where: { email: 'test@test.com' },
+          where: { id: 'u1' },
           data: { password: 'hashed2' },
         });
         expect(service.logoutAll).toHaveBeenCalledWith('u1');
