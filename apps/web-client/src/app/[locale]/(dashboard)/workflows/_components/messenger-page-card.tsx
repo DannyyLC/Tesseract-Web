@@ -32,17 +32,17 @@ interface MessengerPageCardProps {
 const STATUS_STYLES: Record<string, { dot: string; label: string; textKey: string }> = {
   CONNECTED: {
     dot: 'bg-success-500',
-    label: 'border border-success-500/25 bg-success-500/10 text-[var(--badge-success-text-strong)]',
+    label: 'bg-success-500/10 text-[var(--badge-success-text-strong)]',
     textKey: 'statusConfigured',
   },
   ERROR: {
     dot: 'bg-danger',
-    label: 'border border-danger-500/25 bg-danger/10 text-[var(--badge-danger-text-strong)]',
+    label: 'bg-danger/10 text-[var(--badge-danger-text-strong)]',
     textKey: 'statusError',
   },
   DISCONNECTED: {
     dot: 'bg-warning-500',
-    label: 'border border-warning-500/25 bg-warning-500/10 text-[var(--badge-warning-text-strong)]',
+    label: 'bg-warning-500/10 text-[var(--badge-warning-text-strong)]',
     textKey: 'statusNotConfigured',
   },
 };
@@ -62,8 +62,8 @@ export function MessengerPageCard({
   const status =
     STATUS_STYLES[page.connectionStatus ?? 'DISCONNECTED'] ?? STATUS_STYLES.DISCONNECTED;
   const connectionLabel = isActive
-    ? 'border border-success-500/25 bg-success-500/10 text-[var(--badge-success-text-strong)]'
-    : 'border border-danger-500/25 bg-danger/10 text-[var(--badge-danger-text-strong)]';
+    ? 'bg-success-500/10 text-[var(--badge-success-text-strong)]'
+    : 'bg-danger/10 text-[var(--badge-danger-text-strong)]';
   const connectionDot = isActive ? 'bg-success-500' : 'bg-danger';
   const connectionText = isActive ? t('connected') : t('disconnected');
   // La fecha sigue al idioma elegido, no a un 'es-MX' fijo.
@@ -78,7 +78,7 @@ export function MessengerPageCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
-      className="group relative flex w-full items-start gap-3 rounded-2xl border border-border bg-surface-elevated p-4 transition-shadow hover:shadow-md"
+      className="group relative flex h-full w-full items-start gap-3 rounded-2xl border border-border bg-surface-elevated p-4 transition-shadow hover:shadow-md"
     >
       <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--surface-tint)] text-[#0084FF]">
         <FaFacebookMessenger className="h-6 w-6 text-[#0084FF]" />
