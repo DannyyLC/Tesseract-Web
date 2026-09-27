@@ -16,7 +16,6 @@ import {
   DatasetSearchResponse,
   DatasetSummaryDto,
   DatasetUsageDto,
-  SubscriptionPlan as SharedSubscriptionPlan,
   getPlanLimits,
 } from '@tesseract/types';
 import { Prisma, ToolConnectionStatus } from '@tesseract/database';
@@ -92,7 +91,7 @@ export class DatasetsService {
       throw new NotFoundException('Organización no encontrada');
     }
 
-    const planLimits = getPlanLimits(organization.plan as unknown as SharedSubscriptionPlan);
+    const planLimits = getPlanLimits(organization.plan);
 
     return {
       maxDatasets: organization.customMaxDatasets ?? planLimits.maxDatasets,

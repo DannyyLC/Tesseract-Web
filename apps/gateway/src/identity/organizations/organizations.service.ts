@@ -13,7 +13,6 @@ import {
   OPERATIONS,
   PLANS,
   SubscriptionPlan,
-  SubscriptionPlan as SharedSubscriptionPlan,
   getPlanLimits,
 } from '@tesseract/types';
 import { Organization, SubscriptionStatus, UserRole } from '@tesseract/database';
@@ -559,8 +558,7 @@ export class OrganizationsService {
 
     // 1. Validate if Plan allows Overages (e.g. FREE plan doesn't)
     // We reuse getPlanLimits to check monthlyCredits
-    // Cast to SharedSubscriptionPlan to match expected type
-    const limits = getPlanLimits(organization.plan as unknown as SharedSubscriptionPlan);
+    const limits = getPlanLimits(organization.plan);
 
     if (allowOverages && limits.monthlyCredits === 0) {
       throw new BadRequestException(

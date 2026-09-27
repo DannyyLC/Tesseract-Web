@@ -1694,10 +1694,7 @@ export class BillingService {
         }
       : undefined;
 
-    const limits = getPlanLimits(
-      organization.plan as unknown as SharedSubscriptionPlan,
-      enterpriseConfig,
-    );
+    const limits = getPlanLimits(organization.plan, enterpriseConfig);
 
     return {
       plan: organization.plan,
