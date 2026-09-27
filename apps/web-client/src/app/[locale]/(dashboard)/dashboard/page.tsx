@@ -163,7 +163,7 @@ export default function DashboardPage() {
 
     // Filter out zero values (e.g. if no paused workflows, don't show segment)
     return data.filter((d) => d.value > 0);
-  }, [workflowStats]);
+  }, [workflowStats, t]);
 
   // ── Radial bar data — credit usage (kept simple for availability) ──────────
   const creditData = useMemo(() => {

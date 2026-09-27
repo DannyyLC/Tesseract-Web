@@ -259,6 +259,9 @@ export default function WorkflowChatPage() {
         setTimeout(scrollToBottom, 100);
       }
     }
+    // `messages.length` solo decide el scroll inicial; como dependencia volvería a mezclar
+    // con los datos del servidor cada vez que cambia un mensaje local.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationData, isStreaming]);
 
   useEffect(() => {
@@ -309,7 +312,7 @@ export default function WorkflowChatPage() {
       setThinkingIndex((prev) => (prev + 1) % THINKING_WORDS.length);
     }, 2000);
     return () => clearInterval(interval);
-  }, [isStreaming]);
+  }, [isStreaming, THINKING_WORDS.length]);
 
   const handleChatScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;

@@ -77,7 +77,7 @@ export default function OverageCard({
         }
       }, DEBOUNCE_MS);
     },
-    [maxOverageLimit, toggleOverages],
+    [maxOverageLimit, toggleOverages, t],
   );
 
   const handleToggle = async () => {

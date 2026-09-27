@@ -172,6 +172,8 @@ function WorkflowEditor() {
       }
     }
     setDraft(structuredClone(workflow.config));
+    // Sin `t`: cambiar de idioma no debe recargar el borrador y pisar lo editado en pantalla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflow, loadedVersion, workflowId]);
 
   const isDirty = useMemo(

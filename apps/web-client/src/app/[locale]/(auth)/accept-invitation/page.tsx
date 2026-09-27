@@ -33,7 +33,7 @@ function AcceptInvitationForm() {
       toast.error(t('invalidCodeToast'));
       // Redirigir o mostrar estado de error
     }
-  }, [hasInvitation]);
+  }, [hasInvitation, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

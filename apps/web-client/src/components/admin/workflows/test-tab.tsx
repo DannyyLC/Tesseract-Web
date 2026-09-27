@@ -143,9 +143,10 @@ export function TestTab({ workflow }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [thread.length, isStreaming]);
 
+  const lastExecStatus = execHistory[execHistory.length - 1]?.status;
   useEffect(() => {
     panelBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [execHistory.length, execHistory[execHistory.length - 1]?.status]);
+  }, [execHistory.length, lastExecStatus]);
 
   if (!workflow.isInternal) {
     return (

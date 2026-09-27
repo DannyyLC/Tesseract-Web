@@ -45,6 +45,9 @@ export function ConnectIntegrationModal({
       setSelectedFunctions(functions.map((f) => f.functionName));
       setIsSuccess(false);
     }
+    // `functions` es un arreglo nuevo en cada render (sale de catalogTool, que ya está):
+    // como dependencia reiniciaría la selección en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, catalogTool, existingToolDisplayName]);
 
   const toggleFunction = (name: string) => {

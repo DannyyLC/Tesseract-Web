@@ -61,6 +61,9 @@ export default function PlansPage() {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    // Solo al montar: revisa el regreso de Stripe una vez. `router` de next-intl cambia de
+    // identidad en cada render, así que como dependencia lo correría en bucle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const { data: dashboardData, isLoading: isLoadingDashboard } = useBillingDashboard();

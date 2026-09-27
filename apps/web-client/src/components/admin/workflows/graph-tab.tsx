@@ -19,8 +19,9 @@ interface Props {
 export function GraphTab({ config, tenantTools }: Props) {
   const t = useTranslations('Admin.GraphTab');
   const tLint = useTranslations('Admin.LintConfig');
-  const nodes: any[] = config.graph?.nodes ?? [];
-  const edges: any[] = config.graph?.edges ?? [];
+  // Memoizados: `?? []` crearía un arreglo nuevo en cada render y rompería los useMemo.
+  const nodes: any[] = useMemo(() => config.graph?.nodes ?? [], [config.graph?.nodes]);
+  const edges: any[] = useMemo(() => config.graph?.edges ?? [], [config.graph?.edges]);
 
   const nodeTypeById = useMemo(() => new Map(nodes.map((n) => [n?.id, n?.type])), [nodes]);
 

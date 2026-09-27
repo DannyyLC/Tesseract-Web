@@ -25,7 +25,8 @@ interface Props {
 export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) {
   const tt = useTranslations('Admin.NodesTab');
   const tSummary = useTranslations('Admin.NodeSummary');
-  const nodes: any[] = config.graph?.nodes ?? [];
+  // Memoizado: `?? []` crearía un arreglo nuevo en cada render y rompería los useMemo.
+  const nodes: any[] = useMemo(() => config.graph?.nodes ?? [], [config.graph?.nodes]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filter, setFilter] = useState('');
   const [draftText, setDraftText] = useState<string | null>(null);

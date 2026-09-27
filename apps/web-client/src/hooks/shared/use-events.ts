@@ -8,16 +8,18 @@ export default function useEvents() {
   const sourcesRef = useRef<Map<string, EventSource>>(new Map());
 
   useEffect(() => {
+    // El Map se crea una vez y nunca se reasigna; se copia para el cleanup, como pide React.
+    const sources = sourcesRef.current;
     return () => {
       // cleanup all connections on unmount
-      sourcesRef.current.forEach((src) => {
+      sources.forEach((src) => {
         try {
           src.close();
         } catch {
           // ignore
         }
       });
-      sourcesRef.current.clear();
+      sources.clear();
     };
   }, []);
 

@@ -27,7 +27,8 @@ interface Props {
 
 export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
   const t = useTranslations('Admin.AgentsTab');
-  const agents: Record<string, any> = config.agents ?? {};
+  // Memoizado: `?? {}` crearía un objeto nuevo en cada render y rompería los useMemo de abajo.
+  const agents: Record<string, any> = useMemo(() => config.agents ?? {}, [config.agents]);
   const agentKeys = useMemo(() => Object.keys(agents), [agents]);
 
   const [selected, setSelected] = useState(agentKeys[0] ?? '');
