@@ -21,7 +21,6 @@ import {
 } from '@/components/contacts';
 import PermissionGuard from '@/components/auth/permission-guard';
 
-
 const FILTERS: EndUserBlockedFilter[] = ['all', 'active', 'blocked'];
 
 export default function ContactsPage() {
@@ -151,7 +150,11 @@ export default function ContactsPage() {
         </AnimatePresence>
 
         {contacts.length === 0 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-16 text-center">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="py-16 text-center"
+          >
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-secondary">
               <Users size={24} className="text-text-tertiary" />
             </div>

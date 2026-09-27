@@ -101,10 +101,7 @@ class WhatsappConfigApi {
     return result.data.data ?? [];
   }
 
-  async updateTemplate(
-    templateId: string,
-    data: UpdateTemplateInput,
-  ): Promise<WhatsAppTemplate> {
+  async updateTemplate(templateId: string, data: UpdateTemplateInput): Promise<WhatsAppTemplate> {
     const result = await this.apiRequestManager.patch<ApiResponse<WhatsAppTemplate>>(
       `${WhatsappConfigApi.BASE_URL}/templates/${templateId}`,
       data,

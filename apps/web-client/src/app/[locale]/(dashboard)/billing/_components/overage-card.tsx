@@ -138,9 +138,7 @@ export default function OverageCard({
         <div>
           <h3 className="text-sm font-bold text-text-primary">{t('heading')}</h3>
           <p className="text-xs text-text-secondary">
-            {allowOverages
-              ? t('enabledDesc', { price: overagePrice })
-              : t('disabledDesc')}
+            {allowOverages ? t('enabledDesc', { price: overagePrice }) : t('disabledDesc')}
           </p>
         </div>
 

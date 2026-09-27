@@ -13,10 +13,7 @@ import { InvalidWorkflowConfigException } from '@/platform/common/exceptions';
 import { OrganizationsService } from '@/identity/organizations/organizations.service';
 import { AgentsService } from '../agents/agents.service';
 import { WorkflowConfigValidator } from './workflow-config.validator';
-import {
-  assertMaxTokensWithinCategory,
-  touchesCategoryCeiling,
-} from './category-token-ceiling';
+import { assertMaxTokensWithinCategory, touchesCategoryCeiling } from './category-token-ceiling';
 import { configSizeBytes, diffConfigs, hashConfig } from './workflow-config.utils';
 import {
   CloneWorkflowDto,

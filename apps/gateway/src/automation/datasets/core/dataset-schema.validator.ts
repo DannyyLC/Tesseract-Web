@@ -7,7 +7,13 @@ import {
   MAX_DATASET_FIELDS,
   slugifyKey,
 } from '@tesseract/types';
-import { FormulaNode, ROUND_FUNCTION, evaluateFormula, formulaDependencies, parseFormula } from './formula';
+import {
+  FormulaNode,
+  ROUND_FUNCTION,
+  evaluateFormula,
+  formulaDependencies,
+  parseFormula,
+} from './formula';
 
 /**
  * Reglas del schema de un dataset y validación de las filas contra él.
@@ -394,9 +400,7 @@ function normalizeValue(field: DatasetField, raw: unknown): string | number {
       const value = String(raw).trim();
 
       if (value.length > TEXT_MAX_LENGTH) {
-        throw new BadRequestException(
-          `"${field.label}" excede ${TEXT_MAX_LENGTH} caracteres`,
-        );
+        throw new BadRequestException(`"${field.label}" excede ${TEXT_MAX_LENGTH} caracteres`);
       }
 
       return value;

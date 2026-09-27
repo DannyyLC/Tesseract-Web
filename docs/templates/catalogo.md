@@ -21,13 +21,13 @@ es [Ventas](/templates/ventas).
 Comparten herramientas —los dos leen datos del cliente— y por eso se confunden. Los separa el
 objetivo, y con él el primer movimiento:
 
-| | Catálogo y pedidos | Soporte |
-| --- | --- | --- |
-| Quién escribe | Alguien que quiere comprar | Alguien que ya compró |
-| Primer movimiento | Consultar el catálogo | Pedir un identificador |
-| Fuente | `dataset` (catálogo) | `http_request` (estado en vivo) |
-| Éxito | Un pedido armado | Un caso cerrado |
-| Si no encuentra | Ofrece alternativas | Dice que no encuentra y verifica |
+|                   | Catálogo y pedidos         | Soporte                          |
+| ----------------- | -------------------------- | -------------------------------- |
+| Quién escribe     | Alguien que quiere comprar | Alguien que ya compró            |
+| Primer movimiento | Consultar el catálogo      | Pedir un identificador           |
+| Fuente            | `dataset` (catálogo)       | `http_request` (estado en vivo)  |
+| Éxito             | Un pedido armado           | Un caso cerrado                  |
+| Si no encuentra   | Ofrece alternativas        | Dice que no encuentra y verifica |
 
 Puestos al revés, el de Catálogo le pide número de pedido a quien solo quería saber un precio, y el
 de Soporte le ofrece alternativas a alguien que reclama el producto que ya pagó.
@@ -195,9 +195,7 @@ Pide precio de mayoreo:
   "graph": {
     "type": "pipeline",
     "schema_version": 1,
-    "nodes": [
-      { "id": "agente", "type": "agent", "agent": "default", "max_iterations": 10 }
-    ],
+    "nodes": [{ "id": "agente", "type": "agent", "agent": "default", "max_iterations": 10 }],
     "edges": [
       { "from": "START", "to": "agente" },
       { "from": "agente", "to": "END" }
@@ -218,11 +216,11 @@ Pide precio de mayoreo:
 [Agendamiento](/templates/agendamiento): los precios y las existencias se dicen tal cual salieron
 de la consulta. Con 0.7 el modelo redondea y adorna.
 
-| Tool | Obligatoria | Para qué |
-| ---- | ----------- | -------- |
-| `dataset` | Sí | El catálogo. Sin ella este template no existe |
-| `human_handoff` | Sí | Bloque 7 |
-| `calculator` | Recomendada | Sumar pedidos. El modelo se equivoca sumando en cuanto hay tres líneas y un envío |
+| Tool            | Obligatoria | Para qué                                                                          |
+| --------------- | ----------- | --------------------------------------------------------------------------------- |
+| `dataset`       | Sí          | El catálogo. Sin ella este template no existe                                     |
+| `human_handoff` | Sí          | Bloque 7                                                                          |
+| `calculator`    | Recomendada | Sumar pedidos. El modelo se equivoca sumando en cuanto hay tres líneas y un envío |
 
 ### Sobre el dataset
 
@@ -246,10 +244,10 @@ dato queda vivo — si el cliente corrige un precio, el siguiente mensaje ya lo 
 
 ## Variables propias
 
-| Variable | Obligatoria | Ejemplo |
-| -------- | ----------- | ------- |
-| `{{reglas_comerciales}}` | Sí | `Envío $120 a Aguascalientes, gratis arriba de $2,500 · Entrega 3-5 días hábiles · No se apartan productos · Cambios dentro de 15 días con ticket` |
-| `{{instruccion_cierre}}` | No | `Pasa el pedido al equipo de ventas por WhatsApp` |
+| Variable                 | Obligatoria | Ejemplo                                                                                                                                            |
+| ------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{{reglas_comerciales}}` | Sí          | `Envío $120 a Aguascalientes, gratis arriba de $2,500 · Entrega 3-5 días hábiles · No se apartan productos · Cambios dentro de 15 días con ticket` |
+| `{{instruccion_cierre}}` | No          | `Pasa el pedido al equipo de ventas por WhatsApp`                                                                                                  |
 
 `{{reglas_comerciales}}` es lo único que el agente puede afirmar sin consultar, porque es política y
 no dato. Todo lo demás sale del dataset. Si algo se te olvida meter aquí, el agente no lo va a decir
@@ -259,15 +257,15 @@ no dato. Todo lo demás sale del dataset. Si algo se te olvida meter aquí, el a
 
 ## Ejemplo poblado — tienda de calzado
 
-| Variable | Valor |
-| -------- | ----- |
-| `{{nombre_agente}}` | Ale |
-| `{{rol}}` | asesor de tienda |
-| `{{empresa}}` | Zapatería Norte |
-| `{{alcance_permitido}}` | el catálogo de calzado de Zapatería Norte, precios, tallas y disponibilidad |
+| Variable                 | Valor                                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `{{nombre_agente}}`      | Ale                                                                                                                                              |
+| `{{rol}}`                | asesor de tienda                                                                                                                                 |
+| `{{empresa}}`            | Zapatería Norte                                                                                                                                  |
+| `{{alcance_permitido}}`  | el catálogo de calzado de Zapatería Norte, precios, tallas y disponibilidad                                                                      |
 | `{{reglas_comerciales}}` | Envío $120 a Aguascalientes, gratis arriba de $2,500 · Entrega 3-5 días hábiles · No se apartan productos · Cambios dentro de 15 días con ticket |
-| `{{canal}}` | whatsapp |
-| Voz | B — cercana |
+| `{{canal}}`              | whatsapp                                                                                                                                         |
+| Voz                      | B — cercana                                                                                                                                      |
 
 Dataset **Calzado** con columnas: Modelo (texto), Marca (select), Talla (select), Color (select),
 Precio (número), Existencia (número).

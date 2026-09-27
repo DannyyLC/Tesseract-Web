@@ -43,7 +43,9 @@ describe('WhatsappConfigAdminController', () => {
     it('crea el número cuando el workflow es de esta organización', async () => {
       mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue(null);
       mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: true });
-      mockWhatsappConfigService.createRecordAndgenerateWebhookSecret.mockResolvedValue({ id: 'c-1' });
+      mockWhatsappConfigService.createRecordAndgenerateWebhookSecret.mockResolvedValue({
+        id: 'c-1',
+      });
 
       const res = await controller.create('org-1', {
         phoneNumber: '+1',
@@ -63,11 +65,13 @@ describe('WhatsappConfigAdminController', () => {
     });
 
     it('rechaza si el teléfono ya existe', async () => {
-      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({ id: 'existing' });
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
+        id: 'existing',
+      });
 
-      await expect(
-        controller.create('org-1', { phoneNumber: '+1' } as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.create('org-1', { phoneNumber: '+1' } as any)).rejects.toThrow(
+        BadRequestException,
+      );
       expect(mockWhatsappConfigService.createRecordAndgenerateWebhookSecret).not.toHaveBeenCalled();
     });
 
@@ -90,9 +94,9 @@ describe('WhatsappConfigAdminController', () => {
         organizationId: 'org-otra',
       });
 
-      await expect(
-        controller.update('org-1', 'c-1', { displayName: 'x' } as any),
-      ).rejects.toThrow(NotFoundException);
+      await expect(controller.update('org-1', 'c-1', { displayName: 'x' } as any)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockWhatsappConfigService.updateConfig).not.toHaveBeenCalled();
     });
 
@@ -106,7 +110,9 @@ describe('WhatsappConfigAdminController', () => {
 
       const res = await controller.update('org-1', 'c-1', { workflowId: 'wf-2' } as any);
 
-      expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', { workflowId: 'wf-2' });
+      expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', {
+        workflowId: 'wf-2',
+      });
       expect(res.data).toBe(true);
     });
 
@@ -120,7 +126,9 @@ describe('WhatsappConfigAdminController', () => {
       await controller.update('org-1', 'c-1', { workflowId: null } as any);
 
       expect(mockWorkflowsService.getRoutingState).not.toHaveBeenCalled();
-      expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', { workflowId: null });
+      expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', {
+        workflowId: null,
+      });
     });
   });
 
@@ -143,27 +151,33 @@ describe('WhatsappConfigAdminController', () => {
         organizationId: 'org-otra',
       });
 
-      await expect(
-        controller.createTemplate('org-1', 'c-1', { name: 't' } as any),
-      ).rejects.toThrow(NotFoundException);
+      await expect(controller.createTemplate('org-1', 'c-1', { name: 't' } as any)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockWhatsappConfigService.createTemplate).not.toHaveBeenCalled();
     });
 
     it('rechaza editar un template cuyo config es de otra organización', async () => {
-      mockWhatsappConfigService.getTemplate.mockResolvedValue({ id: 't-1', whatsAppConfigId: 'c-1' });
+      mockWhatsappConfigService.getTemplate.mockResolvedValue({
+        id: 't-1',
+        whatsAppConfigId: 'c-1',
+      });
       mockWhatsappConfigService.getWhatsappConfigById.mockResolvedValue({
         id: 'c-1',
         organizationId: 'org-otra',
       });
 
-      await expect(
-        controller.updateTemplate('org-1', 't-1', { name: 'x' } as any),
-      ).rejects.toThrow(NotFoundException);
+      await expect(controller.updateTemplate('org-1', 't-1', { name: 'x' } as any)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockWhatsappConfigService.updateTemplate).not.toHaveBeenCalled();
     });
 
     it('permite editar un template cuyo config es de la misma organización', async () => {
-      mockWhatsappConfigService.getTemplate.mockResolvedValue({ id: 't-1', whatsAppConfigId: 'c-1' });
+      mockWhatsappConfigService.getTemplate.mockResolvedValue({
+        id: 't-1',
+        whatsAppConfigId: 'c-1',
+      });
       mockWhatsappConfigService.getWhatsappConfigById.mockResolvedValue({
         id: 'c-1',
         organizationId: 'org-1',

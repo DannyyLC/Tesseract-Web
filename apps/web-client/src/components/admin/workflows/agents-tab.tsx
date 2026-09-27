@@ -49,8 +49,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
     if (!q) return agentKeys;
     return agentKeys.filter(
       (k) =>
-        k.toLowerCase().includes(q) ||
-        (agents[k]?.system_prompt ?? '').toLowerCase().includes(q),
+        k.toLowerCase().includes(q) || (agents[k]?.system_prompt ?? '').toLowerCase().includes(q),
     );
   }, [agentKeys, agents, filter]);
 
@@ -78,7 +77,8 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
 
     referencing.forEach((nodeId) => {
       const index = (next_config.graph?.nodes ?? []).findIndex((n: any) => n.id === nodeId);
-      if (index >= 0) next_config = setAtPath(next_config, ['graph', 'nodes', index, 'agent'], next);
+      if (index >= 0)
+        next_config = setAtPath(next_config, ['graph', 'nodes', index, 'agent'], next);
     });
 
     onChange(next_config);

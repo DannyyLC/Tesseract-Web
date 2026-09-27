@@ -25,7 +25,6 @@ import {
 import { ConnectedWorkflowsSection } from '../_components/connected-workflows-section';
 import { SchemaBuilder } from '../_components/schema-builder';
 
-
 export default function DatasetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const t = useTranslations('Datasets');
@@ -195,11 +194,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
           )}
         </div>
 
-        <ConnectedWorkflowsSection
-          datasetId={id}
-          workflows={dataset.workflows}
-          canEdit={canEdit}
-        />
+        <ConnectedWorkflowsSection datasetId={id} workflows={dataset.workflows} canEdit={canEdit} />
 
         {/* ─── Filas ───────────────────────────────────────────────────────── */}
         <section className="space-y-4">
@@ -233,7 +228,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
                 {usage.rows} / {usage.maxDatasetRows === -1 ? '∞' : usage.maxDatasetRows}
               </span>
               {atRowLimit && (
-                <span className="rounded-lg bg-warning-500/10 px-2 py-1 text-xs font-medium text-warning-600">
+                <span className="bg-warning-500/10 rounded-lg px-2 py-1 text-xs font-medium text-warning-600">
                   {t('writesBlocked')}
                 </span>
               )}
@@ -275,7 +270,11 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">{t('editColumnsHint')}</p>
 
-          <SchemaBuilder fields={draftFields} onChange={setDraftFields} savedFields={dataset.fields} />
+          <SchemaBuilder
+            fields={draftFields}
+            onChange={setDraftFields}
+            savedFields={dataset.fields}
+          />
 
           {overwriteConfirmed && columnsLosingManualValues.length > 0 && (
             <div className="rounded-xl bg-[var(--badge-warning-bg-solid)] px-4 py-3 text-sm text-[var(--badge-warning-text-solid)]">

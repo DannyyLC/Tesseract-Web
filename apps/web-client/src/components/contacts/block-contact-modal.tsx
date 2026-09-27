@@ -58,15 +58,16 @@ export function BlockContactModal({
           <p className="text-sm text-text-secondary">
             {t.rich('blockModalWarning', {
               contact: contactLabel,
-              strong: (chunks) => (
-                <span className="font-semibold text-text-primary">{chunks}</span>
-              ),
+              strong: (chunks) => <span className="font-semibold text-text-primary">{chunks}</span>,
             })}
           </p>
         </div>
 
         <div>
-          <label htmlFor="block-reason" className="mb-1.5 block text-sm font-medium text-text-primary">
+          <label
+            htmlFor="block-reason"
+            className="mb-1.5 block text-sm font-medium text-text-primary"
+          >
             {t('blockModalReasonLabel')}
           </label>
           <textarea

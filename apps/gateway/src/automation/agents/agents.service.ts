@@ -39,7 +39,9 @@ export class AgentsService implements OnModuleInit {
     // se cierra el servicio con IAM (hasta entonces la cabecera de más se ignora).
     this.agentsAudience = this.agentsGrpcUseTls ? new URL(configuredUrl).origin : '';
     this.agentsGrpcUrl = configuredUrl.replace(/^https?:\/\//, '');
-    this.agentsServiceTimeout = Number(this.configService.get<string>('AGENTS_SERVICE_TIMEOUT', '30000'));
+    this.agentsServiceTimeout = Number(
+      this.configService.get<string>('AGENTS_SERVICE_TIMEOUT', '30000'),
+    );
     // Sin bandera aparte para local: si la URL no trae TLS es localhost, y ahí no hay metadata
     // server al que pedirle el token. El log deja el modo por escrito para que no sea magia
     // silenciosa, y la audiencia impresa es con la que se compara la URL real del servicio
@@ -180,15 +182,10 @@ export class AgentsService implements OnModuleInit {
       const metadata = await this.buildMetadata();
       return new Promise<AgentExecutionResponseDto>((resolve, reject) => {
         const deadline = new Date(Date.now() + this.agentsServiceTimeout);
-        this.grpcClient.execute(
-          wireRequest,
-          metadata,
-          { deadline },
-          (err: any, response: any) => {
-            if (err) return reject(err);
-            resolve(this.mapExecutionResponse(response));
-          },
-        );
+        this.grpcClient.execute(wireRequest, metadata, { deadline }, (err: any, response: any) => {
+          if (err) return reject(err);
+          resolve(this.mapExecutionResponse(response));
+        });
       });
     }, 'execute');
   }
@@ -209,25 +206,29 @@ export class AgentsService implements OnModuleInit {
    * y será la fuente del futuro editor visual.
    */
   async getNodeCatalog(graphType = 'pipeline'): Promise<Record<string, any>> {
-    return this.withRetry(async () => {
-      const metadata = await this.buildMetadata();
-      return new Promise<Record<string, any>>((resolve, reject) => {
-        const deadline = new Date(Date.now() + 10000);
-        this.grpcClient.getNodeCatalog(
-          { graph_type: graphType },
-          metadata,
-          { deadline },
-          (err: any, response: any) => {
-            if (err) return reject(err);
-            try {
-              resolve(JSON.parse(response.catalog_json ?? '{}'));
-            } catch (parseError) {
-              reject(parseError);
-            }
-          },
-        );
-      });
-    }, 'getNodeCatalog', 1);
+    return this.withRetry(
+      async () => {
+        const metadata = await this.buildMetadata();
+        return new Promise<Record<string, any>>((resolve, reject) => {
+          const deadline = new Date(Date.now() + 10000);
+          this.grpcClient.getNodeCatalog(
+            { graph_type: graphType },
+            metadata,
+            { deadline },
+            (err: any, response: any) => {
+              if (err) return reject(err);
+              try {
+                resolve(JSON.parse(response.catalog_json ?? '{}'));
+              } catch (parseError) {
+                reject(parseError);
+              }
+            },
+          );
+        });
+      },
+      'getNodeCatalog',
+      1,
+    );
   }
 
   async healthCheck(): Promise<boolean> {

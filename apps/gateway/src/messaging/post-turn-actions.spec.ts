@@ -1,13 +1,11 @@
-import {
-  evaluateWhen,
-  runPostTurnActions,
-  PostTurnAction,
-} from './post-turn-actions';
+import { evaluateWhen, runPostTurnActions, PostTurnAction } from './post-turn-actions';
 
 describe('evaluateWhen', () => {
   it('not_empty matchea valores presentes', () => {
     expect(evaluateWhen({ variable: 'media_url' }, { media_url: 'https://x' })).toBe(true);
-    expect(evaluateWhen({ variable: 'media_url', op: 'not_empty' }, { media_url: 'https://x' })).toBe(true);
+    expect(
+      evaluateWhen({ variable: 'media_url', op: 'not_empty' }, { media_url: 'https://x' }),
+    ).toBe(true);
   });
 
   it('not_empty rechaza vacío, null y ausente', () => {

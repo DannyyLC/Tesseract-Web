@@ -252,11 +252,7 @@ export abstract class ChannelMessageQueueService<TEvent> {
     return String(Math.floor(sendTimeMs / 1000 / this.windowSeconds));
   }
 
-  private getConversationKey(
-    organizationId: string,
-    accountId: string,
-    senderId: string,
-  ): string {
+  private getConversationKey(organizationId: string, accountId: string, senderId: string): string {
     return `${this.keyPrefix}:inbox:${organizationId}:${accountId}:${senderId}`;
   }
 

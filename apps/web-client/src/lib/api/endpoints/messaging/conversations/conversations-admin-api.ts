@@ -80,10 +80,13 @@ class ConversationsAdminApi {
   }
 
   public async rename(id: string, organizationId: string, title: string): Promise<void> {
-    await this.apiRequestManager.patch<ApiResponse<null>>(`${ConversationsAdminApi.BASE_URL}/${id}`, {
-      organizationId,
-      title,
-    });
+    await this.apiRequestManager.patch<ApiResponse<null>>(
+      `${ConversationsAdminApi.BASE_URL}/${id}`,
+      {
+        organizationId,
+        title,
+      },
+    );
   }
 }
 

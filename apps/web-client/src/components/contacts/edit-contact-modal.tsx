@@ -58,7 +58,10 @@ export function EditContactModal({ contact, onClose }: EditContactModalProps) {
     <Modal isOpen={Boolean(contact)} onClose={onClose} title={t('editModalTitle')}>
       <div className="space-y-4">
         <div>
-          <label htmlFor="contact-name" className="mb-1.5 block text-sm font-medium text-text-primary">
+          <label
+            htmlFor="contact-name"
+            className="mb-1.5 block text-sm font-medium text-text-primary"
+          >
             {t('editNameLabel')}
           </label>
           <input

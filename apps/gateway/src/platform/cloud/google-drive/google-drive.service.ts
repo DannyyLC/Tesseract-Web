@@ -11,7 +11,7 @@ export interface DriveFileItem {
 
 @Injectable()
 export class GoogleDriveService {
-      private drive: drive_v3.Drive;
+  private drive: drive_v3.Drive;
 
   constructor() {
     // No private_key or client_email needed!
@@ -34,8 +34,8 @@ export class GoogleDriveService {
       const response = await this.drive.files.list({
         q: `'${folderId}' in parents and trashed=false`,
         fields: 'files(id, name, mimeType)',
-        supportsAllDrives: true,             // Fixes corporate shared drive barriers
-        includeItemsFromAllDrives: true,     // Fixes corporate shared drive barriers
+        supportsAllDrives: true, // Fixes corporate shared drive barriers
+        includeItemsFromAllDrives: true, // Fixes corporate shared drive barriers
         corpora: 'allDrives', // Tells Google to look outside your personal 'user' scope
       });
 

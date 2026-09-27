@@ -30,7 +30,13 @@ interface FormState {
   bodyVariables: string;
 }
 
-const EMPTY_FORM: FormState = { id: null, name: '', displayName: '', language: 'es_MX', bodyVariables: '' };
+const EMPTY_FORM: FormState = {
+  id: null,
+  name: '',
+  displayName: '',
+  language: 'es_MX',
+  bodyVariables: '',
+};
 
 /**
  * CRUD de templates de un número — Meta los registra por número (WABA), no por
@@ -42,10 +48,19 @@ const EMPTY_FORM: FormState = { id: null, name: '', displayName: '', language: '
  * pero se quedan fuera de este formulario a propósito — el caso de uso real es casi
  * siempre variables del cuerpo.
  */
-export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, configId, configLabel }: Props) {
+export function WhatsappTemplatesAdminModal({
+  isOpen,
+  onClose,
+  organizationId,
+  configId,
+  configLabel,
+}: Props) {
   const t = useTranslations('Admin.WhatsappTemplatesModal');
   const getApiErrorMessage = useApiErrorMessage();
-  const { data: templates, isLoading } = useAdminWhatsappTemplates(organizationId, isOpen ? configId : null);
+  const { data: templates, isLoading } = useAdminWhatsappTemplates(
+    organizationId,
+    isOpen ? configId : null,
+  );
   const { createTemplate, updateTemplate, deleteTemplate } = useAdminWhatsappTemplateMutations(
     organizationId,
     configId,
@@ -116,7 +131,12 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
   const isSaving = createTemplate.isPending || updateTemplate.isPending;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={t('modalTitle', { config: configLabel })} size="lg">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t('modalTitle', { config: configLabel })}
+      size="lg"
+    >
       <div className="space-y-4">
         <p className="text-xs text-text-secondary">{t('subtitle')}</p>
 

@@ -26,7 +26,6 @@ import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { ConnectedWorkflowsSection } from './connected-workflows-section';
 import { SchemaBuilder } from './schema-builder';
 
-
 interface DatasetDetailProps {
   organizationId: string;
   datasetId: string;
@@ -104,7 +103,9 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
   const columnsLosingManualValues = dataset.recordCount
     ? draftFields
         .filter((draft) => draft.formula)
-        .filter((draft) => dataset.fields.some((saved) => saved.key === draft.key && !saved.formula))
+        .filter((draft) =>
+          dataset.fields.some((saved) => saved.key === draft.key && !saved.formula),
+        )
         .map((draft) => draft.label || draft.key)
     : [];
 
@@ -190,7 +191,9 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
             <ArrowLeft size={14} /> {t('backToDatasets')}
           </button>
           <h2 className="text-base font-semibold text-text-primary">{dataset.name}</h2>
-          {dataset.description && <p className="mt-1 max-w-2xl text-sm text-text-secondary">{dataset.description}</p>}
+          {dataset.description && (
+            <p className="mt-1 max-w-2xl text-sm text-text-secondary">{dataset.description}</p>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -220,7 +223,11 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
         </div>
       </div>
 
-      <ConnectedWorkflowsSection organizationId={organizationId} datasetId={datasetId} workflows={dataset.workflows} />
+      <ConnectedWorkflowsSection
+        organizationId={organizationId}
+        datasetId={datasetId}
+        workflows={dataset.workflows}
+      />
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
@@ -248,7 +255,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
               {usage.rows} / {usage.maxDatasetRows === -1 ? '∞' : usage.maxDatasetRows}
             </span>
             {atRowLimit && (
-              <span className="rounded-lg bg-warning-500/10 px-2 py-1 text-xs font-medium text-warning-600">
+              <span className="bg-warning-500/10 rounded-lg px-2 py-1 text-xs font-medium text-warning-600">
                 {t('rowsBlockedBadge')}
               </span>
             )}
@@ -278,11 +285,20 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
         />
       </section>
 
-      <Modal isOpen={isEditingSchema} onClose={closeSchemaEditor} title={t('editColumns')} size="lg">
+      <Modal
+        isOpen={isEditingSchema}
+        onClose={closeSchemaEditor}
+        title={t('editColumns')}
+        size="lg"
+      >
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">{t('schemaEditIntro')}</p>
 
-          <SchemaBuilder fields={draftFields} onChange={setDraftFields} savedFields={dataset.fields} />
+          <SchemaBuilder
+            fields={draftFields}
+            onChange={setDraftFields}
+            savedFields={dataset.fields}
+          />
 
           {overwriteConfirmed && columnsLosingManualValues.length > 0 && (
             <div className="bg-warning/10 rounded-lg px-4 py-3 text-sm text-warning-600">
@@ -293,7 +309,11 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
             </div>
           )}
 
-          {schemaError && <div className="bg-danger/10 rounded-lg px-4 py-3 text-sm text-danger-600">{schemaError}</div>}
+          {schemaError && (
+            <div className="bg-danger/10 rounded-lg px-4 py-3 text-sm text-danger-600">
+              {schemaError}
+            </div>
+          )}
 
           <div className="flex justify-end gap-2">
             <button className={btnGhost} onClick={closeSchemaEditor}>

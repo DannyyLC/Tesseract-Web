@@ -143,7 +143,10 @@ export class BillingService {
       });
       return session.url!;
     } catch (error) {
-      this.logger.error(`Failed to create credit top-up checkout session for ${dto.customerId}`, error);
+      this.logger.error(
+        `Failed to create credit top-up checkout session for ${dto.customerId}`,
+        error,
+      );
       throw error;
     }
   }
@@ -793,9 +796,7 @@ export class BillingService {
 
     const credits = line.quantity ?? 0;
     if (credits <= 0) {
-      this.logger.error(
-        `Checkout session ${session.id} resolvió a ${credits} créditos, se omite`,
-      );
+      this.logger.error(`Checkout session ${session.id} resolvió a ${credits} créditos, se omite`);
       return;
     }
 
@@ -1610,55 +1611,55 @@ export class BillingService {
       datasetCount,
       datasetRowCount,
     ] = await this.prisma.$transaction([
-        this.prisma.organization.findUnique({
-          where: { id: organizationId },
-          select: {
-            plan: true,
-            allowOverages: true,
-            overageLimit: true,
-            stripeCustomerId: true,
-            country: true,
-            fiscalProfile: { select: { validatedAt: true } },
-          },
-        }),
-        this.prisma.subscription.findUnique({
-          where: { organizationId },
-        }),
-        this.prisma.creditBalance.findUnique({
-          where: { organizationId },
-        }),
-        // Resource Counts
-        this.prisma.workflow.count({
-          where: {
-            organizationId,
-            isActive: true,
-            deletedAt: null,
-            // Mismo dato que OrganizationsService.getStats(): un workflow interno de
-            // super admin no es del cliente, no debe aparecer en su uso de plan.
-            isInternal: false,
-          },
-        }),
-        this.prisma.apiKey.count({
-          where: {
-            organizationId,
-            isActive: true,
-            deletedAt: null,
-          },
-        }),
-        this.prisma.user.count({
-          where: {
-            organizationId,
-            isActive: true,
-            deletedAt: null,
-          },
-        }),
-        this.prisma.dataset.count({
-          where: { organizationId, deletedAt: null },
-        }),
-        this.prisma.datasetRecord.count({
-          where: { dataset: { organizationId, deletedAt: null } },
-        }),
-      ]);
+      this.prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: {
+          plan: true,
+          allowOverages: true,
+          overageLimit: true,
+          stripeCustomerId: true,
+          country: true,
+          fiscalProfile: { select: { validatedAt: true } },
+        },
+      }),
+      this.prisma.subscription.findUnique({
+        where: { organizationId },
+      }),
+      this.prisma.creditBalance.findUnique({
+        where: { organizationId },
+      }),
+      // Resource Counts
+      this.prisma.workflow.count({
+        where: {
+          organizationId,
+          isActive: true,
+          deletedAt: null,
+          // Mismo dato que OrganizationsService.getStats(): un workflow interno de
+          // super admin no es del cliente, no debe aparecer en su uso de plan.
+          isInternal: false,
+        },
+      }),
+      this.prisma.apiKey.count({
+        where: {
+          organizationId,
+          isActive: true,
+          deletedAt: null,
+        },
+      }),
+      this.prisma.user.count({
+        where: {
+          organizationId,
+          isActive: true,
+          deletedAt: null,
+        },
+      }),
+      this.prisma.dataset.count({
+        where: { organizationId, deletedAt: null },
+      }),
+      this.prisma.datasetRecord.count({
+        where: { dataset: { organizationId, deletedAt: null } },
+      }),
+    ]);
 
     if (!organization) throw new BadRequestException('Organization not found');
 

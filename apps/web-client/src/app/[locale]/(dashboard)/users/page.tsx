@@ -477,7 +477,11 @@ export default function UsersPage() {
                             </div>
                             <p className="truncate text-sm text-text-secondary">
                               {t('sentTimeAgo', {
-                                time: formatTimeAgo(invitation.createdAt as any, tTimeAgo, intlLocale),
+                                time: formatTimeAgo(
+                                  invitation.createdAt as any,
+                                  tTimeAgo,
+                                  intlLocale,
+                                ),
                               })}
                             </p>
                           </div>
@@ -655,7 +659,8 @@ export default function UsersPage() {
                     ? t('noResultsForQuery', { query: searchQuery })
                     : filterRole !== 'all'
                       ? t('noMembersWithRole', {
-                          role: roleFilters.find((f) => f.value === filterRole)?.label ?? filterRole,
+                          role:
+                            roleFilters.find((f) => f.value === filterRole)?.label ?? filterRole,
                         })
                       : t('noMembers')}
               </h3>

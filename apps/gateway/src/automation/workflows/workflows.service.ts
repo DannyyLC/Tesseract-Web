@@ -20,10 +20,7 @@ import {
   getWorkflowCreditCost,
 } from '@tesseract/types';
 import { PassThrough } from 'stream';
-import {
-  assertMaxTokensWithinCategory,
-  touchesCategoryCeiling,
-} from './category-token-ceiling';
+import { assertMaxTokensWithinCategory, touchesCategoryCeiling } from './category-token-ceiling';
 import { collectConfiguredModels, resolveContextWindowBudget } from './context-window-budget';
 import { AgentsService } from '../agents/agents.service';
 import { ToolsService } from '../tools/core/tools.service';
@@ -973,8 +970,13 @@ export class WorkflowsService {
           workflow.isInternal,
         );
       } else {
-        this.logger.error(`WhatsApp channel requires whatsappData for conversation management. Workflow: ${workflowId}, Execution: ${execution.id}`);
-        throw new InvalidWorkflowConfigException('WhatsApp channel requires whatsappData for conversation management', { workflowId, executionId: execution.id  });
+        this.logger.error(
+          `WhatsApp channel requires whatsappData for conversation management. Workflow: ${workflowId}, Execution: ${execution.id}`,
+        );
+        throw new InvalidWorkflowConfigException(
+          'WhatsApp channel requires whatsappData for conversation management',
+          { workflowId, executionId: execution.id },
+        );
       }
 
       // Si quien llama ya procesó los adjuntos —el worker de WhatsApp lo hace para
@@ -1205,8 +1207,8 @@ export class WorkflowsService {
         compactionContext.activeSummary,
         metadata?.whatsAppConfigId,
         {
-          client_number: whatsappData?.whatsappInboundMessage?.from
-        }
+          client_number: whatsappData?.whatsappInboundMessage?.from,
+        },
       );
 
       // Llamar al servicio de agents (Python)
@@ -1964,7 +1966,7 @@ export class WorkflowsService {
     whatsAppConfigId?: string,
     // Datos del canal para este turno (p.ej. {client_number}). Se exponen en
     // user_metadata (→ {{context.user_metadata.*}} en el motor).
-    channelContext?: Record<string, any>
+    channelContext?: Record<string, any>,
   ) {
     // 1. Extraer nueva estructura unificada de config
     const config = workflow.config;
@@ -2088,7 +2090,7 @@ export class WorkflowsService {
       // de llamada. De paso el dato queda vivo — si el cliente corrige un precio, el siguiente
       // mensaje ya lo usa.
       if (toolName === 'dataset') {
-        const datasetId = (tenantTool.config)?.dataset_id;
+        const datasetId = tenantTool.config?.dataset_id;
 
         if (datasetId) {
           const dataset = await this.prisma.dataset.findFirst({
@@ -2135,7 +2137,9 @@ export class WorkflowsService {
               ),
             };
           } else {
-            this.logger.warn(`dataset tool ${toolId}: dataset ${datasetId} no encontrado o borrado`);
+            this.logger.warn(
+              `dataset tool ${toolId}: dataset ${datasetId} no encontrado o borrado`,
+            );
           }
         } else {
           this.logger.warn(`dataset tool ${toolId}: falta dataset_id en TenantTool.config`);
@@ -2243,8 +2247,7 @@ export class WorkflowsService {
 
     // Variables persistidas de la conversación (las usa el workflow para recordar estado entre
     // mensajes). El Gateway es agnóstico: solo reenvía el blob tal cual lo guardó.
-    const persistedVariables =
-      (conversation.metadata as Record<string, any>)?.variables ?? {};
+    const persistedVariables = (conversation.metadata as Record<string, any>)?.variables ?? {};
 
     // 7. Construir el payload final
     const payload = {

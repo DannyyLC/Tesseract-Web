@@ -70,7 +70,9 @@ export default function NewAnnouncementPage() {
   const audiencePreview = useAudiencePreview();
 
   const toggleRole = (role: UserRole) => {
-    setTargetRoles((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]));
+    setTargetRoles((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role],
+    );
     setConfirmedBroadcast(false);
   };
 
@@ -163,7 +165,12 @@ export default function NewAnnouncementPage() {
               <div className="grid grid-cols-2 gap-2">
                 {(
                   [
-                    [AnnouncementTemplateKind.NEWS, t('templateNews'), Newspaper, t('templateNewsHint')],
+                    [
+                      AnnouncementTemplateKind.NEWS,
+                      t('templateNews'),
+                      Newspaper,
+                      t('templateNewsHint'),
+                    ],
                     [
                       AnnouncementTemplateKind.CELEBRATION,
                       t('templateCelebration'),
@@ -235,7 +242,9 @@ export default function NewAnnouncementPage() {
                       className={`${inputClass} min-h-56 resize-y font-mono text-sm`}
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder={'A partir de hoy…\n\n- Punto uno\n- Punto dos\n\n**Importante:** …'}
+                      placeholder={
+                        'A partir de hoy…\n\n- Punto uno\n- Punto dos\n\n**Importante:** …'
+                      }
                     />
                   </div>
                 </div>
@@ -268,16 +277,31 @@ export default function NewAnnouncementPage() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className={labelClass}>{t('ctaLabelEsLabel')}</label>
-                  <input className={inputClass} value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} placeholder={t('ctaLabelEsPlaceholder')} />
+                  <input
+                    className={inputClass}
+                    value={ctaLabel}
+                    onChange={(e) => setCtaLabel(e.target.value)}
+                    placeholder={t('ctaLabelEsPlaceholder')}
+                  />
                 </div>
                 <div>
                   <label className={labelClass}>{t('ctaLabelEnLabel')}</label>
-                  <input className={inputClass} value={ctaLabelEn} onChange={(e) => setCtaLabelEn(e.target.value)} placeholder={t('ctaLabelEnPlaceholder')} />
+                  <input
+                    className={inputClass}
+                    value={ctaLabelEn}
+                    onChange={(e) => setCtaLabelEn(e.target.value)}
+                    placeholder={t('ctaLabelEnPlaceholder')}
+                  />
                 </div>
               </div>
               <div className="mt-3">
                 <label className={labelClass}>{t('ctaUrlLabel')}</label>
-                <input className={inputClass} value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} placeholder={t('ctaUrlPlaceholder')} />
+                <input
+                  className={inputClass}
+                  value={ctaUrl}
+                  onChange={(e) => setCtaUrl(e.target.value)}
+                  placeholder={t('ctaUrlPlaceholder')}
+                />
                 <p className="mt-1 text-xs text-text-secondary">{t('ctaHint')}</p>
               </div>
             </Section>
@@ -286,12 +310,18 @@ export default function NewAnnouncementPage() {
           <div className="space-y-6">
             <Section title={t('targetSection')}>
               <div className="space-y-4">
-                <OrganizationMultiSelect value={targetOrganizationIds} onChange={handleTargetOrganizationsChange} />
+                <OrganizationMultiSelect
+                  value={targetOrganizationIds}
+                  onChange={handleTargetOrganizationsChange}
+                />
                 <div>
                   <label className={labelClass}>{t('targetRolesLabel')}</label>
                   <div className="flex flex-wrap gap-3">
                     {ROLE_OPTIONS.map((r) => (
-                      <label key={r.value} className="flex cursor-pointer items-center gap-2 text-sm text-text-primary">
+                      <label
+                        key={r.value}
+                        className="flex cursor-pointer items-center gap-2 text-sm text-text-primary"
+                      >
                         <input
                           type="checkbox"
                           className="h-4 w-4 accent-accent"
@@ -345,12 +375,21 @@ export default function NewAnnouncementPage() {
           </div>
         </div>
 
-        <div className="sticky bottom-0 -mx-4 mt-6 flex justify-end gap-2 border-t border-border bg-dashboard-background/95 px-4 py-4 backdrop-blur-sm md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
-          <button type="button" className={btnGhost} onClick={() => router.push('/admin/anuncios')} disabled={createAnnouncement.isPending}>
+        <div className="bg-dashboard-background/95 sticky bottom-0 -mx-4 mt-6 flex justify-end gap-2 border-t border-border px-4 py-4 backdrop-blur-sm md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
+          <button
+            type="button"
+            className={btnGhost}
+            onClick={() => router.push('/admin/anuncios')}
+            disabled={createAnnouncement.isPending}
+          >
             {t('cancel')}
           </button>
           <button type="submit" className={btnPrimary} disabled={createAnnouncement.isPending}>
-            {createAnnouncement.isPending ? t('saving') : publishNow ? t('publish') : t('saveDraft')}
+            {createAnnouncement.isPending
+              ? t('saving')
+              : publishNow
+                ? t('publish')
+                : t('saveDraft')}
           </button>
         </div>
       </form>
@@ -377,7 +416,10 @@ export default function NewAnnouncementPage() {
         title={t('confirmTargetTitle')}
         message={
           audienceConfirm
-            ? t('confirmTargetMessage', { count: audienceConfirm.count, scope: audienceConfirm.scope })
+            ? t('confirmTargetMessage', {
+                count: audienceConfirm.count,
+                scope: audienceConfirm.scope,
+              })
             : ''
         }
         confirmLabel={t('confirm')}

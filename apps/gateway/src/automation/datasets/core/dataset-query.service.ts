@@ -147,13 +147,17 @@ export class DatasetQueryService {
 
       if (range.min !== undefined && range.min !== null) {
         const bound =
-          field.type === 'number' ? Prisma.sql`${Number(range.min)}::numeric` : Prisma.sql`${String(range.min)}`;
+          field.type === 'number'
+            ? Prisma.sql`${Number(range.min)}::numeric`
+            : Prisma.sql`${String(range.min)}`;
         conditions.push(Prisma.sql`${column} >= ${bound}`);
       }
 
       if (range.max !== undefined && range.max !== null) {
         const bound =
-          field.type === 'number' ? Prisma.sql`${Number(range.max)}::numeric` : Prisma.sql`${String(range.max)}`;
+          field.type === 'number'
+            ? Prisma.sql`${Number(range.max)}::numeric`
+            : Prisma.sql`${String(range.max)}`;
         conditions.push(Prisma.sql`${column} <= ${bound}`);
       }
     }

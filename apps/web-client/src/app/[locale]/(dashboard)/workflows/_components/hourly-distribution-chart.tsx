@@ -114,9 +114,7 @@ export default function HourlyDistributionChart({
                     <div className="mb-1 border-b border-[var(--border-subtle)] pb-1 font-semibold">
                       {formatHourRange(bucket.hour)}
                     </div>
-                    <div className="mt-1">
-                      {t('tooltipExecutions', { count: bucket.count })}
-                    </div>
+                    <div className="mt-1">{t('tooltipExecutions', { count: bucket.count })}</div>
                   </div>
                 );
               }}
@@ -125,9 +123,7 @@ export default function HourlyDistributionChart({
               {buckets.map((bucket) => (
                 <Cell
                   key={bucket.hour}
-                  fill={
-                    bucket.hour === peakHour ? 'var(--chart-active)' : 'var(--chart-execution)'
-                  }
+                  fill={bucket.hour === peakHour ? 'var(--chart-active)' : 'var(--chart-execution)'}
                 />
               ))}
             </Bar>

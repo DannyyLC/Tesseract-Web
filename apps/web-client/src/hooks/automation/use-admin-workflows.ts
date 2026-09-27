@@ -24,7 +24,8 @@ const orgApi = () => RootApi.getInstance().getOrganizationsAdminApi();
 export function useInfiniteAdminOrganizations(query: AdminOrganizationsQuery = {}) {
   return useInfiniteQuery({
     queryKey: [ORG_KEY, 'infinite', query],
-    queryFn: async ({ pageParam }) => orgApi().findAll({ ...query, page: pageParam, limit: DEFAULT_PAGE_SIZE }),
+    queryFn: async ({ pageParam }) =>
+      orgApi().findAll({ ...query, page: pageParam, limit: DEFAULT_PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (last) =>
       last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined,

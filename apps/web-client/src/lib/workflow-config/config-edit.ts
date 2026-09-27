@@ -63,11 +63,7 @@ export function getAtPath(root: unknown, path: PathSegment[]): unknown {
 }
 
 /** Renombra una clave conservando su posición, para que el JSON no se reordene solo. */
-export function renameKey(
-  obj: Record<string, any>,
-  from: string,
-  to: string,
-): Record<string, any> {
+export function renameKey(obj: Record<string, any>, from: string, to: string): Record<string, any> {
   if (from === to || !(from in obj)) return obj;
   const next: Record<string, any> = {};
   for (const [key, value] of Object.entries(obj)) {
@@ -109,8 +105,12 @@ export function diffLocal(before: unknown, after: unknown): LocalDiffEntry[] {
     if (stable(a) === stable(b)) return;
 
     const bothObjects =
-      a && b && typeof a === 'object' && typeof b === 'object' &&
-      !Array.isArray(a) && !Array.isArray(b);
+      a &&
+      b &&
+      typeof a === 'object' &&
+      typeof b === 'object' &&
+      !Array.isArray(a) &&
+      !Array.isArray(b);
 
     if (bothObjects) {
       for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {

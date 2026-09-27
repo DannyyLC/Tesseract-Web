@@ -227,7 +227,9 @@ describe('ConversationsController', () => {
       // Dictar es una comodidad del operador: lo que se envía al workflow es texto,
       // así que no depende de lo que el agente sepa escuchar por WhatsApp.
       expect(mockMediaProcessingService.transcribeDictation).toHaveBeenCalledWith(
-        expect.objectContaining({ policy: expect.objectContaining({ audio: { enabled: true, maxSeconds: 300 } }) }),
+        expect.objectContaining({
+          policy: expect.objectContaining({ audio: { enabled: true, maxSeconds: 300 } }),
+        }),
       );
       // Y tampoco consulta la conversación, para que funcione en /conversations/new
       expect(mockConversationsService.findOne).not.toHaveBeenCalled();

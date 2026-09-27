@@ -14,7 +14,8 @@ const getAccessToken = jest.fn();
 jest.mock('google-auth-library', () => ({
   GoogleAuth: jest.fn().mockImplementation(() => ({
     getCredentials: (...args: unknown[]) => getCredentials(...args),
-    getClient: () => Promise.resolve({ getAccessToken: (...args: unknown[]) => getAccessToken(...args) }),
+    getClient: () =>
+      Promise.resolve({ getAccessToken: (...args: unknown[]) => getAccessToken(...args) }),
   })),
 }));
 

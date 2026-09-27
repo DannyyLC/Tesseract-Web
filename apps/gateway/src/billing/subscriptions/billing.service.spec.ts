@@ -427,7 +427,11 @@ describe('BillingService', () => {
       expect(mockPrismaService.subscription.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { organizationId: orgId },
-          create: expect.objectContaining({ organizationId: orgId, plan: 'GROWTH', status: 'ACTIVE' }),
+          create: expect.objectContaining({
+            organizationId: orgId,
+            plan: 'GROWTH',
+            status: 'ACTIVE',
+          }),
         }),
       );
       expect(enforceLimitsSpy).toHaveBeenCalledWith(orgId, 'GROWTH');

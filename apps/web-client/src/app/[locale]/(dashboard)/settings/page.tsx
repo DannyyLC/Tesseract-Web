@@ -10,10 +10,7 @@ import { toast } from 'sonner';
 import { Loader2, Trash2, AlertTriangle, Building2 } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
-import {
-  TwoFactorCodeInput,
-  isTwoFactorCodeComplete,
-} from '@/components/ui/two-factor-code-input';
+import { TwoFactorCodeInput, isTwoFactorCodeComplete } from '@/components/ui/two-factor-code-input';
 import { useAuth } from '@/hooks/identity/use-auth';
 import PermissionGuard from '@/components/auth/permission-guard';
 import {

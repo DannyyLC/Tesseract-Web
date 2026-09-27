@@ -71,10 +71,10 @@ export class CloudTasksService {
   isConfigured(): boolean {
     return Boolean(
       this.projectId &&
-        this.location &&
-        this.queue &&
-        this.serviceAccountEmail &&
-        this.workerBaseUrl,
+      this.location &&
+      this.queue &&
+      this.serviceAccountEmail &&
+      this.workerBaseUrl,
     );
   }
 

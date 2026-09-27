@@ -4,7 +4,15 @@ import { useMemo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, Loader2, Video } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+  Video,
+} from 'lucide-react';
 import { BookingConfirmation, BookingEventTypeId } from '@tesseract/types';
 import {
   useBookingAvailability,
@@ -31,7 +39,11 @@ function startOfMonth(date: Date): Date {
 }
 
 function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 
 /** Celdas de la grilla mensual, semana de lunes a domingo, con relleno de meses vecinos. */
@@ -50,7 +62,11 @@ function buildMonthGrid(monthStart: Date): Date[] {
   });
 }
 
-export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }: BookingWidgetProps) {
+export function BookingWidget({
+  fixedEventTypeId,
+  attendeeName,
+  attendeeEmail,
+}: BookingWidgetProps) {
   const t = useTranslations('Support');
   const locale = useLocale();
   const queryClient = useQueryClient();
@@ -129,7 +145,9 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
     } catch (error: any) {
       if (error?.response?.status === 400) {
         toast.error(t('booking.bookingErrorSlotTaken'));
-        queryClient.invalidateQueries({ queryKey: ['booking', 'availability', eventTypeId, selectedDateKey] });
+        queryClient.invalidateQueries({
+          queryKey: ['booking', 'availability', eventTypeId, selectedDateKey],
+        });
         setSelectedSlot(null);
         setStep('select-slot');
       } else {
@@ -141,7 +159,7 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
   if (step === 'success' && confirmation) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-success/10">
+        <div className="bg-success/10 flex h-14 w-14 items-center justify-center rounded-full">
           <Check className="h-7 w-7 text-success" />
         </div>
         <h3 className="text-xl font-bold text-text-primary">{t('booking.successHeading')}</h3>
@@ -252,7 +270,9 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
 
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-text-primary">{t('booking.nameLabel')}</label>
+            <label className="text-sm font-medium text-text-primary">
+              {t('booking.nameLabel')}
+            </label>
             <input
               type="text"
               required
@@ -262,7 +282,9 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-text-primary">{t('booking.emailLabel')}</label>
+            <label className="text-sm font-medium text-text-primary">
+              {t('booking.emailLabel')}
+            </label>
             <p className="rounded-xl border border-border bg-surface-secondary px-4 py-2.5 text-sm text-text-secondary">
               {attendeeEmail}
             </p>
@@ -270,7 +292,8 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-text-primary">
-              {t('booking.notesLabel')} <span className="font-normal text-text-tertiary">{t('optional')}</span>
+              {t('booking.notesLabel')}{' '}
+              <span className="font-normal text-text-tertiary">{t('optional')}</span>
             </label>
             <textarea
               rows={3}
@@ -311,7 +334,9 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
         )}
 
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-text-primary">{t('booking.selectDateLabel')}</h3>
+          <h3 className="text-sm font-semibold text-text-primary">
+            {t('booking.selectDateLabel')}
+          </h3>
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -322,7 +347,9 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
               <ChevronLeft className="h-4 w-4" />
             </button>
             <span className="min-w-[7rem] text-center text-sm font-medium text-text-primary">
-              {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(visibleMonth)}
+              {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
+                visibleMonth,
+              )}
             </span>
             <button
               type="button"
@@ -364,7 +391,7 @@ export function BookingWidget({ fixedEventTypeId, attendeeName, attendeeEmail }:
                   !inMonth ? 'text-text-tertiary/30' : ''
                 } ${
                   disabled
-                    ? 'cursor-not-allowed text-text-tertiary/40'
+                    ? 'text-text-tertiary/40 cursor-not-allowed'
                     : isSelected
                       ? 'bg-accent text-text-inverse hover:bg-accent'
                       : 'text-text-primary hover:bg-surface-secondary'

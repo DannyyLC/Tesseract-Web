@@ -99,7 +99,11 @@ class DatasetsAdminApi {
     return result.data.success;
   }
 
-  public async linkWorkflow(organizationId: string, id: string, workflowId: string): Promise<boolean> {
+  public async linkWorkflow(
+    organizationId: string,
+    id: string,
+    workflowId: string,
+  ): Promise<boolean> {
     const result = await this.apiRequestManager.post<ApiResponse<null>>(
       `${this.base(organizationId)}/${id}/workflows/${workflowId}`,
       {},
@@ -107,7 +111,11 @@ class DatasetsAdminApi {
     return result.data.success;
   }
 
-  public async unlinkWorkflow(organizationId: string, id: string, workflowId: string): Promise<boolean> {
+  public async unlinkWorkflow(
+    organizationId: string,
+    id: string,
+    workflowId: string,
+  ): Promise<boolean> {
     const result = await this.apiRequestManager.delete<ApiResponse<null>>(
       `${this.base(organizationId)}/${id}/workflows/${workflowId}`,
     );
@@ -156,7 +164,11 @@ class DatasetsAdminApi {
     return result.data.data ?? null;
   }
 
-  public async deleteRecord(organizationId: string, id: string, recordId: string): Promise<boolean> {
+  public async deleteRecord(
+    organizationId: string,
+    id: string,
+    recordId: string,
+  ): Promise<boolean> {
     const result = await this.apiRequestManager.delete<ApiResponse<null>>(
       `${this.base(organizationId)}/${id}/records/${recordId}`,
     );

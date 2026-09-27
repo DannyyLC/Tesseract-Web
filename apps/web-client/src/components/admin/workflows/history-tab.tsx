@@ -102,7 +102,7 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
                   {SOURCE_LABEL[v.source] ?? v.source}
                 </span>
                 {v.version === currentVersion && (
-                  <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[10px] text-accent">
+                  <span className="bg-accent/15 rounded px-1.5 py-0.5 text-[10px] text-accent">
                     {t('currentBadge')}
                   </span>
                 )}
@@ -171,18 +171,22 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
                     <p className="text-[10px] uppercase text-text-secondary">{entry.op}</p>
                     {entry.op !== 'added' && (
                       <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-surface-secondary p-2 font-mono text-[11px] text-text-secondary">
-                        − {typeof entry.before === 'string' ? entry.before : JSON.stringify(entry.before)}
+                        −{' '}
+                        {typeof entry.before === 'string'
+                          ? entry.before
+                          : JSON.stringify(entry.before)}
                       </pre>
                     )}
                     {entry.op !== 'removed' && (
                       <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-surface-secondary p-2 font-mono text-[11px] text-text-primary">
-                        + {typeof entry.after === 'string' ? entry.after : JSON.stringify(entry.after)}
+                        +{' '}
+                        {typeof entry.after === 'string'
+                          ? entry.after
+                          : JSON.stringify(entry.after)}
                       </pre>
                     )}
                     {entry.truncated && (
-                      <p className="mt-1 text-[10px] text-text-secondary">
-                        {t('truncatedValue')}
-                      </p>
+                      <p className="mt-1 text-[10px] text-text-secondary">{t('truncatedValue')}</p>
                     )}
                   </div>
                 ))}
@@ -202,7 +206,7 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
                 {t('restoreExplanation', { version: restoreTarget.version })}
               </p>
               {hasUnsavedChanges && (
-                <p className="rounded-lg border border-danger/40 px-3 py-2 text-xs text-danger">
+                <p className="border-danger/40 rounded-lg border px-3 py-2 text-xs text-danger">
                   {t('unsavedWarning')}
                 </p>
               )}

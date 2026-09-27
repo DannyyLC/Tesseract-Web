@@ -118,7 +118,9 @@ export function WhatsappOutboundLinkModal({
                           className="flex items-center gap-1 truncate text-[10px] text-text-tertiary"
                         >
                           <Phone size={10} className="shrink-0" />
-                          {num.displayName ? `${num.displayName} · ${num.phoneNumber}` : num.phoneNumber}
+                          {num.displayName
+                            ? `${num.displayName} · ${num.phoneNumber}`
+                            : num.phoneNumber}
                         </p>
                       ))}
                     </div>

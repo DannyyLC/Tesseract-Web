@@ -40,7 +40,9 @@ export function ConnectedWorkflowsSection({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold text-text-primary">{t('connectedWorkflows')}</h2>
-          <p className="mt-1 max-w-2xl text-sm text-text-secondary">{t('connectedWorkflowsHint')}</p>
+          <p className="mt-1 max-w-2xl text-sm text-text-secondary">
+            {t('connectedWorkflowsHint')}
+          </p>
         </div>
 
         {/* Con al menos una conexión, el motivo ya no es "por qué conectar" sino "por qué uno más":

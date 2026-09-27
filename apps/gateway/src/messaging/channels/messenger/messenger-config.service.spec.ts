@@ -166,9 +166,9 @@ describe('MessengerConfigService', () => {
 
     it('accepts a signature computed with the secret stored on the config', async () => {
       const payload = '{"object":"page"}';
-      expect(await service.verifySignature(payload, sign(payload, PAGE_SECRET), withOwnSecret)).toBe(
-        true,
-      );
+      expect(
+        await service.verifySignature(payload, sign(payload, PAGE_SECRET), withOwnSecret),
+      ).toBe(true);
       expect(mockKmsService.decrypt).toHaveBeenCalledWith(`enc(${PAGE_SECRET})`);
     });
 
@@ -198,9 +198,9 @@ describe('MessengerConfigService', () => {
 
     it('rejects a tampered body', async () => {
       const signature = sign('{"object":"page"}', PAGE_SECRET);
-      expect(await service.verifySignature('{"object":"instagram"}', signature, withOwnSecret)).toBe(
-        false,
-      );
+      expect(
+        await service.verifySignature('{"object":"instagram"}', signature, withOwnSecret),
+      ).toBe(false);
     });
 
     it('rejects malformed or missing headers instead of throwing', async () => {

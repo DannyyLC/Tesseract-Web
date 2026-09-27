@@ -230,7 +230,11 @@ class WorkflowsAdminApi {
     return result.data.data!;
   }
 
-  public async listVersions(id: string, page = 1, limit = DEFAULT_PAGE_SIZE): Promise<Paginated<WorkflowVersion>> {
+  public async listVersions(
+    id: string,
+    page = 1,
+    limit = DEFAULT_PAGE_SIZE,
+  ): Promise<Paginated<WorkflowVersion>> {
     const result = await this.apiRequestManager.get<ApiResponse<Paginated<WorkflowVersion>>>(
       `${WorkflowsAdminApi.BASE_URL}/${id}/versions?page=${page}&limit=${limit}`,
     );

@@ -37,10 +37,10 @@ Con qué cuenta corre cada cosa en `fractal-tesseract`. Importa porque el códig
 (KMS, Cloud Storage, Cloud Tasks, la agenda de reservas) hereda **la identidad de ejecución del
 servicio**, no la de quien desplegó.
 
-| Servicio | Service account |
-| --- | --- |
+| Servicio            | Service account                                                  |
+| ------------------- | ---------------------------------------------------------------- |
 | Cloud Run `gateway` | `tesseract-gateway-sa@fractal-tesseract.iam.gserviceaccount.com` |
-| Cloud Run `agents` | `tesseract-agents-sa@fractal-tesseract.iam.gserviceaccount.com` |
+| Cloud Run `agents`  | `tesseract-agents-sa@fractal-tesseract.iam.gserviceaccount.com`  |
 
 Se fija con `--service-account` en `gcloud run deploy`. Hoy **no** está en `cloudbuild.yaml` para
 ninguno de los dos: se configuró a mano en cada servicio y Cloud Run la conserva entre despliegues. Confirmar antes de

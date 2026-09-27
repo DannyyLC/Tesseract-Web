@@ -80,7 +80,12 @@ describe('DatasetQueryController', () => {
 
   describe('record', () => {
     it('devuelve la fila cuando existe', async () => {
-      const fila = { id: 'r-1', data: { marca: 'Toyota' }, createdAt: new Date(), updatedAt: new Date() };
+      const fila = {
+        id: 'r-1',
+        data: { marca: 'Toyota' },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       mockDatasetsService.getRecord.mockResolvedValue(fila);
 
       await expect(controller.record(requestWith(claims), 'r-1')).resolves.toBe(fila);

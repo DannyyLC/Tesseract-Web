@@ -11,10 +11,7 @@ import { useAuth } from '@/hooks/identity/use-auth';
 import { useBillingMutations } from '@/hooks/billing/use-billing';
 import { useBillingCurrency } from '@/hooks/billing/use-billing-currency';
 import { Modal } from '@/components/ui/modal';
-import {
-  TwoFactorCodeInput,
-  isTwoFactorCodeComplete,
-} from '@/components/ui/two-factor-code-input';
+import { TwoFactorCodeInput, isTwoFactorCodeComplete } from '@/components/ui/two-factor-code-input';
 import PermissionGuard from '@/components/auth/permission-guard';
 
 interface CreditTopUpCardProps {
@@ -39,7 +36,9 @@ export default function CreditTopUpCard({ perCredit, min, max, step }: CreditTop
   const router = useRouter();
   const pathname = usePathname();
 
-  const [credits, setCredits] = useState<number>(step * Math.round(CREDIT_TOPUP_QUICK_AMOUNTS[0] / step));
+  const [credits, setCredits] = useState<number>(
+    step * Math.round(CREDIT_TOPUP_QUICK_AMOUNTS[0] / step),
+  );
   const [customValue, setCustomValue] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
   const [code2FA, setCode2FA] = useState('');
@@ -215,9 +214,7 @@ export default function CreditTopUpCard({ perCredit, min, max, step }: CreditTop
           </div>
 
           {!isValid && credits > 0 && (
-            <p className="mt-2 text-xs text-danger">
-              {t('invalidAmount', { min, max, step })}
-            </p>
+            <p className="mt-2 text-xs text-danger">{t('invalidAmount', { min, max, step })}</p>
           )}
         </div>
       </div>

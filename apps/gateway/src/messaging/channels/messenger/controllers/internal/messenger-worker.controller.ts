@@ -162,7 +162,10 @@ export class MessengerWorkerController {
       const account = await this.messengerConfigService.getMessengerConfigByPageId(pageId);
 
       if (!account?.isActive) {
-        this.logger.warn('Config de Messenger ausente o inactiva al procesar la ventana', logContext);
+        this.logger.warn(
+          'Config de Messenger ausente o inactiva al procesar la ventana',
+          logContext,
+        );
         await this.commit(drained.processingKey);
         return { status: HttpStatus.OK, body: { processed: false, reason: 'inactive-config' } };
       }
@@ -400,10 +403,13 @@ export class MessengerWorkerController {
     const busySince = body.busySince ?? now;
 
     if (now - busySince >= TURN_MAX_WAIT_SECONDS * 1000) {
-      this.logger.error('La conversación sigue ocupada tras el tope de espera; se procesa sin turno', {
-        ...logContext,
-        waitedMs: now - busySince,
-      });
+      this.logger.error(
+        'La conversación sigue ocupada tras el tope de espera; se procesa sin turno',
+        {
+          ...logContext,
+          waitedMs: now - busySince,
+        },
+      );
       return null;
     }
 
@@ -581,7 +587,10 @@ export class MessengerWorkerController {
     }
 
     return {
-      aggregatedText: parts.map((part) => part.trim()).filter(Boolean).join('\n'),
+      aggregatedText: parts
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .join('\n'),
       // El primer mensaje representa la ventana: es el que aporta el contexto de
       // remitente a `execute()`, igual que hacía el "dueño" de la ventana.
       primaryEvent: messages[0].event,

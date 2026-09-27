@@ -33,4 +33,3 @@ Levantado al migrar a Cloud Tasks. Nada urgente.
   la guarda de ventana de contexto: el umbral cuelga del límite **efectivo**, no del configurado,
   así que un workflow puede empezar a compactar antes que ayer sin que nadie haya tocado su
   configuración.
-

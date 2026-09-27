@@ -1,6 +1,4 @@
-export type WhatsAppEventType =
-  | 'whatsapp.inbound_message.received'
-  | 'whatsapp.smb.message.echoes';
+export type WhatsAppEventType = 'whatsapp.inbound_message.received' | 'whatsapp.smb.message.echoes';
 
 export interface WhatsAppInboundEvent {
   id: string;

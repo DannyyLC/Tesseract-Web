@@ -228,7 +228,11 @@ export class MediaProcessingService {
     }
 
     if (buffer.length > maxAudioBytes(policy)) {
-      return { status: 'REJECTED', reason: 'AUDIO_TOO_LONG', message: policy.messages.audioTooLong };
+      return {
+        status: 'REJECTED',
+        reason: 'AUDIO_TOO_LONG',
+        message: policy.messages.audioTooLong,
+      };
     }
 
     const result = await this.adapter.transcribeBuffer({

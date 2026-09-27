@@ -203,7 +203,9 @@ describe('TwoFactorService', () => {
 
       expect(codes).toHaveLength(10);
       expect(new Set(codes).size).toBe(10);
-      expect(codes.every((c) => /^[0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5}$/.test(c))).toBe(true);
+      expect(codes.every((c) => /^[0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5}$/.test(c))).toBe(
+        true,
+      );
       // Borrado y alta van juntos: nunca se queda sin códigos a medias
       expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
       expect(mockPrismaService.userBackupCode.deleteMany).toHaveBeenCalledWith({

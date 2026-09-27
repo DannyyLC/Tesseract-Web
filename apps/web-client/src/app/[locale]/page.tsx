@@ -24,12 +24,7 @@ function TesseractWireframe() {
   const { vertices4D, edges } = useMemo(() => {
     const verts: number[][] = [];
     for (let i = 0; i < 16; i++) {
-      verts.push([
-        i & 1 ? 1 : -1,
-        i & 2 ? 1 : -1,
-        i & 4 ? 1 : -1,
-        i & 8 ? 1 : -1,
-      ]);
+      verts.push([i & 1 ? 1 : -1, i & 2 ? 1 : -1, i & 4 ? 1 : -1, i & 8 ? 1 : -1]);
     }
     const eds: [number, number][] = [];
     for (let i = 0; i < 16; i++) {
@@ -43,10 +38,7 @@ function TesseractWireframe() {
   }, []);
 
   // Buffer reutilizable de posiciones 3D proyectadas (evita asignar memoria por frame)
-  const projected = useMemo(
-    () => vertices4D.map(() => new THREE.Vector3()),
-    [vertices4D],
-  );
+  const projected = useMemo(() => vertices4D.map(() => new THREE.Vector3()), [vertices4D]);
 
   // Cada frame: rotamos en 4D y proyectamos a 3D.
   // - La rotación en el plano XW es la que produce el efecto de la 4ª dimensión

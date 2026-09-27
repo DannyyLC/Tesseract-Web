@@ -227,7 +227,9 @@ export class AnnouncementsService {
     }
 
     await this.prisma.notification.update({ where: { id }, data: { deliveredCount: delivered } });
-    this.logger.info(`AnnouncementsService - fanOut >> anuncio ${id} entregado a ${delivered} usuarios`);
+    this.logger.info(
+      `AnnouncementsService - fanOut >> anuncio ${id} entregado a ${delivered} usuarios`,
+    );
     return { delivered };
   }
 
@@ -252,7 +254,9 @@ export class AnnouncementsService {
   async getById(id: string): Promise<AdminAnnouncementDto> {
     const row = await this.prisma.notification.findFirst({
       where: { id, kind: NotificationKind.ANNOUNCEMENT },
-      include: { targetOrganizations: { include: { organization: { select: { id: true, name: true } } } } },
+      include: {
+        targetOrganizations: { include: { organization: { select: { id: true, name: true } } } },
+      },
     });
     if (!row) throw new NotFoundException('Anuncio no encontrado');
     const metrics = await this.getMetrics(id);
@@ -284,7 +288,9 @@ export class AnnouncementsService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { targetOrganizations: { include: { organization: { select: { id: true, name: true } } } } },
+        include: {
+          targetOrganizations: { include: { organization: { select: { id: true, name: true } } } },
+        },
       }),
       this.prisma.notification.count({ where }),
     ]);
@@ -370,7 +376,10 @@ export class AnnouncementsService {
     );
   }
 
-  private toAdminDto(row: NotificationWithTargets, metrics?: AnnouncementMetricsDto): AdminAnnouncementDto {
+  private toAdminDto(
+    row: NotificationWithTargets,
+    metrics?: AnnouncementMetricsDto,
+  ): AdminAnnouncementDto {
     const m = metrics ?? { delivered: 0, dismissed: 0, ctaClicked: 0, read: 0 };
     return {
       id: row.id,
@@ -383,7 +392,7 @@ export class AnnouncementsService {
       ctaLabelEn: row.ctaLabelEn,
       ctaUrl: row.ctaUrl,
       targetOrganizations: row.targetOrganizations.map((t) => t.organization),
-      targetRoles: (row.targetRoles as string[]) as UserRole[],
+      targetRoles: row.targetRoles as string[] as UserRole[],
       status: this.deriveStatus(row),
       isActive: row.isActive,
       publishedAt: row.publishedAt?.toISOString() ?? null,

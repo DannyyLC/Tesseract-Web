@@ -172,9 +172,7 @@ export class TwoFactorService {
     }
 
     const remaining = await this.countRemainingBackupCodes(userId);
-    this.logger.info(
-      `2FA: código de respaldo consumido por userId=${userId}, quedan ${remaining}`,
-    );
+    this.logger.info(`2FA: código de respaldo consumido por userId=${userId}, quedan ${remaining}`);
 
     return true;
   }

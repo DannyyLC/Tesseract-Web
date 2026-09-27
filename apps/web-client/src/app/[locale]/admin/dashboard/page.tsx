@@ -85,7 +85,9 @@ export default function AdminDashboardPage() {
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {overview && <CategoryComparisonChart rows={overview.byCategory} />}
-            {timeseries && !isTimeseriesLoading && <CostExecutionsTimeseriesChart points={timeseries.points} />}
+            {timeseries && !isTimeseriesLoading && (
+              <CostExecutionsTimeseriesChart points={timeseries.points} />
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

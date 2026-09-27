@@ -81,7 +81,7 @@ function OrganizationDetail() {
 
   return (
     <div className="w-full">
-      <div className="sticky top-14 z-20 -mx-4 -mt-4 mb-4 border-b border-border bg-surface/95 backdrop-blur md:-mx-6 md:-mt-6 lg:top-0 lg:-mx-8 lg:-mt-8">
+      <div className="bg-surface/95 sticky top-14 z-20 -mx-4 -mt-4 mb-4 border-b border-border backdrop-blur md:-mx-6 md:-mt-6 lg:top-0 lg:-mx-8 lg:-mt-8">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-4 pt-3 md:px-6 lg:px-8">
           <h1 className="text-base font-semibold text-text-primary">{org.name}</h1>
           <p className="flex flex-wrap items-center gap-x-3 text-xs text-text-secondary">

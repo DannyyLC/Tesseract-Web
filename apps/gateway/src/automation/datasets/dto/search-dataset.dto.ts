@@ -38,7 +38,10 @@ export class SearchDatasetDto {
   @IsOptional()
   @IsString()
   @MaxLength(41)
-  @ApiPropertyOptional({ description: 'Columna de orden; con guion inicial, descendente', example: '-precio' })
+  @ApiPropertyOptional({
+    description: 'Columna de orden; con guion inicial, descendente',
+    example: '-precio',
+  })
   sortBy?: string;
 
   @IsOptional()

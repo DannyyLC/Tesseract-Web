@@ -74,7 +74,9 @@ describe('BookingService', () => {
       freebusyQuery.mockResolvedValue({
         data: {
           calendars: {
-            primary: { busy: [{ start: '2026-01-06T15:00:00.000Z', end: '2026-01-06T16:00:00.000Z' }] },
+            primary: {
+              busy: [{ start: '2026-01-06T15:00:00.000Z', end: '2026-01-06T16:00:00.000Z' }],
+            },
           },
         },
       });
@@ -356,7 +358,9 @@ describe('BookingService', () => {
       freebusyQuery.mockResolvedValue({
         data: {
           calendars: {
-            primary: { busy: [{ start: '2026-01-06T15:00:00.000Z', end: '2026-01-06T16:00:00.000Z' }] },
+            primary: {
+              busy: [{ start: '2026-01-06T15:00:00.000Z', end: '2026-01-06T16:00:00.000Z' }],
+            },
           },
         },
       });
@@ -369,7 +373,10 @@ describe('BookingService', () => {
 
     it('rejects a startTime in the past', async () => {
       await expect(
-        service.createBooking({ ...bookingDto, startTime: '2020-01-01T00:00:00.000Z' }, 'jane@example.com'),
+        service.createBooking(
+          { ...bookingDto, startTime: '2020-01-01T00:00:00.000Z' },
+          'jane@example.com',
+        ),
       ).rejects.toThrow(BadRequestException);
       expect(freebusyQuery).not.toHaveBeenCalled();
     });
@@ -417,7 +424,10 @@ describe('BookingService', () => {
 
     it('rejects a startTime that is off the hourly grid', async () => {
       await expect(
-        service.createBooking({ ...bookingDto, startTime: '2026-01-06T15:17:00.000Z' }, 'jane@example.com'),
+        service.createBooking(
+          { ...bookingDto, startTime: '2026-01-06T15:17:00.000Z' },
+          'jane@example.com',
+        ),
       ).rejects.toThrow(BadRequestException);
       expect(eventsInsert).not.toHaveBeenCalled();
     });
@@ -425,7 +435,10 @@ describe('BookingService', () => {
     it('rejects a startTime on a weekend without even asking Google', async () => {
       // 2026-01-11 es domingo; 15:00 UTC son las 09:00 locales.
       await expect(
-        service.createBooking({ ...bookingDto, startTime: '2026-01-11T15:00:00.000Z' }, 'jane@example.com'),
+        service.createBooking(
+          { ...bookingDto, startTime: '2026-01-11T15:00:00.000Z' },
+          'jane@example.com',
+        ),
       ).rejects.toThrow(BadRequestException);
       expect(freebusyQuery).not.toHaveBeenCalled();
       expect(eventsInsert).not.toHaveBeenCalled();
@@ -434,7 +447,10 @@ describe('BookingService', () => {
     it('rejects a startTime outside business hours', async () => {
       // 09:00 UTC son las 03:00 en Ciudad de México.
       await expect(
-        service.createBooking({ ...bookingDto, startTime: '2026-01-06T09:00:00.000Z' }, 'jane@example.com'),
+        service.createBooking(
+          { ...bookingDto, startTime: '2026-01-06T09:00:00.000Z' },
+          'jane@example.com',
+        ),
       ).rejects.toThrow(BadRequestException);
       expect(eventsInsert).not.toHaveBeenCalled();
     });
@@ -443,7 +459,10 @@ describe('BookingService', () => {
       // Ahora son las 12:00 UTC del lunes 5 y la anticipación mínima es de 4 h: el slot de las
       // 15:00 UTC de hoy sigue siendo un hueco válido de la rejilla, pero llega demasiado justo.
       await expect(
-        service.createBooking({ ...bookingDto, startTime: '2026-01-05T15:00:00.000Z' }, 'jane@example.com'),
+        service.createBooking(
+          { ...bookingDto, startTime: '2026-01-05T15:00:00.000Z' },
+          'jane@example.com',
+        ),
       ).rejects.toThrow(BadRequestException);
       expect(eventsInsert).not.toHaveBeenCalled();
     });
@@ -451,7 +470,10 @@ describe('BookingService', () => {
     it('rejects a startTime beyond the maximum advance window', async () => {
       // 30 días desde el 5 de enero llegan al 4 de febrero; el lunes 9 queda fuera.
       await expect(
-        service.createBooking({ ...bookingDto, startTime: '2026-02-09T15:00:00.000Z' }, 'jane@example.com'),
+        service.createBooking(
+          { ...bookingDto, startTime: '2026-02-09T15:00:00.000Z' },
+          'jane@example.com',
+        ),
       ).rejects.toThrow(BadRequestException);
       expect(eventsInsert).not.toHaveBeenCalled();
     });

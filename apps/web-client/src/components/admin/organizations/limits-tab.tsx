@@ -103,7 +103,9 @@ export function LimitsTab({ org }: Props) {
     <div className="w-full space-y-6">
       <section className="rounded-xl border border-border bg-surface p-4">
         <h2 className="mb-1 text-sm font-semibold text-text-primary">{t('customLimitsTitle')}</h2>
-        <p className="mb-4 text-xs text-text-secondary">{t('customLimitsHint', { plan: org.plan })}</p>
+        <p className="mb-4 text-xs text-text-secondary">
+          {t('customLimitsHint', { plan: org.plan })}
+        </p>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {LIMIT_FIELDS.map(({ key, label, planLimitKey }) => {
@@ -158,7 +160,9 @@ export function LimitsTab({ org }: Props) {
               className={inputClass}
               value={overageLimit}
               onChange={(e) => setOverageLimit(e.target.value)}
-              placeholder={t('overageLimitPlaceholder', { value: org.planLimits.limits.monthlyCredits })}
+              placeholder={t('overageLimitPlaceholder', {
+                value: org.planLimits.limits.monthlyCredits,
+              })}
               disabled={!allowOverages}
             />
           </div>

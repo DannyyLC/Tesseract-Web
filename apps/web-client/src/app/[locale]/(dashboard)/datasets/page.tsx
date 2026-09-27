@@ -25,8 +25,7 @@ export default function DatasetsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const usage = data?.usage;
-  const atDatasetLimit =
-    !!usage && usage.maxDatasets !== -1 && usage.datasets >= usage.maxDatasets;
+  const atDatasetLimit = !!usage && usage.maxDatasets !== -1 && usage.datasets >= usage.maxDatasets;
 
   const handleCreate = async () => {
     setError(null);
@@ -83,7 +82,7 @@ export default function DatasetsPage() {
 
             {/* Estar por encima del límite no borra ni oculta nada: solo bloquea las altas. */}
             {usage.writesBlocked && (
-              <span className="rounded-lg bg-warning-500/10 px-2 py-1 text-xs font-medium text-warning-600">
+              <span className="bg-warning-500/10 rounded-lg px-2 py-1 text-xs font-medium text-warning-600">
                 {t('writesBlocked')}
               </span>
             )}

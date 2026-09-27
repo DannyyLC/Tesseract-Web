@@ -243,10 +243,7 @@ class DatasetsApi {
 
   // ─── Consulta (mismo motor que usa el agente) ──────────────────────────────
 
-  public async search(
-    id: string,
-    request: DatasetSearchRequest,
-  ): Promise<DatasetSearchResponse> {
+  public async search(id: string, request: DatasetSearchRequest): Promise<DatasetSearchResponse> {
     const result = await this.apiRequestManager.post<ApiResponse<DatasetSearchResponse>>(
       `${DatasetsApi.BASE_URL}/${id}/search`,
       request,

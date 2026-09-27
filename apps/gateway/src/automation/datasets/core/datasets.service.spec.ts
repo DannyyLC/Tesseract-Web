@@ -341,11 +341,7 @@ describe('DatasetsService', () => {
 
       // "precio base" con espacio no es `precio_base`: se ignora, y el cliente tiene que enterarse
       // o se queda con una importación "exitosa" que dejó la columna vacía.
-      const result = await service.importCsv(
-        ORG_ID,
-        DATASET_ID,
-        'precio base,porcentaje\n100,10',
-      );
+      const result = await service.importCsv(ORG_ID, DATASET_ID, 'precio base,porcentaje\n100,10');
 
       expect(result.imported).toBe(1);
       expect(result.ignoredColumns).toEqual(['precio base']);

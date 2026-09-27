@@ -5,7 +5,7 @@ import {
   MediaProcessResult,
   MediaTooLargeError,
 } from './media-processor.adapter';
-  
+
 @Injectable()
 export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdapter {
   private readonly apiBaseUrl: string;
@@ -13,7 +13,6 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
   private readonly sttModels: string[];
   private readonly ocrModels: string[];
   private readonly timeoutMs: number;
-
 
   constructor(private readonly configService: ConfigService) {
     this.apiBaseUrl = this.configService
@@ -30,7 +29,6 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
 
     this.timeoutMs = this.configService.get<number>('MEDIA_PROCESSING_TIMEOUT_MS', 30000);
   }
-
 
   async process(media: {
     type: 'IMAGE' | 'AUDIO';
@@ -52,11 +50,11 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
 
     try {
       if (media.type === 'AUDIO') {
-        const { text: processedText, modelUsed, sizeBytes } = await this.transcribeAudio(
-          media.sourceUrl,
-          media.mimeType,
-          media.maxBytes,
-        );
+        const {
+          text: processedText,
+          modelUsed,
+          sizeBytes,
+        } = await this.transcribeAudio(media.sourceUrl, media.mimeType, media.maxBytes);
         return {
           status: 'PROCESSED',
           processedText,

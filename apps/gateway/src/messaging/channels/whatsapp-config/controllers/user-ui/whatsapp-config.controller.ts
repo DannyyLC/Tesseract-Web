@@ -39,10 +39,7 @@ import {
 } from '../../dto';
 import { CloudTasksService } from '@/platform/tasks/cloud-tasks.service';
 import { WebhookDedupService } from '@/platform/webhooks/webhook-dedup.service';
-import {
-  WEBHOOK_PROVIDER_YCLOUD,
-  WHATSAPP_WORKER_PATH,
-} from '../../whatsapp-worker.constants';
+import { WEBHOOK_PROVIDER_YCLOUD, WHATSAPP_WORKER_PATH } from '../../whatsapp-worker.constants';
 import { WorkflowsService } from '@/automation/workflows/workflows.service';
 import {
   ConversationsService,
@@ -153,8 +150,14 @@ export class WhatsappConfigController {
       this.logger.warn(
         `Invalid signature for message from ${maskPhone(userNumber)} to ${phoneNumber}`,
       );
-      await this.whatsappConfigService.updateConnectionStatusByPhoneNumber(phoneNumber, 'DISCONNECTED');
-      await this.whatsappConfigService.updateConnectionErrorByPhoneNumber(phoneNumber, 'Invalid signature, contact Support Service');
+      await this.whatsappConfigService.updateConnectionStatusByPhoneNumber(
+        phoneNumber,
+        'DISCONNECTED',
+      );
+      await this.whatsappConfigService.updateConnectionErrorByPhoneNumber(
+        phoneNumber,
+        'Invalid signature, contact Support Service',
+      );
       return res.status(HttpStatus.UNAUTHORIZED).send({ received: false });
     }
 

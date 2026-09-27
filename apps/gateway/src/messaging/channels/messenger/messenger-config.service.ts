@@ -763,7 +763,10 @@ export class MessengerConfigService {
     return crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
   }
 
-  async updateConnectionStatusByPageId(pageId: string, connectionStatus: MessengerConnectionStatus): Promise<boolean> {
+  async updateConnectionStatusByPageId(
+    pageId: string,
+    connectionStatus: MessengerConnectionStatus,
+  ): Promise<boolean> {
     try {
       await this.prismaService.messengerConfig.updateMany({
         where: { pageId },
@@ -775,7 +778,10 @@ export class MessengerConfigService {
       });
       return true;
     } catch (error) {
-      this.logger.error(`Error updating Messenger config connection status for pageId ${pageId}:`, error);
+      this.logger.error(
+        `Error updating Messenger config connection status for pageId ${pageId}:`,
+        error,
+      );
       return false;
     }
   }
@@ -788,7 +794,10 @@ export class MessengerConfigService {
       });
       return true;
     } catch (error) {
-      this.logger.error(`Error updating Messenger config connection error for pageId ${pageId}:`, error);
+      this.logger.error(
+        `Error updating Messenger config connection error for pageId ${pageId}:`,
+        error,
+      );
       return false;
     }
   }

@@ -179,9 +179,7 @@ export function matchCsvHeader(fields: DatasetField[], header: string[]): CsvHea
     columns,
     recognized: capturable.filter((field) => recognizedKeys.has(field.key)),
     // Una coma final deja un encabezado vacío que no es una columna mal escrita: no se reporta.
-    unknownHeaders: header.filter(
-      (name, index) => columns[index] === null && name.trim() !== '',
-    ),
+    unknownHeaders: header.filter((name, index) => columns[index] === null && name.trim() !== ''),
     missingFields: capturable.filter((field) => !recognizedKeys.has(field.key)),
   };
 }

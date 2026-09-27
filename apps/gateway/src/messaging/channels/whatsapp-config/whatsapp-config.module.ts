@@ -17,7 +17,18 @@ import { NotificationsModule } from '@/messaging/notifications/notifications.mod
 
 @Module({
   // `EndUsersModule` va por la lista negra: el webhook descarta lo que mande un contacto bloqueado.
-  imports: [UtilityModule, HttpModule, WorkflowsModule, MediaProcessingModule, GoogleDriveModule, ConversationsModule, WebhookDedupModule, CloudTasksModule, EndUsersModule, NotificationsModule],
+  imports: [
+    UtilityModule,
+    HttpModule,
+    WorkflowsModule,
+    MediaProcessingModule,
+    GoogleDriveModule,
+    ConversationsModule,
+    WebhookDedupModule,
+    CloudTasksModule,
+    EndUsersModule,
+    NotificationsModule,
+  ],
   providers: [WhatsappConfigService, WhatsappMessageQueueService],
   controllers: [WhatsappConfigController, WhatsappWorkerController, WhatsappConfigAdminController],
   exports: [WhatsappConfigService, WhatsappMessageQueueService],

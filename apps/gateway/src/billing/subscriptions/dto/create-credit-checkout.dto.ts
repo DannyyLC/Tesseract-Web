@@ -20,7 +20,8 @@ export class CreateCreditCheckoutDto {
   credits: number;
 
   @ApiPropertyOptional({
-    description: 'Código de segundo factor vigente; obligatorio solo si el usuario ya tiene 2FA activo.',
+    description:
+      'Código de segundo factor vigente; obligatorio solo si el usuario ya tiene 2FA activo.',
   })
   @IsString()
   @IsOptional()

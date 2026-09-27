@@ -16,7 +16,10 @@ import {
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useAdminWorkflows } from '@/hooks/automation/use-admin-workflows';
-import { useAdminWhatsappMutations, useAdminWhatsappNumbers } from '@/hooks/messaging/use-admin-whatsapp-config';
+import {
+  useAdminWhatsappMutations,
+  useAdminWhatsappNumbers,
+} from '@/hooks/messaging/use-admin-whatsapp-config';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import type { WhatsAppConfig } from '@tesseract/types';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
@@ -47,7 +50,8 @@ export function ChannelsTab({ organizationId }: Props) {
   const getApiErrorMessage = useApiErrorMessage();
   const { data: configs, isLoading } = useAdminWhatsappNumbers(organizationId);
   const { data: workflowsPage } = useAdminWorkflows({ organizationId, limit: 100 });
-  const { createConfig, updateConfig, deleteConfig, setActive, approve } = useAdminWhatsappMutations(organizationId);
+  const { createConfig, updateConfig, deleteConfig, setActive, approve } =
+    useAdminWhatsappMutations(organizationId);
 
   // Un número no puede rutear a un workflow interno del super admin — el backend ya lo
   // rechaza, esto es solo para no ofrecerlo en el selector.
@@ -55,7 +59,10 @@ export function ChannelsTab({ organizationId }: Props) {
     () => (workflowsPage?.data ?? []).filter((w) => !w.isInternal),
     [workflowsPage],
   );
-  const workflowNameById = useMemo(() => new Map(workflows.map((w) => [w.id, w.name])), [workflows]);
+  const workflowNameById = useMemo(
+    () => new Map(workflows.map((w) => [w.id, w.name])),
+    [workflows],
+  );
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -178,7 +185,10 @@ export function ChannelsTab({ organizationId }: Props) {
                 ? (workflowNameById.get(config.defaultWorkflowId) ?? t('deletedWorkflow'))
                 : null;
               return (
-                <li key={config.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <li
+                  key={config.id}
+                  className="flex flex-wrap items-center justify-between gap-3 py-3"
+                >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate font-medium text-text-primary">
@@ -197,11 +207,17 @@ export function ChannelsTab({ organizationId }: Props) {
                       )}
                     </div>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
-                      <span className={CONNECTION_STYLE[config.connectionStatus] ?? 'text-text-tertiary'}>
+                      <span
+                        className={
+                          CONNECTION_STYLE[config.connectionStatus] ?? 'text-text-tertiary'
+                        }
+                      >
                         {config.connectionStatus}
                       </span>
                       <span>
-                        {workflowName ? t('routesTo', { workflow: workflowName }) : t('noWorkflowAssigned')}
+                        {workflowName
+                          ? t('routesTo', { workflow: workflowName })
+                          : t('noWorkflowAssigned')}
                       </span>
                     </p>
                   </div>
@@ -368,7 +384,11 @@ export function ChannelsTab({ organizationId }: Props) {
               <button className={btnGhost} onClick={() => setEditTarget(null)}>
                 {t('cancel')}
               </button>
-              <button className={btnPrimary} onClick={handleSaveEdit} disabled={updateConfig.isPending}>
+              <button
+                className={btnPrimary}
+                onClick={handleSaveEdit}
+                disabled={updateConfig.isPending}
+              >
                 {updateConfig.isPending && <Loader2 size={14} className="animate-spin" />}
                 {t('save')}
               </button>

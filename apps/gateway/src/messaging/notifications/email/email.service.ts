@@ -175,7 +175,8 @@ export class EmailService {
     try {
       sentMessageInfo = await this.transporter.sendMail({
         to: email,
-        subject: locale === 'en' ? 'Password reset code' : 'Código de restablecimiento de contraseña',
+        subject:
+          locale === 'en' ? 'Password reset code' : 'Código de restablecimiento de contraseña',
         html: this.emailPasswordResetTemplate.render(locale, {
           verificationCode,
         }),

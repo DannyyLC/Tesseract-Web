@@ -111,7 +111,11 @@ export function SettingsTab({ workflow }: Props) {
 
       <div>
         <label className={labelClass}>{t('nameLabel')}</label>
-        <input className={inputClass} value={form.name} onChange={(e) => set('name', e.target.value)} />
+        <input
+          className={inputClass}
+          value={form.name}
+          onChange={(e) => set('name', e.target.value)}
+        />
       </div>
 
       <div>
@@ -225,7 +229,7 @@ export function SettingsTab({ workflow }: Props) {
           <>
             <p className="mt-1 text-xs text-text-secondary">{t('stopsImmediatelyHint')}</p>
             <button
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-danger px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
+              className="hover:bg-danger/10 mt-2 inline-flex items-center gap-1.5 rounded-lg border border-danger px-3 py-1.5 text-xs font-medium text-danger transition-colors disabled:opacity-50"
               onClick={() => setConfirmDeleteOpen(true)}
               disabled={removeWorkflow.isPending}
             >
@@ -241,8 +245,16 @@ export function SettingsTab({ workflow }: Props) {
       </div>
 
       <div className="flex justify-end pt-2">
-        <button className={btnPrimary} onClick={handleSave} disabled={!dirty || updateMeta.isPending}>
-          {updateMeta.isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+        <button
+          className={btnPrimary}
+          onClick={handleSave}
+          disabled={!dirty || updateMeta.isPending}
+        >
+          {updateMeta.isPending ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <Save size={14} />
+          )}
           {t('saveSettings')}
         </button>
       </div>

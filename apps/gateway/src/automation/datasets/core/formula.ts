@@ -95,7 +95,9 @@ function tokenize(source: string): Token[] {
       const value = Number(source.slice(index, end));
 
       if (!Number.isFinite(value)) {
-        throw new BadRequestException(`La fórmula tiene un número inválido: "${source.slice(index, end)}"`);
+        throw new BadRequestException(
+          `La fórmula tiene un número inválido: "${source.slice(index, end)}"`,
+        );
       }
 
       tokens.push({ type: 'number', value });
@@ -139,7 +141,9 @@ class Parser {
     const node = this.expression(0);
 
     if (this.position < this.tokens.length) {
-      throw new BadRequestException('La fórmula tiene contenido de más; revisa los operadores y paréntesis');
+      throw new BadRequestException(
+        'La fórmula tiene contenido de más; revisa los operadores y paréntesis',
+      );
     }
 
     return node;
@@ -240,7 +244,9 @@ class Parser {
 
   private roundCall(depth: number): FormulaNode {
     if (!this.eatSymbol('(')) {
-      throw new BadRequestException(`\`${ROUND_FUNCTION}\` necesita paréntesis: ${ROUND_FUNCTION}(valor, decimales)`);
+      throw new BadRequestException(
+        `\`${ROUND_FUNCTION}\` necesita paréntesis: ${ROUND_FUNCTION}(valor, decimales)`,
+      );
     }
 
     const value = this.expression(depth + 1);

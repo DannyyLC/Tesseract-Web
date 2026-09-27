@@ -20,14 +20,14 @@ disponible y a qué precio, es [Catálogo y pedidos](/templates/catalogo).
 
 ## Qué lo hace distinto
 
-| | Ventas | Soporte |
-| --- | --- | --- |
-| Objetivo | Convertir | Resolver o escalar |
-| Primer movimiento | Presentarse y ofrecer | Identificar el caso |
-| Fuente de verdad | Oferta de la empresa | Datos del cliente (`dataset`, `http_request`) |
-| Éxito | Un lead calificado | Un caso cerrado, o escalado a tiempo |
-| Escalamiento | Ante intención de compra | Ante límite de conocimiento o enojo |
-| Voz | Preset A o B | **Propia**, no usa presets |
+|                   | Ventas                   | Soporte                                       |
+| ----------------- | ------------------------ | --------------------------------------------- |
+| Objetivo          | Convertir                | Resolver o escalar                            |
+| Primer movimiento | Presentarse y ofrecer    | Identificar el caso                           |
+| Fuente de verdad  | Oferta de la empresa     | Datos del cliente (`dataset`, `http_request`) |
+| Éxito             | Un lead calificado       | Un caso cerrado, o escalado a tiempo          |
+| Escalamiento      | Ante intención de compra | Ante límite de conocimiento o enojo           |
+| Voz               | Preset A o B             | **Propia**, no usa presets                    |
 
 Es el único template que **no toma una de las dos [voces](/templates/overview)**. Trae su bloque 4
 escrito: neutro y sin emojis. Quien escribe a soporte suele venir molesto, y las dos voces empeoran
@@ -211,9 +211,7 @@ Segundo intento fallido:
   "graph": {
     "type": "pipeline",
     "schema_version": 1,
-    "nodes": [
-      { "id": "agente", "type": "agent", "agent": "default", "max_iterations": 10 }
-    ],
+    "nodes": [{ "id": "agente", "type": "agent", "agent": "default", "max_iterations": 10 }],
     "edges": [
       { "from": "START", "to": "agente" },
       { "from": "agente", "to": "END" }
@@ -224,11 +222,7 @@ Segundo intento fallido:
       "model": "gpt-4o",
       "temperature": 0.2,
       "system_prompt": "<el prompt de arriba, con las variables resueltas>",
-      "tools": [
-        "uuid-human-handoff",
-        "uuid-dataset-pedidos",
-        "uuid-http-request-estado"
-      ]
+      "tools": ["uuid-human-handoff", "uuid-dataset-pedidos", "uuid-http-request-estado"]
     }
   }
 }
@@ -243,11 +237,11 @@ consultar otra cosa, y escalar.
 **Tools mínimas:** `human_handoff` **y** al menos una fuente de datos. Un agente de soporte sin
 herramienta de consulta no es un agente de soporte: es un FAQ que va a inventar estados de pedido.
 
-| Tool           | Para qué                                                        |
-| -------------- | --------------------------------------------------------------- |
-| `human_handoff`| Obligatoria. Todo el bloque 7 depende de ella                    |
-| `dataset`      | Catálogo, políticas, preguntas frecuentes con respuesta estable  |
-| `http_request` | Estado en vivo contra el sistema del cliente (pedidos, saldos)   |
+| Tool            | Para qué                                                        |
+| --------------- | --------------------------------------------------------------- |
+| `human_handoff` | Obligatoria. Todo el bloque 7 depende de ella                   |
+| `dataset`       | Catálogo, políticas, preguntas frecuentes con respuesta estable |
+| `http_request`  | Estado en vivo contra el sistema del cliente (pedidos, saldos)  |
 
 ### A dónde apunta el `http_request`
 
@@ -276,13 +270,13 @@ En el caso de un agente para la propia Fractal, el `http_request` apunta al gate
 
 Además de las comunes de [Templates de Agente](/templates/overview):
 
-| Variable                  | Obligatoria | Ejemplo                                                       |
-| ------------------------- | ----------- | ------------------------------------------------------------- |
-| `{{alcance_soporte}}`     | Sí          | `pedidos, envíos, devoluciones y facturación`                  |
-| `{{dato_identificador}}`  | Sí          | `número de pedido`, `correo con el que compraste`              |
-| `{{politicas}}`           | Sí          | Devoluciones a 30 días · Envíos 3-5 días hábiles               |
-| `{{trato}}`               | Sí          | `tú` \| `usted`                                                |
-| `{{sla}}`                 | No          | `El equipo responde en menos de 24 horas hábiles`              |
+| Variable                 | Obligatoria | Ejemplo                                           |
+| ------------------------ | ----------- | ------------------------------------------------- |
+| `{{alcance_soporte}}`    | Sí          | `pedidos, envíos, devoluciones y facturación`     |
+| `{{dato_identificador}}` | Sí          | `número de pedido`, `correo con el que compraste` |
+| `{{politicas}}`          | Sí          | Devoluciones a 30 días · Envíos 3-5 días hábiles  |
+| `{{trato}}`              | Sí          | `tú` \| `usted`                                   |
+| `{{sla}}`                | No          | `El equipo responde en menos de 24 horas hábiles` |
 
 `{{dato_identificador}}` es la variable que más se equivoca: tiene que ser algo que el cliente
 **tenga a mano**. Un UUID interno no sirve; el número de pedido que viene en su correo, sí.
@@ -293,17 +287,17 @@ Además de las comunes de [Templates de Agente](/templates/overview):
 
 Para el soporte de Tesseract a organizaciones ya suscritas:
 
-| Variable                 | Valor                                                                              |
-| ------------------------ | ---------------------------------------------------------------------------------- |
-| `{{nombre_agente}}`      | Nova                                                                                |
-| `{{empresa}}`            | Fractal                                                                             |
-| `{{alcance_soporte}}`    | la plataforma Tesseract: workflows, créditos, facturación y accesos                 |
-| `{{dato_identificador}}` | correo con el que entras a la plataforma                                            |
+| Variable                 | Valor                                                                                                                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{{nombre_agente}}`      | Nova                                                                                                                                                                                        |
+| `{{empresa}}`            | Fractal                                                                                                                                                                                     |
+| `{{alcance_soporte}}`    | la plataforma Tesseract: workflows, créditos, facturación y accesos                                                                                                                         |
+| `{{dato_identificador}}` | correo con el que entras a la plataforma                                                                                                                                                    |
 | `{{politicas}}`          | Los créditos no usados se acumulan · El overage se cobra al final del ciclo · 30 días de garantía sobre la mensualidad · Sin permanencia mínima · Los downgrades aplican al final del ciclo |
-| `{{trato}}`              | tú                                                                                  |
-| `{{canal}}`              | whatsapp                                                                            |
-| `{{horarios}}`           | Lunes a viernes, 9:00 a 18:00, hora centro de México                                |
-| `{{medios_contacto}}`    | hello@fractalops.com.mx                                                             |
+| `{{trato}}`              | tú                                                                                                                                                                                          |
+| `{{canal}}`              | whatsapp                                                                                                                                                                                    |
+| `{{horarios}}`           | Lunes a viernes, 9:00 a 18:00, hora centro de México                                                                                                                                        |
+| `{{medios_contacto}}`    | hello@fractalops.com.mx                                                                                                                                                                     |
 
 ```
 Cliente:  ya no me corren los workflows

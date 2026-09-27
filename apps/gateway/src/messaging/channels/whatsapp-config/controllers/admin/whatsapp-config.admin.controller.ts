@@ -73,7 +73,9 @@ export class WhatsappConfigAdminController {
     @Param('id') organizationId: string,
     @Body() dto: CreateConfigDto,
   ): Promise<ApiResponse> {
-    const existing = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(dto.phoneNumber);
+    const existing = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(
+      dto.phoneNumber,
+    );
     if (existing) {
       throw new BadRequestException('A WhatsApp config with this phone number already exists');
     }

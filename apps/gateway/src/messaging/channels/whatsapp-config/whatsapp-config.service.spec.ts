@@ -83,9 +83,7 @@ describe('WhatsappConfigService', () => {
     it('resuelve por variante cuando el formato guardado no es el que manda YCloud', async () => {
       // Guardado a mano sin el `1` de móvil; YCloud lo manda con él.
       const record = { id: 'r2', phoneNumber: '+525512345678' };
-      mockPrisma.whatsAppConfig.findFirst
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(record);
+      mockPrisma.whatsAppConfig.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(record);
 
       const res = await service.getWhatsappConfigByPhoneNumber('+5215512345678');
 

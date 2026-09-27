@@ -79,9 +79,7 @@ export default function InvoiceList({ isMexican }: { isMexican: boolean }) {
           <tbody className="divide-y divide-border">
             {invoices.map((invoice) => (
               <tr key={invoice.id}>
-                <td className="px-6 py-4 font-medium text-text-primary">
-                  {invoice.invoiceNumber}
-                </td>
+                <td className="px-6 py-4 font-medium text-text-primary">{invoice.invoiceNumber}</td>
                 <td className="px-6 py-4 text-text-secondary">
                   {invoice.periodStart && invoice.periodEnd
                     ? `${new Date(invoice.periodStart).toLocaleDateString('es-MX')} – ${new Date(

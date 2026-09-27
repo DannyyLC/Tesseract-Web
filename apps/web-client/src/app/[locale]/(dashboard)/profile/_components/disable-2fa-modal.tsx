@@ -3,10 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Modal } from '@/components/ui/modal';
-import {
-  TwoFactorCodeInput,
-  isTwoFactorCodeComplete,
-} from '@/components/ui/two-factor-code-input';
+import { TwoFactorCodeInput, isTwoFactorCodeComplete } from '@/components/ui/two-factor-code-input';
 import { useDisable2FA } from '@/hooks/identity/use-auth';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';

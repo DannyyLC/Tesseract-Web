@@ -5,12 +5,7 @@ import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { WINSTON_MODULE_NEST_PROVIDER, WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
-import {
-  buildLogFormat,
-  buildWinstonOptions,
-  LOG_LEVELS,
-  resolveLogLevel,
-} from './winston.config';
+import { buildLogFormat, buildWinstonOptions, LOG_LEVELS, resolveLogLevel } from './winston.config';
 
 /**
  * El bug que originó este spec: Winston estaba configurado y el mapeo de severidad era

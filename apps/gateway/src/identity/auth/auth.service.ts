@@ -860,7 +860,9 @@ export class AuthService {
       await this.emailService.sendVerificationCodeByEmail(payload, locale);
 
     if (!sentMessageInfo || sentMessageInfo.success === false) {
-      this.logger.error(`authService >> signupStepOne >> Email no aceptado para ${maskEmail(payload.email)}`);
+      this.logger.error(
+        `authService >> signupStepOne >> Email no aceptado para ${maskEmail(payload.email)}`,
+      );
       return StepOneErrors.TRANSPORTER_ERROR;
     }
 

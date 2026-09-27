@@ -72,13 +72,22 @@ describe('MessengerWorkerController', () => {
     // Conversación libre: el turno se toma a la primera.
     mockQueueService.acquireTurn.mockResolvedValue({ acquired: true, token: 'tok-1' });
     mockQueueService.drainWindow.mockResolvedValue({
-      messages: [{ messageId: 'm-1', bufferedAt: Date.now(), event: { messaging: { message: { text: 'hola' } } } }],
+      messages: [
+        {
+          messageId: 'm-1',
+          bufferedAt: Date.now(),
+          event: { messaging: { message: { text: 'hola' } } },
+        },
+      ],
       processingKey: 'proc-1',
     });
     mockMessengerConfigService.getMessengerConfigByPageId.mockResolvedValue(account);
     mockWorkflowsService.execute.mockResolvedValue({
       id: 'exec-1',
-      result: { messages: [{ role: 'assistant', content: 'Claro, te ayudo.' }], conversationId: 'conv-1' },
+      result: {
+        messages: [{ role: 'assistant', content: 'Claro, te ayudo.' }],
+        conversationId: 'conv-1',
+      },
     });
     mockConversationsService.findOne.mockResolvedValue({ id: 'conv-1', metadata: {} });
   });

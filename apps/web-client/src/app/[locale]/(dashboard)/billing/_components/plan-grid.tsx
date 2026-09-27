@@ -35,10 +35,25 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
   const planContent: Record<string, { desc: string; features: string[]; highlight?: string }> = {
     [SubscriptionPlan.FREE]: { desc: t('freeDesc'), features: [] },
     [SubscriptionPlan.STARTER]: { desc: t('starterDesc'), features: [t('starterFeature0')] },
-    [SubscriptionPlan.GROWTH]: { desc: t('growthDesc'), features: [t('growthFeature0')], highlight: t('growthHighlight') },
-    [SubscriptionPlan.BUSINESS]: { desc: t('businessDesc'), features: [t('businessFeature0')], highlight: t('businessHighlight') },
-    [SubscriptionPlan.PRO]: { desc: t('proDesc'), features: [t('proFeature0')], highlight: t('proHighlight') },
-    [SubscriptionPlan.ENTERPRISE]: { desc: t('enterpriseDesc'), features: [t('enterpriseFeature0'), t('enterpriseFeature1')] },
+    [SubscriptionPlan.GROWTH]: {
+      desc: t('growthDesc'),
+      features: [t('growthFeature0')],
+      highlight: t('growthHighlight'),
+    },
+    [SubscriptionPlan.BUSINESS]: {
+      desc: t('businessDesc'),
+      features: [t('businessFeature0')],
+      highlight: t('businessHighlight'),
+    },
+    [SubscriptionPlan.PRO]: {
+      desc: t('proDesc'),
+      features: [t('proFeature0')],
+      highlight: t('proHighlight'),
+    },
+    [SubscriptionPlan.ENTERPRISE]: {
+      desc: t('enterpriseDesc'),
+      features: [t('enterpriseFeature0'), t('enterpriseFeature1')],
+    },
   };
 
   // Se ordenan por el orden declarado del catálogo, no por precio: con dos monedas un importe
@@ -68,7 +83,9 @@ export default function PlanGrid({ plans, currentPlan, onUpgrade, upgradingPlan 
             </div>
 
             <h3 className="text-lg font-bold text-text-primary">{plan.name}</h3>
-            <p className="mt-1 min-h-[40px] text-sm text-text-secondary">{planContent[plan.type]?.desc ?? plan.description}</p>
+            <p className="mt-1 min-h-[40px] text-sm text-text-secondary">
+              {planContent[plan.type]?.desc ?? plan.description}
+            </p>
 
             <div className="mt-4 flex items-baseline gap-1">
               <span className="font-geist-mono text-3xl font-bold text-text-primary">

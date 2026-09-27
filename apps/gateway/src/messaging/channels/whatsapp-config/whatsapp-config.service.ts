@@ -640,11 +640,13 @@ export class WhatsappConfigService {
     const clientNumber = whatsappInboundMessagePayload.whatsappInboundMessage.from;
     const ownerNumber = whatsappInboundMessagePayload.whatsappInboundMessage.to;
     if (clientNumber === undefined || ownerNumber === undefined) {
-      this.logger.error('Client number or owner number is undefined in the WhatsApp inbound message payload.');
+      this.logger.error(
+        'Client number or owner number is undefined in the WhatsApp inbound message payload.',
+      );
       return;
     }
 
-    const variables = (((executionMetadata ?? {}))?.variables ?? {}) as Record<string, unknown>;
+    const variables = ((executionMetadata ?? {})?.variables ?? {}) as Record<string, unknown>;
     if (Object.keys(variables).length === 0) {
       return;
     }
@@ -668,7 +670,13 @@ export class WhatsappConfigService {
 
     if (declaredActions === null) {
       // Legacy: workflow sin post_turn_actions declaradas → comportamiento histórico
-      await this.legacyMediaUrlAction(conversationId, organizationId, executionMetadata, ownerNumber, clientNumber);
+      await this.legacyMediaUrlAction(
+        conversationId,
+        organizationId,
+        executionMetadata,
+        ownerNumber,
+        clientNumber,
+      );
       return;
     }
 
@@ -716,8 +724,7 @@ export class WhatsappConfigService {
       },
     };
 
-    const previousFlags =
-      ((executionMetadata)?.postTurnActions as Record<string, boolean>) ?? {};
+    const previousFlags = (executionMetadata?.postTurnActions as Record<string, boolean>) ?? {};
 
     const updatedFlags = await runPostTurnActions({
       actions: declaredActions,
@@ -745,8 +752,8 @@ export class WhatsappConfigService {
     ownerNumber: string,
     clientNumber: string,
   ): Promise<void> {
-    const variables = ((executionMetadata ?? {}))?.variables;
-    if ((variables as JsonObject)?.media_url && !(executionMetadata)?.media_url_sent) {
+    const variables = (executionMetadata ?? {})?.variables;
+    if ((variables as JsonObject)?.media_url && !executionMetadata?.media_url_sent) {
       const mediaUrlValue = (variables as JsonObject)?.media_url;
       const mediaUrls = Array.isArray(mediaUrlValue)
         ? mediaUrlValue
@@ -757,7 +764,11 @@ export class WhatsappConfigService {
       let firstTime = true;
       for (const mediaUrl of mediaUrls) {
         if (firstTime) {
-          this.sendTextMessage(ownerNumber, clientNumber, 'Te tratare de compartir algúnos archivos que son relevantes en relación a lo mencionado anteriormente.');
+          this.sendTextMessage(
+            ownerNumber,
+            clientNumber,
+            'Te tratare de compartir algúnos archivos que son relevantes en relación a lo mencionado anteriormente.',
+          );
           firstTime = false;
         }
         const normalizedMediaUrl = String(mediaUrl).trim();
@@ -776,16 +787,22 @@ export class WhatsappConfigService {
     }
   }
 
-  private async sendFolderMediaToUser(folderUrl: string, fromPhoneNumber: string, toPhoneNumber: string) {
+  private async sendFolderMediaToUser(
+    folderUrl: string,
+    fromPhoneNumber: string,
+    toPhoneNumber: string,
+  ) {
     // 1. Obtener todos los archivos clasificados
     const files = await this.driveService.getFilesFromPublicFolder(folderUrl);
-    
+
     this.logger.info(`Procesando ${files.length} archivos para el cliente.`);
 
     // 2. Recorrer y enviar secuencialmente (evita saturar la API)
     for (const file of files) {
       if (file.type === 'unknown') {
-        this.logger.warn(`Archivo ignorado por formato no soportado: ${file.name} (${file.mimeType})`);
+        this.logger.warn(
+          `Archivo ignorado por formato no soportado: ${file.name} (${file.mimeType})`,
+        );
         continue;
       }
 
@@ -811,20 +828,17 @@ export class WhatsappConfigService {
         );
 
         this.logger.info(`Enviado con éxito: ${file.name}`);
-        
+
         // Opcional: Pequeño delay de 500ms entre envíos para respetar límites de tasa (rate limiting)
         await new Promise((resolve) => setTimeout(resolve, 500));
-
       } catch (error: any) {
         // El detalle real del rechazo de yCloud viene en la respuesta, no en el message.
-        const detail = error?.response?.data
-          ? JSON.stringify(error.response.data)
-          : error?.message;
+        const detail = error?.response?.data ? JSON.stringify(error.response.data) : error?.message;
         this.logger.error(`Error enviando archivo ${file.name}: ${detail}`);
         // Decisión arquitectónica: Continuar con el siguiente archivo aunque falle uno
       }
     }
-  } 
+  }
 
   async updateConnectionStatusByPhoneNumber(
     phoneNumber: string,

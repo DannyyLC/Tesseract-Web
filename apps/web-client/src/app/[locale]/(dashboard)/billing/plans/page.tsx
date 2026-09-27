@@ -488,7 +488,7 @@ export default function PlansPage() {
           <div className="space-y-4">
             <p className="text-sm text-text-secondary">{t('countryModalIntro')}</p>
 
-            <div className="flex items-start gap-2 rounded-lg bg-warning-500/10 p-3 text-sm text-warning-600">
+            <div className="bg-warning-500/10 flex items-start gap-2 rounded-lg p-3 text-sm text-warning-600">
               <AlertCircle size={16} className="mt-0.5 shrink-0" />
               <span>{t('countryModalWarning')}</span>
             </div>

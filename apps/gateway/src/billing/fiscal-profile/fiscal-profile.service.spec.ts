@@ -54,18 +54,14 @@ describe('FiscalProfileService', () => {
   it('rechaza organizaciones no mexicanas', async () => {
     mockPrisma.organization.findUnique.mockResolvedValue({ country: 'US' });
 
-    await expect(service.upsert('org-1', dto)).rejects.toBeInstanceOf(
-      FiscalNotApplicableException,
-    );
+    await expect(service.upsert('org-1', dto)).rejects.toBeInstanceOf(FiscalNotApplicableException);
     expect(mockFacturapi.customers.create).not.toHaveBeenCalled();
   });
 
   it('rechaza organizaciones sin país (aún no contratan)', async () => {
     mockPrisma.organization.findUnique.mockResolvedValue({ country: null });
 
-    await expect(service.upsert('org-1', dto)).rejects.toBeInstanceOf(
-      FiscalNotApplicableException,
-    );
+    await expect(service.upsert('org-1', dto)).rejects.toBeInstanceOf(FiscalNotApplicableException);
   });
 
   describe('validación contra el padrón del SAT', () => {

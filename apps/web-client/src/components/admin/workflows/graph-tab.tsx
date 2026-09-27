@@ -22,10 +22,7 @@ export function GraphTab({ config, tenantTools }: Props) {
   const nodes: any[] = config.graph?.nodes ?? [];
   const edges: any[] = config.graph?.edges ?? [];
 
-  const nodeTypeById = useMemo(
-    () => new Map(nodes.map((n) => [n?.id, n?.type])),
-    [nodes],
-  );
+  const nodeTypeById = useMemo(() => new Map(nodes.map((n) => [n?.id, n?.type])), [nodes]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -37,7 +34,12 @@ export function GraphTab({ config, tenantTools }: Props) {
   }, [edges]);
 
   const issues = useMemo(
-    () => lintConfig(config, tenantTools.map((tool) => tool.id), tLint),
+    () =>
+      lintConfig(
+        config,
+        tenantTools.map((tool) => tool.id),
+        tLint,
+      ),
     [config, tenantTools, tLint],
   );
 

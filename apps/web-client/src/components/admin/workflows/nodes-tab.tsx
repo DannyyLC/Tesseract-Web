@@ -78,9 +78,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
   };
 
   if (nodes.length === 0) {
-    return (
-      <p className="p-8 text-center text-sm text-text-secondary">{tt('noNodes')}</p>
-    );
+    return <p className="p-8 text-center text-sm text-text-secondary">{tt('noNodes')}</p>;
   }
 
   return (

@@ -113,7 +113,11 @@ export function SubscriptionTab({ org }: Props) {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <label className={labelClass}>{t('plan')}</label>
-          <select className={inputClass} value={form.plan} onChange={(e) => set('plan', e.target.value as Form['plan'])}>
+          <select
+            className={inputClass}
+            value={form.plan}
+            onChange={(e) => set('plan', e.target.value as Form['plan'])}
+          >
             {PLANS.map((p) => (
               <option key={p} value={p}>
                 {p}

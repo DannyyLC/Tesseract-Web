@@ -70,7 +70,9 @@ describe('WhatsappWorkerController', () => {
     messageId,
     sendTime: '2026-08-07T17:00:00Z',
     bufferedAt: Date.now(),
-    event: { whatsappInboundMessage: { type: 'text', text: { body: text }, from: body.userNumber } },
+    event: {
+      whatsappInboundMessage: { type: 'text', text: { body: text }, from: body.userNumber },
+    },
   });
 
   const imageMessage = (messageId = 'm-2') => ({

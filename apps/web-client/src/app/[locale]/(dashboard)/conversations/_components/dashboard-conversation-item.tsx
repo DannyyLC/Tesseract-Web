@@ -173,7 +173,7 @@ export default function DashboardConversationItem({
 
                   {conversation.needsFollowUp && (
                     <div
-                      className="flex shrink-0 items-center gap-1.5 rounded-full bg-info/10 px-2 py-0.5"
+                      className="bg-info/10 flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5"
                       title={conversation.followUpReason || t('followUpBadgeTitle')}
                     >
                       <BellRing size={10} className="text-info-600" />

@@ -164,7 +164,12 @@ describe('OrganizationsService createUserFromInvitation', () => {
       deletedAt: null,
     });
 
-    const result = await service.createUserFromInvitation('x', 'password123', invitation.email, '123456');
+    const result = await service.createUserFromInvitation(
+      'x',
+      'password123',
+      invitation.email,
+      '123456',
+    );
 
     expect(result.success).toBeNull();
     expect(result.error).toBeDefined();
@@ -184,7 +189,12 @@ describe('OrganizationsService createUserFromInvitation', () => {
     });
     prisma.user.update.mockResolvedValue({ email: invitation.email, role: 'VIEWER' });
 
-    const result = await service.createUserFromInvitation('x', 'password123', invitation.email, '123456');
+    const result = await service.createUserFromInvitation(
+      'x',
+      'password123',
+      invitation.email,
+      '123456',
+    );
 
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { email: invitation.email },
@@ -317,7 +327,9 @@ describe('OrganizationsService', () => {
         expect.objectContaining({ where: { id: 'org-1' }, include: expect.any(Object) }),
       );
       expect(mockPrismaService.datasetRecord.count).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ dataset: expect.any(Object) }) }),
+        expect.objectContaining({
+          where: expect.objectContaining({ dataset: expect.any(Object) }),
+        }),
       );
     });
 

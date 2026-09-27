@@ -3,10 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Modal } from '@/components/ui/modal';
-import {
-  TwoFactorCodeInput,
-  isTwoFactorCodeComplete,
-} from '@/components/ui/two-factor-code-input';
+import { TwoFactorCodeInput, isTwoFactorCodeComplete } from '@/components/ui/two-factor-code-input';
 import { useChangePassword } from '@/hooks/identity/use-auth';
 import { useRouter } from '@/i18n/routing';
 import { useQueryClient } from '@tanstack/react-query';

@@ -220,11 +220,7 @@ export class CfdiService {
     }
   }
 
-  private async markFailed(
-    invoiceId: string,
-    kind: CfdiErrorKind,
-    message: string,
-  ): Promise<void> {
+  private async markFailed(invoiceId: string, kind: CfdiErrorKind, message: string): Promise<void> {
     await this.prisma.invoice.update({
       where: { id: invoiceId },
       data: {

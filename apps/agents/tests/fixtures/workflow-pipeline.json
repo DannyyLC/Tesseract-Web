@@ -361,12 +361,7 @@
         }
       }
     ],
-    "persist_variables": [
-      "intent",
-      "previous_intent",
-      "handoff_done",
-      "media_url"
-    ],
+    "persist_variables": ["intent", "previous_intent", "handoff_done", "media_url"],
     "variable_reducers": {
       "handoff_topics": {
         "mode": "join",
@@ -471,9 +466,7 @@
     "synthesizer": {
       "model": "gpt-5.4-mini",
       "temperature": 0.2,
-      "tools": [
-        "ec0f1bf0-e03f-4475-ba57-599ebad41f0c"
-      ],
+      "tools": ["ec0f1bf0-e03f-4475-ba57-599ebad41f0c"],
       "system_prompt": "PROMPT de prueba para el agente 'synthesizer'."
     }
   }

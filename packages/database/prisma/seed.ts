@@ -118,8 +118,10 @@ async function seedToolCatalog() {
           functionName: fn.functionName,
           displayName: fn.displayName,
           description: fn.description,
-          displayNameEn: toolTranslationsEn[catalog.toolName]?.functions[fn.functionName]?.displayName ?? null,
-          descriptionEn: toolTranslationsEn[catalog.toolName]?.functions[fn.functionName]?.description ?? null,
+          displayNameEn:
+            toolTranslationsEn[catalog.toolName]?.functions[fn.functionName]?.displayName ?? null,
+          descriptionEn:
+            toolTranslationsEn[catalog.toolName]?.functions[fn.functionName]?.description ?? null,
           icon: fn.icon,
           category: fn.category,
           dangerLevel: fn.dangerLevel,
@@ -130,8 +132,10 @@ async function seedToolCatalog() {
         update: {
           displayName: fn.displayName,
           description: fn.description,
-          displayNameEn: toolTranslationsEn[catalog.toolName]?.functions[fn.functionName]?.displayName ?? null,
-          descriptionEn: toolTranslationsEn[catalog.toolName]?.functions[fn.functionName]?.description ?? null,
+          displayNameEn:
+            toolTranslationsEn[catalog.toolName]?.functions[fn.functionName]?.displayName ?? null,
+          descriptionEn:
+            toolTranslationsEn[catalog.toolName]?.functions[fn.functionName]?.description ?? null,
           icon: fn.icon,
           category: fn.category,
           dangerLevel: fn.dangerLevel,

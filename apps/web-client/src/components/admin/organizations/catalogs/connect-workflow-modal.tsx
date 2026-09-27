@@ -71,7 +71,10 @@ export function ConnectWorkflowModal({
 
         <div className="space-y-2">
           <div className="relative">
-            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
+            />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -103,7 +106,9 @@ export function ConnectWorkflowModal({
                       selected ? 'bg-surface-secondary' : 'hover:bg-surface-secondary'
                     }`}
                   >
-                    <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{workflow.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
+                      {workflow.name}
+                    </span>
                     {selected && <Check size={16} className="shrink-0 text-accent" />}
                   </button>
                 );
@@ -116,7 +121,11 @@ export function ConnectWorkflowModal({
           <button className={btnGhost} onClick={close}>
             {t('cancel')}
           </button>
-          <button className={btnPrimary} onClick={handleConnect} disabled={!workflowId || linkWorkflow.isPending}>
+          <button
+            className={btnPrimary}
+            onClick={handleConnect}
+            disabled={!workflowId || linkWorkflow.isPending}
+          >
             {linkWorkflow.isPending && <Loader2 size={16} className="animate-spin" />}
             {linkWorkflow.isPending ? t('connecting') : t('connect')}
           </button>

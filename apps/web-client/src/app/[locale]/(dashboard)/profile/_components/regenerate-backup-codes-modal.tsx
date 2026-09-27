@@ -4,10 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Modal } from '@/components/ui/modal';
 import { BackupCodesPanel } from '@/components/ui/backup-codes-panel';
-import {
-  TwoFactorCodeInput,
-  isTwoFactorCodeComplete,
-} from '@/components/ui/two-factor-code-input';
+import { TwoFactorCodeInput, isTwoFactorCodeComplete } from '@/components/ui/two-factor-code-input';
 import { useRegenerateBackupCodes } from '@/hooks/identity/use-auth';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -85,7 +82,7 @@ export default function RegenerateBackupCodesModal({
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex gap-3 rounded-xl bg-warning-500/10 p-4 text-warning-500">
+          <div className="bg-warning-500/10 flex gap-3 rounded-xl p-4 text-warning-500">
             <AlertTriangle className="h-5 w-5 flex-shrink-0" />
             <div>
               <p className="text-sm font-medium">{t('regenerateWarningHeading')}</p>

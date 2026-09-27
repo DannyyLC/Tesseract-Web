@@ -1,7 +1,15 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MoreVertical, Unplug, Pencil, KeyRound, Trash2, AlertTriangle, RotateCw } from 'lucide-react';
+import {
+  MoreVertical,
+  Unplug,
+  Pencil,
+  KeyRound,
+  Trash2,
+  AlertTriangle,
+  RotateCw,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toolCategoryLabel } from '@/lib/tool-category';

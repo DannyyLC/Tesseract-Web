@@ -20,12 +20,7 @@ import {
   UpdateUserDto,
   UserDetailDto,
 } from '../../dto';
-import {
-  ApiResponse,
-  ApiResponseBuilder,
-  PaginatedResponse,
-  UserRole,
-} from '@tesseract/types';
+import { ApiResponse, ApiResponseBuilder, PaginatedResponse, UserRole } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';

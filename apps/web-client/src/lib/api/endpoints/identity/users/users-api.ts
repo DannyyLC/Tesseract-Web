@@ -1,5 +1,10 @@
 import ApiRequestManager from '../../../api-request-manager';
-import { DashboardUserDataDto, UpdateUserDto, ApiResponse, PaginatedResponse } from '@tesseract/types';
+import {
+  DashboardUserDataDto,
+  UpdateUserDto,
+  ApiResponse,
+  PaginatedResponse,
+} from '@tesseract/types';
 
 class UsersApi {
   public apiRequestManager: ApiRequestManager;
@@ -34,9 +39,7 @@ class UsersApi {
     const url = `${UsersApi.BASE_URL}/dashboard${queryString ? `?${queryString}` : ''}`;
 
     const result =
-      await this.apiRequestManager.get<ApiResponse<PaginatedResponse<DashboardUserDataDto>>>(
-        url,
-      );
+      await this.apiRequestManager.get<ApiResponse<PaginatedResponse<DashboardUserDataDto>>>(url);
     return result.data.data!;
   }
 

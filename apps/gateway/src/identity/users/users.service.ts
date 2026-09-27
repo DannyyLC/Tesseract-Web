@@ -659,7 +659,9 @@ export class UsersService {
     await this.authService.logoutAll(userId);
 
     // 6. Log de auditoría
-    this.logger.info(`User userId=${user.id} left organization ${user.organization.name} voluntarily`);
+    this.logger.info(
+      `User userId=${user.id} left organization ${user.organization.name} voluntarily`,
+    );
 
     return {
       message: 'Has abandonado la organización exitosamente.',
@@ -705,7 +707,8 @@ export class UsersService {
         notificationCode: notification.code,
         isRead: userNotification.isRead,
         title: (wantsEnglish && userNotification.titleSnapshotEn) || userNotification.titleSnapshot,
-        desc: (wantsEnglish && userNotification.messageSnapshotEn) || userNotification.messageSnapshot,
+        desc:
+          (wantsEnglish && userNotification.messageSnapshotEn) || userNotification.messageSnapshot,
         createdAt: userNotification.createdAt,
         ...(isAnnouncement && {
           isAnnouncement: true,
@@ -822,7 +825,9 @@ export class UsersService {
         dateTime,
       );
       if (!emailResult) {
-        this.logger.error(`Failed to send service information request email for user ${maskEmail(email)}`);
+        this.logger.error(
+          `Failed to send service information request email for user ${maskEmail(email)}`,
+        );
         return false;
       }
       return true;

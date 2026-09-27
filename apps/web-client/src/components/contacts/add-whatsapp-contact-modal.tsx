@@ -81,7 +81,10 @@ export function AddWhatsappContactModal({ isOpen, onClose }: AddWhatsappContactM
         </div>
 
         <div>
-          <label htmlFor="whatsapp-name" className="mb-1.5 block text-sm font-medium text-text-primary">
+          <label
+            htmlFor="whatsapp-name"
+            className="mb-1.5 block text-sm font-medium text-text-primary"
+          >
             {t('addWhatsappNameLabel')}
           </label>
           <input
@@ -100,7 +103,10 @@ export function AddWhatsappContactModal({ isOpen, onClose }: AddWhatsappContactM
         </div>
 
         <div>
-          <label htmlFor="whatsapp-phone" className="mb-1.5 block text-sm font-medium text-text-primary">
+          <label
+            htmlFor="whatsapp-phone"
+            className="mb-1.5 block text-sm font-medium text-text-primary"
+          >
             {t('addWhatsappPhoneLabel')}
           </label>
           <input

@@ -43,6 +43,12 @@ export type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
  */
 export function sanitizePageSize(value: unknown): PageSizeOption {
   const parsed =
-    typeof value === 'number' ? value : typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : NaN;
-  return (PAGE_SIZE_OPTIONS as readonly number[]).includes(parsed) ? (parsed as PageSizeOption) : DEFAULT_PAGE_SIZE;
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && /^\d+$/.test(value)
+        ? Number(value)
+        : NaN;
+  return (PAGE_SIZE_OPTIONS as readonly number[]).includes(parsed)
+    ? (parsed as PageSizeOption)
+    : DEFAULT_PAGE_SIZE;
 }

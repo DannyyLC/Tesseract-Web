@@ -189,9 +189,7 @@ Preguntan si eres un robot:
   "graph": {
     "type": "pipeline",
     "schema_version": 1,
-    "nodes": [
-      { "id": "agente", "type": "agent", "agent": "default", "max_iterations": 8 }
-    ],
+    "nodes": [{ "id": "agente", "type": "agent", "agent": "default", "max_iterations": 8 }],
     "edges": [
       { "from": "START", "to": "agente" },
       { "from": "agente", "to": "END" }
@@ -214,11 +212,11 @@ Ver [Todos son `pipeline`](/templates/overview). `max_iterations` va en el nodo,
 `temperature` depende de la voz: **0.3** con la formal, **0.7** con la cercana. Ver
 [Templates de Agente](/templates/overview).
 
-| Tool | Obligatoria | Para qué |
-| ---- | ----------- | -------- |
-| `human_handoff` | Sí | Todo el bloque 7 depende de ella |
-| `http_request` | Si hay precios publicados | Consultar planes vigentes en vez de escribirlos |
-| `dataset` | Si hay catálogo | Responder qué hay sin inventar |
+| Tool            | Obligatoria               | Para qué                                        |
+| --------------- | ------------------------- | ----------------------------------------------- |
+| `human_handoff` | Sí                        | Todo el bloque 7 depende de ella                |
+| `http_request`  | Si hay precios publicados | Consultar planes vigentes en vez de escribirlos |
+| `dataset`       | Si hay catálogo           | Responder qué hay sin inventar                  |
 
 ---
 
@@ -226,19 +224,19 @@ Ver [Todos son `pipeline`](/templates/overview). `max_iterations` va en el nodo,
 
 Esta es la configuración que reemplaza al `/api/chat` de `apps/hub`.
 
-| Variable | Valor |
-| -------- | ----- |
-| `{{nombre_agente}}` | Nova |
-| `{{rol}}` | asistente |
-| `{{empresa}}` | Fractal |
-| `{{descripcion_empresa}}` | Empresa mexicana de tecnología en Aguascalientes. Ayuda a PyMEs a automatizar sus procesos con inteligencia artificial. Trabaja con clientes de todo el país de forma remota. Filosofía: IA accesible, precios claros y soluciones a la medida. |
-| `{{oferta}}` | **Tesseract** — plataforma de automatización por suscripción, con planes públicos y precio fijo. **Atlas** — desarrollo de software a la medida (web, ERP, CRM, apps). Sin tabla de precios: se cotiza caso por caso. **Consultoría en automatización** — asesoría por hora, tarifa fija en MXN. |
-| `{{alcance_permitido}}` | Fractal, sus tres líneas de negocio, y la automatización aplicada a negocios |
-| `{{canal}}` | web |
-| `{{horarios}}` | Lunes a viernes, 9:00 a 18:00, hora centro de México |
-| `{{medios_contacto}}` | WhatsApp +52 782 117 6985 y hello@fractalops.com.mx |
-| `{{ubicacion}}` | Aguascalientes, México |
-| Voz | B — cercana |
+| Variable                  | Valor                                                                                                                                                                                                                                                                                            |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `{{nombre_agente}}`       | Nova                                                                                                                                                                                                                                                                                             |
+| `{{rol}}`                 | asistente                                                                                                                                                                                                                                                                                        |
+| `{{empresa}}`             | Fractal                                                                                                                                                                                                                                                                                          |
+| `{{descripcion_empresa}}` | Empresa mexicana de tecnología en Aguascalientes. Ayuda a PyMEs a automatizar sus procesos con inteligencia artificial. Trabaja con clientes de todo el país de forma remota. Filosofía: IA accesible, precios claros y soluciones a la medida.                                                  |
+| `{{oferta}}`              | **Tesseract** — plataforma de automatización por suscripción, con planes públicos y precio fijo. **Atlas** — desarrollo de software a la medida (web, ERP, CRM, apps). Sin tabla de precios: se cotiza caso por caso. **Consultoría en automatización** — asesoría por hora, tarifa fija en MXN. |
+| `{{alcance_permitido}}`   | Fractal, sus tres líneas de negocio, y la automatización aplicada a negocios                                                                                                                                                                                                                     |
+| `{{canal}}`               | web                                                                                                                                                                                                                                                                                              |
+| `{{horarios}}`            | Lunes a viernes, 9:00 a 18:00, hora centro de México                                                                                                                                                                                                                                             |
+| `{{medios_contacto}}`     | WhatsApp +52 782 117 6985 y hello@fractalops.com.mx                                                                                                                                                                                                                                              |
+| `{{ubicacion}}`           | Aguascalientes, México                                                                                                                                                                                                                                                                           |
+| Voz                       | B — cercana                                                                                                                                                                                                                                                                                      |
 
 La regla 10 del bloque 6 es la que preserva el comportamiento que hoy tiene el prompt de la landing:
 si Nova sugiere Tesseract sin certeza de que encaja, menciona también Atlas y consultoría.

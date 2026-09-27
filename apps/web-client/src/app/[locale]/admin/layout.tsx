@@ -8,7 +8,21 @@ import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { useAuth, useLogout } from '@/hooks/identity/use-auth';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { LocaleSwitcher } from '@/components/locale';
-import { Blocks, Building2, Cpu, LayoutDashboard, Megaphone, MessageSquareText, Settings, LogOut, Menu, PanelLeftClose, PanelLeftOpen, User as UserIcon, Workflow } from 'lucide-react';
+import {
+  Blocks,
+  Building2,
+  Cpu,
+  LayoutDashboard,
+  Megaphone,
+  MessageSquareText,
+  Settings,
+  LogOut,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  User as UserIcon,
+  Workflow,
+} from 'lucide-react';
 
 /**
  * Área de super admin: layout propio y mínimo, separado del panel de inquilino.
@@ -33,7 +47,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  
+
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
@@ -71,7 +85,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   const sidebar = (
-    <div className={`flex h-full flex-col border-r border-border bg-surface transition-all duration-300 ${isCollapsed ? 'w-[72px]' : 'w-[240px]'}`}>
+    <div
+      className={`flex h-full flex-col border-r border-border bg-surface transition-all duration-300 ${isCollapsed ? 'w-[72px]' : 'w-[240px]'}`}
+    >
       <div className="flex h-14 shrink-0 items-center border-b border-border px-3">
         <button
           onClick={() => {
@@ -162,7 +178,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             isCollapsed ? 'justify-center' : 'gap-3'
           }`}
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+          <div className="bg-accent/10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-accent">
             <UserIcon size={16} />
           </div>
           {!isCollapsed && (
@@ -170,9 +186,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <span className="truncate text-sm font-medium text-text-primary">
                 {user?.name || t('userFallback')}
               </span>
-              <span className="truncate text-xs text-text-secondary">
-                {user?.email || ''}
-              </span>
+              <span className="truncate text-xs text-text-secondary">{user?.email || ''}</span>
             </div>
           )}
         </button>
@@ -190,7 +204,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       style={{ '--admin-sidebar-w': isCollapsed ? '72px' : '240px' } as React.CSSProperties}
     >
       {/* Sidebar fijo (desktop) */}
-      <aside className={`fixed left-0 top-0 z-40 hidden h-screen transition-all duration-300 lg:block ${isCollapsed ? 'w-[72px]' : 'w-[240px]'}`}>
+      <aside
+        className={`fixed left-0 top-0 z-40 hidden h-screen transition-all duration-300 lg:block ${isCollapsed ? 'w-[72px]' : 'w-[240px]'}`}
+      >
         {sidebar}
       </aside>
 
@@ -243,7 +259,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </AnimatePresence>
 
       {/* Contenido */}
-      <main className={`min-h-screen pt-14 transition-all duration-300 lg:pt-0 ${isCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[240px]'}`}>
+      <main
+        className={`min-h-screen pt-14 transition-all duration-300 lg:pt-0 ${isCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[240px]'}`}
+      >
         <div className="p-4 md:p-6 lg:p-8">{children}</div>
       </main>
     </div>

@@ -298,14 +298,16 @@ export default function WorkflowAnalyticsPanel({
                               <div className="flex items-center gap-2">
                                 <div className="h-2 w-2 rounded-full bg-success-500"></div>
                                 <span>
-                                  {t('chartSuccessful')}: <span className="font-medium">{data.success}</span>
+                                  {t('chartSuccessful')}:{' '}
+                                  <span className="font-medium">{data.success}</span>
                                 </span>
                               </div>
                               {data.failed > 0 && (
                                 <div className="flex items-center gap-2">
                                   <div className="h-2 w-2 rounded-full bg-danger"></div>
                                   <span className="text-danger">
-                                    {t('kpiFailed')}: <span className="font-medium">{data.failed}</span>
+                                    {t('kpiFailed')}:{' '}
+                                    <span className="font-medium">{data.failed}</span>
                                   </span>
                                 </div>
                               )}

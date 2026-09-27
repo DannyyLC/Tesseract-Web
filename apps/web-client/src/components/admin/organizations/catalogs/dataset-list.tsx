@@ -26,7 +26,9 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [fields, setFields] = useState<DatasetField[]>([{ key: '', label: '', type: 'text', order: 0 }]);
+  const [fields, setFields] = useState<DatasetField[]>([
+    { key: '', label: '', type: 'text', order: 0 },
+  ]);
   const [error, setError] = useState<string | null>(null);
 
   const usage = data?.usage;
@@ -43,7 +45,10 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
   const handleCreate = async () => {
     setError(null);
     try {
-      const created = await createDataset.mutateAsync({ organizationId, data: { name, description, fields } });
+      const created = await createDataset.mutateAsync({
+        organizationId,
+        data: { name, description, fields },
+      });
       if (created) {
         closeCreate();
         onSelect(created.id);
@@ -75,7 +80,7 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
                 maxRows: usage.maxDatasetRows === -1 ? '∞' : usage.maxDatasetRows,
               })}
               {usage.writesBlocked && (
-                <span className="ml-2 rounded-md bg-warning-500/10 px-1.5 py-0.5 text-warning-600">
+                <span className="bg-warning-500/10 ml-2 rounded-md px-1.5 py-0.5 text-warning-600">
                   {t('writesBlocked')}
                 </span>
               )}
@@ -110,9 +115,13 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
                   <Database size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-sm font-semibold text-text-primary">{dataset.name}</h3>
+                  <h3 className="truncate text-sm font-semibold text-text-primary">
+                    {dataset.name}
+                  </h3>
                   {dataset.description && (
-                    <p className="mt-1 line-clamp-2 text-xs text-text-secondary">{dataset.description}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-text-secondary">
+                      {dataset.description}
+                    </p>
                   )}
                 </div>
               </div>
@@ -122,7 +131,8 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
                 </span>
                 <span>{t('columnsCount', { count: dataset.fieldCount })}</span>
                 <span className="flex items-center gap-1">
-                  <Workflow size={13} /> {t('workflowsCount', { count: dataset.workflowIds.length })}
+                  <Workflow size={13} />{' '}
+                  {t('workflowsCount', { count: dataset.workflowIds.length })}
                 </span>
               </div>
             </button>
@@ -134,7 +144,12 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
         <div className="space-y-4">
           <div>
             <label className={labelClass}>{t('nameLabel')}</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder={t('namePlaceholder')} />
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputClass}
+              placeholder={t('namePlaceholder')}
+            />
           </div>
           <div>
             <label className={labelClass}>{t('descriptionLabel')}</label>
@@ -151,13 +166,19 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
             <SchemaBuilder fields={fields} onChange={setFields} />
           </div>
 
-          {error && <div className="bg-danger/10 rounded-lg px-4 py-3 text-sm text-danger-600">{error}</div>}
+          {error && (
+            <div className="bg-danger/10 rounded-lg px-4 py-3 text-sm text-danger-600">{error}</div>
+          )}
 
           <div className="flex justify-end gap-2">
             <button className={btnGhost} onClick={closeCreate}>
               {t('cancel')}
             </button>
-            <button className={btnPrimary} onClick={handleCreate} disabled={!name.trim() || createDataset.isPending}>
+            <button
+              className={btnPrimary}
+              onClick={handleCreate}
+              disabled={!name.trim() || createDataset.isPending}
+            >
               {createDataset.isPending ? t('creating') : t('create')}
             </button>
           </div>

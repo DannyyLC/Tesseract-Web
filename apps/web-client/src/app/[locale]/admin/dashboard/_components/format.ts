@@ -16,7 +16,9 @@ export function formatUSD(value: number): string {
 }
 
 export function formatCompactNumber(value: number): string {
-  return new Intl.NumberFormat('en-US', { notation: 'compact', compactDisplay: 'short' }).format(value);
+  return new Intl.NumberFormat('en-US', { notation: 'compact', compactDisplay: 'short' }).format(
+    value,
+  );
 }
 
 export function formatPct(value: number | null): string {

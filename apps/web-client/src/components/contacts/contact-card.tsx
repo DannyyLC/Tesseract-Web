@@ -28,7 +28,11 @@ const MESSENGER_PREFIX = 'messenger:';
  */
 export function describeContact(contact: DashboardEndUserDto) {
   if (contact.phoneNumber) {
-    return { label: contact.name || contact.phoneNumber, secondary: contact.phoneNumber, channel: 'whatsapp' as const };
+    return {
+      label: contact.name || contact.phoneNumber,
+      secondary: contact.phoneNumber,
+      channel: 'whatsapp' as const,
+    };
   }
 
   if (contact.externalId?.startsWith(MESSENGER_PREFIX)) {

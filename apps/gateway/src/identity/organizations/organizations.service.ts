@@ -979,11 +979,7 @@ export class OrganizationsService {
         return InviteUserErrorsDto.USER_ALREADY_REGISTERED;
       }
 
-      await this.emailService.sendOrganizationExistsEmail(
-        email,
-        isOrganizationValid.name,
-        locale,
-      );
+      await this.emailService.sendOrganizationExistsEmail(email, isOrganizationValid.name, locale);
       return true;
     }
 
@@ -1257,7 +1253,9 @@ export class OrganizationsService {
       locale,
     );
     if (!emailSentInfo) {
-      this.logger.error(`resendInvitation >> Error sending invitation email to ${maskEmail(userEmail)}`);
+      this.logger.error(
+        `resendInvitation >> Error sending invitation email to ${maskEmail(userEmail)}`,
+      );
       return { success: false, error: ErrorStrings[OPERATIONS.RESEND_INVITATION].SERVER_ERROR };
     }
 
@@ -1273,7 +1271,9 @@ export class OrganizationsService {
       },
     });
     if (modifiedRecords.count === 0) {
-      this.logger.error(`resendInvitation >> Error updating verification record for ${maskEmail(userEmail)}`);
+      this.logger.error(
+        `resendInvitation >> Error updating verification record for ${maskEmail(userEmail)}`,
+      );
       return { success: false, error: ErrorStrings[OPERATIONS.RESEND_INVITATION].SERVER_ERROR };
     }
 
@@ -1304,7 +1304,9 @@ export class OrganizationsService {
       },
     });
     if (deletedRecords.count === 0) {
-      this.logger.error(`cancelInvitation >> No pending invitation found for ${maskEmail(userEmail)}`);
+      this.logger.error(
+        `cancelInvitation >> No pending invitation found for ${maskEmail(userEmail)}`,
+      );
       return { success: false, error: ErrorStrings[OPERATIONS.CANCEL_INVITATION].CANCEL_FAILED };
     }
 

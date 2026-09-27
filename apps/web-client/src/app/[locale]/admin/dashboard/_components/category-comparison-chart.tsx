@@ -1,7 +1,16 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { Scale } from 'lucide-react';
 import type { AdminAnalyticsCategoryRow } from '@/lib/api/endpoints/billing/analytics-admin-api';
 import { formatUSD } from './format';
@@ -66,15 +75,21 @@ export function CategoryComparisonChart({ rows }: Props) {
                 const point = payload[0].payload as (typeof data)[number];
                 return (
                   <div className="rounded-lg border border-border bg-surface-elevated px-3 py-2 text-xs text-text-primary shadow-xl">
-                    <div className="mb-1 border-b border-[var(--border-subtle)] pb-1 font-semibold">{label}</div>
+                    <div className="mb-1 border-b border-[var(--border-subtle)] pb-1 font-semibold">
+                      {label}
+                    </div>
                     <div className="flex flex-col gap-1">
                       <span>
                         {t('tooltipRealCost')}:{' '}
-                        <span className="font-medium">{formatUSD(Number(point[realCostSeries]))}</span>
+                        <span className="font-medium">
+                          {formatUSD(Number(point[realCostSeries]))}
+                        </span>
                       </span>
                       <span>
                         {t('tooltipCharged')}:{' '}
-                        <span className="font-medium">{formatUSD(Number(point[chargedSeries]))}</span>
+                        <span className="font-medium">
+                          {formatUSD(Number(point[chargedSeries]))}
+                        </span>
                       </span>
                       <span className="text-text-tertiary">
                         {t('tooltipExecutions', { count: point.executions })}

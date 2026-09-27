@@ -11,13 +11,18 @@ import { DatasetQueryService } from './dataset-query.service';
 describe('DatasetQueryService — búsqueda de texto libre', () => {
   const DATASET_ID = 'ds-1';
 
-  const field = (overrides: Partial<DatasetField> & Pick<DatasetField, 'key' | 'type'>): DatasetField => ({
+  const field = (
+    overrides: Partial<DatasetField> & Pick<DatasetField, 'key' | 'type'>,
+  ): DatasetField => ({
     label: overrides.key,
     order: 0,
     ...overrides,
   });
 
-  const FIELDS: DatasetField[] = [field({ key: 'marca', type: 'text' }), field({ key: 'modelo', type: 'text' })];
+  const FIELDS: DatasetField[] = [
+    field({ key: 'marca', type: 'text' }),
+    field({ key: 'modelo', type: 'text' }),
+  ];
 
   let mockPrismaService: { $queryRaw: jest.Mock };
   let service: DatasetQueryService;
@@ -27,10 +32,12 @@ describe('DatasetQueryService — búsqueda de texto libre', () => {
     service = new DatasetQueryService(mockPrismaService as unknown as PrismaService);
   });
 
-  const search = (fields: DatasetField[], request: DatasetSearchRequest) => service.search(DATASET_ID, fields, request);
+  const search = (fields: DatasetField[], request: DatasetSearchRequest) =>
+    service.search(DATASET_ID, fields, request);
 
   /** `search()` dispara COUNT primero y SELECT después; ambas comparten el mismo WHERE. */
-  const capturedWhere = (): Prisma.Sql => mockPrismaService.$queryRaw.mock.calls[1][0] as Prisma.Sql;
+  const capturedWhere = (): Prisma.Sql =>
+    mockPrismaService.$queryRaw.mock.calls[1][0] as Prisma.Sql;
 
   it('multi-palabra: genera un AND de grupos OR, uno por token', async () => {
     await search(FIELDS, { query: 'BYD M9' });
@@ -104,7 +111,10 @@ describe('DatasetQueryService — búsqueda de texto libre', () => {
   });
 
   it('límite de tokens: un query con más palabras que MAX_DATASET_FIELDS se trunca', async () => {
-    const muchasPalabras = Array.from({ length: MAX_DATASET_FIELDS + 10 }, (_, index) => `p${index}`).join(' ');
+    const muchasPalabras = Array.from(
+      { length: MAX_DATASET_FIELDS + 10 },
+      (_, index) => `p${index}`,
+    ).join(' ');
 
     await search(FIELDS, { query: muchasPalabras });
 

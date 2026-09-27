@@ -123,11 +123,7 @@ export class OrganizationsController {
     @Locale() locale: SupportedLocale,
   ): Promise<Response<ApiResponseBuilder<boolean | keyof typeof InviteUserErrorsDto>>> {
     const apiResponse = new ApiResponseBuilder<boolean | keyof typeof InviteUserErrorsDto>();
-    const result = await this.organizationsService.invite(
-      user.organizationId,
-      body.email,
-      locale,
-    );
+    const result = await this.organizationsService.invite(user.organizationId, body.email, locale);
     if (typeof result !== 'string') {
       apiResponse.setStatusCode(200).setMessage('User invited successfully').setData(result);
       return res.status(200).json(apiResponse.build());

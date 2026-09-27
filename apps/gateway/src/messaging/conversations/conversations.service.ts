@@ -153,7 +153,7 @@ export class ConversationsService {
         );
       }
     }
-    
+
     return '';
   }
 
@@ -931,7 +931,10 @@ export class ConversationsService {
           c.messengerSenderId &&
           c.messengerConfig
         ) {
-          const fetchedName = await this.fetchMessengerSenderName(c.messengerConfig, c.messengerSenderId);
+          const fetchedName = await this.fetchMessengerSenderName(
+            c.messengerConfig,
+            c.messengerSenderId,
+          );
           if (fetchedName) {
             endUserName = fetchedName;
             if (c.endUser?.id) {
@@ -941,7 +944,9 @@ export class ConversationsService {
                   data: { name: fetchedName },
                 });
               } catch (error) {
-                this.logger.warn(`No se pudo persistir el nombre del remitente ${c.messengerSenderId}`);
+                this.logger.warn(
+                  `No se pudo persistir el nombre del remitente ${c.messengerSenderId}`,
+                );
               }
             }
           }
@@ -1093,85 +1098,88 @@ export class ConversationsService {
     metadata?: any,
     attachments?: MessageAttachmentInput[],
   ) {
-    const message = await this.prisma.$transaction(async (tx) => {
-      const conversation = await tx.conversation.findUnique({
-        where: { id: conversationId },
-        select: {
-          organizationId: true,
-          title: true,
-          workflow: {
-            select: {
-              inactivityHours: true,
+    const message = await this.prisma.$transaction(
+      async (tx) => {
+        const conversation = await tx.conversation.findUnique({
+          where: { id: conversationId },
+          select: {
+            organizationId: true,
+            title: true,
+            workflow: {
+              select: {
+                inactivityHours: true,
+              },
+            },
+            organization: {
+              select: {
+                defaultInactivityHours: true,
+              },
             },
           },
-          organization: {
-            select: {
-              defaultInactivityHours: true,
-            },
+        });
+
+        if (!conversation) {
+          throw new NotFoundException(`Conversation with ID ${conversationId} not found`);
+        }
+
+        const createdMessage = await tx.message.create({
+          data: {
+            conversationId,
+            organizationId: conversation.organizationId,
+            role: role === ChatRole.USER ? ChatRole.USER : role,
+            content,
+            metadata: metadata ?? undefined,
+            attachments:
+              attachments && attachments.length > 0
+                ? {
+                    create: attachments.map((attachment) => ({
+                      organizationId: conversation.organizationId,
+                      ...attachment,
+                    })),
+                  }
+                : undefined,
           },
-        },
-      });
+          include: {
+            attachments: true,
+          },
+        });
 
-      if (!conversation) {
-        throw new NotFoundException(`Conversation with ID ${conversationId} not found`);
-      }
+        const messageTimestamp = new Date();
+        const inactivityHours = this.resolveInactivityHours(
+          conversation.workflow?.inactivityHours,
+          conversation.organization?.defaultInactivityHours,
+        );
 
-      const createdMessage = await tx.message.create({
-        data: {
-          conversationId,
-          organizationId: conversation.organizationId,
-          role: role === ChatRole.USER ? ChatRole.USER : role,
-          content,
-          metadata: metadata ?? undefined,
-          attachments:
-            attachments && attachments.length > 0
-              ? {
-                  create: attachments.map((attachment) => ({
-                    organizationId: conversation.organizationId,
-                    ...attachment,
-                  })),
-                }
-              : undefined,
-        },
-        include: {
-          attachments: true,
-        },
-      });
+        // Título automático con el primer mensaje del usuario. Aquí y no en cada canal
+        // porque `addMessage` es por donde pasan todos: mientras esto vivió en el
+        // navegador, solo las conversaciones creadas desde el panel llegaban a tener
+        // nombre. Solo el primero: los siguientes renombrarían la conversación sola, y un
+        // título puesto a mano se respeta siempre.
+        const generatedTitle =
+          !conversation.title && role === ChatRole.USER ? buildConversationTitle(content) : null;
 
-      const messageTimestamp = new Date();
-      const inactivityHours = this.resolveInactivityHours(
-        conversation.workflow?.inactivityHours,
-        conversation.organization?.defaultInactivityHours,
-      );
+        await tx.conversation.update({
+          where: { id: conversationId },
+          data: {
+            ...(generatedTitle && { title: generatedTitle }),
+            lastMessageAt: messageTimestamp,
+            lastMessageRole: role === ChatRole.USER ? ChatRole.USER : role, // Normalize 'human' to 'user' if needed by schema enum, or keep string
+            autoCloseAt: this.calculateAutoCloseAt(messageTimestamp, inactivityHours),
+            // messageCount increment removed to avoid double counting with batchUpdate
+          },
+        });
 
-      // Título automático con el primer mensaje del usuario. Aquí y no en cada canal
-      // porque `addMessage` es por donde pasan todos: mientras esto vivió en el
-      // navegador, solo las conversaciones creadas desde el panel llegaban a tener
-      // nombre. Solo el primero: los siguientes renombrarían la conversación sola, y un
-      // título puesto a mano se respeta siempre.
-      const generatedTitle =
-        !conversation.title && role === ChatRole.USER ? buildConversationTitle(content) : null;
-
-      await tx.conversation.update({
-        where: { id: conversationId },
-        data: {
-          ...(generatedTitle && { title: generatedTitle }),
-          lastMessageAt: messageTimestamp,
-          lastMessageRole: role === ChatRole.USER ? ChatRole.USER : role, // Normalize 'human' to 'user' if needed by schema enum, or keep string
-          autoCloseAt: this.calculateAutoCloseAt(messageTimestamp, inactivityHours),
-          // messageCount increment removed to avoid double counting with batchUpdate
-        },
-      });
-
-      return createdMessage;
-    }, {
-      // Cloud Run puede throttlear CPU entre ticks del event loop cuando la
-      // instancia no está atendiendo activamente la request, lo que puede
-      // inflar el tiempo real de una transacción interactiva simple muy por
-      // encima del default de Prisma (5000ms). Damos más margen aquí.
-      timeout: 10000,
-      maxWait: 10000,
-    });
+        return createdMessage;
+      },
+      {
+        // Cloud Run puede throttlear CPU entre ticks del event loop cuando la
+        // instancia no está atendiendo activamente la request, lo que puede
+        // inflar el tiempo real de una transacción interactiva simple muy por
+        // encima del default de Prisma (5000ms). Damos más margen aquí.
+        timeout: 10000,
+        maxWait: 10000,
+      },
+    );
 
     this.logger.debug(`Mensaje ${role} agregado a conversación ${conversationId}`);
 
@@ -1371,10 +1379,7 @@ export class ConversationsService {
 
     const compaction = conversation?.currentCompaction;
 
-    if (
-      compaction?.status !== CompactionStatus.SUCCEEDED ||
-      !compaction.summary
-    ) {
+    if (compaction?.status !== CompactionStatus.SUCCEEDED || !compaction.summary) {
       return null;
     }
 

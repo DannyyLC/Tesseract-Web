@@ -115,7 +115,7 @@ export function WhatsappNumberCard({
           {/* Mientras está pendiente, el estado de conexión no dice nada útil: el número no
               opera hasta que el equipo termine la integración y lo apruebe. */}
           {number.approvedAt === null ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-500/10 px-2.5 py-1 text-xs font-medium text-[var(--badge-warning-text-strong)]">
+            <span className="bg-warning-500/10 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-[var(--badge-warning-text-strong)]">
               <span className="h-1.5 w-1.5 rounded-full bg-warning-500" />
               {t('pendingApproval')}
             </span>
@@ -174,71 +174,71 @@ export function WhatsappNumberCard({
       {/* Actions menu */}
       {/* Sin permiso de gestión el menú quedaría vacío: se oculta entero. */}
       <PermissionGuard permissions="channels:manage">
-      <div className="relative">
-        <button
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label={t('menuAriaLabel')}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-secondary"
-        >
-          <MoreVertical size={16} />
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label={t('menuAriaLabel')}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-secondary"
+          >
+            <MoreVertical size={16} />
+          </button>
 
-        {menuOpen && (
-          <>
-            <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-            <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-surface-popover shadow-xl">
-              <PermissionGuard permissions="channels:manage">
-                <Link
-                  href={`/workflows/${workflowId}/whatsapp/${number.id}/edit`}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
-                >
-                  <Pencil size={14} />
-                  {t('edit')}
-                </Link>
-              </PermissionGuard>
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+              <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-surface-popover shadow-xl">
+                <PermissionGuard permissions="channels:manage">
+                  <Link
+                    href={`/workflows/${workflowId}/whatsapp/${number.id}/edit`}
+                    onClick={() => setMenuOpen(false)}
+                    className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
+                  >
+                    <Pencil size={14} />
+                    {t('edit')}
+                  </Link>
+                </PermissionGuard>
 
-              <div className="mx-3 my-1 h-px bg-surface-secondary" />
+                <div className="mx-3 my-1 h-px bg-surface-secondary" />
 
-              <PermissionGuard permissions="channels:manage">
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
+                <PermissionGuard permissions="channels:manage">
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
 
-                    if (isActive) {
-                      setIsDisconnectOpen(true);
-                      return;
-                    }
+                      if (isActive) {
+                        setIsDisconnectOpen(true);
+                        return;
+                      }
 
-                    onSetActiveStatus?.(number.id, true);
-                  }}
-                  className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-                    !isActive
-                      ? 'text-[var(--success-text-adaptive)] hover:bg-[var(--success-tint-hover)]'
-                      : 'text-[var(--danger-text-adaptive)] hover:bg-[var(--danger-tint-hover)]'
-                  }`}
-                >
-                  <Unplug size={14} />
-                  {!isActive ? t('connect') : t('disconnect')}
-                </button>
-              </PermissionGuard>
+                      onSetActiveStatus?.(number.id, true);
+                    }}
+                    className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                      !isActive
+                        ? 'text-[var(--success-text-adaptive)] hover:bg-[var(--success-tint-hover)]'
+                        : 'text-[var(--danger-text-adaptive)] hover:bg-[var(--danger-tint-hover)]'
+                    }`}
+                  >
+                    <Unplug size={14} />
+                    {!isActive ? t('connect') : t('disconnect')}
+                  </button>
+                </PermissionGuard>
 
-              <PermissionGuard permissions="channels:manage">
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onDelete?.(number.id);
-                  }}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[var(--danger-text-adaptive)] transition-colors hover:bg-[var(--danger-tint-hover)]"
-                >
-                  <Trash2 size={14} />
-                  {t('delete')}
-                </button>
-              </PermissionGuard>
-            </div>
-          </>
-        )}
-      </div>
+                <PermissionGuard permissions="channels:manage">
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onDelete?.(number.id);
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[var(--danger-text-adaptive)] transition-colors hover:bg-[var(--danger-tint-hover)]"
+                  >
+                    <Trash2 size={14} />
+                    {t('delete')}
+                  </button>
+                </PermissionGuard>
+              </div>
+            </>
+          )}
+        </div>
       </PermissionGuard>
 
       <Modal

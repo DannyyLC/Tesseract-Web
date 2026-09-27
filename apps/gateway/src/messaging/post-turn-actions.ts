@@ -117,10 +117,7 @@ export async function runPostTurnActions(
         doneFlags[action.id] = true;
       }
     } catch (error) {
-      log(
-        'error',
-        `post_turn_actions: error en '${action.id}': ${(error as Error).message}`,
-      );
+      log('error', `post_turn_actions: error en '${action.id}': ${(error as Error).message}`);
     }
   }
 
