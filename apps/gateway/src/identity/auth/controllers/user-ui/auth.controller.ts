@@ -92,7 +92,11 @@ export class AuthController {
     description:
       'Maneja el retorno desde Google, crea/vincula usuario y devuelve cookies de sesión.',
   })
-  async googleAuthRedirect(@Req() req: any, @Res({ passthrough: true }) res: Response) {
+  async googleAuthRedirect(
+    // GoogleStrategy deja en req.user lo que devuelve AuthService.validateGoogleUser.
+    @Req() req: Request & { user: Awaited<ReturnType<AuthService['validateGoogleUser']>> },
+    @Res({ passthrough: true }) res: Response,
+  ) {
     // req.user contiene el usuario validado/creado por GoogleStrategy -> AuthService.validateGoogleUser
     const user = req.user;
     const isProduction = process.env.NODE_ENV === 'production';
@@ -200,7 +204,7 @@ export class AuthController {
     const responseBuilder = new ApiResponseBuilder();
     try {
       await this.turnstileService.verifyToken(loginDto.turnstileToken);
-      const result: any = await this.authService.login(loginDto);
+      const result = await this.authService.login(loginDto);
       const isProduction = process.env.NODE_ENV === 'production';
 
       if (result.status === 'complete') {

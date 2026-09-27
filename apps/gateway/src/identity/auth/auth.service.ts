@@ -98,7 +98,10 @@ export class AuthService {
       // Ya hay usuario validado: el id identifica la cuenta sin exponer el email.
       this.logger.info(`Login directo exitoso: userId=${user.id}`);
       return {
-        status: 'complete',
+        status: 'complete' as const,
+        // El controlador decide con esto si la cookie de refresh dura 30 días o la sesión.
+        // Antes no se devolvía y en el login directo "Recordarme" nunca surtía efecto.
+        rememberMe: dto.rememberMe ?? false,
         user: {
           id: user.id,
           name: user.name,
@@ -114,7 +117,7 @@ export class AuthService {
     const tempToken = this.generateTempToken(payload);
 
     return {
-      status: '2fa_required',
+      status: '2fa_required' as const,
       tempToken,
     };
   }

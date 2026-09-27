@@ -159,10 +159,30 @@ describe('AuthService', () => {
         });
         expect(result).toEqual({
           status: 'complete',
+          rememberMe: false,
           user: expect.objectContaining({ id: 'u1', email: 'test@test.com' }),
           accessToken: 'acc',
           refreshToken: 'ref',
         });
+      });
+
+      // El controlador decide con esto la duración de la cookie de refresh; antes no se
+      // devolvía y "Recordarme" nunca surtía efecto en el login sin 2FA.
+      it('devuelve rememberMe para que el controlador alargue la cookie', async () => {
+        jest
+          .spyOn(service, 'validateUser')
+          .mockResolvedValue({ user: mockUser as any, organization: mockOrg as any });
+        jest
+          .spyOn(service, 'generateTokens')
+          .mockResolvedValue({ accessToken: 'acc', refreshToken: 'ref' });
+
+        const result = await service.login({
+          email: 'test@test.com',
+          password: 'pwd',
+          rememberMe: true,
+        });
+
+        expect(result).toEqual(expect.objectContaining({ status: 'complete', rememberMe: true }));
       });
 
       it('should return 2fa_required and tempToken if 2FA is enabled', async () => {
