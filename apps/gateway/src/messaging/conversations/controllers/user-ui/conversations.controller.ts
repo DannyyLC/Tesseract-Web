@@ -166,7 +166,7 @@ export class ConversationsController {
       channels: parseChannels(channels),
     });
 
-    const items: DashboardConversationDto[] = paginatedResponse.items.map((c: any) => ({
+    const items: DashboardConversationDto[] = paginatedResponse.items.map((c) => ({
       id: c.id,
       title: c.title,
       channel: c.channel,

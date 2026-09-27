@@ -50,6 +50,18 @@ const HEALTH_SELECT = {
   },
 } as const;
 
+/** Lo que el dashboard muestra de cada tool, más lo que hace falta para calcular su salud. */
+const DASHBOARD_TOOL_SELECT = {
+  id: true,
+  displayName: true,
+  status: true,
+  isConnected: true,
+  createdAt: true,
+  createdByUserId: true,
+  allowedFunctions: true,
+  ...HEALTH_SELECT,
+} satisfies Prisma.TenantToolSelect;
+
 @Injectable()
 export class TenantToolService {
   constructor(
@@ -60,15 +72,15 @@ export class TenantToolService {
 
   /** Quita del payload lo que solo servía para calcular la salud. */
   private toDashboardDto(
-    tool: any,
+    tool: Prisma.TenantToolGetPayload<{ select: typeof DASHBOARD_TOOL_SELECT }>,
     locale: SupportedLocale = DEFAULT_LOCALE,
   ): DashboardTenantToolDto {
     const { credential, toolCatalog, ...rest } = tool;
-    const { functions: rawFunctions = [], displayNameEn, ...catalogRest } = toolCatalog ?? {};
+    const { functions: rawFunctions, displayNameEn, ...catalogRest } = toolCatalog;
     // Inglés opcional: si falta (NULL) se conserva el texto base en español.
     const pick = (en: string | null | undefined, es: string) => (locale === 'en' && en ? en : es);
     const catalog = { ...catalogRest, displayName: pick(displayNameEn, catalogRest.displayName) };
-    const functions = rawFunctions.map(({ displayNameEn: fnEn, ...fn }: any) => ({
+    const functions = rawFunctions.map(({ displayNameEn: fnEn, ...fn }) => ({
       ...fn,
       displayName: pick(fnEn, fn.displayName),
     }));
@@ -103,16 +115,7 @@ export class TenantToolService {
           paginationAction === 'next' || paginationAction === null
             ? (pageSize ?? 10) + 1
             : -((pageSize ?? 10) + 1),
-        select: {
-          id: true,
-          displayName: true,
-          status: true,
-          isConnected: true,
-          createdAt: true,
-          createdByUserId: true,
-          allowedFunctions: true,
-          ...HEALTH_SELECT,
-        },
+        select: DASHBOARD_TOOL_SELECT,
         orderBy: { createdAt: 'desc' },
       });
       return await CursorPaginatedResponseUtils.getInstance().build(
@@ -192,16 +195,7 @@ export class TenantToolService {
     try {
       const tenantTool = await this.prismaService.tenantTool.findFirst({
         where: { id, organizationId },
-        select: {
-          id: true,
-          displayName: true,
-          status: true,
-          isConnected: true,
-          createdAt: true,
-          createdByUserId: true,
-          allowedFunctions: true,
-          ...HEALTH_SELECT,
-        },
+        select: DASHBOARD_TOOL_SELECT,
       });
       return tenantTool ? this.toDashboardDto(tenantTool, locale) : null;
     } catch (error) {

@@ -1,3 +1,4 @@
+import { Prisma } from '@tesseract/database';
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { MEDIA_PROCESSOR_ADAPTER, MediaProcessorAdapter } from './adapters/media-processor.adapter';
@@ -48,7 +49,8 @@ export function toAttachmentInput(attachment: ProcessedAttachment) {
     processor: attachment.processor,
     processorVersion: attachment.processorVersion,
     sizeBytes: attachment.sizeBytes,
-    metadata: attachment.metadata,
+    // Frontera con la base: la metadata calculada es JSON serializable.
+    metadata: attachment.metadata as Prisma.InputJsonObject | undefined,
   };
 }
 

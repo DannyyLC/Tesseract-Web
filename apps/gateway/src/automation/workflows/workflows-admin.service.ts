@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, WorkflowVersionSource } from '@tesseract/database';
+import { Prisma, TriggerType, WorkflowVersionSource } from '@tesseract/database';
 import { DEFAULT_PAGE_SIZE, WorkflowCategory } from '@tesseract/types';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/platform/database/prisma.service';
@@ -22,6 +22,7 @@ import {
   QueryWorkflowsAdminDto,
   UpdateWorkflowMetaDto,
 } from './dto/admin';
+import { WorkflowConfig } from './dto/create-workflow.dto';
 
 /**
  * Snapshots no-baseline que se conservan por workflow. El baseline nunca se poda.
@@ -578,7 +579,7 @@ export class WorkflowsAdminService {
         timezone: rest.timezone ?? null,
         timeout: rest.timeout ?? 300,
         maxRetries: rest.maxRetries ?? 3,
-        triggerType: rest.triggerType ? [rest.triggerType.toUpperCase() as any] : undefined,
+        triggerType: rest.triggerType ? [rest.triggerType.toUpperCase() as TriggerType] : undefined,
         isInternal: rest.isInternal ?? false,
         organizationId,
       },
@@ -638,7 +639,8 @@ export class WorkflowsAdminService {
         description: dto.description ?? source.description ?? undefined,
         category: source.category,
         maxHistoryTokens: source.maxHistoryTokens,
-        config: config as any,
+        // Se clona tal cual; create() lo vuelve a validar con el validador de config.
+        config: config as unknown as WorkflowConfig,
         // Un clon de un workflow todavía interno (en construcción) debe seguir
         // oculto: si create() cayera a su default `false`, quedaría público y
         // cobrando crédito de inmediato en la organización destino.

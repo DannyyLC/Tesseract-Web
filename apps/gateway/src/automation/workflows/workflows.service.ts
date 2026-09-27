@@ -21,6 +21,7 @@ import {
   WorkflowMetricsDto,
   WorkflowStatsDto,
   getWorkflowCreditCost,
+  DatasetField,
 } from '@tesseract/types';
 import { PassThrough, Readable } from 'stream';
 import { assertMaxTokensWithinCategory, touchesCategoryCeiling } from './category-token-ceiling';
@@ -215,7 +216,7 @@ export class WorkflowsService {
         timezone: dto.timezone ?? null,
         timeout: dto.timeout ?? 300,
         maxRetries: dto.maxRetries ?? 3,
-        triggerType: dto.triggerType ? [dto.triggerType.toUpperCase() as any] : undefined,
+        triggerType: dto.triggerType ? [dto.triggerType.toUpperCase() as TriggerType] : undefined,
         organizationId,
         // Asociar tags si se proporcionaron
         ...(dto.tagIds && {
@@ -727,7 +728,7 @@ export class WorkflowsService {
         timezone: dto.timezone,
         timeout: dto.timeout,
         maxRetries: dto.maxRetries,
-        triggerType: dto.triggerType ? [dto.triggerType.toUpperCase() as any] : undefined,
+        triggerType: dto.triggerType ? [dto.triggerType.toUpperCase() as TriggerType] : undefined,
         version: existing.version + 1, // Incrementar versión
         // Actualizar tags si se proporcionaron
         ...(dto.tagIds && {
@@ -973,7 +974,7 @@ export class WorkflowsService {
           mimeType: string;
           sourceUrl: string;
           sha256?: string;
-          metadata?: Record<string, unknown>;
+          metadata?: Prisma.InputJsonObject;
         }[]
       | undefined;
     let userMessage = '';
@@ -2110,7 +2111,7 @@ export class WorkflowsService {
             // del cliente y no le sirve de nada a la tool —que solo necesita saber que la columna
             // es un número—, así que no tiene por qué salir del Gateway ni acabar en los registros
             // de lo que se le envía al servicio de agentes.
-            const fields = (dataset.fields as any[])
+            const fields = (dataset.fields as unknown as (DatasetField & { deletedAt?: string })[])
               .filter((field) => !field?.deletedAt)
               .map((field) => ({
                 key: field.key,
@@ -2212,7 +2213,7 @@ export class WorkflowsService {
     // 4. Limpiar agents_config - remover campo 'tools' (redundante, ya está en agent_tool_instances)
     const cleanedAgentsConfig: Record<string, unknown> = {};
     for (const [agentName, agentConfig] of Object.entries(agentsConfig)) {
-      const { tools: _tools, ...configWithoutTools } = agentConfig as any;
+      const { tools: _tools, ...configWithoutTools } = agentConfig as Record<string, unknown>;
       cleanedAgentsConfig[agentName] = configWithoutTools;
     }
 
@@ -2716,7 +2717,7 @@ export class WorkflowsService {
     return this.agentsService.getNodeCatalog(graphType);
   }
 
-  private async validateConfig(config: any) {
+  private async validateConfig(config: unknown) {
     await this.configValidator.assert(config);
   }
 

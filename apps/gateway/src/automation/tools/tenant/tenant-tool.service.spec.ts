@@ -107,7 +107,20 @@ describe('TenantToolService', () => {
 
   describe('getDashboardData', () => {
     it('returns paginated results when tenant tools found', async () => {
-      const tools = [{ id: 't1' }];
+      // toolCatalog es una relación obligatoria: la consulta real siempre la trae.
+      const tools = [
+        {
+          id: 't1',
+          allowedFunctions: null,
+          credential: null,
+          toolCatalog: {
+            toolName: 'http',
+            displayName: 'HTTP',
+            displayNameEn: null,
+            functions: [],
+          },
+        },
+      ];
       mockPrismaService.tenantTool.findMany.mockResolvedValue(tools);
       mockBuild.mockResolvedValue({ items: tools, nextCursor: null });
 

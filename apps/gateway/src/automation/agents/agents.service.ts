@@ -12,6 +12,46 @@ import * as protoLoader from '@grpc/proto-loader';
 import { GoogleAuth, IdTokenClient } from 'google-auth-library';
 import { join } from 'path';
 import { AgentExecutionRequestDto, AgentExecutionResponseDto } from './dto';
+import { Readable } from 'stream';
+import { errorMessage } from '@/platform/common/utils/error-message';
+
+/** Respuesta de Execute tal como la decodifica proto-loader (con `keepCase`). */
+interface WireExecutionResponse {
+  conversation_id: string;
+  messages?: { role: AgentExecutionResponseDto['messages'][number]['role']; content: string }[];
+  metadata?: AgentExecutionResponseDto['metadata'];
+}
+
+type UnaryCallback<T> = (err: grpc.ServiceError | null, response: T) => void;
+
+/** Los métodos del cliente generado en runtime que usa este servicio. */
+interface AgentsGrpcClient {
+  execute(
+    request: Record<string, unknown>,
+    metadata: grpc.Metadata,
+    options: grpc.CallOptions,
+    callback: UnaryCallback<WireExecutionResponse>,
+  ): void;
+  executeStream(request: Record<string, unknown>, metadata: grpc.Metadata): Readable;
+  getNodeCatalog(
+    request: { graph_type: string },
+    metadata: grpc.Metadata,
+    options: grpc.CallOptions,
+    callback: UnaryCallback<{ catalog_json?: string }>,
+  ): void;
+  waitForReady(deadline: Date, callback: (err: Error | null) => void): void;
+}
+
+type AgentsGrpcClientConstructor = new (
+  address: string,
+  credentials: grpc.ChannelCredentials,
+) => AgentsGrpcClient;
+
+/** Código gRPC de un error, si lo trae. */
+function grpcCodeOf(err: unknown): number | undefined {
+  if (typeof err !== 'object' || err === null || !('code' in err)) return undefined;
+  return typeof err.code === 'number' ? err.code : undefined;
+}
 
 @Injectable()
 export class AgentsService implements OnModuleInit {
@@ -19,7 +59,7 @@ export class AgentsService implements OnModuleInit {
   private readonly agentsGrpcUrl: string;
   private readonly agentsGrpcUseTls: boolean;
   private readonly agentsServiceTimeout: number;
-  private grpcClient: any;
+  private grpcClient!: AgentsGrpcClient;
 
   /**
    * Identidad del Gateway frente a Cloud Run. Google emite un ID token firmado que dice a
@@ -58,7 +98,10 @@ export class AgentsService implements OnModuleInit {
       join(__dirname, '../../../../../packages/contracts/proto/agents/v1/agents.proto'),
       { keepCase: true, longs: Number, defaults: true, oneofs: true },
     );
-    const proto = grpc.loadPackageDefinition(packageDef) as any;
+    // proto-loader carga el servicio en runtime: su forma la declara AgentsGrpcClient.
+    const proto = grpc.loadPackageDefinition(packageDef) as unknown as {
+      tesseract: { agents: { v1: { AgentsService: AgentsGrpcClientConstructor } } };
+    };
     this.grpcClient = new proto.tesseract.agents.v1.AgentsService(
       this.agentsGrpcUrl,
       this.agentsGrpcUseTls ? grpc.credentials.createSsl() : grpc.credentials.createInsecure(),
@@ -135,16 +178,18 @@ export class AgentsService implements OnModuleInit {
     };
   }
 
-  private isRetryableGrpcError(err: any): boolean {
-    return err?.code === grpc.status.UNAVAILABLE || err?.code === grpc.status.DEADLINE_EXCEEDED;
+  private isRetryableGrpcError(err: unknown): boolean {
+    const code = grpcCodeOf(err);
+    return code === grpc.status.UNAVAILABLE || code === grpc.status.DEADLINE_EXCEEDED;
   }
 
-  private toHttpException(err: any) {
-    if (err?.code === grpc.status.UNAVAILABLE)
+  private toHttpException(err: unknown) {
+    const code = grpcCodeOf(err);
+    if (code === grpc.status.UNAVAILABLE)
       return new ServiceUnavailableException('Agents service is not available');
-    if (err?.code === grpc.status.DEADLINE_EXCEEDED)
+    if (code === grpc.status.DEADLINE_EXCEEDED)
       return new RequestTimeoutException('Agent execution timed out');
-    return new InternalServerErrorException((err as Error)?.message ?? 'Unknown error');
+    return new InternalServerErrorException(errorMessage(err));
   }
 
   private async withRetry<T>(
@@ -186,7 +231,7 @@ export class AgentsService implements OnModuleInit {
           wireRequest,
           metadata,
           { deadline },
-          (err: grpc.ServiceError | null, response: any) => {
+          (err: grpc.ServiceError | null, response: WireExecutionResponse) => {
             if (err) return reject(err);
             resolve(this.mapExecutionResponse(response));
           },
@@ -199,10 +244,7 @@ export class AgentsService implements OnModuleInit {
     this.logger.debug(
       `Executing streaming agent for tenant: ${request.tenant_id}, workflow: ${request.workflow_id}`,
     );
-    return this.grpcClient.executeStream(
-      this.toWireRequest(request),
-      await this.buildMetadata(),
-    ) as NodeJS.ReadableStream;
+    return this.grpcClient.executeStream(this.toWireRequest(request), await this.buildMetadata());
   }
 
   /**
@@ -220,7 +262,7 @@ export class AgentsService implements OnModuleInit {
             { graph_type: graphType },
             metadata,
             { deadline },
-            (err: grpc.ServiceError | null, response: any) => {
+            (err: grpc.ServiceError | null, response: { catalog_json?: string }) => {
               if (err) return reject(err);
               try {
                 resolve(JSON.parse(response.catalog_json ?? '{}'));
@@ -252,11 +294,11 @@ export class AgentsService implements OnModuleInit {
     }
   }
 
-  private mapExecutionResponse(response: any): AgentExecutionResponseDto {
+  private mapExecutionResponse(response: WireExecutionResponse): AgentExecutionResponseDto {
     const meta = response.metadata;
     return {
       conversation_id: response.conversation_id,
-      messages: (response.messages ?? []).map((m: any) => ({
+      messages: (response.messages ?? []).map((m) => ({
         role: m.role,
         content: m.content,
       })),

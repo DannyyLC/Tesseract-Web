@@ -16,6 +16,7 @@ import {
   ChatRole,
   CompactionStatus,
   ExecutionStatus,
+  Prisma,
 } from '@tesseract/database';
 import { UtilityService } from '@/platform/utility/utility.service';
 import { buildConversationTitle } from './conversation-title';
@@ -55,7 +56,7 @@ interface MessageAttachmentInput {
   processingError?: string;
   processor?: string;
   processorVersion?: string;
-  metadata?: any;
+  metadata?: Prisma.InputJsonValue;
 }
 
 /**
@@ -617,7 +618,12 @@ export class ConversationsService {
    * @param id - ID de la conversación
    * @param data - Datos a actualizar (compatible con PrismaUpdateInput)
    */
-  async update(organizationId: string, id: string, data: any) {
+  async update(
+    organizationId: string,
+    id: string,
+    // `status` puede llegar en minúsculas desde la UI; abajo se normaliza.
+    data: Omit<Prisma.ConversationUpdateInput, 'status'> & { status?: string },
+  ) {
     // 1. Verificar ownership y obtener contexto mínimo para reglas de autocierre
     const currentConversation = await this.getAutoCloseContext(organizationId, id);
 
@@ -662,7 +668,7 @@ export class ConversationsService {
 
     const conversation = await this.prisma.conversation.update({
       where: { id },
-      data: updateData,
+      data: updateData as Prisma.ConversationUpdateInput,
     });
 
     this.logger.debug(`Conversación ${id} actualizada: ${JSON.stringify(updateData)}`);
@@ -715,7 +721,7 @@ export class ConversationsService {
     cursor?: string | null;
     take?: number;
     onlyErrors?: boolean;
-  }): Promise<PaginatedResponse<any>> {
+  }) {
     const { organizationId, workflowId, cursor, take = DEFAULT_PAGE_SIZE, onlyErrors } = params;
 
     const conversations = await this.prisma.conversation.findMany({
@@ -746,7 +752,7 @@ export class ConversationsService {
 
     return {
       ...paginated,
-      items: paginated.items.map((c: any) => ({
+      items: paginated.items.map((c) => ({
         id: c.id,
         title: c.title,
         channel: c.channel,
@@ -924,7 +930,7 @@ export class ConversationsService {
     );
 
     const items = await Promise.all(
-      paginatedResult.items.map(async (c: any) => {
+      paginatedResult.items.map(async (c) => {
         let endUserName = c.endUser?.name ?? null;
 
         if (
@@ -969,7 +975,7 @@ export class ConversationsService {
 
     return {
       ...paginatedResult,
-      items: items as DashboardConversationDto[],
+      items,
     };
   }
 
@@ -1099,7 +1105,7 @@ export class ConversationsService {
     conversationId: string,
     role: ChatRole,
     content: string,
-    metadata?: any,
+    metadata?: Prisma.InputJsonValue,
     attachments?: MessageAttachmentInput[],
   ) {
     const message = await this.prisma.$transaction(
