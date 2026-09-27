@@ -439,7 +439,7 @@ export default function WorkflowDetailPage() {
             </div>
             <div className="mt-4 flex flex-wrap gap-4">
               {workflow.tenantTools && workflow.tenantTools.length > 0 ? (
-                workflow.tenantTools.map((tool: any) => (
+                workflow.tenantTools.map((tool) => (
                   <div
                     key={tool.id}
                     className={`flex min-w-[250px] flex-1 items-center gap-3 rounded-xl border bg-surface-elevated p-4 shadow-sm transition-all hover:shadow-md ${

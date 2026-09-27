@@ -5,19 +5,7 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { toApiError } from '@/lib/api/api-error';
 
-export interface User {
-  sub: string;
-  email: string;
-  name: string;
-  role: string;
-  organizationId: string;
-  organizationName: string;
-  plan: string;
-  hasPassword?: boolean;
-  twoFactorEnabled?: boolean;
-  /** Códigos de respaldo sin usar. 0 cuando el 2FA está desactivado. */
-  backupCodesRemaining?: number;
-}
+export type { AuthUser as User } from '@/lib/api/endpoints/identity/auth/auth-api';
 
 // Hook para obtener el usuario actual
 export function useAuth() {
@@ -65,22 +53,18 @@ export function useLogin() {
         throw error;
       }
     },
-    onSuccess: (response: any) => {
-      // response es ApiResponse<any> del backend
-      // Estructura esperada para login exitoso directo: response.data.user
-      // Estructura para 2FA requerido: response.data.require2FA
-
-      if (response?.data?.user) {
+    onSuccess: (response) => {
+      const data = response.data;
+      if (data && 'user' in data) {
         // Login completo (sin 2FA o tokens ya seteados)
-        queryClient.setQueryData(['auth', 'me'], response.data.user);
+        queryClient.setQueryData(['auth', 'me'], data.user);
         queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
         const queryStr = window.location.search;
         // El super admin es operador de plataforma: va a su propia área /admin,
         // no al panel de inquilino (scopeado por organización).
-        const destination =
-          response.data.user.role === 'SUPER_ADMIN' ? '/admin/dashboard' : '/dashboard';
+        const destination = data.user.role === 'SUPER_ADMIN' ? '/admin/dashboard' : '/dashboard';
         router.push(`${destination}${queryStr}`);
-      } else if (response?.data?.require2FA) {
+      } else if (data?.require2FA) {
         // 2FA requerido - redirigir a página de verificación
         router.push('/verify-2fa');
       } else {

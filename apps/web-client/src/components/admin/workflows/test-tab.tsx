@@ -35,6 +35,7 @@ import type {
   AdminWorkflowDetail,
 } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
 import { toApiError } from '@/lib/api/api-error';
+import { eventString } from '@/lib/api/endpoints/automation/workflows/stream-types';
 
 interface Props {
   workflow: AdminWorkflowDetail;
@@ -203,11 +204,12 @@ export function TestTab({ workflow }: Props) {
       { message: trimmed },
       conversationId ? { conversationId } : undefined,
       (event, data) => {
-        if (event === 'conversation_id') setConversationId(data);
+        const value = eventString(data);
+        if (event === 'conversation_id') setConversationId(value);
         if (event === 'execution_id') {
-          executionId = data;
+          executionId = value;
           setExecHistory((prev) =>
-            prev.map((rec) => (rec.turnId === turnId ? { ...rec, executionId: data } : rec)),
+            prev.map((rec) => (rec.turnId === turnId ? { ...rec, executionId: value } : rec)),
           );
         }
       },

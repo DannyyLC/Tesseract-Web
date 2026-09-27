@@ -7,6 +7,24 @@ import {
   PaginatedResponse,
 } from '@tesseract/types';
 
+/** `GET /users/stats` (`UsersService.getStats`). */
+export interface UserStats {
+  total: number;
+  byRole: { viewer: number; admin: number; owner: number };
+  active: number;
+  inactive: number;
+  verified: number;
+  unverified: number;
+  pendingInvitations?: number;
+}
+
+/** `GET /users/pending-invitations`. */
+export interface PendingInvitation {
+  email: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
 class UsersApi {
   public apiRequestManager: ApiRequestManager;
   private static BASE_URL = '/users';
@@ -47,11 +65,11 @@ class UsersApi {
   /**
    * Get user statistics
    */
-  public async getStats(): Promise<any> {
-    // The return type is 'any' in the controller Response<any> (setData(stats))
-    // The prompt provided DashboardUsersDto which might be the stats structure
-    const result = await this.apiRequestManager.get<ApiResponse<any>>(`${UsersApi.BASE_URL}/stats`);
-    return result.data.data;
+  public async getStats(): Promise<UserStats> {
+    const result = await this.apiRequestManager.get<ApiResponse<UserStats>>(
+      `${UsersApi.BASE_URL}/stats`,
+    );
+    return unwrapData(result);
   }
 
   /**
@@ -106,11 +124,11 @@ class UsersApi {
     return unwrapData(result);
   }
 
-  public async getPendingInvitations(): Promise<any> {
-    const result = await this.apiRequestManager.get<ApiResponse<any>>(
+  public async getPendingInvitations(): Promise<PendingInvitation[]> {
+    const result = await this.apiRequestManager.get<ApiResponse<PendingInvitation[]>>(
       `${UsersApi.BASE_URL}/pending-invitations`,
     );
-    return result.data.data;
+    return unwrapData(result);
   }
 }
 

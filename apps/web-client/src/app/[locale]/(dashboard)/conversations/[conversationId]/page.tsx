@@ -34,6 +34,7 @@ import ConversationChannelMeta from '../_components/conversation-channel-meta';
 import { useDictation } from '@/hooks/use-dictation';
 import { useEndUserMutations } from '@/hooks/identity/use-end-users';
 import { BlockContactModal } from '@/components/contacts';
+import { eventString } from '@/lib/api/endpoints/automation/workflows/stream-types';
 
 interface Message {
   id: string;
@@ -419,15 +420,15 @@ export default function WorkflowChatPage() {
         { message: userMsg.content },
         isNewConversation ? undefined : { conversationId }, // Metadata only if existing conversation
         (event, data) => {
-          // Si recibimos el ID
-          if (event === 'conversation_id') {
+          const receivedId = eventString(data);
+          if (event === 'conversation_id' && receivedId) {
             // Si es una conversacion nueva (ID recibido != ID actual URL)
-            if (data !== conversationId) {
-              pendingConversationId.current = data;
+            if (receivedId !== conversationId) {
+              pendingConversationId.current = receivedId;
 
               // Migrar borrador si venimos de 'new'
               if (isNewConversation) {
-                migrateDraft(data);
+                migrateDraft(receivedId);
               }
             }
 

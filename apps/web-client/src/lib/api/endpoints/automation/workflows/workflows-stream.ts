@@ -1,10 +1,4 @@
-type StreamCallbacks = {
-  onOpen?: () => void;
-  onChunk: (chunk: string) => void;
-  onEvent?: (event: string, data: any) => void;
-  onError?: (error: any) => void;
-  onComplete?: () => void;
-};
+import { streamErrorFrom, type StreamCallbacks } from './stream-types';
 
 class WorkflowsStream {
   private static BASE_URL = '/workflows';
@@ -33,8 +27,8 @@ class WorkflowsStream {
    */
   public static async executeStream(
     id: string,
-    input: any,
-    metadata?: any,
+    input: Record<string, unknown>,
+    metadata?: Record<string, unknown>,
     callbacks?: StreamCallbacks,
   ): Promise<void> {
     return WorkflowsStream._doExecuteStream(id, input, metadata, callbacks, false);
@@ -42,8 +36,8 @@ class WorkflowsStream {
 
   private static async _doExecuteStream(
     id: string,
-    input: any,
-    metadata?: any,
+    input: Record<string, unknown>,
+    metadata?: Record<string, unknown>,
     callbacks?: StreamCallbacks,
     retried?: boolean,
   ): Promise<void> {
@@ -74,15 +68,7 @@ class WorkflowsStream {
           return;
         }
 
-        let errorBody: any = {};
-        try {
-          errorBody = await response.json();
-        } catch {}
-        const err: any = new Error(
-          errorBody.message || `Error executing stream: ${response.statusText}`,
-        );
-        err.statusCode = response.status;
-        throw err;
+        throw await streamErrorFrom(response, `Error executing stream: ${response.statusText}`);
       }
 
       if (!response.body) {
@@ -94,6 +80,8 @@ class WorkflowsStream {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      // Por stream, no en la clase: dos ejecuciones simultáneas no deben pisarse el evento.
+      let currentEvent: string | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -113,48 +101,24 @@ class WorkflowsStream {
           const trimmed = line.trim();
           if (!trimmed || trimmed.startsWith(':')) continue;
 
-          // Parse event name if present (e.g. event: conversation_id)
-          // Note: This simple parser assumes event and data come in order or standard SSE format
-          // Standard SSE:
-          // event: type
-          // data: payload
-
-          // For this specific implementation, we might get:
-          // event: conversation_id
-          // data: "xyz"
-
-          // OR just data: ...
-
-          // We need a small state machine or buffer if we want to support multi-line events strictly,
-          // but usually lines come together in a chunk.
-          // Let's try to handle basic event/data pairs if they are in the same chunk,
-          // or just handle them line by line if possible.
-
+          // SSE: una línea `event:` nombra al `data:` que la sigue; sin ella, el `data:` es texto.
           if (trimmed.startsWith('event: ')) {
-            const eventName = trimmed.slice(7).trim();
-            // We expect the next line to be data, so we can store this eventName
-            // effectively handling it in the next iteration or storing state.
-            // However, simpler approach for now:
-            // Just look ahead in the lines array? No, lines loop.
-
-            // Let's use a temporary variable for current event
-            (this as any).currentEvent = eventName;
+            currentEvent = trimmed.slice(7).trim();
             continue;
           }
 
           if (trimmed.startsWith('data: ')) {
             const dataContent = trimmed.slice(6);
-            let parsed: any = dataContent;
+            let parsed: unknown = dataContent;
             try {
               parsed = JSON.parse(dataContent);
             } catch {
               // Valid string, not JSON
             }
 
-            const currentEvent = (this as any).currentEvent;
             if (currentEvent) {
               callbacks?.onEvent?.(currentEvent, parsed);
-              (this as any).currentEvent = null;
+              currentEvent = null;
             } else {
               callbacks?.onChunk(typeof parsed === 'string' ? parsed : JSON.stringify(parsed));
             }

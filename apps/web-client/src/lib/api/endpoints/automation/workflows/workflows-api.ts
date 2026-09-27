@@ -9,6 +9,36 @@ import {
   HourlyDistributionDto,
 } from '@tesseract/types';
 
+/** Detalle de `GET /workflows/:id` (`WorkflowsService.findOne`). */
+export interface WorkflowDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  category: WorkflowCategory;
+  isActive: boolean;
+  isPaused: boolean;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  /** `null` = hereda la zona de la organización. */
+  timezone: string | null;
+  organization: { timezone: string };
+  tenantTools: Array<{
+    id: string;
+    displayName: string;
+    status: string;
+    toolCatalog: { id: string; displayName: string; icon: string | null } | null;
+  }>;
+}
+
+/** Campos editables desde el detalle (`UpdateWorkflowDto`). */
+export interface UpdateWorkflowInput {
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+  timezone?: string | null;
+}
+
 class WorkflowsApi {
   public apiRequestManager: ApiRequestManager;
   private static BASE_URL = '/workflows';
@@ -37,10 +67,10 @@ class WorkflowsApi {
     if (isActive !== undefined) params.append('isActive', isActive.toString());
     if (category) params.append('category', category);
 
-    const result = await this.apiRequestManager.get<ApiResponse<any>>(
+    const result = await this.apiRequestManager.get<ApiResponse<WorkflowsResponse>>(
       `${WorkflowsApi.BASE_URL}/dashboard?${params.toString()}`,
     );
-    return result.data.data;
+    return unwrapData(result);
   }
 
   /**
@@ -88,32 +118,41 @@ class WorkflowsApi {
   /**
    * Obtener un workflow por ID
    */
-  public async findOne(id: string): Promise<any> {
-    const result = await this.apiRequestManager.get<any>(`${WorkflowsApi.BASE_URL}/${id}`);
+  public async findOne(id: string): Promise<WorkflowDetail> {
+    const result = await this.apiRequestManager.get<WorkflowDetail>(
+      `${WorkflowsApi.BASE_URL}/${id}`,
+    );
     return result.data;
   }
 
   /**
    * Actualizar un workflow
    */
-  public async update(id: string, data: any): Promise<any> {
-    const result = await this.apiRequestManager.put<any>(`${WorkflowsApi.BASE_URL}/${id}`, data);
+  public async update(id: string, data: UpdateWorkflowInput): Promise<unknown> {
+    const result = await this.apiRequestManager.put<unknown>(
+      `${WorkflowsApi.BASE_URL}/${id}`,
+      data,
+    );
     return result.data;
   }
 
   /**
    * Eliminar un workflow
    */
-  public async remove(id: string): Promise<any> {
-    const result = await this.apiRequestManager.delete<any>(`${WorkflowsApi.BASE_URL}/${id}`);
+  public async remove(id: string): Promise<unknown> {
+    const result = await this.apiRequestManager.delete<unknown>(`${WorkflowsApi.BASE_URL}/${id}`);
     return result.data;
   }
 
   /**
    * Ejecutar un workflow (REST/Síncrono)
    */
-  public async execute(id: string, input: any, metadata?: any): Promise<any> {
-    const result = await this.apiRequestManager.post<any>(
+  public async execute(
+    id: string,
+    input: Record<string, unknown>,
+    metadata?: Record<string, unknown>,
+  ): Promise<unknown> {
+    const result = await this.apiRequestManager.post<unknown>(
       `${WorkflowsApi.BASE_URL}/${id}/execute`,
       { input, metadata },
     );
