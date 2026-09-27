@@ -717,7 +717,7 @@ export class AuthController {
     @Res() response: Response,
     @Locale() locale: SupportedLocale,
   ): Promise<Response<ApiResponseBuilder<object | keyof typeof StepOneErrors>>> {
-    const apiResponseBuilder = new ApiResponseBuilder<object | keyof typeof StepOneErrors>();
+    const apiResponseBuilder = new ApiResponseBuilder<true | keyof typeof StepOneErrors>();
     try {
       await this.turnstileService.verifyToken(payload.turnstileToken);
     } catch (_error) {

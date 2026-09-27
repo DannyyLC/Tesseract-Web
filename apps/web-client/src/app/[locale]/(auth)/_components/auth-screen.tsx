@@ -215,12 +215,9 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
     } catch (caught) {
       const error = toApiError(caught);
       console.error('Error en paso 1:', error);
-      // Verificamos si es el error específico de email ya existente
-      if (error?.errors?.includes('EMAIL_ALREADY_EXISTS')) {
-        toast.error(t('emailAlreadyRegistered'));
-      } else {
-        toast.error(error.message || t('sendVerificationError'));
-      }
+      // Un correo ya registrado no llega aquí: el gateway responde igual que a un alta
+      // nueva para no revelar qué correos tienen cuenta.
+      toast.error(error.message || t('sendVerificationError'));
     }
   };
   // Manejar paso 2 del signup (verificación)

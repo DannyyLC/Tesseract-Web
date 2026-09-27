@@ -8,7 +8,7 @@ export interface FieldError {
 
 /**
  * Cuerpo de error que manda el gateway. `errors` trae fallos de validación, salvo en
- * endpoints como el paso 1 del signup, que mandan códigos sueltos (`EMAIL_ALREADY_EXISTS`).
+ * endpoints como el paso 1 del signup, que mandan códigos sueltos (`TRANSPORTER_ERROR`).
  */
 export interface ApiErrorBody {
   message?: unknown;

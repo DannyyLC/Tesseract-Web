@@ -32,6 +32,7 @@ export class EmailService {
   private emailInvitationTemplate: BilingualTemplate;
   private emailPasswordResetTemplate: BilingualTemplate;
   private emailOrganizationExistsTemplate: BilingualTemplate;
+  private emailAccountExistsTemplate: BilingualTemplate;
   private emailServiceRequestTemplate: handlebars.TemplateDelegate;
   // Alerta interna de un cron, sin request-context de locale, específica del régimen
   // fiscal mexicano (CFDI/SAT) — se deja en español a propósito, no es contenido bilingüe.
@@ -74,6 +75,10 @@ export class EmailService {
     this.emailOrganizationExistsTemplate = new BilingualTemplate(
       this.loadTemplate('email_organization_exists.hbs'),
       this.loadTemplate('email_organization_exists_en.hbs'),
+    );
+    this.emailAccountExistsTemplate = new BilingualTemplate(
+      this.loadTemplate('email_account_exists.hbs'),
+      this.loadTemplate('email_account_exists_en.hbs'),
     );
     this.emailServiceRequestTemplate = this.loadTemplate('request_services_info.hbs');
     this.cfdiFailuresAlertTemplate = this.loadTemplate('cfdi_failures_alert.hbs');
@@ -211,6 +216,34 @@ export class EmailService {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
         `sendOrganizationExistsEmail >> Error enviando email a ${email}: ${errorMessage}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Aviso para quien intenta registrarse con un correo que ya tiene cuenta. Sustituye al
+   * código de verificación: la pantalla del signup responde igual exista o no la cuenta,
+   * y solo el dueño del correo se entera de que ya está registrado.
+   */
+  async sendAccountExistsEmail(
+    email: string,
+    locale: SupportedLocale = DEFAULT_LOCALE,
+  ): Promise<unknown> {
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3001';
+    try {
+      return await this.transporter.sendMail({
+        to: email,
+        subject: locale === 'en' ? 'You already have an account' : 'Ya tienes una cuenta',
+        html: this.emailAccountExistsTemplate.render(locale, {
+          loginUrl: `${frontendUrl}/${locale}/login`,
+          forgotPasswordUrl: `${frontendUrl}/${locale}/forgot-password`,
+        }),
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `sendAccountExistsEmail >> Error enviando email a ${email}: ${errorMessage}`,
       );
       return null;
     }

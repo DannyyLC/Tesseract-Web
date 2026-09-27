@@ -475,28 +475,6 @@ describe('AuthScreen – signup step 1', () => {
     );
   });
 
-  it('shows EMAIL_ALREADY_EXISTS toast when that error is returned', async () => {
-    const err = Object.assign(new Error('Email exists'), { errors: ['EMAIL_ALREADY_EXISTS'] });
-    mockSignupStepOne.mockRejectedValueOnce(err);
-    setupHooks();
-
-    render(<AuthScreen mode="signup" />);
-    await screen.findByPlaceholderText('Tu nombre y apellido');
-    setInputByPlaceholder('Tu nombre y apellido', 'John Doe');
-    setInputByPlaceholder('ejemplo@empresa.com', 'taken@corp.com');
-    setInputByPlaceholder('Ej: Mi Empresa S.A.', 'Corp Inc');
-    await userEvent.click(screen.getByRole('checkbox'));
-    act(() => fireTurnstileSuccess());
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /continuar/i })).toBeEnabled();
-    });
-    await userEvent.click(screen.getByRole('button', { name: /continuar/i }));
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Este correo electrónico ya está registrado.');
-    });
-  });
-
   it('shows generic error toast for other step-1 failures', async () => {
     mockSignupStepOne.mockRejectedValueOnce(new Error('Server error'));
     setupHooks();

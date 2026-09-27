@@ -3,10 +3,10 @@ This endpoint starts the signup process by sending a verification email to the u
 
 #### Business rules:
 1. The **email** field is required.
-2. The email must be valid and not already registered.
+2. If the email already has an account, no code is sent: that address gets a notice with links to sign in or reset the password instead. The response is identical either way, so the endpoint does not reveal which emails are registered.
 
 > **Note:** This is the first step of user signup.
 
 #### Responses
 - **200 OK**: Verification email sent successfully.
-- **500 Internal Server Error**: Error sending the email or email already registered.`;
+- **500 Internal Server Error**: Error sending the email.`;

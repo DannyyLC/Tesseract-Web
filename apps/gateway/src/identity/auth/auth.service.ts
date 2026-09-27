@@ -840,13 +840,22 @@ export class AuthService {
   async signupStepOne(
     payload: StartVerificationFlowDto,
     locale: SupportedLocale = DEFAULT_LOCALE,
-  ): Promise<StepOneErrors | object> {
+  ): Promise<StepOneErrors | true> {
     const emailExists = await this.prisma.user.findUnique({
       where: { email: payload.email },
     });
 
+    // Responder "ya existe" dejaría a cualquiera averiguar quién tiene cuenta. La respuesta
+    // es la misma que en un alta nueva; lo único que cambia es el correo que llega.
     if (emailExists && !emailExists.deletedAt) {
-      return StepOneErrors.EMAIL_ALREADY_EXISTS;
+      const sent = await this.emailService.sendAccountExistsEmail(payload.email, locale);
+      if (!sent) {
+        this.logger.error(
+          `authService >> signupStepOne >> Aviso de cuenta existente no enviado a ${maskEmail(payload.email)}`,
+        );
+        return StepOneErrors.TRANSPORTER_ERROR;
+      }
+      return true;
     }
 
     try {
@@ -894,7 +903,9 @@ export class AuthService {
       return StepOneErrors.SERVER_INTERNAL_ERROR;
     }
 
-    return sentMessageInfo;
+    // `true` y no el `sentMessageInfo` de nodemailer: los datos del transporte no son
+    // para el cliente y harían distinguible esta respuesta de la de una cuenta existente.
+    return true;
   }
 
   async signupStepTwo(data: VerificationCodeDto): Promise<boolean> {

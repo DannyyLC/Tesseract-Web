@@ -75,6 +75,7 @@ describe('AuthService', () => {
     sendTemplateEmail: jest.fn().mockResolvedValue(true),
     sendVerificationCodeByEmail: jest.fn(),
     sendPasswordResetCodeByEmail: jest.fn(),
+    sendAccountExistsEmail: jest.fn(),
   };
 
   const mockUtilityService = {
@@ -624,10 +625,33 @@ describe('AuthService', () => {
         password: 'pwd',
       };
 
-      it('should return EMAIL_ALREADY_EXISTS if email active', async () => {
-        prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1', deletedAt: null });
-        const result = await service.signupStepOne(payload);
-        expect(result).toBe(StepOneErrors.EMAIL_ALREADY_EXISTS);
+      describe('when the email already has an account', () => {
+        beforeEach(() => {
+          prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1', deletedAt: null });
+          prisma.userVerification.create = jest.fn();
+        });
+
+        it('answers exactly like a new signup and sends the notice instead of a code', async () => {
+          mockEmailService.sendAccountExistsEmail.mockResolvedValue({ messageId: 'x' });
+
+          const result = await service.signupStepOne(payload, 'en');
+
+          expect(result).toBe(true);
+          expect(mockEmailService.sendAccountExistsEmail).toHaveBeenCalledWith(
+            'new@test.com',
+            'en',
+          );
+          expect(mockEmailService.sendVerificationCodeByEmail).not.toHaveBeenCalled();
+          expect(prisma.userVerification.create).not.toHaveBeenCalled();
+        });
+
+        it('reports TRANSPORTER_ERROR when the notice cannot be sent, like a failed code', async () => {
+          mockEmailService.sendAccountExistsEmail.mockResolvedValue(null);
+
+          const result = await service.signupStepOne(payload);
+
+          expect(result).toBe(StepOneErrors.TRANSPORTER_ERROR);
+        });
       });
 
       it('should delete existing verification and resend when one is active', async () => {
@@ -645,7 +669,7 @@ describe('AuthService', () => {
         expect(prisma.userVerification.deleteMany).toHaveBeenCalledWith({
           where: { email: 'new@test.com' },
         });
-        expect(result).toEqual(mockSentInfo);
+        expect(result).toBe(true);
       });
 
       it('should return TRANSPORTER_ERROR if email fails', async () => {
@@ -674,7 +698,8 @@ describe('AuthService', () => {
         expect(prisma.userVerification.create).toHaveBeenCalledWith({
           data: expect.objectContaining({ email: 'new@test.com', verificationCode: '123456' }),
         });
-        expect(result).toEqual(mockSentInfo);
+        // Los datos del transporte no salen al cliente.
+        expect(result).toBe(true);
       });
     });
 

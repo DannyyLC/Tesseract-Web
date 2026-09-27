@@ -55,7 +55,6 @@
     "orContinueWith": "O continuar con",
     "googleButton": "Continuar con Google",
     "googleDisclaimer": "Al continuar con Google, aceptas nuestros <terms>Términos</terms> y la <privacy>Privacidad</privacy>",
-    "emailAlreadyRegistered": "Este correo electrónico ya está registrado.",
     "sendVerificationError": "Error al enviar el código de verificación. Por favor, intenta nuevamente.",
     "maxAttemptsExceeded": "Has excedido el número máximo de intentos. Por favor, comienza de nuevo.",
     "passwordsMismatch": "Las contraseñas no coinciden",
