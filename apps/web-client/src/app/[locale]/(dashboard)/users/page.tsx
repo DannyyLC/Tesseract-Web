@@ -155,7 +155,7 @@ export default function UsersPage() {
    */
   const canEditUser = (targetUser: DashboardUserDataDto): boolean => {
     if (!currentUser) return false;
-    if (targetUser.id === currentUser.id) return false; // cannot edit yourself
+    if (targetUser.id === currentUser.sub) return false; // cannot edit yourself
     if (currentUser.role === UserRole.VIEWER) return false;
     if (targetUser.role === UserRole.OWNER) return false; // nobody edits the owner directly
     return true;
@@ -567,7 +567,7 @@ export default function UsersPage() {
 
                               <div className="flex flex-wrap gap-2">
                                 {/* Transfer Ownership - only for non-owner targets that are not yourself */}
-                                {user.role !== UserRole.OWNER && user.id !== currentUser?.id && (
+                                {user.role !== UserRole.OWNER && user.id !== currentUser?.sub && (
                                   <PermissionGuard permissions="users:transfer_ownership">
                                     <button
                                       onClick={(e) => {
