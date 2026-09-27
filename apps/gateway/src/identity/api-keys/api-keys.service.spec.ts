@@ -9,7 +9,6 @@ jest.mock('../auth/utils/api-key.util');
 
 describe('ApiKeysService', () => {
   let service: ApiKeysService;
-  let prismaService: PrismaService;
 
   const mockPrismaService = {
     organization: {
@@ -43,7 +42,6 @@ describe('ApiKeysService', () => {
     }).compile();
 
     service = module.get<ApiKeysService>(ApiKeysService);
-    prismaService = module.get<PrismaService>(PrismaService);
     jest.clearAllMocks();
   });
 

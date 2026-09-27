@@ -278,8 +278,10 @@ describe('WhatsappConfigController · gestión', () => {
   const foreignConfig = { id: 'wa-9', organizationId: 'org-9', phoneNumber: '5219999999999' };
 
   const service: any = {
-    getWhatsappConfigById: jest.fn(async (id: string) =>
-      id === ownConfig.id ? ownConfig : id === foreignConfig.id ? foreignConfig : null,
+    getWhatsappConfigById: jest.fn((id: string) =>
+      Promise.resolve(
+        id === ownConfig.id ? ownConfig : id === foreignConfig.id ? foreignConfig : null,
+      ),
     ),
     getTemplate: jest.fn(),
     deleteRecord: jest.fn().mockResolvedValue(true),
@@ -329,7 +331,7 @@ describe('WhatsappConfigController · gestión', () => {
   });
 
   it('no crea ni lista templates en un número ajeno', async () => {
-    await controller.createTemplate(currUser, foreignConfig.id, { name: 'x' } as any, res());
+    await controller.createTemplate(currUser, foreignConfig.id, { name: 'x' }, res());
     await controller.listTemplates(currUser, foreignConfig.id, res());
     expect(service.createTemplate).not.toHaveBeenCalled();
     expect(service.listTemplates).not.toHaveBeenCalled();
@@ -345,7 +347,7 @@ describe('WhatsappConfigController · gestión', () => {
 
     const r = res();
     await controller.sendTemplate(currUser, 'tpl-9', { to: '5215500000000' } as any, r);
-    await controller.updateTemplate(currUser, 'tpl-9', { name: 'y' } as any, res());
+    await controller.updateTemplate(currUser, 'tpl-9', { name: 'y' }, res());
     await controller.deleteTemplate(currUser, 'tpl-9', res());
 
     expect(r.status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
@@ -374,10 +376,7 @@ describe('WhatsappConfigController · gestión', () => {
   });
 
   it('no envía templates desde un número propio que sigue pendiente', async () => {
-    service.getWhatsappConfigById.mockImplementationOnce(async () => ({
-      ...ownConfig,
-      approvedAt: null,
-    }));
+    service.getWhatsappConfigById.mockResolvedValueOnce({ ...ownConfig, approvedAt: null });
     service.getTemplate.mockResolvedValue({
       id: 'tpl-1',
       whatsAppConfigId: ownConfig.id,

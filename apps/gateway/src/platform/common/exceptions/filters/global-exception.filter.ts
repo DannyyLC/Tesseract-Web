@@ -23,7 +23,7 @@ interface ErrorResponse {
   // Detalle por campo de errores de validación (DTOs). El front traduce por
   // `constraints` (nombres estables de class-validator, ej. "isEmail", "minLength"),
   // nunca por `message`.
-  errors?: Array<{ field: string; constraints: string[] }>;
+  errors?: { field: string; constraints: string[] }[];
 }
 
 /**
@@ -33,7 +33,7 @@ interface ErrorResponse {
  * front para mostrar. Con este mapeo, el front siempre tiene una clave (`Errors.GENERIC_*`)
  * que traducir, aunque el mensaje específico se pierda a favor de uno genérico.
  */
-function genericErrorCodeForStatus(status: number): string {
+function genericErrorCodeForStatus(status: HttpStatus): string {
   switch (status) {
     case HttpStatus.BAD_REQUEST:
       return ErrorCode.GENERIC_BAD_REQUEST;

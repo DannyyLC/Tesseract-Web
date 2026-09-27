@@ -136,7 +136,7 @@ export class WorkflowsService {
     await this.validateConfig(dto.config);
 
     assertMaxTokensWithinCategory({
-      category: this.mapDbWorkflowCategoryToShared(dto.category as DbWorkflowCategory),
+      category: this.mapDbWorkflowCategoryToShared(dto.category),
       maxHistoryTokens: dto.maxHistoryTokens,
     });
 
@@ -660,9 +660,7 @@ export class WorkflowsService {
       });
 
       assertMaxTokensWithinCategory({
-        category: this.mapDbWorkflowCategoryToShared(
-          (dto.category as DbWorkflowCategory) ?? stored.category,
-        ),
+        category: this.mapDbWorkflowCategoryToShared(dto.category ?? stored.category),
         maxHistoryTokens: dto.maxHistoryTokens ?? stored.maxHistoryTokens,
       });
     }
@@ -2728,7 +2726,9 @@ export class WorkflowsService {
       case DbWorkflowCategory.ADVANCED:
         return SharedWorkflowCategory.ADVANCED;
       default:
-        throw new InvalidWorkflowConfigException(`Categoría de workflow inválida: ${category}`);
+        throw new InvalidWorkflowConfigException(
+          `Categoría de workflow inválida: ${String(category)}`,
+        );
     }
   }
 }

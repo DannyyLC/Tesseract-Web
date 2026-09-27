@@ -91,7 +91,7 @@ describe('configuración de Winston', () => {
     });
 
     it('mapea cada nivel a la severidad que Cloud Logging entiende', async () => {
-      const casos: Array<[keyof Logger, string]> = [
+      const casos: [keyof Logger, string][] = [
         ['error', 'ERROR'],
         ['warn', 'WARNING'],
         ['log', 'INFO'],

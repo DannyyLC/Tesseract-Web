@@ -23,6 +23,7 @@ import {
   PostTurnActionHandler,
   runPostTurnActions,
 } from '@/messaging/post-turn-actions';
+import { toText } from '@/platform/common/utils/to-text';
 
 const YCLOUD_API_BASE = process.env.YCLOUD_API_BASE ?? 'https://api.ycloud.com/v2';
 
@@ -448,7 +449,7 @@ export class WhatsappConfigService {
           from,
           to,
           type: 'text',
-          text: { body: await this.sanitizeOutput(message), preview_url: false },
+          text: { body: this.sanitizeOutput(message), preview_url: false },
         },
         { headers: { 'X-API-Key': this.yCloudApiKey, 'Content-Type': 'application/json' } },
       ),
@@ -574,7 +575,7 @@ export class WhatsappConfigService {
    * citas, líneas horizontales) se degradan a texto plano o a una aproximación
    * visual cercana.
    */
-  async sanitizeOutput(text: string): Promise<string> {
+  sanitizeOutput(text: string): string {
     if (!text) return text;
 
     // Marcadores temporales para no reprocesar segmentos ya resueltos.
@@ -703,10 +704,8 @@ export class WhatsappConfigService {
     // Handlers que este canal (WhatsApp) ofrece a las acciones declaradas
     const handlers: Record<string, PostTurnActionHandler> = {
       send_drive_folder_media: async (triggerValue, params, actionId) => {
-        const urls = Array.isArray(triggerValue)
-          ? triggerValue
-          : String(triggerValue ?? '').split(',');
-        const intro = params.intro_message ? String(params.intro_message) : '';
+        const urls = Array.isArray(triggerValue) ? triggerValue : toText(triggerValue).split(',');
+        const intro = toText(params.intro_message);
         if (intro) {
           await sendAndRecord(actionId, intro);
         }
@@ -717,7 +716,7 @@ export class WhatsappConfigService {
         }
       },
       send_text_message: async (_triggerValue, params, actionId) => {
-        const text = params.text ? String(params.text) : '';
+        const text = toText(params.text);
         if (text) {
           await sendAndRecord(actionId, text);
         }
@@ -764,14 +763,18 @@ export class WhatsappConfigService {
       let firstTime = true;
       for (const mediaUrl of mediaUrls) {
         if (firstTime) {
+          // Sin await a propósito (el aviso no bloquea el envío de archivos), pero con catch:
+          // sendTextMessage no atrapa sus errores y un rechazo sin manejar tumba el proceso.
           this.sendTextMessage(
             ownerNumber,
             clientNumber,
             'Te tratare de compartir algúnos archivos que son relevantes en relación a lo mencionado anteriormente.',
+          ).catch((error: unknown) =>
+            this.logger.error('No se pudo enviar el aviso de archivos por WhatsApp', error),
           );
           firstTime = false;
         }
-        const normalizedMediaUrl = String(mediaUrl).trim();
+        const normalizedMediaUrl = toText(mediaUrl).trim();
         if (!normalizedMediaUrl) {
           continue;
         }

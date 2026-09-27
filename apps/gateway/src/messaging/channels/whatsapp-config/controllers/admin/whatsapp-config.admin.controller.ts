@@ -54,7 +54,7 @@ export class WhatsappConfigAdminController {
   /** Ownership: `configId` llega en la URL, hay que confirmar que es de esta organización. */
   private async getOwnedConfigOrThrow(organizationId: string, configId: string) {
     const config = await this.whatsappConfigService.getWhatsappConfigById(configId);
-    if (!config || config.organizationId !== organizationId) {
+    if (config?.organizationId !== organizationId) {
       throw new NotFoundException('WhatsApp config not found in this organization');
     }
     return config;

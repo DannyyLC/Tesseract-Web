@@ -599,7 +599,8 @@ export class BillingService {
       this.logger.log(
         `Processed renewal for org ${organizationId}. Plan: ${creditsToAdd}. Overage Paid: ${invoicedOverage}. Gap Billed: ${gapCredits}.`,
       );
-      this.utilityService.sendNotificationToAppClients(
+      // Atrapa sus propios errores: se dispara sin esperar a propósito.
+      void this.utilityService.sendNotificationToAppClients(
         organizationId,
         [UserRole.OWNER, UserRole.ADMIN],
         NOTIFICATIONSENUM.SUBSCRIPTION,
@@ -842,7 +843,9 @@ export class BillingService {
       `Recarga de ${credits} créditos acreditada a la organización ${organizationId} (sesión ${session.id})`,
     );
 
-    this.utilityService.sendNotificationToAppClients(
+    // Atrapa sus propios errores: se dispara sin esperar a propósito.
+
+    void this.utilityService.sendNotificationToAppClients(
       organizationId,
       [UserRole.OWNER, UserRole.ADMIN],
       NOTIFICATIONSENUM.CREDIT_TOPUP_PURCHASED,
@@ -888,7 +891,9 @@ export class BillingService {
       data: { cancelAtPeriodEnd: true },
     });
 
-    this.utilityService.sendNotificationToAppClients(
+    // Atrapa sus propios errores: se dispara sin esperar a propósito.
+
+    void this.utilityService.sendNotificationToAppClients(
       organizationId,
       [UserRole.OWNER, UserRole.ADMIN],
       NOTIFICATIONSENUM.CANCEL_SUBSCRIPTION,
@@ -1096,7 +1101,9 @@ export class BillingService {
         },
       });
 
-      this.utilityService.sendNotificationToAppClients(
+      // Atrapa sus propios errores: se dispara sin esperar a propósito.
+
+      void this.utilityService.sendNotificationToAppClients(
         organizationId,
         [UserRole.OWNER, UserRole.ADMIN],
         NOTIFICATIONSENUM.CHANGE_SUBSCRIPTION,

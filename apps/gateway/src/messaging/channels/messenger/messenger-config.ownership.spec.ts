@@ -9,7 +9,7 @@ import { MessengerConfigService } from './messenger-config.service';
  */
 describe('MessengerConfigService.assertCredentialsOwnPage', () => {
   const http = { get: jest.fn() };
-  const kms = { decrypt: jest.fn(async (v: string) => `dec(${v})`) };
+  const kms = { decrypt: jest.fn((v: string) => Promise.resolve(`dec(${v})`)) };
   const service = new MessengerConfigService(
     {} as any,
     http as any,

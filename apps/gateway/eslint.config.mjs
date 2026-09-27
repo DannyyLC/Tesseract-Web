@@ -26,6 +26,13 @@ export default tseslint.config(
           caughtErrorsIgnorePattern: '^_',
         },
       ],
+      // `||` con strings es deliberado en todo el gateway: trata el '' como ausente (input
+      // recortado, variables de entorno y headers vacíos). Pasarlo a `??` dejaría pasar el ''
+      // en lugar del valor por defecto. En lo demás (null/undefined puros) la regla sí aplica.
+      '@typescript-eslint/prefer-nullish-coalescing': [
+        'error',
+        { ignorePrimitives: { string: true }, ignoreMixedLogicalExpressions: true },
+      ],
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',

@@ -7,9 +7,7 @@ describe('EmailService', () => {
   let service: EmailService;
   let loadTemplateSpy: jest.SpyInstance;
   const mockTransporter = { sendMail: jest.fn() } as any;
-  const mockCreateTransport = (nodemailer.createTransport as jest.Mock).mockReturnValue(
-    mockTransporter,
-  );
+  (nodemailer.createTransport as jest.Mock).mockReturnValue(mockTransporter);
 
   const mockPrismaService = { userVerification: { findFirst: jest.fn() } } as any;
   const mockLogger = { error: jest.fn() } as any;

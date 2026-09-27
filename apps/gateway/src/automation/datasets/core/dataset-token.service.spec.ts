@@ -52,7 +52,7 @@ describe('DatasetTokenService', () => {
     it('deja margen sobre el timeout del workflow para que no expire a media conversación', async () => {
       // 300 de timeout + 300 de margen: el token sigue vivo bastante después del corte del workflow.
       const token = await service.sign(claims, 300);
-      const { exp, iat } = rawJwt.decode(token) as { exp: number; iat: number };
+      const { exp, iat } = rawJwt.decode(token);
 
       expect(exp - iat).toBe(600);
     });

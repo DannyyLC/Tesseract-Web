@@ -5,14 +5,9 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '@/messaging/notifications/email/email.service';
 import { UtilityService } from '@/platform/utility/utility.service';
+import { OrganizationsService } from '../organizations/organizations.service';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import {
-  UnauthorizedException,
-  NotFoundException,
-  Logger,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { UnauthorizedException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { StepOneErrors, StepThreeErrors, ForgotPassErrors } from './dto';
 import { UserRole } from '@tesseract/database';
 import * as bcrypt from 'bcrypt';
@@ -26,9 +21,6 @@ jest.mock('qrcode', () => ({
 describe('AuthService', () => {
   let service: AuthService;
   let prisma: PrismaService;
-  let jwtService: JwtService;
-  let emailService: EmailService;
-  let utilityService: UtilityService;
 
   const mockPrismaService = {
     user: {
@@ -118,9 +110,6 @@ describe('AuthService', () => {
 
     service = module.get<AuthService>(AuthService);
     prisma = module.get<PrismaService>(PrismaService);
-    jwtService = module.get<JwtService>(JwtService);
-    emailService = module.get<EmailService>(EmailService);
-    utilityService = module.get<UtilityService>(UtilityService);
 
     jest.clearAllMocks();
   });
@@ -340,10 +329,7 @@ describe('AuthService', () => {
             },
           };
           jest
-            .spyOn(
-              require('../organizations/organizations.service').OrganizationsService,
-              'generateUniqueSlug',
-            )
+            .spyOn(OrganizationsService, 'generateUniqueSlug')
             .mockResolvedValue('john-s-organization');
           return await cb(mockTx);
         });
@@ -373,10 +359,7 @@ describe('AuthService', () => {
             user: { create: jest.fn().mockResolvedValue({ id: 'new-user', googleId: 'g123' }) },
           };
           jest
-            .spyOn(
-              require('../organizations/organizations.service').OrganizationsService,
-              'generateUniqueSlug',
-            )
+            .spyOn(OrganizationsService, 'generateUniqueSlug')
             .mockResolvedValue('john-s-organization');
           return await cb(mockTx);
         });
@@ -724,12 +707,7 @@ describe('AuthService', () => {
             },
             userVerification: { deleteMany: jest.fn() },
           };
-          jest
-            .spyOn(
-              require('../organizations/organizations.service').OrganizationsService,
-              'generateUniqueSlug',
-            )
-            .mockResolvedValue('org');
+          jest.spyOn(OrganizationsService, 'generateUniqueSlug').mockResolvedValue('org');
           return await cb(mockTx);
         });
         jest

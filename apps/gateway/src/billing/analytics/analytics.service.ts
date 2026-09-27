@@ -14,6 +14,7 @@ import {
   AdminAnalyticsOrganizationsMarginResponseDto,
   AdminAnalyticsOrgMarginRowDto,
 } from './dto/admin-analytics-organizations-margin-response.dto';
+import { toText } from '@/platform/common/utils/to-text';
 
 /**
  * Zona fija de la plataforma, no por-organización. A diferencia de `ExecutionsService.getStats()`
@@ -153,7 +154,7 @@ export class AdminAnalyticsService {
       prices = await this.priceCatalogService.pricesFor(plan);
     } catch (error) {
       this.logger.warn(
-        `No se pudo consultar el precio de ${plan} en Stripe: se excluye del cálculo de margen. ${error}`,
+        `No se pudo consultar el precio de ${plan} en Stripe: se excluye del cálculo de margen. ${error instanceof Error ? error.message : toText(error)}`,
       );
       return null;
     }
@@ -460,7 +461,7 @@ export class AdminAnalyticsService {
         if (b.marginPct == null) return -1;
         return a.marginPct - b.marginPct;
       }
-      const key = sortBy as 'costUSD' | 'executions';
+      const key = sortBy;
       return b[key] - a[key];
     });
 

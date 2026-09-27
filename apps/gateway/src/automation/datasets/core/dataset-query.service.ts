@@ -118,7 +118,7 @@ export class DatasetQueryService {
     for (const [key, values] of Object.entries(request.select ?? {})) {
       const field = byKey.get(key);
 
-      if (!field || field.type !== 'select' || values.length === 0) {
+      if (field?.type !== 'select' || values.length === 0) {
         continue;
       }
 

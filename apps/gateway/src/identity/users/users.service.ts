@@ -712,7 +712,8 @@ export class UsersService {
         createdAt: userNotification.createdAt,
         ...(isAnnouncement && {
           isAnnouncement: true,
-          announcementTemplate: notification.announcementTemplate as 'NEWS' | 'CELEBRATION',
+          // Un anuncio siempre trae plantilla; si faltara, el campo (opcional) se omite.
+          announcementTemplate: notification.announcementTemplate ?? undefined,
         }),
       };
     });

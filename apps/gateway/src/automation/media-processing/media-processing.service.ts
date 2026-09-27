@@ -130,7 +130,7 @@ export class MediaProcessingService {
           };
         }
 
-        const { maxBytes, ...persistable } = attachment;
+        const { maxBytes: _maxBytes, ...persistable } = attachment;
 
         const result = await this.adapter.process({
           ...attachment,

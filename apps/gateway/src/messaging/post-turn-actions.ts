@@ -18,6 +18,8 @@
  * texto) viven en el servicio del canal correspondiente.
  */
 
+import { toText } from '@/platform/common/utils/to-text';
+
 export interface PostTurnActionWhen {
   variable: string;
   op?: 'not_empty' | 'eq' | 'neq';
@@ -63,7 +65,7 @@ export function evaluateWhen(
 
   switch (op) {
     case 'not_empty':
-      return value !== undefined && value !== null && String(value).trim() !== '';
+      return toText(value).trim() !== '';
     case 'eq':
       return value === when.value;
     case 'neq':

@@ -737,7 +737,7 @@ export class WhatsappConfigController {
     configId: string,
   ): Promise<WhatsAppConfig | null> {
     const config = await this.whatsappConfigService.getWhatsappConfigById(configId);
-    return config && config.organizationId === organizationId ? config : null;
+    return config?.organizationId === organizationId ? config : null;
   }
 
   /** Un template no guarda la organización: se resuelve a través de su número. */

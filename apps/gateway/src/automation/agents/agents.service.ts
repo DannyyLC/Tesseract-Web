@@ -182,10 +182,15 @@ export class AgentsService implements OnModuleInit {
       const metadata = await this.buildMetadata();
       return new Promise<AgentExecutionResponseDto>((resolve, reject) => {
         const deadline = new Date(Date.now() + this.agentsServiceTimeout);
-        this.grpcClient.execute(wireRequest, metadata, { deadline }, (err: any, response: any) => {
-          if (err) return reject(err);
-          resolve(this.mapExecutionResponse(response));
-        });
+        this.grpcClient.execute(
+          wireRequest,
+          metadata,
+          { deadline },
+          (err: grpc.ServiceError | null, response: any) => {
+            if (err) return reject(err);
+            resolve(this.mapExecutionResponse(response));
+          },
+        );
       });
     }, 'execute');
   }
@@ -215,12 +220,12 @@ export class AgentsService implements OnModuleInit {
             { graph_type: graphType },
             metadata,
             { deadline },
-            (err: any, response: any) => {
+            (err: grpc.ServiceError | null, response: any) => {
               if (err) return reject(err);
               try {
                 resolve(JSON.parse(response.catalog_json ?? '{}'));
               } catch (parseError) {
-                reject(parseError);
+                reject(parseError instanceof Error ? parseError : new Error(String(parseError)));
               }
             },
           );

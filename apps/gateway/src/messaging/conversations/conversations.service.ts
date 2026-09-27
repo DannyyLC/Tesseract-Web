@@ -15,7 +15,6 @@ import {
   ConversationStatus,
   ChatRole,
   CompactionStatus,
-  MessengerConfig,
   ExecutionStatus,
 } from '@tesseract/database';
 import { UtilityService } from '@/platform/utility/utility.service';
@@ -180,7 +179,7 @@ export class ConversationsService {
 
       const joinedName = [data?.first_name, data?.last_name].filter(Boolean).join(' ').trim();
       return joinedName || null;
-    } catch (error) {
+    } catch {
       this.logger.warn(
         `No se pudo resolver el nombre del remitente ${senderId} para la página ${config.pageId}`,
       );
@@ -737,10 +736,7 @@ export class ConversationsService {
       },
     });
 
-    const paginated = await CursorPaginatedResponseUtils.getInstance().build(
-      conversations as any,
-      take,
-    );
+    const paginated = await CursorPaginatedResponseUtils.getInstance().build(conversations, take);
 
     return {
       ...paginated,
@@ -943,7 +939,7 @@ export class ConversationsService {
                   where: { id: c.endUser.id },
                   data: { name: fetchedName },
                 });
-              } catch (error) {
+              } catch {
                 this.logger.warn(
                   `No se pudo persistir el nombre del remitente ${c.messengerSenderId}`,
                 );

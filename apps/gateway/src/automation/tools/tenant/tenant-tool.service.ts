@@ -654,7 +654,7 @@ export class TenantToolService {
       } catch {
         url = null;
       }
-      if (!url || url.protocol !== 'https:' || url.username || url.password) {
+      if (url?.protocol !== 'https:' || url.username || url.password) {
         throw new BadRequestException('base_url debe ser una URL https sin usuario ni contraseña');
       }
     }

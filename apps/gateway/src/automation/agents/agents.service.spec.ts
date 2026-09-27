@@ -44,10 +44,10 @@ describe('AgentsService', () => {
     // inyectamos un cliente mock directamente.
     (service as any).grpcClient = mockGrpcClient;
 
-    jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
-    jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
-    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
-    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => undefined);
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     // Neutraliza los delays de reintento (withRetry usa setTimeout).
     jest.spyOn(global, 'setTimeout').mockImplementation(((fn: () => void) => {
       fn();

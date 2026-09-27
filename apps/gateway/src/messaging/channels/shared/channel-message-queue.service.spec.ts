@@ -10,7 +10,7 @@ describe('ChannelMessageQueueService — turno por conversación', () => {
   let service: WhatsappMessageQueueService;
 
   const upstashReply = (result: unknown) =>
-    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ result }) });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ result }) });
 
   const sentCommand = (call = 0) => JSON.parse(fetchMock.mock.calls[call][1].body);
 

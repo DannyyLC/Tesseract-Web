@@ -15,8 +15,10 @@ describe('MessengerController · gestión', () => {
   const foreignConfig = { id: 'ms-9', organizationId: 'org-9' };
 
   const service: any = {
-    getMessengerConfigById: jest.fn(async (id: string) =>
-      id === ownConfig.id ? ownConfig : id === foreignConfig.id ? foreignConfig : null,
+    getMessengerConfigById: jest.fn((id: string) =>
+      Promise.resolve(
+        id === ownConfig.id ? ownConfig : id === foreignConfig.id ? foreignConfig : null,
+      ),
     ),
     getMessengerConfigByPageId: jest.fn().mockResolvedValue(null),
     createRecord: jest.fn().mockResolvedValue(true),
@@ -84,7 +86,7 @@ describe('MessengerController · gestión', () => {
         pageName: 'x',
         pageAccessToken: 't',
         appSecret: 's',
-      } as any,
+      },
       r,
     );
     expect(workflowsService.getRoutingState).toHaveBeenCalledWith(ORG, 'wf-ajeno');
@@ -103,7 +105,7 @@ describe('MessengerController · gestión', () => {
       const r = res();
       await controller.createConfig(
         currUser,
-        { workflowId: 'wf-1', pageId: 'p-ajena', pageAccessToken: 't', appSecret: 's' } as any,
+        { workflowId: 'wf-1', pageId: 'p-ajena', pageAccessToken: 't', appSecret: 's' },
         r,
       );
       expect(r.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
@@ -118,7 +120,7 @@ describe('MessengerController · gestión', () => {
     it('cambiar el pageId de una página propia vuelve a exigir la prueba', async () => {
       rejected();
       const r = res();
-      await controller.updateConfig(currUser, ownConfig.id, { pageId: 'p-ajena' } as any, r);
+      await controller.updateConfig(currUser, ownConfig.id, { pageId: 'p-ajena' }, r);
 
       expect(service.assertCredentialsOwnPage).toHaveBeenCalledWith(
         { pageId: 'p-ajena', pageAccessToken: undefined, appSecret: undefined },
@@ -129,7 +131,7 @@ describe('MessengerController · gestión', () => {
     });
 
     it('editar solo el nombre no llama a Meta', async () => {
-      await controller.updateConfig(currUser, ownConfig.id, { pageName: 'Nuevo' } as any, res());
+      await controller.updateConfig(currUser, ownConfig.id, { pageName: 'Nuevo' }, res());
       expect(service.assertCredentialsOwnPage).not.toHaveBeenCalled();
       expect(service.updateConfig).toHaveBeenCalled();
     });

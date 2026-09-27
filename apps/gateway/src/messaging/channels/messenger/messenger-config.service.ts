@@ -15,6 +15,7 @@ import {
 } from '@/messaging/post-turn-actions';
 import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
 import { PrismaService } from '@/platform/database/prisma.service';
+import { toText } from '@/platform/common/utils/to-text';
 
 const GRAPH_API_BASE = process.env.MESSENGER_GRAPH_API_BASE ?? 'https://graph.facebook.com/v21.0';
 
@@ -426,7 +427,7 @@ export class MessengerConfigService {
     recipientId: string,
     message: string,
   ): Promise<void> {
-    const sanitized = await this.sanitizeOutput(message);
+    const sanitized = this.sanitizeOutput(message);
 
     for (const chunk of this.splitIntoChunks(sanitized, MESSENGER_MAX_TEXT_LENGTH)) {
       await this.callSendApi(config, {
@@ -522,10 +523,7 @@ export class MessengerConfigService {
     recipientId: string,
     workflowId?: string,
   ): Promise<void> {
-    const variables = (((executionMetadata ?? {}) as JsonObject)?.variables ?? {}) as Record<
-      string,
-      unknown
-    >;
+    const variables = ((executionMetadata ?? {})?.variables ?? {}) as Record<string, unknown>;
     if (Object.keys(variables).length === 0) {
       return;
     }
@@ -573,29 +571,26 @@ export class MessengerConfigService {
     // Handlers que este canal (Messenger) ofrece a las acciones declaradas
     const handlers: Record<string, PostTurnActionHandler> = {
       send_drive_folder_media: async (triggerValue, params, actionId) => {
-        const urls = Array.isArray(triggerValue)
-          ? triggerValue
-          : String(triggerValue ?? '').split(',');
-        const intro = params.intro_message ? String(params.intro_message) : '';
+        const urls = Array.isArray(triggerValue) ? triggerValue : toText(triggerValue).split(',');
+        const intro = toText(params.intro_message);
         if (intro) {
           await sendAndRecord(actionId, intro);
         }
         for (const url of urls) {
-          const normalized = String(url).trim();
+          const normalized = toText(url).trim();
           if (!normalized) continue;
           await this.sendFolderMediaToUser(normalized, config, recipientId);
         }
       },
       send_text_message: async (_triggerValue, params, actionId) => {
-        const text = params.text ? String(params.text) : '';
+        const text = toText(params.text);
         if (text) {
           await sendAndRecord(actionId, text);
         }
       },
     };
 
-    const previousFlags =
-      ((executionMetadata as JsonObject)?.postTurnActions as Record<string, boolean>) ?? {};
+    const previousFlags = (executionMetadata?.postTurnActions as Record<string, boolean>) ?? {};
 
     const updatedFlags = await runPostTurnActions({
       actions: declaredActions,
@@ -676,7 +671,7 @@ export class MessengerConfigService {
    * literales, así que se quitan en lugar de traducirse (a diferencia de WhatsApp,
    * que sí tiene su propio subconjunto).
    */
-  async sanitizeOutput(text: string): Promise<string> {
+  sanitizeOutput(text: string): string {
     if (!text) return text;
 
     return (

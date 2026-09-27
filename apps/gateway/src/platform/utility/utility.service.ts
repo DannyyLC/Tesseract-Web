@@ -77,9 +77,11 @@ export class UtilityService {
         !!notification.messageTemplateEn &&
         this.countTemplatePlaceholders(notification.messageTemplateEn) === placeholdersCount;
       const titleSnapshotEn = hasEnglish ? notification.titleTemplateEn : null;
-      const messageSnapshotEn = hasEnglish
-        ? this.applyTemplateArguments(notification.messageTemplateEn as string, args)
-        : null;
+      // `hasEnglish` ya garantiza la plantilla; el segundo chequeo solo le da el tipo a TS.
+      const messageSnapshotEn =
+        hasEnglish && notification.messageTemplateEn
+          ? this.applyTemplateArguments(notification.messageTemplateEn, args)
+          : null;
       const templateRoles = this.normalizeRoleList(notification.targetRoles);
       const requestedRoles = this.normalizeRoleList(userRoles);
       const rolesToNotify =

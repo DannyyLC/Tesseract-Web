@@ -61,7 +61,10 @@ interface ProcessWindowBody {
 }
 
 /** Lo que el worker le contesta a Cloud Tasks; el status decide si reintenta. */
-type WindowOutcome = { status: HttpStatus; body: Record<string, unknown> };
+interface WindowOutcome {
+  status: HttpStatus;
+  body: Record<string, unknown>;
+}
 
 /**
  * Procesamiento diferido de los mensajes de WhatsApp.

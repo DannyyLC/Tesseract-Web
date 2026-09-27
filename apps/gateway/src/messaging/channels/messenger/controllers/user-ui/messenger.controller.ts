@@ -822,7 +822,7 @@ export class MessengerController {
     configId: string,
   ): Promise<MessengerConfig | null> {
     const config = await this.messengerConfigService.getMessengerConfigById(configId);
-    return config && config.organizationId === organizationId ? config : null;
+    return config?.organizationId === organizationId ? config : null;
   }
 
   /**

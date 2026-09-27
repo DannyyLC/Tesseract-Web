@@ -96,14 +96,13 @@ const PLAN_PRICE_IDS: Record<string, string> = {
 };
 
 const mockPriceCatalog = {
-  priceIdFor: jest.fn(async (plan: string) => PLAN_PRICE_IDS[plan]),
-  planFor: jest.fn(
-    async (priceId: string) =>
-      Object.entries(PLAN_PRICE_IDS).find(([, id]) => id === priceId)?.[0] ?? null,
+  priceIdFor: jest.fn((plan: string) => Promise.resolve(PLAN_PRICE_IDS[plan])),
+  planFor: jest.fn((priceId: string) =>
+    Promise.resolve(Object.entries(PLAN_PRICE_IDS).find(([, id]) => id === priceId)?.[0] ?? null),
   ),
-  pricesFor: jest.fn(async () => ({ usd: 2500, mxn: 49900 })),
-  overagePriceId: jest.fn(async () => 'price_overage_123'),
-  overagePrices: jest.fn(async () => ({ usd: 16, mxn: 320 })),
+  pricesFor: jest.fn(() => Promise.resolve({ usd: 2500, mxn: 49900 })),
+  overagePriceId: jest.fn(() => Promise.resolve('price_overage_123')),
+  overagePrices: jest.fn(() => Promise.resolve({ usd: 16, mxn: 320 })),
 };
 
 const mockUtilityService = {
@@ -111,7 +110,7 @@ const mockUtilityService = {
 };
 
 const mockCfdiService = {
-  stampInvoice: jest.fn(async () => ({ status: 'stamped' as const })),
+  stampInvoice: jest.fn(() => Promise.resolve({ status: 'stamped' as const })),
 };
 
 describe('BillingService', () => {
@@ -134,9 +133,9 @@ describe('BillingService', () => {
     service = module.get<BillingService>(BillingService);
 
     // Mock logger to keep console clean during tests
-    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
-    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
-    jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
 
     jest.clearAllMocks();
   });

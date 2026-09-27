@@ -238,6 +238,8 @@ export class DatasetsService {
         createdByUserId: userId,
         name: input.name.trim(),
         description: input.description?.trim() || null,
+        // eslint ve el input Json de Prisma como compatible con DatasetField[]; tsc no.
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
         fields: fields as unknown as object,
       },
     });
@@ -315,6 +317,8 @@ export class DatasetsService {
     if (!this.formulasNeedRecompute(current, merged)) {
       await this.prismaService.dataset.update({
         where: { id: datasetId },
+        // eslint ve el input Json de Prisma como compatible con DatasetField[]; tsc no.
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
         data: { fields: merged as unknown as object },
       });
 
@@ -332,6 +336,8 @@ export class DatasetsService {
     await this.prismaService.$transaction(async (tx) => {
       await tx.dataset.update({
         where: { id: datasetId },
+        // eslint ve el input Json de Prisma como compatible con DatasetField[]; tsc no.
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
         data: { fields: merged as unknown as object },
       });
 

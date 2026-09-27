@@ -1162,7 +1162,8 @@ export class OrganizationsService {
           where: { userId: existingUser.id, revokedAt: null },
           data: { revokedAt: new Date(), revokedReason: 'organization_changed' },
         });
-        this.utilityService.sendNotificationToAppClients(
+        // Atrapa sus propios errores: se dispara sin esperar a propósito.
+        void this.utilityService.sendNotificationToAppClients(
           userVerification.organizationName,
           [UserRole.OWNER, UserRole.ADMIN],
           NOTIFICATIONSENUM.ACCEPTED_INVITATION,
@@ -1200,7 +1201,8 @@ export class OrganizationsService {
           isFromInvitation: true,
         },
       });
-      this.utilityService.sendNotificationToAppClients(
+      // Atrapa sus propios errores: se dispara sin esperar a propósito.
+      void this.utilityService.sendNotificationToAppClients(
         userVerification.organizationName,
         [UserRole.OWNER, UserRole.ADMIN],
         NOTIFICATIONSENUM.ACCEPTED_INVITATION,
@@ -1277,7 +1279,9 @@ export class OrganizationsService {
       return { success: false, error: ErrorStrings[OPERATIONS.RESEND_INVITATION].SERVER_ERROR };
     }
 
-    this.utilityService.sendNotificationToAppClients(
+    // Atrapa sus propios errores: se dispara sin esperar a propósito.
+
+    void this.utilityService.sendNotificationToAppClients(
       organizationId,
       [UserRole.OWNER, UserRole.ADMIN],
       NOTIFICATIONSENUM.RESEND_INVITATION,
@@ -1310,7 +1314,9 @@ export class OrganizationsService {
       return { success: false, error: ErrorStrings[OPERATIONS.CANCEL_INVITATION].CANCEL_FAILED };
     }
 
-    this.utilityService.sendNotificationToAppClients(
+    // Atrapa sus propios errores: se dispara sin esperar a propósito.
+
+    void this.utilityService.sendNotificationToAppClients(
       organizationId,
       [UserRole.OWNER, UserRole.ADMIN],
       NOTIFICATIONSENUM.CANCEL_INVITATION,

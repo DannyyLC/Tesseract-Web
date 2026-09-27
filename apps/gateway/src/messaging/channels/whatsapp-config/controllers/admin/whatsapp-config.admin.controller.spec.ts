@@ -51,7 +51,7 @@ describe('WhatsappConfigAdminController', () => {
         phoneNumber: '+1',
         workflowId: 'wf-1',
         displayName: 'WhatsApp Ventas',
-      } as any);
+      });
 
       expect(mockWorkflowsService.getRoutingState).toHaveBeenCalledWith('org-1', 'wf-1');
       expect(mockWhatsappConfigService.createRecordAndgenerateWebhookSecret).toHaveBeenCalledWith(
@@ -108,7 +108,7 @@ describe('WhatsappConfigAdminController', () => {
       mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: true });
       mockWhatsappConfigService.updateConfig.mockResolvedValue(true);
 
-      const res = await controller.update('org-1', 'c-1', { workflowId: 'wf-2' } as any);
+      const res = await controller.update('org-1', 'c-1', { workflowId: 'wf-2' });
 
       expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', {
         workflowId: 'wf-2',
@@ -123,7 +123,7 @@ describe('WhatsappConfigAdminController', () => {
       });
       mockWhatsappConfigService.updateConfig.mockResolvedValue(true);
 
-      await controller.update('org-1', 'c-1', { workflowId: null } as any);
+      await controller.update('org-1', 'c-1', { workflowId: null });
 
       expect(mockWorkflowsService.getRoutingState).not.toHaveBeenCalled();
       expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', {
@@ -184,7 +184,7 @@ describe('WhatsappConfigAdminController', () => {
       });
       mockWhatsappConfigService.updateTemplate.mockResolvedValue({ id: 't-1', name: 'x' });
 
-      const res = await controller.updateTemplate('org-1', 't-1', { name: 'x' } as any);
+      const res = await controller.updateTemplate('org-1', 't-1', { name: 'x' });
 
       expect(mockWhatsappConfigService.updateTemplate).toHaveBeenCalledWith('t-1', { name: 'x' });
       expect(res.data).toEqual({ id: 't-1', name: 'x' });

@@ -10,7 +10,6 @@ jest.mock('bcrypt', () => ({
 
 describe('UtilityService', () => {
   let service: UtilityService;
-  let prismaService: any;
   let logger: any;
 
   const mockPrismaService = {
@@ -39,7 +38,6 @@ describe('UtilityService', () => {
     }).compile();
 
     service = module.get<UtilityService>(UtilityService);
-    prismaService = module.get<PrismaService>(PrismaService);
     logger = module.get(WINSTON_MODULE_PROVIDER);
 
     jest.clearAllMocks();

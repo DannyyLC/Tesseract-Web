@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { google, drive_v3 } from 'googleapis';
+import { toText } from '@/platform/common/utils/to-text';
 
 export interface DriveFileItem {
   id: string;
@@ -39,7 +40,7 @@ export class GoogleDriveService {
         corpora: 'allDrives', // Tells Google to look outside your personal 'user' scope
       });
 
-      const files = response.data.files || [];
+      const files = response.data.files ?? [];
 
       // Mapeamos y clasificamos los archivos según su MimeType
       return files.map((file) => {
@@ -60,8 +61,9 @@ export class GoogleDriveService {
           downloadUrl: `https://drive.google.com/uc?export=download&id=${file.id}`,
         };
       });
-    } catch (error: BadRequestException | any) {
-      throw new BadRequestException(`Error al acceder a la carpeta: ${error?.message}`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : toText(error);
+      throw new BadRequestException(`Error al acceder a la carpeta: ${reason}`);
     }
   }
 

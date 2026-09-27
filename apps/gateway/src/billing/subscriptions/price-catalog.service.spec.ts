@@ -31,7 +31,7 @@ describe('PriceCatalogService', () => {
   let list: jest.Mock;
 
   beforeEach(async () => {
-    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     list = jest.fn().mockResolvedValue({ data: FULL_CATALOG });
 
     const module: TestingModule = await Test.createTestingModule({

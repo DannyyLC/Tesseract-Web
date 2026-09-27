@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { EmailService } from '@/messaging/notifications/email/email.service';
@@ -11,7 +11,6 @@ import { UserRole } from '@tesseract/database';
 describe('UsersService', () => {
   let service: UsersService;
   let prisma: PrismaService;
-  let emailService: EmailService;
 
   const mockPrismaService = {
     user: {
@@ -84,7 +83,6 @@ describe('UsersService', () => {
 
     service = module.get<UsersService>(UsersService);
     prisma = module.get<PrismaService>(PrismaService);
-    emailService = module.get<EmailService>(EmailService);
 
     jest.clearAllMocks();
   });

@@ -35,12 +35,12 @@ describe('TenantToolService', () => {
     jest.clearAllMocks();
 
     // Implement $transaction to call the provided callback with a tx object
-    mockPrismaService.$transaction.mockImplementation(async (fn: any) => {
+    mockPrismaService.$transaction.mockImplementation((fn: any) => {
       const tx = {
         tenantToolCredential: { deleteMany: jest.fn().mockResolvedValue({}) },
         tenantTool: { update: jest.fn().mockResolvedValue({}) },
       };
-      return fn(tx);
+      return Promise.resolve(fn(tx));
     });
 
     mockToolHealthService.findScopeGap.mockReturnValue({
@@ -320,7 +320,7 @@ describe('TenantToolService', () => {
           allowedFunctions: [],
           config,
           workflowId: null,
-        } as any,
+        },
         'org-1',
         'user-1',
       );

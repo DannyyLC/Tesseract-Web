@@ -14,6 +14,7 @@ import {
   formulaDependencies,
   parseFormula,
 } from './formula';
+import { toText } from '@/platform/common/utils/to-text';
 
 /**
  * Reglas del schema de un dataset y validación de las filas contra él.
@@ -365,7 +366,9 @@ function normalizeValue(field: DatasetField, raw: unknown): string | number {
       const value = typeof raw === 'number' ? raw : Number(String(raw).replace(/[\s,]/g, ''));
 
       if (!Number.isFinite(value)) {
-        throw new BadRequestException(`"${field.label}" espera un número y recibió "${raw}"`);
+        throw new BadRequestException(
+          `"${field.label}" espera un número y recibió "${toText(raw)}"`,
+        );
       }
 
       return value;
@@ -376,7 +379,7 @@ function normalizeValue(field: DatasetField, raw: unknown): string | number {
 
       if (!DATE_PATTERN.test(value) || Number.isNaN(Date.parse(value))) {
         throw new BadRequestException(
-          `"${field.label}" espera una fecha con formato AAAA-MM-DD y recibió "${raw}"`,
+          `"${field.label}" espera una fecha con formato AAAA-MM-DD y recibió "${toText(raw)}"`,
         );
       }
 
