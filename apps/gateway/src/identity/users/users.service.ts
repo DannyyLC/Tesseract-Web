@@ -174,7 +174,7 @@ export class UsersService {
     // Actualizar rol
     const user = await this.prisma.user.update({
       where: { id: userId },
-      data: { role: newRole.toUpperCase() as any },
+      data: { role: newRole.toUpperCase() as UserRole },
     });
 
     return user;
@@ -512,7 +512,7 @@ export class UsersService {
       organizationId,
       deletedAt: null,
       ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
-      ...(filters?.role && { role: filters.role.toUpperCase() as any }),
+      ...(filters?.role && { role: filters.role.toUpperCase() as UserRole }),
       ...(filters?.search && {
         OR: [
           { name: { contains: filters.search, mode: 'insensitive' } },

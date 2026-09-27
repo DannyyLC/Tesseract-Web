@@ -3,7 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
-import { NotificationKind } from '@tesseract/database';
+import { NotificationKind, UserRole as DbUserRole } from '@tesseract/database';
 
 @Injectable()
 export class UtilityService {
@@ -100,7 +100,7 @@ export class UtilityService {
         where: {
           organizationId,
           role: {
-            in: rolesToNotify as any,
+            in: rolesToNotify as DbUserRole[],
           },
         },
         select: {

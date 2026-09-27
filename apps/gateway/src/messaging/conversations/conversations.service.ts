@@ -873,7 +873,7 @@ export class ConversationsService {
       where: {
         isHumanInTheLoop,
         needsFollowUp,
-        ...(status && { status: status.toUpperCase() as any }),
+        ...(status && { status: status.toUpperCase() as ConversationStatus }),
         // Una lista vacía en un `in` no devolveria nada, asi que ausente y vacia tienen
         // que significar lo mismo: sin filtro de canal.
         ...(channels?.length && { channel: { in: channels } }),
@@ -1199,7 +1199,7 @@ export class ConversationsService {
     return this.prisma.conversation.count({
       where: {
         isHumanInTheLoop,
-        ...(status && { status: status.toUpperCase() as any }),
+        ...(status && { status: status.toUpperCase() as ConversationStatus }),
         organizationId,
         workflowId,
         userId,

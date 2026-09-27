@@ -15,7 +15,7 @@ import {
   SubscriptionPlan,
   getPlanLimits,
 } from '@tesseract/types';
-import { Organization, SubscriptionStatus, UserRole } from '@tesseract/database';
+import { Organization, Prisma, SubscriptionStatus, UserRole } from '@tesseract/database';
 import { randomBytes } from 'crypto';
 import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
@@ -266,7 +266,35 @@ export class OrganizationsService {
       },
     });
 
-    const stats: any = {
+    // Datos solo para super admins
+    const subscription = organization.subscription;
+    const adminData =
+      includeAdminData && organization.creditBalance
+        ? {
+            creditBalance: organization.creditBalance.balance,
+            lifetimeEarned: organization.creditBalance.lifetimeEarned,
+            lifetimeSpent: organization.creditBalance.lifetimeSpent,
+            currentMonthCostUSD: organization.creditBalance.currentMonthCostUSD,
+            currentMonthSpent: organization.creditBalance.currentMonthSpent,
+            allowOverages: organization.allowOverages,
+            overageLimit: organization.overageLimit,
+            deactivatedAt: organization.deactivatedAt,
+            deactivatedBy: organization.deactivatedBy,
+            deactivationReason: organization.deactivationReason,
+            stripeCustomerId: organization.stripeCustomerId,
+            ...(subscription && {
+              subscription: {
+                status: subscription.status,
+                currentPeriodStart: subscription.currentPeriodStart,
+                currentPeriodEnd: subscription.currentPeriodEnd,
+                pendingPlanChange: subscription.pendingPlanChange,
+                planChangeRequestedAt: subscription.planChangeRequestedAt,
+              },
+            }),
+          }
+        : undefined;
+
+    const stats = {
       plan: organization.plan,
       limits: effectiveLimits,
       usage: {
@@ -303,34 +331,9 @@ export class OrganizationsService {
       canAddWorkflow:
         effectiveLimits.maxWorkflows === -1 ||
         organization._count.workflows < effectiveLimits.maxWorkflows,
+      // Datos solo para super admins
+      ...(adminData && { adminData }),
     };
-
-    // Datos solo para super admins
-    if (includeAdminData && organization.creditBalance) {
-      stats.adminData = {
-        creditBalance: organization.creditBalance.balance,
-        lifetimeEarned: organization.creditBalance.lifetimeEarned,
-        lifetimeSpent: organization.creditBalance.lifetimeSpent,
-        currentMonthCostUSD: organization.creditBalance.currentMonthCostUSD,
-        currentMonthSpent: organization.creditBalance.currentMonthSpent,
-        allowOverages: organization.allowOverages,
-        overageLimit: organization.overageLimit,
-        deactivatedAt: (organization as any).deactivatedAt,
-        deactivatedBy: (organization as any).deactivatedBy,
-        deactivationReason: (organization as any).deactivationReason,
-        stripeCustomerId: organization.stripeCustomerId,
-      };
-
-      if (organization.subscription) {
-        stats.adminData.subscription = {
-          status: organization.subscription.status,
-          currentPeriodStart: organization.subscription.currentPeriodStart,
-          currentPeriodEnd: organization.subscription.currentPeriodEnd,
-          pendingPlanChange: (organization.subscription as any).pendingPlanChange,
-          planChangeRequestedAt: (organization.subscription as any).planChangeRequestedAt,
-        };
-      }
-    }
 
     return stats;
   }
@@ -662,9 +665,9 @@ export class OrganizationsService {
         where: { id: organizationId },
         data: {
           isActive: false,
-          deactivatedAt: new Date() as any,
-          deactivatedBy: deactivatedBy as any,
-          deactivationReason: reason as any,
+          deactivatedAt: new Date(),
+          deactivatedBy,
+          deactivationReason: reason,
         },
       });
     } catch (error) {
@@ -712,9 +715,9 @@ export class OrganizationsService {
         where: { id: organizationId },
         data: {
           isActive: true,
-          deactivatedAt: null as any,
-          deactivatedBy: null as any,
-          deactivationReason: null as any,
+          deactivatedAt: null,
+          deactivatedBy: null,
+          deactivationReason: null,
         },
       });
     } catch (error) {
@@ -835,7 +838,10 @@ export class OrganizationsService {
    * @param prismaClient - Cliente de Prisma (this.prisma o tx)
    * @returns Slug único
    */
-  static async generateUniqueSlug(name: string, prismaClient: any): Promise<string> {
+  static async generateUniqueSlug(
+    name: string,
+    prismaClient: Pick<Prisma.TransactionClient, 'organization'>,
+  ): Promise<string> {
     const baseSlug = OrganizationsService.generateSlug(name);
 
     // Intentar primero con el slug base
@@ -872,7 +878,19 @@ export class OrganizationsService {
    * Obtiene los límites efectivos de una organización
    * Combina los límites del plan con los overrides custom
    */
-  private getEffectiveLimits(organization: any) {
+  private getEffectiveLimits(
+    organization: Pick<
+      Organization,
+      | 'plan'
+      | 'customMaxUsers'
+      | 'customMaxWorkflows'
+      | 'customMaxApiKeys'
+      | 'customMaxDatasets'
+      | 'customMaxDatasetRows'
+      | 'overageLimit'
+      | 'allowOverages'
+    >,
+  ) {
     const planDefaults = PLANS[organization.plan as SubscriptionPlan].limits;
 
     return {
