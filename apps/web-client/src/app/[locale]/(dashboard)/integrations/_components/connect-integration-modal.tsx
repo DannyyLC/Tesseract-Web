@@ -89,7 +89,7 @@ export function ConnectIntegrationModal({
         });
 
         if (!created) throw new Error('Error creating tool');
-        tenantToolId = (created as any).id;
+        tenantToolId = created.id;
       }
 
       if (!tenantToolId) throw new Error('No tenant tool ID found');

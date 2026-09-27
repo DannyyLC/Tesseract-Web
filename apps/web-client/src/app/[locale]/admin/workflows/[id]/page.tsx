@@ -46,7 +46,7 @@ import { SettingsTab } from '@/components/admin/workflows/settings-tab';
 import { TestTab } from '@/components/admin/workflows/test-tab';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '../../_styles';
-import { isToastHandled } from '@/lib/api/api-error';
+import { isToastHandled, toApiError } from '@/lib/api/api-error';
 
 type TabId = 'agents' | 'nodes' | 'graph' | 'media' | 'json' | 'test' | 'settings' | 'history';
 
@@ -285,9 +285,10 @@ function WorkflowEditor() {
             toast.info(t('nothingToSave'));
           }
         },
-        onError: (e: any) => {
-          if (e?.toastHandled) return;
-          const status = e?.response?.status ?? e?.statusCode;
+        onError: (e) => {
+          const error = toApiError(e);
+          if (error.toastHandled) return;
+          const status = error.response?.status;
           if (status === 409) {
             toast.error(t('conflictError'), { duration: 10000 });
             return;

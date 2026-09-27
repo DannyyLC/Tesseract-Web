@@ -15,6 +15,7 @@ import {
   Pie,
   Cell,
   Legend,
+  type TooltipContentProps,
 } from 'recharts';
 import { Activity, ArrowUpRight, Loader2 } from 'lucide-react';
 import { Link } from '@/i18n/routing';
@@ -60,7 +61,7 @@ function SectionTitle({
 }
 
 // Custom tooltip for recharts with dark mode awareness
-function ChartTooltip({ active, payload, label }: any) {
+function ChartTooltip({ active, payload, label }: Partial<TooltipContentProps<number, string>>) {
   if (!active || !payload?.length) return null;
   const displayLabel = label
     ? (() => {
@@ -72,7 +73,7 @@ function ChartTooltip({ active, payload, label }: any) {
   return (
     <div className="rounded-xl border border-border bg-surface-popover px-3 py-2 shadow-lg">
       {displayLabel && <p className="mb-1 text-xs text-text-tertiary">{displayLabel}</p>}
-      {payload.map((p: any, i: number) => (
+      {payload.map((p, i) => (
         <p key={i} className="text-sm font-semibold" style={{ color: p.color }}>
           {p.name}: {p.value?.toLocaleString('es-MX')}
         </p>
@@ -421,10 +422,12 @@ export default function DashboardPage() {
                         align="right"
                         layout="vertical"
                         iconType="circle"
-                        formatter={(value, entry: any) => (
+                        formatter={(value: string, entry) => (
                           <span className="text-sm font-medium text-text-primary">
                             {value}{' '}
-                            <span className="text-text-tertiary">({entry.payload.value})</span>
+                            <span className="text-text-tertiary">
+                              ({(entry.payload as { value?: number } | undefined)?.value})
+                            </span>
                           </span>
                         )}
                       />
@@ -558,10 +561,10 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {executions.slice(0, 5).map((exec: any, i: number) => {
-                  const wfName = exec.workflow?.name ?? exec.workflowName ?? exec.workflowId ?? '—';
-                  const credits = exec.credits ?? exec.creditsUsed ?? exec.tokensUsed ?? '—';
-                  const dateVal = exec.startedAt ?? exec.createdAt;
+                {executions.slice(0, 5).map((exec, i) => {
+                  const wfName = exec.workflow?.name ?? exec.workflowName ?? exec.workflowId;
+                  const credits = exec.credits ?? '—';
+                  const dateVal = exec.startedAt;
                   const date = dateVal
                     ? new Date(dateVal).toLocaleString('es-MX', {
                         day: '2-digit',

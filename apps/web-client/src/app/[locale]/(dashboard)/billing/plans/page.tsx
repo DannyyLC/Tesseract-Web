@@ -34,6 +34,7 @@ import Loading from '@/app/[locale]/(dashboard)/loading';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { triggerWowConfetti } from '@/lib/confetti';
 import { useLocale, useTranslations } from 'next-intl';
+import { toApiError } from '@/lib/api/api-error';
 
 export default function PlansPage() {
   const router = useRouter();
@@ -117,12 +118,13 @@ export default function PlansPage() {
         toast.success(t('downgradeCancelSuccess'));
         setIsCancellingDowngrade(false);
       },
-      onError: (error: any) => {
-        let msg = t('downgradeCancelError');
-        if (error?.response?.data?.message) {
-          msg = error.response.data.message;
-        }
-        toast.error(msg);
+      onError: (error) => {
+        const serverMessage = toApiError(error).response?.data?.message;
+        toast.error(
+          typeof serverMessage === 'string' && serverMessage
+            ? serverMessage
+            : t('downgradeCancelError'),
+        );
         setIsCancellingDowngrade(false);
       },
     });
@@ -212,12 +214,13 @@ export default function PlansPage() {
           setChangedPlanName(selectedPlan.name);
           setShowPlanChangeSuccess(true);
           triggerWowConfetti();
-        } catch (updateError: any) {
-          if (updateError?.response?.status === 409) {
+        } catch (caught) {
+          const updateError = toApiError(caught);
+          if (updateError.response?.status === 409) {
             await startCheckout(selectedPlan.type);
             return;
           }
-          if (updateError?.response?.data?.message === 'SUBSCRIPTION_PAST_DUE') {
+          if (updateError.response?.data?.message === 'SUBSCRIPTION_PAST_DUE') {
             const { url } = await createPortalSession.mutateAsync();
             goToStripe(url);
             return;

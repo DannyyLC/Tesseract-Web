@@ -62,11 +62,13 @@ class TenantToolsApi {
    * Crea un nuevo tenant tool.
    * Endpoint: POST /tenant-tool/create
    */
-  public async create(data: CreateTenantToolDto): Promise<CreateTenantToolDto | null> {
-    const result = await this.apiRequestManager.post<ApiResponse<CreateTenantToolDto>>(
-      `${TenantToolsApi.BASE_URL}/create`,
-      data,
-    );
+  /** Devuelve la fila creada; el `id` es lo que hace falta para conectar sus credenciales. */
+  public async create(
+    data: CreateTenantToolDto,
+  ): Promise<(CreateTenantToolDto & { id: string }) | null> {
+    const result = await this.apiRequestManager.post<
+      ApiResponse<CreateTenantToolDto & { id: string }>
+    >(`${TenantToolsApi.BASE_URL}/create`, data);
     return result.data.data ?? null;
   }
 

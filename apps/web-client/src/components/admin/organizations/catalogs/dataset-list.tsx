@@ -54,7 +54,7 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
         onSelect(created.id);
       }
     } catch (caught) {
-      setError(getApiErrorMessage(caught as any));
+      setError(getApiErrorMessage(caught));
     }
   };
 

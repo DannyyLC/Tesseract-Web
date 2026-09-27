@@ -38,8 +38,8 @@ export default function Verify2FAPage() {
         toast.success(t('successToast'));
         router.push('/dashboard');
       },
-      onError: (error: any) => {
-        toast.error(error?.message || t('invalidCode'));
+      onError: (error) => {
+        toast.error(error.message || t('invalidCode'));
         setCode('');
       },
     });

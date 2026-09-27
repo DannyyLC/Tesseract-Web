@@ -463,11 +463,7 @@ export default function UsersPage() {
                             </div>
                             <p className="truncate text-sm text-text-secondary">
                               {t('sentTimeAgo', {
-                                time: formatTimeAgo(
-                                  invitation.createdAt as any,
-                                  tTimeAgo,
-                                  intlLocale,
-                                ),
+                                time: formatTimeAgo(invitation.createdAt, tTimeAgo, intlLocale),
                               })}
                             </p>
                           </div>

@@ -301,7 +301,7 @@ export function TestTab({ workflow }: Props) {
           setTitle(trimmed);
           setIsEditingTitle(false);
         },
-        onError: (err: any) => {
+        onError: (err) => {
           toast.error(getApiErrorMessage(err));
           setIsEditingTitle(false);
         },

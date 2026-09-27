@@ -125,7 +125,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
       await updateFields.mutateAsync({ organizationId, id: datasetId, fields: draftFields });
       closeSchemaEditor();
     } catch (caught) {
-      setSchemaError(getApiErrorMessage(caught as any));
+      setSchemaError(getApiErrorMessage(caught));
     }
   };
 

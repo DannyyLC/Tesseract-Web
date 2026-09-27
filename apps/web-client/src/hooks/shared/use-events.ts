@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import SseRequestManager from '@/lib/api/sse-request-manager';
 
-type MessageHandler = (data: any, event?: MessageEvent) => void;
+type MessageHandler = (data: unknown, event?: MessageEvent) => void;
 
 export default function useEvents() {
   // store active EventSource instances keyed by endpoint

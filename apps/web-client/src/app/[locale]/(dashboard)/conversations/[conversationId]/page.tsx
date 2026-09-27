@@ -170,7 +170,7 @@ export default function WorkflowChatPage() {
       // Si estamos haciendo streaming, NO sobrescribir con datos del servidor
       if (isStreaming) return;
 
-      const serverMessages: Message[] = conversationData.messages.map((msg: any) => ({
+      const serverMessages: Message[] = conversationData.messages.map((msg) => ({
         id: msg.id || Date.now().toString(),
         role: (msg.role as string).toLowerCase() as 'user' | 'assistant',
         content: msg.content,
