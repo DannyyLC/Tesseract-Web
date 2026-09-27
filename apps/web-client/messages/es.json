@@ -756,6 +756,7 @@
       "backButton": "Atrás",
       "nameLabel": "Nombre",
       "emailLabel": "Correo electrónico",
+      "emailHint": "La confirmación y el enlace de la reunión llegarán al correo de tu cuenta.",
       "notesLabel": "Notas",
       "notesPlaceholder": "¿Algo que debamos saber antes de la sesión? (opcional)",
       "confirmButton": "Confirmar reserva",
@@ -940,6 +941,8 @@
     },
     "ExecutionItem": {
       "now": "Ahora",
+      "minutesAgo": "Hace {count} min",
+      "hoursAgo": "Hace {count} h",
       "completed": "Completada",
       "failed": "Fallida",
       "running": "Ejecutando",
