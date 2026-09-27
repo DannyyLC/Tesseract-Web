@@ -44,7 +44,7 @@ export class AppException extends HttpException {
    * Método helper para obtener el response formateado
    * Útil para logging o inspección
    */
-  public getResponse(): any {
+  public getResponse(): string | object {
     return super.getResponse();
   }
 

@@ -1,13 +1,14 @@
 import { HttpStatus } from '@nestjs/common';
 import { AppException } from '../base/app.exception';
 import { ErrorCode } from '../base/error-codes.enum';
+import { toText } from '@/platform/common/utils/to-text';
 
 /**
  * Excepción: Error de validación genérico
  * Se lanza cuando los datos no cumplen las reglas de validación
  */
 export class ValidationErrorException extends AppException {
-  constructor(errors: any[]) {
+  constructor(errors: unknown[]) {
     super(ErrorCode.VALIDATION_ERROR, 'Validation failed', HttpStatus.BAD_REQUEST, { errors });
   }
 }
@@ -17,7 +18,7 @@ export class ValidationErrorException extends AppException {
  * Se lanza cuando el formato del input es incorrecto
  */
 export class InvalidInputException extends AppException {
-  constructor(field: string, value: any, reason?: string) {
+  constructor(field: string, value: unknown, reason?: string) {
     super(
       ErrorCode.INVALID_INPUT,
       reason
@@ -72,10 +73,10 @@ export class InvalidUrlFormatException extends AppException {
  * Excepción: Valor fuera de rango
  */
 export class ValueOutOfRangeException extends AppException {
-  constructor(field: string, value: any, min: number, max: number) {
+  constructor(field: string, value: unknown, min: number, max: number) {
     super(
       ErrorCode.VALUE_OUT_OF_RANGE,
-      `Value for "${field}" (${value}) is out of range. Expected between ${min} and ${max}`,
+      `Value for "${field}" (${toText(value)}) is out of range. Expected between ${min} and ${max}`,
       HttpStatus.BAD_REQUEST,
       { field, value, min, max },
     );

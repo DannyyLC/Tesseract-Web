@@ -34,6 +34,7 @@ import {
 import { Response } from 'express';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
+import { readExecutionResult } from '@/automation/executions/execution-result';
 
 /**
  * Controller de Workflows
@@ -184,7 +185,7 @@ export class WorkflowsController {
     );
 
     // Transformar respuesta para ocultar metadata interna (DTO simplificado)
-    const result = execution.result as any;
+    const result = readExecutionResult(execution.result);
     const messages = result?.messages ?? [];
     const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
     const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;

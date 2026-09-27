@@ -120,7 +120,11 @@ export class MessengerController {
    */
   @SkipThrottle()
   @Post('webhook')
-  async handleWebhook(@Body() body: any, @Res() res: Response, @Headers() headers: any) {
+  async handleWebhook(
+    @Body() body: unknown,
+    @Res() res: Response,
+    @Headers() headers: Record<string, string | undefined>,
+  ) {
     const parsedBody = body as MessengerWebhookPayload;
 
     // Se firma sobre el body crudo: Meta escapa los caracteres no-ASCII a su manera y

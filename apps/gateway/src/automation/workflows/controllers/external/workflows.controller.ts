@@ -17,6 +17,7 @@ import { WorkflowsService } from '../../workflows.service';
 import { ApiKeyPayload } from '@/platform/common/types/api-key-payload.type';
 import { CurrentApiKey } from '@/identity/auth/decorators/current-api-key.decorator';
 import { ExecuteWorkflowDto } from '../../dto';
+import { readExecutionResult } from '@/automation/executions/execution-result';
 
 @Controller('v1/workflows')
 @UseGuards(ApiKeyGuard)
@@ -51,7 +52,7 @@ export class ExternalWorkflowsController {
     );
 
     // Transformar respuesta para ocultar metadata interna (DTO simplificado)
-    const result = execution.result as any;
+    const result = readExecutionResult(execution.result);
     const messages = result?.messages ?? [];
     const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
     const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
