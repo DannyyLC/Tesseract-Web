@@ -8,6 +8,7 @@ import { TwoFactorCodeInput, isTwoFactorCodeComplete } from '@/components/ui/two
 import { useRegenerateBackupCodes } from '@/hooks/identity/use-auth';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { toApiError } from '@/lib/api/api-error';
 
 interface RegenerateBackupCodesModalProps {
   isOpen: boolean;
@@ -35,7 +36,8 @@ export default function RegenerateBackupCodesModal({
       const response = await regenerate.mutateAsync(code2FA);
       setNewCodes(response.data?.backupCodes ?? []);
       toast.success(t('regeneratedToast'));
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       toast.error(error.message || t('invalidCode'));
     }
   };

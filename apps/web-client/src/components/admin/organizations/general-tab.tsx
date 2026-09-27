@@ -10,6 +10,7 @@ import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { toIntlLocale } from '@/lib/intl-locale';
 import type { AdminOrganizationDetail } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import { btnGhost, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   org: AdminOrganizationDetail;
@@ -43,7 +44,7 @@ export function GeneralTab({ org }: Props) {
           toast.success(t('deactivateSuccess'));
           closeDeactivate();
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -51,7 +52,7 @@ export function GeneralTab({ org }: Props) {
   const handleReactivate = () => {
     reactivate.mutate(org.id, {
       onSuccess: () => toast.success(t('reactivateSuccess')),
-      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
     });
   };
 

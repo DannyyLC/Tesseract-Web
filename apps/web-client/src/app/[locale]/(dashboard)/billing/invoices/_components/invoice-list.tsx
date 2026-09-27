@@ -8,6 +8,7 @@ import { DashboardInvoiceDto } from '@tesseract/types';
 import { useInvoices, useInvoiceMutations } from '@/hooks/billing/use-invoices';
 import { CursorPager } from '@/components/ui/cursor-pager';
 import { usePageSize } from '@/hooks/shared/use-page-size';
+import { toApiError } from '@/lib/api/api-error';
 
 /**
  * Histórico de facturas con el estado de su CFDI.
@@ -45,8 +46,10 @@ export default function InvoiceList({ isMexican }: { isMexican: boolean }) {
     try {
       await generateCfdi.mutateAsync(invoiceId);
       toast.success(t('cfdiGenerated'));
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message ?? t('cfdiGenerationError'));
+    } catch (caught) {
+      const error = toApiError(caught);
+      const serverMessage = error.response?.data?.message;
+      toast.error(typeof serverMessage === 'string' ? serverMessage : t('cfdiGenerationError'));
     }
   };
 

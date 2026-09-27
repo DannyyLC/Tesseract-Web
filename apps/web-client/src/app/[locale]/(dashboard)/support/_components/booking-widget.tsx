@@ -20,6 +20,7 @@ import {
   useBookingEventTypes,
   useCreateBooking,
 } from '@/hooks/platform/use-booking';
+import { toApiError } from '@/lib/api/api-error';
 
 interface BookingWidgetProps {
   /** Si se fija, se salta el paso de elegir tipo de sesión y se reserva directo ese tipo. */
@@ -142,7 +143,8 @@ export function BookingWidget({
       });
       setConfirmation(result);
       setStep('success');
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       if (error?.response?.status === 400) {
         toast.error(t('booking.bookingErrorSlotTaken'));
         queryClient.invalidateQueries({

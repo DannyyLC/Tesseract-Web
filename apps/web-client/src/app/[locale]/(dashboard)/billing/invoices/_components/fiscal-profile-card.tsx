@@ -7,6 +7,7 @@ import { CheckCircle2, FileText, Loader2 } from 'lucide-react';
 import { CFDI_USES, DEFAULT_CFDI_USE, TAX_REGIMES, normalizeRfc } from '@tesseract/types';
 import { useFiscalProfile, useInvoiceMutations } from '@/hooks/billing/use-invoices';
 import PermissionGuard from '@/components/auth/permission-guard';
+import { toApiError } from '@/lib/api/api-error';
 
 const inputClass =
   'border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
@@ -56,13 +57,15 @@ export default function FiscalProfileCard() {
         email,
       });
       toast.success(t('fiscalSaved'));
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       // El gateway devuelve el detalle del PAC en `details.errors` cuando el SAT rechaza.
       const details = error?.response?.data?.details?.errors;
       if (Array.isArray(details) && details.length > 0) {
         setFieldErrors(details.map((detail: { message: string }) => detail.message));
       }
-      toast.error(error?.response?.data?.message ?? t('fiscalError'));
+      const serverMessage = error.response?.data?.message;
+      toast.error(typeof serverMessage === 'string' ? serverMessage : t('fiscalError'));
     }
   };
 

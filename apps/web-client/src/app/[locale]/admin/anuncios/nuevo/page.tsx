@@ -22,6 +22,7 @@ import {
 } from '@/hooks/platform/use-admin-announcements';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '../../_styles';
+import { isToastHandled } from '@/lib/api/api-error';
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: UserRole.OWNER, label: 'Owner' },
@@ -137,7 +138,7 @@ export default function NewAnnouncementPage() {
         toast.success(publishNow ? t('publishedSuccess') : t('draftSavedSuccess'));
         router.push('/admin/anuncios');
       },
-      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
     });
   };
 

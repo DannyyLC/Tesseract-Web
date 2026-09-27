@@ -8,6 +8,7 @@ import { useDisable2FA } from '@/hooks/identity/use-auth';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { toApiError } from '@/lib/api/api-error';
 
 interface Disable2FAModalProps {
   isOpen: boolean;
@@ -33,7 +34,8 @@ export default function Disable2FAModal({ isOpen, onClose }: Disable2FAModalProp
       queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
       toast.success(t('deactivated'));
       handleClose();
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       toast.error(error.message || t('invalidCode'));
     }
   };

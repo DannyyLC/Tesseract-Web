@@ -6,6 +6,7 @@ import { useOrganizationMutations } from '@/hooks/identity/use-organizations';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
 import { Loader2, Mail, Send } from 'lucide-react';
+import { toApiError } from '@/lib/api/api-error';
 
 interface InviteUserModalProps {
   isOpen: boolean;
@@ -49,7 +50,8 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
       toast.success(t('successToast'));
       setEmail('');
       onClose();
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       toast.error(getErrorMessage(error));
     }
   };

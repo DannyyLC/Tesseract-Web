@@ -20,6 +20,7 @@ import type {
   CreateLlmModelInput,
 } from '@/lib/api/endpoints/automation/llm-models/llm-models-api';
 import type { LlmCategory } from '@/lib/api/endpoints/automation/llm-models/llm-categories-api';
+import { isToastHandled } from '@/lib/api/api-error';
 
 const TIERS: ModelTier[] = ['BASIC', 'STANDARD', 'PREMIUM'];
 
@@ -264,7 +265,7 @@ export default function LlmModelsAdminPage() {
                     toast.success(tt('modelCreated'));
                     setCreateOpen(false);
                   },
-                  onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+                  onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
                 })
               }
             />
@@ -297,7 +298,7 @@ export default function LlmModelsAdminPage() {
                       toast.success(tt('modelUpdated'));
                       setEditModel(null);
                     },
-                    onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+                    onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
                   },
                 )
               }
@@ -326,7 +327,7 @@ export default function LlmModelsAdminPage() {
                       toast.success(tt('priceUpdated'));
                       setPriceModel(null);
                     },
-                    onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+                    onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
                   },
                 )
               }
@@ -373,7 +374,7 @@ export default function LlmModelsAdminPage() {
                         toast.success(tt('modelDeactivated'));
                         setDeactivateModelConfirm(null);
                       },
-                      onError: (e: any) => !e?.toastHandled && toast.error(tt('deactivateError')),
+                      onError: (e) => !isToastHandled(e) && toast.error(tt('deactivateError')),
                     });
                   }}
                 >

@@ -18,6 +18,7 @@ import {
 } from '@/hooks/platform/use-admin-announcements';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass } from '../_styles';
+import { isToastHandled } from '@/lib/api/api-error';
 
 const STATUS_CLASS: Record<AnnouncementStatus, string> = {
   [AnnouncementStatus.DRAFT]: 'text-text-tertiary',
@@ -245,7 +246,7 @@ export default function AdminAnnouncementsPage() {
           if (!pendingPublish) return;
           await publish.mutateAsync(pendingPublish.id, {
             onSuccess: (result) => toast.success(t('sentToUsers', { count: result.delivered })),
-            onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+            onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
           });
           setPendingPublish(null);
         }}
@@ -263,7 +264,7 @@ export default function AdminAnnouncementsPage() {
         onConfirm={async () => {
           if (!pendingUnpublish) return;
           await unpublish.mutateAsync(pendingUnpublish.id, {
-            onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+            onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
           });
           setPendingUnpublish(null);
         }}

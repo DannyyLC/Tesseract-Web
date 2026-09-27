@@ -24,6 +24,7 @@ import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import type { WhatsAppConfig } from '@tesseract/types';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import { WhatsappTemplatesAdminModal } from './whatsapp-templates-admin-modal';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   organizationId: string;
@@ -112,7 +113,7 @@ export function ChannelsTab({ organizationId }: Props) {
           toast.success(t('createdSuccess'));
           closeCreate();
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -133,7 +134,7 @@ export function ChannelsTab({ organizationId }: Props) {
           toast.success(t('savedSuccess'));
           setEditTarget(null);
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -141,21 +142,21 @@ export function ChannelsTab({ organizationId }: Props) {
   const handleDelete = (config: WhatsAppConfig) => {
     deleteConfig.mutate(config.id, {
       onSuccess: () => toast.success(t('deletedSuccess')),
-      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
     });
   };
 
   const handleApprove = (config: WhatsAppConfig) => {
     approve.mutate(config.id, {
       onSuccess: () => toast.success(t('approvedSuccess')),
-      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
     });
   };
 
   const handleToggleActive = (config: WhatsAppConfig) => {
     setActive.mutate(
       { id: config.id, isActive: !config.isActive },
-      { onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)) },
+      { onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)) },
     );
   };
 

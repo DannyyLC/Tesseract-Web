@@ -20,6 +20,7 @@ import {
   formatCountryName,
   formatTimezoneLabel,
 } from '@tesseract/types';
+import { toApiError } from '@/lib/api/api-error';
 
 export default function SettingsPage() {
   const t = useTranslations('Settings');
@@ -54,7 +55,8 @@ export default function SettingsPage() {
       await updateOrganization.mutateAsync({ name, timezone });
       toast.success(t('updateSuccess'));
       refetch();
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       console.error('Error updating organization:', error);
       toast.error(t('updateError'));
     }
@@ -86,7 +88,8 @@ export default function SettingsPage() {
       setIsDeleteModalOpen(false);
       // Force reload or redirect to login/signup
       window.location.href = '/login';
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       console.error('Error deleting organization:', error);
       toast.error(error.message || t('deleteError'));
     }

@@ -15,6 +15,7 @@ import type {
   LlmCategory,
   CreateLlmCategoryInput,
 } from '@/lib/api/endpoints/automation/llm-models/llm-categories-api';
+import { isToastHandled } from '@/lib/api/api-error';
 
 const inputClass =
   'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-border-focus';
@@ -139,7 +140,7 @@ export default function AdminConfiguracionPage() {
                     toast.success(tt('categoryCreated'));
                     setCreateOpen(false);
                   },
-                  onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+                  onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
                 })
               }
             />
@@ -167,7 +168,7 @@ export default function AdminConfiguracionPage() {
                       toast.success(tt('categoryUpdated'));
                       setEditCategory(null);
                     },
-                    onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+                    onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
                   },
                 )
               }
@@ -219,7 +220,7 @@ export default function AdminConfiguracionPage() {
                         toast.success(tt('categoryDeleted'));
                         setDeleteCategoryConfirm(null);
                       },
-                      onError: (e: any) => !e?.toastHandled && toast.error(tt('deleteError')),
+                      onError: (e) => !isToastHandled(e) && toast.error(tt('deleteError')),
                     });
                   }}
                 >

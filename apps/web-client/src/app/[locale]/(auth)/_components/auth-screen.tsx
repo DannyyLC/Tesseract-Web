@@ -19,6 +19,7 @@ import {
 } from '@/hooks/identity/use-auth';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Turnstile, TurnstileInstance } from '@marsidev/react-turnstile';
+import { toApiError } from '@/lib/api/api-error';
 
 /* ========================================= */
 /* INTERFACES, TYPES & CONSTANTS */
@@ -211,7 +212,8 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
         setTurnstileToken(null); // el token del paso 1 ya fue consumido
         startResendCooldown();
       }
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       console.error('Error en paso 1:', error);
       // Verificamos si es el error específico de email ya existente
       if (error?.errors?.includes('EMAIL_ALREADY_EXISTS')) {
@@ -281,7 +283,8 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
       // Redirigir al dashboard o onboarding con flag de bienvenida
       router.push('/billing/plans?welcome=true');
       toast.success(t('accountCreated'));
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       console.error('Error al registrar usuario:', error);
       toast.error(error.message || t('createAccountError'));
     }

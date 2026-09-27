@@ -9,6 +9,7 @@ import { useRouter } from '@/i18n/routing';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { toApiError } from '@/lib/api/api-error';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -73,7 +74,8 @@ export default function ChangePasswordModal({
       await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
 
       router.push('/login');
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       toast.error(error.message || t('errorToast'));
     }
   };

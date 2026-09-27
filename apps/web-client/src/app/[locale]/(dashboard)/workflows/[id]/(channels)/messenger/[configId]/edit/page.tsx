@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { toApiError } from '@/lib/api/api-error';
 
 /** Mismo estilo de campo que el alta del canal, para que las dos pantallas se lean igual. */
 const INPUT_CLASSES =
@@ -64,7 +65,8 @@ export default function WorkflowMessengerEditPage() {
 
       toast.success(t('updateSuccess'));
       router.push(`/workflows/${workflowId}`);
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       const backendMessage =
         (typeof error?.response?.data?.message === 'string' &&
           error.response.data.message.trim()) ||

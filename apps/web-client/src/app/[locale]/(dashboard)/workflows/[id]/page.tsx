@@ -39,6 +39,7 @@ import {
   TIMEZONE_GROUPS,
   formatTimezoneLabel,
 } from '@tesseract/types';
+import { toApiError } from '@/lib/api/api-error';
 
 const WHATSAPP_PHONE_REGEX = /^\+\d{8,15}$/;
 
@@ -253,7 +254,8 @@ export default function WorkflowDetailPage() {
       toast.success(t('whatsappLinkSuccess'));
       setIsWhatsappModalOpen(false);
       setWhatsappNumber('');
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       const statusCode = error?.response?.status;
       const backendMessage =
         (typeof error?.response?.data?.message === 'string' &&

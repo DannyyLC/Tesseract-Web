@@ -10,6 +10,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter, Link } from '@/i18n/routing';
 import { useResetPasswordStepOne } from '@/hooks/identity/use-auth';
 import { Turnstile } from '@marsidev/react-turnstile';
+import { toApiError } from '@/lib/api/api-error';
 
 export default function ForgotPasswordScreen() {
   const t = useTranslations('ForgotPasswordScreen');
@@ -28,7 +29,8 @@ export default function ForgotPasswordScreen() {
       toast.success(t('successToast'));
       // El correo viaja a la siguiente pantalla: el código solo vale junto con él.
       router.push(`/reset-password?email=${encodeURIComponent(email)}`);
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       toast.error(error.message || t('errorToast'));
     }
   };

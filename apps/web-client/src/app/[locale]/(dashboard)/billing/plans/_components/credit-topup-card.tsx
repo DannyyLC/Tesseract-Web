@@ -13,6 +13,7 @@ import { useBillingCurrency } from '@/hooks/billing/use-billing-currency';
 import { Modal } from '@/components/ui/modal';
 import { TwoFactorCodeInput, isTwoFactorCodeComplete } from '@/components/ui/two-factor-code-input';
 import PermissionGuard from '@/components/auth/permission-guard';
+import { toApiError } from '@/lib/api/api-error';
 
 interface CreditTopUpCardProps {
   perCredit: PlanPrices;
@@ -115,7 +116,8 @@ export default function CreditTopUpCard({ perCredit, min, max, step }: CreditTop
       });
       window.open(url, '_blank');
       closeConfirm();
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       const message = error?.response?.data?.message;
       if (message === '2FA_REQUIRED' || message === '2FA_INVALID') {
         toast.error(t('code2FAInvalid'));

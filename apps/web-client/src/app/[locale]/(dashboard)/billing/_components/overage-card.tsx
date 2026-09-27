@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useOveragePrice } from '@/hooks/billing/use-overage-price';
 import { useBillingCurrency } from '@/hooks/billing/use-billing-currency';
 import { useTranslations } from 'next-intl';
+import { toApiError } from '@/lib/api/api-error';
 
 interface OverageCardProps {
   allowOverages: boolean;
@@ -67,7 +68,8 @@ export default function OverageCard({
           await toggleOverages.mutateAsync({ allowOverages: true, overageLimit: clamped });
           lastCommittedRef.current = clamped;
           toast.success(t('limitUpdated'));
-        } catch (error: any) {
+        } catch (caught) {
+          const error = toApiError(caught);
           if (!error.toastHandled) {
             toast.error(t('limitUpdateError'), { description: error.message });
           }
@@ -86,12 +88,14 @@ export default function OverageCard({
       setIsToggling(true);
       await toggleOverages.mutateAsync({ allowOverages: !allowOverages, overageLimit: localLimit });
       toast.success(!allowOverages ? t('overagesEnabled') : t('overagesDisabled'));
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       if (!error.toastHandled) {
+        const serverMessage = error.response?.data?.message;
         const message =
-          error?.response?.data?.message ||
-          error?.message ||
-          (typeof error === 'string' ? error : 'Error desconocido');
+          (typeof serverMessage === 'string' && serverMessage) ||
+          error.message ||
+          'Error desconocido';
 
         if (message.includes('No active subscription found') || error?.errorCode === 'HTTP_ERROR') {
           toast.error(t('noSubscription'), {

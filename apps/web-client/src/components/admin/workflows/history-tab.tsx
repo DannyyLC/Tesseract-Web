@@ -17,6 +17,7 @@ import { toIntlLocale } from '@/lib/intl-locale';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import { PagePager } from '@/components/ui/page-pager';
 import { usePageSize } from '@/hooks/shared/use-page-size';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   workflowId: string;
@@ -66,7 +67,7 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
           setRestoreTarget(null);
           setRestoreNote('');
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };

@@ -20,6 +20,7 @@ import {
   describeContact,
 } from '@/components/contacts';
 import PermissionGuard from '@/components/auth/permission-guard';
+import { toApiError } from '@/lib/api/api-error';
 
 const FILTERS: EndUserBlockedFilter[] = ['all', 'active', 'blocked'];
 
@@ -71,7 +72,8 @@ export default function ContactsPage() {
       await deleteEndUser.mutateAsync(contactToDelete.id);
       toast.success(t('deleteSuccess'));
       setContactToDelete(null);
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       const backendMessage = typeof err?.message === 'string' ? err.message : '';
       toast.error(backendMessage || t('deleteError'));
     }

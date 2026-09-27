@@ -3,6 +3,7 @@ import RootApi from '@/lib/api/endpoints/root-api';
 import { useRouter } from '@/i18n/routing';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import { toApiError } from '@/lib/api/api-error';
 
 export interface User {
   sub: string;
@@ -51,7 +52,8 @@ export function useLogin() {
       try {
         const api = RootApi.getInstance().getAuthApi();
         return await api.login(credentials);
-      } catch (error: any) {
+      } catch (caught) {
+        const error = toApiError(caught);
         if (error.message === 'Invalid credentials or account inactive') {
           throw new Error('Email o contraseña incorrectos');
         }
@@ -145,7 +147,8 @@ export function useSignupStepOne() {
       const api = RootApi.getInstance().getAuthApi();
       try {
         return await api.signupStepOne(data);
-      } catch (error: any) {
+      } catch (caught) {
+        const error = toApiError(caught);
         if (error.message && error.message.includes('ThrottlerException')) {
           throw new Error(
             'Demasiados intentos fallidos. Por favor, espera antes de intentar nuevamente.',

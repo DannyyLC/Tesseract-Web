@@ -12,6 +12,7 @@ import type {
   UpdateAdminCustomLimitsInput,
 } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import { btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   org: AdminOrganizationDetail;
@@ -78,7 +79,7 @@ export function LimitsTab({ org }: Props) {
       { id: org.id, data: payload },
       {
         onSuccess: () => toast.success(t('limitsUpdated')),
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -94,7 +95,7 @@ export function LimitsTab({ org }: Props) {
       },
       {
         onSuccess: () => toast.success(t('overageUpdated')),
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };

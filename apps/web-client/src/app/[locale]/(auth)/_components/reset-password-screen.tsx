@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { useResetPasswordStepTwo } from '@/hooks/identity/use-auth';
+import { toApiError } from '@/lib/api/api-error';
 
 export default function ResetPasswordScreen() {
   const t = useTranslations('ResetPasswordScreen');
@@ -43,7 +44,8 @@ export default function ResetPasswordScreen() {
       await resetPassword({ email: email.trim(), verificationCode, newPassword });
       toast.success(t('successToast'));
       router.push('/login');
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       toast.error(error.message || t('errorToast'));
     }
   };

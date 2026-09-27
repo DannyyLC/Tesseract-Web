@@ -12,6 +12,7 @@ import {
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import type { WhatsAppTemplate } from '@tesseract/types';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   isOpen: boolean;
@@ -111,20 +112,20 @@ export function WhatsappTemplatesAdminModal({
         setIsFormOpen(false);
         setForm(EMPTY_FORM);
       })
-      .catch((e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)));
+      .catch((e: unknown) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)));
   };
 
   const handleDelete = (template: WhatsAppTemplate) => {
     deleteTemplate.mutate(template.id, {
       onSuccess: () => toast.success(t('templateDeleted')),
-      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
     });
   };
 
   const handleToggleActive = (template: WhatsAppTemplate) => {
     updateTemplate.mutate(
       { id: template.id, data: { isActive: !template.isActive } },
-      { onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)) },
+      { onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)) },
     );
   };
 

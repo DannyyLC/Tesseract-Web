@@ -34,6 +34,7 @@ import type {
   AdminTestExecutionDetail,
   AdminWorkflowDetail,
 } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
+import { toApiError } from '@/lib/api/api-error';
 
 interface Props {
   workflow: AdminWorkflowDetail;
@@ -274,7 +275,8 @@ export function TestTab({ workflow }: Props) {
           detail: e,
         })),
       );
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       toast.error(getApiErrorMessage(err));
     }
   };

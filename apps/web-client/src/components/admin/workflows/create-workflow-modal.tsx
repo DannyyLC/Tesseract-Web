@@ -15,6 +15,7 @@ import {
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import type { AdminOrganization } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import { isToastHandled } from '@/lib/api/api-error';
 
 type Mode = 'clone' | 'blank';
 
@@ -101,7 +102,7 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
             }
             onCreated(result.workflow.id, t('workflowCloned'));
           },
-          onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+          onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
         },
       );
       return;
@@ -122,7 +123,7 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
       },
       {
         onSuccess: (workflow) => onCreated(workflow.id, t('workflowCreated')),
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };

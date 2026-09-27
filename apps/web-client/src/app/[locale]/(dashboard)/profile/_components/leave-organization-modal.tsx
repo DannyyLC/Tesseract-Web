@@ -8,6 +8,7 @@ import { useUserMutations } from '@/hooks/identity/use-users';
 import { useRouter } from '@/i18n/routing';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { toApiError } from '@/lib/api/api-error';
 
 interface LeaveOrganizationModalProps {
   isOpen: boolean;
@@ -47,7 +48,8 @@ export default function LeaveOrganizationModal({
       toast.success(t('successToast'));
       // Redirect to login after leaving
       router.push('/login');
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       toast.error(error.message || t('errorToast'));
     }
   };

@@ -46,6 +46,7 @@ import { SettingsTab } from '@/components/admin/workflows/settings-tab';
 import { TestTab } from '@/components/admin/workflows/test-tab';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '../../_styles';
+import { isToastHandled } from '@/lib/api/api-error';
 
 type TabId = 'agents' | 'nodes' | 'graph' | 'media' | 'json' | 'test' | 'settings' | 'history';
 
@@ -248,7 +249,7 @@ function WorkflowEditor() {
           if (result.valid) toast.success(t('configValid'));
           else toast.error(t('validationIssues', { count: result.errors.length }));
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };

@@ -9,6 +9,7 @@ import { GetToolsDto } from '@tesseract/types';
 import { toast } from 'sonner';
 import RootApi from '@/lib/api/endpoints/root-api';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
+import { toApiError } from '@/lib/api/api-error';
 
 interface ConnectIntegrationModalProps {
   isOpen: boolean;
@@ -102,7 +103,8 @@ export function ConnectIntegrationModal({
         const oauthApi = RootApi.getInstance().getToolsOauthApi();
         oauthApi.redirectToGoogleAuth(tenantToolId);
       }
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       console.error('Connection error:', error);
 
       const statusCode = error?.response?.status;

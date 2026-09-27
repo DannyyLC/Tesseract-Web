@@ -12,6 +12,7 @@ import { toIntlLocale } from '@/lib/intl-locale';
 import type { AdminWorkflowDetail } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import { WorkflowChannelsSection } from './workflow-channels-section';
+import { isToastHandled, toApiError } from '@/lib/api/api-error';
 
 interface Props {
   workflow: AdminWorkflowDetail;
@@ -78,15 +79,16 @@ export function SettingsTab({ workflow }: Props) {
       await removeWorkflow.mutateAsync(workflow.id);
       toast.success(t('workflowDeleted'));
       setConfirmDeleteOpen(false);
-    } catch (e: any) {
-      if (!e?.toastHandled) toast.error(getApiErrorMessage(e));
+    } catch (caught) {
+      const e = toApiError(caught);
+      if (!e.toastHandled) toast.error(getApiErrorMessage(e));
     }
   };
 
   const handleRestore = () => {
     restoreWorkflow.mutate(workflow.id, {
       onSuccess: () => toast.success(t('workflowRestored')),
-      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
     });
   };
 
@@ -100,7 +102,7 @@ export function SettingsTab({ workflow }: Props) {
       },
       {
         onSuccess: () => toast.success(t('settingsSaved')),
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };

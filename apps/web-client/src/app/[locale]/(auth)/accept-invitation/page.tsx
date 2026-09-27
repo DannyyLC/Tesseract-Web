@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Loader2, Eye, EyeOff, Building2, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import { LogoLoader } from '@/components/ui/logo-loader';
+import { toApiError } from '@/lib/api/api-error';
 
 function AcceptInvitationForm() {
   const t = useTranslations('AcceptInvitation');
@@ -62,7 +63,8 @@ function AcceptInvitationForm() {
       });
       toast.success(t('successToast'));
       router.push('/login?welcome=true');
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       toast.error(error.message || t('errorToast'));
     }
   };
