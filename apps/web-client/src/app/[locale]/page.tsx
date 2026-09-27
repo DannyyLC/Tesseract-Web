@@ -1,7 +1,6 @@
 'use client';
 
 import { useRef, useState, useMemo, useEffect } from 'react';
-// @ts-ignore
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Segments, Segment, OrbitControls } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';

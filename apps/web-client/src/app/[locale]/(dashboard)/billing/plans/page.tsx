@@ -258,7 +258,6 @@ export default function PlansPage() {
     window.open(url, '_blank');
   };
 
-  const currentPlanDetails = plansData?.find((p) => p.type === subscription.plan);
   // Por el orden declarado del catálogo: con dos monedas un importe ya no ordena planes.
   const isUpgrade =
     !!selectedPlan && canUpgradePlan(subscription.plan as SubscriptionPlan, selectedPlan.type);

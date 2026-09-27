@@ -73,7 +73,7 @@ function SupportContent() {
       setSelectedSubject('');
       setCustomSubject('');
       setMessage('');
-    } catch (error) {
+    } catch {
       toast.error(t('rateLimitError'));
     }
   };

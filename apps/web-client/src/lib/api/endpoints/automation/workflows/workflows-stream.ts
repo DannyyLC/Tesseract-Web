@@ -147,7 +147,7 @@ class WorkflowsStream {
             let parsed: any = dataContent;
             try {
               parsed = JSON.parse(dataContent);
-            } catch (e) {
+            } catch {
               // Valid string, not JSON
             }
 

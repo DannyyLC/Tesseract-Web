@@ -10,7 +10,7 @@ interface StatusSectionProps {
   isCanceling: boolean;
 }
 
-export default function StatusSection({ subscription, onCancel, isCanceling }: StatusSectionProps) {
+export default function StatusSection({ subscription }: StatusSectionProps) {
   const t = useTranslations('BillingStatus');
   const currentPlan = subscription?.plan || 'FREE';
   const creditsUsed = subscription?.creditsUsed || 0;

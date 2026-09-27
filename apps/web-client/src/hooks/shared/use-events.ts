@@ -13,7 +13,7 @@ export default function useEvents() {
       sourcesRef.current.forEach((src) => {
         try {
           src.close();
-        } catch (e) {
+        } catch {
           // ignore
         }
       });
@@ -36,7 +36,7 @@ export default function useEvents() {
       let parsed = event.data;
       try {
         parsed = JSON.parse(event.data);
-      } catch (e) {
+      } catch {
         // keep raw if not json
       }
       handler(parsed, event);
@@ -50,7 +50,7 @@ export default function useEvents() {
         source?.removeEventListener(eventType, messageListener as EventListener);
         // if no more listeners, close source
         // There's no straightforward way to inspect listeners, so we keep the source open until unsubscribeAll or unmount.
-      } catch (e) {
+      } catch {
         // ignore
       }
     };
@@ -60,7 +60,7 @@ export default function useEvents() {
     sourcesRef.current.forEach((src) => {
       try {
         src.close();
-      } catch (e) {
+      } catch {
         // ignore
       }
     });

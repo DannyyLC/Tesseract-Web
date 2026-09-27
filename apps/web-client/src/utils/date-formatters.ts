@@ -39,7 +39,7 @@ export function formatDateByGranularity(
       default:
         return date;
     }
-  } catch (error) {
+  } catch {
     // Fallback to original date if parsing fails
     return date;
   }

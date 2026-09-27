@@ -152,14 +152,6 @@ function setInputByPlaceholder(placeholder: string, value: string) {
   });
 }
 
-function getInputById(id: string): HTMLInputElement {
-  const element = document.getElementById(id);
-  if (!(element instanceof HTMLInputElement)) {
-    throw new Error(`Input with id ${id} was not found`);
-  }
-  return element;
-}
-
 function getStep3Input(id: string): HTMLInputElement {
   const createAccountButton = screen.getByRole('button', { name: /crear cuenta/i });
   const step3Form = createAccountButton.closest('form');

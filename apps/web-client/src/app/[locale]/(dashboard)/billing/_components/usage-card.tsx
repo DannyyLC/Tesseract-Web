@@ -10,7 +10,7 @@ interface UsageCardProps {
   unit: string;
 }
 
-export default function UsageCard({ title, icon, used, limit, unit }: UsageCardProps) {
+export default function UsageCard({ title, icon, used, limit }: UsageCardProps) {
   const t = useTranslations('BillingUsage');
   const isUnlimited = limit === -1;
   const percentage = isUnlimited ? 0 : Math.min((used / limit) * 100, 100);

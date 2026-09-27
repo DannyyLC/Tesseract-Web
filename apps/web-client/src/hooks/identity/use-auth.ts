@@ -26,7 +26,7 @@ export function useAuth() {
       const api = RootApi.getInstance().getAuthApi();
       try {
         return await api.getMe();
-      } catch (error) {
+      } catch {
         // Si falla (ej. 401), retornamos null para indicar que no hay usuario
         return null;
       }

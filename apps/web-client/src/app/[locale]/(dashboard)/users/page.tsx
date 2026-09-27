@@ -177,7 +177,7 @@ export default function UsersPage() {
       setIsEditModalOpen(false);
       setModalUser(null);
       toast.success(t('userUpdated'));
-    } catch (error) {
+    } catch {
       toast.error(t('updateUserError'));
     }
   };
@@ -194,7 +194,7 @@ export default function UsersPage() {
       setIsDeleteModalOpen(false);
       setModalUser(null);
       toast.success(t('userDeleted'));
-    } catch (error) {
+    } catch {
       toast.error(t('deleteUserError'));
     }
   };
@@ -212,22 +212,8 @@ export default function UsersPage() {
       setIsTransferModalOpen(false);
       setModalUser(null);
       toast.success(t('transferSuccess'));
-    } catch (error) {
+    } catch {
       toast.error(t('transferError'));
-    }
-  };
-
-  const handleToggleStatus = async (e: React.MouseEvent, user: DashboardUserDataDto) => {
-    e.stopPropagation();
-    if (!canEditUser(user)) return; // guard against stale renders
-    try {
-      await updateUser.mutateAsync({
-        id: user.id,
-        data: { isActive: !user.isActive },
-      });
-      toast.success(user.isActive ? t('userDeactivated') : t('userActivated'));
-    } catch (error) {
-      toast.error(t('toggleStatusError'));
     }
   };
 

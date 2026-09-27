@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { useRouter } from '@/i18n/routing';
+import { Link, useRouter } from '@/i18n/routing';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send,
@@ -818,7 +818,7 @@ export default function WorkflowChatPage() {
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
-                                table: ({ node, ...props }) => (
+                                table: ({ node: _node, ...props }) => (
                                   <div className="my-4 overflow-x-auto rounded-lg border border-border">
                                     <table
                                       className="w-full border-collapse text-left text-text-primary"
@@ -826,19 +826,19 @@ export default function WorkflowChatPage() {
                                     />
                                   </div>
                                 ),
-                                thead: ({ node, ...props }) => (
+                                thead: ({ node: _node, ...props }) => (
                                   <thead
                                     className="border-b border-border bg-surface-secondary text-text-primary"
                                     {...props}
                                   />
                                 ),
-                                th: ({ node, ...props }) => (
+                                th: ({ node: _node, ...props }) => (
                                   <th
                                     className="p-3 text-sm font-semibold text-text-primary"
                                     {...props}
                                   />
                                 ),
-                                td: ({ node, ...props }) => (
+                                td: ({ node: _node, ...props }) => (
                                   <td
                                     className="border-b border-border p-3 text-sm text-text-primary last:border-0"
                                     {...props}
@@ -933,23 +933,23 @@ export default function WorkflowChatPage() {
                     error?.message?.includes('grace period has expired') ? (
                       <p className="opacity-90">
                         {t('subscriptionInactive')}{' '}
-                        <a
+                        <Link
                           href="/billing"
                           className="font-semibold underline underline-offset-2 hover:opacity-75"
                         >
                           {t('goToBilling')}
-                        </a>
+                        </Link>
                       </p>
                     ) : error?.statusCode === 403 ||
                       error?.message?.includes('Insufficient credits') ? (
                       <p className="opacity-90">
                         {t('insufficientCredits')}{' '}
-                        <a
+                        <Link
                           href="/billing"
                           className="font-semibold underline underline-offset-2 hover:opacity-75"
                         >
                           {t('buyCredits')}
-                        </a>
+                        </Link>
                       </p>
                     ) : (
                       <p className="opacity-90">
