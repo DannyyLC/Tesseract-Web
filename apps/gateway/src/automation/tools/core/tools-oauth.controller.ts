@@ -18,6 +18,7 @@ import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { ConfigService } from '@nestjs/config';
 import { OauthStateService } from './oauth-state.service';
+import { errorMessage } from '@/platform/common/utils/error-message';
 
 @Controller('tools/oauth')
 export class ToolsOauthController {
@@ -108,8 +109,8 @@ export class ToolsOauthController {
 
       // 5. Redirigir al UI con éxito
       return res.redirect(`${frontendUrl}/tools?status=success`);
-    } catch (err: any) {
-      this.logger.error(`Failed to handle Google callback: ${err.message}`);
+    } catch (err) {
+      this.logger.error(`Failed to handle Google callback: ${errorMessage(err)}`);
       return res.redirect(`${frontendUrl}/tools?error=callback_processing_failed`);
     }
   }

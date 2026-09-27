@@ -257,7 +257,7 @@ export class AuthController {
 
       response.statusCode = HttpStatus.OK;
       response.send(responseBuilder.build());
-    } catch (error: any) {
+    } catch (error) {
       if (error instanceof BadRequestException) {
         Logger.error('Turnstile Verification Failed', {
           error: error.message,
@@ -866,7 +866,7 @@ export class AuthController {
 
     try {
       await this.turnstileService.verifyToken(body.turnstileToken);
-    } catch (error: any) {
+    } catch (error) {
       if (error instanceof BadRequestException) {
         Logger.error('Turnstile Verification Failed in password reset', {
           error: error.message,

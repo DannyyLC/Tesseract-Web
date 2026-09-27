@@ -21,6 +21,7 @@ import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { Prisma, ToolConnectionStatus, UserRole } from '@tesseract/database';
 import { ToolHealthService } from '../core/tool-health.service';
+import { errorMessage } from '@/platform/common/utils/error-message';
 
 /**
  * Campos extra que necesita el cálculo de salud de la credencial. Se piden en el
@@ -119,8 +120,8 @@ export class TenantToolService {
         pageSize,
         paginationAction,
       );
-    } catch (error: any) {
-      this.logger.error(`Error fetching dashboard data: ${error?.message ?? 'Unknown error'}`);
+    } catch (error) {
+      this.logger.error(`Error fetching dashboard data: ${errorMessage(error)}`);
       return null;
     }
   }
@@ -203,10 +204,8 @@ export class TenantToolService {
         },
       });
       return tenantTool ? this.toDashboardDto(tenantTool, locale) : null;
-    } catch (error: any) {
-      this.logger.error(
-        `Error fetching tenant tool with ID ${id}: ${error?.message ?? 'Unknown error'}`,
-      );
+    } catch (error) {
+      this.logger.error(`Error fetching tenant tool with ID ${id}: ${errorMessage(error)}`);
       return null;
     }
   }
@@ -272,12 +271,12 @@ export class TenantToolService {
         },
       });
       return tenantTool;
-    } catch (error: any) {
-      if (error?.code === 'P2002') {
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException('Ya existe una herramienta activa con ese nombre.');
       }
 
-      this.logger.error(`Error creating tenant tool: ${error?.message ?? 'Unknown error'}`);
+      this.logger.error(`Error creating tenant tool: ${errorMessage(error)}`);
       throw error;
     }
   }
@@ -308,10 +307,8 @@ export class TenantToolService {
           displayName: data.displayName,
         },
       });
-    } catch (error: any) {
-      this.logger.error(
-        `Error updating tenant tool with ID ${id}: ${error?.message ?? 'Unknown error'}`,
-      );
+    } catch (error) {
+      this.logger.error(`Error updating tenant tool with ID ${id}: ${errorMessage(error)}`);
       return null;
     }
   }
@@ -346,9 +343,9 @@ export class TenantToolService {
           },
         },
       });
-    } catch (error: any) {
+    } catch (error) {
       this.logger.error(
-        `Error adding workflows to tenant tool with ID ${tenantToolId}: ${error?.message ?? 'Unknown error'}`,
+        `Error adding workflows to tenant tool with ID ${tenantToolId}: ${errorMessage(error)}`,
       );
       return null;
     }
@@ -384,9 +381,9 @@ export class TenantToolService {
           },
         },
       });
-    } catch (error: any) {
+    } catch (error) {
       this.logger.error(
-        `Error removing workflows from tenant tool with ID ${tenantToolId}: ${error?.message ?? 'Unknown error'}`,
+        `Error removing workflows from tenant tool with ID ${tenantToolId}: ${errorMessage(error)}`,
       );
       return null;
     }
@@ -536,12 +533,12 @@ export class TenantToolService {
           workflows: { connect: workflowIds.map((id) => ({ id })) },
         },
       });
-    } catch (error: any) {
-      if (error?.code === 'P2002') {
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException('Ya existe una herramienta activa con ese nombre.');
       }
       this.logger.error(
-        `Error linking workflows to WhatsApp Outbound tenant tool: ${error?.message ?? 'Unknown error'}`,
+        `Error linking workflows to WhatsApp Outbound tenant tool: ${errorMessage(error)}`,
       );
       throw error;
     }

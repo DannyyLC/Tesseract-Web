@@ -31,6 +31,7 @@ import { CreateTenantToolDto } from '../../dto/create-tenant-tool.dto';
 import { UpdateTenantToolDto } from '../../dto/update-tenant-tool.dto';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
+import { errorMessage } from '@/platform/common/utils/error-message';
 
 @Controller('tenant-tool')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -200,8 +201,8 @@ export class TenantToolController {
         .setData(updated)
         .setMessage('Workflows linked to WhatsApp Outbound successfully');
       return res.status(HttpStatusCode.Ok).json(apiResponse.build());
-    } catch (error: any) {
-      apiResponse.setSuccess(false).setMessage(error?.message ?? 'Error linking workflows');
+    } catch (error) {
+      apiResponse.setSuccess(false).setMessage(errorMessage(error, 'Error linking workflows'));
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     }
   }
@@ -244,8 +245,8 @@ export class TenantToolController {
       await this.tenantToolService.disconnectTool(toolId, user.organizationId, user.sub, user.role);
       apiResponse.setSuccess(true).setData(true).setMessage('Tool disconnected successfully');
       return res.status(HttpStatusCode.Ok).json(apiResponse.build());
-    } catch (error: any) {
-      apiResponse.setSuccess(false).setMessage(error?.message ?? 'Error disconnecting tool');
+    } catch (error) {
+      apiResponse.setSuccess(false).setMessage(errorMessage(error, 'Error disconnecting tool'));
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     }
   }
@@ -262,8 +263,8 @@ export class TenantToolController {
       await this.tenantToolService.deleteTool(toolId, user.organizationId, user.sub, user.role);
       apiResponse.setSuccess(true).setData(true).setMessage('Tool soft-deleted and secrets wiped');
       return res.status(HttpStatusCode.Ok).json(apiResponse.build());
-    } catch (error: any) {
-      apiResponse.setSuccess(false).setMessage(error?.message ?? 'Error deleting tool');
+    } catch (error) {
+      apiResponse.setSuccess(false).setMessage(errorMessage(error, 'Error deleting tool'));
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     }
   }

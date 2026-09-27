@@ -4,6 +4,7 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { UserRole } from '@tesseract/database';
 import { OauthStateClaims, OauthStateService } from './oauth-state.service';
 import axios from 'axios';
+import { errorMessage, oauthErrorDescription } from '@/platform/common/utils/error-message';
 
 @Injectable()
 export class ToolsOauthService {
@@ -147,10 +148,8 @@ export class ToolsOauthService {
         scopes: data.scope ? data.scope.split(' ') : [],
         profile,
       };
-    } catch (error: any) {
-      this.logger.error(
-        `Error exchanging Google code: ${error?.response?.data?.error_description ?? error.message}`,
-      );
+    } catch (error) {
+      this.logger.error(`Error exchanging Google code: ${oauthErrorDescription(error)}`);
       throw new BadRequestException('Failed to exchange authorization code with Google');
     }
   }
@@ -180,10 +179,8 @@ export class ToolsOauthService {
         // Notar que Google rara vez envía un nuevo refresh_token aquí, a menos que el anterior esté por caducar por políticas raras.
         refreshToken: data.refresh_token ?? refreshToken,
       };
-    } catch (error: any) {
-      this.logger.error(
-        `Error refreshing Google token: ${error?.response?.data?.error_description ?? error.message}`,
-      );
+    } catch (error) {
+      this.logger.error(`Error refreshing Google token: ${oauthErrorDescription(error)}`);
       throw new BadRequestException('Failed to refresh Google authorization token');
     }
   }
@@ -203,9 +200,9 @@ export class ToolsOauthService {
         name: data.name,
         picture: data.picture,
       };
-    } catch (error: any) {
+    } catch (error) {
       this.logger.warn(
-        `Failed to fetch Google user profile: ${error.message}. Scopes might be missing.`,
+        `Failed to fetch Google user profile: ${errorMessage(error)}. Scopes might be missing.`,
       );
       return null;
     }

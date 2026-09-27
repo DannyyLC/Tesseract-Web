@@ -35,6 +35,7 @@ import { normalizeEmail } from '@/platform/common/utils/normalize-email';
 import { checkVerificationCode } from './utils/verification-code.util';
 import { DEFAULT_LOCALE, SupportedLocale } from '@/platform/common/types/locale.type';
 import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
+import { errorMessage } from '@/platform/common/utils/error-message';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
@@ -849,9 +850,9 @@ export class AuthService {
       await this.prisma.userVerification.deleteMany({
         where: { email: payload.email },
       });
-    } catch (error: any) {
+    } catch (error) {
       this.logger.error(
-        `signupStepOne >> Error eliminando filas de verificación para email ${payload.email}: ${error?.message ?? 'Unknown error'}`,
+        `signupStepOne >> Error eliminando filas de verificación para email ${payload.email}: ${errorMessage(error)}`,
       );
       return StepOneErrors.SERVER_INTERNAL_ERROR;
     }
@@ -883,9 +884,9 @@ export class AuthService {
         );
         return StepOneErrors.SERVER_INTERNAL_ERROR;
       }
-    } catch (error: any) {
+    } catch (error) {
       this.logger.error(
-        `signupStepOne >> Error creando fila de verificación para email ${payload.email}: ${error?.message ?? 'Unknown error'}`,
+        `signupStepOne >> Error creando fila de verificación para email ${payload.email}: ${errorMessage(error)}`,
       );
       return StepOneErrors.SERVER_INTERNAL_ERROR;
     }
@@ -1042,9 +1043,9 @@ export class AuthService {
             rememberMe: false,
           };
         });
-      } catch (error: any) {
+      } catch (error) {
         this.logger.error(
-          `AuthService -> signupStep3 method >> Error en transacción de creación: ${error?.message ?? 'Unknown error'}`,
+          `AuthService -> signupStep3 method >> Error en transacción de creación: ${errorMessage(error)}`,
         );
         return StepThreeErrors.SERVER_INTERNAL_ERROR;
       }

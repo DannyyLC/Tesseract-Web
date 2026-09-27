@@ -24,6 +24,7 @@ import {
   runPostTurnActions,
 } from '@/messaging/post-turn-actions';
 import { toText } from '@/platform/common/utils/to-text';
+import { httpErrorDetail } from '@/platform/common/utils/error-message';
 
 const YCLOUD_API_BASE = process.env.YCLOUD_API_BASE ?? 'https://api.ycloud.com/v2';
 
@@ -834,9 +835,9 @@ export class WhatsappConfigService {
 
         // Opcional: Pequeño delay de 500ms entre envíos para respetar límites de tasa (rate limiting)
         await new Promise((resolve) => setTimeout(resolve, 500));
-      } catch (error: any) {
+      } catch (error) {
         // El detalle real del rechazo de yCloud viene en la respuesta, no en el message.
-        const detail = error?.response?.data ? JSON.stringify(error.response.data) : error?.message;
+        const detail = httpErrorDetail(error);
         this.logger.error(`Error enviando archivo ${file.name}: ${detail}`);
         // Decisión arquitectónica: Continuar con el siguiente archivo aunque falle uno
       }

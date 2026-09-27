@@ -1,3 +1,4 @@
+import { Prisma } from '@tesseract/database';
 import { TenantToolService } from './tenant-tool.service';
 import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../../../platform/common/responses/cursor-paginated-response';
@@ -229,8 +230,10 @@ describe('TenantToolService', () => {
     it('re-throws ConflictException for P2002', async () => {
       mockPrismaService.toolCatalog.findUnique.mockResolvedValue({ provider: 'none' });
       mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
-      const err: any = new Error('unique');
-      err.code = 'P2002';
+      const err = new Prisma.PrismaClientKnownRequestError('unique', {
+        code: 'P2002',
+        clientVersion: 'test',
+      });
       mockPrismaService.tenantTool.create.mockRejectedValue(err);
 
       await expect(
@@ -634,8 +637,10 @@ describe('TenantToolService', () => {
       });
       mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
       mockPrismaService.whatsAppConfig.findMany.mockResolvedValue([]);
-      const err: any = new Error('unique');
-      err.code = 'P2002';
+      const err = new Prisma.PrismaClientKnownRequestError('unique', {
+        code: 'P2002',
+        clientVersion: 'test',
+      });
       mockPrismaService.tenantTool.create.mockRejectedValue(err);
 
       await expect(

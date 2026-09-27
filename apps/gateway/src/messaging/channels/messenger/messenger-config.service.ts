@@ -16,6 +16,7 @@ import {
 import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { toText } from '@/platform/common/utils/to-text';
+import { httpErrorDetail } from '@/platform/common/utils/error-message';
 
 const GRAPH_API_BASE = process.env.MESSENGER_GRAPH_API_BASE ?? 'https://graph.facebook.com/v21.0';
 
@@ -655,9 +656,9 @@ export class MessengerConfigService {
 
         // Pequeño delay entre envíos para respetar los límites de tasa.
         await new Promise((resolve) => setTimeout(resolve, 500));
-      } catch (error: any) {
+      } catch (error) {
         // El detalle real del rechazo de Meta viene en la respuesta, no en el message.
-        const detail = error?.response?.data ? JSON.stringify(error.response.data) : error?.message;
+        const detail = httpErrorDetail(error);
         this.logger.error(`Error enviando archivo ${file.name}: ${detail}`);
         // Decisión arquitectónica: continuar con el siguiente archivo aunque falle uno
       }
