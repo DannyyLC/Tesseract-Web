@@ -116,7 +116,9 @@ Base path: `/v1/workflows` — Requiere `X-API-Key`
 | POST   | `/v1/workflows/:id/execute`        | Ejecutar workflow via API Key              |
 | POST   | `/v1/workflows/:id/execute/stream` | Ejecutar workflow en streaming via API Key |
 
-> Nota: Si `:id` es `current`, se usa el workflow asociado al API Key.
+> Nota: Si `:id` es `current`, se usa el workflow asociado al API Key. Una API Key ligada a un
+> workflow solo ejecuta ese workflow (otro `:id` responde 403), y una con `expiresAt` vencido se
+> rechaza con 401.
 
 ---
 
