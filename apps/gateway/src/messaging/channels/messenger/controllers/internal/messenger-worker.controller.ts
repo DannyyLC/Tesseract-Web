@@ -40,6 +40,7 @@ import {
   MessengerMessageQueueService,
 } from '../../messenger-message-queue.service';
 import { MESSENGER_TASK_PREFIX, MESSENGER_WORKER_PATH } from '../../messenger-worker.constants';
+import { readExecutionResult } from '@/automation/executions/execution-result';
 
 interface ProcessWindowBody {
   organizationId: string;
@@ -254,7 +255,7 @@ export class MessengerWorkerController {
         TriggerType.WEBHOOK,
       );
 
-      const result = execution.result as any;
+      const result = readExecutionResult(execution.result);
       const messages = result?.messages ?? [];
       const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
       const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
@@ -279,7 +280,7 @@ export class MessengerWorkerController {
         );
 
         await this.messengerConfigService.handleActionsDerivatedFromMetadata(
-          result?.conversationId,
+          conversation.id,
           organizationId,
           conversation?.metadata as JsonObject,
           account,

@@ -177,6 +177,15 @@ describe('ConversationsService', () => {
     });
   });
 
+  describe('findOne', () => {
+    // `id: undefined` no filtra nada en Prisma: sin la guarda devolvía la primera
+    // conversación de la organización.
+    it('rechaza un id vacío sin consultar la base', async () => {
+      await expect(service.findOne('org-1', undefined)).rejects.toThrow(NotFoundException);
+      expect(mockPrismaService.conversation.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
   describe('findOrCreateConversationFromMessengerMessage', () => {
     // El pageId es público y puede llegar en la metadata del execute: sin el filtro, un
     // tenant podía crear conversaciones colgadas de la página (y el token) de otro.

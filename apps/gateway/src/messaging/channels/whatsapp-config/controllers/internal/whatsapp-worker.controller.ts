@@ -43,6 +43,7 @@ import {
 } from '../../whatsapp-message-queue.service';
 import { WhatsAppInboundEvent } from '../../dto';
 import { WHATSAPP_WORKER_PATH } from '../../whatsapp-worker.constants';
+import { readExecutionResult } from '@/automation/executions/execution-result';
 
 interface ProcessWindowBody {
   organizationId: string;
@@ -297,7 +298,7 @@ export class WhatsappWorkerController {
         TriggerType.WEBHOOK,
       );
 
-      const result = execution.result as any;
+      const result = readExecutionResult(execution.result);
       const messages = result?.messages ?? [];
       const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
       const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
@@ -344,7 +345,7 @@ export class WhatsappWorkerController {
         );
 
         await this.whatsappConfigService.handleActionsDerivatedFromMetadata(
-          result?.conversationId,
+          conversation.id,
           organizationId,
           conversation?.metadata as JsonObject,
           interpreted.primaryEvent,

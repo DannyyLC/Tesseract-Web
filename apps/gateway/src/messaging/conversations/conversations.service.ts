@@ -567,7 +567,13 @@ export class ConversationsService {
    * @param organizationId - ID de la organización
    * @param id - ID de la conversación
    */
-  async findOne(organizationId: string, id: string) {
+  async findOne(organizationId: string, id: string | undefined) {
+    // Sin esto, `id: undefined` no filtra nada en Prisma y se devolvía la primera
+    // conversación de la organización en lugar de fallar.
+    if (!id) {
+      throw new NotFoundException('Conversation id is required');
+    }
+
     const conversation = await this.prisma.conversation.findFirst({
       where: {
         id,
