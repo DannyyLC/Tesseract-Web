@@ -9,6 +9,9 @@ import {
   CompactionStatus,
   WorkflowCategory as DbWorkflowCategory,
   ConversationChannel,
+  Conversation,
+  Execution,
+  Prisma,
 } from '@tesseract/database';
 import {
   DEFAULT_PAGE_SIZE,
@@ -19,7 +22,7 @@ import {
   WorkflowStatsDto,
   getWorkflowCreditCost,
 } from '@tesseract/types';
-import { PassThrough } from 'stream';
+import { PassThrough, Readable } from 'stream';
 import { assertMaxTokensWithinCategory, touchesCategoryCeiling } from './category-token-ceiling';
 import { collectConfiguredModels, resolveContextWindowBudget } from './context-window-budget';
 import { AgentsService } from '../agents/agents.service';
@@ -28,7 +31,12 @@ import { DatasetTokenService } from '../datasets/core/dataset-token.service';
 import { InterventionTokenService } from '@/messaging/conversations/core/intervention-token.service';
 import { EndUsersService } from '@/identity/end-users/end-users.service';
 import { toText } from '@/platform/common/utils/to-text';
-import { AgentToolInstance, UserType } from '../agents/dto/agent-execution-request.dto';
+import {
+  AgentToolInstance,
+  MessageHistoryDto,
+  UserType,
+} from '../agents/dto/agent-execution-request.dto';
+import { ExecutionMetadataDto } from '../agents/dto/agent-execution-response.dto';
 import { TokenUsage } from '../llm-models/dto/types';
 import {
   InvalidWorkflowConfigException,
@@ -80,6 +88,26 @@ const FOLLOW_UP_REASON_VARIABLE = 'follow_up_reason';
  * Service que maneja la lógica de negocio de workflows
  * Incluye validación de límites según el plan de la organización
  */
+/**
+ * Lo que `execute()` y `executeStream()` cargan del workflow para armar el payload del agente.
+ *
+ * El filtro por `deletedAt` en las tools es la red que atrapa cualquier tool borrada que se
+ * quedó colgada de la relación: viajaría al agente con la config a medias y el runtime la
+ * descartaría, dejando al agente sin la herramienta y sin explicación.
+ */
+const WORKFLOW_FOR_EXECUTION = {
+  organization: {
+    // La zona por defecto del tenant la hereda el payload cuando el workflow no define la suya.
+    select: { id: true, name: true, plan: true, timezone: true },
+  },
+  tenantTools: {
+    where: { deletedAt: null },
+    include: { credential: true, toolCatalog: { include: { functions: true } } },
+  },
+} satisfies Prisma.WorkflowInclude;
+
+type WorkflowForPayload = Prisma.WorkflowGetPayload<{ include: typeof WORKFLOW_FOR_EXECUTION }>;
+
 /**
  * Lee un string de la metadata del execute, que es de forma libre (la manda quien llama). Un
  * valor que no sea string se trata como ausente en lugar de colarse donde se espera un id.
@@ -179,7 +207,7 @@ export class WorkflowsService {
         description: dto.description,
         category: dto.category,
         maxHistoryTokens: dto.maxHistoryTokens,
-        config: dto.config as any,
+        config: dto.config as unknown as Prisma.InputJsonObject,
         isActive: dto.isActive ?? true,
         isPaused: dto.isPaused ?? false,
         schedule: dto.schedule,
@@ -219,7 +247,7 @@ export class WorkflowsService {
       category?: SharedWorkflowCategory;
     },
   ): Promise<PaginatedResponse<DashboardWorkflowDto>> {
-    const where: any = {
+    const where: Prisma.WorkflowWhereInput = {
       organizationId,
       deletedAt: null,
       // Los workflows internos los crea/prueba super admin dentro de esta organización;
@@ -692,7 +720,7 @@ export class WorkflowsService {
         description: dto.description,
         category: dto.category,
         maxHistoryTokens: dto.maxHistoryTokens,
-        config: dto.config as any,
+        config: dto.config as unknown as Prisma.InputJsonObject,
         isActive: dto.isActive,
         isPaused: dto.isPaused,
         schedule: dto.schedule,
@@ -863,34 +891,7 @@ export class WorkflowsService {
         organizationId,
         deletedAt: null,
       },
-      include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            plan: true,
-            // Zona por defecto del tenant: la hereda el payload del agente cuando el
-            // workflow no define la suya.
-            timezone: true,
-          },
-        },
-        // Incluir tenantTools desde el inicio (evita query duplicado)
-        //
-        // El filtro por `deletedAt` es la red que atrapa cualquier tool borrada que se quedó
-        // colgada de la relación: viajaría al agente con la config a medias y el runtime la
-        // descartaría, dejando al agente sin la herramienta y sin explicación.
-        tenantTools: {
-          where: { deletedAt: null },
-          include: {
-            credential: true,
-            toolCatalog: {
-              include: {
-                functions: true,
-              },
-            },
-          },
-        },
-      },
+      include: WORKFLOW_FOR_EXECUTION,
     });
 
     if (!workflow) {
@@ -1066,7 +1067,8 @@ export class WorkflowsService {
     if (preProcessedAttachments) {
       attachments = preProcessedAttachments.map(toAttachmentInput);
     } else {
-      const ocrPrompt = (workflow.config as any)?.mediaProcessing?.ocrPrompt;
+      const ocrPrompt = (workflow.config as { mediaProcessing?: { ocrPrompt?: string } } | null)
+        ?.mediaProcessing?.ocrPrompt;
 
       const processedMedia = await this.mediaProcessingService.processIncomingAttachments(
         organizationId,
@@ -1244,7 +1246,7 @@ export class WorkflowsService {
       if (lastMessage?.role?.toUpperCase() === ChatRole.ASSISTANT) {
         await this.conversationsService.addMessage(
           conversation.id,
-          lastMessage.role.toUpperCase() as any,
+          lastMessage.role.toUpperCase() as ChatRole,
           lastMessage.content,
         );
         assistantMessageSaved = true;
@@ -1258,7 +1260,7 @@ export class WorkflowsService {
       }
 
       // 7. EXTRAER TOKENS Y CALCULAR COSTO (multi-modelo con BATCH QUERY)
-      const responseMetadata = (agentResponse.metadata ?? {}) as any;
+      const responseMetadata: ExecutionMetadataDto = agentResponse.metadata ?? {};
 
       // Persistir el estado del workflow (ya filtrado por el servicer vía persist_variables)
       await this.persistConversationVariables(
@@ -1302,7 +1304,9 @@ export class WorkflowsService {
         // Fallback: usar tokens totales con modelo por defecto
         const inputTokens = responseMetadata.input_tokens ?? 0;
         const outputTokens = responseMetadata.output_tokens ?? 0;
-        const modelUsed = responseMetadata.model_used ?? 'gpt-4o-mini';
+        // El motor no reporta un modelo único cuando no hay usage_by_model: se costea con el
+        // modelo por defecto.
+        const modelUsed = 'gpt-4o-mini';
 
         if (totalTokens > 0) {
           try {
@@ -1444,7 +1448,7 @@ export class WorkflowsService {
     trigger: TriggerType = TriggerType.API,
     executionId?: string, // Opcional: id ya generado por el llamador (test-execute async)
     allowInternal = false, // Solo true desde el controller admin de test-execute (ya validó isInternal con assertInternalForTesting)
-  ): Promise<NodeJS.ReadableStream> {
+  ): Promise<Readable> {
     // 1. VALIDACIONES PREVIAS (Misma lógica que execute)
     const workflow = await this.prisma.workflow.findFirst({
       where: {
@@ -1452,31 +1456,7 @@ export class WorkflowsService {
         organizationId,
         deletedAt: null,
       },
-      include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            plan: true,
-            // Zona por defecto del tenant: la hereda el payload del agente cuando el
-            // workflow no define la suya.
-            timezone: true,
-          },
-        },
-        // Mismo filtro que en execute(): una tool borrada que siguió colgada de la relación
-        // llegaría al payload con la config a medias.
-        tenantTools: {
-          where: { deletedAt: null },
-          include: {
-            credential: true,
-            toolCatalog: {
-              include: {
-                functions: true,
-              },
-            },
-          },
-        },
-      },
+      include: WORKFLOW_FOR_EXECUTION,
     });
 
     if (!workflow) {
@@ -1709,11 +1689,11 @@ export class WorkflowsService {
    */
   private handleStreamFilteringAndMonitoring(
     rawStream: NodeJS.ReadableStream,
-    execution: any,
-    conversation: any,
-    workflow: any,
+    execution: Pick<Execution, 'id'>,
+    conversation: Conversation,
+    workflow: WorkflowForPayload,
     organizationId: string,
-  ): NodeJS.ReadableStream {
+  ): Readable {
     // highWaterMark: 0 deshabilita el buffer interno para que cada token se envíe inmediatamente
     const clientStream = new PassThrough({ highWaterMark: 0 });
 
@@ -1729,7 +1709,7 @@ export class WorkflowsService {
       clientStream.write(': keep-alive\n\n');
     }, 15000);
 
-    let metadataEvent: any = null;
+    let metadataEvent: ExecutionMetadataDto | null = null;
     let assistantMessageBuilder = '';
     // El agente puede reportar una falla (p. ej. grafo que no compila) como un evento
     // `data` normal en vez de cortar el stream — el stream sigue y termina por
@@ -1738,16 +1718,16 @@ export class WorkflowsService {
     let agentErrorContent: string | null = null;
 
     // gRPC data events emit decoded proto objects — no SSE parsing needed
-    rawStream.on('data', (event: any) => {
+    rawStream.on('data', (event: { type?: string; content?: unknown; metadata?: string }) => {
       if (event.type === 'token') {
         clientStream.write(`data: ${JSON.stringify(event.content)}\n\n`);
-        assistantMessageBuilder += event.content ?? '';
+        assistantMessageBuilder += toText(event.content);
       } else if (event.type === 'metadata') {
         metadataEvent = event.metadata ? JSON.parse(event.metadata) : null;
       } else if (event.type === 'error') {
         agentErrorContent =
           typeof event.content === 'string' ? event.content : JSON.stringify(event.content);
-        this.logger.error(`[${execution.id}] Agent stream error: ${event.content}`);
+        this.logger.error(`[${execution.id}] Agent stream error: ${toText(event.content)}`);
       }
       // tool_start, tool_end, end: consumed silently
     });
@@ -1812,7 +1792,8 @@ export class WorkflowsService {
             // Fallback: usar tokens totales con modelo por defecto
             const inputTokens = metadataEvent?.input_tokens ?? 0;
             const outputTokens = metadataEvent?.output_tokens ?? 0;
-            const modelUsed = metadataEvent?.model_used ?? 'gpt-4o-mini';
+            // Sin usage_by_model el motor no reporta un modelo único: se costea con el default.
+            const modelUsed = 'gpt-4o-mini';
 
             if (totalTokens > 0) {
               try {
@@ -1973,12 +1954,12 @@ export class WorkflowsService {
    * @returns Payload listo para enviar al AgentsService
    */
   private async buildAgentPayload(
-    workflow: any,
-    conversation: any,
+    workflow: WorkflowForPayload,
+    conversation: Conversation,
     userMessage: string,
     userId?: string,
     channel = 'api',
-    messageHistory: any[] = [],
+    messageHistory: { role: string; content?: string | null }[] = [],
     activeSummary?: string | null,
     whatsAppConfigId?: string,
     // Datos del canal para este turno (p.ej. {client_number}). Se exponen en
@@ -1986,7 +1967,11 @@ export class WorkflowsService {
     channelContext?: Record<string, unknown>,
   ) {
     // 1. Extraer nueva estructura unificada de config
-    const config = workflow.config;
+    // JSON libre del workflow; el validador ya comprobó graph y agents al guardarlo.
+    const config = (workflow.config ?? {}) as {
+      graph?: Record<string, unknown>;
+      agents?: Record<string, unknown>;
+    };
     const graphConfig = config.graph ?? {
       type: 'react',
       config: { max_iterations: 10, allow_interrupts: false },
@@ -2013,8 +1998,8 @@ export class WorkflowsService {
         config: (tenantTool.config ?? {}) as Record<string, unknown>,
         // Priorizar el RBAC a nivel de auth (allowedFunctions)
         enabled_functions:
-          tenantTool.allowedFunctions ??
-          tenantTool.toolCatalog.functions.map((fn: any) => fn.functionName),
+          (tenantTool.allowedFunctions as string[] | null) ??
+          tenantTool.toolCatalog.functions.map((fn) => fn.functionName),
         credentials: credentialsMap[toolId] ?? undefined,
       };
 
@@ -2108,7 +2093,7 @@ export class WorkflowsService {
       // de llamada. De paso el dato queda vivo — si el cliente corrige un precio, el siguiente
       // mensaje ya lo usa.
       if (toolName === 'dataset') {
-        const datasetId = tenantTool.config?.dataset_id;
+        const datasetId = (tenantTool.config as { dataset_id?: string } | null)?.dataset_id;
 
         if (datasetId) {
           const dataset = await this.prisma.dataset.findFirst({
@@ -2285,7 +2270,8 @@ export class WorkflowsService {
       agent_tool_instances: agentToolInstances,
 
       // Historial y metadata
-      message_history: composedHistory,
+      // El rol viene del enum de la base (en mayúsculas); el motor lo pasa a minúsculas.
+      message_history: composedHistory as MessageHistoryDto[],
       // Alimenta `build_time_context` en apps/agents, que le dice al LLM qué hora es.
       // Antes iba 'UTC' fijo porque `workflows.timezone` traía ese default y nadie lo
       // cambiaba: los agentes respondían con seis horas de desfase a cualquier

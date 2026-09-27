@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InvalidWorkflowConfigException } from '@/platform/common/exceptions';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { AgentsService } from '../agents/agents.service';
+import { errorMessage } from '@/platform/common/utils/error-message';
 
 /**
  * Validación del `config` de un workflow. Vive aparte de WorkflowsService porque la
@@ -14,6 +15,20 @@ import { AgentsService } from '../agents/agents.service';
  *
  * Ambos comparten la misma lógica, así que no pueden divergir.
  */
+/** Lo que el validador lee de un graph de pipeline antes de comprobar su forma. */
+interface RawGraphConfig {
+  type?: unknown;
+  nodes?: unknown;
+  edges?: unknown;
+}
+
+/** Config del workflow tal como llega (JSON libre); cada fase comprueba lo que usa. */
+interface RawWorkflowConfig {
+  type?: unknown;
+  graph?: RawGraphConfig | null;
+  agents?: unknown;
+}
+
 @Injectable()
 export class WorkflowConfigValidator {
   private readonly logger = new Logger(WorkflowConfigValidator.name);
@@ -27,7 +42,7 @@ export class WorkflowConfigValidator {
    * Valida y lanza con el primer error encontrado.
    * Mantiene el contrato que ya esperaban `create()` y `update()`.
    */
-  async assert(config: any): Promise<void> {
+  async assert(config: unknown): Promise<void> {
     const { valid, errors } = await this.collect(config);
     if (!valid) {
       throw new InvalidWorkflowConfigException(errors[0]);
@@ -42,15 +57,17 @@ export class WorkflowConfigValidator {
    * nodos si `graph` ni siquiera es un objeto). El primer error de la lista es
    * siempre el mismo que habría lanzado la validación original.
    */
-  async collect(config: any): Promise<{ valid: boolean; errors: string[] }> {
+  async collect(rawConfig: unknown): Promise<{ valid: boolean; errors: string[] }> {
     const errors: string[] = [];
     const done = () => ({ valid: errors.length === 0, errors });
 
     // --- Fase 1: forma básica del documento ---
-    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    if (!rawConfig || typeof rawConfig !== 'object' || Array.isArray(rawConfig)) {
       errors.push('Config must be an object');
       return done();
     }
+    // JSON libre: lo que no tenga la forma esperada lo reportan las fases siguientes.
+    const config = rawConfig as RawWorkflowConfig;
     if (!config.type) {
       errors.push('Config must have a "type" field');
       return done();
@@ -73,7 +90,7 @@ export class WorkflowConfigValidator {
     if (errors.length > 0) return done();
 
     // --- Fase 3: modelos y grafo (independientes entre sí, se acumulan ambos) ---
-    errors.push(...(await this.collectModelErrors(config.agents)));
+    errors.push(...(await this.collectModelErrors(config.agents as Record<string, unknown>)));
 
     if (config.graph?.type === 'pipeline') {
       errors.push(...(await this.collectPipelineErrors(config.graph)));
@@ -87,10 +104,16 @@ export class WorkflowConfigValidator {
    * catálogo autodescriptivo del motor (GetNodeCatalog). Si el motor no responde, la
    * validación de catálogo se omite con un warning pero la estructural corre igual.
    */
-  private async collectPipelineErrors(graph: any): Promise<string[]> {
+  private async collectPipelineErrors(graph: RawGraphConfig): Promise<string[]> {
     const errors: string[] = [];
-    const nodes: any[] = Array.isArray(graph.nodes) ? graph.nodes : [];
-    const edges: any[] = Array.isArray(graph.edges) ? graph.edges : [];
+    const nodes = (Array.isArray(graph.nodes) ? graph.nodes : []) as {
+      id?: string;
+      type?: string;
+    }[];
+    const edges = (Array.isArray(graph.edges) ? graph.edges : []) as {
+      from?: string;
+      to?: string;
+    }[];
 
     if (nodes.length === 0) errors.push('Pipeline graph must have a non-empty "nodes" list');
     if (edges.length === 0) errors.push('Pipeline graph must have a non-empty "edges" list');
@@ -140,7 +163,7 @@ export class WorkflowConfigValidator {
       }
     } catch (error) {
       this.logger.warn(
-        `Node catalog unavailable, skipping catalog validation: ${(error as Error).message}`,
+        `Node catalog unavailable, skipping catalog validation: ${errorMessage(error)}`,
       );
     }
 

@@ -225,7 +225,7 @@ export class WorkflowsController {
       TriggerType.MANUAL, // trigger: UI executions are manual
     );
 
-    return new StreamableFile(stream as any);
+    return new StreamableFile(stream);
   }
 
   /**

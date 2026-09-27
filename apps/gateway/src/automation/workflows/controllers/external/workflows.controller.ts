@@ -95,7 +95,7 @@ export class ExternalWorkflowsController {
       TriggerType.API, // trigger: External API executions are api
     );
 
-    return new StreamableFile(stream as any);
+    return new StreamableFile(stream);
   }
 
   /**
