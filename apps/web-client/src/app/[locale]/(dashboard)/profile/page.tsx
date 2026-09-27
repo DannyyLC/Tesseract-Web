@@ -80,7 +80,7 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="overflow-hidden rounded-2xl border border-border bg-surface-panel"
+        className="overflow-hidden rounded-2xl border border-border"
       >
         <div className="border-b border-border p-6">
           <h2 className="text-lg font-semibold text-text-primary">{t('personalInfoTitle')}</h2>
@@ -162,7 +162,7 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
-        className="overflow-hidden rounded-2xl border border-border bg-surface-panel"
+        className="overflow-hidden rounded-2xl border border-border"
       >
         <div className="border-b border-border p-6">
           <h2 className="text-lg font-semibold text-text-primary">{t('preferencesTitle')}</h2>
@@ -171,7 +171,7 @@ export default function ProfilePage() {
 
         <div className="space-y-4 p-6">
           {/* Language */}
-          <div className="flex items-center justify-between rounded-xl border border-border p-4">
+          <div className="flex items-center justify-between rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-surface-secondary p-2.5">
                 <Globe size={20} className="text-text-secondary" />
@@ -191,7 +191,7 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="overflow-hidden rounded-2xl border border-border bg-surface-panel"
+        className="overflow-hidden rounded-2xl border border-border"
       >
         <div className="border-b border-border p-6">
           <h2 className="text-lg font-semibold text-text-primary">{t('securityTitle')}</h2>
@@ -200,7 +200,7 @@ export default function ProfilePage() {
 
         <div className="space-y-4 p-6">
           {/* 2FA Status */}
-          <div className="flex items-center justify-between rounded-xl border border-border p-4">
+          <div className="flex items-center justify-between rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm">
             <div className="flex items-center gap-3">
               <div
                 className={`rounded-lg p-2.5 ${
@@ -234,7 +234,7 @@ export default function ProfilePage() {
 
           {/* Backup Codes — solo tiene sentido con 2FA activo */}
           {twoFactorEnabled && (
-            <div className="flex items-center justify-between rounded-xl border border-border p-4">
+            <div className="flex items-center justify-between rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm">
               <div className="flex items-center gap-3">
                 <div
                   className={`rounded-lg p-2.5 ${
@@ -268,7 +268,7 @@ export default function ProfilePage() {
           )}
 
           {/* Change Password */}
-          <div className="flex items-center justify-between rounded-xl border border-border p-4">
+          <div className="flex items-center justify-between rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-surface-secondary p-2.5">
                 <Key size={20} className="text-text-secondary" />
@@ -291,7 +291,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Logout All Sessions */}
-          <div className="flex items-center justify-between rounded-xl border border-border p-4">
+          <div className="flex items-center justify-between rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-surface-secondary p-2.5">
                 <MonitorX size={20} className="text-text-secondary" />
@@ -324,7 +324,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="p-6">
-          <div className="flex items-center justify-between rounded-xl border border-danger-500 bg-surface-panel p-4">
+          <div className="flex items-center justify-between rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-danger-500 hover:shadow-sm">
             <div className="flex items-center gap-3">
               <div className="bg-danger-500/10 rounded-lg p-2.5 text-danger-500">
                 <LogOut size={20} />
