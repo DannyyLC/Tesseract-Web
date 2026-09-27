@@ -57,7 +57,13 @@ export function CatalogIntegrationCard({
       layout
       onClick={() => setIsExpanded(!isExpanded)}
       // El `mb-4` hace de separación vertical dentro de la columna.
-      className={`group mb-4 flex w-full cursor-pointer flex-col rounded-2xl border border-[var(--border-subtle)] bg-surface-elevated p-5 transition-shadow hover:shadow-md ${isDisabled ? 'opacity-50' : ''}`}
+      // Transparente y enmarcada al pasar el mouse, como las filas de Contactos. Expandida se
+      // queda enmarcada: el detalle abierto necesita un contenedor que lo agrupe.
+      className={`group mb-4 flex w-full cursor-pointer flex-col rounded-xl border p-5 transition-all duration-200 ${
+        isExpanded
+          ? 'border-border bg-surface-panel shadow-md'
+          : 'border-transparent hover:border-border hover:bg-surface-panel hover:shadow-sm'
+      } ${isDisabled ? 'opacity-50' : ''}`}
     >
       {/* Header */}
       <div className="mb-4 flex items-start justify-between">

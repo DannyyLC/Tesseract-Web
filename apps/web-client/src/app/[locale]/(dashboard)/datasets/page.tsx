@@ -66,7 +66,7 @@ export default function DatasetsPage() {
 
         {/* El consumo va a la vista: un botón deshabilitado sin explicación es peor que el límite. */}
         {usage && (
-          <div className="flex flex-wrap gap-6 rounded-2xl border border-border bg-surface-elevated px-5 py-4 text-sm">
+          <div className="flex flex-wrap gap-6 rounded-xl border border-transparent px-5 py-4 text-sm transition-all duration-200 hover:border-border hover:bg-surface-panel hover:shadow-sm">
             <div>
               <span className="text-text-tertiary">{t('usageDatasets')}: </span>
               <span className="font-medium text-text-primary">
@@ -97,7 +97,9 @@ export default function DatasetsPage() {
               <Link
                 key={dataset.id}
                 href={`/datasets/${dataset.id}`}
-                className="group rounded-2xl border border-border bg-surface-elevated p-5 transition-colors hover:border-accent"
+                // Transparente y enmarcada al pasar el mouse, como las filas de Contactos e
+                // Integraciones.
+                className="group rounded-xl border border-transparent p-5 transition-all duration-200 hover:border-border hover:bg-surface-panel hover:shadow-sm"
               >
                 <div className="flex items-start gap-3">
                   <div className="rounded-xl bg-[var(--surface-tint)] p-2 text-accent">
