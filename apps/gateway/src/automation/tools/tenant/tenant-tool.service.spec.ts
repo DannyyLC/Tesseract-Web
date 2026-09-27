@@ -315,7 +315,7 @@ describe('TenantToolService', () => {
   });
 
   describe('config de http_request', () => {
-    const create = (config: unknown) =>
+    const create = (config: any) =>
       service.createTenantTool(
         {
           displayName: 'HTTP',

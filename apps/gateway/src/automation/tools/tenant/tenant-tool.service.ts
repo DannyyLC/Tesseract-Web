@@ -258,8 +258,10 @@ export class TenantToolService {
           displayName: requestedDisplayName,
           organizationId,
           toolCatalogId: data.toolCatalogId,
-          allowedFunctions: data.allowedFunctions,
-          config: data.config,
+          // Json de Prisma: null no se acepta tal cual (sería Prisma.JsonNull); ausente o null
+          // significa "sin restricción de funciones" y se deja la columna en su default.
+          allowedFunctions: data.allowedFunctions ?? undefined,
+          config: data.config as Prisma.InputJsonObject | undefined,
           createdByUserId: userId,
           isConnected: noAuthRequired,
           status: noAuthRequired

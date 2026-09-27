@@ -202,7 +202,7 @@ export class ApiKeysService {
     }
 
     // Preparar datos a actualizar
-    const dataToUpdate: any = {};
+    const dataToUpdate: Prisma.ApiKeyUpdateInput = {};
     if (dto.name !== undefined) dataToUpdate.name = dto.name;
     if (dto.description !== undefined) dataToUpdate.description = dto.description;
     if (dto.isActive !== undefined) dataToUpdate.isActive = dto.isActive;

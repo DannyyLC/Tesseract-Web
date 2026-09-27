@@ -32,6 +32,7 @@ import { UpdateTenantToolDto } from '../../dto/update-tenant-tool.dto';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
 import { errorMessage } from '@/platform/common/utils/error-message';
+import { TenantTool } from '@tesseract/database';
 
 @Controller('tenant-tool')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -78,7 +79,7 @@ export class TenantToolController {
     @Body() body: CreateTenantToolDto,
     @Res() res: Response,
   ) {
-    const apiResponse = new ApiResponseBuilder<CreateTenantToolDto | null>();
+    const apiResponse = new ApiResponseBuilder<TenantTool | null>();
     const created = await this.tenantToolService.createTenantTool(
       body,
       user.organizationId,

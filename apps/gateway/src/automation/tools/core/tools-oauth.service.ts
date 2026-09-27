@@ -52,19 +52,17 @@ export class ToolsOauthService {
     // O si no hay filtro explícito, tomar todas las funciones del catálogo para esta tool
     const allowedFunctionNames =
       tool.allowedFunctions && Array.isArray(tool.allowedFunctions)
-        ? tool.allowedFunctions
-        : tool.toolCatalog.functions.map((f: any) => f.functionName);
+        ? (tool.allowedFunctions as string[])
+        : tool.toolCatalog.functions.map((f) => f.functionName);
 
     // Mapeo Dinámico de funciones a Scopes directo desde la Base de Datos
     // Filtramos las funciones del catálogo que el usuario "encendió" para esta herramienta
-    const allowedFunctions = tool.toolCatalog.functions.filter((f: any) =>
+    const allowedFunctions = tool.toolCatalog.functions.filter((f) =>
       allowedFunctionNames.includes(f.functionName),
     );
 
     // Extraemos todos los scopes de esas funciones, aplanamos la lista y quitamos duplicados con Set
-    const scopesList = Array.from(
-      new Set(allowedFunctions.flatMap((f: any) => f.oauthScopes ?? [])),
-    );
+    const scopesList = Array.from(new Set(allowedFunctions.flatMap((f) => f.oauthScopes ?? [])));
 
     // Opcional: Asegurar que siempre pidamos el perfil básico para identificar a quién le dimos el token
     if (
