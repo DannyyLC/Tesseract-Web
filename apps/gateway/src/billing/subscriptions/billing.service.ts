@@ -11,12 +11,22 @@ import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { CreateCreditCheckoutSessionDto } from './dto/create-credit-checkout-session.dto';
 import { CreditsService } from '../credits/credits.service';
 import {
+  InvoiceCompat,
+  InvoiceItemCreateParamsCompat,
+  PricedLineCompat,
+  SubscriptionCompat,
+  currentPeriodOf,
+  scheduleIdOf,
+  stripeIdOf,
+} from './stripe-compat.types';
+import {
   TransactionType,
   SubscriptionPlan,
   SubscriptionStatus,
   CfdiStatus,
   InvoiceStatus,
   InvoiceType,
+  UserRole as DbUserRole,
 } from '@tesseract/database';
 import {
   PLANS,
@@ -201,16 +211,16 @@ export class BillingService {
   //   - subscription_details.metadata → parent.subscription_details.metadata
   //   - line.price.id → line.pricing.price_details.price
   // ============================================
-  private getInvoiceSubscriptionId(invoice: any): string | undefined {
+  private getInvoiceSubscriptionId(invoice: InvoiceCompat): string | undefined {
     // New API: parent.subscription_details.subscription
     // Old API: invoice.subscription (string or object)
     return (
-      invoice.parent?.subscription_details?.subscription ??
-      (typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id)
+      stripeIdOf(invoice.parent?.subscription_details?.subscription) ??
+      stripeIdOf(invoice.subscription)
     );
   }
 
-  private getInvoiceOrganizationId(invoice: any): string | undefined {
+  private getInvoiceOrganizationId(invoice: InvoiceCompat): string | undefined {
     // New API: parent.subscription_details.metadata
     // Old API: subscription_details.metadata or invoice.metadata
     return (
@@ -220,10 +230,10 @@ export class BillingService {
     );
   }
 
-  private getLineItemPriceId(lineItem: any): string | undefined {
+  private getLineItemPriceId(lineItem: PricedLineCompat): string | undefined {
     // New API: pricing.price_details.price
     // Old API: price.id
-    return lineItem.pricing?.price_details?.price ?? lineItem.price?.id;
+    return stripeIdOf(lineItem.pricing?.price_details?.price) ?? lineItem.price?.id;
   }
 
   /**
@@ -231,7 +241,7 @@ export class BillingService {
    * SNAPSHOT LOGIC: Check for negative balance and bill it immediately
    */
   private async handleInvoiceCreated(invoiceObject: Stripe.Invoice) {
-    const invoice = invoiceObject as any;
+    const invoice = invoiceObject as unknown as InvoiceCompat;
 
     const subscriptionId = this.getInvoiceSubscriptionId(invoice);
 
@@ -266,12 +276,13 @@ export class BillingService {
           );
 
           // Add Invoice Item to THIS invoice using Price ID
-          await this.stripeClient.stripe.invoiceItems.create({
+          const overageItem: InvoiceItemCreateParamsCompat = {
             customer: invoice.customer as string,
             invoice: invoice.id,
             price: overagePriceId,
             quantity: overageCredits,
-          } as any);
+          };
+          await this.stripeClient.stripe.invoiceItems.create(overageItem);
 
           // 3. Mark as "Invoiced" in DB (Snapshot)
           await this.prisma.creditBalance.update({
@@ -290,7 +301,7 @@ export class BillingService {
    * Logic: Treat as "Soft Cancellation" - limit risk but allow recovery
    */
   private async handleInvoicePaymentFailed(invoiceObject: Stripe.Invoice) {
-    const invoice = invoiceObject as any;
+    const invoice = invoiceObject as unknown as InvoiceCompat;
     const organizationId = this.getInvoiceOrganizationId(invoice);
 
     if (!organizationId) {
@@ -343,7 +354,7 @@ export class BillingService {
   }
 
   private async handleInvoicePaymentSucceeded(invoiceObject: Stripe.Invoice) {
-    const invoice = invoiceObject as any; // Cast to any to handle type mismatches
+    const invoice = invoiceObject as unknown as InvoiceCompat;
 
     const subscriptionId = this.getInvoiceSubscriptionId(invoice);
 
@@ -486,12 +497,13 @@ export class BillingService {
           `Org ${organizationId} has gap of ${gapCredits} credits. Billing for next month via Price ID.`,
         );
 
-        await this.stripeClient.stripe.invoiceItems.create({
+        const gapItem: InvoiceItemCreateParamsCompat = {
           customer: invoice.customer as string,
           price: overagePriceId,
           quantity: gapCredits,
           description: `Overage Adjustment (Prev Month: ${gapCredits} credits)`,
-        } as any);
+        };
+        await this.stripeClient.stripe.invoiceItems.create(gapItem);
       }
 
       // SYNC DB STATE
@@ -505,11 +517,11 @@ export class BillingService {
       // 2. Upsert Subscription
       // Period dates come from the Stripe subscription directly — invoices don't
       // reliably carry current_period_start/end in the new API (2025-01-27.acacia).
-      const stripeSubForDates = (await this.stripeClient.stripe.subscriptions.retrieve(
-        subscriptionId,
-      )) as any;
-      const periodStart = new Date(stripeSubForDates.current_period_start * 1000);
-      const periodEnd = new Date(stripeSubForDates.current_period_end * 1000);
+      const stripeSubForDates =
+        await this.stripeClient.stripe.subscriptions.retrieve(subscriptionId);
+      const period = currentPeriodOf(stripeSubForDates);
+      const periodStart = new Date(period.start * 1000);
+      const periodEnd = new Date(period.end * 1000);
       const upsertPriceId = this.getLineItemPriceId(invoice.lines?.data?.[0]);
 
       // La moneda se toma de la factura, que es la que Stripe congeló en el Customer. No se
@@ -582,7 +594,7 @@ export class BillingService {
           currency: invoiceCurrency,
           amountPaidMinor: amountPaidCents,
           stripeLineItems:
-            invoice.lines?.data?.map((l: any) => ({
+            invoice.lines?.data?.map((l) => ({
               description: l.description,
               amountMinor: l.amount,
               quantity: l.quantity,
@@ -650,7 +662,7 @@ export class BillingService {
    * y el de Stripe ya es único e inmutable. El folio *fiscal* es otra cosa y lo asigna el PAC.
    */
   private async recordInvoiceAndStamp(
-    stripeInvoice: any,
+    stripeInvoice: InvoiceCompat,
     organizationId: string,
     subscriptionId: string,
     periodStart: Date,
@@ -735,12 +747,12 @@ export class BillingService {
    * suscripción (ver `handleInvoiceCreated`). Se identifica por su Price ID, no por la
    * descripción, que es texto libre y cambia.
    */
-  private async calculateOverageAmount(stripeInvoice: any): Promise<number> {
+  private async calculateOverageAmount(stripeInvoice: InvoiceCompat): Promise<number> {
     const overagePriceId = await this.priceCatalog.overagePriceId();
 
     const overageCents = (stripeInvoice.lines?.data ?? [])
-      .filter((line: any) => this.getLineItemPriceId(line) === overagePriceId)
-      .reduce((sum: number, line: any) => sum + (line.amount ?? 0), 0);
+      .filter((line) => this.getLineItemPriceId(line) === overagePriceId)
+      .reduce((sum, line) => sum + (line.amount ?? 0), 0);
 
     return overageCents / 100;
   }
@@ -761,7 +773,7 @@ export class BillingService {
    * cruzada — si no coincidieran, manda Stripe y se deja constancia en el log.
    */
   private async handleCheckoutSessionCompleted(sessionObject: Stripe.Checkout.Session) {
-    const session = sessionObject as any;
+    const session = sessionObject;
 
     if (session.mode !== 'payment') return;
 
@@ -1010,7 +1022,7 @@ export class BillingService {
 
       // SAFETY: If there's an active schedule (from a pending downgrade), release it first
       // Otherwise the schedule would still execute and revert the plan after the period ends
-      const existingScheduleId = (stripeSub as any).schedule as string;
+      const existingScheduleId = scheduleIdOf(stripeSub);
       if (existingScheduleId) {
         await this.stripeClient.stripe.subscriptionSchedules.release(existingScheduleId);
         this.logger.log(
@@ -1047,19 +1059,19 @@ export class BillingService {
       // DOWNGRADE: Schedule change for end of period
       // We use Subscription Schedules to queue the change natively in Stripe
 
-      const scheduleId = (stripeSub as any).schedule as string;
+      const scheduleId = scheduleIdOf(stripeSub);
 
       if (scheduleId) {
         // Update existing schedule with the new target plan
         await this.stripeClient.stripe.subscriptionSchedules.update(scheduleId, {
           phases: [
             {
-              start_date: (stripeSub as any).current_period_start,
-              end_date: (stripeSub as any).current_period_end,
+              start_date: currentPeriodOf(stripeSub).start,
+              end_date: currentPeriodOf(stripeSub).end,
               items: [{ price: stripeSub.items.data[0].price.id }],
             },
             {
-              start_date: (stripeSub as any).current_period_end,
+              start_date: currentPeriodOf(stripeSub).end,
               items: [{ price: priceId }],
             },
           ],
@@ -1082,12 +1094,12 @@ export class BillingService {
         await this.stripeClient.stripe.subscriptionSchedules.update(schedule.id, {
           phases: [
             {
-              start_date: (stripeSub as any).current_period_start,
-              end_date: (stripeSub as any).current_period_end,
+              start_date: currentPeriodOf(stripeSub).start,
+              end_date: currentPeriodOf(stripeSub).end,
               items: [{ price: stripeSub.items.data[0].price.id }],
             },
             {
-              start_date: (stripeSub as any).current_period_end,
+              start_date: currentPeriodOf(stripeSub).end,
               items: [{ price: priceId }],
             },
           ],
@@ -1113,8 +1125,8 @@ export class BillingService {
         [
           sub.plan.toString(),
           newPlan.toUpperCase(),
-          new Date((stripeSub as any).current_period_start * 1000).toLocaleDateString('es-ES'),
-          new Date((stripeSub as any).current_period_end * 1000).toLocaleDateString('es-ES'),
+          new Date(currentPeriodOf(stripeSub).start * 1000).toLocaleDateString('es-ES'),
+          new Date(currentPeriodOf(stripeSub).end * 1000).toLocaleDateString('es-ES'),
         ],
       );
 
@@ -1214,7 +1226,7 @@ export class BillingService {
       sub.stripeSubscriptionId,
     );
 
-    const scheduleId = (stripeSub as any).schedule as string;
+    const scheduleId = scheduleIdOf(stripeSub);
 
     if (scheduleId) {
       // Release the schedule — keeps current subscription as-is, cancels the future phase
@@ -1235,7 +1247,7 @@ export class BillingService {
   }
 
   private async handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-    const sub = subscription as any;
+    const sub = subscription as SubscriptionCompat;
     const organizationId = sub.metadata?.organizationId;
 
     if (!organizationId) {
@@ -1565,7 +1577,7 @@ export class BillingService {
           (b.lastLoginAt?.getTime() ?? 0) - (a.lastLoginAt?.getTime() ?? 0);
 
         // Always keep OWNER
-        const owners = activeUsers.filter((u) => u.role === UserRole.OWNER);
+        const owners = activeUsers.filter((u) => u.role === DbUserRole.OWNER);
         owners.forEach((u) => usersToKeep.push(u.id));
         slotsRemaining -= owners.length;
 
@@ -1575,7 +1587,7 @@ export class BillingService {
 
         // Keep ADMINs (sorted by recent login)
         if (slotsRemaining > 0) {
-          const admins = activeUsers.filter((u) => u.role === UserRole.ADMIN);
+          const admins = activeUsers.filter((u) => u.role === DbUserRole.ADMIN);
           admins.sort(byRecentLogin);
 
           const adminsToKeep = admins.slice(0, slotsRemaining);
@@ -1585,7 +1597,7 @@ export class BillingService {
 
         // Keep VIEWERS (sorted by recent login)
         if (slotsRemaining > 0) {
-          const viewers = activeUsers.filter((u) => u.role === UserRole.VIEWER);
+          const viewers = activeUsers.filter((u) => u.role === DbUserRole.VIEWER);
           viewers.sort(byRecentLogin);
           const viewersToKeep = viewers.slice(0, slotsRemaining);
           viewersToKeep.forEach((u) => usersToKeep.push(u.id));

@@ -257,7 +257,7 @@ export class CreditsService {
       };
     }
 
-    const requiredCredits = getWorkflowCreditCost(workflowCategory as any);
+    const requiredCredits = getWorkflowCreditCost(workflowCategory);
 
     // Caso 1: Tiene créditos suficientes
     if (balance.balance >= requiredCredits) {
@@ -326,7 +326,7 @@ export class CreditsService {
       throw new Error('Credit balance not found');
     }
 
-    const credits = getWorkflowCreditCost(workflowCategory as any);
+    const credits = getWorkflowCreditCost(workflowCategory);
     const balanceBefore = balance.balance;
     const balanceAfter = balanceBefore - credits;
 
@@ -399,7 +399,7 @@ export class CreditsService {
     });
 
     if (organization) {
-      const planMonthlyCredits = getPlanLimits(organization.plan as any).monthlyCredits;
+      const planMonthlyCredits = getPlanLimits(organization.plan).monthlyCredits;
       const lowCreditsThreshold = Math.max(
         1,
         Math.ceil(planMonthlyCredits * LOW_CREDITS_THRESHOLD_PERCENTAGE),

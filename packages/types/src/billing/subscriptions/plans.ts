@@ -368,7 +368,7 @@ export function getPlan(planType: SubscriptionPlan): BillingPlan {
  * Obtiene los límites de un plan (con soporte para ENTERPRISE custom)
  */
 export function getPlanLimits(
-  planType: SubscriptionPlan,
+  planType: SubscriptionPlan | `${SubscriptionPlan}`,
   enterpriseConfig?: EnterprisePlanConfig,
 ): PlanLimits {
   const plan = PLANS[planType];
@@ -477,7 +477,8 @@ export function hasSufficientCredits(
 /**
  * Obtiene el costo en créditos de un workflow según su categoría
  */
-export function getWorkflowCreditCost(category: WorkflowCategory): number {
+// Acepta también el string del enum de Prisma (mismos valores) sin castear en cada llamada.
+export function getWorkflowCreditCost(category: WorkflowCategory | `${WorkflowCategory}`): number {
   return WORKFLOW_CATEGORIES[category].credits;
 }
 
