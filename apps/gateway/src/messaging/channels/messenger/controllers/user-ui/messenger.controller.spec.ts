@@ -1,4 +1,4 @@
-import { HttpStatus } from '@nestjs/common';
+import { BadRequestException, HttpStatus } from '@nestjs/common';
 import { UserRole } from '@tesseract/types';
 import { ROLES_KEY } from '@/identity/auth/decorators/roles.decorator';
 import { MessengerController } from './messenger.controller';
@@ -11,7 +11,7 @@ import { MessengerController } from './messenger.controller';
 describe('MessengerController · gestión', () => {
   const ORG = 'org-1';
   const currUser: any = { organizationId: ORG, role: UserRole.ADMIN };
-  const ownConfig = { id: 'ms-1', organizationId: ORG };
+  const ownConfig = { id: 'ms-1', organizationId: ORG, pageId: 'p-1' };
   const foreignConfig = { id: 'ms-9', organizationId: 'org-9' };
 
   const service: any = {
@@ -24,6 +24,8 @@ describe('MessengerController · gestión', () => {
     updateIsActive: jest.fn().mockResolvedValue(true),
     updatePageAccessToken: jest.fn().mockResolvedValue(true),
     updateAppSecret: jest.fn().mockResolvedValue(true),
+    updateConfig: jest.fn().mockResolvedValue(true),
+    assertCredentialsOwnPage: jest.fn().mockResolvedValue(undefined),
   };
   const workflowsService: any = { getRoutingState: jest.fn() };
   const controller = new MessengerController(
@@ -76,12 +78,74 @@ describe('MessengerController · gestión', () => {
     const r = res();
     await controller.createConfig(
       currUser,
-      { workflowId: 'wf-ajeno', pageId: 'p-1', pageName: 'x' } as any,
+      {
+        workflowId: 'wf-ajeno',
+        pageId: 'p-1',
+        pageName: 'x',
+        pageAccessToken: 't',
+        appSecret: 's',
+      } as any,
       r,
     );
     expect(workflowsService.getRoutingState).toHaveBeenCalledWith(ORG, 'wf-ajeno');
     expect(r.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     expect(service.createRecord).not.toHaveBeenCalled();
+  });
+
+  describe('prueba de propiedad de la página', () => {
+    const rejected = () =>
+      service.assertCredentialsOwnPage.mockRejectedValueOnce(
+        new BadRequestException('El Page Access Token no pertenece a la página p-ajena'),
+      );
+
+    it('no da de alta una página si Meta no confirma que el token es de ella', async () => {
+      rejected();
+      const r = res();
+      await controller.createConfig(
+        currUser,
+        { workflowId: 'wf-1', pageId: 'p-ajena', pageAccessToken: 't', appSecret: 's' } as any,
+        r,
+      );
+      expect(r.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+      expect(r.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'El Page Access Token no pertenece a la página p-ajena',
+        }),
+      );
+      expect(service.createRecord).not.toHaveBeenCalled();
+    });
+
+    it('cambiar el pageId de una página propia vuelve a exigir la prueba', async () => {
+      rejected();
+      const r = res();
+      await controller.updateConfig(currUser, ownConfig.id, { pageId: 'p-ajena' } as any, r);
+
+      expect(service.assertCredentialsOwnPage).toHaveBeenCalledWith(
+        { pageId: 'p-ajena', pageAccessToken: undefined, appSecret: undefined },
+        ownConfig,
+      );
+      expect(r.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+      expect(service.updateConfig).not.toHaveBeenCalled();
+    });
+
+    it('editar solo el nombre no llama a Meta', async () => {
+      await controller.updateConfig(currUser, ownConfig.id, { pageName: 'Nuevo' } as any, res());
+      expect(service.assertCredentialsOwnPage).not.toHaveBeenCalled();
+      expect(service.updateConfig).toHaveBeenCalled();
+    });
+
+    it('rotar el token verifica el nuevo contra la página guardada', async () => {
+      await controller.updatePageAccessToken(
+        currUser,
+        ownConfig.id,
+        { pageAccessToken: 'nuevo' },
+        res(),
+      );
+      expect(service.assertCredentialsOwnPage).toHaveBeenCalledWith(
+        { pageId: 'p-1', pageAccessToken: 'nuevo' },
+        ownConfig,
+      );
+    });
   });
 
   // Un VIEWER solo consulta: las escrituras exigen OWNER/ADMIN.

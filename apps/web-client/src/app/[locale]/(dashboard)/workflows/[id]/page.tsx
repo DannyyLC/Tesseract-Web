@@ -551,6 +551,7 @@ export default function WorkflowDetailPage() {
                         connectionStatus: number.connectionStatus,
                         createdAt: number.createdAt.toString(),
                         isDefaultForOutbound: number.isDefaultForOutbound,
+                        approvedAt: number.approvedAt,
                       }}
                       index={index}
                       onDelete={handleWhatsappDelete}

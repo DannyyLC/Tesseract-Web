@@ -87,6 +87,7 @@ describe('WhatsappConfigController · webhook', () => {
       id: 'wa-1',
       organizationId: 'org-1',
       isActive: true,
+      approvedAt: new Date('2026-01-01'),
       defaultWorkflowId: 'wf-1',
     });
     mockWebhookDedup.claim.mockResolvedValue(true);
@@ -229,6 +230,26 @@ describe('WhatsappConfigController · webhook', () => {
     expect(mockWebhookDedup.release).toHaveBeenCalled();
   });
 
+  it('descarta los mensajes a un número que un super admin no ha aprobado', async () => {
+    mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
+      id: 'wa-1',
+      organizationId: 'org-1',
+      isActive: true,
+      approvedAt: null,
+      defaultWorkflowId: 'wf-1',
+    });
+    const res = createMockResponse();
+
+    await controller.handleWebhook(body, res, {});
+
+    expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+    expect(res.send).toHaveBeenCalledWith(
+      expect.objectContaining({ ignored: 'unapproved-config' }),
+    );
+    expect(mockQueueService.bufferMessage).not.toHaveBeenCalled();
+    expect(mockCloudTasks.enqueue).not.toHaveBeenCalled();
+  });
+
   it('no consulta la lista negra si la firma no es válida', async () => {
     mockWhatsappConfigService.verifySignature.mockReturnValue(false);
     const res = createMockResponse();
@@ -248,7 +269,12 @@ describe('WhatsappConfigController · webhook', () => {
 describe('WhatsappConfigController · gestión', () => {
   const ORG = 'org-1';
   const currUser: any = { organizationId: ORG, role: UserRole.ADMIN };
-  const ownConfig = { id: 'wa-1', organizationId: ORG, phoneNumber: '5211111111111' };
+  const ownConfig = {
+    id: 'wa-1',
+    organizationId: ORG,
+    phoneNumber: '5211111111111',
+    approvedAt: new Date('2026-01-01'),
+  };
   const foreignConfig = { id: 'wa-9', organizationId: 'org-9', phoneNumber: '5219999999999' };
 
   const service: any = {
@@ -345,6 +371,25 @@ describe('WhatsappConfigController · gestión', () => {
       'es_MX',
       undefined,
     );
+  });
+
+  it('no envía templates desde un número propio que sigue pendiente', async () => {
+    service.getWhatsappConfigById.mockImplementationOnce(async () => ({
+      ...ownConfig,
+      approvedAt: null,
+    }));
+    service.getTemplate.mockResolvedValue({
+      id: 'tpl-1',
+      whatsAppConfigId: ownConfig.id,
+      name: 'promo',
+      language: 'es_MX',
+    });
+    const r = res();
+
+    await controller.sendTemplate(currUser, 'tpl-1', { to: '5215500000000' } as any, r);
+
+    expect(r.status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(service.sendTemplateMessage).not.toHaveBeenCalled();
   });
 
   // Un VIEWER solo consulta: las escrituras exigen OWNER/ADMIN.

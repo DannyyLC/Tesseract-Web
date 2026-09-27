@@ -92,6 +92,15 @@ class WhatsappConfigAdminApi {
     return result.data.data ?? false;
   }
 
+  /** Aprueba un número dado de alta por el cliente: desde aquí recibe y envía mensajes. */
+  async approve(organizationId: string, configId: string): Promise<boolean> {
+    const result = await this.apiRequestManager.patch<ApiResponse<boolean>>(
+      `${this.base(organizationId)}/${configId}/approve`,
+      {},
+    );
+    return result.data.data ?? false;
+  }
+
   async listTemplates(organizationId: string, configId: string): Promise<WhatsAppTemplate[]> {
     const result = await this.apiRequestManager.get<ApiResponse<WhatsAppTemplate[]>>(
       `${this.base(organizationId)}/${configId}/templates`,

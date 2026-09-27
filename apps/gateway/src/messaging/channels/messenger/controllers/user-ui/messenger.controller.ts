@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -532,6 +533,15 @@ export class MessengerController {
       return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
     }
 
+    // Las credenciales tienen que ser de esa página (ver assertCredentialsOwnPage). Sin ellas ya
+    // no se cae a las de la plataforma: eso dejaba registrar cualquier página suscrita a la app.
+    const ownership = await this.checkOwnership(res, {
+      pageId: body.pageId,
+      pageAccessToken: body.pageAccessToken,
+      appSecret: body.appSecret,
+    });
+    if (ownership) return ownership;
+
     // El workflow llega del body: tiene que ser de esta organización.
     const workflow = await this.workflowsService.getRoutingState(
       currUser.organizationId,
@@ -639,8 +649,24 @@ export class MessengerController {
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
 
-    if (!(await this.findOwnedConfig(currUser.organizationId, id))) {
+    const config = await this.findOwnedConfig(currUser.organizationId, id);
+    if (!config) {
       return this.configNotFound(res);
+    }
+
+    // Cambiar la página o cualquiera de sus credenciales vuelve a exigir que el par resultante
+    // sea de esa página: si no, bastaba editar el pageId para quedarse con la de otro.
+    if (body.pageId?.trim() || body.pageAccessToken?.trim() || body.appSecret?.trim()) {
+      const ownership = await this.checkOwnership(
+        res,
+        {
+          pageId: body.pageId?.trim() || config.pageId,
+          pageAccessToken: body.pageAccessToken,
+          appSecret: body.appSecret,
+        },
+        config,
+      );
+      if (ownership) return ownership;
     }
 
     const success = await this.messengerConfigService.updateConfig(id, body);
@@ -698,9 +724,16 @@ export class MessengerController {
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
-    if (!(await this.findOwnedConfig(currUser.organizationId, id))) {
+    const config = await this.findOwnedConfig(currUser.organizationId, id);
+    if (!config) {
       return this.configNotFound(res);
     }
+    const ownership = await this.checkOwnership(
+      res,
+      { pageId: config.pageId, pageAccessToken: body.pageAccessToken },
+      config,
+    );
+    if (ownership) return ownership;
     const success = await this.messengerConfigService.updatePageAccessToken(
       id,
       body.pageAccessToken,
@@ -730,9 +763,16 @@ export class MessengerController {
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
-    if (!(await this.findOwnedConfig(currUser.organizationId, id))) {
+    const config = await this.findOwnedConfig(currUser.organizationId, id);
+    if (!config) {
       return this.configNotFound(res);
     }
+    const ownership = await this.checkOwnership(
+      res,
+      { pageId: config.pageId, appSecret: body.appSecret },
+      config,
+    );
+    if (ownership) return ownership;
     const success = await this.messengerConfigService.updateAppSecret(id, body.appSecret);
     if (success) {
       apiResponse
@@ -762,6 +802,28 @@ export class MessengerController {
   ): Promise<MessengerConfig | null> {
     const config = await this.messengerConfigService.getMessengerConfigById(configId);
     return config && config.organizationId === organizationId ? config : null;
+  }
+
+  /**
+   * Corre la prueba de propiedad y, si falla, contesta 400 con el motivo. Devuelve la respuesta
+   * ya enviada para que el handler la regrese, o `null` si las credenciales son de la página.
+   */
+  private async checkOwnership(
+    res: Response,
+    input: { pageId: string; pageAccessToken?: string; appSecret?: string },
+    current?: MessengerConfig,
+  ): Promise<Response | null> {
+    try {
+      await this.messengerConfigService.assertCredentialsOwnPage(input, current);
+      return null;
+    } catch (error) {
+      if (!(error instanceof BadRequestException)) throw error;
+      const apiResponse = new ApiResponseBuilder<boolean>()
+        .setStatusCode(HttpStatus.BAD_REQUEST)
+        .setData(false)
+        .setMessage(error.message);
+      return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
+    }
   }
 
   private configNotFound(res: Response): Response {

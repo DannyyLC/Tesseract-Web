@@ -2011,6 +2011,9 @@ export class WorkflowsService {
             organizationId: workflow.organizationId,
             deletedAt: null,
             isActive: true,
+            // Un número sin aprobar no envía: saldría con la llave global de YCloud hablando en
+            // nombre de un negocio que no se ha verificado que sea de esta organización.
+            approvedAt: { not: null },
             defaultWorkflowId: workflow.id,
           },
           select: { id: true, isDefaultForOutbound: true },
@@ -2042,7 +2045,12 @@ export class WorkflowsService {
 
         if (configId) {
           const wac = await this.prisma.whatsAppConfig.findFirst({
-            where: { id: configId, organizationId: workflow.organizationId },
+            // `configId` puede venir de la metadata de la ejecución: se vuelve a exigir aprobado.
+            where: {
+              id: configId,
+              organizationId: workflow.organizationId,
+              approvedAt: { not: null },
+            },
             include: { templates: { where: { isActive: true } } },
           });
 

@@ -41,6 +41,7 @@ describe('WhatsappConfigService', () => {
       mockDriveService,
       mockConversationsService,
       mockLogger,
+      { sendServiceRequestEmail: jest.fn().mockResolvedValue(true) } as any,
     );
   });
 

@@ -330,7 +330,7 @@
     "whatsappDeactivateError": "Error deactivating the WhatsApp number",
     "whatsappSetDefaultError": "Couldn't set the number as default",
     "invalidNumberError": "Enter a valid number in international format. e.g. +524961337305",
-    "whatsappLinkSuccess": "Workflow linked to WhatsApp successfully",
+    "whatsappLinkSuccess": "Request sent. We'll let you know when the number is active.",
     "duplicatePhoneError": "That number is already registered in WhatsApp. Use another number or delete the existing configuration.",
     "whatsappLinkError": "Could not link the workflow to WhatsApp. Please try again.",
     "notFound": "Workflow not found",
@@ -1590,6 +1590,7 @@
     "confirmDisconnectButton": "Yes, Disconnect"
   },
   "WhatsappNumberCard": {
+    "pendingApproval": "Pending approval",
     "subtitle": "WhatsApp number",
     "addedOn": "Added on {date}",
     "statusConfigured": "Configured",
@@ -2170,6 +2171,9 @@
       "empty": "There are no WhatsApp numbers in this organization yet.",
       "deletedWorkflow": "Deleted workflow",
       "inactiveBadge": "deactivated",
+      "pendingBadge": "pending approval",
+      "approveTitle": "Approve (integration in YCloud is done)",
+      "approvedSuccess": "Number approved: it now sends and receives messages",
       "routesTo": "Routes to {workflow}",
       "noWorkflowAssigned": "No workflow assigned",
       "templatesTitle": "Templates",

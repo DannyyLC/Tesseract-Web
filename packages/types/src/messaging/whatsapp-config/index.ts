@@ -22,6 +22,8 @@ export interface WhatsAppConfig {
   qrCodeExpiry: Date | null;
   sessionData: unknown;
   isActive: boolean;
+  /** Cuándo un super admin lo aprobó. `null` = pendiente: no recibe ni envía mensajes. */
+  approvedAt: Date | null;
   defaultWorkflowId: string | null;
   /**
    * Solo importa cuando el workflow tiene más de un número: cuál usa `send_bulk_whatsapp` como

@@ -175,6 +175,14 @@ export class WhatsappWorkerController {
         return { status: HttpStatus.OK, body: { processed: false, reason: 'ausent-config' } };
       }
 
+      // El webhook ya descarta los números sin aprobar; esto cubre una ventana que se agendó
+      // antes de que un super admin revocara o de que el número se diera de alta de nuevo.
+      if (!account.approvedAt) {
+        this.logger.warn('Número de WhatsApp sin aprobar; no se responde', logContext);
+        await this.commit(drained.processingKey);
+        return { status: HttpStatus.OK, body: { processed: false, reason: 'unapproved-config' } };
+      }
+
       const yCloudApiKey = process.env.Y_CLOUD_API_KEY;
       if (!yCloudApiKey || !account.defaultWorkflowId) {
         this.logger.error('Falta Y_CLOUD_API_KEY o defaultWorkflowId; no se puede responder', {

@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { ChatRole, MessengerConfig, MessengerConnectionStatus } from '@tesseract/database';
 import { JsonObject } from '@prisma/client/runtime/client';
 import * as crypto from 'crypto';
@@ -40,6 +40,68 @@ export class MessengerConfigService {
     private readonly conversationsService: ConversationsService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
+
+  // ─── Prueba de propiedad ──────────────────────────────────────────────
+
+  /**
+   * Comprueba con Meta que las credenciales son de esa página antes de guardarlas.
+   *
+   * El `pageId` es público y el webhook enruta por él, así que sin esto cualquiera podía dar
+   * de alta la página de otro (o cambiar el `pageId` de la suya) y quedarse con sus mensajes;
+   * con las credenciales de la plataforma como respaldo, ni siquiera necesitaba unas propias.
+   * `GET /me` con un token de página devuelve el id de esa página, y el `appsecret_proof`
+   * (HMAC del token con el App Secret) hace que Meta rechace un App Secret de otra app.
+   *
+   * Lo que no venga en `input` se toma de `current` (la config guardada): así se puede rotar
+   * una sola credencial y aun así verificar el par completo.
+   *
+   * @throws BadRequestException con un mensaje que se puede mostrar tal cual en el formulario.
+   */
+  async assertCredentialsOwnPage(
+    input: { pageId: string; pageAccessToken?: string; appSecret?: string },
+    current?: Pick<MessengerConfig, 'pageAccessToken' | 'appSecret'>,
+  ): Promise<void> {
+    const pageAccessToken =
+      input.pageAccessToken?.trim() ||
+      (current?.pageAccessToken ? await this.kmsService.decrypt(current.pageAccessToken) : '');
+    const appSecret =
+      input.appSecret?.trim() ||
+      (current?.appSecret ? await this.kmsService.decrypt(current.appSecret) : '');
+
+    if (!pageAccessToken || !appSecret) {
+      throw new BadRequestException(
+        'El Page Access Token y el App Secret de tu app de Meta son obligatorios',
+      );
+    }
+
+    let ownerId: string | undefined;
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get<{ id?: string }>(`${GRAPH_API_BASE}/me`, {
+          params: {
+            fields: 'id',
+            access_token: pageAccessToken,
+            appsecret_proof: crypto
+              .createHmac('sha256', appSecret)
+              .update(pageAccessToken)
+              .digest('hex'),
+          },
+        }),
+      );
+      ownerId = data?.id;
+    } catch {
+      // Sin loguear el error de axios: la URL lleva el token en claro.
+      throw new BadRequestException(
+        'Meta rechazó las credenciales: revisa el Page Access Token y el App Secret',
+      );
+    }
+
+    if (ownerId !== input.pageId) {
+      throw new BadRequestException(
+        `El Page Access Token no pertenece a la página ${input.pageId}`,
+      );
+    }
+  }
 
   // ─── Config lookup ────────────────────────────────────────────────────
 

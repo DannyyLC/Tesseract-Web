@@ -113,6 +113,7 @@ describe('WhatsappWorkerController', () => {
     mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
       id: 'wa-1',
       isActive: true,
+      approvedAt: new Date('2026-01-01'),
       defaultWorkflowId: 'wf-1',
       connectionStatus: 'CONNECTED',
       phoneNumber: body.phoneNumber,

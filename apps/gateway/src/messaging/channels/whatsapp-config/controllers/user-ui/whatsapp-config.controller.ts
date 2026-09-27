@@ -198,6 +198,16 @@ export class WhatsappConfigController {
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'inactive-config' });
       }
 
+      // Un número que un super admin no ha aprobado no es todavía de nadie: sus mensajes no se
+      // entregan a la organización que lo registró (ver `approvedAt` en schema.prisma).
+      if (!account.approvedAt) {
+        this.logger.warn('Received message for unapproved WhatsApp config', {
+          reason: 'unapproved-config',
+          phoneNumber,
+        });
+        return res.status(HttpStatus.OK).send({ received: true, ignored: 'unapproved-config' });
+      }
+
       if (!account.defaultWorkflowId) {
         this.logger.warn('Received message for WhatsApp config with no associated workflow', {
           reason: 'no-workflow',
@@ -460,10 +470,12 @@ export class WhatsappConfigController {
       body.phoneNumber,
     );
     if (response) {
+      // Nace pendiente: no recibe ni envía nada hasta que un super admin lo aprueba.
+      await this.whatsappConfigService.notifyNumberRequested(response, currUser);
       apiResponse
         .setStatusCode(HttpStatus.CREATED)
         .setData(true)
-        .setMessage('WhatsApp config created successfully');
+        .setMessage('WhatsApp number requested; pending approval');
       return res.status(HttpStatus.CREATED).json(apiResponse.build());
     }
 
@@ -691,6 +703,11 @@ export class WhatsappConfigController {
       return this.templateNotFound(res);
     }
     const { template, config } = owned;
+    // El número se usa como remitente con la llave global de YCloud: sin aprobar, podría
+    // hablar en nombre de un negocio que no es el de esta organización.
+    if (!config.approvedAt) {
+      return this.configNotFound(res);
+    }
 
     await this.whatsappConfigService.sendTemplateMessage(
       config.phoneNumber,

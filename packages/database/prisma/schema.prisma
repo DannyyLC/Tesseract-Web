@@ -1648,6 +1648,13 @@ model WhatsAppConfig {
   // Estado
   isActive Boolean @default(true)
 
+  /// Cuándo un super admin confirmó que el número es de esta organización. NULL = pendiente:
+  /// no recibe ni envía nada. Todos los números viven en la cuenta compartida de YCloud y la
+  /// plataforma no puede probar por sí sola de quién es cada uno, así que el alta del cliente
+  /// es una solicitud; sin esto, el primero que registraba un número ajeno se quedaba con sus
+  /// mensajes. Separado de `isActive` a propósito: ese lo prende y apaga el cliente.
+  approvedAt DateTime?
+
   // Workflow por defecto para mensajes entrantes
   defaultWorkflowId String?
   defaultWorkflow   Workflow? @relation(fields: [defaultWorkflowId], references: [id])

@@ -46,7 +46,12 @@ export function useAdminWhatsappMutations(organizationId: string) {
     onSuccess: invalidateList,
   });
 
-  return { createConfig, updateConfig, deleteConfig, setActive };
+  const approve = useMutation({
+    mutationFn: async (id: string) => api().approve(organizationId, id),
+    onSuccess: invalidateList,
+  });
+
+  return { createConfig, updateConfig, deleteConfig, setActive, approve };
 }
 
 export function useAdminWhatsappTemplates(organizationId: string, configId: string | null) {

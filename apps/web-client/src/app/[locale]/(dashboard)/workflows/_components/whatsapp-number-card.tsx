@@ -16,6 +16,8 @@ interface WhatsappNumberDto {
   connectionStatus?: 'CONNECTED' | 'DISCONNECTED' | 'ERROR' | 'PENDING';
   createdAt: string;
   isDefaultForOutbound?: boolean;
+  /** `null` = un super admin todavía no lo aprueba: no recibe ni envía mensajes. */
+  approvedAt?: Date | string | null;
 }
 
 interface WhatsappNumberCardProps {
@@ -110,19 +112,30 @@ export function WhatsappNumberCard({
         <p className="mt-0.5 text-xs text-text-tertiary">{t('addedOn', { date: createdDate })}</p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${status.label}`}
-          >
-            <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
-            {t(status.textKey)}
-          </span>
+          {/* Mientras está pendiente, el estado de conexión no dice nada útil: el número no
+              opera hasta que el equipo termine la integración y lo apruebe. */}
+          {number.approvedAt === null ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-500/10 px-2.5 py-1 text-xs font-medium text-[var(--badge-warning-text-strong)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-warning-500" />
+              {t('pendingApproval')}
+            </span>
+          ) : (
+            <>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${status.label}`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+                {t(status.textKey)}
+              </span>
 
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${connectionLabel}`}
-          >
-            <span className={`h-1.5 w-1.5 rounded-full ${connectionDot}`} />
-            {connectionText}
-          </span>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${connectionLabel}`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${connectionDot}`} />
+                {connectionText}
+              </span>
+            </>
+          )}
         </div>
 
         {/* Fila propia y siempre presente cuando aplica (mismo workflow, mismo estado para

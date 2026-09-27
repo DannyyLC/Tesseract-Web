@@ -57,6 +57,7 @@ describe('WhatsappConfigAdminController', () => {
         'wf-1',
         '+1',
         { displayName: 'WhatsApp Ventas', description: undefined },
+        true,
       );
       expect(res.data).toEqual({ id: 'c-1' });
     });

@@ -85,6 +85,8 @@ export class WhatsappConfigAdminController {
       dto.workflowId,
       dto.phoneNumber,
       { displayName: dto.displayName, description: dto.description },
+      // Lo da de alta un super admin, que ya sabe de quién es: nace aprobado.
+      true,
     );
     if (!record) {
       throw new BadRequestException('Failed to create WhatsApp config');
@@ -128,6 +130,19 @@ export class WhatsappConfigAdminController {
   ): Promise<ApiResponse> {
     await this.getOwnedConfigOrThrow(organizationId, configId);
     const success = await this.whatsappConfigService.updateIsActive(configId, isActive);
+    return new ApiResponseBuilder().setData(success).build();
+  }
+
+  @Patch(':configId/approve')
+  @ApiOperation({
+    summary: 'Aprobar un número dado de alta por el cliente (tras integrarlo en YCloud)',
+  })
+  async approve(
+    @Param('id') organizationId: string,
+    @Param('configId') configId: string,
+  ): Promise<ApiResponse> {
+    await this.getOwnedConfigOrThrow(organizationId, configId);
+    const success = await this.whatsappConfigService.approve(configId);
     return new ApiResponseBuilder().setData(success).build();
   }
 

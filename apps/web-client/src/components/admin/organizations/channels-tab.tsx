@@ -3,7 +3,16 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { Loader2, MessageSquareText, Pencil, Plus, Power, PowerOff, Trash2 } from 'lucide-react';
+import {
+  BadgeCheck,
+  Loader2,
+  MessageSquareText,
+  Pencil,
+  Plus,
+  Power,
+  PowerOff,
+  Trash2,
+} from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useAdminWorkflows } from '@/hooks/automation/use-admin-workflows';
@@ -38,7 +47,7 @@ export function ChannelsTab({ organizationId }: Props) {
   const getApiErrorMessage = useApiErrorMessage();
   const { data: configs, isLoading } = useAdminWhatsappNumbers(organizationId);
   const { data: workflowsPage } = useAdminWorkflows({ organizationId, limit: 100 });
-  const { createConfig, updateConfig, deleteConfig, setActive } = useAdminWhatsappMutations(organizationId);
+  const { createConfig, updateConfig, deleteConfig, setActive, approve } = useAdminWhatsappMutations(organizationId);
 
   // Un número no puede rutear a un workflow interno del super admin — el backend ya lo
   // rechaza, esto es solo para no ofrecerlo en el selector.
@@ -129,6 +138,13 @@ export function ChannelsTab({ organizationId }: Props) {
     });
   };
 
+  const handleApprove = (config: WhatsAppConfig) => {
+    approve.mutate(config.id, {
+      onSuccess: () => toast.success(t('approvedSuccess')),
+      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+    });
+  };
+
   const handleToggleActive = (config: WhatsAppConfig) => {
     setActive.mutate(
       { id: config.id, isActive: !config.isActive },
@@ -171,6 +187,11 @@ export function ChannelsTab({ organizationId }: Props) {
                       {config.displayName && (
                         <span className="text-xs text-text-secondary">{config.phoneNumber}</span>
                       )}
+                      {!config.approvedAt && (
+                        <span className="text-xs font-medium text-warning-500">
+                          {t('pendingBadge')}
+                        </span>
+                      )}
                       {!config.isActive && (
                         <span className="text-xs text-danger">{t('inactiveBadge')}</span>
                       )}
@@ -186,6 +207,16 @@ export function ChannelsTab({ organizationId }: Props) {
                   </div>
 
                   <div className="flex shrink-0 items-center gap-1">
+                    {!config.approvedAt && (
+                      <button
+                        onClick={() => handleApprove(config)}
+                        disabled={approve.isPending}
+                        title={t('approveTitle')}
+                        className="rounded-lg p-2 text-success-500 transition-colors hover:bg-surface-secondary disabled:opacity-50"
+                      >
+                        <BadgeCheck size={16} />
+                      </button>
+                    )}
                     <button
                       onClick={() => setTemplatesTarget(config)}
                       title={t('templatesTitle')}
