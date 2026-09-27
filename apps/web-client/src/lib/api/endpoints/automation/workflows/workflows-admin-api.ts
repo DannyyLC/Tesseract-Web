@@ -3,8 +3,17 @@ import ApiRequestManager from '@/lib/api/api-request-manager';
 import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import type { ApiResponse } from '@tesseract/types';
 
+import type { WorkflowConfig } from '@/lib/workflow-config/config-edit';
+
 /** El config es un documento abierto a propósito: el editor lo preserva completo. */
-export type WorkflowConfig = Record<string, any>;
+export type { WorkflowConfig };
+
+/** JSON Schema del `config` de un tipo de nodo, tal como lo publica el motor. */
+export interface NodeConfigSchema {
+  properties?: Record<string, { type?: string; enum?: unknown[]; description?: string }>;
+  required?: string[];
+  [key: string]: unknown;
+}
 
 export interface AdminWorkflowListItem {
   id: string;
@@ -63,10 +72,10 @@ export interface EditorContext {
         label: string;
         description: string;
         ports: { inputs: string[]; outputs: string[] | string };
-        config_schema: Record<string, any>;
+        config_schema: NodeConfigSchema;
       }
     >;
-    templates?: Record<string, any>;
+    templates?: Record<string, unknown>;
     graph_config_keys?: Record<string, string>;
   } | null;
   models: { id: string; modelName: string; provider: string; tier: string }[];

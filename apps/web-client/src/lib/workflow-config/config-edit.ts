@@ -7,10 +7,92 @@
  * `variable_reducers`, o cualquier clave que el motor agregue después.
  */
 
-export type WorkflowConfig = Record<string, any>;
+/**
+ * Lo que el editor lee del config. Todo lo demás viaja como `unknown` y se preserva sin
+ * tocar: el tipo describe las rutas conocidas, no cierra el documento.
+ */
+export interface GraphNode {
+  id: string;
+  type?: string;
+  /** Clave en `agents`; solo en nodos `agent` y `synthesizer`. */
+  agent?: string;
+  config?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface GraphEdge {
+  from?: string;
+  to?: string;
+  [key: string]: unknown;
+}
+
+/** Tool de un agente: id suelto o instancia con su configuración. */
+export type AgentToolRef = string | { id?: string; [key: string]: unknown };
+
+/** Tool sin efecto que el agente llama para señalar algo (handoff, fin de flujo…). */
+export interface SignalTool {
+  name?: string;
+  description?: string;
+  response?: string;
+  [key: string]: unknown;
+}
+
+export interface AgentConfig {
+  model?: string;
+  temperature?: number;
+  system_prompt?: string;
+  tools?: AgentToolRef[];
+  signal_tools?: SignalTool[];
+  [key: string]: unknown;
+}
+
+/** Procesamiento de audio, imagen y video entrante; apagado si falta. */
+export interface MediaProcessingConfig {
+  audio?: { enabled?: boolean; maxSeconds?: number; [key: string]: unknown };
+  image?: { enabled?: boolean; maxBytes?: number; [key: string]: unknown };
+  video?: { enabled?: boolean; [key: string]: unknown };
+  ocrPrompt?: string;
+  /** Textos que recibe el cliente cuando un archivo no se puede procesar. */
+  messages?: Record<string, string>;
+  [key: string]: unknown;
+}
+
+export interface WorkflowConfig {
+  graph?: {
+    type?: string;
+    schema_version?: number;
+    nodes?: GraphNode[];
+    edges?: GraphEdge[];
+    persist_variables?: string[];
+    [key: string]: unknown;
+  };
+  agents?: Record<string, AgentConfig>;
+  mediaProcessing?: MediaProcessingConfig;
+  [key: string]: unknown;
+}
 
 /** Ruta como lista de segmentos: claves de objeto (string) e índices (number). */
 export type PathSegment = string | number;
+
+type Container = Record<PathSegment, unknown>;
+
+/** Copia superficial de un nodo del camino, sea objeto o array. */
+function shallowCopy(root: object): Container {
+  return (Array.isArray(root) ? [...(root as unknown[])] : { ...root }) as Container;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** El config viene de un editor JSON libre: lo que no sea objeto se lee como vacío. */
+function asRecord(value: unknown): Record<string, unknown> {
+  return isPlainObject(value) ? value : {};
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
 
 /**
  * Copia el config cambiando solo el valor en `path`. Clona únicamente los nodos del
@@ -22,13 +104,13 @@ export function setAtPath<T extends object>(root: T, path: PathSegment[], value:
 
   const [head, ...rest] = path;
   const isIndex = typeof head === 'number';
-  const container: any = Array.isArray(root) ? [...(root as any)] : { ...(root as any) };
+  const container = shallowCopy(root);
 
   if (rest.length === 0) {
     container[head] = value;
   } else {
     const child = container[head] ?? (typeof rest[0] === 'number' ? [] : {});
-    container[head] = setAtPath(child, rest, value);
+    container[head] = setAtPath(child as object, rest, value);
   }
 
   // Los índices solo son válidos sobre arrays; si el contenedor no lo era, algo se
@@ -37,7 +119,7 @@ export function setAtPath<T extends object>(root: T, path: PathSegment[], value:
     console.warn('setAtPath: índice numérico sobre un valor que no es array', { path });
   }
 
-  return container;
+  return container as T;
 }
 
 /** Elimina la clave en `path`. Se usa para campos que deben AUSENTARSE, no quedar en 0 o "". */
@@ -45,27 +127,31 @@ export function deleteAtPath<T extends object>(root: T, path: PathSegment[]): T 
   if (path.length === 0) return root;
 
   const [head, ...rest] = path;
-  const container: any = Array.isArray(root) ? [...(root as any)] : { ...(root as any) };
+  const container = shallowCopy(root);
 
   if (rest.length === 0) {
     if (Array.isArray(container)) container.splice(head as number, 1);
     else delete container[head];
-    return container;
+    return container as T;
   }
 
-  if (container[head] === undefined) return container;
-  container[head] = deleteAtPath(container[head], rest);
-  return container;
+  const child = container[head];
+  if (child === undefined) return container as T;
+  container[head] = deleteAtPath(child as object, rest);
+  return container as T;
 }
 
 export function getAtPath(root: unknown, path: PathSegment[]): unknown {
-  return path.reduce<any>((acc, key) => (acc == null ? undefined : acc[key]), root);
+  return path.reduce<unknown>(
+    (acc, key) => (acc == null ? undefined : (acc as Container)[key]),
+    root,
+  );
 }
 
 /** Renombra una clave conservando su posición, para que el JSON no se reordene solo. */
-export function renameKey(obj: Record<string, any>, from: string, to: string): Record<string, any> {
+export function renameKey<V>(obj: Record<string, V>, from: string, to: string): Record<string, V> {
   if (from === to || !(from in obj)) return obj;
-  const next: Record<string, any> = {};
+  const next: Record<string, V> = {};
   for (const [key, value] of Object.entries(obj)) {
     next[key === from ? to : key] = value;
   }
@@ -84,9 +170,10 @@ export interface LocalDiffEntry {
 function stable(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
   if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
-  return `{${Object.keys(value as object)
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
     .sort()
-    .map((k) => `${JSON.stringify(k)}:${stable((value as any)[k])}`)
+    .map((k) => `${JSON.stringify(k)}:${stable(record[k])}`)
     .join(',')}}`;
 }
 
@@ -101,18 +188,10 @@ export function isEqualConfig(a: unknown, b: unknown): boolean {
 export function diffLocal(before: unknown, after: unknown): LocalDiffEntry[] {
   const out: LocalDiffEntry[] = [];
 
-  const walk = (a: any, b: any, path: string) => {
+  const walk = (a: unknown, b: unknown, path: string) => {
     if (stable(a) === stable(b)) return;
 
-    const bothObjects =
-      a &&
-      b &&
-      typeof a === 'object' &&
-      typeof b === 'object' &&
-      !Array.isArray(a) &&
-      !Array.isArray(b);
-
-    if (bothObjects) {
+    if (isPlainObject(a) && isPlainObject(b)) {
       for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
         const p = path ? `${path}.${key}` : key;
         if (!(key in a)) out.push({ path: p, op: 'added', after: b[key] });
@@ -171,8 +250,8 @@ export function lintConfig(
   if (!config || typeof config !== 'object') return issues;
 
   const agentKeys = new Set(Object.keys(config.agents ?? {}));
-  const nodes: any[] = config.graph?.nodes ?? [];
-  const edges: any[] = config.graph?.edges ?? [];
+  const nodes = config.graph?.nodes ?? [];
+  const edges = config.graph?.edges ?? [];
   const nodeIds = new Set<string>(nodes.map((n) => n?.id).filter(Boolean));
   const toolIds = new Set(knownToolInstanceIds);
 
@@ -200,26 +279,29 @@ export function lintConfig(
 
     const cfg = node?.config ?? {};
     if (node?.type === 'condition') {
-      for (const target of Object.values(cfg.routes ?? {})) checkNode(target, `${at} · routes`);
-      for (const target of Object.values(cfg.branches ?? {})) checkNode(target, `${at} · branches`);
-      for (const rule of cfg.rules ?? []) checkNode(rule?.goto, `${at} · rules`);
+      for (const target of Object.values(asRecord(cfg.routes))) checkNode(target, `${at} · routes`);
+      for (const target of Object.values(asRecord(cfg.branches))) {
+        checkNode(target, `${at} · branches`);
+      }
+      for (const rule of asArray(cfg.rules)) checkNode(asRecord(rule).goto, `${at} · rules`);
       for (const key of ['fallback', 'default', 'lock_node', 'synthesizer_node', 'end_node']) {
         checkNode(cfg[key], `${at} · ${key}`);
       }
     }
 
-    if (node?.type === 'tool' && cfg.tool_instance && toolIds.size > 0) {
-      if (!toolIds.has(cfg.tool_instance)) {
+    const toolInstance = cfg.tool_instance;
+    if (node?.type === 'tool' && typeof toolInstance === 'string' && toolIds.size > 0) {
+      if (!toolIds.has(toolInstance)) {
         issues.push({
           severity: 'error',
-          message: t('toolNotOwned', { id: cfg.tool_instance }),
+          message: t('toolNotOwned', { id: toolInstance }),
           location: at,
         });
       }
     }
   }
 
-  for (const [agentKey, agent] of Object.entries<any>(config.agents ?? {})) {
+  for (const [agentKey, agent] of Object.entries(config.agents ?? {})) {
     for (const tool of agent?.tools ?? []) {
       const id = typeof tool === 'string' ? tool : tool?.id;
       if (id && toolIds.size > 0 && !toolIds.has(id)) {
@@ -239,9 +321,12 @@ export function lintConfig(
   for (const node of nodes) {
     const cfg = node?.config ?? {};
     if (node?.type !== 'condition') continue;
-    for (const target of Object.values(cfg.routes ?? {})) reachable.add(String(target));
-    for (const target of Object.values(cfg.branches ?? {})) reachable.add(String(target));
-    for (const rule of cfg.rules ?? []) if (rule?.goto) reachable.add(rule.goto);
+    for (const target of Object.values(asRecord(cfg.routes))) reachable.add(String(target));
+    for (const target of Object.values(asRecord(cfg.branches))) reachable.add(String(target));
+    for (const rule of asArray(cfg.rules)) {
+      const goto = asRecord(rule).goto;
+      if (goto) reachable.add(String(goto));
+    }
     for (const key of ['fallback', 'default', 'lock_node', 'synthesizer_node', 'end_node']) {
       if (cfg[key]) reachable.add(String(cfg[key]));
     }
@@ -277,7 +362,5 @@ export function lintConfig(
 
 /** Nodos que referencian un agente, para avisar antes de renombrarlo. */
 export function nodesReferencingAgent(config: WorkflowConfig, agentKey: string): string[] {
-  return (config.graph?.nodes ?? [])
-    .filter((n: any) => n?.agent === agentKey)
-    .map((n: any) => n.id);
+  return (config.graph?.nodes ?? []).filter((n) => n?.agent === agentKey).map((n) => n.id);
 }

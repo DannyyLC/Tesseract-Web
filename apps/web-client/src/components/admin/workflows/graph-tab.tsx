@@ -20,15 +20,15 @@ export function GraphTab({ config, tenantTools }: Props) {
   const t = useTranslations('Admin.GraphTab');
   const tLint = useTranslations('Admin.LintConfig');
   // Memoizados: `?? []` crearía un arreglo nuevo en cada render y rompería los useMemo.
-  const nodes: any[] = useMemo(() => config.graph?.nodes ?? [], [config.graph?.nodes]);
-  const edges: any[] = useMemo(() => config.graph?.edges ?? [], [config.graph?.edges]);
+  const nodes = useMemo(() => config.graph?.nodes ?? [], [config.graph?.nodes]);
+  const edges = useMemo(() => config.graph?.edges ?? [], [config.graph?.edges]);
 
   const nodeTypeById = useMemo(() => new Map(nodes.map((n) => [n?.id, n?.type])), [nodes]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const edge of edges) {
-      if (!edge?.from) continue;
+      if (!edge?.from || !edge.to) continue;
       map.set(edge.from, [...(map.get(edge.from) ?? []), edge.to]);
     }
     return Array.from(map.entries());
@@ -110,11 +110,11 @@ export function GraphTab({ config, tenantTools }: Props) {
         </ul>
       </div>
 
-      {config.graph?.persist_variables?.length > 0 && (
+      {config.graph?.persist_variables && config.graph.persist_variables.length > 0 && (
         <div className="rounded-lg border border-border px-3 py-2">
           <span className="text-xs font-medium text-text-primary">{t('persistedVariables')}</span>
           <div className="mt-1 flex flex-wrap gap-1">
-            {config.graph.persist_variables.map((v: string) => (
+            {config.graph.persist_variables.map((v) => (
               <span
                 key={v}
                 className="rounded bg-surface-secondary px-1.5 py-0.5 font-mono text-[11px] text-text-primary"
