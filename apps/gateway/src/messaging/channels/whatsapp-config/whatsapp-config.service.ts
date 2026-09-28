@@ -12,6 +12,13 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
 import { JsonObject } from '@prisma/client/runtime/client';
 import { WhatsAppInboundEvent } from './dto';
+import { WhatsAppProvider } from './transporters/wb-transporter.interface';
+import { SecretFieldsCipher } from '@/automation/tools/core/secret-fields-cipher.service';
+import {
+  MetaSessionData,
+  WHATSAPP_SESSION_SECRET_FIELDS,
+  whatsappSessionContext,
+} from './whatsapp-session-data';
 import { maskPhone } from '@/platform/common/utils/mask-phone';
 import { normalizePhone, phoneNumberVariants } from '@/platform/common/utils/normalize-phone';
 import { ConversationsService } from '@/messaging/conversations/conversations.service';
@@ -39,6 +46,7 @@ export class WhatsappConfigService {
     private readonly transporterResolver: WBTransporterResolver,
     private readonly driveService: GoogleDriveService,
     private readonly conversationsService: ConversationsService,
+    private readonly secretFieldsCipher: SecretFieldsCipher,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
@@ -104,11 +112,24 @@ export class WhatsappConfigService {
     workflowId: string,
     phoneNumber: string,
     presentation?: { displayName?: string; description?: string },
+    // Sin esto el número nace en YCloud, como siempre. `sessionData` solo lo usa Meta.
+    channel?: { provider: WhatsAppProvider; sessionData?: JsonObject },
   ): Promise<WhatsAppConfig | null> {
     try {
+      // El id se genera aquí (y no con el `@default(uuid())` de la base) porque el cifrado de
+      // `sessionData` queda atado a él: hace falta antes del INSERT.
+      const id = crypto.randomUUID();
       const newRecord = await this.prismaService.whatsAppConfig.create({
         data: {
-          provider: 'ycloud',
+          id,
+          provider: channel?.provider ?? 'ycloud',
+          ...(channel?.sessionData && {
+            sessionData: await this.secretFieldsCipher.encryptFields(
+              channel.sessionData,
+              WHATSAPP_SESSION_SECRET_FIELDS,
+              whatsappSessionContext(id),
+            ),
+          }),
           organizationId: organizationId,
           // Canónico, nunca una variante: este valor es el remitente que sale hacia YCloud.
           phoneNumber: normalizePhone(phoneNumber) ?? phoneNumber,
@@ -142,6 +163,22 @@ export class WhatsappConfigService {
       this.logger.error('Error fetching WhatsApp configs by organization:', error);
       return [];
     }
+  }
+
+  /**
+   * ¿Ya hay OTRA config con este número (o una variante equivalente, ver `phoneNumberVariants`)?
+   * `excludeConfigId` deja fuera la propia fila: editar sin tocar el teléfono no es un duplicado.
+   * A diferencia de `getWhatsappConfigByPhoneNumber`, no traga errores: si la base falla, la
+   * edición no debe seguir como si el número estuviera libre.
+   */
+  async isPhoneNumberTaken(phoneNumber: string, excludeConfigId: string): Promise<boolean> {
+    const variants = phoneNumberVariants(phoneNumber);
+    if (variants.length === 0) return false;
+    const other = await this.prismaService.whatsAppConfig.findFirst({
+      where: { phoneNumber: { in: variants }, id: { not: excludeConfigId } },
+      select: { id: true },
+    });
+    return other !== null;
   }
 
   async updatePhoneNumber(configId: string, phoneNumber: string): Promise<void> {
@@ -205,15 +242,29 @@ export class WhatsappConfigService {
       description?: string;
       workflowId?: string | null;
       isDefaultForOutbound?: boolean;
+      phoneNumber?: string;
+      /** Parcial: se mezcla con lo ya guardado. Ver `mergeSessionData`. */
+      sessionData?: Partial<MetaSessionData>;
     },
   ): Promise<boolean> {
     try {
       const data: {
+        phoneNumber?: string;
+        sessionData?: JsonObject;
         displayName?: string | null;
         description?: string | null;
         defaultWorkflowId?: string | null;
         isDefaultForOutbound?: boolean;
       } = {};
+
+      if (fields.phoneNumber !== undefined) {
+        // Canónico, nunca una variante: es el remitente que sale hacia el proveedor.
+        data.phoneNumber = normalizePhone(fields.phoneNumber) ?? fields.phoneNumber;
+      }
+
+      if (fields.sessionData && Object.keys(fields.sessionData).length > 0) {
+        data.sessionData = await this.mergeSessionData(configId, fields.sessionData);
+      }
 
       if (fields.displayName !== undefined) {
         data.displayName = fields.displayName.trim() || null;
@@ -272,6 +323,34 @@ export class WhatsappConfigService {
       this.logger.error('Error updating WhatsApp config:', error);
       return false;
     }
+  }
+
+  /**
+   * Mezcla `patch` sobre el `sessionData` guardado y devuelve el objeto completo listo para
+   * escribir. Se cifra el resultado entero, no solo el parche: lo que ya estaba cifrado se
+   * conserva tal cual (el cifrado lo salta) y un valor guardado en claro antes de existir esa capa
+   * queda cifrado en cuanto se toca la config.
+   *
+   * Es leer-modificar-escribir sin bloqueo; aceptable para una edición manual del super admin.
+   */
+  private async mergeSessionData(
+    configId: string,
+    patch: Partial<MetaSessionData>,
+  ): Promise<JsonObject> {
+    const current = await this.prismaService.whatsAppConfig.findUnique({
+      where: { id: configId },
+      select: { sessionData: true },
+    });
+    const existing =
+      current?.sessionData && typeof current.sessionData === 'object' && !Array.isArray(current.sessionData)
+        ? (current.sessionData as JsonObject)
+        : {};
+
+    return (await this.secretFieldsCipher.encryptFields(
+      { ...existing, ...patch },
+      WHATSAPP_SESSION_SECRET_FIELDS,
+      whatsappSessionContext(configId),
+    )) as JsonObject;
   }
 
   async updateIsActive(configId: string, isActive: boolean): Promise<boolean> {
@@ -461,8 +540,27 @@ export class WhatsappConfigService {
     }
     return {
       transporter: this.transporterResolver.forProvider(config.provider),
-      sender: { configId: config.id, phoneNumber: from, sessionData: config.sessionData },
+      sender: {
+        configId: config.id,
+        phoneNumber: from,
+        sessionData: await this.decryptSessionData(config),
+      },
     };
+  }
+
+  /**
+   * `sessionData` de la config con sus credenciales en claro, para usarlas en el momento (firmar,
+   * llamar a Meta) y no guardarlas ni loguearlas. Todo lector de `sessionData` pasa por aquí (o por
+   * `SecretFieldsCipher` cuando no puede depender de este servicio). Lanza si KMS no responde.
+   */
+  async decryptSessionData(
+    config: Pick<WhatsAppConfig, 'id' | 'sessionData'>,
+  ): Promise<WhatsAppConfig['sessionData']> {
+    return this.secretFieldsCipher.decryptFields(
+      config.sessionData,
+      WHATSAPP_SESSION_SECRET_FIELDS,
+      whatsappSessionContext(config.id),
+    );
   }
 
   // ─── Template CRUD ────────────────────────────────────────────────────

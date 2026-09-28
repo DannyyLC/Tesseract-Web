@@ -1,19 +1,35 @@
 import ApiRequestManager from '@/lib/api/api-request-manager';
 import type { ApiResponse, WhatsAppConfig, WhatsAppTemplate } from '@tesseract/types';
 
+export type WhatsappProvider = 'ycloud' | 'meta';
+
 export interface CreateWhatsappConfigAdminInput {
   phoneNumber: string;
   /** Un número nace ligado a un workflow. Reasignar/desasignar después sí es opcional. */
   workflowId: string;
   displayName?: string;
   description?: string;
+  /** Ausente = ycloud. Con `meta` los tres campos siguientes son obligatorios. */
+  provider?: WhatsappProvider;
+  phoneNumberId?: string;
+  appSecret?: string;
+  accessToken?: string;
 }
 
 export interface UpdateWhatsappConfigAdminInput {
+  /** Ausente = no lo toca. Es la llave con la que el webhook resuelve la cuenta. */
+  phoneNumber?: string;
   displayName?: string;
   description?: string;
   /** Tri-estado: ausente no toca, `null` desasigna, string reasigna. */
   workflowId?: string | null;
+  /**
+   * Solo para números de Meta, y parciales: lo ausente se conserva. El backend nunca devuelve
+   * los secretos, así que "no mandar" es la forma de dejar el valor actual.
+   */
+  phoneNumberId?: string;
+  appSecret?: string;
+  accessToken?: string;
 }
 
 export interface CreateTemplateAdminInput {

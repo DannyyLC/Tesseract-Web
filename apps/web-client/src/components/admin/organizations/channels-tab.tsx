@@ -12,6 +12,12 @@ import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import type { WhatsAppConfig } from '@tesseract/types';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import { WhatsappTemplatesAdminModal } from './whatsapp-templates-admin-modal';
+import {
+  EMPTY_PROVIDER_VALUE,
+  WhatsappProviderFields,
+  isProviderValueComplete,
+  toProviderPayload,
+} from './whatsapp-provider-fields';
 
 interface Props {
   organizationId: string;
@@ -56,8 +62,15 @@ export function ChannelsTab({ organizationId }: Props) {
   // workflow es obligatorio (ver create-config.dto.ts); UNASSIGNED solo tiene sentido
   // al editar, para desasignar uno que ya existía.
   const [createWorkflowId, setCreateWorkflowId] = useState('');
+  const [createProvider, setCreateProvider] = useState(EMPTY_PROVIDER_VALUE);
 
   const [editTarget, setEditTarget] = useState<WhatsAppConfig | null>(null);
+  const [editPhoneNumber, setEditPhoneNumber] = useState('');
+  // Credenciales de Meta. Los secretos arrancan vacíos a propósito: la API no los devuelve, y
+  // vacío significa "conservar el actual".
+  const [editPhoneNumberId, setEditPhoneNumberId] = useState('');
+  const [editAppSecret, setEditAppSecret] = useState('');
+  const [editAccessToken, setEditAccessToken] = useState('');
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editWorkflowId, setEditWorkflowId] = useState(UNASSIGNED);
@@ -65,7 +78,23 @@ export function ChannelsTab({ organizationId }: Props) {
   const [templatesTarget, setTemplatesTarget] = useState<WhatsAppConfig | null>(null);
 
   const isPhoneValid = WHATSAPP_PHONE_REGEX.test(phoneNumber);
-  const canCreate = isPhoneValid && createWorkflowId !== '';
+  const canCreate =
+    isPhoneValid && createWorkflowId !== '' && isProviderValueComplete(createProvider);
+
+  const isEditPhoneChanged = !!editTarget && editPhoneNumber !== editTarget.phoneNumber;
+  // Solo se valida si cambió: una fila guardada antes con otro formato (sin `+`, por ejemplo)
+  // no debe bloquear editar su nombre o su workflow.
+  const isEditPhoneValid = !isEditPhoneChanged || WHATSAPP_PHONE_REGEX.test(editPhoneNumber);
+
+  const isEditMeta = editTarget?.provider === 'meta';
+  const editPhoneNumberIdTrimmed = editPhoneNumberId.trim();
+  const isEditPhoneNumberIdChanged =
+    isEditMeta &&
+    editPhoneNumberIdTrimmed !== '' &&
+    editPhoneNumberIdTrimmed !== (editTarget?.credentials?.phoneNumberId ?? '');
+  // Un Phone number ID guardado no se puede dejar en blanco: sin él no se puede enviar nada.
+  const isEditPhoneNumberIdInvalid =
+    isEditMeta && !!editTarget?.credentials?.phoneNumberId && editPhoneNumberIdTrimmed === '';
 
   const closeCreate = () => {
     setIsCreateOpen(false);
@@ -73,10 +102,15 @@ export function ChannelsTab({ organizationId }: Props) {
     setCreateDisplayName('');
     setCreateDescription('');
     setCreateWorkflowId('');
+    setCreateProvider(EMPTY_PROVIDER_VALUE);
   };
 
   const openEdit = (config: WhatsAppConfig) => {
     setEditTarget(config);
+    setEditPhoneNumber(config.phoneNumber);
+    setEditPhoneNumberId(config.credentials?.phoneNumberId ?? '');
+    setEditAppSecret('');
+    setEditAccessToken('');
     setEditDisplayName(config.displayName ?? '');
     setEditDescription(config.description ?? '');
     setEditWorkflowId(config.defaultWorkflowId ?? UNASSIGNED);
@@ -90,6 +124,7 @@ export function ChannelsTab({ organizationId }: Props) {
         workflowId: createWorkflowId,
         displayName: createDisplayName.trim() || undefined,
         description: createDescription.trim() || undefined,
+        ...toProviderPayload(createProvider),
       },
       {
         onSuccess: () => {
@@ -102,11 +137,16 @@ export function ChannelsTab({ organizationId }: Props) {
   };
 
   const handleSaveEdit = () => {
-    if (!editTarget) return;
+    if (!editTarget || !isEditPhoneValid || isEditPhoneNumberIdInvalid) return;
     updateConfig.mutate(
       {
         id: editTarget.id,
         data: {
+          // Solo si cambió: el número es la llave del webhook, no se reescribe de gratis.
+          ...(isEditPhoneChanged && { phoneNumber: editPhoneNumber }),
+          ...(isEditPhoneNumberIdChanged && { phoneNumberId: editPhoneNumberIdTrimmed }),
+          ...(isEditMeta && editAppSecret.trim() && { appSecret: editAppSecret.trim() }),
+          ...(isEditMeta && editAccessToken.trim() && { accessToken: editAccessToken.trim() }),
           displayName: editDisplayName,
           description: editDescription,
           workflowId: editWorkflowId === UNASSIGNED ? null : editWorkflowId,
@@ -179,6 +219,7 @@ export function ChannelsTab({ organizationId }: Props) {
                       <span className={CONNECTION_STYLE[config.connectionStatus] ?? 'text-text-tertiary'}>
                         {config.connectionStatus}
                       </span>
+                      <span>{t(config.provider === 'meta' ? 'providerMeta' : 'providerYcloud')}</span>
                       <span>
                         {workflowName ? t('routesTo', { workflow: workflowName }) : t('noWorkflowAssigned')}
                       </span>
@@ -225,6 +266,8 @@ export function ChannelsTab({ organizationId }: Props) {
       {/* Crear */}
       <Modal isOpen={isCreateOpen} onClose={closeCreate} title={t('createModalTitle')}>
         <div className="space-y-4">
+          <WhatsappProviderFields value={createProvider} onChange={setCreateProvider} />
+
           <div>
             <label className={labelClass}>{t('phoneNumberLabel')}</label>
             <input
@@ -301,6 +344,26 @@ export function ChannelsTab({ organizationId }: Props) {
         {editTarget && (
           <div className="space-y-4">
             <div>
+              <label className={labelClass}>{t('phoneNumberLabel')}</label>
+              <input
+                className={inputClass}
+                value={editPhoneNumber}
+                onChange={(e) =>
+                  setEditPhoneNumber(e.target.value.replace(/(?!^)\+/g, '').replace(/[^+\d]/g, ''))
+                }
+                placeholder="+52234567890"
+                inputMode="tel"
+                maxLength={16}
+              />
+              {!isEditPhoneValid ? (
+                <p className="mt-1 text-xs text-danger">{t('phoneInvalid')}</p>
+              ) : (
+                isEditPhoneChanged && (
+                  <p className="mt-1 text-xs text-warning-600">{t('editPhoneChangeWarning')}</p>
+                )
+              )}
+            </div>
+            <div>
               <label className={labelClass}>{t('editDisplayNameLabel')}</label>
               <input
                 className={inputClass}
@@ -333,11 +396,60 @@ export function ChannelsTab({ organizationId }: Props) {
               <p className="mt-1 text-xs text-text-tertiary">{t('editWorkflowHint')}</p>
             </div>
 
+            {isEditMeta && (
+              <div className="space-y-4 rounded-lg border border-border p-3">
+                <p className="text-xs text-text-secondary">{t('editMetaCredentialsHint')}</p>
+                <div>
+                  <label className={labelClass}>{t('metaPhoneNumberIdLabel')}</label>
+                  <input
+                    className={inputClass}
+                    value={editPhoneNumberId}
+                    onChange={(e) => setEditPhoneNumberId(e.target.value.replace(/\D/g, ''))}
+                    inputMode="numeric"
+                    autoComplete="off"
+                  />
+                  {isEditPhoneNumberIdInvalid && (
+                    <p className="mt-1 text-xs text-danger">{t('phoneNumberIdRequired')}</p>
+                  )}
+                </div>
+                <div>
+                  <label className={labelClass}>{t('metaAppSecretLabel')}</label>
+                  <input
+                    className={inputClass}
+                    type="password"
+                    value={editAppSecret}
+                    onChange={(e) => setEditAppSecret(e.target.value)}
+                    placeholder={
+                      editTarget.credentials?.hasAppSecret ? t('secretKeepPlaceholder') : t('secretNotSet')
+                    }
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>{t('metaAccessTokenLabel')}</label>
+                  <input
+                    className={inputClass}
+                    type="password"
+                    value={editAccessToken}
+                    onChange={(e) => setEditAccessToken(e.target.value)}
+                    placeholder={
+                      editTarget.credentials?.hasAccessToken ? t('secretKeepPlaceholder') : t('secretNotSet')
+                    }
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2">
               <button className={btnGhost} onClick={() => setEditTarget(null)}>
                 {t('cancel')}
               </button>
-              <button className={btnPrimary} onClick={handleSaveEdit} disabled={updateConfig.isPending}>
+              <button
+                className={btnPrimary}
+                onClick={handleSaveEdit}
+                disabled={!isEditPhoneValid || isEditPhoneNumberIdInvalid || updateConfig.isPending}
+              >
                 {updateConfig.isPending && <Loader2 size={14} className="animate-spin" />}
                 {t('save')}
               </button>

@@ -28,9 +28,12 @@ export class KmsService implements OnModuleInit {
   }
 
   /**
-   * Encrypts a plaintext string (e.g. Access Token)
+   * Encrypts a plaintext string (e.g. Access Token).
+   *
+   * `aad` (additional authenticated data) is not stored in the ciphertext but KMS requires the
+   * exact same value to decrypt it, which binds the ciphertext to its context (row + field).
    */
-  async encrypt(plaintext: string): Promise<string> {
+  async encrypt(plaintext: string, aad?: string): Promise<string> {
     if (!plaintext) return plaintext;
     try {
       // NOTE: Using direct KMS encryption for MVP. Envelope encryption with Tink
@@ -39,6 +42,7 @@ export class KmsService implements OnModuleInit {
       const [result] = await this.kmsClient.encrypt({
         name: this.keyName,
         plaintext: buffer,
+        ...(aad && { additionalAuthenticatedData: Buffer.from(aad, 'utf8') }),
       });
       return result.ciphertext ? Buffer.from(result.ciphertext).toString('base64') : '';
     } catch (error) {
@@ -48,15 +52,16 @@ export class KmsService implements OnModuleInit {
   }
 
   /**
-   * Decrypts a ciphertext string
+   * Decrypts a ciphertext string. `aad` must match the one used to encrypt it.
    */
-  async decrypt(ciphertextBase64: string): Promise<string> {
+  async decrypt(ciphertextBase64: string, aad?: string): Promise<string> {
     if (!ciphertextBase64) return ciphertextBase64;
     try {
       const buffer = Buffer.from(ciphertextBase64, 'base64');
       const [result] = await this.kmsClient.decrypt({
         name: this.keyName,
         ciphertext: buffer,
+        ...(aad && { additionalAuthenticatedData: Buffer.from(aad, 'utf8') }),
       });
       return result.plaintext ? Buffer.from(result.plaintext).toString('utf8') : '';
     } catch (error) {

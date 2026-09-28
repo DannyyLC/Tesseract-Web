@@ -10,6 +10,7 @@ describe('WhatsappConfigAdminController', () => {
   const mockWhatsappConfigService = {
     getConfigsByOrganization: jest.fn(),
     getWhatsappConfigByPhoneNumber: jest.fn(),
+    isPhoneNumberTaken: jest.fn(),
     createRecordAndgenerateWebhookSecret: jest.fn(),
     getWhatsappConfigById: jest.fn(),
     updateConfig: jest.fn(),
@@ -57,8 +58,47 @@ describe('WhatsappConfigAdminController', () => {
         'wf-1',
         '+1',
         { displayName: 'WhatsApp Ventas', description: undefined },
+        undefined,
       );
-      expect(res.data).toEqual({ id: 'c-1' });
+      expect(res.data).toEqual({
+        id: 'c-1',
+        credentials: { phoneNumberId: null, hasAppSecret: false, hasAccessToken: false },
+      });
+    });
+
+    it('con provider meta guarda las credenciales en sessionData y no las devuelve', async () => {
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue(null);
+      mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: true });
+      mockWhatsappConfigService.createRecordAndgenerateWebhookSecret.mockResolvedValue({
+        id: 'c-1',
+        provider: 'meta',
+        sessionData: { accessToken: 'tok' },
+      });
+
+      const res = await controller.create('org-1', {
+        phoneNumber: '+1',
+        workflowId: 'wf-1',
+        provider: 'meta',
+        phoneNumberId: '123',
+        appSecret: 'sec',
+        accessToken: 'tok',
+      } as any);
+
+      expect(mockWhatsappConfigService.createRecordAndgenerateWebhookSecret).toHaveBeenCalledWith(
+        'org-1',
+        'wf-1',
+        '+1',
+        { displayName: undefined, description: undefined },
+        {
+          provider: 'meta',
+          sessionData: { phoneNumberId: '123', appSecret: 'sec', accessToken: 'tok' },
+        },
+      );
+      expect(res.data).toEqual({
+        id: 'c-1',
+        provider: 'meta',
+        credentials: { phoneNumberId: null, hasAppSecret: false, hasAccessToken: true },
+      });
     });
 
     it('rechaza si el teléfono ya existe', async () => {
@@ -79,6 +119,25 @@ describe('WhatsappConfigAdminController', () => {
         controller.create('org-1', { phoneNumber: '+1', workflowId: 'wf-ajeno' } as any),
       ).rejects.toThrow(BadRequestException);
       expect(mockWhatsappConfigService.createRecordAndgenerateWebhookSecret).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('list', () => {
+    it('no devuelve sessionData', async () => {
+      mockWhatsappConfigService.getConfigsByOrganization.mockResolvedValue([
+        { id: 'c-1', provider: 'meta', sessionData: { accessToken: 'tok', appSecret: 'sec' } },
+      ]);
+
+      const res = await controller.list('org-1');
+
+      expect(res.data).toEqual([
+        {
+          id: 'c-1',
+          provider: 'meta',
+          credentials: { phoneNumberId: null, hasAppSecret: true, hasAccessToken: true },
+        },
+      ]);
+      expect(JSON.stringify(res.data)).not.toMatch(/tok|sec/);
     });
   });
 
@@ -120,6 +179,79 @@ describe('WhatsappConfigAdminController', () => {
 
       expect(mockWorkflowsService.getRoutingState).not.toHaveBeenCalled();
       expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', { workflowId: null });
+    });
+
+    describe('credenciales de Meta', () => {
+      const metaConfig = { id: 'c-1', organizationId: 'org-1', provider: 'meta', phoneNumber: '+1' };
+      beforeEach(() => mockWhatsappConfigService.updateConfig.mockResolvedValue(true));
+
+      it('manda solo las credenciales presentes como sessionData parcial', async () => {
+        mockWhatsappConfigService.getWhatsappConfigById.mockResolvedValue(metaConfig);
+
+        await controller.update('org-1', 'c-1', { displayName: 'x', accessToken: 'nuevo' } as any);
+
+        expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', {
+          displayName: 'x',
+          sessionData: { accessToken: 'nuevo' },
+        });
+      });
+
+      it('sin credenciales no manda sessionData', async () => {
+        mockWhatsappConfigService.getWhatsappConfigById.mockResolvedValue(metaConfig);
+
+        await controller.update('org-1', 'c-1', { displayName: 'x' } as any);
+
+        expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', { displayName: 'x' });
+      });
+
+      it('rechaza credenciales en un número que no es de Meta', async () => {
+        mockWhatsappConfigService.getWhatsappConfigById.mockResolvedValue({
+          ...metaConfig,
+          provider: 'ycloud',
+        });
+
+        await expect(
+          controller.update('org-1', 'c-1', { accessToken: 'x' } as any),
+        ).rejects.toThrow(BadRequestException);
+        expect(mockWhatsappConfigService.updateConfig).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('phoneNumber', () => {
+      beforeEach(() => {
+        mockWhatsappConfigService.getWhatsappConfigById.mockResolvedValue({
+          id: 'c-1',
+          organizationId: 'org-1',
+          phoneNumber: '+525511111111',
+        });
+        mockWhatsappConfigService.updateConfig.mockResolvedValue(true);
+      });
+
+      it('cambia el teléfono cuando está libre', async () => {
+        mockWhatsappConfigService.isPhoneNumberTaken.mockResolvedValue(false);
+
+        await controller.update('org-1', 'c-1', { phoneNumber: '+525522222222' } as any);
+
+        expect(mockWhatsappConfigService.isPhoneNumberTaken).toHaveBeenCalledWith('+525522222222', 'c-1');
+        expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', {
+          phoneNumber: '+525522222222',
+        });
+      });
+
+      it('rechaza si otra config ya usa ese teléfono', async () => {
+        mockWhatsappConfigService.isPhoneNumberTaken.mockResolvedValue(true);
+
+        await expect(
+          controller.update('org-1', 'c-1', { phoneNumber: '+525522222222' } as any),
+        ).rejects.toThrow(BadRequestException);
+        expect(mockWhatsappConfigService.updateConfig).not.toHaveBeenCalled();
+      });
+
+      it('si el teléfono no cambia, no consulta duplicados', async () => {
+        await controller.update('org-1', 'c-1', { phoneNumber: '+525511111111', displayName: 'x' } as any);
+
+        expect(mockWhatsappConfigService.isPhoneNumberTaken).not.toHaveBeenCalled();
+      });
     });
   });
 

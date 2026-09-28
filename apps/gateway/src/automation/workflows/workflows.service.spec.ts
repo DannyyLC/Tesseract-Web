@@ -4,6 +4,7 @@ import { WorkflowConfigValidator } from './workflow-config.validator';
 import { DatasetTokenService } from '../datasets/core/dataset-token.service';
 import { InterventionTokenService } from '@/messaging/conversations/core/intervention-token.service';
 import { EndUsersService } from '@/identity/end-users/end-users.service';
+import { SecretFieldsCipher } from '@/automation/tools/core/secret-fields-cipher.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { ExecutionsService } from '@/automation/executions/executions.service';
 import { OrganizationsService } from '@/identity/organizations/organizations.service';
@@ -134,6 +135,10 @@ describe('WorkflowsService', () => {
         { provide: DatasetTokenService, useValue: mockDatasetTokenService },
         { provide: InterventionTokenService, useValue: mockInterventionTokenService },
         { provide: EndUsersService, useValue: mockEndUsersService },
+        {
+          provide: SecretFieldsCipher,
+          useValue: { decryptFields: jest.fn(async (data: unknown) => data) },
+        },
         // El validador real, no un mock: los tests de config de abajo existen para
         // ejercer esa lógica, y mockearla los dejaría sin verificar nada.
         WorkflowConfigValidator,

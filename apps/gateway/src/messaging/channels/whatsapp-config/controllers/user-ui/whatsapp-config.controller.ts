@@ -42,6 +42,7 @@ import {
 } from '../../dto';
 import { IWBPayloadConsumer, WBEventTypes, WBInterpretedMessage } from '../../payload-consumers/wb-payload-consumer.interface';
 import { WBPayloadConsumerResolver } from '../../payload-consumers/wb-payload-consumer.resolver';
+import { PublicWhatsAppConfig, toPublicConfig } from '../../whatsapp-config.presenter';
 import { WhatsappConfigService } from '../../whatsapp-config.service';
 import {
   WHATSAPP_WINDOW_SECONDS,
@@ -561,15 +562,15 @@ export class WhatsappConfigController {
     @CurrentUser() currUser: UserPayload,
     @Param('workflowId') workflowId: string,
     @Res() res: Response,
-  ): Promise<Response<ApiResponse<WhatsAppConfig[]>>> {
-    const apiResponse = new ApiResponseBuilder<WhatsAppConfig[]>();
+  ): Promise<Response<ApiResponse<PublicWhatsAppConfig[]>>> {
+    const apiResponse = new ApiResponseBuilder<PublicWhatsAppConfig[]>();
     const records = await this.whatsappConfigService.getConfigsByOrganizationAndWorkflow(
       currUser.organizationId,
       workflowId,
     );
     apiResponse
       .setStatusCode(HttpStatus.OK)
-      .setData(records)
+      .setData(records.map(toPublicConfig))
       .setMessage('WhatsApp configs retrieved');
     return res.status(HttpStatus.OK).json(apiResponse.build());
   }

@@ -1,3 +1,8 @@
+import { SecretFieldsCipher } from '@/automation/tools/core/secret-fields-cipher.service';
+import {
+  WHATSAPP_SESSION_SECRET_FIELDS,
+  whatsappSessionContext,
+} from '@/messaging/channels/whatsapp-config/whatsapp-session-data';
 import { ExecutionsService } from '@/automation/executions/executions.service';
 import { LlmModelsService } from '@/automation/llm-models/llm-models.service';
 import { MediaPolicy, resolveMediaPolicy } from '@/automation/media-processing/media-policy';
@@ -119,6 +124,7 @@ export class WorkflowsService {
     private readonly datasetTokenService: DatasetTokenService,
     private readonly interventionTokenService: InterventionTokenService,
     private readonly endUsersService: EndUsersService,
+    private readonly secretFieldsCipher: SecretFieldsCipher,
   ) {
     this.compactionApiBaseUrl = this.configService
       .get<string>('COMPACTION_API_BASE_URL', 'https://api.openai.com/v1')
@@ -2053,7 +2059,12 @@ export class WorkflowsService {
             }
             // Meta no manda su credencial por env var global como YCloud: vive por número
             // en `sessionData` (igual que MetaTransporter.accessTokenOf/phoneNumberIdOf).
-            const sessionData = (wac.sessionData ?? {}) as {
+            // El token se guarda cifrado con KMS; se descifra aquí para armar la config de la tool.
+            const sessionData = ((await this.secretFieldsCipher.decryptFields(
+              wac.sessionData,
+              WHATSAPP_SESSION_SECRET_FIELDS,
+              whatsappSessionContext(wac.id),
+            )) ?? {}) as {
               phoneNumberId?: string;
               accessToken?: string;
             };

@@ -1,6 +1,7 @@
 import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
 import { UtilityModule } from '@/platform/utility/utility.module';
+import { ToolsModule } from '@/automation/tools/core/tools.module';
 import { WorkflowsModule } from '@/automation/workflows/workflows.module';
 import { WhatsappConfigController } from './controllers/user-ui/whatsapp-config.controller';
 import { WhatsappConfigService } from './whatsapp-config.service';
@@ -19,8 +20,9 @@ import { WBTransporterResolver } from './transporters/wb-transporter.resolver';
 import { WBPayloadConsumerResolver } from './payload-consumers/wb-payload-consumer.resolver';
 
 @Module({
+  // `ToolsModule` va por `SecretFieldsCipher`: las credenciales de `sessionData` se guardan cifradas con KMS.
   // `EndUsersModule` va por la lista negra: el webhook descarta lo que mande un contacto bloqueado.
-  imports: [UtilityModule, HttpModule, WorkflowsModule, MediaProcessingModule, GoogleDriveModule, ConversationsModule, WebhookDedupModule, CloudTasksModule, EndUsersModule],
+  imports: [UtilityModule, HttpModule, ToolsModule, WorkflowsModule, MediaProcessingModule, GoogleDriveModule, ConversationsModule, WebhookDedupModule, CloudTasksModule, EndUsersModule],
   providers: [
     WhatsappConfigService,
     WhatsappMessageQueueService,

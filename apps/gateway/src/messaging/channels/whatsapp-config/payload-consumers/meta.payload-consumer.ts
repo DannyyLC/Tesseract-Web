@@ -28,16 +28,14 @@ export class MetaPayloadConsumer extends BaseWBPayloadConsumer<MetaWebhookPayloa
    */
 
   async verifySignature(rawBody: string, headers: object): Promise<boolean> {
-    const appSecret = (this.associatedAccount.sessionData as { appSecret?: unknown } | null)?.appSecret;
-     if (typeof appSecret !== 'string' || !appSecret) {
+    const sessionData = (await this.whatsappConfigService.decryptSessionData(
+      this.associatedAccount,
+    )) as { appSecret?: unknown } | null;
+    const appSecret = sessionData?.appSecret;
+    if (typeof appSecret !== 'string' || !appSecret) {
       throw new Error(
-        `WhatsAppConfig (meta) no tiene sessionData.accessToken`,
+        `WhatsAppConfig ${this.associatedAccount.id} (meta) no tiene sessionData.appSecret`,
       );
-    }
-
-    if (!appSecret) {
-      this.logger.error('META_WHATSAPP_APP_SECRET no está configurado');
-      return false;
     }
 
     const [algorithm, signature] = this.headerValue(headers, 'x-hub-signature-256').split('=');
@@ -163,7 +161,10 @@ export class MetaPayloadConsumer extends BaseWBPayloadConsumer<MetaWebhookPayloa
     fallbackMimeType: string,
     fallbackSha256: string | undefined,
   ): Promise<WBMediaSource> {
-    const accessToken = (this.associatedAccount.sessionData as { accessToken?: unknown } | null)?.accessToken;
+    const sessionData = (await this.whatsappConfigService.decryptSessionData(
+      this.associatedAccount,
+    )) as { accessToken?: unknown } | null;
+    const accessToken = sessionData?.accessToken;
     if (typeof accessToken !== 'string' || !accessToken) {
       throw new Error('La cuenta de Meta no tiene sessionData.accessToken para bajar multimedia');
     }
