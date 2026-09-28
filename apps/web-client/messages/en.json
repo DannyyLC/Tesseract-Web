@@ -2477,11 +2477,17 @@
       "subtitle": "Choose an organization and a number to manage its templates.",
       "selectOrgPlaceholder": "Select an organization",
       "orgSearchPlaceholder": "Search organization...",
-      "selectOrgFirst": "Select an organization to see its numbers.",
+      "selectOrgFirst": "Meta registers templates per WhatsApp number, so first you need to find whose number it is.",
       "loading": "Loading numbers",
-      "noNumbers": "This organization doesn't have any WhatsApp numbers.",
+      "noNumbers": "This organization has no connected numbers yet. They're added from the organization's Channels tab.",
       "inactiveBadge": "deactivated",
-      "templatesButton": "Templates"
+      "templatesButton": "Templates",
+      "orgLabel": "Organization",
+      "selectOrgTitle": "Choose an organization to get started",
+      "stepOrg": "Organization",
+      "stepNumber": "Number",
+      "stepTemplates": "Templates",
+      "noNumbersTitle": "No WhatsApp numbers"
     },
     "LlmModels": {
       "title": "LLM models",
