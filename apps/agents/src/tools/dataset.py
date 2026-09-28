@@ -114,17 +114,23 @@ def _build_search_model(name: str, fields: list[dict[str, Any]]) -> type[BaseMod
                 Field(default=None, description=f"{label} hasta, formato AAAA-MM-DD"),
             )
 
-    text_labels = [f.get("label") or f["key"] for f in fields if f.get("type") == "text"]
+    text_labels = [
+        f.get("label") or f["key"] for f in fields if f.get("type") in ("text", "select")
+    ]
 
     if text_labels:
-        # Una sola caja de búsqueda para TODAS las columnas de texto. Un parámetro por columna
-        # obligaría al modelo a adivinar si la frase está en el nombre o en la descripción.
+        # Una sola caja de búsqueda para TODAS las columnas de texto (y las `select`, que el Gateway
+        # también barre). Un parámetro por columna obligaría al modelo a adivinar si la frase está
+        # en el nombre o en la descripción.
         params["query"] = (
             Optional[str],
             Field(
                 default=None,
                 description=(
-                    "Texto libre; busca a la vez en: " + ", ".join(text_labels)
+                    "Texto libre; busca a la vez en: "
+                    + ", ".join(text_labels)
+                    + ". Ignora mayúsculas y acentos; todas las palabras deben aparecer. "
+                    "Usa pocas palabras clave, sin artículos ni frases completas."
                 ),
             ),
         )
@@ -250,6 +256,8 @@ def load_dataset_tools(credentials: dict[str, Any], config: dict[str, Any]) -> l
     search_model = _build_search_model("SearchDatasetInput", fields)
     column_summary = ", ".join(f"{f.get('label') or f['key']}" for f in fields)
 
+    listable = [f["key"] for f in fields if f.get("type") in ("select", "text")]
+
     def _search(**kwargs: Any) -> str:
         result = _call_gateway(
             api_base,
@@ -266,15 +274,24 @@ def load_dataset_tools(credentials: dict[str, Any], config: dict[str, Any]) -> l
         items = data.get("items", [])
         logger.info("dataset '%s': %d de %d filas", dataset_name, len(items), data.get("total", 0))
 
-        return json.dumps(
-            {
-                "total": data.get("total", 0),
-                "mostrando": len(items),
-                "resultados": [{"id": item["id"], **item.get("data", {})} for item in items],
-            },
-            ensure_ascii=False,
-            default=str,
-        )
+        response: dict[str, Any] = {
+            "total": data.get("total", 0),
+            "mostrando": len(items),
+            "resultados": [{"id": item["id"], **item.get("data", {})} for item in items],
+        }
+
+        if not items:
+            # Cero filas casi nunca significa "no hay": suele ser una palabra mal escrita, un
+            # plural ("camionetas" no está dentro de "camioneta") o un filtro de más. Sin esta
+            # pista el modelo le contesta al cliente que no hay lo que sí hay.
+            response["sugerencia"] = (
+                "Sin resultados. Antes de decir que no hay, reintenta con menos palabras o "
+                "filtros, corrige la ortografía o usa singular."
+            )
+            if listable:
+                response["sugerencia"] += " Consulta los valores reales con list_dataset_values."
+
+        return json.dumps(response, ensure_ascii=False, default=str)
 
     class GetItemInput(BaseModel):
         id: str = Field(description="Identificador de la fila, tal como viene en los resultados")
@@ -287,8 +304,6 @@ def load_dataset_tools(credentials: dict[str, Any], config: dict[str, Any]) -> l
 
         record = result["data"]
         return json.dumps({"id": record["id"], **record.get("data", {})}, ensure_ascii=False, default=str)
-
-    listable = [f["key"] for f in fields if f.get("type") in ("select", "text")]
 
     class ListValuesInput(BaseModel):
         field: str = Field(description=f"Columna a listar. Opciones: {', '.join(listable)}")

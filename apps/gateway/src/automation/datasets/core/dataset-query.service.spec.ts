@@ -100,14 +100,45 @@ describe('DatasetQueryService — búsqueda de texto libre', () => {
     expect(where.values).toContain('%\\%%');
   });
 
-  it('dataset sin columnas de texto: no agrega condición de búsqueda libre', async () => {
+  it('columnas select también entran en la búsqueda libre', async () => {
     const soloSelect: DatasetField[] = [field({ key: 'marca', type: 'select', options: ['BYD'] })];
 
-    await search(soloSelect, { query: 'BYD M9' });
+    await search(soloSelect, { query: 'byd' });
 
     const where = capturedWhere();
 
-    expect(where.sql).not.toContain('LIKE');
+    expect(where.sql).toContain('LIKE');
+    expect(where.values).toContain('%byd%');
+  });
+
+  it('dataset solo con números y fechas: no agrega condición de búsqueda libre', async () => {
+    const sinTexto: DatasetField[] = [field({ key: 'precio', type: 'number' })];
+
+    await search(sinTexto, { query: 'BYD' });
+
+    expect(capturedWhere().sql).not.toContain('LIKE');
+  });
+
+  it('select: lleva el valor a su opción canónica sin importar mayúsculas ni acentos', async () => {
+    const conSelect: DatasetField[] = [
+      field({ key: 'tipo', type: 'select', options: ['Camión', 'Sedán'] }),
+    ];
+
+    await search(conSelect, { select: { tipo: [' camion', 'SEDAN', 'Camión'] } });
+
+    const values = capturedWhere().values;
+
+    expect(values).toContain(JSON.stringify({ tipo: 'Camión' }));
+    expect(values).toContain(JSON.stringify({ tipo: 'Sedán' }));
+    expect(values.filter((value) => value === JSON.stringify({ tipo: 'Camión' }))).toHaveLength(1);
+  });
+
+  it('select: un valor que no es ninguna opción viaja tal cual', async () => {
+    const conSelect: DatasetField[] = [field({ key: 'tipo', type: 'select', options: ['Sedán'] })];
+
+    await search(conSelect, { select: { tipo: ['Pickup'] } });
+
+    expect(capturedWhere().values).toContain(JSON.stringify({ tipo: 'Pickup' }));
   });
 
   it('límite de tokens: un query con más palabras que MAX_DATASET_FIELDS se trunca', async () => {

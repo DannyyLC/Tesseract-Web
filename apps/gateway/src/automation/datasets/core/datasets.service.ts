@@ -837,8 +837,8 @@ export class DatasetsService {
     await this.loadOwned(organizationId, datasetId);
 
     // Con texto libre, delega al mismo motor que usa el agente (`search_dataset`) en vez de
-    // reimplementar el ILIKE: mismo resultado que vería el bot, mismos límites (solo columnas
-    // `text`, no `select`/`number`/`date` — esas se filtran por valor exacto o rango).
+    // reimplementar el ILIKE: mismo resultado que vería el bot, mismos límites (columnas `text` y
+    // `select`; `number`/`date` se filtran por rango).
     const trimmedQuery = query?.trim();
     if (trimmedQuery) {
       return this.search(organizationId, datasetId, { query: trimmedQuery, limit, offset });
