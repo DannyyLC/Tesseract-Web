@@ -30,6 +30,8 @@ export interface MediaProcessorAdapter {
   process(media: {
     type: MediaType;
     sourceUrl: string;
+    /** Headers de la descarga de `sourceUrl`, si no es pública. */
+    sourceHeaders?: Record<string, string>;
     mimeType: string;
     sha256?: string;
     metadata?: Record<string, any>;

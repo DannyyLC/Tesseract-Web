@@ -41,6 +41,31 @@ export class MetaTransporter extends BaseWBTransporter {
     await this.send(sender, to, { type: file.type, [file.type]: this.buildMedia(file) });
   }
 
+  /**
+   * Igual que YCloud, un solo request hace las dos cosas: `status: 'read'` es el acuse de
+   * lectura y `typing_indicator` dispara el "escribiendo...". No lleva `to`: el destinatario
+   * se infiere del `message_id`.
+   */
+  protected async markMessageAsRead(sender: WBSender, messageId: string): Promise<void> {
+    await firstValueFrom(
+      this.httpService.post(
+        `${MetaTransporter.api_base_url}/${this.phoneNumberIdOf(sender)}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          status: 'read',
+          message_id: messageId,
+          typing_indicator: { type: 'text' },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessTokenOf(sender)}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      ),
+    );
+  }
+
   private async send(sender: WBSender, to: string, message: object): Promise<void> {
     await firstValueFrom(
       this.httpService.post(

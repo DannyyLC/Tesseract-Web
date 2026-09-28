@@ -11,7 +11,7 @@ describe('WhatsApp transporters', () => {
   const sender: WBSender = {
     configId: 'cfg-1',
     phoneNumber: '+525511111111',
-    sessionData: { phoneNumberId: '1234567890' },
+    sessionData: { phoneNumberId: '1234567890', accessToken: 'meta-token' },
   };
 
   beforeEach(() => {
@@ -115,6 +115,57 @@ describe('WhatsApp transporters', () => {
         filename: 'b.pdf',
       });
       expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('"code":"bad"'));
+    });
+  });
+
+  describe('markMessagesAsRead', () => {
+    it('YCloud: pega a inboundMessages/:id/typingIndicator por cada mensaje', async () => {
+      const transporter = new YCloudTransporter(mockHttpService, mockLogger);
+
+      await transporter.markMessagesAsRead(sender, ['m-1', 'm-2']);
+
+      expect(mockHttpService.post).toHaveBeenCalledTimes(2);
+      expect(mockHttpService.post).toHaveBeenCalledWith(
+        `${YCloudTransporter.api_base_url}/whatsapp/inboundMessages/m-1/typingIndicator`,
+        {},
+        expect.objectContaining({ headers: expect.objectContaining({ 'X-API-Key': expect.any(String) }) }),
+      );
+      expect(mockHttpService.post).toHaveBeenCalledWith(
+        `${YCloudTransporter.api_base_url}/whatsapp/inboundMessages/m-2/typingIndicator`,
+        {},
+        expect.anything(),
+      );
+    });
+
+    it('Meta: manda status read y typing_indicator al endpoint de mensajes', async () => {
+      const transporter = new MetaTransporter(mockHttpService, mockLogger);
+
+      await transporter.markMessagesAsRead(sender, ['wamid.1']);
+
+      expect(mockHttpService.post).toHaveBeenCalledWith(
+        `${MetaTransporter.api_base_url}/1234567890/messages`,
+        {
+          messaging_product: 'whatsapp',
+          status: 'read',
+          message_id: 'wamid.1',
+          typing_indicator: { type: 'text' },
+        },
+        expect.objectContaining({
+          headers: expect.objectContaining({ Authorization: expect.stringMatching(/^Bearer /) }),
+        }),
+      );
+    });
+
+    it('sigue con el resto si un mensaje falla, y lo registra', async () => {
+      const transporter = new YCloudTransporter(mockHttpService, mockLogger);
+      mockHttpService.post
+        .mockReturnValueOnce(throwError(() => ({ message: 'boom' })))
+        .mockReturnValueOnce(of({ data: {} }));
+
+      await transporter.markMessagesAsRead(sender, ['m-1', 'm-2']);
+
+      expect(mockHttpService.post).toHaveBeenCalledTimes(2);
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('m-1'));
     });
   });
 

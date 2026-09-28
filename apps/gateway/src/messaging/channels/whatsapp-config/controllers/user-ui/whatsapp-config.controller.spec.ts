@@ -1,20 +1,22 @@
 import { HttpStatus } from '@nestjs/common';
+import { ChatRole } from '@tesseract/database';
 import { WhatsappConfigController } from './whatsapp-config.controller';
+import { EBMessageType, WBEventTypes } from '../../payload-consumers/wb-payload-consumer.interface';
 
 /**
- * El foco de estas pruebas es la lista negra en el webhook.
+ * Cobertura de `handleWebhook`, con foco en los escenarios de falla y en el enrutado
+ * multi-proveedor (YCloud / Meta) introducido junto con `WBPayloadConsumerResolver`.
  *
- * Lo que se verifica no es solo que se conteste 200: es que un contacto bloqueado NO llegue a
- * gastar nada. Si alguna de estas aserciones se cae, la feature dejó de cumplir lo único que
- * prometía —no quemar recursos en quien ya está bloqueado— aunque en la UI se siga viendo el
- * candado.
+ * El resolver se mockea por completo: la clase real pide 4 dependencias (logger,
+ * mediaProcessingService, workflowsService, whatsappConfigService) que no hacen falta
+ * para probar el controller, y acoplarse a ellas solo haría frágil esta suite ante
+ * cambios de esas otras piezas. En su lugar se construye un `IWBPayloadConsumer` falso
+ * por test, configurable campo a campo.
  */
-describe('WhatsappConfigController · webhook', () => {
+describe('WhatsappConfigController · handleWebhook', () => {
   let controller: WhatsappConfigController;
 
   const mockWhatsappConfigService: any = {
-    verifySignature: jest.fn(),
-    verifyMetaSignature: jest.fn(),
     getWhatsappConfigByPhoneNumber: jest.fn(),
     updateConnectionStatusByPhoneNumber: jest.fn(),
     updateConnectionErrorByPhoneNumber: jest.fn(),
@@ -28,47 +30,48 @@ describe('WhatsappConfigController · webhook', () => {
     findActiveWhatsappConversation: jest.fn(),
     findOrCreateConversationFromWhatsAppMessage: jest.fn(),
     addMessage: jest.fn(),
+    markMessageOutsideWorkflow: jest.fn(),
   };
   const mockEndUsersService: any = { isBlocked: jest.fn() };
+  const mockPayloadConsumerResolver: any = { forProvider: jest.fn() };
+  const mockMediaProcessingService: any = {};
 
-  const USER_NUMBER = '5215512345678';
-  const PHONE_NUMBER = '5211111111111';
+  const AGENT_NUMBER = '+5211111111111';
+  const CLIENT_NUMBER = '+5215512345678';
 
-  const body = {
-    type: 'whatsapp.inbound_message.received',
-    whatsappInboundMessage: {
-      id: 'wamid-1',
-      type: 'text',
-      from: USER_NUMBER,
-      to: PHONE_NUMBER,
-      text: { body: 'hola' },
-      sendTime: '2026-08-17T17:00:00Z',
-    },
-  };
+  const buildConsumer = (overrides: Partial<Record<string, any>> = {}) => ({
+    verifySignature: jest.fn().mockResolvedValue(true),
+    getFromNumber: jest.fn().mockReturnValue(CLIENT_NUMBER),
+    getToNumber: jest.fn().mockReturnValue(AGENT_NUMBER),
+    getSendTime: jest.fn().mockReturnValue('2026-08-17T17:00:00Z'),
+    getWhatsappMessageId: jest.fn().mockReturnValue('wamid-1'),
+    getWBEventType: jest.fn().mockReturnValue(WBEventTypes.MsgReceived),
+    getMessageType: jest.fn().mockReturnValue(EBMessageType.Text),
+    getInterpretedMessage: jest.fn().mockResolvedValue({ text: 'hola' }),
+    audioSource: jest.fn(),
+    imageSource: jest.fn(),
+    ...overrides,
+  });
 
-  /** Mensaje que el negocio mandó desde su propia app: `from`/`to` van al revés. */
-  const echoBody = {
-    type: 'whatsapp.smb.message.echoes',
-    whatsappMessage: {
-      id: 'wamid-echo-1',
-      type: 'text',
-      from: PHONE_NUMBER,
-      to: USER_NUMBER,
-      text: { body: 'ya no me escribas' },
-    },
-  };
+  let consumer: ReturnType<typeof buildConsumer>;
 
-  const createMockResponse = () => {
-    const res: any = {
-      status: jest.fn().mockReturnThis(),
-      send: jest.fn().mockReturnThis(),
-      req: {},
-    };
-    return res;
-  };
+  const createResponse = (rawBody?: Buffer): any => ({
+    status: jest.fn().mockReturnThis(),
+    send: jest.fn().mockReturnThis(),
+    req: { rawBody },
+  });
+
+  const body = { some: 'payload' };
+  const ycloudHeaders = { 'ycloud-signature': 't=1,v1=abc' };
+  const metaHeaders = { 'x-hub-signature-256': 'sha256=abc' };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    // `resetAllMocks` (no solo `clearAllMocks`) es necesario: un `mockRejectedValue` o
+    // `mockResolvedValueOnce` que un test deja puesto en uno de los mocks compartidos de
+    // arriba sobrevive a `clearAllMocks` (que solo borra el historial de llamadas) y se
+    // filtraría a los tests siguientes.
+    jest.resetAllMocks();
+    mockQueueService.buildWindowId.mockReturnValue('w-1');
 
     controller = new WhatsappConfigController(
       mockWhatsappConfigService,
@@ -79,269 +82,524 @@ describe('WhatsappConfigController · webhook', () => {
       mockWorkflowsService,
       mockConversationsService,
       mockEndUsersService,
+      mockPayloadConsumerResolver,
+      mockMediaProcessingService,
     );
 
-    mockWhatsappConfigService.verifySignature.mockReturnValue(true);
-    mockWhatsappConfigService.verifyMetaSignature.mockReturnValue(true);
+    consumer = buildConsumer();
+    mockPayloadConsumerResolver.forProvider.mockResolvedValue(consumer);
+    mockWebhookDedup.claim.mockResolvedValue(true);
     mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
       id: 'wa-1',
       organizationId: 'org-1',
       isActive: true,
       defaultWorkflowId: 'wf-1',
     });
-    mockWebhookDedup.claim.mockResolvedValue(true);
     mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: true });
     mockConversationsService.findActiveWhatsappConversation.mockResolvedValue(null);
     mockConversationsService.findOrCreateConversationFromWhatsAppMessage.mockResolvedValue({
       id: 'conv-1',
+      organizationId: 'org-1',
     });
     mockEndUsersService.isBlocked.mockResolvedValue(false);
   });
 
-  it('encola el mensaje de un contacto que no está bloqueado', async () => {
-    const res = createMockResponse();
+  // ─── Selección de proveedor ─────────────────────────────────────────────
 
-    await controller.handleWebhook(body, res, {});
+  describe('selección de proveedor', () => {
+    it('usa el consumer de ycloud cuando llega el header ycloud-signature', async () => {
+      await controller.handleWebhook(body, createResponse(Buffer.from('{}')), ycloudHeaders);
 
-    expect(mockQueueService.bufferMessage).toHaveBeenCalledTimes(1);
-    expect(mockCloudTasks.enqueue).toHaveBeenCalledTimes(1);
-    expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(mockPayloadConsumerResolver.forProvider).toHaveBeenCalledWith('ycloud', body);
+    });
+
+    it('usa el consumer de meta cuando NO llega el header ycloud-signature', async () => {
+      await controller.handleWebhook(body, createResponse(Buffer.from('{}')), metaHeaders);
+
+      expect(mockPayloadConsumerResolver.forProvider).toHaveBeenCalledWith('meta', body);
+    });
+
+    it('también cae a meta si no llega ningún header reconocible', async () => {
+      await controller.handleWebhook(body, createResponse(Buffer.from('{}')), {});
+
+      expect(mockPayloadConsumerResolver.forProvider).toHaveBeenCalledWith('meta', body);
+    });
+  });
+
+  // ─── Eventos no permitidos ──────────────────────────────────────────────
+
+  describe('eventos no permitidos (WBEventTypes.NotAllowed)', () => {
+    it('valida la firma primero y, si es válida, contesta 200 sin tocar la base', async () => {
+      consumer.getWBEventType.mockReturnValue(WBEventTypes.NotAllowed);
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(consumer.verifySignature).toHaveBeenCalledTimes(1);
+      expect(mockWebhookDedup.claim).not.toHaveBeenCalled();
+      expect(mockWhatsappConfigService.getWhatsappConfigByPhoneNumber).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(res.send).toHaveBeenCalledWith({ received: true });
+    });
+
+    it('un evento NotAllowed con firma inválida se rechaza con 401 y no se contesta 200 a ciegas', async () => {
+      consumer.getWBEventType.mockReturnValue(WBEventTypes.NotAllowed);
+      consumer.verifySignature.mockResolvedValue(false);
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      // Antes, un evento clasificado como NotAllowed contestaba 200 sin haber validado la
+      // firma: un payload sin autenticar se aceptaba igual que uno legítimo mientras se
+      // pudiera clasificar como "no aplica". Ahora la firma manda primero, sin excepción.
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+      expect(res.send).toHaveBeenCalledWith({ received: false });
+    });
+  });
+
+  // ─── Verificación de firma ──────────────────────────────────────────────
+
+  describe('verificación de firma', () => {
+    it('valida por raw body cuando está disponible, sin caer al fallback', async () => {
+      const res = createResponse(Buffer.from('{"a":1}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(consumer.verifySignature).toHaveBeenCalledTimes(1);
+      expect(consumer.verifySignature).toHaveBeenCalledWith('{"a":1}', ycloudHeaders);
+    });
+
+    it('cae al fallback de JSON.stringify si el raw body no valida', async () => {
+      consumer.verifySignature.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+      const res = createResponse(Buffer.from('{"a":1}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(consumer.verifySignature).toHaveBeenCalledTimes(2);
+      expect(consumer.verifySignature).toHaveBeenNthCalledWith(2, JSON.stringify(body), ycloudHeaders);
+      expect(mockWebhookDedup.claim).toHaveBeenCalled(); // siguió el flujo normal
+    });
+
+    it('sin raw body, solo intenta el fallback de JSON.stringify (una sola llamada)', async () => {
+      const res = createResponse(undefined);
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(consumer.verifySignature).toHaveBeenCalledTimes(1);
+      expect(consumer.verifySignature).toHaveBeenCalledWith(JSON.stringify(body), ycloudHeaders);
+    });
+
+    it('el log de éxito refleja el proveedor real (meta), no un texto fijo de YCloud', async () => {
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, metaHeaders);
+
+      expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('meta signature validated'));
+    });
+
+    it('rechaza con 401, desconecta la cuenta y no reclama deduplicación si ambas verificaciones fallan', async () => {
+      consumer.verifySignature.mockResolvedValue(false);
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+      expect(res.send).toHaveBeenCalledWith({ received: false });
+      expect(mockWhatsappConfigService.updateConnectionStatusByPhoneNumber).toHaveBeenCalledWith(
+        AGENT_NUMBER,
+        'DISCONNECTED',
+      );
+      expect(mockWhatsappConfigService.updateConnectionErrorByPhoneNumber).toHaveBeenCalledWith(
+        AGENT_NUMBER,
+        'Invalid signature, contact Support Service',
+      );
+      expect(mockWebhookDedup.claim).not.toHaveBeenCalled();
+    });
+
+    it('con un echo, la firma inválida desconecta el número del NEGOCIO (from), no el del cliente', async () => {
+      consumer.verifySignature.mockResolvedValue(false);
+      consumer.getWBEventType.mockReturnValue(WBEventTypes.MsgEchoes);
+      consumer.getFromNumber.mockReturnValue(AGENT_NUMBER);
+      consumer.getToNumber.mockReturnValue(CLIENT_NUMBER);
+
+      await controller.handleWebhook(body, createResponse(Buffer.from('{}')), ycloudHeaders);
+
+      expect(mockWhatsappConfigService.updateConnectionStatusByPhoneNumber).toHaveBeenCalledWith(
+        AGENT_NUMBER,
+        'DISCONNECTED',
+      );
+    });
+  });
+
+  // ─── Mensaje sin ID ──────────────────────────────────────────────────────
+
+  it('un mensaje sin whatsappMessageId se descarta con 200 antes de deduplicar', async () => {
+    consumer.getWhatsappMessageId.mockReturnValue('');
+    const res = createResponse(Buffer.from('{}'));
+
+    await controller.handleWebhook(body, res, ycloudHeaders);
+
+    expect(mockWebhookDedup.claim).not.toHaveBeenCalled();
     expect(res.send).toHaveBeenCalledWith({ received: true });
   });
 
-  describe('con el contacto bloqueado', () => {
-    beforeEach(() => {
-      mockEndUsersService.isBlocked.mockResolvedValue(true);
+  // ─── Deduplicación ───────────────────────────────────────────────────────
+
+  describe('deduplicación', () => {
+    it('descarta un mensaje duplicado sin tocar la cuenta', async () => {
+      mockWebhookDedup.claim.mockResolvedValue(false);
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(mockWhatsappConfigService.getWhatsappConfigByPhoneNumber).not.toHaveBeenCalled();
+      expect(res.send).toHaveBeenCalledWith({ received: true, duplicate: true });
     });
 
-    it('descarta el mensaje sin bufferear ni agendar nada', async () => {
-      const res = createMockResponse();
+    it('reclama y libera bajo el proveedor REAL del webhook (meta), no un valor fijo', async () => {
+      mockCloudTasks.enqueue.mockRejectedValue(new Error('tasks down'));
+      const res = createResponse(Buffer.from('{}'));
 
-      await controller.handleWebhook(body, res, {});
+      await controller.handleWebhook(body, res, metaHeaders); // sin ycloud-signature ⇒ va por meta
 
-      // El corazón de la feature: ni Redis, ni Cloud Tasks. Sin tarea no hay worker, y sin
-      // worker no hay palomita azul, ni transcripción, ni ejecución, ni crédito cobrado.
-      expect(mockQueueService.bufferMessage).not.toHaveBeenCalled();
-      expect(mockCloudTasks.enqueue).not.toHaveBeenCalled();
-
-      // 200 y no 5xx: YCloud no debe reintentar algo que se descartó a propósito.
-      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
-      expect(res.send).toHaveBeenCalledWith({ received: true, ignored: 'blocked-contact' });
-    });
-
-    it('busca el bloqueo por la organización de la cuenta y el número tal como llega', async () => {
-      const res = createMockResponse();
-
-      await controller.handleWebhook(body, res, {});
-
-      // El número va crudo: así lo guarda el upsert del EndUser, y por eso el match es exacto.
-      expect(mockEndUsersService.isBlocked).toHaveBeenCalledWith('org-1', {
-        phoneNumber: USER_NUMBER,
-      });
-    });
-
-    it('no deja el número del cliente en claro en los logs', async () => {
-      const res = createMockResponse();
-
-      await controller.handleWebhook(body, res, {});
-
-      const logged = JSON.stringify(mockLogger.info.mock.calls);
-      expect(logged).not.toContain(USER_NUMBER);
-    });
-
-    /**
-     * Con el workflow apagado sí se registra el mensaje —nadie más lleva la conversación al
-     * día— pero el bloqueo gana: es una decisión sobre la persona y vale sea cual sea el estado
-     * del flujo. Si esta prueba se cae, un bloqueado acumula historial cada vez que alguien
-     * apaga el workflow, que es justo lo que el bloqueo venía a evitar.
-     */
-    it('tampoco guarda el mensaje cuando además el workflow está apagado', async () => {
-      mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: false });
-      const res = createMockResponse();
-
-      await controller.handleWebhook(body, res, {});
-
-      expect(mockConversationsService.addMessage).not.toHaveBeenCalled();
-      expect(res.send).toHaveBeenCalledWith({ received: true, ignored: 'blocked-contact' });
-    });
-
-    /**
-     * La lista negra es sobre lo que ENTRA. Un echo es un mensaje que el negocio decidió mandar
-     * desde su propio teléfono: bloquear a alguien no puede borrar el rastro de lo que el propio
-     * tenant le escribió.
-     */
-    it('no filtra los echoes del negocio', async () => {
-      mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: false });
-      const res = createMockResponse();
-
-      await controller.handleWebhook(echoBody, res, {});
-
-      expect(mockEndUsersService.isBlocked).not.toHaveBeenCalled();
-      expect(mockConversationsService.addMessage).toHaveBeenCalled();
+      expect(mockPayloadConsumerResolver.forProvider).toHaveBeenCalledWith('meta', body);
+      expect(mockWebhookDedup.claim).toHaveBeenCalledWith('meta', 'wamid-1', EBMessageType.Text);
+      expect(mockWebhookDedup.release).toHaveBeenCalledWith('meta', 'wamid-1');
     });
   });
 
-  /**
-   * Una config que apunta a un workflow borrado es un estado de configuración, no una falla
-   * transitoria: reintentar no lo resucita. En su día esto contestaba 500 y cada mensaje entrante
-   * de ese número se convertía en un ciclo de reintentos de YCloud.
-   */
-  describe('cuando el workflow ya no existe', () => {
-    beforeEach(() => {
-      // `getRoutingState` devuelve null cuando no hay a dónde rutear: borrado, de otra
-      // organización o interno.
-      mockWorkflowsService.getRoutingState.mockResolvedValue(null);
-    });
+  // ─── Resolución de la cuenta ─────────────────────────────────────────────
 
-    it('lo descarta con 200 en vez de pedir reintento', async () => {
-      const res = createMockResponse();
+  describe('resolución de la cuenta', () => {
+    it('descarta sin reintentar si no hay config para el número', async () => {
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue(null);
+      const res = createResponse(Buffer.from('{}'));
 
-      await controller.handleWebhook(body, res, {});
+      await controller.handleWebhook(body, res, ycloudHeaders);
 
-      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
-      expect(res.send).toHaveBeenCalledWith({ received: true, ignored: 'missing-workflow' });
-      expect(res.status).not.toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
-    });
-
-    it('no bufferea, no agenda y conserva el claim de deduplicación', async () => {
-      const res = createMockResponse();
-
-      await controller.handleWebhook(body, res, {});
-
-      expect(mockQueueService.bufferMessage).not.toHaveBeenCalled();
-      expect(mockCloudTasks.enqueue).not.toHaveBeenCalled();
-      // Liberar el claim es lo que habilita el reintento; en un descarte deliberado se queda.
+      expect(res.send).toHaveBeenCalledWith({ received: true, ignored: 'unknown-config' });
       expect(mockWebhookDedup.release).not.toHaveBeenCalled();
     });
-  });
 
-  /**
-   * La contracara: un fallo real de infraestructura sí merece reintento. Si la guarda se tragara
-   * cualquier excepción, una caída de la base descartaría mensajes del cliente en silencio.
-   */
-  it('sigue devolviendo 500 si el workflow no se pudo resolver por otra causa', async () => {
-    mockWorkflowsService.getRoutingState.mockRejectedValue(new Error('connection terminated'));
-    const res = createMockResponse();
-
-    await controller.handleWebhook(body, res, {});
-
-    expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
-    expect(mockWebhookDedup.release).toHaveBeenCalled();
-  });
-
-  it('no consulta la lista negra si la firma no es válida', async () => {
-    mockWhatsappConfigService.verifySignature.mockReturnValue(false);
-    const res = createMockResponse();
-
-    await controller.handleWebhook(body, res, {});
-
-    // La firma manda: un POST sin autenticar no debe poder sondear qué números están bloqueados.
-    expect(mockEndUsersService.isBlocked).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
-  });
-
-  describe('payload de la Cloud API de Meta', () => {
-    const metaMessage = (id: string) => ({
-      from: USER_NUMBER,
-      id,
-      timestamp: '1787000000',
-      type: 'text',
-      text: { body: 'hola' },
-    });
-    const metaBody = (...ids: string[]) => ({
-      object: 'whatsapp_business_account',
-      entry: [
-        {
-          id: 'waba-1',
-          changes: [
-            {
-              field: 'messages',
-              value: {
-                messaging_product: 'whatsapp',
-                metadata: { display_phone_number: PHONE_NUMBER, phone_number_id: 'pnid-1' },
-                contacts: [{ wa_id: USER_NUMBER, profile: { name: 'Ana' } }],
-                messages: ids.map(metaMessage),
-              },
-            },
-          ],
-        },
-      ],
-    });
-    const createMetaResponse = () => {
-      const res = createMockResponse();
-      res.req = { rawBody: Buffer.from('{}') };
-      return res;
-    };
-
-    it('valida la firma de Meta y no la de YCloud', async () => {
-      const res = createMetaResponse();
-
-      await controller.handleWebhook(metaBody('wamid.A'), res, {
-        'x-hub-signature-256': 'sha256=abc',
+    it('descarta sin reintentar si la config está inactiva', async () => {
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
+        id: 'wa-1',
+        organizationId: 'org-1',
+        isActive: false,
+        defaultWorkflowId: 'wf-1',
       });
 
-      expect(mockWhatsappConfigService.verifyMetaSignature).toHaveBeenCalledWith(
-        res.req.rawBody,
-        'sha256=abc',
-      );
-      expect(mockWhatsappConfigService.verifySignature).not.toHaveBeenCalled();
+      await controller.handleWebhook(body, createResponse(Buffer.from('{}')), ycloudHeaders);
+
+      expect(mockEndUsersService.isBlocked).not.toHaveBeenCalled();
     });
 
-    it('encola cada mensaje del lote con los números en E.164', async () => {
-      const res = createMetaResponse();
+    it('descarta sin reintentar si la config no tiene workflow asignado', async () => {
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
+        id: 'wa-1',
+        organizationId: 'org-1',
+        isActive: true,
+        defaultWorkflowId: null,
+      });
+      const res = createResponse(Buffer.from('{}'));
 
-      await controller.handleWebhook(metaBody('wamid.A', 'wamid.B'), res, {});
+      await controller.handleWebhook(body, res, ycloudHeaders);
 
-      expect(mockWebhookDedup.claim).toHaveBeenCalledWith('meta-whatsapp', 'wamid.A', 'text');
-      expect(mockWebhookDedup.claim).toHaveBeenCalledWith('meta-whatsapp', 'wamid.B', 'text');
-      expect(mockWhatsappConfigService.getWhatsappConfigByPhoneNumber).toHaveBeenCalledWith(
-        `+${PHONE_NUMBER}`,
+      expect(res.send).toHaveBeenCalledWith({ received: true, ignored: 'no-workflow' });
+    });
+  });
+
+  // ─── Lista negra ─────────────────────────────────────────────────────────
+
+  describe('lista negra', () => {
+    it('descarta un mensaje entrante de un contacto bloqueado', async () => {
+      mockEndUsersService.isBlocked.mockResolvedValue(true);
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(mockQueueService.bufferMessage).not.toHaveBeenCalled();
+      expect(mockCloudTasks.enqueue).not.toHaveBeenCalled();
+      expect(res.send).toHaveBeenCalledWith({ received: true, ignored: 'blocked-contact' });
+    });
+
+    it('consulta el bloqueo con el número del CLIENTE, no el del negocio', async () => {
+      mockEndUsersService.isBlocked.mockResolvedValue(true);
+
+      await controller.handleWebhook(body, createResponse(Buffer.from('{}')), ycloudHeaders);
+
+      expect(mockEndUsersService.isBlocked).toHaveBeenCalledWith('org-1', { phoneNumber: CLIENT_NUMBER });
+    });
+
+    it('no aplica la lista negra a los echoes del propio negocio', async () => {
+      consumer.getWBEventType.mockReturnValue(WBEventTypes.MsgEchoes);
+      consumer.getFromNumber.mockReturnValue(AGENT_NUMBER);
+      consumer.getToNumber.mockReturnValue(CLIENT_NUMBER);
+      mockEndUsersService.isBlocked.mockResolvedValue(true);
+
+      await controller.handleWebhook(body, createResponse(Buffer.from('{}')), ycloudHeaders);
+
+      expect(mockEndUsersService.isBlocked).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── Estado del workflow ─────────────────────────────────────────────────
+
+  describe('estado del workflow', () => {
+    it('descarta sin reintentar si el workflow ya no existe (borrado o de otra organización)', async () => {
+      mockWorkflowsService.getRoutingState.mockResolvedValue(null);
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(res.send).toHaveBeenCalledWith({ received: true, ignored: 'missing-workflow' });
+      expect(mockWebhookDedup.release).not.toHaveBeenCalled();
+    });
+
+    it('con el workflow apagado, registra el mensaje del cliente como USER antes de descartar', async () => {
+      mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: false });
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(mockConversationsService.addMessage).toHaveBeenCalledWith(
+        'conv-1',
+        ChatRole.USER,
+        'hola',
+        expect.objectContaining({ source: 'whatsapp_inbound_message' }),
       );
-      expect(mockQueueService.bufferMessage).toHaveBeenCalledTimes(2);
+      expect(res.send).toHaveBeenCalledWith({ received: true, ignored: 'inactive-workflow' });
+    });
+
+    it('con el workflow apagado y sin texto interpretable, no escribe un mensaje vacío', async () => {
+      mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: false });
+      consumer.getInterpretedMessage.mockResolvedValue({});
+
+      await controller.handleWebhook(body, createResponse(Buffer.from('{}')), ycloudHeaders);
+
+      expect(mockConversationsService.addMessage).not.toHaveBeenCalled();
+    });
+
+    it('con el workflow apagado, un echo se registra como ASSISTANT con motivo inactive-workflow', async () => {
+      mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: false });
+      consumer.getWBEventType.mockReturnValue(WBEventTypes.MsgEchoes);
+      consumer.getFromNumber.mockReturnValue(AGENT_NUMBER);
+      consumer.getToNumber.mockReturnValue(CLIENT_NUMBER);
+      mockConversationsService.findActiveWhatsappConversation.mockResolvedValue({
+        id: 'conv-1',
+        organizationId: 'org-1',
+      });
+
+      await controller.handleWebhook(body, createResponse(Buffer.from('{}')), ycloudHeaders);
+
+      expect(mockConversationsService.addMessage).toHaveBeenCalledWith(
+        'conv-1',
+        ChatRole.ASSISTANT,
+        'hola',
+        expect.objectContaining({ source: 'whatsapp_smb_echo' }),
+      );
+      expect(mockConversationsService.markMessageOutsideWorkflow).toHaveBeenCalledWith(
+        'org-1',
+        'conv-1',
+        'inactive-workflow',
+        undefined,
+      );
+    });
+  });
+
+  // ─── Echoes con workflow activo ──────────────────────────────────────────
+
+  describe('echoes con el workflow activo', () => {
+    beforeEach(() => {
+      consumer.getWBEventType.mockReturnValue(WBEventTypes.MsgEchoes);
+      consumer.getFromNumber.mockReturnValue(AGENT_NUMBER);
+      consumer.getToNumber.mockReturnValue(CLIENT_NUMBER);
+    });
+
+    it('no registra nada si nadie intervino la conversación', async () => {
+      mockConversationsService.findActiveWhatsappConversation.mockResolvedValue({
+        id: 'conv-1',
+        organizationId: 'org-1',
+        isHumanInTheLoop: false,
+      });
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(mockConversationsService.addMessage).not.toHaveBeenCalled();
+      expect(mockQueueService.bufferMessage).not.toHaveBeenCalled();
+      expect(res.send).toHaveBeenCalledWith({ received: true });
+    });
+
+    it('registra el echo como ASSISTANT cuando un humano intervino, reusando la conversación ya consultada', async () => {
+      mockConversationsService.findActiveWhatsappConversation.mockResolvedValue({
+        id: 'conv-1',
+        organizationId: 'org-1',
+        isHumanInTheLoop: true,
+      });
+
+      await controller.handleWebhook(body, createResponse(Buffer.from('{}')), ycloudHeaders);
+
+      expect(mockConversationsService.findActiveWhatsappConversation).toHaveBeenCalledTimes(1);
+      expect(mockConversationsService.addMessage).toHaveBeenCalledWith(
+        'conv-1',
+        ChatRole.ASSISTANT,
+        'hola',
+        expect.objectContaining({ source: 'whatsapp_smb_echo' }),
+      );
+      expect(mockConversationsService.markMessageOutsideWorkflow).toHaveBeenCalledWith(
+        'org-1',
+        'conv-1',
+        'human-in-the-loop',
+        undefined,
+      );
+    });
+
+    it('nunca bufferea el echo ni agenda una tarea, con o sin intervención humana', async () => {
+      mockConversationsService.findActiveWhatsappConversation.mockResolvedValue({
+        id: 'conv-1',
+        organizationId: 'org-1',
+        isHumanInTheLoop: true,
+      });
+
+      await controller.handleWebhook(body, createResponse(Buffer.from('{}')), ycloudHeaders);
+
+      expect(mockQueueService.bufferMessage).not.toHaveBeenCalled();
+      expect(mockCloudTasks.enqueue).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── Mensajes entrantes normales ─────────────────────────────────────────
+
+  describe('mensajes entrantes normales', () => {
+    it('bufferea el mensaje y agenda el worker con los números correctos', async () => {
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
       expect(mockQueueService.bufferMessage).toHaveBeenCalledWith(
         'org-1',
-        `+${PHONE_NUMBER}`,
-        `+${USER_NUMBER}`,
+        AGENT_NUMBER,
+        CLIENT_NUMBER,
         expect.objectContaining({
-          messageId: 'wamid.A',
-          event: expect.objectContaining({
-            type: 'whatsapp.inbound_message.received',
-            whatsappInboundMessage: expect.objectContaining({ text: { body: 'hola' } }),
+          messageId: 'wamid-1',
+          sendTime: '2026-08-17T17:00:00Z',
+          event: body,
+        }),
+      );
+      expect(mockCloudTasks.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            organizationId: 'org-1',
+            agentPhoneNumber: AGENT_NUMBER,
+            clientPhoneNumber: CLIENT_NUMBER,
+            windowId: 'w-1',
           }),
         }),
       );
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(res.send).toHaveBeenCalledWith({ received: true });
     });
 
-    it('rechaza con 401 sin tocar la base si la firma no es válida', async () => {
-      mockWhatsappConfigService.verifyMetaSignature.mockReturnValue(false);
-      const res = createMetaResponse();
+    it('un mensaje de Meta se bufferea igual que uno de YCloud, sin distinción en el worker', async () => {
+      const res = createResponse(Buffer.from('{}'));
 
-      await controller.handleWebhook(metaBody('wamid.A'), res, {});
+      await controller.handleWebhook(body, res, metaHeaders);
 
-      expect(res.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
-      expect(mockWebhookDedup.claim).not.toHaveBeenCalled();
-      expect(mockWhatsappConfigService.updateConnectionStatusByPhoneNumber).not.toHaveBeenCalled();
+      expect(mockQueueService.bufferMessage).toHaveBeenCalledTimes(1);
+      expect(mockCloudTasks.enqueue).toHaveBeenCalledTimes(1);
+      expect(res.send).toHaveBeenCalledWith({ received: true });
     });
+  });
 
-    it('rechaza con 401 si no hay raw body para validar', async () => {
-      const res = createMockResponse();
+  // ─── Manejo de errores dentro del bloque protegido ──────────────────────
 
-      await controller.handleWebhook(metaBody('wamid.A'), res, {});
+  describe('errores durante el procesamiento (dentro del try/catch)', () => {
+    it('libera la deduplicación y contesta 500 si falla encolar la tarea, para que el proveedor reintente', async () => {
+      mockCloudTasks.enqueue.mockRejectedValue(new Error('tasks down'));
+      const res = createResponse(Buffer.from('{}'));
 
-      expect(res.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
-      expect(mockWhatsappConfigService.verifyMetaSignature).not.toHaveBeenCalled();
-    });
+      await controller.handleWebhook(body, res, ycloudHeaders);
 
-    it('contesta 500 al lote si un mensaje falla, para que Meta reintente', async () => {
-      mockCloudTasks.enqueue.mockRejectedValueOnce(new Error('tasks down'));
-      const res = createMetaResponse();
-
-      await controller.handleWebhook(metaBody('wamid.A', 'wamid.B'), res, {});
-
-      expect(mockQueueService.bufferMessage).toHaveBeenCalledTimes(2);
-      expect(mockWebhookDedup.release).toHaveBeenCalledWith('meta-whatsapp', 'wamid.A');
+      expect(mockWebhookDedup.release).toHaveBeenCalledWith('ycloud', 'wamid-1');
       expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(res.send).toHaveBeenCalledWith({ received: false });
+    });
+
+    it('libera la deduplicación y contesta 500 si falla interpretar el mensaje (p.ej. transcripción)', async () => {
+      consumer.getInterpretedMessage.mockRejectedValue(new Error('STT caído'));
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(mockWebhookDedup.release).toHaveBeenCalledWith('ycloud', 'wamid-1');
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    });
+
+    it('libera la deduplicación y contesta 500 si falla resolver el estado del workflow por una causa real (no "no existe")', async () => {
+      mockWorkflowsService.getRoutingState.mockRejectedValue(new Error('connection terminated'));
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(mockWebhookDedup.release).toHaveBeenCalled();
+    });
+
+    it('no deja el número del cliente en claro en los logs de error', async () => {
+      mockCloudTasks.enqueue.mockRejectedValue(new Error('tasks down'));
+
+      await controller.handleWebhook(body, createResponse(Buffer.from('{}')), ycloudHeaders);
+
+      const logged = JSON.stringify(mockLogger.error.mock.calls);
+      expect(logged).not.toContain(CLIENT_NUMBER);
+    });
+  });
+
+  // ─── Fallos ANTES del bloque protegido ──────────────────────────────────
+
+  describe('errores en cualquier punto del webhook, incluso antes de conocer el whatsappMessageId', () => {
+    it('si el resolver de proveedor falla, contesta 500 igual que un fallo más adelante en el proceso (antes: la promesa se rechazaba sin responder nada)', async () => {
+      mockPayloadConsumerResolver.forProvider.mockRejectedValue(new Error('payload corrupto'));
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(res.send).toHaveBeenCalledWith({ received: false });
+      // Nunca se llegó a conocer el whatsappMessageId: no hay ningún claim que liberar.
+      expect(mockWebhookDedup.release).not.toHaveBeenCalled();
+    });
+
+    it('si un getter del consumer (p.ej. getWhatsappMessageId) falla, también contesta 500 en vez de tirar la request', async () => {
+      consumer.getWhatsappMessageId.mockImplementation(() => {
+        throw new Error('payload sin id');
+      });
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(res.send).toHaveBeenCalledWith({ received: false });
+    });
+
+    it('si verifySignature en sí falla (no solo devuelve false), contesta 500 en vez de 401', async () => {
+      consumer.verifySignature.mockRejectedValue(new Error('secret no configurado'));
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(res.send).toHaveBeenCalledWith({ received: false });
+    });
+
+    it('si ya se conocía el whatsappMessageId cuando ocurrió el fallo, sí libera el claim correspondiente', async () => {
+      mockCloudTasks.enqueue.mockRejectedValue(new Error('tasks down'));
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(mockWebhookDedup.release).toHaveBeenCalledWith('ycloud', 'wamid-1');
     });
   });
 });

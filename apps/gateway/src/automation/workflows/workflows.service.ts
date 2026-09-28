@@ -1,41 +1,23 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { ExecutionsService } from '@/automation/executions/executions.service';
+import { LlmModelsService } from '@/automation/llm-models/llm-models.service';
+import { MediaPolicy, resolveMediaPolicy } from '@/automation/media-processing/media-policy';
 import {
-  TriggerType,
-  ExecutionStatus,
-  ChatRole,
-  MessageAttachmentType,
-  SubscriptionStatus,
-  CompactionStatus,
-  WorkflowCategory as DbWorkflowCategory,
-  ConversationChannel,
-} from '@tesseract/database';
-import {
-  DEFAULT_PAGE_SIZE,
-  DashboardWorkflowDto,
-  PaginatedResponse,
-  WorkflowCategory as SharedWorkflowCategory,
-  WorkflowMetricsDto,
-  WorkflowStatsDto,
-  getWorkflowCreditCost,
-} from '@tesseract/types';
-import { PassThrough } from 'stream';
-import {
-  assertMaxTokensWithinCategory,
-  touchesCategoryCeiling,
-} from './category-token-ceiling';
-import { collectConfiguredModels, resolveContextWindowBudget } from './context-window-budget';
-import { AgentsService } from '../agents/agents.service';
-import { ToolsService } from '../tools/core/tools.service';
-import { DatasetTokenService } from '../datasets/core/dataset-token.service';
-import { InterventionTokenService } from '@/messaging/conversations/core/intervention-token.service';
+  MediaProcessingService,
+  ProcessedAttachment,
+  toAttachmentInput,
+} from '@/automation/media-processing/media-processing.service';
+import { CreditsService } from '@/billing/credits/credits.service';
 import { EndUsersService } from '@/identity/end-users/end-users.service';
-import { UserType } from '../agents/dto/agent-execution-request.dto';
+import { OrganizationsService } from '@/identity/organizations/organizations.service';
+import { IWBPayloadConsumer } from '@/messaging/channels/whatsapp-config/payload-consumers/wb-payload-consumer.interface';
+import { ConversationsService } from '@/messaging/conversations/conversations.service';
+import { InterventionTokenService } from '@/messaging/conversations/core/intervention-token.service';
 import {
   InvalidWorkflowConfigException,
   WorkflowNotFoundException,
   WorkflowPausedException,
 } from '@/platform/common/exceptions';
+import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
 import { resolveTimezone } from '@/platform/common/utils/resolve-timezone';
 import {
   addDaysInZone,
@@ -48,23 +30,41 @@ import {
   zonedIsoWeekKey,
   zonedMonthKey,
 } from '@/platform/common/utils/zoned-dates';
-import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
-import { ConversationsService } from '@/messaging/conversations/conversations.service';
-import { CreditsService } from '@/billing/credits/credits.service';
 import { PrismaService } from '@/platform/database/prisma.service';
-import { ExecutionsService } from '@/automation/executions/executions.service';
-import { LlmModelsService } from '@/automation/llm-models/llm-models.service';
-import { OrganizationsService } from '@/identity/organizations/organizations.service';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import {
+  ChatRole,
+  CompactionStatus,
+  ConversationChannel,
+  WorkflowCategory as DbWorkflowCategory,
+  ExecutionStatus,
+  MessageAttachmentType,
+  SubscriptionStatus,
+  TriggerType,
+} from '@tesseract/database';
+import {
+  DEFAULT_PAGE_SIZE,
+  DashboardWorkflowDto,
+  PaginatedResponse,
+  WorkflowCategory as SharedWorkflowCategory,
+  WorkflowMetricsDto,
+  WorkflowStatsDto,
+  getWorkflowCreditCost,
+} from '@tesseract/types';
+import { PassThrough } from 'stream';
+import { AgentsService } from '../agents/agents.service';
+import { UserType } from '../agents/dto/agent-execution-request.dto';
+import { DatasetTokenService } from '../datasets/core/dataset-token.service';
+import { ToolsService } from '../tools/core/tools.service';
+import {
+  assertMaxTokensWithinCategory,
+  touchesCategoryCeiling,
+} from './category-token-ceiling';
+import { selectMessagesToArchive } from './compaction-window';
+import { collectConfiguredModels, resolveContextWindowBudget } from './context-window-budget';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
-import { WhatsAppInboundEvent } from '@/messaging/channels/whatsapp-config/dto/whatsapp-inbound-event.dto';
-import {
-  MediaProcessingService,
-  ProcessedAttachment,
-  toAttachmentInput,
-} from '@/automation/media-processing/media-processing.service';
-import { MediaPolicy, resolveMediaPolicy } from '@/automation/media-processing/media-policy';
-import { selectMessagesToArchive } from './compaction-window';
 import { WorkflowConfigValidator } from './workflow-config.validator';
 
 /**
@@ -828,7 +828,7 @@ export class WorkflowsService {
     input: Record<string, any>,
     metadata?: Record<string, any>,
     userId?: string, // Opcional: quién ejecuta desde UI
-    whatsappData?: WhatsAppInboundEvent, // Opcional: datos de WhatsApp si la ejecución es por un mensaje entrante
+    whatsappData?: IWBPayloadConsumer, // Opcional: datos de WhatsApp si la ejecución es por un mensaje entrante
     apiKeyId?: string, // Opcional: qué API key ejecuta
     trigger: TriggerType = TriggerType.API,
     executionId?: string, // Opcional: id ya generado por el llamador (test-execute async)
@@ -960,8 +960,8 @@ export class WorkflowsService {
       if (whatsappData) {
         conversation = await this.conversationsService.findOrCreateConversationFromWhatsAppMessage(
           workflowId,
-          whatsappData?.whatsappInboundMessage?.to || '',
-          whatsappData?.whatsappInboundMessage?.from || '',
+          whatsappData?.getToNumber() || '',
+          whatsappData?.getFromNumber() || '',
           workflow.isInternal,
         );
       } else {
@@ -975,27 +975,29 @@ export class WorkflowsService {
       // el mismo audio y guardando el texto duplicado en el historial.
       if (preProcessedAttachments) {
         attachments = undefined;
-      } else if (whatsappData.whatsappInboundMessage.type === 'image') {
-        const imageLink = whatsappData.whatsappInboundMessage.image?.link;
+      } else if (whatsappData.getMessageType() === 'image') {
+        const imageSource = await whatsappData.imageSource();
+        const imageLink = imageSource?.url;
         if (imageLink) {
           attachments = [
             {
               type: MessageAttachmentType.IMAGE,
-              mimeType: whatsappData.whatsappInboundMessage.image?.mime_type || 'image/jpeg',
+              mimeType: imageSource?.mimeType || 'image/jpeg',
               sourceUrl: imageLink,
-              sha256: whatsappData.whatsappInboundMessage.image?.sha256,
+              sha256: imageSource?.sha256,
             },
           ];
         }
-      } else if (whatsappData.whatsappInboundMessage.type === 'audio') {
-        const audioLink = whatsappData.whatsappInboundMessage.audio?.link;
+      } else if (whatsappData.getMessageType() === 'audio') {
+        const audioSource = await whatsappData.audioSource();
+        const audioLink = audioSource?.url;
         if (audioLink) {
           attachments = [
             {
               type: MessageAttachmentType.AUDIO,
-              mimeType: whatsappData.whatsappInboundMessage.audio?.mime_type || 'audio/ogg',
+              mimeType: audioSource?.mimeType || 'audio/ogg',
               sourceUrl: audioLink,
-              sha256: whatsappData.whatsappInboundMessage.audio?.sha256,
+              sha256: audioSource?.sha256,
             },
           ];
         }
@@ -1197,7 +1199,7 @@ export class WorkflowsService {
         compactionContext.activeSummary,
         metadata?.whatsAppConfigId,
         {
-          client_number: whatsappData?.whatsappInboundMessage?.from
+          client_number: whatsappData?.getFromNumber()
         }
       );
 
@@ -2049,10 +2051,19 @@ export class WorkflowsService {
                 variables: tpl.variables,
               };
             }
+            // Meta no manda su credencial por env var global como YCloud: vive por número
+            // en `sessionData` (igual que MetaTransporter.accessTokenOf/phoneNumberIdOf).
+            const sessionData = (wac.sessionData ?? {}) as {
+              phoneNumberId?: string;
+              accessToken?: string;
+            };
             toolInstances[toolId].config = {
               ...toolInstances[toolId].config,
+              provider: wac.provider,
               from_number: wac.phoneNumber,
               api_key: process.env.Y_CLOUD_API_KEY,
+              phone_number_id: sessionData.phoneNumberId,
+              access_token: sessionData.accessToken,
               available_templates: availableTemplates,
               ...(channelContext && Object.keys(channelContext).length > 0
                 ? { auto_fill_variables: channelContext }

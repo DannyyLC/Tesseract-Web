@@ -27,6 +27,7 @@ import {
   WBSender,
   WBTemplateVariables,
 } from './transporters/wb-transporter.interface';
+import { IWBPayloadConsumer } from './payload-consumers/wb-payload-consumer.interface';
 
 /** Ventana de tolerancia para el timestamp de la firma de webhooks (5 minutos). */
 const WEBHOOK_SIGNATURE_TOLERANCE_SECONDS = 300;
@@ -424,6 +425,14 @@ export class WhatsappConfigService {
     await transporter.sendTxtMessage(sender, to, await this.sanitizeOutput(message));
   }
 
+  /** Marca como leídos los mensajes entrantes y dispara el "escribiendo...", vía el
+   * transporter del proveedor que le corresponde a `from`. */
+  async markMessagesAsRead(from: string, messageIds: string[]): Promise<void> {
+    if (messageIds.length === 0) return;
+    const { transporter, sender } = await this.resolveTransporter(from);
+    await transporter.markMessagesAsRead(sender, messageIds);
+  }
+
   /**
    * Sends a pre-approved WhatsApp template message.
    *
@@ -576,11 +585,11 @@ export class WhatsappConfigService {
     conversationId: string,
     organizationId: string,
     executionMetadata: JsonObject,
-    whatsappInboundMessagePayload: WhatsAppInboundEvent,
+    whatsappInboundMessagePayload: IWBPayloadConsumer,
     workflowId?: string,
   ): Promise<void> {
-    const clientNumber = whatsappInboundMessagePayload.whatsappInboundMessage.from;
-    const ownerNumber = whatsappInboundMessagePayload.whatsappInboundMessage.to;
+    const clientNumber = whatsappInboundMessagePayload.getFromNumber();
+    const ownerNumber = whatsappInboundMessagePayload.getToNumber();
     if (clientNumber === undefined || ownerNumber === undefined) {
       this.logger.error('Client number or owner number is undefined in the WhatsApp inbound message payload.');
       return;

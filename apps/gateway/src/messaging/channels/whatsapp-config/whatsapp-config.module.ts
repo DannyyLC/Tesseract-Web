@@ -16,6 +16,7 @@ import { EndUsersModule } from '@/identity/end-users/end-users.module';
 import { YCloudTransporter } from './transporters/ycloud.transporter';
 import { MetaTransporter } from './transporters/meta.transporter';
 import { WBTransporterResolver } from './transporters/wb-transporter.resolver';
+import { WBPayloadConsumerResolver } from './payload-consumers/wb-payload-consumer.resolver';
 
 @Module({
   // `EndUsersModule` va por la lista negra: el webhook descarta lo que mande un contacto bloqueado.
@@ -26,6 +27,7 @@ import { WBTransporterResolver } from './transporters/wb-transporter.resolver';
     YCloudTransporter,
     MetaTransporter,
     WBTransporterResolver,
+    WBPayloadConsumerResolver,
   ],
   controllers: [WhatsappConfigController, WhatsappWorkerController, WhatsappConfigAdminController],
   exports: [WhatsappConfigService, WhatsappMessageQueueService],

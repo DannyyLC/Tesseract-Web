@@ -4,6 +4,18 @@ import { WhatsAppConfig } from '@tesseract/database';
 export type WhatsAppProvider = 'ycloud' | 'meta';
 
 /**
+ * Lista en tiempo de ejecución de `WhatsAppProvider`. El tipo de arriba solo existe en
+ * tiempo de compilación; esto es lo que deja validar un `WhatsAppConfig.provider` leído
+ * de la base ANTES de pedirle un transporter/consumer al resolver correspondiente, para
+ * distinguir un dato corrupto (no reintentable) de una falla transitoria.
+ */
+export const WHATSAPP_PROVIDERS: readonly WhatsAppProvider[] = ['ycloud', 'meta'];
+
+export function isSupportedWhatsAppProvider(value: string): value is WhatsAppProvider {
+  return (WHATSAPP_PROVIDERS as readonly string[]).includes(value);
+}
+
+/**
  * Lo que un transporter necesita del número remitente. `phoneNumber` es el que manda el
  * llamador (no el guardado): YCloud lo usa tal cual como `from`. Meta no envía por número
  * sino por `phoneNumberId`, que vive en `sessionData`.
@@ -42,6 +54,11 @@ export interface IWBTransporter {
   sendTemplate(sender: WBSender, to: string, template: WBTemplate): Promise<void>;
   /** Envía los archivos en orden; uno que falle se registra y no detiene a los demás. */
   sendFiles(sender: WBSender, to: string, files: WBFile[]): Promise<void>;
+  /**
+   * Marca los mensajes entrantes como leídos y dispara el indicador de "escribiendo...".
+   * Uno que falle se registra y no detiene a los demás.
+   */
+  markMessagesAsRead(sender: WBSender, messageIds: string[]): Promise<void>;
 }
 
 /**

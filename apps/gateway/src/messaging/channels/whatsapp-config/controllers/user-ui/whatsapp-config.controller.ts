@@ -1,3 +1,16 @@
+import { MediaProcessingService } from '@/automation/media-processing/media-processing.service';
+import { WorkflowsService } from '@/automation/workflows/workflows.service';
+import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
+import { EndUsersService } from '@/identity/end-users/end-users.service';
+import {
+  ConversationsService,
+  OutsideWorkflowReason,
+} from '@/messaging/conversations/conversations.service';
+import { UserPayload } from '@/platform/common/types/jwt-payload.type';
+import { maskPhone } from '@/platform/common/utils/mask-phone';
+import { CloudTasksService } from '@/platform/tasks/cloud-tasks.service';
+import { WebhookDedupService } from '@/platform/webhooks/webhook-dedup.service';
 import {
   Body,
   Controller,
@@ -9,45 +22,36 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ChatRole, WhatsAppConfig, WhatsAppTemplate } from '@tesseract/database';
 import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
+import * as crypto from 'crypto';
 import { Response } from 'express';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
-import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
-import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
-import { UserPayload } from '@/platform/common/types/jwt-payload.type';
-import { maskPhone } from '@/platform/common/utils/mask-phone';
+import {
+  CreateConfigDto,
+  CreateTemplateDto,
+  SendTemplateDto,
+  UpdateTemplateDto,
+  UpdateWhatsappConfigDto
+} from '../../dto';
+import { IWBPayloadConsumer, WBEventTypes, WBInterpretedMessage } from '../../payload-consumers/wb-payload-consumer.interface';
+import { WBPayloadConsumerResolver } from '../../payload-consumers/wb-payload-consumer.resolver';
 import { WhatsappConfigService } from '../../whatsapp-config.service';
 import {
   WHATSAPP_WINDOW_SECONDS,
   WhatsappMessageQueueService,
 } from '../../whatsapp-message-queue.service';
 import {
-  CreateConfigDto,
-  WhatsAppInboundEvent,
-  CreateTemplateDto,
-  UpdateTemplateDto,
-  UpdateWhatsappConfigDto,
-  SendTemplateDto,
-} from '../../dto';
-import { CloudTasksService } from '@/platform/tasks/cloud-tasks.service';
-import { WebhookDedupService } from '@/platform/webhooks/webhook-dedup.service';
-import {
+  WEBHOOK_PROVIDER_META_WHATSAPP,
   WEBHOOK_PROVIDER_YCLOUD,
   WHATSAPP_WORKER_PATH,
 } from '../../whatsapp-worker.constants';
-import { WorkflowsService } from '@/automation/workflows/workflows.service';
-import {
-  ConversationsService,
-  OutsideWorkflowReason,
-} from '@/messaging/conversations/conversations.service';
-import { EndUsersService } from '@/identity/end-users/end-users.service';
-
 @Controller('whatsapp-config')
 export class WhatsappConfigController {
   constructor(
@@ -59,9 +63,44 @@ export class WhatsappConfigController {
     private readonly workflowsService: WorkflowsService,
     private readonly conversationsService: ConversationsService,
     private readonly endUsersService: EndUsersService,
+    private readonly payloadConsumerResolver: WBPayloadConsumerResolver,
+    private readonly mediaProcessingService: MediaProcessingService,
   ) {}
 
   // ─── Webhook ──────────────────────────────────────────────────────────
+
+  /**
+   * Handshake de suscripción del webhook de la Cloud API de Meta. Al registrar la URL, Meta
+   * manda un GET con `hub.mode=subscribe`, el `hub.verify_token` que se configuró en su panel
+   * y un `hub.challenge`; hay que devolver ese challenge tal cual, en texto plano, si el token
+   * coincide con `META_WHATSAPP_VERIFY_TOKEN`. Sin coincidencia, 403.
+   *
+   * Es público por diseño (Meta no manda credenciales); solo devuelve el challenge que el
+   * propio llamador envió, así que no expone nada. YCloud no usa este endpoint.
+   */
+  @SkipThrottle()
+  @Get('whatsapp-webhook')
+  verifyWebhook(
+    @Query('hub.mode') mode: string,
+    @Query('hub.verify_token') verifyToken: string,
+    @Query('hub.challenge') challenge: string,
+    @Res() res: Response,
+  ) {
+    const expected = process.env.META_WHATSAPP_VERIFY_TOKEN ?? '';
+    if (!expected) {
+      this.logger.error('META_WHATSAPP_VERIFY_TOKEN no está configurado');
+      return res.sendStatus(HttpStatus.FORBIDDEN);
+    }
+
+    const received = Buffer.from(String(verifyToken ?? ''), 'utf8');
+    const wanted = Buffer.from(expected, 'utf8');
+    const tokenMatches = received.length === wanted.length && crypto.timingSafeEqual(received, wanted);
+
+    if (mode !== 'subscribe' || !tokenMatches || !challenge) {
+      return res.sendStatus(HttpStatus.FORBIDDEN);
+    }
+    return res.status(HttpStatus.OK).type('text/plain').send(String(challenge));
+  }
 
   /**
    * Webhook de mensajes entrantes de YCloud.
@@ -88,102 +127,116 @@ export class WhatsappConfigController {
   @SkipThrottle()
   @Post('whatsapp-webhook')
   async handleWebhook(@Body() body: any, @Res() res: Response, @Headers() headers: any) {
-    const parsedBody = body as WhatsAppInboundEvent;
-    const eventType = parsedBody?.type;
+    // Declaradas afuera del try para que el catch (que cubre TODO el método, no solo el
+    // procesamiento posterior a la firma) pueda usarlas en el log y en el release del
+    // claim de deduplicación sin importar en qué punto haya fallado.
+    let provider: string | undefined;
+    let whatsappMessageId: string | undefined;
+    let agentPhoneNumber: string | undefined;
+    let clientPhoneNumber: string | undefined;
+    let message: WBInterpretedMessage;
 
-    if (
-      eventType !== 'whatsapp.inbound_message.received' &&
-      eventType !== 'whatsapp.smb.message.echoes'
-    ) {
-      return res.status(HttpStatus.OK).send({ received: true });
-    }
-
-    // Los dos tipos de evento traen el mensaje bajo una llave distinta, y en el echo
-    // `from`/`to` están invertidos: lo manda el negocio (`from`) hacia el cliente (`to`),
-    // al revés que un mensaje entrante.
-    const isEcho = eventType === 'whatsapp.smb.message.echoes';
-    const whatsappMessageId = isEcho
-      ? parsedBody.whatsappMessage?.id
-      : parsedBody.whatsappInboundMessage?.id;
-    const phoneNumber =
-      (isEcho ? parsedBody.whatsappMessage?.from : parsedBody.whatsappInboundMessage?.to) ||
-      'unknown';
-    const userNumber =
-      (isEcho ? parsedBody.whatsappMessage?.to : parsedBody.whatsappInboundMessage?.from) ||
-      'unknown';
-    // 1. Firma primero, antes de tocar la base de datos.
-    //
-    // Lo correcto es firmar sobre el body crudo; el código anterior usaba
-    // JSON.stringify(body), que solo funciona si la re-serialización coincide
-    // byte a byte con lo que envió YCloud. Se intenta el raw body y, si no
-    // valida, se cae al comportamiento viejo para no romper producción.
-    // TODO(webhook-firma): revisar los logs de `signatureSource` unos días y,
-    // si nunca aparece 'json-stringify', eliminar el fallback.
-    const signatureHeader = headers['ycloud-signature'] || '';
-    const rawBody = (res.req as unknown as { rawBody?: Buffer }).rawBody;
-
-    let isValidSignature = false;
-    let signatureSource = 'raw-body';
-
-    if (rawBody) {
-      isValidSignature = this.whatsappConfigService.verifySignature(
-        rawBody.toString('utf8'),
-        signatureHeader,
-      );
-    }
-
-    if (!isValidSignature) {
-      const validViaStringify = this.whatsappConfigService.verifySignature(
-        JSON.stringify(body),
-        signatureHeader,
-      );
-      if (validViaStringify) {
-        isValidSignature = true;
-        signatureSource = 'json-stringify';
-      }
-    }
-
-    if (isValidSignature) {
-      this.logger.info(`YCloud signature validated via ${signatureSource}`);
-    }
-
-    if (!isValidSignature) {
-      this.logger.warn(
-        `Invalid signature for message from ${maskPhone(userNumber)} to ${phoneNumber}`,
-      );
-      await this.whatsappConfigService.updateConnectionStatusByPhoneNumber(phoneNumber, 'DISCONNECTED');
-      await this.whatsappConfigService.updateConnectionErrorByPhoneNumber(phoneNumber, 'Invalid signature, contact Support Service');
-      return res.status(HttpStatus.UNAUTHORIZED).send({ received: false });
-    }
-
-    if (!whatsappMessageId) {
-      this.logger.warn(`Whatsapp message without ID from ${maskPhone(userNumber)}`);
-      return res.status(HttpStatus.OK).send({ received: true });
-    }
-
-    // 2. Deduplicación: YCloud reintenta, y reprocesar dispara el workflow dos
-    //    veces (y con él, el cobro de créditos al tenant).
-    const isNew = await this.webhookDedup.claim(
-      WEBHOOK_PROVIDER_YCLOUD,
-      whatsappMessageId,
-      isEcho ? parsedBody.whatsappMessage?.type : parsedBody.whatsappInboundMessage?.type,
-    );
-    if (!isNew) {
-      this.logger.warn(`Whatsapp message ${whatsappMessageId} duplicate, it's skipped`);
-      return res.status(HttpStatus.OK).send({ received: true, duplicate: true });
-    }
-
-    // 3. Resolver la cuenta y agendar el procesamiento. Todo esto es barato y va
-    //    ANTES de responder: si algo falla, devolvemos un no-2xx y YCloud reintenta.
     try {
-      const account = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(phoneNumber);
+      let payloadConsumer: IWBPayloadConsumer;
+      if (headers['ycloud-signature']) {
+        provider = WEBHOOK_PROVIDER_YCLOUD;
+      } else {
+        provider = WEBHOOK_PROVIDER_META_WHATSAPP;
+      }
+      payloadConsumer = await this.payloadConsumerResolver.forProvider(provider, body);
+
+      // Los dos tipos de evento traen el mensaje bajo una llave distinta, y en el echo
+      // `from`/`to` están invertidos: lo manda el negocio (`from`) hacia el cliente (`to`),
+      // al revés que un mensaje entrante.
+      const sendTime = payloadConsumer.getSendTime();
+      whatsappMessageId = payloadConsumer.getWhatsappMessageId();
+      const messageType = payloadConsumer.getMessageType();
+      const fromPhoneNumber = payloadConsumer.getFromNumber();
+      const toPhoneNumber = payloadConsumer.getToNumber();
+      const eventType = payloadConsumer.getWBEventType();
+
+      const isEcho = WBEventTypes.MsgEchoes == eventType;
+      agentPhoneNumber = isEcho ? fromPhoneNumber : toPhoneNumber;
+      clientPhoneNumber = isEcho ? toPhoneNumber : fromPhoneNumber;
+
+      // 1. Firma primero, antes de tocar la base de datos y antes de decidir NADA sobre
+      // el payload — incluido si el evento es de un tipo que ni siquiera vamos a
+      // procesar. Antes, un evento clasificado como NotAllowed contestaba 200 sin haber
+      // validado la firma: un payload sin autenticar llegaba a parsearse y clasificarse
+      // igual que uno legítimo.
+      //
+      // Lo correcto es firmar sobre el body crudo; el código anterior usaba
+      // JSON.stringify(body), que solo funciona si la re-serialización coincide
+      // byte a byte con lo que envió YCloud. Se intenta el raw body y, si no
+      // valida, se cae al comportamiento viejo para no romper producción.
+      // TODO(webhook-firma): revisar los logs de `signatureSource` unos días y,
+      // si nunca aparece 'json-stringify', eliminar el fallback.
+      const rawBody = (res.req as unknown as { rawBody?: Buffer }).rawBody;
+      let isValidSignature = false;
+      let signatureSource = 'raw-body';
+
+      if (rawBody) {
+        isValidSignature = await payloadConsumer.verifySignature(
+          rawBody.toString('utf8'),
+          headers,
+        );
+      }
+
+      if (!isValidSignature) {
+        const validViaStringify = await payloadConsumer.verifySignature(
+          JSON.stringify(body),
+          headers,
+        );
+        if (validViaStringify) {
+          isValidSignature = true;
+          signatureSource = 'json-stringify';
+        }
+      }
+
+      if (isValidSignature) {
+        this.logger.info(`${provider} signature validated via ${signatureSource}`);
+      }
+
+      if (!isValidSignature) {
+        this.logger.warn(
+          `Invalid signature for message from ${maskPhone(fromPhoneNumber)} to ${toPhoneNumber}`,
+        );
+        await this.whatsappConfigService.updateConnectionStatusByPhoneNumber(agentPhoneNumber, 'DISCONNECTED');
+        await this.whatsappConfigService.updateConnectionErrorByPhoneNumber(agentPhoneNumber, 'Invalid signature, contact Support Service');
+        return res.status(HttpStatus.UNAUTHORIZED).send({ received: false });
+      }
+
+      if (WBEventTypes.NotAllowed === eventType) {
+        return res.status(HttpStatus.OK).send({ received: true });
+      }
+
+      if (!whatsappMessageId) {
+        this.logger.warn(`Whatsapp message without ID from ${maskPhone(fromPhoneNumber)}`);
+        return res.status(HttpStatus.OK).send({ received: true });
+      }
+
+      // 2. Deduplicación: YCloud reintenta, y reprocesar dispara el workflow dos
+      //    veces (y con él, el cobro de créditos al tenant).
+      const isNew = await this.webhookDedup.claim(
+        provider,
+        whatsappMessageId,
+        messageType,
+      );
+      if (!isNew) {
+        this.logger.warn(`Whatsapp message ${whatsappMessageId} duplicate, it's skipped`);
+        return res.status(HttpStatus.OK).send({ received: true, duplicate: true });
+      }
+
+      // 3. Resolver la cuenta y agendar el procesamiento. Todo esto es barato y va
+      //    ANTES de responder: si algo falla, devolvemos un no-2xx y YCloud reintenta.
+      const account = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(agentPhoneNumber);
       if (!account) {
         // El campo `reason` es lo que cuentan las métricas de Cloud Logging dadas de alta
         // para los descartes del webhook — no cambiar su valor sin actualizar el filtro
         // de la métrica correspondiente (whatsapp-discard-<reason>).
         this.logger.warn('No WhatsApp config found for phone number', {
           reason: 'unknown-config',
-          phoneNumber,
+          agentPhoneNumber,
         });
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'unknown-config' });
       }
@@ -191,7 +244,7 @@ export class WhatsappConfigController {
       if (!account.isActive) {
         this.logger.warn('Received message for inactive WhatsApp config', {
           reason: 'inactive-config',
-          phoneNumber,
+          agentPhoneNumber,
         });
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'inactive-config' });
       }
@@ -203,6 +256,9 @@ export class WhatsappConfigController {
         });
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'no-workflow' });
       }
+
+      message = await payloadConsumer.getInterpretedMessage();
+
 
       // Lista negra, ANTES de resolver el workflow. El orden importa: con el flujo apagado la
       // rama de abajo registra el mensaje, y si la comprobación fuera después, un contacto
@@ -221,14 +277,14 @@ export class WhatsappConfigController {
       // retiene 30 días sin costar una sola escritura en la base.
       if (!isEcho) {
         const isBlocked = await this.endUsersService.isBlocked(account.organizationId, {
-          phoneNumber: userNumber,
+          phoneNumber: clientPhoneNumber,
         });
 
         if (isBlocked) {
           this.logger.info('Mensaje de contacto bloqueado, se descarta', {
             organizationId: account.organizationId,
-            phoneNumber,
-            userNumber: maskPhone(userNumber),
+            agentPhoneNumber,
+            userNumber: maskPhone(clientPhoneNumber),
             whatsappMessageId,
           });
           return res.status(HttpStatus.OK).send({ received: true, ignored: 'blocked-contact' });
@@ -259,10 +315,10 @@ export class WhatsappConfigController {
         await this.recordMessageOutsideFlow(
           account.id,
           account.defaultWorkflowId,
-          phoneNumber,
-          userNumber,
-          parsedBody,
+          agentPhoneNumber,
+          clientPhoneNumber,
           isEcho,
+          message.text || '',
           'inactive-workflow',
         );
         this.logger.warn('Received message for WhatsApp config with inactive workflow', {
@@ -280,16 +336,16 @@ export class WhatsappConfigController {
       if (isEcho) {
         const conversation = await this.conversationsService.findActiveWhatsappConversation(
           account.id,
-          userNumber,
+          clientPhoneNumber,
         );
         if (conversation?.isHumanInTheLoop === true) {
           await this.recordMessageOutsideFlow(
             account.id,
             account.defaultWorkflowId,
-            phoneNumber,
-            userNumber,
-            parsedBody,
+            agentPhoneNumber,
+            clientPhoneNumber,
             isEcho,
+            message.text || '',
             'human-in-the-loop',
             conversation,
           );
@@ -302,13 +358,13 @@ export class WhatsappConfigController {
 
       await this.whatsappMessageQueueService.bufferMessage(
         account.organizationId,
-        phoneNumber,
-        userNumber,
+        agentPhoneNumber,
+        clientPhoneNumber,
         {
           messageId: whatsappMessageId,
-          sendTime: parsedBody.whatsappInboundMessage?.sendTime || new Date().toISOString(),
+          sendTime: sendTime,
           bufferedAt,
-          event: parsedBody,
+          event: body,
         },
       );
 
@@ -323,14 +379,14 @@ export class WhatsappConfigController {
         taskId: [
           'wa',
           CloudTasksService.sanitizeIdPart(account.organizationId),
-          CloudTasksService.sanitizeIdPart(phoneNumber),
-          CloudTasksService.sanitizeIdPart(userNumber),
+          CloudTasksService.sanitizeIdPart(agentPhoneNumber),
+          CloudTasksService.sanitizeIdPart(clientPhoneNumber),
           windowId,
         ].join('-'),
         payload: {
           organizationId: account.organizationId,
-          phoneNumber,
-          userNumber,
+          agentPhoneNumber,
+          clientPhoneNumber,
           windowId,
           windowStartedAt: bufferedAt,
         },
@@ -339,13 +395,20 @@ export class WhatsappConfigController {
       return res.status(HttpStatus.OK).send({ received: true });
     } catch (error) {
       // Nada se procesó, así que se libera el claim y se devuelve 500 para que
-      // YCloud reintente. Antes esto era irrecuperable: el ACK ya había salido.
-      await this.webhookDedup.release(WEBHOOK_PROVIDER_YCLOUD, whatsappMessageId);
+      // el proveedor reintente. Antes esto era irrecuperable: el ACK ya había salido.
+      //
+      // `provider`/`whatsappMessageId` pueden no haberse llegado a resolver si el fallo
+      // ocurrió muy temprano (p.ej. el propio payloadConsumerResolver); en ese caso nunca
+      // hubo un claim que liberar. `release` además ya tolera un claim inexistente sin
+      // lanzar, así que este guard es solo para no llamarlo con `undefined` de más.
+      if (provider && whatsappMessageId) {
+        await this.webhookDedup.release(provider, whatsappMessageId);
+      }
 
       this.logger.error('Whatsapp message could not be enqueued', {
         whatsappInboundMessageId: whatsappMessageId,
-        phoneNumber,
-        userNumber: maskPhone(userNumber),
+        agentPhoneNumber,
+        userNumber: maskPhone(clientPhoneNumber),
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });
@@ -364,16 +427,13 @@ export class WhatsappConfigController {
   private async recordMessageOutsideFlow(
     whatsappConfigId: string,
     defaultWorkflowId: string,
-    phoneNumber: string,
-    userNumber: string,
-    event: WhatsAppInboundEvent,
+    agentPhoneNumber: string,
+    clientPhoneNumber: string,
     isEcho: boolean,
+    content: string,
     reason: OutsideWorkflowReason,
     knownConversation?: { id: string; organizationId: string; metadata?: unknown } | null,
   ): Promise<void> {
-    const content = isEcho
-      ? event.whatsappMessage?.text?.body
-      : event.whatsappInboundMessage?.text?.body;
     if (!content) {
       this.logger.warn(
         `Whatsapp message without text for config ${whatsappConfigId}, it's skipped`,
@@ -385,12 +445,12 @@ export class WhatsappConfigController {
       knownConversation ??
       (await this.conversationsService.findActiveWhatsappConversation(
         whatsappConfigId,
-        userNumber,
+        clientPhoneNumber,
       )) ??
       (await this.conversationsService.findOrCreateConversationFromWhatsAppMessage(
         defaultWorkflowId,
-        phoneNumber,
-        userNumber,
+        agentPhoneNumber,
+        clientPhoneNumber,
       ));
 
     await this.conversationsService.addMessage(

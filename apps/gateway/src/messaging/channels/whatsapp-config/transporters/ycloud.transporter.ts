@@ -38,6 +38,17 @@ export class YCloudTransporter extends BaseWBTransporter {
     await this.send(sender, to, { type: file.type, [file.type]: this.buildMedia(file) });
   }
 
+  /** Un solo endpoint hace las dos cosas: marca como leído y dispara el "escribiendo...". */
+  protected async markMessageAsRead(_sender: WBSender, messageId: string): Promise<void> {
+    await firstValueFrom(
+      this.httpService.post(
+        `${YCloudTransporter.api_base_url}/whatsapp/inboundMessages/${messageId}/typingIndicator`,
+        {},
+        { headers: { 'X-API-Key': this.apiKey, 'Content-Type': 'application/json' } },
+      ),
+    );
+  }
+
   private async send(sender: WBSender, to: string, message: object): Promise<void> {
     await firstValueFrom(
       this.httpService.post(

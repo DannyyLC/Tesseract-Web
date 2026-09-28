@@ -10,6 +10,7 @@ export abstract class BaseWBTransporter implements IWBTransporter {
   abstract sendTxtMessage(sender: WBSender, to: string, text: string): Promise<void>;
   abstract sendTemplate(sender: WBSender, to: string, template: WBTemplate): Promise<void>;
   protected abstract sendFile(sender: WBSender, to: string, file: WBFile): Promise<void>;
+  protected abstract markMessageAsRead(sender: WBSender, messageId: string): Promise<void>;
 
   async sendFiles(sender: WBSender, to: string, files: WBFile[]): Promise<void> {
     // Secuencial a propósito: evita saturar la API del proveedor.
@@ -26,6 +27,22 @@ export abstract class BaseWBTransporter implements IWBTransporter {
         // Decisión arquitectónica: continuar con el siguiente archivo aunque falle uno
       }
     }
+  }
+
+  async markMessagesAsRead(sender: WBSender, messageIds: string[]): Promise<void> {
+    // En paralelo a propósito: es la señal de vida que ve el usuario y no hay orden
+    // entre mensajes que respetar, a diferencia de `sendFiles`.
+    const results = await Promise.allSettled(
+      messageIds.map((messageId) => this.markMessageAsRead(sender, messageId)),
+    );
+
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        const error = result.reason as any;
+        const detail = error?.response?.data ? JSON.stringify(error.response.data) : error?.message;
+        this.logger.warn(`No se pudo marcar como leído el mensaje ${messageIds[index]}: ${detail}`);
+      }
+    });
   }
 
   /** YCloud replica el formato de componentes de la Cloud API de Meta, así que es común. */
