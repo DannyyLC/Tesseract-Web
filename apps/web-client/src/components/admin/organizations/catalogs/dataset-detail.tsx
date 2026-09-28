@@ -53,8 +53,8 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 400);
   const filterState = useRecordFilters(dataset?.fields);
-  // Los rangos se teclean: sin debounce cada dígito dispararía una consulta.
-  const filters = useDebounce(filterState.serialized, 400);
+  // Sin debounce: el panel de cada columna solo cambia los filtros al pulsar "Aplicar".
+  const filters = filterState.serialized;
 
   useEffect(() => {
     setPage(1);

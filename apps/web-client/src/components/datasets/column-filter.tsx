@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Filter } from 'lucide-react';
 import { DatasetField } from '@tesseract/types';
 import { Checkbox } from '@/components/ui/checkbox';
-import { isFilterActive, RecordFiltersState } from './use-record-filters';
+import { isFilterActive, RangeDraft, RecordFiltersState } from './use-record-filters';
 
 /**
  * Embudo en el encabezado de una columna que abre su filtro.
@@ -15,6 +15,10 @@ import { isFilterActive, RecordFiltersState } from './use-record-filters';
  * de 30 columnas llenaría la barra de botones, y en el encabezado cada filtro está justo encima
  * de los valores que recorta. Un `select` se filtra marcando opciones (O entre ellas), un
  * `number` o una `date` por rango.
+ *
+ * Lo que se marca o teclea es un borrador local: la tabla solo se consulta al pulsar "Aplicar"
+ * (o Enter). Aplicar cada casilla al vuelo recargaba la tabla una vez por opción marcada.
+ * Cerrar el panel sin aplicar descarta el borrador.
  *
  * El panel va en un portal con posición fija, igual que `PageSizeSelect`: la tabla tiene
  * `overflow-x-auto` y lo recortaría.
@@ -35,8 +39,29 @@ export function ColumnFilter({ field, state }: ColumnFilterProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  const [draftSelect, setDraftSelect] = useState<string[]>([]);
+  const [draftRange, setDraftRange] = useState<RangeDraft>({});
+
   const active = isFilterActive(state.filters, field.key);
   const close = useCallback(() => setIsOpen(false), []);
+
+  const open = () => {
+    // Cada apertura parte de lo aplicado, no de un borrador que se cerró sin aplicar.
+    setDraftSelect(state.filters.select[field.key] ?? []);
+    setDraftRange(state.filters.range[field.key] ?? {});
+    setIsOpen(true);
+  };
+
+  const apply = () => {
+    if (field.type === 'select') state.setSelect(field.key, draftSelect);
+    else state.setRange(field.key, draftRange);
+    close();
+  };
+
+  const clear = () => {
+    state.clearField(field.key);
+    close();
+  };
 
   useLayoutEffect(() => {
     if (!isOpen || !triggerRef.current) return;
@@ -86,10 +111,9 @@ export function ColumnFilter({ field, state }: ColumnFilterProps) {
 
   const renderBody = () => {
     if (field.type === 'select') {
-      const selected = state.filters.select[field.key] ?? [];
+      const selected = draftSelect;
       const toggle = (option: string, checked: boolean) =>
-        state.setSelect(
-          field.key,
+        setDraftSelect(
           checked ? [...selected, option] : selected.filter((value) => value !== option),
         );
 
@@ -119,17 +143,23 @@ export function ColumnFilter({ field, state }: ColumnFilterProps) {
       );
     }
 
-    const range = state.filters.range[field.key] ?? {};
+    const range = draftRange;
     const type = field.type === 'number' ? 'number' : 'date';
 
     return (
-      <div className="grid gap-2 px-2">
+      <form
+        className="grid gap-2 px-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          apply();
+        }}
+      >
         <label className="grid gap-1 text-xs text-text-secondary">
           {t('filterMin')}
           <input
             type={type}
             value={range.min ?? ''}
-            onChange={(event) => state.setRange(field.key, { ...range, min: event.target.value })}
+            onChange={(event) => setDraftRange({ ...range, min: event.target.value })}
             className={inputClassName}
           />
         </label>
@@ -138,11 +168,13 @@ export function ColumnFilter({ field, state }: ColumnFilterProps) {
           <input
             type={type}
             value={range.max ?? ''}
-            onChange={(event) => state.setRange(field.key, { ...range, max: event.target.value })}
+            onChange={(event) => setDraftRange({ ...range, max: event.target.value })}
             className={inputClassName}
           />
         </label>
-      </div>
+        {/* Enter dentro de "Desde"/"Hasta" aplica, como en cualquier formulario. */}
+        <button type="submit" hidden />
+      </form>
     );
   };
 
@@ -155,7 +187,7 @@ export function ColumnFilter({ field, state }: ColumnFilterProps) {
         aria-expanded={isOpen}
         aria-label={label}
         title={label}
-        onClick={() => setIsOpen((open) => !open)}
+        onClick={() => (isOpen ? close() : open())}
         className={`rounded-md p-1 transition-colors hover:bg-surface-secondary ${
           active ? 'text-accent' : 'text-text-tertiary'
         }`}
@@ -175,17 +207,26 @@ export function ColumnFilter({ field, state }: ColumnFilterProps) {
           >
             <p className="px-3 text-xs font-medium text-text-secondary">{field.label}</p>
             <div className="px-1">{renderBody()}</div>
-            {active && (
-              <div className="border-t border-border px-2 pt-2">
+            <div className="flex items-center justify-between gap-2 border-t border-border px-2 pt-2">
+              {active ? (
                 <button
                   type="button"
-                  onClick={() => state.clearField(field.key)}
+                  onClick={clear}
                   className="rounded-lg px-2 py-1 text-xs font-medium text-text-secondary hover:bg-[var(--surface-tint)]"
                 >
                   {t('filterClear')}
                 </button>
-              </div>
-            )}
+              ) : (
+                <span />
+              )}
+              <button
+                type="button"
+                onClick={apply}
+                className="rounded-lg bg-accent px-3 py-1 text-xs font-medium text-text-inverse"
+              >
+                {t('filterApply')}
+              </button>
+            </div>
           </div>,
           document.body,
         )}

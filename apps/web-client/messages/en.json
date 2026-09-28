@@ -1781,6 +1781,7 @@
     "filterMax": "To",
     "filterFrom": "from {value}",
     "filterTo": "to {value}",
+    "filterApply": "Apply",
     "filterClear": "Remove filter",
     "clearFilters": "Clear filters",
     "sortBy": "Sort by {column}",
