@@ -32,7 +32,9 @@ export class SearchDatasetDto {
   @IsOptional()
   @IsString()
   @MaxLength(200)
-  @ApiPropertyOptional({ description: 'Texto libre; barre todas las columnas de texto y select a la vez' })
+  @ApiPropertyOptional({
+    description: 'Texto libre; barre todas las columnas de texto y select a la vez',
+  })
   query?: string;
 
   @IsOptional()

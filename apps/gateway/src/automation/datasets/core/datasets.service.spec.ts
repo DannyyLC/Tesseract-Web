@@ -462,5 +462,36 @@ describe('DatasetsService', () => {
       expect(mockQueryService.search).not.toHaveBeenCalled();
       expect(mockPrismaService.datasetRecord.count).toHaveBeenCalled();
     });
+
+    it('con filtros u orden también delega al motor de búsqueda', async () => {
+      mockPrismaService.dataset.findFirst.mockResolvedValue(datasetWith([PRECIO_BASE]));
+      mockQueryService.search.mockResolvedValue({ total: 0, items: [] });
+
+      const filters = JSON.stringify({
+        select: { marca: ['Toyota'], basura: 'no-es-lista' },
+        range: { precio_base: { min: 100 } },
+      });
+      await service.listRecords(ORG_ID, DATASET_ID, 20, 40, undefined, filters, '-precio_base');
+
+      expect(mockQueryService.search).toHaveBeenCalledWith(
+        DATASET_ID,
+        expect.any(Array),
+        expect.objectContaining({
+          select: { marca: ['Toyota'] },
+          range: { precio_base: { min: 100, max: undefined } },
+          sortBy: '-precio_base',
+          limit: 20,
+          offset: 40,
+        }),
+      );
+    });
+
+    it('filtros que no son JSON se rechazan con 400', async () => {
+      mockPrismaService.dataset.findFirst.mockResolvedValue(datasetWith([PRECIO_BASE]));
+
+      await expect(
+        service.listRecords(ORG_ID, DATASET_ID, 50, 0, undefined, '{no json'),
+      ).rejects.toThrow('filters no es JSON válido');
+    });
   });
 });

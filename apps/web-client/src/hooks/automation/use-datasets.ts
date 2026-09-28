@@ -23,10 +23,17 @@ export function useDataset(id: string) {
   });
 }
 
-export function useDatasetRecords(id: string, limit = DEFAULT_PAGE_SIZE, offset = 0, query = '') {
+export function useDatasetRecords(
+  id: string,
+  limit = DEFAULT_PAGE_SIZE,
+  offset = 0,
+  query = '',
+  { filters, sortBy }: { filters?: string; sortBy?: string } = {},
+) {
   return useQuery({
-    queryKey: ['datasets', 'records', id, limit, offset, query],
-    queryFn: async () => api().listRecords(id, { limit, offset, query: query || undefined }),
+    queryKey: ['datasets', 'records', id, limit, offset, query, filters, sortBy],
+    queryFn: async () =>
+      api().listRecords(id, { limit, offset, query: query || undefined, filters, sortBy }),
     enabled: !!id,
     // Las filas cambian cada vez que el cliente edita una celda: no vale la pena cachearlas.
     staleTime: 0,

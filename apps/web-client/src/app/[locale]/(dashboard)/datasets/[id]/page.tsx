@@ -9,6 +9,7 @@ import PermissionGuard from '@/components/auth/permission-guard';
 import { ImportCsvModal } from '@/components/datasets/import-csv-modal';
 import { RecordsGrid } from '@/components/datasets/records-grid';
 import { RecordsToolbar } from '@/components/datasets/records-toolbar';
+import { useRecordFilters } from '@/components/datasets/use-record-filters';
 import { PagePager } from '@/components/ui/page-pager';
 import { usePageSize } from '@/hooks/shared/use-page-size';
 import { useRecordSelection } from '@/components/datasets/use-record-selection';
@@ -43,19 +44,25 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 400);
+  const filterState = useRecordFilters(dataset?.fields);
+  // Los rangos se teclean: sin debounce cada dígito dispararía una consulta.
+  const filters = useDebounce(filterState.serialized, 400);
 
   useEffect(() => {
     setPage(1);
-  }, [search]);
+  }, [search, filters, filterState.sortBy]);
 
-  const { data: records } = useDatasetRecords(id, pageSize, (page - 1) * pageSize, search);
+  const { data: records } = useDatasetRecords(id, pageSize, (page - 1) * pageSize, search, {
+    filters,
+    sortBy: filterState.sortBy,
+  });
   const { updateFields, clearRecords, createRecord, updateRecord, deleteRecords, importCsv } =
     useDatasetMutations();
 
   // La selección abarca solo la página visible, así que se vacía al paginar o al buscar.
   const selection = useRecordSelection(
     (records?.items ?? []).map((record) => record.id),
-    `${page}|${pageSize}|${search}`,
+    `${page}|${pageSize}|${search}|${filters}|${filterState.sortBy}`,
   );
 
   const [isEditingSchema, setIsEditingSchema] = useState(false);
@@ -241,12 +248,16 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
             selectedCount={selection.selectedVisibleIds.length}
             onDeleteSelected={() => setIsDeletingSelected(true)}
             onClearSelection={selection.clear}
+          fields={dataset.fields}
+          filterState={filterState}
             canDelete={canEdit}
           />
 
           <RecordsGrid
             fields={dataset.fields}
             records={records?.items ?? []}
+          filterState={filterState}
+          filtered={!!search || !!filters}
             readOnly={!canEdit}
             createDisabledReason={atRowLimit ? t('writesBlocked') : undefined}
             selection={canEdit ? selection : undefined}

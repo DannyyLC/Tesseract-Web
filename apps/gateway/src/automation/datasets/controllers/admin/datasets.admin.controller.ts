@@ -152,6 +152,8 @@ export class DatasetsAdminController {
       query.limit ?? DEFAULT_PAGE_SIZE,
       query.offset ?? 0,
       query.query,
+      query.filters,
+      query.sortBy,
     );
     return new ApiResponseBuilder().setData(result).build();
   }

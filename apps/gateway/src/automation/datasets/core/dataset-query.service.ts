@@ -225,7 +225,7 @@ export class DatasetQueryService {
     const key = descending ? sortBy.slice(1) : sortBy;
     const field = liveFields(fields).find((candidate) => candidate.key === key);
 
-    if (!field || field.type === 'select') {
+    if (!field) {
       return fallback;
     }
 

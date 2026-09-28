@@ -8,6 +8,7 @@ import { DatasetField } from '@tesseract/types';
 import { ImportCsvModal } from '@/components/datasets/import-csv-modal';
 import { RecordsGrid } from '@/components/datasets/records-grid';
 import { RecordsToolbar } from '@/components/datasets/records-toolbar';
+import { useRecordFilters } from '@/components/datasets/use-record-filters';
 import { useRecordSelection } from '@/components/datasets/use-record-selection';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { PagePager } from '@/components/ui/page-pager';
@@ -50,10 +51,13 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 400);
+  const filterState = useRecordFilters(dataset?.fields);
+  // Los rangos se teclean: sin debounce cada dígito dispararía una consulta.
+  const filters = useDebounce(filterState.serialized, 400);
 
   useEffect(() => {
     setPage(1);
-  }, [search]);
+  }, [search, filters, filterState.sortBy]);
 
   const { data: records } = useAdminDatasetRecords(
     organizationId,
@@ -61,6 +65,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
     pageSize,
     (page - 1) * pageSize,
     search,
+    { filters, sortBy: filterState.sortBy },
   );
   const {
     updateFields,
@@ -74,7 +79,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
 
   const selection = useRecordSelection(
     (records?.items ?? []).map((record) => record.id),
-    `${page}|${pageSize}|${search}`,
+    `${page}|${pageSize}|${search}|${filters}|${filterState.sortBy}`,
   );
 
   const [isEditingSchema, setIsEditingSchema] = useState(false);
@@ -268,12 +273,16 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
           selectedCount={selection.selectedVisibleIds.length}
           onDeleteSelected={() => setIsDeletingSelected(true)}
           onClearSelection={selection.clear}
+          fields={dataset.fields}
+          filterState={filterState}
           canDelete
         />
 
         <RecordsGrid
           fields={dataset.fields}
           records={records?.items ?? []}
+          filterState={filterState}
+          filtered={!!search || !!filters}
           createDisabledReason={atRowLimit ? t('writesBlocked') : undefined}
           selection={selection}
           onCreate={async (data) => {

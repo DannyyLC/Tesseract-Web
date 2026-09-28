@@ -11,6 +11,7 @@ import {
   DatasetFieldValuesResponse,
   DatasetImportResultDto,
   DatasetImportRowError,
+  DatasetRangeFilter,
   DatasetRecordDto,
   DatasetSearchRequest,
   DatasetSearchResponse,
@@ -61,6 +62,57 @@ const RECOMPUTE_TRANSACTION_OPTIONS = { timeout: 540_000, maxWait: 10_000 };
 
 /** `toolName` con el que la tool de datasets vive en `ToolCatalog`. */
 export const DATASET_TOOL_NAME = 'dataset';
+
+/**
+ * Lee el parámetro `filters` del listado de filas. Solo deja pasar la forma que entiende el motor
+ * de búsqueda; columnas o tipos que no existen los descarta después `DatasetQueryService`.
+ */
+function parseRecordFilters(raw?: string): Pick<DatasetSearchRequest, 'select' | 'range'> {
+  if (!raw) return {};
+
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    throw new BadRequestException('filters no es JSON válido');
+  }
+
+  const isRecord = (candidate: unknown): candidate is Record<string, unknown> =>
+    typeof candidate === 'object' && candidate !== null && !Array.isArray(candidate);
+
+  if (!isRecord(value)) {
+    throw new BadRequestException('filters debe ser un objeto');
+  }
+
+  const result: Pick<DatasetSearchRequest, 'select' | 'range'> = {};
+
+  if (isRecord(value.select)) {
+    const select: Record<string, string[]> = {};
+    for (const [key, values] of Object.entries(value.select)) {
+      if (Array.isArray(values) && values.every((item) => typeof item === 'string')) {
+        select[key] = values as string[];
+      }
+    }
+    if (Object.keys(select).length > 0) result.select = select;
+  }
+
+  if (isRecord(value.range)) {
+    const range: Record<string, DatasetRangeFilter> = {};
+    const isBound = (bound: unknown) =>
+      bound === undefined || typeof bound === 'number' || typeof bound === 'string';
+    for (const [key, bounds] of Object.entries(value.range)) {
+      if (isRecord(bounds) && isBound(bounds.min) && isBound(bounds.max)) {
+        range[key] = {
+          min: bounds.min as DatasetRangeFilter['min'],
+          max: bounds.max as DatasetRangeFilter['max'],
+        };
+      }
+    }
+    if (Object.keys(range).length > 0) result.range = range;
+  }
+
+  return result;
+}
 
 @Injectable()
 export class DatasetsService {
@@ -833,15 +885,24 @@ export class DatasetsService {
     limit = 50,
     offset = 0,
     query?: string,
+    filters?: string,
+    sortBy?: string,
   ): Promise<{ total: number; items: DatasetRecordDto[] }> {
     await this.loadOwned(organizationId, datasetId);
 
-    // Con texto libre, delega al mismo motor que usa el agente (`search_dataset`) en vez de
-    // reimplementar el ILIKE: mismo resultado que vería el bot, mismos límites (columnas `text` y
-    // `select`; `number`/`date` se filtran por rango).
+    // Con texto libre, filtros u orden, delega al mismo motor que usa el agente (`search_dataset`)
+    // en vez de reimplementar el ILIKE: mismo resultado que vería el bot, mismos límites
+    // (columnas `text` y `select` para el texto; `number`/`date` se filtran por rango).
     const trimmedQuery = query?.trim();
-    if (trimmedQuery) {
-      return this.search(organizationId, datasetId, { query: trimmedQuery, limit, offset });
+    const parsed = parseRecordFilters(filters);
+    if (trimmedQuery || parsed.select || parsed.range || sortBy) {
+      return this.search(organizationId, datasetId, {
+        query: trimmedQuery || undefined,
+        ...parsed,
+        sortBy,
+        limit,
+        offset,
+      });
     }
 
     const [total, records] = await Promise.all([
