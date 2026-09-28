@@ -30,8 +30,6 @@ export abstract class BaseWBTransporter implements IWBTransporter {
   }
 
   async markMessagesAsRead(sender: WBSender, messageIds: string[]): Promise<void> {
-    // En paralelo a propósito: es la señal de vida que ve el usuario y no hay orden
-    // entre mensajes que respetar, a diferencia de `sendFiles`.
     const results = await Promise.allSettled(
       messageIds.map((messageId) => this.markMessageAsRead(sender, messageId)),
     );

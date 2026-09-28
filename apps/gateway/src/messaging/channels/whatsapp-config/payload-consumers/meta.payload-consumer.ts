@@ -23,19 +23,22 @@ const META_MX_NATIONAL_LENGTH = 12;
 export class MetaPayloadConsumer extends BaseWBPayloadConsumer<MetaWebhookPayload> {
   /**
    * Verifica el `x-hub-signature-256` de un webhook de la Cloud API de Meta: `sha256=` más
-   * el HMAC del body crudo con el app secret (`META_WHATSAPP_APP_SECRET`). Tiene que ser el
+   * el HMAC del body crudo con el app secret (`sessionData.appSecret`). Tiene que ser el
    * body crudo: `JSON.stringify(body)` no reproduce los bytes que Meta firmó.
    */
 
   async verifySignature(rawBody: string, headers: object): Promise<boolean> {
+    if (!this.associatedAccount) return false;
+
     const sessionData = (await this.whatsappConfigService.decryptSessionData(
       this.associatedAccount,
     )) as { appSecret?: unknown } | null;
     const appSecret = sessionData?.appSecret;
     if (typeof appSecret !== 'string' || !appSecret) {
-      throw new Error(
+      this.logger.error(
         `WhatsAppConfig ${this.associatedAccount.id} (meta) no tiene sessionData.appSecret`,
       );
+      return false;
     }
 
     const [algorithm, signature] = this.headerValue(headers, 'x-hub-signature-256').split('=');
@@ -45,13 +48,6 @@ export class MetaPayloadConsumer extends BaseWBPayloadConsumer<MetaWebhookPayloa
     return this.safeEqual(signature, expected);
   }
 
-  /**
-   * Igual que en el evento de YCloud: en un echo `from` es el negocio, no el cliente.
-   *
-   * `sanitizeMetaPhoneNumber` deja el número en la misma forma que usa YCloud, para que los
-   * dos proveedores generen la misma clave (cuenta, buffer, conversación) para el mismo
-   * remitente real.
-   */
   getFromNumber(): string {
     return this.sanitizeMetaPhoneNumber(this.message?.from);
   }

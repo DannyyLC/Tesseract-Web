@@ -8,8 +8,7 @@ import { WBFile, WBSender, WBTemplate } from './wb-transporter.interface';
 
 /**
  * Cloud API de Meta directa. No envía "desde un número" sino desde su `phone_number_id`,
- * que se guarda en `WhatsAppConfig.sessionData.phoneNumberId`. El token es global
- * (`META_WHATSAPP_ACCESS_TOKEN`), igual que `Y_CLOUD_API_KEY` para YCloud.
+ * que se guarda en `WhatsAppConfig.sessionData.phoneNumberId`.
  */
 @Injectable()
 export class MetaTransporter extends BaseWBTransporter {
@@ -41,15 +40,17 @@ export class MetaTransporter extends BaseWBTransporter {
     await this.send(sender, to, { type: file.type, [file.type]: this.buildMedia(file) });
   }
 
-  /**
-   * Igual que YCloud, un solo request hace las dos cosas: `status: 'read'` es el acuse de
-   * lectura y `typing_indicator` dispara el "escribiendo...". No lleva `to`: el destinatario
-   * se infiere del `message_id`.
-   */
   protected async markMessageAsRead(sender: WBSender, messageId: string): Promise<void> {
+    const phoneNumberId = this.phoneNumberIdOf(sender);
+    const accessToken = this.accessTokenOf(sender);
+    if (phoneNumberId === '' || accessToken === '') {
+      this.logger.error(`Missing Credentials to markMessageAsRead whatsappConfig ${sender.configId}...`);
+      return;
+    }
+
     await firstValueFrom(
       this.httpService.post(
-        `${MetaTransporter.api_base_url}/${this.phoneNumberIdOf(sender)}/messages`,
+        `${MetaTransporter.api_base_url}/${phoneNumberId}/messages`,
         {
           messaging_product: 'whatsapp',
           status: 'read',
@@ -58,7 +59,7 @@ export class MetaTransporter extends BaseWBTransporter {
         },
         {
           headers: {
-            Authorization: `Bearer ${this.accessTokenOf(sender)}`,
+            Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
         },
@@ -67,13 +68,20 @@ export class MetaTransporter extends BaseWBTransporter {
   }
 
   private async send(sender: WBSender, to: string, message: object): Promise<void> {
+    const phoneNumberId = this.phoneNumberIdOf(sender);
+    const accessToken = this.accessTokenOf(sender);
+    if (phoneNumberId === '' || accessToken === '') {
+      this.logger.error(`Missing Credentials to send a message whatsappConfig ${sender.configId}...`);
+      return;
+    }
+
     await firstValueFrom(
       this.httpService.post(
-        `${MetaTransporter.api_base_url}/${this.phoneNumberIdOf(sender)}/messages`,
+        `${MetaTransporter.api_base_url}/${phoneNumberId}/messages`,
         { messaging_product: 'whatsapp', recipient_type: 'individual', to, ...message },
         {
           headers: {
-            Authorization: `Bearer ${this.accessTokenOf(sender)}`,
+            Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
         },
@@ -84,9 +92,8 @@ export class MetaTransporter extends BaseWBTransporter {
   private phoneNumberIdOf(sender: WBSender): string {
     const phoneNumberId = (sender.sessionData as { phoneNumberId?: unknown } | null)?.phoneNumberId;
     if (typeof phoneNumberId !== 'string' || !phoneNumberId) {
-      throw new Error(
-        `WhatsAppConfig ${sender.configId} (meta) no tiene sessionData.phoneNumberId`,
-      );
+      this.logger.error(`WhatsAppConfig ${sender.configId} (meta) with phoneNumber ${sender.phoneNumber} without sessionData.phoneNumberId`,);
+      return '';
     }
     return phoneNumberId;
   }
@@ -94,9 +101,8 @@ export class MetaTransporter extends BaseWBTransporter {
   private accessTokenOf(sender: WBSender): string {
     const accessToken = (sender.sessionData as { accessToken?: unknown } | null)?.accessToken;
     if (typeof accessToken !== 'string' || !accessToken) {
-      throw new Error(
-        `WhatsAppConfig ${sender.configId} (meta) no tiene sessionData.accessToken`,
-      );
+      this.logger.error(`WhatsAppConfig ${sender.configId} (meta) with phoneNumber ${sender.phoneNumber} without sessionData.accessToken`,);
+      return '';
     }
     return accessToken;
   }

@@ -40,7 +40,7 @@ import {
   UpdateTemplateDto,
   UpdateWhatsappConfigDto
 } from '../../dto';
-import { IWBPayloadConsumer, WBEventTypes, WBInterpretedMessage } from '../../payload-consumers/wb-payload-consumer.interface';
+import { IWBPayloadConsumer, WBEventTypes } from '../../payload-consumers/wb-payload-consumer.interface';
 import { WBPayloadConsumerResolver } from '../../payload-consumers/wb-payload-consumer.resolver';
 import { PublicWhatsAppConfig, toPublicConfig } from '../../whatsapp-config.presenter';
 import { WhatsappConfigService } from '../../whatsapp-config.service';
@@ -135,7 +135,6 @@ export class WhatsappConfigController {
     let whatsappMessageId: string | undefined;
     let agentPhoneNumber: string | undefined;
     let clientPhoneNumber: string | undefined;
-    let message: WBInterpretedMessage;
 
     try {
       let payloadConsumer: IWBPayloadConsumer;
@@ -257,9 +256,23 @@ export class WhatsappConfigController {
         });
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'no-workflow' });
       }
-
-      message = await payloadConsumer.getInterpretedMessage();
-
+      // Interpretar el mensaje (incluida la transcripción de audio) cuesta una llamada a
+      // Meta/YCloud por la multimedia y, en el peor caso, el STT: hacerlo aquí, antes del
+      // ACK, es lo que hacía que un audio se transcribiera dos veces (una para nada, ya
+      // que el flujo normal ni siquiera usa el resultado) y arriesgaba que el proveedor
+      // diera por fallido el webhook si la transcripción tardaba. Solo dos ramas de abajo
+      // (echo con humano interviniendo, workflow apagado) necesitan el texto para dejar
+      // registro; se resuelve ahí, no aquí. El flujo normal solo encola el `body` crudo y
+      // deja que `interpretMessages()` del worker lo interprete ya fuera del ciclo del
+      // webhook.
+      let cachedMessageText: string | undefined;
+      const getMessageText = async (): Promise<string> => {
+        if (cachedMessageText === undefined) {
+          const interpreted = await payloadConsumer.getInterpretedMessage();
+          cachedMessageText = interpreted.text || '';
+        }
+        return cachedMessageText;
+      };
 
       // Lista negra, ANTES de resolver el workflow. El orden importa: con el flujo apagado la
       // rama de abajo registra el mensaje, y si la comprobación fuera después, un contacto
@@ -290,6 +303,24 @@ export class WhatsappConfigController {
           });
           return res.status(HttpStatus.OK).send({ received: true, ignored: 'blocked-contact' });
         }
+      } else {
+        const conversation = await this.conversationsService.findActiveWhatsappConversation(
+          account.id,
+          clientPhoneNumber,
+        );
+        if (conversation?.isHumanInTheLoop === true) {
+          await this.recordMessageOutsideFlow(
+            account.id,
+            account.defaultWorkflowId,
+            agentPhoneNumber,
+            clientPhoneNumber,
+            isEcho,
+            await getMessageText(),
+            'human-in-the-loop',
+            conversation,
+          );
+        }
+        return res.status(HttpStatus.OK).send({ received: true });
       }
 
       // Un workflow borrado (o de otra organización) no tiene a dónde rutear. No es
@@ -319,7 +350,7 @@ export class WhatsappConfigController {
           agentPhoneNumber,
           clientPhoneNumber,
           isEcho,
-          message.text || '',
+          await getMessageText(),
           'inactive-workflow',
         );
         this.logger.warn('Received message for WhatsApp config with inactive workflow', {
@@ -328,30 +359,6 @@ export class WhatsappConfigController {
           workflowId: account.defaultWorkflowId,
         });
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'inactive-workflow' });
-      }
-
-      // Los echoes reflejan mensajes que el negocio ya mandó desde la app de WhatsApp
-      // Business, fuera de nuestra API: no hay nada que ejecutar. Con el flujo activo
-      // solo hace falta registrarlos si alguien intervino la conversación a mano; si no,
-      // `execute()` es quien la lleva al día y sumar el echo aquí la duplicaría.
-      if (isEcho) {
-        const conversation = await this.conversationsService.findActiveWhatsappConversation(
-          account.id,
-          clientPhoneNumber,
-        );
-        if (conversation?.isHumanInTheLoop === true) {
-          await this.recordMessageOutsideFlow(
-            account.id,
-            account.defaultWorkflowId,
-            agentPhoneNumber,
-            clientPhoneNumber,
-            isEcho,
-            message.text || '',
-            'human-in-the-loop',
-            conversation,
-          );
-        }
-        return res.status(HttpStatus.OK).send({ received: true });
       }
 
       const bufferedAt = Date.now();

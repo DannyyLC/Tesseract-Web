@@ -1,8 +1,5 @@
-import { WhatsAppConfig } from '@tesseract/database';
-import { MediaPolicy } from '@/automation/media-processing/media-policy';
 import {
-  MediaProcessingService,
-  ProcessedAttachment,
+  ProcessedAttachment
 } from '@/automation/media-processing/media-processing.service';
 
 export enum WBEventTypes {

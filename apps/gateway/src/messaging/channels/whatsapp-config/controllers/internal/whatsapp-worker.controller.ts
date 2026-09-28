@@ -1,7 +1,5 @@
-import { MediaPolicy } from '@/automation/media-processing/media-policy';
 import {
-  MediaProcessingService,
-  ProcessedAttachment,
+  ProcessedAttachment
 } from '@/automation/media-processing/media-processing.service';
 import { WorkflowsService } from '@/automation/workflows/workflows.service';
 import { ConversationsService } from '@/messaging/conversations/conversations.service';

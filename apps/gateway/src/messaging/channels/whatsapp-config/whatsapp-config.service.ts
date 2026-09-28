@@ -1,4 +1,16 @@
+import { SecretFieldsCipher } from '@/automation/tools/core/secret-fields-cipher.service';
+import { ConversationsService } from '@/messaging/conversations/conversations.service';
+import {
+  PostTurnAction,
+  PostTurnActionHandler,
+  runPostTurnActions,
+} from '@/messaging/post-turn-actions';
+import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
+import { maskPhone } from '@/platform/common/utils/mask-phone';
+import { normalizePhone, phoneNumberVariants } from '@/platform/common/utils/normalize-phone';
+import { PrismaService } from '@/platform/database/prisma.service';
 import { Inject, Injectable } from '@nestjs/common';
+import { JsonObject } from '@prisma/client/runtime/client';
 import {
   ChatRole,
   WhatsAppConfig,
@@ -8,33 +20,19 @@ import {
 import * as crypto from 'crypto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
-import { PrismaService } from '@/platform/database/prisma.service';
-import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
-import { JsonObject } from '@prisma/client/runtime/client';
-import { WhatsAppInboundEvent } from './dto';
-import { WhatsAppProvider } from './transporters/wb-transporter.interface';
-import { SecretFieldsCipher } from '@/automation/tools/core/secret-fields-cipher.service';
+import { IWBPayloadConsumer } from './payload-consumers/wb-payload-consumer.interface';
+import {
+  IWBTransporter,
+  WBFile,
+  WBSender,
+  WBTemplateVariables, WhatsAppProvider
+} from './transporters/wb-transporter.interface';
+import { WBTransporterResolver } from './transporters/wb-transporter.resolver';
 import {
   MetaSessionData,
   WHATSAPP_SESSION_SECRET_FIELDS,
   whatsappSessionContext,
 } from './whatsapp-session-data';
-import { maskPhone } from '@/platform/common/utils/mask-phone';
-import { normalizePhone, phoneNumberVariants } from '@/platform/common/utils/normalize-phone';
-import { ConversationsService } from '@/messaging/conversations/conversations.service';
-import {
-  PostTurnAction,
-  PostTurnActionHandler,
-  runPostTurnActions,
-} from '@/messaging/post-turn-actions';
-import { WBTransporterResolver } from './transporters/wb-transporter.resolver';
-import {
-  IWBTransporter,
-  WBFile,
-  WBSender,
-  WBTemplateVariables,
-} from './transporters/wb-transporter.interface';
-import { IWBPayloadConsumer } from './payload-consumers/wb-payload-consumer.interface';
 
 /** Ventana de tolerancia para el timestamp de la firma de webhooks (5 minutos). */
 const WEBHOOK_SIGNATURE_TOLERANCE_SECONDS = 300;

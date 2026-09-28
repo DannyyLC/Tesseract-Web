@@ -21,7 +21,6 @@ export class YCloudPayloadConsumer extends BaseWBPayloadConsumer<WhatsAppInbound
    * SHA-256 de `<timestamp>.<payload>` con `Y_CLOUD_WEBHOOK_SECRET`. Acepta `s` como alias
    * de `v1`. `rawBody` debe ser el body crudo, no un `JSON.stringify` del body parseado.
    */
-  
   async verifySignature(rawBody: string, headers: object): Promise<boolean> {
     const secret = process.env.Y_CLOUD_WEBHOOK_SECRET ?? '';
     const signatureHeader = this.headerValue(headers, 'ycloud-signature');

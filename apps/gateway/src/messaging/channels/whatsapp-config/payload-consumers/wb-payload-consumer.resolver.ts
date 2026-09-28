@@ -1,14 +1,13 @@
 import { MediaProcessingService } from '@/automation/media-processing/media-processing.service';
+import { WorkflowsService } from '@/automation/workflows/workflows.service';
 import { Inject, Injectable } from '@nestjs/common';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { WhatsAppProvider } from '../transporters/wb-transporter.interface';
+import { WhatsappConfigService } from '../whatsapp-config.service';
 import { MetaPayloadConsumer } from './meta.payload-consumer';
 import { IWBPayloadConsumer } from './wb-payload-consumer.interface';
 import { YCloudPayloadConsumer } from './ycloud.payload-consumer';
-import { WhatsAppConfig } from '@prisma/client';
-import { WorkflowsService } from '@/automation/workflows/workflows.service';
-import { WhatsappConfigService } from '../whatsapp-config.service';
 
 /**
  * Fábrica de consumers por proveedor. Un consumer guarda el payload que lee, así que no
