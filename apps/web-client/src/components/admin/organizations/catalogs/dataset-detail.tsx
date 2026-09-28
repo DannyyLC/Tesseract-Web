@@ -8,6 +8,7 @@ import { DatasetField } from '@tesseract/types';
 import { ImportCsvModal } from '@/components/datasets/import-csv-modal';
 import { RecordsGrid } from '@/components/datasets/records-grid';
 import { RecordsToolbar } from '@/components/datasets/records-toolbar';
+import { RowsSummary } from '@/components/datasets/rows-summary';
 import { useRecordFilters } from '@/components/datasets/use-record-filters';
 import { useRecordSelection } from '@/components/datasets/use-record-selection';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
@@ -235,10 +236,14 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
       />
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-text-primary">
-            {t('rowsHeading', { count: records?.total ?? 0 })}
-          </h3>
+        <div className="flex items-start justify-between gap-4">
+          <RowsSummary
+            count={records?.total ?? 0}
+            filtered={!!search || !!filters}
+            usage={usage}
+            blockedLabel={t('rowsBlockedBadge')}
+            headingClassName="text-sm font-semibold text-text-primary"
+          />
           <PagePager
             page={page}
             totalPages={totalPages}
@@ -252,20 +257,6 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
             className="shrink-0"
           />
         </div>
-
-        {usage && (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-elevated px-4 py-2.5 text-sm">
-            <span className="text-text-tertiary">{t('rowsUsageLabel')}</span>
-            <span className="font-medium text-text-primary">
-              {usage.rows} / {usage.maxDatasetRows === -1 ? '∞' : usage.maxDatasetRows}
-            </span>
-            {atRowLimit && (
-              <span className="bg-warning-500/10 rounded-lg px-2 py-1 text-xs font-medium text-warning-600">
-                {t('rowsBlockedBadge')}
-              </span>
-            )}
-          </div>
-        )}
 
         <RecordsToolbar
           search={searchInput}

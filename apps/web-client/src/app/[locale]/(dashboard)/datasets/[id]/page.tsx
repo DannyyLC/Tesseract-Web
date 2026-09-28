@@ -9,6 +9,7 @@ import PermissionGuard from '@/components/auth/permission-guard';
 import { ImportCsvModal } from '@/components/datasets/import-csv-modal';
 import { RecordsGrid } from '@/components/datasets/records-grid';
 import { RecordsToolbar } from '@/components/datasets/records-toolbar';
+import { RowsSummary } from '@/components/datasets/rows-summary';
 import { useRecordFilters } from '@/components/datasets/use-record-filters';
 import { PagePager } from '@/components/ui/page-pager';
 import { usePageSize } from '@/hooks/shared/use-page-size';
@@ -205,10 +206,13 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
 
         {/* ─── Filas ───────────────────────────────────────────────────────── */}
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-text-primary">
-              {t('rowsHeading', { count: records?.total ?? 0 })}
-            </h2>
+          <div className="flex items-start justify-between gap-4">
+            <RowsSummary
+              count={records?.total ?? 0}
+              filtered={!!search || !!filters}
+              usage={usage}
+              blockedLabel={t('writesBlocked')}
+            />
 
             <PagePager
               page={page}
@@ -225,22 +229,6 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
               className="shrink-0"
             />
           </div>
-
-          {/* El consumo va a la vista: un botón deshabilitado sin explicación es peor que el
-              límite (mismo criterio que la pantalla de lista de catálogos). */}
-          {usage && (
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface-elevated px-5 py-3 text-sm">
-              <span className="text-text-tertiary">{t('usageRows')}: </span>
-              <span className="font-medium text-text-primary">
-                {usage.rows} / {usage.maxDatasetRows === -1 ? '∞' : usage.maxDatasetRows}
-              </span>
-              {atRowLimit && (
-                <span className="bg-warning-500/10 rounded-lg px-2 py-1 text-xs font-medium text-warning-600">
-                  {t('writesBlocked')}
-                </span>
-              )}
-            </div>
-          )}
 
           <RecordsToolbar
             search={searchInput}
