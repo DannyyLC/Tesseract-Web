@@ -88,14 +88,17 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
     <div className="space-y-3">
       <p className="text-xs text-text-secondary">{t('retentionHint')}</p>
 
-      <ul className="divide-y divide-border rounded-lg border border-border">
+      <ul className="space-y-1">
         {data.data.map((v) => (
-          <li key={v.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+          <li
+            key={v.id}
+            className="flex flex-wrap items-center gap-3 rounded-xl border border-transparent px-4 py-3 transition-all duration-200 hover:border-border hover:bg-surface-panel hover:shadow-sm"
+          >
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-sm text-text-primary">v{v.version}</span>
                 {v.isBaseline && (
-                  <span className="inline-flex items-center gap-1 rounded bg-surface-secondary px-1.5 py-0.5 text-[10px] text-text-secondary">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-[var(--surface-tint)] px-1.5 py-0.5 text-[10px] text-text-secondary">
                     <Anchor size={10} /> {t('permanentBadge')}
                   </span>
                 )}
@@ -103,7 +106,7 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
                   {SOURCE_LABEL[v.source] ?? v.source}
                 </span>
                 {v.version === currentVersion && (
-                  <span className="bg-accent/15 rounded px-1.5 py-0.5 text-[10px] text-accent">
+                  <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium text-text-inverse">
                     {t('currentBadge')}
                   </span>
                 )}
@@ -167,11 +170,11 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
                   })}
                 </p>
                 {diff.entries.map((entry, i) => (
-                  <div key={i} className="rounded-lg border border-border p-2">
+                  <div key={i} className="rounded-xl border border-border p-3">
                     <p className="font-mono text-[11px] text-text-primary">{entry.path}</p>
                     <p className="text-[10px] uppercase text-text-secondary">{entry.op}</p>
                     {entry.op !== 'added' && (
-                      <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-surface-secondary p-2 font-mono text-[11px] text-text-secondary">
+                      <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded-lg bg-[var(--surface-tint)] p-2 font-mono text-[11px] text-text-secondary">
                         −{' '}
                         {typeof entry.before === 'string'
                           ? entry.before
@@ -179,7 +182,7 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
                       </pre>
                     )}
                     {entry.op !== 'removed' && (
-                      <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-surface-secondary p-2 font-mono text-[11px] text-text-primary">
+                      <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded-lg bg-[var(--surface-tint)] p-2 font-mono text-[11px] text-text-primary">
                         +{' '}
                         {typeof entry.after === 'string'
                           ? entry.after
@@ -207,7 +210,7 @@ export function HistoryTab({ workflowId, currentVersion, hasUnsavedChanges }: Pr
                 {t('restoreExplanation', { version: restoreTarget.version })}
               </p>
               {hasUnsavedChanges && (
-                <p className="border-danger/40 rounded-lg border px-3 py-2 text-xs text-danger">
+                <p className="rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] px-3 py-2 text-xs text-[var(--danger-text-adaptive)]">
                   {t('unsavedWarning')}
                 </p>
               )}

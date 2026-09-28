@@ -63,13 +63,13 @@ export function ConversationHistoryMenu({ organizationId, workflowId, onSelect }
         onClick={() => setIsOpen((v) => !v)}
         title={t('conversationsTooltip')}
         aria-label={t('conversationsTooltip')}
-        className="flex-shrink-0 rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
+        className="flex-shrink-0 rounded-xl p-2 text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
       >
         <Clock size={18} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full z-30 mt-2 w-80 overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-lg">
+        <div className="absolute right-0 top-full z-30 mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-surface shadow-md">
           <div className="flex items-center justify-between border-b border-border px-3 py-2">
             <span className="text-xs font-medium text-text-secondary">
               {t('conversationsLabel')}
@@ -103,7 +103,7 @@ export function ConversationHistoryMenu({ organizationId, workflowId, onSelect }
                     onSelect(c.id);
                     setIsOpen(false);
                   }}
-                  className="flex w-full items-start gap-2 px-3 py-2.5 text-left transition-colors hover:bg-surface-secondary"
+                  className="flex w-full items-start gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[var(--surface-tint)]"
                 >
                   {c.hasError && (
                     <AlertCircle size={13} className="mt-0.5 shrink-0 text-danger-500" />

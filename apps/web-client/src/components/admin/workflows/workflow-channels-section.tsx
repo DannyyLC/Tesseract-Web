@@ -75,7 +75,7 @@ export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
   };
 
   return (
-    <div className="rounded-lg border border-border p-3">
+    <div className="rounded-xl border border-border p-4">
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="text-sm font-medium text-text-primary">{t('title')}</p>

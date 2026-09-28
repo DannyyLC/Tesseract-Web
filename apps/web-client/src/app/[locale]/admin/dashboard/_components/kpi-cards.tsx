@@ -11,32 +11,33 @@ function Card({
   value,
   hint,
   tone = 'default',
-  size = 'default',
+  divided = false,
 }: {
   label: string;
   value: string;
   hint?: string;
   tone?: 'default' | 'success' | 'danger';
-  size?: 'default' | 'large';
+  /** Línea a la izquierda para separarla de la anterior (como los KPIs del dashboard de usuario). */
+  divided?: boolean;
 }) {
   const valueColor =
     tone === 'success'
-      ? 'text-success-500'
+      ? 'text-[var(--success-text-adaptive)]'
       : tone === 'danger'
         ? 'text-danger'
         : 'text-text-primary';
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
-      <span className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+    <div
+      className={`flex flex-col justify-between ${divided ? 'border-[var(--border-subtle)] md:border-l md:pl-8' : ''}`}
+    >
+      <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
         {label}
       </span>
-      <p
-        className={`mt-2 font-semibold ${valueColor} ${size === 'large' ? 'text-3xl' : 'text-2xl'}`}
-      >
+      <p className={`font-geist-mono text-3xl font-light tracking-tight xl:text-4xl ${valueColor}`}>
         {value}
       </p>
-      {hint && <p className="mt-1 text-xs text-text-secondary">{hint}</p>}
+      {hint && <p className="mt-1 text-xs font-medium text-text-tertiary">{hint}</p>}
     </div>
   );
 }
@@ -54,15 +55,21 @@ export function KpiCards({ kpis }: Props) {
   const marginTone = kpis.marginUSD >= 0 ? 'success' : 'danger';
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+    <div className="space-y-8 px-2">
+      <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
         <Card
           label={t('executions')}
           value={formatCompactNumber(kpis.totalExecutions)}
           hint={t('activeOrgsHint', { count: formatCompactNumber(kpis.activeOrganizations) })}
         />
-        <Card label={t('realCost')} value={formatUSD(kpis.totalCostUSD)} hint={t('realCostHint')} />
         <Card
+          label={t('realCost')}
+          value={formatUSD(kpis.totalCostUSD)}
+          hint={t('realCostHint')}
+          divided
+        />
+        <Card
+          divided
           label={t('charged')}
           value={formatUSD(kpis.estimatedRevenueUSD)}
           hint={
@@ -72,6 +79,7 @@ export function KpiCards({ kpis }: Props) {
           }
         />
         <Card
+          divided
           label={t('margin')}
           value={formatUSD(kpis.marginUSD)}
           hint={
@@ -83,18 +91,17 @@ export function KpiCards({ kpis }: Props) {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-8 border-t border-[var(--border-subtle)] pt-8 md:grid-cols-2">
         <Card
           label={t('overageRate')}
           value={formatPct(kpis.overageRate)}
           hint={t('overageRateHint', { count: formatCompactNumber(kpis.overageExecutions) })}
-          size="large"
         />
         <Card
           label={t('creditsCharged')}
           value={formatCompactNumber(kpis.totalCreditsCharged)}
           hint={t('creditsChargedHint')}
-          size="large"
+          divided
         />
       </div>
     </div>

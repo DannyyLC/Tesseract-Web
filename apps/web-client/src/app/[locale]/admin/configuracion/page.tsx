@@ -17,11 +17,20 @@ import type {
 } from '@/lib/api/endpoints/automation/llm-models/llm-categories-api';
 import { isToastHandled } from '@/lib/api/api-error';
 
-const inputClass =
-  'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-border-focus';
-const labelClass = 'mb-1 block text-xs font-medium text-text-secondary';
-const btnPrimary =
-  'inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:opacity-50';
+import {
+  btnPrimary,
+  chipClass,
+  emptyClass,
+  iconBtn,
+  iconBtnDanger,
+  inputClass,
+  labelClass,
+  pageSubtitleClass,
+  pageTitleClass,
+  rowClass,
+  sectionClass,
+  sectionTitleClass,
+} from '../_styles';
 
 export default function AdminConfiguracionPage() {
   const tt = useTranslations('Admin.Configuration');
@@ -38,18 +47,18 @@ export default function AdminConfiguracionPage() {
   const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState<LlmCategory | null>(null);
 
   return (
-    <div className="w-full">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-text-primary">{tt('title')}</h1>
-        <p className="text-sm text-text-secondary">{tt('subtitle')}</p>
+    <div className="w-full space-y-6">
+      <div>
+        <h1 className={pageTitleClass}>{tt('title')}</h1>
+        <p className={pageSubtitleClass}>{tt('subtitle')}</p>
       </div>
 
       {/* Categorías de modelos LLM */}
-      <section className="rounded-xl border border-border bg-surface">
-        <div className="flex items-center justify-between border-b border-border p-4">
+      <section className={sectionClass}>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-6">
           <div>
-            <h2 className="text-base font-semibold text-text-primary">{tt('categoriesTitle')}</h2>
-            <p className="text-xs text-text-secondary">{tt('categoriesSubtitle')}</p>
+            <h2 className={sectionTitleClass}>{tt('categoriesTitle')}</h2>
+            <p className="mt-1 text-sm text-text-secondary">{tt('categoriesSubtitle')}</p>
           </div>
           <button className={btnPrimary} onClick={() => setCreateOpen(true)}>
             <Plus size={16} /> {tt('newCategory')}
@@ -63,20 +72,25 @@ export default function AdminConfiguracionPage() {
         ) : isError ? (
           <p className="py-16 text-center text-sm text-text-secondary">{tt('loadError')}</p>
         ) : categories.length === 0 ? (
-          <p className="py-16 text-center text-sm text-text-secondary">{tt('empty')}</p>
+          <div className="p-6">
+            <p className={emptyClass}>{tt('empty')}</p>
+          </div>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="space-y-1 p-3">
             {categories.map((c) => (
-              <li key={c.id} className="flex items-center justify-between gap-3 p-4">
+              <li
+                key={c.id}
+                className={`${rowClass} flex items-center justify-between gap-3 px-4 py-3.5`}
+              >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-text-primary">{c.name}</span>
+                    <span className="font-semibold text-text-primary">{c.name}</span>
                     {!c.isActive && (
-                      <span className="rounded-full bg-gray-500/10 px-2 py-0.5 text-xs text-text-secondary">
+                      <span className="text-xs font-medium text-text-tertiary">
                         {tt('inactiveBadge')}
                       </span>
                     )}
-                    <span className="rounded-full bg-surface-secondary px-2 py-0.5 text-xs text-text-secondary">
+                    <span className={chipClass}>
                       {tt('modelsCount', { count: c._count?.models ?? 0 })}
                     </span>
                   </div>
@@ -87,7 +101,7 @@ export default function AdminConfiguracionPage() {
                 <div className="flex shrink-0 items-center gap-1">
                   <button
                     title={tt('editTitle')}
-                    className="rounded-lg p-2 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
+                    className={iconBtn}
                     onClick={() => setEditCategory(c)}
                   >
                     <Pencil size={16} />
@@ -95,7 +109,7 @@ export default function AdminConfiguracionPage() {
                   <button
                     title={tt('deleteTitle')}
                     disabled={deleteCategory.isPending}
-                    className="rounded-lg p-2 text-text-secondary hover:bg-red-500/10 hover:text-red-600 disabled:opacity-40"
+                    className={iconBtnDanger}
                     onClick={() => setDeleteCategoryConfirm(c)}
                   >
                     <Trash2 size={16} />
@@ -118,7 +132,7 @@ export default function AdminConfiguracionPage() {
               setPage(1);
             }}
             summary={tt('pagerSummary', { page, totalPages: meta.totalPages })}
-            className="border-t border-border p-4"
+            className="border-t border-border px-6 py-4"
           />
         )}
       </section>
@@ -186,7 +200,7 @@ export default function AdminConfiguracionPage() {
             title={tt('confirmDeleteTitle')}
           >
             <div className="space-y-4">
-              <div className="bg-danger/10 flex items-center gap-3 rounded-xl p-4 text-danger-600">
+              <div className="flex items-center gap-3 rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] p-4 text-[var(--danger-text-adaptive)]">
                 <AlertTriangle size={24} />
                 <p className="text-sm font-medium">{tt('confirmDeleteWarning')}</p>
               </div>

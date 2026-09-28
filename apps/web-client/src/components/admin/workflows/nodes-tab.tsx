@@ -9,7 +9,7 @@ import type {
   AdminTenantTool,
   EditorContext,
 } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
-import { monoClass } from '@/app/[locale]/admin/_styles';
+import { monoClass, rowActiveClass, rowClass } from '@/app/[locale]/admin/_styles';
 
 interface Props {
   config: WorkflowConfig;
@@ -84,27 +84,27 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
 
   return (
     <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-      <div className="flex flex-col rounded-lg border border-border">
+      <div className="flex flex-col overflow-hidden rounded-2xl border border-border">
         <div className="relative border-b border-border p-2">
           <Search
             size={14}
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
+            className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-text-tertiary"
           />
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder={tt('searchPlaceholder')}
-            className="w-full rounded-md border border-border bg-surface py-1.5 pl-7 pr-2 text-xs text-text-primary outline-none focus:border-border-focus"
+            className="w-full rounded-full border-none bg-[var(--surface-tint)] py-1.5 pl-8 pr-3 text-xs text-text-primary transition-all placeholder:text-input-placeholder hover:bg-[var(--surface-tint-md)] focus:outline-none focus:ring-2 focus:ring-[var(--border-subtle)]"
           />
         </div>
 
-        <ul className="max-h-[560px] overflow-y-auto">
+        <ul className="max-h-[560px] space-y-1 overflow-y-auto p-2">
           {visible.map(({ node, index }) => (
             <li key={node?.id ?? index}>
               <button
                 onClick={() => select(index)}
-                className={`flex w-full items-start gap-2 border-b border-border px-3 py-2 text-left transition-colors last:border-0 ${
-                  selectedIndex === index ? 'bg-surface-secondary' : 'hover:bg-surface-secondary'
+                className={`flex w-full items-start gap-2 px-3 py-2 text-left ${
+                  selectedIndex === index ? rowActiveClass : rowClass
                 }`}
               >
                 <span className="mt-0.5 text-text-secondary">
@@ -131,7 +131,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
           <div className="flex flex-wrap items-center gap-2">
             <NodeIcon type={current.type} size={16} />
             <span className="font-medium text-text-primary">{current.id}</span>
-            <span className="rounded border border-border px-1.5 py-0.5 text-[10px] text-text-secondary">
+            <span className="rounded-full bg-[var(--surface-tint)] px-2 py-0.5 text-[10px] text-text-secondary">
               {schema?.label ?? current.type}
             </span>
             {!schema && nodeCatalog && (
@@ -175,7 +175,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
                 {tt('acceptedFieldsLabel')}
               </label>
               {schema ? (
-                <div className="max-h-[430px] overflow-y-auto rounded-lg border border-border p-3">
+                <div className="max-h-[430px] overflow-y-auto rounded-xl border border-border p-4">
                   <ul className="space-y-2">
                     {Object.entries(schema.config_schema?.properties ?? {}).map(([key, prop]) => (
                       <li key={key} className="text-xs">
@@ -204,7 +204,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
                   </p>
                 </div>
               ) : (
-                <p className="rounded-lg border border-border p-3 text-xs text-text-secondary">
+                <p className="rounded-xl bg-[var(--surface-tint)] px-4 py-3 text-xs text-text-secondary">
                   {tt('engineUnavailable')}
                 </p>
               )}

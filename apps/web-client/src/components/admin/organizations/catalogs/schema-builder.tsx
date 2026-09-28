@@ -73,7 +73,7 @@ function OptionsEditor({
       onBlur={() => setDraft(parseOptions(draft).join('\n'))}
       rows={3}
       placeholder={placeholder}
-      className="w-full rounded-lg border border-border bg-surface px-3 py-2 font-mono text-xs text-text-primary outline-none focus:border-border-focus"
+      className="w-full rounded-xl border border-border bg-surface px-3 py-2 font-mono text-xs text-text-primary outline-none focus:border-accent"
     />
   );
 }
@@ -161,7 +161,7 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
               if (dragIndex !== null) move(dragIndex, index);
               setDragIndex(null);
             }}
-            className="flex flex-col gap-3 rounded-xl border border-border bg-surface-elevated p-4 sm:flex-row sm:items-start"
+            className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-elevated p-4 sm:flex-row sm:items-start"
           >
             <GripVertical
               size={18}
@@ -174,7 +174,7 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                   value={field.label}
                   onChange={(event) => update(index, { label: event.target.value })}
                   placeholder={t('columnNamePlaceholder')}
-                  className="min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-border-focus"
+                  className="min-w-0 flex-1 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
                 />
 
                 <select
@@ -187,7 +187,7 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                       formula: event.target.value === 'number' ? field.formula : undefined,
                     })
                   }
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-border-focus disabled:opacity-60 sm:w-44 sm:shrink-0"
+                  className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-accent disabled:opacity-60 sm:w-44 sm:shrink-0"
                   title={locked ? t('typeLockedHint') : undefined}
                 >
                   {DATASET_FIELD_TYPES.map((type) => (
@@ -221,7 +221,7 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                       {t('formulaEnable')}
                     </button>
                   ) : (
-                    <div className="space-y-2 rounded-lg border border-border bg-surface p-3">
+                    <div className="space-y-2 rounded-xl border border-border bg-surface p-3">
                       <div className="flex items-center justify-between gap-2">
                         <span className="flex items-center gap-1.5 text-xs font-medium text-text-secondary">
                           <Sigma size={13} />
@@ -240,7 +240,7 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                         value={field.formula}
                         onChange={(event) => update(index, { formula: event.target.value })}
                         placeholder={t('formulaPlaceholder')}
-                        className="w-full rounded-lg border border-border bg-surface-elevated px-3 py-2 font-mono text-xs text-text-primary outline-none focus:border-border-focus"
+                        className="w-full rounded-lg border border-border bg-surface-elevated px-3 py-2 font-mono text-xs text-text-primary outline-none focus:border-accent"
                       />
 
                       {peers.length > 0 && (
@@ -255,7 +255,7 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                               onClick={() =>
                                 update(index, { formula: `${field.formula ?? ''}${peer.key}` })
                               }
-                              className="rounded-md border border-border px-2 py-0.5 font-mono text-xs text-text-secondary transition-colors hover:border-border-focus hover:text-text-primary"
+                              className="rounded-md border border-border px-2 py-0.5 font-mono text-xs text-text-secondary transition-colors hover:border-accent hover:text-text-primary"
                             >
                               {peer.label || peer.key}
                             </button>
@@ -273,7 +273,7 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                             update(index, { formula: `${field.formula ?? ''}${ROUND_FUNCTION}()` })
                           }
                           title={t('formulaRoundTitle')}
-                          className="rounded-md border border-border px-2 py-0.5 font-mono text-xs text-text-secondary transition-colors hover:border-border-focus hover:text-text-primary"
+                          className="rounded-md border border-border px-2 py-0.5 font-mono text-xs text-text-secondary transition-colors hover:border-accent hover:text-text-primary"
                         >
                           {t('formulaRoundButton')}
                         </button>
@@ -307,7 +307,7 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
             <button
               type="button"
               onClick={() => removeField(index)}
-              className="hover:bg-danger/10 shrink-0 self-start rounded-lg p-2 text-text-tertiary transition-colors hover:text-danger"
+              className="shrink-0 self-start rounded-xl p-2 text-text-tertiary transition-colors hover:bg-[var(--danger-tint-hover)] hover:text-danger"
               aria-label={t('removeColumn')}
             >
               <Trash2 size={16} />
@@ -320,7 +320,7 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
         <button
           type="button"
           onClick={addField}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-medium text-text-secondary transition-colors hover:border-border-focus hover:text-text-primary"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border py-3 text-sm font-medium text-text-secondary transition-colors hover:border-accent hover:text-text-primary"
         >
           <Plus size={16} />
           {t('addColumn')}

@@ -35,7 +35,7 @@ export function MediaTab({ config, onChange }: Props) {
     <div className="space-y-5">
       <p className="text-xs text-text-secondary">{t('intro')}</p>
 
-      <div className="space-y-4 rounded-lg border border-border p-4">
+      <div className="space-y-4 rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm">
         <Switch
           checked={!!media.audio?.enabled}
           onChange={(v) => set(['audio', 'enabled'], v)}
@@ -59,7 +59,7 @@ export function MediaTab({ config, onChange }: Props) {
         )}
       </div>
 
-      <div className="space-y-4 rounded-lg border border-border p-4">
+      <div className="space-y-4 rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm">
         <Switch
           checked={!!media.image?.enabled}
           onChange={(v) => set(['image', 'enabled'], v)}
@@ -94,7 +94,7 @@ export function MediaTab({ config, onChange }: Props) {
         )}
       </div>
 
-      <div className="rounded-lg border border-border p-4">
+      <div className="rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm">
         <Switch
           checked={!!media.video?.enabled}
           onChange={(v) => set(['video', 'enabled'], v)}
@@ -104,7 +104,7 @@ export function MediaTab({ config, onChange }: Props) {
 
       {/* Encendido por defecto: solo se guarda la excepción (`false`), así la config de los
           workflows que no la usan no cambia. */}
-      <div className="rounded-lg border border-border p-4">
+      <div className="rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm">
         <Switch
           checked={config.presenceIndicators !== false}
           onChange={(v) =>
@@ -119,7 +119,7 @@ export function MediaTab({ config, onChange }: Props) {
         />
       </div>
 
-      <details className="rounded-lg border border-border p-4">
+      <details className="rounded-xl border border-border p-4">
         <summary className="cursor-pointer text-sm font-medium text-text-primary">
           {t('userMessagesSummary')}
         </summary>

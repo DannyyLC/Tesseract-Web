@@ -17,7 +17,15 @@ import {
   useAdminAnnouncementMutations,
 } from '@/hooks/platform/use-admin-announcements';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
-import { btnGhost, btnPrimary, inputClass } from '../_styles';
+import {
+  btnPrimary,
+  emptyClass,
+  filterSelectClass,
+  pageSubtitleClass,
+  pageTitleClass,
+  rowActionClass,
+  rowClass,
+} from '../_styles';
 import { isToastHandled } from '@/lib/api/api-error';
 
 const STATUS_CLASS: Record<AnnouncementStatus, string> = {
@@ -84,11 +92,11 @@ export default function AdminAnnouncementsPage() {
   const { publish, unpublish } = useAdminAnnouncementMutations();
 
   return (
-    <div className="w-full">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <div className="w-full space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">{t('title')}</h1>
-          <p className="mt-1 text-sm text-text-secondary">{t('subtitle')}</p>
+          <h1 className={pageTitleClass}>{t('title')}</h1>
+          <p className={pageSubtitleClass}>{t('subtitle')}</p>
         </div>
         <button className={btnPrimary} onClick={() => router.push('/admin/anuncios/nuevo')}>
           <Plus size={16} />
@@ -96,9 +104,10 @@ export default function AdminAnnouncementsPage() {
         </button>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-[240px] flex-1">
           <InfiniteSelect
+            triggerClassName={filterSelectClass}
             value={organizationId}
             onChange={setOrganizationId}
             options={orgOptions}
@@ -113,7 +122,7 @@ export default function AdminAnnouncementsPage() {
           />
         </div>
         <select
-          className={`${inputClass} max-w-[200px]`}
+          className={`${filterSelectClass} max-w-[200px]`}
           value={status}
           onChange={(e) => setStatus(e.target.value as AnnouncementStatus | '')}
         >
@@ -126,22 +135,25 @@ export default function AdminAnnouncementsPage() {
         </select>
       </div>
 
-      <section className="rounded-xl border border-border bg-surface">
+      <section>
         {isLoading ? (
           <div className="flex justify-center py-16">
             <LogoLoader text={t('loading')} />
           </div>
         ) : error ? (
-          <p className="px-4 py-10 text-center text-sm text-danger">{t('loadError')}</p>
+          <p className={`${emptyClass} text-danger`}>{t('loadError')}</p>
         ) : !data?.data.length ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('empty')}</p>
+          <p className={emptyClass}>{t('empty')}</p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="space-y-1">
             {data.data.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center gap-4 px-4 py-3">
+              <li
+                key={a.id}
+                className={`${rowClass} flex flex-wrap items-center gap-4 px-4 py-3.5`}
+              >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span className="truncate font-medium text-text-primary">{a.title}</span>
+                    <span className="truncate font-semibold text-text-primary">{a.title}</span>
                     <span className="text-xs text-text-tertiary">
                       {a.template === 'CELEBRATION' ? t('templateCelebration') : t('templateNews')}
                     </span>
@@ -182,7 +194,7 @@ export default function AdminAnnouncementsPage() {
                 <div className="flex shrink-0 items-center gap-2">
                   {a.status === AnnouncementStatus.DRAFT && (
                     <button
-                      className={btnGhost}
+                      className={rowActionClass}
                       disabled={publish.isPending}
                       onClick={() => setPendingPublish(a)}
                     >
@@ -193,7 +205,7 @@ export default function AdminAnnouncementsPage() {
                   {(a.status === AnnouncementStatus.PUBLISHED ||
                     a.status === AnnouncementStatus.EXPIRED) && (
                     <button
-                      className={btnGhost}
+                      className={rowActionClass}
                       disabled={unpublish.isPending}
                       onClick={() => setPendingUnpublish(a)}
                     >
@@ -223,7 +235,6 @@ export default function AdminAnnouncementsPage() {
             totalPages: data.meta.totalPages,
             total: data.meta.total,
           })}
-          className="mt-4"
         />
       )}
 

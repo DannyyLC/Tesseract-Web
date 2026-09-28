@@ -24,11 +24,21 @@ import { isToastHandled } from '@/lib/api/api-error';
 
 const TIERS: ModelTier[] = ['BASIC', 'STANDARD', 'PREMIUM'];
 
-const inputClass =
-  'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-border-focus';
-const labelClass = 'mb-1 block text-xs font-medium text-text-secondary';
-const btnPrimary =
-  'inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:opacity-50';
+import {
+  btnPrimary,
+  emptyClass,
+  filterSelectClass,
+  iconBtn,
+  iconBtnDanger,
+  inputClass,
+  labelClass,
+  pageSubtitleClass,
+  pageTitleClass,
+  searchClass,
+  searchIconClass,
+  sectionClass,
+  selectTriggerClass,
+} from '../_styles';
 
 function fmtPrice(v: string) {
   const n = Number(v);
@@ -87,11 +97,11 @@ export default function LlmModelsAdminPage() {
   const meta = data?.meta;
 
   return (
-    <div className="w-full">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div className="w-full space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary">{tt('title')}</h1>
-          <p className="text-sm text-text-secondary">{tt('subtitle')}</p>
+          <h1 className={pageTitleClass}>{tt('title')}</h1>
+          <p className={pageSubtitleClass}>{tt('subtitle')}</p>
         </div>
         <button className={btnPrimary} onClick={() => setCreateOpen(true)}>
           <Plus size={16} /> {tt('newModel')}
@@ -99,21 +109,18 @@ export default function LlmModelsAdminPage() {
       </div>
 
       {/* Filtros */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-[250px] flex-1">
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary"
-          />
+          <Search size={16} className={searchIconClass} />
           <input
-            className={`${inputClass} w-full pl-9`}
+            className={searchClass}
             placeholder={tt('searchPlaceholder')}
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
           />
         </div>
         <select
-          className={inputClass + ' w-auto'}
+          className={`${filterSelectClass} w-auto`}
           value={tierFilter}
           onChange={(e) => setTierFilter(e.target.value as ModelTier | '')}
         >
@@ -126,6 +133,7 @@ export default function LlmModelsAdminPage() {
         </select>
         <InfiniteSelect
           className="min-w-[200px] flex-1"
+          triggerClassName={filterSelectClass}
           value={categoryFilter}
           onChange={setCategoryFilter}
           options={categoryOptions}
@@ -136,7 +144,7 @@ export default function LlmModelsAdminPage() {
           isFetchingNextPage={isFetchingNextCategoryPage}
         />
         <select
-          className={inputClass + ' w-auto'}
+          className={`${filterSelectClass} w-auto`}
           value={activeFilter}
           onChange={(e) => setActiveFilter(e.target.value as typeof activeFilter)}
         >
@@ -147,7 +155,7 @@ export default function LlmModelsAdminPage() {
       </div>
 
       {/* Tabla */}
-      <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+      <div className={`${sectionClass} overflow-hidden`}>
         {isLoading ? (
           <div className="flex justify-center py-16">
             <LogoLoader text={tt('loading')} />
@@ -155,75 +163,84 @@ export default function LlmModelsAdminPage() {
         ) : isError ? (
           <p className="py-16 text-center text-sm text-text-secondary">{tt('loadError')}</p>
         ) : models.length === 0 ? (
-          <p className="py-16 text-center text-sm text-text-secondary">{tt('empty')}</p>
+          <div className="p-6">
+            <p className={emptyClass}>{tt('empty')}</p>
+          </div>
         ) : (
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="border-b border-border text-xs uppercase text-text-secondary">
-              <tr>
-                <th className="px-4 py-3">{tt('colProvider')}</th>
-                <th className="px-4 py-3">{tt('colModel')}</th>
-                <th className="px-4 py-3">{tt('colTier')}</th>
-                <th className="px-4 py-3">{tt('colCategory')}</th>
-                <th className="px-4 py-3">{tt('colInput')}</th>
-                <th className="px-4 py-3">{tt('colOutput')}</th>
-                <th className="px-4 py-3">{tt('colContext')}</th>
-                <th className="px-4 py-3">{tt('colStatus')}</th>
-                <th className="px-4 py-3 text-right">{tt('colActions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {models.map((m) => (
-                <tr key={m.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 text-text-primary">{m.provider}</td>
-                  <td className="px-4 py-3 font-medium text-text-primary">{m.modelName}</td>
-                  <td className="px-4 py-3 text-text-secondary">{m.tier}</td>
-                  <td className="px-4 py-3 text-text-secondary">{m.llmCategory?.name ?? '—'}</td>
-                  <td className="px-4 py-3 text-text-secondary">{fmtPrice(m.inputPricePer1m)}</td>
-                  <td className="px-4 py-3 text-text-secondary">{fmtPrice(m.outputPricePer1m)}</td>
-                  <td className="px-4 py-3 text-text-secondary">
-                    {m.contextWindow.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${
-                        m.isActive
-                          ? 'bg-green-500/10 text-green-600'
-                          : 'bg-gray-500/10 text-text-secondary'
-                      }`}
-                    >
-                      {m.isActive ? tt('active') : tt('inactive')}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        title={tt('editTitle')}
-                        className="rounded-lg p-2 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
-                        onClick={() => setEditModel(m)}
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        title={tt('changePriceTitle')}
-                        className="rounded-lg p-2 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
-                        onClick={() => setPriceModel(m)}
-                      >
-                        <DollarSign size={16} />
-                      </button>
-                      <button
-                        title={tt('deactivateTitle')}
-                        disabled={!m.isActive || deactivateModel.isPending}
-                        className="rounded-lg p-2 text-text-secondary hover:bg-red-500/10 hover:text-red-600 disabled:opacity-40"
-                        onClick={() => setDeactivateModelConfirm(m)}
-                      >
-                        <Power size={16} />
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead className="border-b border-border text-xs uppercase tracking-wide text-text-secondary">
+                <tr>
+                  <th className="px-4 py-3 font-medium">{tt('colProvider')}</th>
+                  <th className="px-4 py-3 font-medium">{tt('colModel')}</th>
+                  <th className="px-4 py-3 font-medium">{tt('colTier')}</th>
+                  <th className="px-4 py-3 font-medium">{tt('colCategory')}</th>
+                  <th className="px-4 py-3 font-medium">{tt('colInput')}</th>
+                  <th className="px-4 py-3 font-medium">{tt('colOutput')}</th>
+                  <th className="px-4 py-3 font-medium">{tt('colContext')}</th>
+                  <th className="px-4 py-3 font-medium">{tt('colStatus')}</th>
+                  <th className="px-4 py-3 text-right font-medium">{tt('colActions')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {models.map((m) => (
+                  <tr
+                    key={m.id}
+                    className="border-b border-border transition-colors last:border-0 hover:bg-surface-panel"
+                  >
+                    <td className="px-4 py-3 text-text-primary">{m.provider}</td>
+                    <td className="px-4 py-3 font-medium text-text-primary">{m.modelName}</td>
+                    <td className="px-4 py-3 text-text-secondary">{m.tier}</td>
+                    <td className="px-4 py-3 text-text-secondary">{m.llmCategory?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-text-secondary">{fmtPrice(m.inputPricePer1m)}</td>
+                    <td className="px-4 py-3 text-text-secondary">
+                      {fmtPrice(m.outputPricePer1m)}
+                    </td>
+                    <td className="px-4 py-3 text-text-secondary">
+                      {m.contextWindow.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          m.isActive
+                            ? 'bg-[var(--badge-success-bg-solid)] text-[var(--badge-success-text-solid)]'
+                            : 'bg-[var(--surface-tint)] text-text-secondary'
+                        }`}
+                      >
+                        {m.isActive ? tt('active') : tt('inactive')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          title={tt('editTitle')}
+                          className={iconBtn}
+                          onClick={() => setEditModel(m)}
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          title={tt('changePriceTitle')}
+                          className={iconBtn}
+                          onClick={() => setPriceModel(m)}
+                        >
+                          <DollarSign size={16} />
+                        </button>
+                        <button
+                          title={tt('deactivateTitle')}
+                          disabled={!m.isActive || deactivateModel.isPending}
+                          className={iconBtnDanger}
+                          onClick={() => setDeactivateModelConfirm(m)}
+                        >
+                          <Power size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {/* Paginación */}
@@ -238,7 +255,7 @@ export default function LlmModelsAdminPage() {
               setPage(1);
             }}
             summary={tt('pagerSummary', { page, totalPages: meta.totalPages })}
-            className="border-t border-border p-4"
+            className="border-t border-border px-6 py-4"
           />
         )}
       </div>
@@ -345,7 +362,7 @@ export default function LlmModelsAdminPage() {
             title={tt('confirmDeactivateTitle')}
           >
             <div className="space-y-4">
-              <div className="bg-danger/10 flex items-center gap-3 rounded-xl p-4 text-danger-600">
+              <div className="flex items-center gap-3 rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] p-4 text-[var(--danger-text-adaptive)]">
                 <AlertTriangle size={24} />
                 <p className="text-sm font-medium">{tt('confirmDeactivateWarning')}</p>
               </div>
@@ -480,6 +497,7 @@ function CreateForm({
         <div className="flex h-full flex-col">
           <label className={labelClass}>{tt('categoryOptionalLabel')}</label>
           <InfiniteSelect
+            triggerClassName={selectTriggerClass}
             value={f.llmCategoryId}
             onChange={(val) => setF({ ...f, llmCategoryId: val })}
             options={[
@@ -620,7 +638,7 @@ function EditForm({
 
   return (
     <form onSubmit={submit} className="space-y-3">
-      <p className="rounded-lg bg-surface-secondary p-2 text-xs text-text-secondary">
+      <p className="rounded-xl bg-[var(--surface-tint)] px-3 py-2 text-xs text-text-secondary">
         {tt('editPriceHint')}
       </p>
       <div className="grid grid-cols-2 gap-3">
@@ -641,6 +659,7 @@ function EditForm({
         <div className="flex h-full flex-col">
           <label className={labelClass}>{tt('categoryLabel')}</label>
           <InfiniteSelect
+            triggerClassName={selectTriggerClass}
             value={f.llmCategoryId}
             onChange={(val) => setF({ ...f, llmCategoryId: val })}
             options={[
@@ -752,7 +771,7 @@ function PriceForm({
 
   return (
     <form onSubmit={submit} className="space-y-3">
-      <p className="rounded-lg bg-surface-secondary p-2 text-xs text-text-secondary">
+      <p className="rounded-xl bg-[var(--surface-tint)] px-3 py-2 text-xs text-text-secondary">
         {tt('priceChangeHint')}
       </p>
       <div className="grid grid-cols-2 gap-3">

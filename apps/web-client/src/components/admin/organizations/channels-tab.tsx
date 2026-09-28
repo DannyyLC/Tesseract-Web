@@ -162,10 +162,10 @@ export function ChannelsTab({ organizationId }: Props) {
 
   return (
     <div className="w-full space-y-6">
-      <section className="rounded-xl border border-border bg-surface p-4">
+      <section className="rounded-2xl border border-border p-6">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-text-primary">{t('title')}</h2>
+            <h2 className="text-base font-semibold text-text-primary">{t('title')}</h2>
             <p className="mt-1 text-xs text-text-secondary">{t('subtitle')}</p>
           </div>
           <button className={btnPrimary} onClick={() => setIsCreateOpen(true)}>
@@ -180,7 +180,7 @@ export function ChannelsTab({ organizationId }: Props) {
         ) : !configs?.length ? (
           <p className="px-2 py-8 text-center text-sm text-text-secondary">{t('empty')}</p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="-mx-3 space-y-1">
             {configs.map((config) => {
               const workflowName = config.defaultWorkflowId
                 ? (workflowNameById.get(config.defaultWorkflowId) ?? t('deletedWorkflow'))
@@ -188,7 +188,7 @@ export function ChannelsTab({ organizationId }: Props) {
               return (
                 <li
                   key={config.id}
-                  className="flex flex-wrap items-center justify-between gap-3 py-3"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-3 transition-all duration-200 hover:border-border hover:bg-surface-panel hover:shadow-sm"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -229,7 +229,7 @@ export function ChannelsTab({ organizationId }: Props) {
                         onClick={() => handleApprove(config)}
                         disabled={approve.isPending}
                         title={t('approveTitle')}
-                        className="rounded-lg p-2 text-success-500 transition-colors hover:bg-surface-secondary disabled:opacity-50"
+                        className="rounded-xl p-2 text-[var(--success-text-adaptive)] transition-colors hover:bg-[var(--surface-tint)] disabled:opacity-50"
                       >
                         <BadgeCheck size={16} />
                       </button>
@@ -237,28 +237,28 @@ export function ChannelsTab({ organizationId }: Props) {
                     <button
                       onClick={() => setTemplatesTarget(config)}
                       title={t('templatesTitle')}
-                      className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
+                      className="rounded-xl p-2 text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
                     >
                       <MessageSquareText size={16} />
                     </button>
                     <button
                       onClick={() => openEdit(config)}
                       title={t('editTitle')}
-                      className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
+                      className="rounded-xl p-2 text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
                     >
                       <Pencil size={16} />
                     </button>
                     <button
                       onClick={() => handleToggleActive(config)}
                       title={config.isActive ? t('deactivateTitle') : t('activateTitle')}
-                      className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
+                      className="rounded-xl p-2 text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
                     >
                       {config.isActive ? <PowerOff size={16} /> : <Power size={16} />}
                     </button>
                     <button
                       onClick={() => handleDelete(config)}
                       title={t('deleteTitle')}
-                      className="hover:bg-danger/10 rounded-lg p-2 text-danger transition-colors"
+                      className="rounded-xl p-2 text-danger transition-colors hover:bg-[var(--danger-tint-hover)]"
                     >
                       <Trash2 size={16} />
                     </button>

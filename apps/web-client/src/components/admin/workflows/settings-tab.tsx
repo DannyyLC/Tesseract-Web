@@ -179,7 +179,7 @@ export function SettingsTab({ workflow }: Props) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-lg border border-border p-3">
+        <div className="rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm">
           <Switch
             checked={form.isActive}
             onChange={(v) => set('isActive', v)}
@@ -187,7 +187,7 @@ export function SettingsTab({ workflow }: Props) {
             hint={t('activeHint')}
           />
         </div>
-        <div className="rounded-lg border border-border p-3">
+        <div className="rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm">
           <Switch
             checked={form.isPaused}
             onChange={(v) => set('isPaused', v)}
@@ -195,7 +195,7 @@ export function SettingsTab({ workflow }: Props) {
             hint={t('pausedHint')}
           />
         </div>
-        <div className="rounded-lg border border-border p-3 sm:col-span-2">
+        <div className="rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm sm:col-span-2">
           <Switch
             checked={form.isInternal}
             onChange={setIsInternal}
@@ -207,8 +207,8 @@ export function SettingsTab({ workflow }: Props) {
 
       <WorkflowChannelsSection workflowId={workflow.id} organizationId={workflow.organization.id} />
 
-      <div className="rounded-lg border border-danger p-3">
-        <p className="text-xs font-medium text-danger">{t('dangerZone')}</p>
+      <div className="rounded-2xl border border-danger-500 p-5">
+        <p className="text-sm font-semibold text-danger-500">{t('dangerZone')}</p>
         {workflow.deletedAt ? (
           <>
             <p className="mt-1 text-xs text-text-secondary">
@@ -231,7 +231,7 @@ export function SettingsTab({ workflow }: Props) {
           <>
             <p className="mt-1 text-xs text-text-secondary">{t('stopsImmediatelyHint')}</p>
             <button
-              className="hover:bg-danger/10 mt-2 inline-flex items-center gap-1.5 rounded-lg border border-danger px-3 py-1.5 text-xs font-medium text-danger transition-colors disabled:opacity-50"
+              className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-danger-500 px-3 py-1.5 text-xs font-medium text-danger-500 transition-colors hover:bg-[var(--danger-tint-hover)] disabled:opacity-50"
               onClick={() => setConfirmDeleteOpen(true)}
               disabled={removeWorkflow.isPending}
             >

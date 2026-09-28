@@ -154,7 +154,7 @@ export function WhatsappTemplatesAdminModal({
             {templates.map((template) => (
               <li
                 key={template.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3"
+                className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-text-primary">
@@ -172,8 +172,10 @@ export function WhatsappTemplatesAdminModal({
                   <button
                     onClick={() => handleToggleActive(template)}
                     title={template.isActive ? t('deactivateTitle') : t('activateTitle')}
-                    className={`rounded-lg p-1.5 transition-colors hover:bg-surface-secondary ${
-                      template.isActive ? 'text-success-500' : 'text-text-tertiary'
+                    className={`rounded-xl p-1.5 transition-colors hover:bg-[var(--surface-tint)] ${
+                      template.isActive
+                        ? 'text-[var(--success-text-adaptive)]'
+                        : 'text-text-tertiary'
                     }`}
                   >
                     <Power size={14} />
@@ -181,14 +183,14 @@ export function WhatsappTemplatesAdminModal({
                   <button
                     onClick={() => startEdit(template)}
                     title={t('editTitle')}
-                    className="rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-surface-secondary"
+                    className="rounded-xl p-1.5 text-text-secondary transition-colors hover:bg-[var(--surface-tint)]"
                   >
                     <Pencil size={14} />
                   </button>
                   <button
                     onClick={() => handleDelete(template)}
                     title={t('deleteTitle')}
-                    className="hover:bg-danger/10 rounded-lg p-1.5 text-danger transition-colors"
+                    className="rounded-xl p-1.5 text-danger transition-colors hover:bg-[var(--danger-tint-hover)]"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -206,7 +208,7 @@ export function WhatsappTemplatesAdminModal({
               </p>
               <button
                 onClick={() => setIsFormOpen(false)}
-                className="rounded-lg p-1 text-text-tertiary hover:bg-surface-secondary"
+                className="rounded-lg p-1 text-text-tertiary transition-colors hover:bg-[var(--surface-tint)]"
               >
                 <X size={14} />
               </button>

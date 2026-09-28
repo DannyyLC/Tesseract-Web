@@ -196,7 +196,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
           >
             <ArrowLeft size={14} /> {t('backToDatasets')}
           </button>
-          <h2 className="text-base font-semibold text-text-primary">{dataset.name}</h2>
+          <h2 className="text-xl font-bold text-text-primary">{dataset.name}</h2>
           {dataset.description && (
             <p className="mt-1 max-w-2xl text-sm text-text-secondary">{dataset.description}</p>
           )}
@@ -216,13 +216,13 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
           </button>
           <button
             onClick={() => setIsClearing(true)}
-            className="hover:bg-danger/10 flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-danger-600"
+            className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-danger-600 transition-colors hover:bg-[var(--danger-tint-hover)]"
           >
             <Eraser size={14} /> {t('clearData')}
           </button>
           <button
             onClick={() => setIsDeleting(true)}
-            className="hover:bg-danger/10 flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-danger-600"
+            className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-danger-600 transition-colors hover:bg-[var(--danger-tint-hover)]"
           >
             <Trash2 size={14} /> {t('delete')}
           </button>
@@ -301,7 +301,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
           />
 
           {overwriteConfirmed && columnsLosingManualValues.length > 0 && (
-            <div className="bg-warning/10 rounded-lg px-4 py-3 text-sm text-warning-600">
+            <div className="rounded-xl bg-[var(--badge-warning-bg-solid)] px-4 py-3 text-sm text-[var(--badge-warning-text-solid)]">
               {t('schemaOverwriteWarning', {
                 columns: columnsLosingManualValues.join(', '),
                 count: dataset.recordCount,
@@ -310,7 +310,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
           )}
 
           {schemaError && (
-            <div className="bg-danger/10 rounded-lg px-4 py-3 text-sm text-danger-600">
+            <div className="rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] px-4 py-3 text-sm text-[var(--danger-text-adaptive)]">
               {schemaError}
             </div>
           )}
@@ -370,7 +370,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
             <button
               onClick={handleDelete}
               disabled={!canDelete || deleteDataset.isPending}
-              className="flex items-center gap-2 rounded-lg bg-danger-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-danger-600 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {deleteDataset.isPending && <Loader2 size={16} className="animate-spin" />}
               {deleteDataset.isPending ? t('deletingDataset') : t('delete')}
@@ -398,7 +398,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
             <button
               onClick={handleClear}
               disabled={!canClear || clearRecords.isPending}
-              className="flex items-center gap-2 rounded-lg bg-danger-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-danger-600 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {clearRecords.isPending && <Loader2 size={16} className="animate-spin" />}
               {clearRecords.isPending ? t('clearingData') : t('clearData')}

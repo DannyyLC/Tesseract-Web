@@ -21,7 +21,18 @@ import {
   useAudiencePreview,
 } from '@/hooks/platform/use-admin-announcements';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
-import { btnGhost, btnPrimary, inputClass, labelClass } from '../../_styles';
+import {
+  btnGhost,
+  btnPrimary,
+  inputClass,
+  labelClass,
+  pageSubtitleClass,
+  pageTitleClass,
+  sectionClass,
+  sectionTitleClass,
+  segmentedItemClass,
+  segmentedTrackClass,
+} from '../../_styles';
 import { isToastHandled } from '@/lib/api/api-error';
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
@@ -32,8 +43,8 @@ const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-border bg-surface p-5">
-      <h2 className="mb-4 text-sm font-semibold text-text-primary">{title}</h2>
+    <section className={`${sectionClass} p-6`}>
+      <h2 className={`mb-4 ${sectionTitleClass}`}>{title}</h2>
       {children}
     </section>
   );
@@ -148,14 +159,14 @@ export default function NewAnnouncementPage() {
         <button
           type="button"
           onClick={() => router.push('/admin/anuncios')}
-          className="rounded-lg p-2 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
+          className="rounded-xl p-2 text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
           aria-label={t('backToAnnouncements')}
         >
           <ArrowLeft size={18} />
         </button>
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">{t('title')}</h1>
-          <p className="mt-1 text-sm text-text-secondary">{t('subtitle')}</p>
+          <h1 className={pageTitleClass}>{t('title')}</h1>
+          <p className={pageSubtitleClass}>{t('subtitle')}</p>
         </div>
       </div>
 
@@ -184,10 +195,10 @@ export default function NewAnnouncementPage() {
                     key={value}
                     type="button"
                     onClick={() => setTemplate(value)}
-                    className={`rounded-lg border p-3 text-left transition-colors ${
+                    className={`rounded-xl border p-4 text-left transition-all duration-200 ${
                       template === value
-                        ? 'border-accent bg-surface-secondary'
-                        : 'border-border hover:bg-surface-secondary'
+                        ? 'border-accent shadow-sm'
+                        : 'border-border hover:border-border-hover hover:shadow-sm'
                     }`}
                   >
                     <span className="flex items-center gap-2 text-sm font-medium text-text-primary">
@@ -209,17 +220,13 @@ export default function NewAnnouncementPage() {
             </Section>
 
             <Section title={t('contentSection')}>
-              <div className="mb-3 flex w-full gap-1 rounded-lg border border-border p-1">
+              <div className={`${segmentedTrackClass} mb-4 w-full`}>
                 {(['es', 'en'] as const).map((loc) => (
                   <button
                     key={loc}
                     type="button"
                     onClick={() => setContentLocale(loc)}
-                    className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                      contentLocale === loc
-                        ? 'bg-accent text-text-inverse'
-                        : 'text-text-secondary hover:bg-surface-secondary'
-                    }`}
+                    className={`flex-1 ${segmentedItemClass(contentLocale === loc)}`}
                   >
                     {loc === 'es' ? t('localeSpanish') : t('localeEnglishOptional')}
                   </button>
@@ -357,7 +364,7 @@ export default function NewAnnouncementPage() {
                   hint={t('publishNowHint')}
                 />
                 {publishNow && (
-                  <div className="rounded-lg border border-border bg-surface-secondary p-3">
+                  <div className="rounded-xl border border-border p-4">
                     <p className="text-xs text-text-secondary">
                       {confirmedBroadcast ? t('targetConfirmed') : t('reviewAudienceHint')}
                     </p>
@@ -376,7 +383,7 @@ export default function NewAnnouncementPage() {
           </div>
         </div>
 
-        <div className="bg-dashboard-background/95 sticky bottom-0 -mx-4 mt-6 flex justify-end gap-2 border-t border-border px-4 py-4 backdrop-blur-sm md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
+        <div className="bg-surface/80 sticky bottom-0 -mx-4 mt-6 flex justify-end gap-2 border-t border-border px-4 py-4 backdrop-blur-xl md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
           <button
             type="button"
             className={btnGhost}

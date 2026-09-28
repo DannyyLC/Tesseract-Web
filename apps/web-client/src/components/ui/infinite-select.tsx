@@ -16,6 +16,8 @@ export interface InfiniteSelectProps {
   isFetchingNextPage?: boolean;
   fetchNextPage?: () => void;
   className?: string;
+  /** Clases del disparador. Sin ella se ve como siempre (input rectangular con borde). */
+  triggerClassName?: string;
   /**
    * Búsqueda por servidor: opcional. Sin `onSearchChange` el panel se comporta exactamente
    * igual que antes (sin input). Con ella, aparece un buscador fijo arriba de las opciones —
@@ -35,6 +37,9 @@ const MIN_PANEL_HEIGHT = 120;
 /** Separación entre el disparador y el panel. */
 const GAP = 4;
 
+const DEFAULT_TRIGGER_CLASS =
+  'flex w-full items-center justify-between rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-border-focus';
+
 export function InfiniteSelect({
   value,
   onChange,
@@ -45,6 +50,7 @@ export function InfiniteSelect({
   isFetchingNextPage,
   fetchNextPage,
   className = '',
+  triggerClassName = DEFAULT_TRIGGER_CLASS,
   searchValue,
   onSearchChange,
   searchPlaceholder,
@@ -173,11 +179,7 @@ export function InfiniteSelect({
 
   return (
     <div className={`relative ${className}`} ref={containerRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-border-focus"
-      >
+      <button type="button" onClick={() => setIsOpen(!isOpen)} className={triggerClassName}>
         <span className={selectedOption ? 'text-text-primary' : 'truncate text-text-secondary'}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>

@@ -14,6 +14,12 @@ import { CategoryComparisonChart } from './_components/category-comparison-chart
 import { CostExecutionsTimeseriesChart } from './_components/cost-executions-timeseries-chart';
 import { TopWorkflowsTable } from './_components/top-workflows-table';
 import { OrganizationsMarginTable } from './_components/organizations-margin-table';
+import {
+  pageSubtitleClass,
+  pageTitleClass,
+  segmentedItemClass,
+  segmentedTrackClass,
+} from '../_styles';
 
 const MARGIN_PAGE_SIZE = 10;
 
@@ -55,19 +61,15 @@ export default function AdminDashboardPage() {
     <div className="w-full space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-base font-semibold text-text-primary">{t('title')}</h1>
-          <p className="text-xs text-text-secondary">{t('subtitle')}</p>
+          <h1 className={pageTitleClass}>{t('title')}</h1>
+          <p className={pageSubtitleClass}>{t('subtitle')}</p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg bg-surface-secondary p-1">
+        <div className={segmentedTrackClass}>
           {PERIODS.map((p) => (
             <button
               key={p.value}
               onClick={() => handlePeriodChange(p.value)}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
-                period === p.value
-                  ? 'bg-surface text-text-primary shadow-sm'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
+              className={segmentedItemClass(period === p.value)}
             >
               {p.label}
             </button>
@@ -83,14 +85,14 @@ export default function AdminDashboardPage() {
         <>
           {overview && <KpiCards kpis={overview.kpis} />}
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {overview && <CategoryComparisonChart rows={overview.byCategory} />}
             {timeseries && !isTimeseriesLoading && (
               <CostExecutionsTimeseriesChart points={timeseries.points} />
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {topWorkflows && !isTopWorkflowsLoading && (
               <TopWorkflowsTable
                 items={topWorkflows.items}

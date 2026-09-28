@@ -13,6 +13,7 @@ import { SubscriptionTab } from '@/components/admin/organizations/subscription-t
 import { LimitsTab } from '@/components/admin/organizations/limits-tab';
 import { ChannelsTab } from '@/components/admin/organizations/channels-tab';
 import { CatalogsTab } from '@/components/admin/organizations/catalogs/catalogs-tab';
+import { stickyHeaderClass, tabItemClass, tabsTrackClass } from '../../_styles';
 
 type TabId = 'general' | 'credits' | 'subscription' | 'limits' | 'channels' | 'catalogs';
 
@@ -81,33 +82,31 @@ function OrganizationDetail() {
 
   return (
     <div className="w-full">
-      <div className="bg-surface/95 sticky top-14 z-20 -mx-4 -mt-4 mb-4 border-b border-border backdrop-blur md:-mx-6 md:-mt-6 lg:top-0 lg:-mx-8 lg:-mt-8">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-4 pt-3 md:px-6 lg:px-8">
-          <h1 className="text-base font-semibold text-text-primary">{org.name}</h1>
-          <p className="flex flex-wrap items-center gap-x-3 text-xs text-text-secondary">
+      <div className={stickyHeaderClass}>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 pt-4 md:px-6 lg:px-8">
+          <h1 className="text-xl font-bold text-text-primary">{org.name}</h1>
+          <p className="flex flex-wrap items-center gap-x-3 text-sm text-text-secondary">
             <span>{org.slug}</span>
             <span>{org.plan}</span>
             {!org.isActive && <span className="text-danger">{t('inactiveBadge')}</span>}
           </p>
         </div>
 
-        <nav className="flex flex-wrap gap-1 px-4 md:px-6 lg:px-8">
-          {TABS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              aria-current={tab === id ? 'page' : undefined}
-              className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm transition-colors ${
-                tab === id
-                  ? 'border-accent font-medium text-text-primary'
-                  : 'border-transparent text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              <Icon size={14} />
-              {label}
-            </button>
-          ))}
-        </nav>
+        <div className="px-4 pb-3 pt-3 md:px-6 lg:px-8">
+          <nav className={tabsTrackClass}>
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setTab(id)}
+                aria-current={tab === id ? 'page' : undefined}
+                className={tabItemClass(tab === id)}
+              >
+                <Icon size={15} />
+                {label}
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
 
       {tab === 'general' && <GeneralTab org={org} />}

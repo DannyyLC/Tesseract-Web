@@ -89,13 +89,15 @@ export function CreditsTab({ organizationId, org }: Props) {
 
   return (
     <div className="w-full space-y-6">
-      <section className="p-4">
+      <section className="px-2">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-text-primary">{t('balanceTitle')}</h2>
-            <p className="mt-1 flex items-baseline gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+              {t('balanceTitle')}
+            </span>
+            <p className="mt-2 flex items-baseline gap-2">
               <span
-                className={`text-2xl font-semibold ${
+                className={`font-geist-mono text-4xl font-light tracking-tight ${
                   data.balance < 0 ? 'text-danger' : 'text-text-primary'
                 }`}
               >
@@ -109,7 +111,7 @@ export function CreditsTab({ organizationId, org }: Props) {
                 })}
               </span>
             </p>
-            <p className="text-xs text-text-secondary">
+            <p className="mt-1 text-xs font-medium text-text-tertiary">
               {t('spentThisMonth', { amount: data.currentMonthSpent.toLocaleString(intlLocale) })}
             </p>
           </div>
@@ -122,13 +124,15 @@ export function CreditsTab({ organizationId, org }: Props) {
       {/* Sobregiro. Se edita en la pestaña Límites, pero se muestra acá porque es el único
           lugar donde un balance negativo tiene sentido: sin el límite al lado no se sabe
           cuánto le queda antes del corte. */}
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('overageTitle')}</h2>
+      <section className="rounded-2xl border border-border p-6">
+        <h2 className="mb-4 text-base font-semibold text-text-primary">{t('overageTitle')}</h2>
         {org.allowOverages ? (
           <dl className="grid gap-3 sm:grid-cols-3">
             <div>
               <dt className="text-xs text-text-secondary">{t('statusLabel')}</dt>
-              <dd className="text-sm text-success-600">{t('statusAllowed')}</dd>
+              <dd className="text-sm font-medium text-[var(--success-text-adaptive)]">
+                {t('statusAllowed')}
+              </dd>
             </div>
             <div>
               <dt className="text-xs text-text-secondary">{t('limitLabel')}</dt>
@@ -157,16 +161,16 @@ export function CreditsTab({ organizationId, org }: Props) {
         )}
       </section>
 
-      <section className="rounded-xl border border-border bg-surface">
-        <div className="border-b border-border p-4">
-          <h2 className="text-sm font-semibold text-text-primary">{t('historyTitle')}</h2>
+      <section className="rounded-2xl border border-border">
+        <div className="border-b border-border px-6 py-4">
+          <h2 className="text-base font-semibold text-text-primary">{t('historyTitle')}</h2>
         </div>
         {items.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('historyEmpty')}</p>
+          <p className="px-6 py-10 text-center text-sm text-text-secondary">{t('historyEmpty')}</p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-[var(--border-subtle)]">
             {items.map((tx) => (
-              <li key={tx.id} className="flex items-center justify-between gap-3 px-4 py-3">
+              <li key={tx.id} className="flex items-center justify-between gap-3 px-6 py-3.5">
                 <div className="min-w-0">
                   <p className="truncate text-sm text-text-primary">{tx.description ?? tx.type}</p>
                   <p className="text-xs text-text-secondary">
@@ -175,7 +179,7 @@ export function CreditsTab({ organizationId, org }: Props) {
                 </div>
                 <span
                   className={`shrink-0 text-sm font-medium ${
-                    tx.amount >= 0 ? 'text-success-500' : 'text-danger'
+                    tx.amount >= 0 ? 'text-[var(--success-text-adaptive)]' : 'text-danger'
                   }`}
                 >
                   {tx.amount >= 0 ? '+' : ''}
@@ -199,7 +203,7 @@ export function CreditsTab({ organizationId, org }: Props) {
             setCursor(undefined);
             setDirection(undefined);
           }}
-          className="border-t border-border p-3"
+          className="border-t border-border px-6 py-3"
         />
       </section>
 

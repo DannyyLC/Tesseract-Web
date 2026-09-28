@@ -9,7 +9,13 @@ import { useAdminOrganizationMutations } from '@/hooks/identity/use-admin-organi
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { toIntlLocale } from '@/lib/intl-locale';
 import type { AdminOrganizationDetail } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
-import { btnGhost, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import {
+  btnDanger,
+  btnDangerGhost,
+  btnGhost,
+  inputClass,
+  labelClass,
+} from '@/app/[locale]/admin/_styles';
 import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
@@ -58,8 +64,8 @@ export function GeneralTab({ org }: Props) {
 
   return (
     <div className="w-full space-y-6">
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('infoTitle')}</h2>
+      <section className="rounded-2xl border border-border p-6">
+        <h2 className="mb-4 text-base font-semibold text-text-primary">{t('infoTitle')}</h2>
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <dt className="text-xs text-text-secondary">{t('name')}</dt>
@@ -82,8 +88,8 @@ export function GeneralTab({ org }: Props) {
         </dl>
       </section>
 
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('usageTitle')}</h2>
+      <section className="rounded-2xl border border-border p-6">
+        <h2 className="mb-4 text-base font-semibold text-text-primary">{t('usageTitle')}</h2>
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <div>
             <dt className="text-xs text-text-secondary">{t('users')}</dt>
@@ -125,15 +131,12 @@ export function GeneralTab({ org }: Props) {
         </dl>
       </section>
 
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('statusTitle')}</h2>
+      <section className="rounded-2xl border border-border p-6">
+        <h2 className="mb-4 text-base font-semibold text-text-primary">{t('statusTitle')}</h2>
         {org.isActive ? (
           <>
             <p className="mb-3 text-sm text-text-secondary">{t('statusActive')}</p>
-            <button
-              className="hover:bg-danger/10 flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-danger-600"
-              onClick={() => setIsDeactivating(true)}
-            >
+            <button className={btnDangerGhost} onClick={() => setIsDeactivating(true)}>
               <PowerOff size={16} /> {t('deactivate')}
             </button>
           </>
@@ -158,7 +161,7 @@ export function GeneralTab({ org }: Props) {
 
       <Modal isOpen={isDeactivating} onClose={closeDeactivate} title={t('deactivateModalTitle')}>
         <div className="space-y-4">
-          <div className="bg-danger/10 flex items-center gap-3 rounded-xl p-4 text-danger-600">
+          <div className="flex items-center gap-3 rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] p-4 text-[var(--danger-text-adaptive)]">
             <AlertTriangle size={24} />
             <p className="text-sm font-medium">{t('deactivateWarning')}</p>
           </div>
@@ -189,7 +192,7 @@ export function GeneralTab({ org }: Props) {
             <button
               onClick={handleDeactivate}
               disabled={!canDeactivate || deactivate.isPending}
-              className="flex items-center gap-2 rounded-lg bg-danger-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className={btnDanger}
             >
               {deactivate.isPending && <Loader2 size={16} className="animate-spin" />}
               {deactivate.isPending ? t('deactivating') : t('deactivate')}

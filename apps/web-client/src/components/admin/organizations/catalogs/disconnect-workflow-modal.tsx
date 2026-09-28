@@ -50,7 +50,7 @@ export function DisconnectWorkflowModal({
           <button
             onClick={handleDisconnect}
             disabled={unlinkWorkflow.isPending}
-            className="flex items-center gap-2 rounded-lg bg-danger-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-danger-600 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {unlinkWorkflow.isPending && <Loader2 size={16} className="animate-spin" />}
             {unlinkWorkflow.isPending ? t('disconnecting') : t('disconnectAction')}

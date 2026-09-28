@@ -19,9 +19,9 @@ interface Props {
 export function OrganizationsMarginTable({ items, page, totalPages, onPageChange }: Props) {
   const t = useTranslations('Admin.Dashboard.OrgMargin');
   return (
-    <section className="rounded-xl border border-border bg-surface">
-      <div className="border-b border-border p-4">
-        <h3 className="text-sm font-semibold text-text-primary">{t('title')}</h3>
+    <section className="rounded-2xl border border-border bg-surface">
+      <div className="border-b border-border p-5">
+        <h3 className="text-lg font-semibold text-text-primary">{t('title')}</h3>
         <p className="mt-1 text-xs text-text-secondary">{t('subtitle')}</p>
       </div>
 
@@ -35,12 +35,12 @@ export function OrganizationsMarginTable({ items, page, totalPages, onPageChange
           {items.map((row) => (
             <li
               key={row.organizationId}
-              className="flex items-center justify-between gap-3 px-4 py-3"
+              className="flex items-center justify-between gap-3 px-5 py-3.5"
             >
               <div className="min-w-0">
                 <Link
                   href={`/admin/organizaciones/${row.organizationId}`}
-                  className="truncate text-sm text-text-primary hover:underline"
+                  className="truncate text-sm font-medium text-text-primary hover:underline"
                 >
                   {row.organizationName}
                 </Link>
@@ -58,7 +58,7 @@ export function OrganizationsMarginTable({ items, page, totalPages, onPageChange
                     row.marginUSD == null
                       ? 'text-text-secondary'
                       : row.marginUSD >= 0
-                        ? 'text-success-500'
+                        ? 'text-[var(--success-text-adaptive)]'
                         : 'text-danger'
                   }`}
                 >
@@ -76,7 +76,7 @@ export function OrganizationsMarginTable({ items, page, totalPages, onPageChange
         totalPages={totalPages}
         onPageChange={onPageChange}
         emphasis="plain"
-        className="border-t border-border p-3"
+        className="border-t border-border px-5 py-3"
       />
     </section>
   );

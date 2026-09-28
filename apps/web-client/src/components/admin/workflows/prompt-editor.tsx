@@ -54,7 +54,7 @@ export function PromptEditor({
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="rounded p-1 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
+            className="rounded-lg p-1 text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
             title={expanded ? t('exitFullscreen') : t('fullscreen')}
           >
             {expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
@@ -68,7 +68,7 @@ export function PromptEditor({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         spellCheck={false}
-        className={`w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 font-mono text-xs leading-relaxed text-text-primary outline-none focus:border-border-focus ${
+        className={`w-full resize-none rounded-xl border border-border bg-surface px-3 py-2 font-mono text-xs leading-relaxed text-text-primary outline-none focus:border-accent ${
           expanded ? 'flex-1' : ''
         }`}
       />

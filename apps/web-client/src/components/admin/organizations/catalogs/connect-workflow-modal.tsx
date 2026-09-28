@@ -79,11 +79,11 @@ export function ConnectWorkflowModal({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={t('searchWorkflowPlaceholder')}
-              className="w-full rounded-lg border border-border bg-surface py-2 pl-9 pr-3 text-sm text-text-primary outline-none focus:border-border-focus"
+              className="w-full rounded-xl border border-border bg-surface py-2 pl-9 pr-3 text-sm text-text-primary outline-none transition-colors focus:border-accent"
             />
           </div>
 
-          <div className="max-h-64 overflow-y-auto rounded-lg border border-border">
+          <div className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-border p-1.5">
             {isLoading ? (
               <div className="flex h-24 items-center justify-center">
                 <Loader2 size={18} className="animate-spin text-text-secondary" />
@@ -102,8 +102,10 @@ export function ConnectWorkflowModal({
                     key={workflow.id}
                     type="button"
                     onClick={() => setWorkflowId(workflow.id)}
-                    className={`flex w-full items-center gap-3 border-b border-border px-3 py-2 text-left transition-colors last:border-b-0 ${
-                      selected ? 'bg-surface-secondary' : 'hover:bg-surface-secondary'
+                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${
+                      selected
+                        ? 'bg-[var(--surface-tint)] font-medium'
+                        : 'hover:bg-[var(--surface-tint)]'
                     }`}
                   >
                     <span className="min-w-0 flex-1 truncate text-sm text-text-primary">

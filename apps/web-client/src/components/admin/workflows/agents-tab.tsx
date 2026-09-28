@@ -17,7 +17,13 @@ import type {
   AdminTenantTool,
   EditorContext,
 } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
-import { btnGhost, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import {
+  btnGhost,
+  inputClass,
+  labelClass,
+  rowActiveClass,
+  rowClass,
+} from '@/app/[locale]/admin/_styles';
 
 interface Props {
   config: WorkflowConfig;
@@ -135,27 +141,27 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
   return (
     <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
       {/* Lista lateral */}
-      <div className="flex flex-col rounded-lg border border-border">
+      <div className="flex flex-col overflow-hidden rounded-2xl border border-border">
         <div className="relative border-b border-border p-2">
           <Search
             size={14}
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
+            className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-text-tertiary"
           />
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder={t('searchAgentPlaceholder')}
-            className="w-full rounded-md border border-border bg-surface py-1.5 pl-7 pr-2 text-xs text-text-primary outline-none focus:border-border-focus"
+            className="w-full rounded-full border-none bg-[var(--surface-tint)] py-1.5 pl-8 pr-3 text-xs text-text-primary transition-all placeholder:text-input-placeholder hover:bg-[var(--surface-tint-md)] focus:outline-none focus:ring-2 focus:ring-[var(--border-subtle)]"
           />
         </div>
 
-        <ul className="max-h-[560px] overflow-y-auto">
+        <ul className="max-h-[560px] space-y-1 overflow-y-auto p-2">
           {visible.map((key) => (
             <li key={key}>
               <button
                 onClick={() => setSelected(key)}
-                className={`flex w-full items-start gap-2 border-b border-border px-3 py-2 text-left transition-colors last:border-0 ${
-                  selected === key ? 'bg-surface-secondary' : 'hover:bg-surface-secondary'
+                className={`flex w-full items-start gap-2 px-3 py-2 text-left ${
+                  selected === key ? rowActiveClass : rowClass
                 }`}
               >
                 <div className="min-w-0 flex-1">
@@ -179,7 +185,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
 
         <button
           onClick={handleAdd}
-          className="flex items-center justify-center gap-1 border-t border-border py-2 text-xs text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
+          className="flex items-center justify-center gap-1 border-t border-border py-2.5 text-xs font-medium text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
         >
           <Plus size={13} /> {t('addAgent')}
         </button>
@@ -187,7 +193,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
 
       {/* Panel de edición */}
       {current ? (
-        <div className="space-y-4 rounded-lg border border-border p-4">
+        <div className="space-y-4 rounded-2xl border border-border p-5">
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div className="min-w-[200px] flex-1">
               <label className={labelClass}>{t('agentKeyLabel')}</label>
@@ -201,7 +207,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
             </div>
             <button
               onClick={() => handleDelete(selected)}
-              className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-danger transition-colors hover:bg-surface-secondary"
+              className="inline-flex items-center gap-1 rounded-xl border border-border px-3 py-2 text-xs font-medium text-danger-600 transition-colors hover:bg-[var(--danger-tint-hover)]"
             >
               <Trash2 size={13} /> {t('deleteButton')}
             </button>
@@ -269,13 +275,13 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
           />
 
           {Array.isArray(current.signal_tools) && current.signal_tools.length > 0 && (
-            <details className="rounded-lg border border-border p-3">
+            <details className="rounded-xl border border-border p-4">
               <summary className="cursor-pointer text-xs font-medium text-text-primary">
                 {t('signalToolsSummary', { count: current.signal_tools.length })}
               </summary>
               <div className="mt-3 space-y-3">
                 {current.signal_tools.map((signal, i) => (
-                  <div key={i} className="space-y-2 rounded-md border border-border p-2">
+                  <div key={i} className="space-y-2 rounded-xl border border-border p-3">
                     <div>
                       <label className={labelClass}>name</label>
                       <input
@@ -308,7 +314,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
           )}
 
           {Array.isArray(current.tools) && current.tools.length > 0 && (
-            <div className="rounded-lg border border-border p-3">
+            <div className="rounded-xl border border-border p-4">
               <span className="text-xs font-medium text-text-primary">
                 {t('toolsSummary', { count: current.tools.length })}
               </span>
@@ -329,7 +335,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
           )}
         </div>
       ) : (
-        <div className="rounded-lg border border-border p-8 text-center text-sm text-text-secondary">
+        <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-text-secondary">
           {t('selectAgentPrompt')}
         </div>
       )}
