@@ -64,7 +64,7 @@ export abstract class BaseWBPayloadConsumer<TPayload> implements IWBPayloadConsu
       userNumber: maskPhone(this.getToNumber()) 
     };
     const defaultWorkflowId = this.associatedAccount.defaultWorkflowId;
-    const policy = await this.workflowsService.getMediaPolicy(organizationId, defaultWorkflowId || '');
+    const { mediaPolicy: policy } = await this.workflowsService.getChannelPolicy(organizationId, defaultWorkflowId || '');
 
     const messageId = this.getWhatsappMessageId();
 
@@ -105,7 +105,7 @@ export abstract class BaseWBPayloadConsumer<TPayload> implements IWBPayloadConsu
       userNumber: maskPhone(this.getToNumber()) 
     };
     const defaultWorkflowId = this.associatedAccount.defaultWorkflowId;
-    const policy = await this.workflowsService.getMediaPolicy(organizationId, defaultWorkflowId || '');
+    const { mediaPolicy: policy } = await this.workflowsService.getChannelPolicy(organizationId, defaultWorkflowId || '');
 
     if (!policy.audio.enabled) return { notice: policy.messages.audioDisabled };
 
