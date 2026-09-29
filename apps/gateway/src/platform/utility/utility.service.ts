@@ -3,7 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
-import { NotificationKind } from '@tesseract/database';
+import { NotificationKind, UserRole as DbUserRole } from '@tesseract/database';
 
 @Injectable()
 export class UtilityService {
@@ -77,9 +77,11 @@ export class UtilityService {
         !!notification.messageTemplateEn &&
         this.countTemplatePlaceholders(notification.messageTemplateEn) === placeholdersCount;
       const titleSnapshotEn = hasEnglish ? notification.titleTemplateEn : null;
-      const messageSnapshotEn = hasEnglish
-        ? this.applyTemplateArguments(notification.messageTemplateEn as string, args)
-        : null;
+      // `hasEnglish` ya garantiza la plantilla; el segundo chequeo solo le da el tipo a TS.
+      const messageSnapshotEn =
+        hasEnglish && notification.messageTemplateEn
+          ? this.applyTemplateArguments(notification.messageTemplateEn, args)
+          : null;
       const templateRoles = this.normalizeRoleList(notification.targetRoles);
       const requestedRoles = this.normalizeRoleList(userRoles);
       const rolesToNotify =
@@ -98,7 +100,7 @@ export class UtilityService {
         where: {
           organizationId,
           role: {
-            in: rolesToNotify as any,
+            in: rolesToNotify as DbUserRole[],
           },
         },
         select: {

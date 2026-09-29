@@ -85,7 +85,12 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
         // producto y confunde a quien no programa; además su única función propia —verlas todas
         // juntas— se acaba usando filtrando por workflow, que es justo lo que hace la sección
         // del detalle del workflow. La ruta sigue viva y accesible escribiendo la URL.
-        { label: t('navBilling'), href: '/billing', icon: <Coins size={20} />, permission: 'billing:read' },
+        {
+          label: t('navBilling'),
+          href: '/billing',
+          icon: <Coins size={20} />,
+          permission: 'billing:read',
+        },
         {
           label: t('navSettings'),
           href: '/settings',
@@ -106,8 +111,7 @@ export default function Sidebar({ isCollapsed, onToggle, onNavigate }: SidebarPr
     return pathname.startsWith(href);
   };
 
-  const canSee = (item: NavItem) =>
-    !item.permission || userPermissions.includes(item.permission);
+  const canSee = (item: NavItem) => !item.permission || userPermissions.includes(item.permission);
 
   const visibleEntries = navEntries
     .map((entry) => (isGroup(entry) ? { ...entry, items: entry.items.filter(canSee) } : entry))

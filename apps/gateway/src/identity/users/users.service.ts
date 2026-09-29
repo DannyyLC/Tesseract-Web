@@ -174,7 +174,7 @@ export class UsersService {
     // Actualizar rol
     const user = await this.prisma.user.update({
       where: { id: userId },
-      data: { role: newRole.toUpperCase() as any },
+      data: { role: newRole.toUpperCase() as UserRole },
     });
 
     return user;
@@ -512,7 +512,7 @@ export class UsersService {
       organizationId,
       deletedAt: null,
       ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
-      ...(filters?.role && { role: filters.role.toUpperCase() as any }),
+      ...(filters?.role && { role: filters.role.toUpperCase() as UserRole }),
       ...(filters?.search && {
         OR: [
           { name: { contains: filters.search, mode: 'insensitive' } },
@@ -659,7 +659,9 @@ export class UsersService {
     await this.authService.logoutAll(userId);
 
     // 6. Log de auditoría
-    this.logger.info(`User userId=${user.id} left organization ${user.organization.name} voluntarily`);
+    this.logger.info(
+      `User userId=${user.id} left organization ${user.organization.name} voluntarily`,
+    );
 
     return {
       message: 'Has abandonado la organización exitosamente.',
@@ -705,11 +707,13 @@ export class UsersService {
         notificationCode: notification.code,
         isRead: userNotification.isRead,
         title: (wantsEnglish && userNotification.titleSnapshotEn) || userNotification.titleSnapshot,
-        desc: (wantsEnglish && userNotification.messageSnapshotEn) || userNotification.messageSnapshot,
+        desc:
+          (wantsEnglish && userNotification.messageSnapshotEn) || userNotification.messageSnapshot,
         createdAt: userNotification.createdAt,
         ...(isAnnouncement && {
           isAnnouncement: true,
-          announcementTemplate: notification.announcementTemplate as 'NEWS' | 'CELEBRATION',
+          // Un anuncio siempre trae plantilla; si faltara, el campo (opcional) se omite.
+          announcementTemplate: notification.announcementTemplate ?? undefined,
         }),
       };
     });
@@ -822,7 +826,9 @@ export class UsersService {
         dateTime,
       );
       if (!emailResult) {
-        this.logger.error(`Failed to send service information request email for user ${maskEmail(email)}`);
+        this.logger.error(
+          `Failed to send service information request email for user ${maskEmail(email)}`,
+        );
         return false;
       }
       return true;

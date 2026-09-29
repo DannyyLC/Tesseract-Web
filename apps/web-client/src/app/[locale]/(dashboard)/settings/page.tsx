@@ -10,10 +10,7 @@ import { toast } from 'sonner';
 import { Loader2, Trash2, AlertTriangle, Building2 } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Modal } from '@/components/ui/modal';
-import {
-  TwoFactorCodeInput,
-  isTwoFactorCodeComplete,
-} from '@/components/ui/two-factor-code-input';
+import { TwoFactorCodeInput, isTwoFactorCodeComplete } from '@/components/ui/two-factor-code-input';
 import { useAuth } from '@/hooks/identity/use-auth';
 import PermissionGuard from '@/components/auth/permission-guard';
 import {
@@ -23,6 +20,7 @@ import {
   formatCountryName,
   formatTimezoneLabel,
 } from '@tesseract/types';
+import { toApiError } from '@/lib/api/api-error';
 
 export default function SettingsPage() {
   const t = useTranslations('Settings');
@@ -57,7 +55,8 @@ export default function SettingsPage() {
       await updateOrganization.mutateAsync({ name, timezone });
       toast.success(t('updateSuccess'));
       refetch();
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       console.error('Error updating organization:', error);
       toast.error(t('updateError'));
     }
@@ -89,7 +88,8 @@ export default function SettingsPage() {
       setIsDeleteModalOpen(false);
       // Force reload or redirect to login/signup
       window.location.href = '/login';
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       console.error('Error deleting organization:', error);
       toast.error(error.message || t('deleteError'));
     }
@@ -114,18 +114,18 @@ export default function SettingsPage() {
       <div className="max-w-5xl space-y-8 p-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t('heading')}</h1>
-          <p className="text-muted-foreground mt-2">{t('description')}</p>
+          <p className="mt-2 text-text-tertiary">{t('description')}</p>
         </div>
 
         {/* General Settings Section */}
-        <section className="bg-card space-y-6 rounded-2xl border border-border p-6 shadow-sm">
+        <section className="space-y-6 rounded-2xl border border-border p-6 shadow-sm">
           <div className="flex items-center gap-3 border-b border-border pb-4">
-            <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-lg">
-              <Building2 className="text-primary h-5 w-5" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-tint)]">
+              <Building2 className="h-5 w-5 text-text-primary" />
             </div>
             <div>
               <h2 className="text-lg font-semibold">{t('generalTitle')}</h2>
-              <p className="text-muted-foreground text-sm">{t('generalDesc')}</p>
+              <p className="text-sm text-text-tertiary">{t('generalDesc')}</p>
             </div>
           </div>
 
@@ -142,7 +142,7 @@ export default function SettingsPage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="focus:ring-border-focus/10 h-10 w-full rounded-xl border-none bg-surface-secondary px-4 py-2 text-sm text-text-primary transition-all placeholder:text-input-placeholder focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder={t('orgNamePlaceholder')}
               />
             </div>
@@ -155,7 +155,7 @@ export default function SettingsPage() {
                 id="orgTimezone"
                 value={timezone}
                 onChange={(e) => setTimezone(e.target.value)}
-                className="border-input focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="focus:ring-border-focus/10 h-10 w-full rounded-xl border-none bg-surface-secondary px-4 py-2 text-sm text-text-primary transition-all placeholder:text-input-placeholder focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {/* Si la organización tiene guardada una zona fuera del selector
                     (se puede fijar por API), se añade para no perderla al guardar. */}
@@ -172,7 +172,7 @@ export default function SettingsPage() {
                   </optgroup>
                 ))}
               </select>
-              <p className="text-muted-foreground text-xs">{t('timezoneHelp')}</p>
+              <p className="text-xs text-text-tertiary">{t('timezoneHelp')}</p>
             </div>
 
             {/* País de facturación — solo lectura.
@@ -182,10 +182,10 @@ export default function SettingsPage() {
             {orgData.country && (
               <div className="space-y-2">
                 <span className="text-sm font-medium leading-none">{t('countryLabel')}</span>
-                <p className="flex h-10 items-center rounded-md border border-border bg-surface-muted px-3 text-sm text-text-secondary">
+                <p className="flex h-10 items-center rounded-xl bg-[var(--surface-tint)] px-4 text-sm text-text-secondary">
                   {formatCountryName(orgData.country, locale)}
                 </p>
-                <p className="text-muted-foreground text-xs">{t('countryHelp')}</p>
+                <p className="text-xs text-text-tertiary">{t('countryHelp')}</p>
               </div>
             )}
 
@@ -280,7 +280,7 @@ export default function SettingsPage() {
                 type="text"
                 value={deleteConfirmation}
                 onChange={(e) => setDeleteConfirmation(e.target.value)}
-                className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="focus:ring-border-focus/10 h-10 w-full rounded-xl border-none bg-surface-secondary px-4 py-2 text-sm text-text-primary transition-all placeholder:text-input-placeholder focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder={`${orgData.name}`}
               />
             </div>

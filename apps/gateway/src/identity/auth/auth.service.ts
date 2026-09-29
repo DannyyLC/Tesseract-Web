@@ -32,8 +32,10 @@ import {
 import { Prisma, UserRole } from '@tesseract/database';
 import { maskEmail } from '@/platform/common/utils/mask-email';
 import { normalizeEmail } from '@/platform/common/utils/normalize-email';
+import { checkVerificationCode } from './utils/verification-code.util';
 import { DEFAULT_LOCALE, SupportedLocale } from '@/platform/common/types/locale.type';
 import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
+import { errorMessage } from '@/platform/common/utils/error-message';
 
 /**
  * AuthService maneja toda la lógica de autenticación JWT
@@ -96,7 +98,10 @@ export class AuthService {
       // Ya hay usuario validado: el id identifica la cuenta sin exponer el email.
       this.logger.info(`Login directo exitoso: userId=${user.id}`);
       return {
-        status: 'complete',
+        status: 'complete' as const,
+        // El controlador decide con esto si la cookie de refresh dura 30 días o la sesión.
+        // Antes no se devolvía y en el login directo "Recordarme" nunca surtía efecto.
+        rememberMe: dto.rememberMe ?? false,
         user: {
           id: user.id,
           name: user.name,
@@ -112,7 +117,7 @@ export class AuthService {
     const tempToken = this.generateTempToken(payload);
 
     return {
-      status: '2fa_required',
+      status: '2fa_required' as const,
       tempToken,
     };
   }
@@ -124,7 +129,7 @@ export class AuthService {
    */
   generateTempToken(payload: UserPayload): string {
     return this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('TEMP_TOKEN_SECRET')!,
+      secret: this.configService.getOrThrow<string>('TEMP_TOKEN_SECRET'),
       expiresIn: '15m',
     });
   }
@@ -258,6 +263,8 @@ export class AuthService {
               },
             });
 
+            await this.discardPendingInvitations(tx, email);
+
             // Actualizar Usuario (Reciclar ID)
             const updatedUser = await tx.user.update({
               where: { id: userId },
@@ -329,6 +336,8 @@ export class AuthService {
         },
       });
 
+      await this.discardPendingInvitations(tx, email);
+
       // 3.3 Crear Usuario
       const newUser = await tx.user.create({
         data: {
@@ -348,6 +357,15 @@ export class AuthService {
     });
 
     return newUserResult;
+  }
+
+  /**
+   * Borra las invitaciones pendientes de un correo que se registra (o se reactiva) por su cuenta,
+   * como ya hace `signupStepOne`. Sin esto, la invitación sobrevivía al registro con Google y al
+   * aceptarla el usuario se mudaba a esa organización como OWNER.
+   */
+  private async discardPendingInvitations(tx: Prisma.TransactionClient, email: string) {
+    await tx.userVerification.deleteMany({ where: { email, isFromInvitation: true } });
   }
 
   /**
@@ -448,7 +466,7 @@ export class AuthService {
 
     // 2. Generar access token (corta duración)
     const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_SECRET')!,
+      secret: this.configService.getOrThrow<string>('JWT_SECRET'),
       expiresIn: this.configService.get('JWT_EXPIRES_IN') ?? '5m',
     });
 
@@ -457,7 +475,7 @@ export class AuthService {
       ? '30d'
       : (this.configService.get('JWT_REFRESH_EXPIRES_IN') ?? '7d');
     const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET')!,
+      secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       expiresIn: refreshExpiresIn,
     });
 
@@ -496,7 +514,7 @@ export class AuthService {
     try {
       // 1. Verificar y decodificar el refresh token
       const payload = this.jwtService.verify<UserPayload>(refreshToken, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET')!,
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
 
       // 2. Buscar refresh tokens en la DB que coincidan
@@ -822,22 +840,31 @@ export class AuthService {
   async signupStepOne(
     payload: StartVerificationFlowDto,
     locale: SupportedLocale = DEFAULT_LOCALE,
-  ): Promise<StepOneErrors | object> {
+  ): Promise<StepOneErrors | true> {
     const emailExists = await this.prisma.user.findUnique({
       where: { email: payload.email },
     });
 
+    // Responder "ya existe" dejaría a cualquiera averiguar quién tiene cuenta. La respuesta
+    // es la misma que en un alta nueva; lo único que cambia es el correo que llega.
     if (emailExists && !emailExists.deletedAt) {
-      return StepOneErrors.EMAIL_ALREADY_EXISTS;
+      const sent = await this.emailService.sendAccountExistsEmail(payload.email, locale);
+      if (!sent) {
+        this.logger.error(
+          `authService >> signupStepOne >> Aviso de cuenta existente no enviado a ${maskEmail(payload.email)}`,
+        );
+        return StepOneErrors.TRANSPORTER_ERROR;
+      }
+      return true;
     }
 
     try {
       await this.prisma.userVerification.deleteMany({
         where: { email: payload.email },
       });
-    } catch (error: any) {
+    } catch (error) {
       this.logger.error(
-        `signupStepOne >> Error eliminando filas de verificación para email ${payload.email}: ${error?.message ?? 'Unknown error'}`,
+        `signupStepOne >> Error eliminando filas de verificación para email ${payload.email}: ${errorMessage(error)}`,
       );
       return StepOneErrors.SERVER_INTERNAL_ERROR;
     }
@@ -846,7 +873,9 @@ export class AuthService {
       await this.emailService.sendVerificationCodeByEmail(payload, locale);
 
     if (!sentMessageInfo || sentMessageInfo.success === false) {
-      this.logger.error(`authService >> signupStepOne >> Email no aceptado para ${maskEmail(payload.email)}`);
+      this.logger.error(
+        `authService >> signupStepOne >> Email no aceptado para ${maskEmail(payload.email)}`,
+      );
       return StepOneErrors.TRANSPORTER_ERROR;
     }
 
@@ -867,24 +896,24 @@ export class AuthService {
         );
         return StepOneErrors.SERVER_INTERNAL_ERROR;
       }
-    } catch (error: any) {
+    } catch (error) {
       this.logger.error(
-        `signupStepOne >> Error creando fila de verificación para email ${payload.email}: ${error?.message ?? 'Unknown error'}`,
+        `signupStepOne >> Error creando fila de verificación para email ${payload.email}: ${errorMessage(error)}`,
       );
       return StepOneErrors.SERVER_INTERNAL_ERROR;
     }
 
-    return sentMessageInfo;
+    // `true` y no el `sentMessageInfo` de nodemailer: los datos del transporte no son
+    // para el cliente y harían distinguible esta respuesta de la de una cuenta existente.
+    return true;
   }
 
   async signupStepTwo(data: VerificationCodeDto): Promise<boolean> {
-    const userVerificationRow = await this.prisma.userVerification.findFirst({
-      where: {
-        email: data.email,
-        verificationCode: data.verificationCode,
-        expiresAt: { gt: new Date() },
-      },
-    });
+    const userVerificationRow = await checkVerificationCode(
+      this.prisma,
+      { email: data.email, isFromInvitation: false },
+      data.verificationCode,
+    );
     if (!userVerificationRow) {
       return false;
     }
@@ -1028,9 +1057,9 @@ export class AuthService {
             rememberMe: false,
           };
         });
-      } catch (error: any) {
+      } catch (error) {
         this.logger.error(
-          `AuthService -> signupStep3 method >> Error en transacción de creación: ${error?.message ?? 'Unknown error'}`,
+          `AuthService -> signupStep3 method >> Error en transacción de creación: ${errorMessage(error)}`,
         );
         return StepThreeErrors.SERVER_INTERNAL_ERROR;
       }
@@ -1116,17 +1145,25 @@ export class AuthService {
   }
 
   async resetPasswordStepTwo(
+    email: string,
     verificationCode: string,
     newPassword: string,
   ): Promise<boolean | ForgotPassErrors> {
-    const verification = await this.prisma.userVerification.findFirst({
-      where: {
-        verificationCode,
-        expiresAt: { gt: new Date() },
-      },
-    });
+    // El código solo vale junto con su correo y con intentos acotados: antes se buscaba solo por
+    // código, así que cada intento se probaba contra todos los resets vivos de la tabla.
+    const verification = await checkVerificationCode(
+      this.prisma,
+      { email, isFromInvitation: false },
+      verificationCode,
+    );
 
     if (!verification) {
+      return ForgotPassErrors.VERIFICATION_CODE_INVALID;
+    }
+
+    // Una fila de alta en curso (sin usuario todavía) comparte tabla con los resets.
+    const user = await this.prisma.user.findUnique({ where: { email: verification.email } });
+    if (!user) {
       return ForgotPassErrors.VERIFICATION_CODE_INVALID;
     }
 
@@ -1135,13 +1172,12 @@ export class AuthService {
 
     // Actualizar contraseña del usuario
     await this.prisma.user.update({
-      where: { email: verification.email },
+      where: { id: user.id },
       data: { password: hashedPassword },
     });
 
     // Revocar todos los refresh tokens (seguridad)
-    const user = await this.prisma.user.findUnique({ where: { email: verification.email } });
-    if (user) await this.logoutAll(user.id);
+    await this.logoutAll(user.id);
 
     // Eliminar registro de verificación
     await this.prisma.userVerification.deleteMany({

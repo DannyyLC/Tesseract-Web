@@ -1,4 +1,10 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  INestApplication,
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
@@ -133,7 +139,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * Habilita los shutdown hooks para cerrar la conexión correctamente
    * cuando la aplicación recibe señales del sistema (SIGINT, SIGTERM)
    */
-  enableShutdownHooks(app: any) {
+  enableShutdownHooks(app: INestApplication) {
     this.$on('beforeExit' as never, () => {
       app.close().catch((error: Error) => {
         this.logger.error('Error during shutdown:', error);

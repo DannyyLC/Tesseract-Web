@@ -28,14 +28,14 @@ Para elegir entre los cinco tipos de grafo disponibles, ver
 
 ## Estructura raíz
 
-| Clave | Tipo | Descripción |
-|---|---|---|
-| `type` | string | Tipo de grafo (`pipeline`, `react`, ...) — decide el builder |
-| `schema_version` | int (opc) | Versión del contrato (default 1) |
-| `nodes` | list | Nodos del grafo (ver tipos abajo) |
-| `edges` | list | Aristas (ver formas abajo) |
-| `persist_variables` | list (opc) | Claves de `variables` que el Gateway persiste entre turnos |
-| `variable_reducers` | dict (opc) | Semántica de merge por variable (ver abajo) |
+| Clave               | Tipo       | Descripción                                                  |
+| ------------------- | ---------- | ------------------------------------------------------------ |
+| `type`              | string     | Tipo de grafo (`pipeline`, `react`, ...) — decide el builder |
+| `schema_version`    | int (opc)  | Versión del contrato (default 1)                             |
+| `nodes`             | list       | Nodos del grafo (ver tipos abajo)                            |
+| `edges`             | list       | Aristas (ver formas abajo)                                   |
+| `persist_variables` | list (opc) | Claves de `variables` que el Gateway persiste entre turnos   |
+| `variable_reducers` | dict (opc) | Semántica de merge por variable (ver abajo)                  |
 
 ## Aristas
 
@@ -78,20 +78,22 @@ clásico.
 ## Tipos de nodo
 
 ### `agent`
+
 Llama al LLM del agente declarado en `agents_config`.
 
-| Clave | Descripción |
-|---|---|
-| `agent` | Clave en `agents_config` |
-| `max_iterations` | >0 activa el modo agéntico (loop LLM↔tools) |
-| `output_variable` | Guarda la respuesta (o el intent extraído) en `variables` |
-| `classification_pattern` | Regex para extraer tags de ruteo de la respuesta |
-| `silent` | `true` = nodo interno: respuesta SOLO a `output_variable`, sin mensaje al usuario ni streaming |
-| `system_prompt_extra` | Template sumado al system prompt en cada ejecución (vacío al resolver → no agrega nada) |
-| `disable_tools_if` | Reglas deterministas para no bindear tools según el estado |
-| `set_variables_on_tool_call` | `{tool: {var: valor}}` — variables deterministas al llamar la tool |
+| Clave                        | Descripción                                                                                    |
+| ---------------------------- | ---------------------------------------------------------------------------------------------- |
+| `agent`                      | Clave en `agents_config`                                                                       |
+| `max_iterations`             | >0 activa el modo agéntico (loop LLM↔tools)                                                    |
+| `output_variable`            | Guarda la respuesta (o el intent extraído) en `variables`                                      |
+| `classification_pattern`     | Regex para extraer tags de ruteo de la respuesta                                               |
+| `silent`                     | `true` = nodo interno: respuesta SOLO a `output_variable`, sin mensaje al usuario ni streaming |
+| `system_prompt_extra`        | Template sumado al system prompt en cada ejecución (vacío al resolver → no agrega nada)        |
+| `disable_tools_if`           | Reglas deterministas para no bindear tools según el estado                                     |
+| `set_variables_on_tool_call` | `{tool: {var: valor}}` — variables deterministas al llamar la tool                             |
 
 ### `tool`
+
 Ejecuta una función de una tool instance directamente, sin LLM. `params`
 soporta templates.
 
@@ -107,6 +109,7 @@ soporta templates.
   posterior deba ver el resultado (evita exponerle detalles internos al LLM).
 
 ### `condition`
+
 Nodo de PRIMERA CLASE con puertos de salida. Modos: `switch` (campo → branches),
 `rules` (primera regla que matchea), `router` (ruteo multi-intent con fan-out,
 `fallback`, `lock_node`, `synthesizer_node`, `end_node`).
@@ -115,9 +118,11 @@ Nodo de PRIMERA CLASE con puertos de salida. Modos: `switch` (campo → branches
   único de finalización para colgar cadenas post-turno.
 
 ### `set_variables`
+
 Setea variables (con templates) sin llamar al LLM.
 
 ### `synthesizer`
+
 Convergencia del fan-out: combina `specialist_outputs` en una respuesta única.
 Config: `set_variables` (al terminar), `system_prompt_extra`.
 
@@ -156,13 +161,13 @@ produce `set_variables_on_tool_call` + el grafo:
 
 Cada agente define su LLM. Campos:
 
-| Campo | Notas |
-|---|---|
-| `model` | requerido (id del modelo, p.ej. `gpt-5.6-luna`) |
-| `temperature` | **opcional**: si se omite, no se envía al proveedor (necesario para modelos reasoning que rechazan `temperature != 1`) |
-| `model_params` | objeto con params específicos del proveedor, mergeados como `model_kwargs` del LLM. Genérico: p.ej. `{"reasoning_effort":"none"}`, `{"verbosity":"low"}`. Agregar uno nuevo NO requiere cambios de código |
-| `system_prompt`, `max_tokens`, `fallbacks`, `max_retries`, `timeout`, `api_base` | estándar |
-| `signal_tools` | ver sección anterior |
+| Campo                                                                            | Notas                                                                                                                                                                                                     |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `model`                                                                          | requerido (id del modelo, p.ej. `gpt-5.6-luna`)                                                                                                                                                           |
+| `temperature`                                                                    | **opcional**: si se omite, no se envía al proveedor (necesario para modelos reasoning que rechazan `temperature != 1`)                                                                                    |
+| `model_params`                                                                   | objeto con params específicos del proveedor, mergeados como `model_kwargs` del LLM. Genérico: p.ej. `{"reasoning_effort":"none"}`, `{"verbosity":"low"}`. Agregar uno nuevo NO requiere cambios de código |
+| `system_prompt`, `max_tokens`, `fallbacks`, `max_retries`, `timeout`, `api_base` | estándar                                                                                                                                                                                                  |
+| `signal_tools`                                                                   | ver sección anterior                                                                                                                                                                                      |
 
 ```json
 "agents": {

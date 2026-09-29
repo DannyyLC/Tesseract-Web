@@ -220,35 +220,35 @@ export function InfiniteSelect({
                   </div>
                 )}
                 <div className="overflow-y-auto py-1">
-                {options.length === 0 && !isLoading ? (
-                  <div className="px-3 py-2 text-center text-sm text-text-secondary">
-                    Sin opciones
-                  </div>
-                ) : (
-                  options.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        onChange(option.value);
-                        setIsOpen(false);
-                      }}
-                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-surface-secondary"
-                    >
-                      <span className="truncate pr-2">{option.label}</span>
-                      {value === option.value && (
-                        <Check size={16} className="shrink-0 text-accent" />
-                      )}
-                    </button>
-                  ))
-                )}
+                  {options.length === 0 && !isLoading ? (
+                    <div className="px-3 py-2 text-center text-sm text-text-secondary">
+                      Sin opciones
+                    </div>
+                  ) : (
+                    options.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          onChange(option.value);
+                          setIsOpen(false);
+                        }}
+                        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-surface-secondary"
+                      >
+                        <span className="truncate pr-2">{option.label}</span>
+                        {value === option.value && (
+                          <Check size={16} className="shrink-0 text-accent" />
+                        )}
+                      </button>
+                    ))
+                  )}
 
-                {/* Elemento final para Infinite Scroll */}
-                {hasNextPage && (
-                  <div ref={loadMoreRef} className="py-2 text-center text-xs text-text-secondary">
-                    {isFetchingNextPage ? tShared('loadingMore') : ''}
-                  </div>
-                )}
+                  {/* Elemento final para Infinite Scroll */}
+                  {hasNextPage && (
+                    <div ref={loadMoreRef} className="py-2 text-center text-xs text-text-secondary">
+                      {isFetchingNextPage ? tShared('loadingMore') : ''}
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}

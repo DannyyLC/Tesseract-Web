@@ -217,7 +217,9 @@ export function RequestWorkflowConnectionModal({
             className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-text-inverse disabled:opacity-50"
           >
             {requestWorkflowConnection.isPending && <Loader2 size={16} className="animate-spin" />}
-            {requestWorkflowConnection.isPending ? t('requestingConnection') : t('requestConnection')}
+            {requestWorkflowConnection.isPending
+              ? t('requestingConnection')
+              : t('requestConnection')}
           </button>
         </div>
       </div>

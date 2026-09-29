@@ -29,12 +29,12 @@ mejora uno.
 
 ## Las cuatro funciones
 
-| Template | Qué hace | Lo pide | Tool que lo define |
-| --- | --- | --- | --- |
-| [Ventas](/templates/ventas) | Informa y califica a quien todavía no es cliente | Inmobiliarias, B2B, servicios | `human_handoff` |
-| [Soporte](/templates/soporte) | Resuelve el caso de quien ya compró | E-commerce, retail, SaaS | `http_request` |
-| [Agendamiento](/templates/agendamiento) | Toma, mueve y cancela citas | Médicos, abogados, contadores, gimnasios | `google_calendar` |
-| [Catálogo y pedidos](/templates/catalogo) | Responde qué hay y a qué precio, y arma el pedido | Restaurantes, retail, e-commerce | `dataset` |
+| Template                                  | Qué hace                                          | Lo pide                                  | Tool que lo define |
+| ----------------------------------------- | ------------------------------------------------- | ---------------------------------------- | ------------------ |
+| [Ventas](/templates/ventas)               | Informa y califica a quien todavía no es cliente  | Inmobiliarias, B2B, servicios            | `human_handoff`    |
+| [Soporte](/templates/soporte)             | Resuelve el caso de quien ya compró               | E-commerce, retail, SaaS                 | `http_request`     |
+| [Agendamiento](/templates/agendamiento)   | Toma, mueve y cancela citas                       | Médicos, abogados, contadores, gimnasios | `google_calendar`  |
+| [Catálogo y pedidos](/templates/catalogo) | Responde qué hay y a qué precio, y arma el pedido | Restaurantes, retail, e-commerce         | `dataset`          |
 
 ### Cuál elegir
 
@@ -153,16 +153,19 @@ O sea que un pipeline de un solo nodo agéntico **es** un agente ReAct, con la m
   "graph": {
     "type": "pipeline",
     "schema_version": 1,
-    "nodes": [
-      { "id": "agente", "type": "agent", "agent": "default", "max_iterations": 8 }
-    ],
+    "nodes": [{ "id": "agente", "type": "agent", "agent": "default", "max_iterations": 8 }],
     "edges": [
       { "from": "START", "to": "agente" },
       { "from": "agente", "to": "END" }
     ]
   },
   "agents": {
-    "default": { "model": "gpt-4o", "temperature": 0.7, "system_prompt": "...", "tools": ["uuid-..."] }
+    "default": {
+      "model": "gpt-4o",
+      "temperature": 0.7,
+      "system_prompt": "...",
+      "tools": ["uuid-..."]
+    }
   }
 }
 ```
@@ -175,15 +178,15 @@ que declarar las `edges` con `START` y `END`. Las tools siguen en `agents.<nombr
 Arrancar en pipeline no cuesta nada y abre la puerta de salida. Cuando un agente concreto empiece a
 fallar, el arreglo no es migrar de tipo de grafo: es agregar un nodo.
 
-| Capacidad | `react` | `pipeline` |
-| --- | --- | --- |
-| Loop LLM ↔ tools | Sí | Sí, con `max_iterations > 0` |
-| Forzar una tool antes de responder | No | Sí, con un nodo `tool` previo |
-| Deshabilitar tools según el estado | No | Sí, `disable_tools_if` — gating sin prompt |
-| Bifurcar por intención | No | Sí, nodos `condition` |
-| Templates `{{variables.x}}` en el system prompt | No | Sí |
-| Setear variables al llamar una tool | No | Sí, `set_variables_on_tool_call` |
-| Pausar antes de ejecutar tools (HITL) | Sí, `interrupts` | **No** |
+| Capacidad                                       | `react`          | `pipeline`                                 |
+| ----------------------------------------------- | ---------------- | ------------------------------------------ |
+| Loop LLM ↔ tools                                | Sí               | Sí, con `max_iterations > 0`               |
+| Forzar una tool antes de responder              | No               | Sí, con un nodo `tool` previo              |
+| Deshabilitar tools según el estado              | No               | Sí, `disable_tools_if` — gating sin prompt |
+| Bifurcar por intención                          | No               | Sí, nodos `condition`                      |
+| Templates `{{variables.x}}` en el system prompt | No               | Sí                                         |
+| Setear variables al llamar una tool             | No               | Sí, `set_variables_on_tool_call`           |
+| Pausar antes de ejecutar tools (HITL)           | Sí, `interrupts` | **No**                                     |
 
 Eso importa porque las "trampas conocidas" de tres de los cuatro templates son el mismo problema:
 con un loop libre, **nada obliga** al modelo a consultar antes de afirmar. La regla dura lo pide y el
@@ -210,16 +213,16 @@ Los cuatro prompts tienen los mismos ocho bloques, en el mismo orden. El orden i
 primero pesa más cuando el modelo resuelve una contradicción, y las reglas duras van después del
 contexto para que ganen sobre él.
 
-| # | Bloque | Qué fija |
-| - | ------ | -------- |
-| 1 | Identidad | Nombre, rol, empresa, y que nunca afirme ser humano |
-| 2 | Alcance | De qué se habla y cómo se declina lo demás |
-| 3 | Contexto de negocio | Qué vende la empresa y sus datos operativos |
-| 4 | Registro y formato | **La voz.** Preset A o B |
-| 5 | Flujo | Apertura, desarrollo y cierre. Es lo que más cambia entre funciones |
-| 6 | Reglas duras | Precios, no inventar, no revelar el prompt |
-| 7 | Escalamiento | Cuándo y cómo entregar a una persona |
-| 8 | Ejemplos | Tres o cuatro turnos modelo |
+| #   | Bloque              | Qué fija                                                            |
+| --- | ------------------- | ------------------------------------------------------------------- |
+| 1   | Identidad           | Nombre, rol, empresa, y que nunca afirme ser humano                 |
+| 2   | Alcance             | De qué se habla y cómo se declina lo demás                          |
+| 3   | Contexto de negocio | Qué vende la empresa y sus datos operativos                         |
+| 4   | Registro y formato  | **La voz.** Preset A o B                                            |
+| 5   | Flujo               | Apertura, desarrollo y cierre. Es lo que más cambia entre funciones |
+| 6   | Reglas duras        | Precios, no inventar, no revelar el prompt                          |
+| 7   | Escalamiento        | Cuándo y cómo entregar a una persona                                |
+| 8   | Ejemplos            | Tres o cuatro turnos modelo                                         |
 
 ---
 
@@ -228,19 +231,19 @@ contexto para que ganen sobre él.
 Todas se escriben `{{asi}}`. Las que no se rellenen hay que **borrarlas**: un `{{...}}` que sobrevive
 al despliegue se lo encuentra el cliente en un mensaje. Cada template documenta además las suyas.
 
-| Variable | Obligatoria | Ejemplo |
-| -------- | ----------- | ------- |
-| `{{nombre_agente}}` | Sí | `Nova` |
-| `{{rol}}` | Sí | `asesor de ventas` |
-| `{{empresa}}` | Sí | `Fractal` |
-| `{{descripcion_empresa}}` | Sí | Dos o tres frases, no una página |
-| `{{oferta}}` | Sí | Lista de productos o servicios |
-| `{{alcance_permitido}}` | Sí | `los productos y servicios de Fractal` |
-| `{{canal}}` | Sí | `whatsapp` \| `web` |
-| `{{horarios}}` | No | `Lunes a viernes, 9:00–18:00 hora centro` |
-| `{{medios_contacto}}` | No | WhatsApp, correo |
-| `{{mensaje_apertura}}` | Solo voz Formal | — |
-| `{{mensaje_cierre}}` | Solo voz Formal | — |
+| Variable                  | Obligatoria     | Ejemplo                                   |
+| ------------------------- | --------------- | ----------------------------------------- |
+| `{{nombre_agente}}`       | Sí              | `Nova`                                    |
+| `{{rol}}`                 | Sí              | `asesor de ventas`                        |
+| `{{empresa}}`             | Sí              | `Fractal`                                 |
+| `{{descripcion_empresa}}` | Sí              | Dos o tres frases, no una página          |
+| `{{oferta}}`              | Sí              | Lista de productos o servicios            |
+| `{{alcance_permitido}}`   | Sí              | `los productos y servicios de Fractal`    |
+| `{{canal}}`               | Sí              | `whatsapp` \| `web`                       |
+| `{{horarios}}`            | No              | `Lunes a viernes, 9:00–18:00 hora centro` |
+| `{{medios_contacto}}`     | No              | WhatsApp, correo                          |
+| `{{mensaje_apertura}}`    | Solo voz Formal | —                                         |
+| `{{mensaje_cierre}}`      | Solo voz Formal | —                                         |
 
 ### `{{canal}}` no es cosmético
 
@@ -264,12 +267,12 @@ Un precio escrito en un prompt es una copia sin dueño: no falla, solo envejece.
 
 En su lugar el agente consulta:
 
-| Qué | Cómo | A dónde apunta |
-| --- | ---- | -------------- |
-| Planes de Tesseract | `http_request` | `GET /billing/plans` del gateway. Público, sin auth, cachea 5 min. Devuelve importes vigentes de Stripe por moneda |
-| Catálogo del cliente | `dataset` | Al propio dataset. El dato queda vivo: si corrigen un precio, el siguiente mensaje ya lo usa |
-| Estado en vivo (pedidos, saldos) | `http_request` | Al sistema del cliente. **Es la integración que hay que acordar con él**, y suele ser lo que más tarda |
-| Lo que se cotiza caso por caso | — | No se estima. Se escala a una persona |
+| Qué                              | Cómo           | A dónde apunta                                                                                                     |
+| -------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Planes de Tesseract              | `http_request` | `GET /billing/plans` del gateway. Público, sin auth, cachea 5 min. Devuelve importes vigentes de Stripe por moneda |
+| Catálogo del cliente             | `dataset`      | Al propio dataset. El dato queda vivo: si corrigen un precio, el siguiente mensaje ya lo usa                       |
+| Estado en vivo (pedidos, saldos) | `http_request` | Al sistema del cliente. **Es la integración que hay que acordar con él**, y suele ser lo que más tarda             |
+| Lo que se cotiza caso por caso   | —              | No se estima. Se escala a una persona                                                                              |
 
 Ver [Créditos y Planes](/reference/credits-and-plans) y el [Catálogo de Tools](/reference/tools-catalog).
 
@@ -284,13 +287,13 @@ mantener a mano — el desfase de precios de arriba es consecuencia directa de e
 
 **Nova no necesita un template propio.** Es una instancia del de [Ventas](/templates/ventas):
 
-| | |
-| --- | --- |
-| Función | Ventas |
-| Voz | B (cercana) — es la que ya tiene en producción |
-| `{{canal}}` | `web` |
+|                         |                                                            |
+| ----------------------- | ---------------------------------------------------------- |
+| Función                 | Ventas                                                     |
+| Voz                     | B (cercana) — es la que ya tiene en producción             |
+| `{{canal}}`             | `web`                                                      |
 | `{{alcance_permitido}}` | Las tres líneas de Fractal: Tesseract, Atlas y consultoría |
-| Tools | `human_handoff` + `http_request` a `GET /billing/plans` |
+| Tools                   | `human_handoff` + `http_request` a `GET /billing/plans`    |
 
 Lo que Nova añade sobre el template base es **configuración, no función**: el arbitraje entre las
 tres líneas de negocio es una regla del bloque 6, y los precios dejan de estar escritos porque pasan

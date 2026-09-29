@@ -280,6 +280,28 @@ export const toolCatalogs: ToolCatalogSeed[] = [
     ],
   },
   {
+    toolName: 'http_request',
+    displayName: 'HTTP Request',
+    description:
+      'Consulta cualquier API REST. La URL base, los métodos permitidos y los headers viven en la configuración de la instancia; el modelo solo elige el path y los parámetros.',
+    provider: 'none',
+    category: 'utility',
+    icon: 'mdi:api',
+    isActive: true,
+    isInBeta: false,
+    functions: [
+      {
+        functionName: 'http_request',
+        displayName: 'Petición HTTP',
+        description:
+          'Ejecuta una petición HTTP (GET, POST, PUT, PATCH o DELETE) contra la API configurada y devuelve la respuesta.',
+        icon: 'mdi:api',
+        category: 'read',
+        dangerLevel: 'WARNING',
+      },
+    ],
+  },
+  {
     // Los nombres de funcion son ESTATICOS a proposito. El registry de agents les agrega el
     // sufijo del displayName de cada instancia (search_dataset -> search_dataset_Datos_Vehiculos),
     // asi que un solo juego de funciones sirve para todos los datasets y `allowedFunctions` sigue

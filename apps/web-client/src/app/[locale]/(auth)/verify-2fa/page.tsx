@@ -9,10 +9,7 @@ import { useRouter, Link } from '@/i18n/routing';
 import Image from 'next/image';
 import { useVerify2FA, useAuth } from '@/hooks/identity/use-auth';
 import { LogoLoader } from '@/components/ui/logo-loader';
-import {
-  TwoFactorCodeInput,
-  isTwoFactorCodeComplete,
-} from '@/components/ui/two-factor-code-input';
+import { TwoFactorCodeInput, isTwoFactorCodeComplete } from '@/components/ui/two-factor-code-input';
 
 export default function Verify2FAPage() {
   const t = useTranslations('Verify2FA');
@@ -41,8 +38,8 @@ export default function Verify2FAPage() {
         toast.success(t('successToast'));
         router.push('/dashboard');
       },
-      onError: (error: any) => {
-        toast.error(error?.message || t('invalidCode'));
+      onError: (error) => {
+        toast.error(error.message || t('invalidCode'));
         setCode('');
       },
     });

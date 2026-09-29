@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
 import type {
   CreateTemplateAdminInput,
@@ -46,14 +46,21 @@ export function useAdminWhatsappMutations(organizationId: string) {
     onSuccess: invalidateList,
   });
 
-  return { createConfig, updateConfig, deleteConfig, setActive };
+  const approve = useMutation({
+    mutationFn: async (id: string) => api().approve(organizationId, id),
+    onSuccess: invalidateList,
+  });
+
+  return { createConfig, updateConfig, deleteConfig, setActive, approve };
 }
 
 export function useAdminWhatsappTemplates(organizationId: string, configId: string | null) {
   return useQuery({
     queryKey: [KEY, 'templates', configId],
-    queryFn: async () => api().listTemplates(organizationId, configId!),
-    enabled: !!organizationId && !!configId,
+    queryFn:
+      organizationId && configId
+        ? async () => api().listTemplates(organizationId, configId)
+        : skipToken,
     retry: false,
   });
 }

@@ -46,6 +46,7 @@ import { SettingsTab } from '@/components/admin/workflows/settings-tab';
 import { TestTab } from '@/components/admin/workflows/test-tab';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '../../_styles';
+import { isToastHandled, toApiError } from '@/lib/api/api-error';
 
 type TabId = 'agents' | 'nodes' | 'graph' | 'media' | 'json' | 'test' | 'settings' | 'history';
 
@@ -172,6 +173,8 @@ function WorkflowEditor() {
       }
     }
     setDraft(structuredClone(workflow.config));
+    // Sin `t`: cambiar de idioma no debe recargar el borrador y pisar lo editado en pantalla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflow, loadedVersion, workflowId]);
 
   const isDirty = useMemo(
@@ -195,7 +198,13 @@ function WorkflowEditor() {
   const tLint = useTranslations('Admin.LintConfig');
   const lintIssues = useMemo(
     () =>
-      draft ? lintConfig(draft, (workflow?.tenantTools ?? []).map((tool) => tool.id), tLint) : [],
+      draft
+        ? lintConfig(
+            draft,
+            (workflow?.tenantTools ?? []).map((tool) => tool.id),
+            tLint,
+          )
+        : [],
     [draft, workflow, tLint],
   );
   const lintErrors = lintIssues.filter((i) => i.severity === 'error');
@@ -240,7 +249,7 @@ function WorkflowEditor() {
           if (result.valid) toast.success(t('configValid'));
           else toast.error(t('validationIssues', { count: result.errors.length }));
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -252,14 +261,14 @@ function WorkflowEditor() {
         id: workflowId,
         input: {
           config: draft,
-          expectedVersion: loadedVersion!,
+          expectedVersion: loadedVersion,
           expectedHash: loadedHash ?? undefined,
           note: note.trim() || undefined,
         },
       },
       {
         onSuccess: (result) => {
-          localStorage.removeItem(draftKey(workflowId, loadedVersion!));
+          localStorage.removeItem(draftKey(workflowId, loadedVersion));
           setSaveOpen(false);
           setNote('');
 
@@ -276,9 +285,10 @@ function WorkflowEditor() {
             toast.info(t('nothingToSave'));
           }
         },
-        onError: (e: any) => {
-          if (e?.toastHandled) return;
-          const status = e?.response?.status ?? e?.statusCode;
+        onError: (e) => {
+          const error = toApiError(e);
+          if (error.toastHandled) return;
+          const status = error.response?.status;
           if (status === 409) {
             toast.error(t('conflictError'), { duration: 10000 });
             return;
@@ -309,7 +319,7 @@ function WorkflowEditor() {
         que las pestañas sigan a mano en un documento largo. En móvil arranca bajo el
         header del layout (h-14); en escritorio no hay header, así que va a top-0.
       */}
-      <div className="sticky top-14 z-20 -mx-4 -mt-4 mb-4 border-b border-border bg-surface/95 backdrop-blur md:-mx-6 md:-mt-6 lg:top-0 lg:-mx-8 lg:-mt-8">
+      <div className="bg-surface/95 sticky top-14 z-20 -mx-4 -mt-4 mb-4 border-b border-border backdrop-blur md:-mx-6 md:-mt-6 lg:top-0 lg:-mx-8 lg:-mt-8">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 pt-3 md:px-6 lg:px-8">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
             <h1 className="text-base font-semibold text-text-primary">{workflow.name}</h1>
@@ -329,7 +339,7 @@ function WorkflowEditor() {
           {/* Solo informativo — las acciones (Guardar/Descartar/Validar/Ver cambios)
               viven todas juntas abajo, en la barra sticky. Un solo lugar. */}
           {isDirty && (
-            <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs text-accent">
+            <span className="bg-accent/15 rounded-full px-2.5 py-1 text-xs text-accent">
               {t('unsavedChanges', { count: changes.length })}
             </span>
           )}
@@ -355,7 +365,7 @@ function WorkflowEditor() {
       </div>
 
       {lintErrors.length > 0 && (
-        <div className="mb-4 space-y-1 rounded-lg border border-danger/40 p-3">
+        <div className="border-danger/40 mb-4 space-y-1 rounded-lg border p-3">
           <p className="flex items-center gap-1 text-xs font-medium text-danger">
             <AlertTriangle size={13} /> {t('brokenReferences', { count: lintErrors.length })}
           </p>
@@ -400,7 +410,7 @@ function WorkflowEditor() {
       )}
 
       {showConfigFooter && validation && !validation.valid && (
-        <div className="mt-4 space-y-1 rounded-lg border border-danger/40 p-3">
+        <div className="border-danger/40 mt-4 space-y-1 rounded-lg border p-3">
           <p className="text-xs font-medium text-danger">
             {t('serverValidationIssues', { count: validation.errors.length })}
           </p>
@@ -426,7 +436,7 @@ function WorkflowEditor() {
         solo confundían.
       */}
       {showConfigFooter && (
-        <div className="fixed inset-x-0 bottom-0 z-20 h-16 border-t border-border bg-surface/95 px-4 backdrop-blur transition-[left] duration-300 md:px-6 lg:left-[var(--admin-sidebar-w)] lg:px-8">
+        <div className="bg-surface/95 fixed inset-x-0 bottom-0 z-20 h-16 border-t border-border px-4 backdrop-blur transition-[left] duration-300 md:px-6 lg:left-[var(--admin-sidebar-w)] lg:px-8">
           {/*
             `flex-nowrap` + `overflow-x-auto` y no `flex-wrap`: con varios botones, en
             cuanto el ancho disponible bajaba un poco (aparece la scrollbar, se achica la
@@ -436,7 +446,7 @@ function WorkflowEditor() {
           */}
           <div className="flex h-full flex-nowrap items-center justify-end gap-2 overflow-x-auto">
             {validation?.valid && (
-              <span className="mr-auto inline-flex shrink-0 items-center gap-1 text-xs whitespace-nowrap text-success-500">
+              <span className="mr-auto inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-success-500">
                 <CheckCircle2 size={13} /> {t('configValid')}
               </span>
             )}
@@ -460,7 +470,7 @@ function WorkflowEditor() {
               {t('viewChanges', { count: changes.length })}
             </button>
             <button
-              className={`${btnGhost} shrink-0 whitespace-nowrap text-danger hover:bg-danger/10`}
+              className={`${btnGhost} hover:bg-danger/10 shrink-0 whitespace-nowrap text-danger`}
               onClick={() => setDiscardOpen(true)}
               disabled={!isDirty}
             >
@@ -490,12 +500,18 @@ function WorkflowEditor() {
                     <p className="text-[10px] uppercase text-text-secondary">{entry.op}</p>
                     {entry.op !== 'added' && (
                       <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-surface-secondary p-2 font-mono text-[11px] text-text-secondary">
-                        − {typeof entry.before === 'string' ? entry.before : JSON.stringify(entry.before)}
+                        −{' '}
+                        {typeof entry.before === 'string'
+                          ? entry.before
+                          : JSON.stringify(entry.before)}
                       </pre>
                     )}
                     {entry.op !== 'removed' && (
                       <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-surface-secondary p-2 font-mono text-[11px] text-text-primary">
-                        + {typeof entry.after === 'string' ? entry.after : JSON.stringify(entry.after)}
+                        +{' '}
+                        {typeof entry.after === 'string'
+                          ? entry.after
+                          : JSON.stringify(entry.after)}
                       </pre>
                     )}
                   </div>
@@ -512,7 +528,7 @@ function WorkflowEditor() {
                 {t('saveChangesHint', { count: changes.length })}
               </p>
               {lintErrors.length > 0 && (
-                <p className="rounded-lg border border-danger/40 px-3 py-2 text-xs text-danger">
+                <p className="border-danger/40 rounded-lg border px-3 py-2 text-xs text-danger">
                   {t('brokenReferencesWarning', { count: lintErrors.length })}
                 </p>
               )}

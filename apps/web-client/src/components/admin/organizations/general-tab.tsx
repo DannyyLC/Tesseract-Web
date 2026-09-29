@@ -10,6 +10,7 @@ import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { toIntlLocale } from '@/lib/intl-locale';
 import type { AdminOrganizationDetail } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import { btnGhost, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   org: AdminOrganizationDetail;
@@ -43,7 +44,7 @@ export function GeneralTab({ org }: Props) {
           toast.success(t('deactivateSuccess'));
           closeDeactivate();
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -51,7 +52,7 @@ export function GeneralTab({ org }: Props) {
   const handleReactivate = () => {
     reactivate.mutate(org.id, {
       onSuccess: () => toast.success(t('reactivateSuccess')),
-      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
     });
   };
 
@@ -87,7 +88,8 @@ export function GeneralTab({ org }: Props) {
           <div>
             <dt className="text-xs text-text-secondary">{t('users')}</dt>
             <dd className="text-sm text-text-primary">
-              {org.usage.users} / {org.planLimits.limits.maxUsers === -1 ? '∞' : org.planLimits.limits.maxUsers}
+              {org.usage.users} /{' '}
+              {org.planLimits.limits.maxUsers === -1 ? '∞' : org.planLimits.limits.maxUsers}
             </dd>
           </div>
           <div>
@@ -115,7 +117,9 @@ export function GeneralTab({ org }: Props) {
             <dt className="text-xs text-text-secondary">{t('catalogRows')}</dt>
             <dd className="text-sm text-text-primary">
               {org.usage.datasetRows} /{' '}
-              {org.planLimits.limits.maxDatasetRows === -1 ? '∞' : org.planLimits.limits.maxDatasetRows}
+              {org.planLimits.limits.maxDatasetRows === -1
+                ? '∞'
+                : org.planLimits.limits.maxDatasetRows}
             </dd>
           </div>
         </dl>
@@ -140,11 +144,7 @@ export function GeneralTab({ org }: Props) {
                 reason: org.deactivationReason ? `: ${org.deactivationReason}` : '',
               })}
             </p>
-            <button
-              className={btnGhost}
-              onClick={handleReactivate}
-              disabled={reactivate.isPending}
-            >
+            <button className={btnGhost} onClick={handleReactivate} disabled={reactivate.isPending}>
               {reactivate.isPending ? (
                 <Loader2 size={14} className="animate-spin" />
               ) : (
@@ -165,13 +165,15 @@ export function GeneralTab({ org }: Props) {
 
           <div>
             <label className={labelClass}>{t('reasonLabel')}</label>
-            <input className={inputClass} value={reason} onChange={(e) => setReason(e.target.value)} />
+            <input
+              className={inputClass}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
           </div>
 
           <div>
-            <label className={labelClass}>
-              {t('confirmLabel', { name: org.name })}
-            </label>
+            <label className={labelClass}>{t('confirmLabel', { name: org.name })}</label>
             <input
               value={confirmName}
               onChange={(e) => setConfirmName(e.target.value)}

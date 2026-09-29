@@ -48,9 +48,7 @@ const mockWebhookDedup = {
 };
 
 const mockConfigService = {
-  get: jest.fn((key: string) =>
-    key === 'STRIPE_WEBHOOK_SECRET' ? 'whsec_test_123' : undefined,
-  ),
+  get: jest.fn((key: string) => (key === 'STRIPE_WEBHOOK_SECRET' ? 'whsec_test_123' : undefined)),
 };
 
 const mockPrismaService = {
@@ -61,8 +59,7 @@ const mockPrismaService = {
 const mockOrganizationsService = {};
 
 /** Petición mínima con el rawBody que exige la verificación de firma. */
-const requestWithRawBody = (raw = '{"id":"evt_1"}') =>
-  ({ rawBody: raw }) as unknown as Request;
+const requestWithRawBody = (raw = '{"id":"evt_1"}') => ({ rawBody: raw }) as unknown as Request;
 
 const stripeEvent = { id: 'evt_1', type: 'invoice.payment_succeeded' };
 

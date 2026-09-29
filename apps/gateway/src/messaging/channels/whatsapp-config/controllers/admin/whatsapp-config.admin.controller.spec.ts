@@ -44,13 +44,15 @@ describe('WhatsappConfigAdminController', () => {
     it('crea el número cuando el workflow es de esta organización', async () => {
       mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue(null);
       mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: true });
-      mockWhatsappConfigService.createRecordAndgenerateWebhookSecret.mockResolvedValue({ id: 'c-1' });
+      mockWhatsappConfigService.createRecordAndgenerateWebhookSecret.mockResolvedValue({
+        id: 'c-1',
+      });
 
       const res = await controller.create('org-1', {
         phoneNumber: '+1',
         workflowId: 'wf-1',
         displayName: 'WhatsApp Ventas',
-      } as any);
+      });
 
       expect(mockWorkflowsService.getRoutingState).toHaveBeenCalledWith('org-1', 'wf-1');
       expect(mockWhatsappConfigService.createRecordAndgenerateWebhookSecret).toHaveBeenCalledWith(
@@ -59,6 +61,7 @@ describe('WhatsappConfigAdminController', () => {
         '+1',
         { displayName: 'WhatsApp Ventas', description: undefined },
         undefined,
+        true,
       );
       expect(res.data).toEqual({
         id: 'c-1',
@@ -93,6 +96,7 @@ describe('WhatsappConfigAdminController', () => {
           provider: 'meta',
           sessionData: { phoneNumberId: '123', appSecret: 'sec', accessToken: 'tok' },
         },
+        true,
       );
       expect(res.data).toEqual({
         id: 'c-1',
@@ -102,11 +106,13 @@ describe('WhatsappConfigAdminController', () => {
     });
 
     it('rechaza si el teléfono ya existe', async () => {
-      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({ id: 'existing' });
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
+        id: 'existing',
+      });
 
-      await expect(
-        controller.create('org-1', { phoneNumber: '+1' } as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.create('org-1', { phoneNumber: '+1' } as any)).rejects.toThrow(
+        BadRequestException,
+      );
       expect(mockWhatsappConfigService.createRecordAndgenerateWebhookSecret).not.toHaveBeenCalled();
     });
 
@@ -148,9 +154,9 @@ describe('WhatsappConfigAdminController', () => {
         organizationId: 'org-otra',
       });
 
-      await expect(
-        controller.update('org-1', 'c-1', { displayName: 'x' } as any),
-      ).rejects.toThrow(NotFoundException);
+      await expect(controller.update('org-1', 'c-1', { displayName: 'x' } as any)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockWhatsappConfigService.updateConfig).not.toHaveBeenCalled();
     });
 
@@ -162,9 +168,11 @@ describe('WhatsappConfigAdminController', () => {
       mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: true });
       mockWhatsappConfigService.updateConfig.mockResolvedValue(true);
 
-      const res = await controller.update('org-1', 'c-1', { workflowId: 'wf-2' } as any);
+      const res = await controller.update('org-1', 'c-1', { workflowId: 'wf-2' });
 
-      expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', { workflowId: 'wf-2' });
+      expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', {
+        workflowId: 'wf-2',
+      });
       expect(res.data).toBe(true);
     });
 
@@ -175,10 +183,12 @@ describe('WhatsappConfigAdminController', () => {
       });
       mockWhatsappConfigService.updateConfig.mockResolvedValue(true);
 
-      await controller.update('org-1', 'c-1', { workflowId: null } as any);
+      await controller.update('org-1', 'c-1', { workflowId: null });
 
       expect(mockWorkflowsService.getRoutingState).not.toHaveBeenCalled();
-      expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', { workflowId: null });
+      expect(mockWhatsappConfigService.updateConfig).toHaveBeenCalledWith('c-1', {
+        workflowId: null,
+      });
     });
 
     describe('credenciales de Meta', () => {
@@ -274,34 +284,40 @@ describe('WhatsappConfigAdminController', () => {
         organizationId: 'org-otra',
       });
 
-      await expect(
-        controller.createTemplate('org-1', 'c-1', { name: 't' } as any),
-      ).rejects.toThrow(NotFoundException);
+      await expect(controller.createTemplate('org-1', 'c-1', { name: 't' } as any)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockWhatsappConfigService.createTemplate).not.toHaveBeenCalled();
     });
 
     it('rechaza editar un template cuyo config es de otra organización', async () => {
-      mockWhatsappConfigService.getTemplate.mockResolvedValue({ id: 't-1', whatsAppConfigId: 'c-1' });
+      mockWhatsappConfigService.getTemplate.mockResolvedValue({
+        id: 't-1',
+        whatsAppConfigId: 'c-1',
+      });
       mockWhatsappConfigService.getWhatsappConfigById.mockResolvedValue({
         id: 'c-1',
         organizationId: 'org-otra',
       });
 
-      await expect(
-        controller.updateTemplate('org-1', 't-1', { name: 'x' } as any),
-      ).rejects.toThrow(NotFoundException);
+      await expect(controller.updateTemplate('org-1', 't-1', { name: 'x' } as any)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockWhatsappConfigService.updateTemplate).not.toHaveBeenCalled();
     });
 
     it('permite editar un template cuyo config es de la misma organización', async () => {
-      mockWhatsappConfigService.getTemplate.mockResolvedValue({ id: 't-1', whatsAppConfigId: 'c-1' });
+      mockWhatsappConfigService.getTemplate.mockResolvedValue({
+        id: 't-1',
+        whatsAppConfigId: 'c-1',
+      });
       mockWhatsappConfigService.getWhatsappConfigById.mockResolvedValue({
         id: 'c-1',
         organizationId: 'org-1',
       });
       mockWhatsappConfigService.updateTemplate.mockResolvedValue({ id: 't-1', name: 'x' });
 
-      const res = await controller.updateTemplate('org-1', 't-1', { name: 'x' } as any);
+      const res = await controller.updateTemplate('org-1', 't-1', { name: 'x' });
 
       expect(mockWhatsappConfigService.updateTemplate).toHaveBeenCalledWith('t-1', { name: 'x' });
       expect(res.data).toEqual({ id: 't-1', name: 'x' });

@@ -22,8 +22,8 @@ describe('MessengerConfigService', () => {
 
   const mockHttpService: any = { post: jest.fn(() => of({ data: {} })) };
   const mockKmsService: any = {
-    encrypt: jest.fn(async (value: string) => `enc(${value})`),
-    decrypt: jest.fn(async (value: string) => value.replace(/^enc\((.*)\)$/, '$1')),
+    encrypt: jest.fn((value: string) => Promise.resolve(`enc(${value})`)),
+    decrypt: jest.fn((value: string) => Promise.resolve(value.replace(/^enc\((.*)\)$/, '$1'))),
   };
   const mockDriveService: any = { getFilesFromPublicFolder: jest.fn() };
   const mockConversationsService: any = { addMessage: jest.fn(), update: jest.fn() };
@@ -166,9 +166,9 @@ describe('MessengerConfigService', () => {
 
     it('accepts a signature computed with the secret stored on the config', async () => {
       const payload = '{"object":"page"}';
-      expect(await service.verifySignature(payload, sign(payload, PAGE_SECRET), withOwnSecret)).toBe(
-        true,
-      );
+      expect(
+        await service.verifySignature(payload, sign(payload, PAGE_SECRET), withOwnSecret),
+      ).toBe(true);
       expect(mockKmsService.decrypt).toHaveBeenCalledWith(`enc(${PAGE_SECRET})`);
     });
 
@@ -198,9 +198,9 @@ describe('MessengerConfigService', () => {
 
     it('rejects a tampered body', async () => {
       const signature = sign('{"object":"page"}', PAGE_SECRET);
-      expect(await service.verifySignature('{"object":"instagram"}', signature, withOwnSecret)).toBe(
-        false,
-      );
+      expect(
+        await service.verifySignature('{"object":"instagram"}', signature, withOwnSecret),
+      ).toBe(false);
     });
 
     it('rejects malformed or missing headers instead of throwing', async () => {
@@ -221,15 +221,15 @@ describe('MessengerConfigService', () => {
   });
 
   describe('sanitizeOutput', () => {
-    it('strips Markdown that Messenger would render literally', async () => {
-      const res = await service.sanitizeOutput(
+    it('strips Markdown that Messenger would render literally', () => {
+      const res = service.sanitizeOutput(
         '## Título\n**negrita** y _cursiva_ y `code`\n- uno\n- dos',
       );
       expect(res).toBe('Título\nnegrita y cursiva y code\n• uno\n• dos');
     });
 
-    it('turns links into text plus url', async () => {
-      expect(await service.sanitizeOutput('[Docs](https://x.dev)')).toBe('Docs (https://x.dev)');
+    it('turns links into text plus url', () => {
+      expect(service.sanitizeOutput('[Docs](https://x.dev)')).toBe('Docs (https://x.dev)');
     });
   });
 
@@ -279,7 +279,7 @@ describe('MessengerConfigService', () => {
       await service.handleActionsDerivatedFromMetadata(
         'conv-1',
         'org-1',
-        { variables: { media_url: 'https://drive.google.com/x' } } as any,
+        { variables: { media_url: 'https://drive.google.com/x' } },
         config,
         'psid-1',
         'wf-1',
@@ -307,7 +307,7 @@ describe('MessengerConfigService', () => {
       await service.handleActionsDerivatedFromMetadata(
         'conv-1',
         'org-1',
-        { variables: { ready: 'si' } } as any,
+        { variables: { ready: 'si' } },
         config,
         'psid-1',
         'wf-1',

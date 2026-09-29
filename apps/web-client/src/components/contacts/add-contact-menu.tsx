@@ -33,12 +33,22 @@ export function AddContactMenu({ onSelectWhatsapp }: AddContactMenuProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const whatsappOption = (
+    <>
+      <Phone size={14} className="shrink-0" style={{ color: 'var(--brand-whatsapp)' }} />
+      {t('addContactWhatsapp')}
+    </>
+  );
+
+  // El menú se lee como el mismo botón que se despliega hacia abajo: mismo color, mismo ancho
+  // y pegado a él. Al abrir, la píldora pierde el redondeo de abajo y el menú lo continúa.
   return (
-    <div className="relative shrink-0" ref={containerRef}>
+    <div className="relative inline-grid shrink-0" ref={containerRef}>
       <button
         onClick={() => setIsOpen((open) => !open)}
-        className={`flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90 ${
-          isOpen ? 'ring-2 ring-border' : ''
+        aria-expanded={isOpen}
+        className={`flex items-center justify-center gap-1.5 bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-[border-radius,background-color] duration-150 hover:bg-accent-hover ${
+          isOpen ? 'rounded-t-[18px]' : 'rounded-[18px]'
         }`}
       >
         <Plus size={15} />
@@ -49,24 +59,33 @@ export function AddContactMenu({ onSelectWhatsapp }: AddContactMenuProps) {
         />
       </button>
 
+      {/* Copia invisible de la opción, en el flujo del grid: así la columna mide lo que el más
+          ancho de los dos (botón u opción) y el menú, que es absoluto, nunca queda más ancho
+          ni más angosto que el botón, en ningún idioma. */}
+      <div
+        aria-hidden
+        className="invisible flex h-0 items-center gap-2.5 overflow-hidden whitespace-nowrap px-4 text-sm font-medium"
+      >
+        {whatsappOption}
+      </div>
+
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 4, scale: 0.98 }}
-            transition={{ duration: 0.1 }}
-            className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-border bg-surface-panel p-1 shadow-lg"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.12 }}
+            className="absolute inset-x-0 top-full z-50 overflow-hidden rounded-b-[18px] border-t border-[color-mix(in_srgb,var(--text-inverse)_12%,transparent)] bg-accent shadow-lg"
           >
             <button
               onClick={() => {
                 setIsOpen(false);
                 onSelectWhatsapp();
               }}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
+              className="flex w-full items-center gap-2.5 whitespace-nowrap px-4 py-2.5 text-left text-sm font-medium text-text-inverse transition-colors hover:bg-accent-hover"
             >
-              <Phone size={14} style={{ color: 'var(--brand-whatsapp)' }} />
-              {t('addContactWhatsapp')}
+              {whatsappOption}
             </button>
           </motion.div>
         )}

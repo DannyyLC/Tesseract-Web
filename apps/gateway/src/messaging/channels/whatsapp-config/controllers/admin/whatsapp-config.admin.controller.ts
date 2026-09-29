@@ -55,7 +55,7 @@ export class WhatsappConfigAdminController {
   /** Ownership: `configId` llega en la URL, hay que confirmar que es de esta organización. */
   private async getOwnedConfigOrThrow(organizationId: string, configId: string) {
     const config = await this.whatsappConfigService.getWhatsappConfigById(configId);
-    if (!config || config.organizationId !== organizationId) {
+    if (config?.organizationId !== organizationId) {
       throw new NotFoundException('WhatsApp config not found in this organization');
     }
     return config;
@@ -74,7 +74,9 @@ export class WhatsappConfigAdminController {
     @Param('id') organizationId: string,
     @Body() dto: CreateAdminConfigDto,
   ): Promise<ApiResponse> {
-    const existing = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(dto.phoneNumber);
+    const existing = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(
+      dto.phoneNumber,
+    );
     if (existing) {
       throw new BadRequestException('A WhatsApp config with this phone number already exists');
     }
@@ -96,6 +98,8 @@ export class WhatsappConfigAdminController {
             },
           }
         : undefined,
+      // Lo da de alta un super admin, que ya sabe de quién es: nace aprobado.
+      true,
     );
     if (!record) {
       throw new BadRequestException('Failed to create WhatsApp config');
@@ -157,6 +161,19 @@ export class WhatsappConfigAdminController {
   ): Promise<ApiResponse> {
     await this.getOwnedConfigOrThrow(organizationId, configId);
     const success = await this.whatsappConfigService.updateIsActive(configId, isActive);
+    return new ApiResponseBuilder().setData(success).build();
+  }
+
+  @Patch(':configId/approve')
+  @ApiOperation({
+    summary: 'Aprobar un número dado de alta por el cliente (tras integrarlo en YCloud)',
+  })
+  async approve(
+    @Param('id') organizationId: string,
+    @Param('configId') configId: string,
+  ): Promise<ApiResponse> {
+    await this.getOwnedConfigOrThrow(organizationId, configId);
+    const success = await this.whatsappConfigService.approve(configId);
     return new ApiResponseBuilder().setData(success).build();
   }
 

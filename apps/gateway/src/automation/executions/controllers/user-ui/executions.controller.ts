@@ -11,7 +11,9 @@ import {
   Delete,
   Res,
   DefaultValuePipe,
+  ParseEnumPipe,
 } from '@nestjs/common';
+import { ExecutionStatus, TriggerType } from '@tesseract/database';
 import { ExecutionsService } from '../../executions.service';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
@@ -60,8 +62,11 @@ export class ExecutionsController {
     @Query('userId') userId: string | undefined,
     @Query('startDate') startDate: Date | undefined,
     @Query('endDate') endDate: Date | undefined,
-    @Query('status') status: string | undefined,
-    @Query('trigger') trigger: string | undefined,
+    // Validados contra el enum: un valor inválido es un 400, no un error de Prisma (500).
+    @Query('status', new ParseEnumPipe(ExecutionStatus, { optional: true }))
+    status: ExecutionStatus | undefined,
+    @Query('trigger', new ParseEnumPipe(TriggerType, { optional: true }))
+    trigger: TriggerType | undefined,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<PaginatedResponse<DashboardExecutionDto>>>> {
     const apiResponse = new ApiResponseBuilder<PaginatedResponse<DashboardExecutionDto>>();
@@ -119,7 +124,7 @@ export class ExecutionsController {
     @Query() query: ExecutionStatsQueryDto,
     @Res() res: Response,
   ) {
-    const apiResponse = new ApiResponseBuilder<any>();
+    const apiResponse = new ApiResponseBuilder<unknown>();
     const stats = await this.executionsService.getStats(user.organizationId, query.period);
     apiResponse
       .setData(stats)
@@ -135,7 +140,7 @@ export class ExecutionsController {
   @Get(':id')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getById(@CurrentUser() user: UserPayload, @Param('id') id: string, @Res() res: Response) {
-    const apiResponse = new ApiResponseBuilder<any>();
+    const apiResponse = new ApiResponseBuilder<unknown>();
     const execution = await this.executionsService.findOneForClient(id, user.organizationId);
     apiResponse
       .setData(execution)
@@ -152,7 +157,7 @@ export class ExecutionsController {
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   async cancel(@CurrentUser() user: UserPayload, @Param('id') id: string, @Res() res: Response) {
-    const apiResponse = new ApiResponseBuilder<any>();
+    const apiResponse = new ApiResponseBuilder<unknown>();
     const execution = await this.executionsService.cancel(id, user.organizationId);
     apiResponse.setData(execution).setMessage('Ejecución cancelada exitosamente').setSuccess(true);
     return res.status(HttpStatus.OK).json(apiResponse.build());

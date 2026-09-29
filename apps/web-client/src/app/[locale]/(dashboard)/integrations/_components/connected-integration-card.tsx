@@ -1,7 +1,15 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MoreVertical, Unplug, Pencil, KeyRound, Trash2, AlertTriangle, RotateCw } from 'lucide-react';
+import {
+  MoreVertical,
+  Unplug,
+  Pencil,
+  KeyRound,
+  Trash2,
+  AlertTriangle,
+  RotateCw,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toolCategoryLabel } from '@/lib/tool-category';
@@ -83,7 +91,12 @@ export function ConnectedIntegrationCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
-      className="group relative flex items-center gap-4 rounded-2xl border border-[var(--border-subtle)] bg-surface-elevated p-4 transition-shadow hover:shadow-md"
+      // Fila transparente que se enmarca al pasar el mouse, como en Contactos, Usuarios y
+      // Workflows. Una credencial rota se enmarca en danger: en reposo ya la señalan el
+      // aviso y la insignia de estado.
+      className={`group relative flex items-center gap-4 rounded-xl border border-transparent px-4 py-3.5 transition-all duration-200 hover:bg-surface-panel hover:shadow-sm ${
+        isBroken ? 'hover:border-danger-600' : 'hover:border-border'
+      }`}
     >
       {/* Icon */}
       <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--surface-tint)] text-text-primary">

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
@@ -20,6 +21,7 @@ import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { Prisma, ToolConnectionStatus, UserRole } from '@tesseract/database';
 import { ToolHealthService } from '../core/tool-health.service';
+import { errorMessage } from '@/platform/common/utils/error-message';
 
 /**
  * Campos extra que necesita el cálculo de salud de la credencial. Se piden en el
@@ -48,6 +50,18 @@ const HEALTH_SELECT = {
   },
 } as const;
 
+/** Lo que el dashboard muestra de cada tool, más lo que hace falta para calcular su salud. */
+const DASHBOARD_TOOL_SELECT = {
+  id: true,
+  displayName: true,
+  status: true,
+  isConnected: true,
+  createdAt: true,
+  createdByUserId: true,
+  allowedFunctions: true,
+  ...HEALTH_SELECT,
+} satisfies Prisma.TenantToolSelect;
+
 @Injectable()
 export class TenantToolService {
   constructor(
@@ -57,14 +71,16 @@ export class TenantToolService {
   ) {}
 
   /** Quita del payload lo que solo servía para calcular la salud. */
-  private toDashboardDto(tool: any, locale: SupportedLocale = DEFAULT_LOCALE): DashboardTenantToolDto {
+  private toDashboardDto(
+    tool: Prisma.TenantToolGetPayload<{ select: typeof DASHBOARD_TOOL_SELECT }>,
+    locale: SupportedLocale = DEFAULT_LOCALE,
+  ): DashboardTenantToolDto {
     const { credential, toolCatalog, ...rest } = tool;
-    const { functions: rawFunctions = [], displayNameEn, ...catalogRest } = toolCatalog ?? {};
+    const { functions: rawFunctions, displayNameEn, ...catalogRest } = toolCatalog;
     // Inglés opcional: si falta (NULL) se conserva el texto base en español.
-    const pick = (en: string | null | undefined, es: string) =>
-      locale === 'en' && en ? en : es;
+    const pick = (en: string | null | undefined, es: string) => (locale === 'en' && en ? en : es);
     const catalog = { ...catalogRest, displayName: pick(displayNameEn, catalogRest.displayName) };
-    const functions = rawFunctions.map(({ displayNameEn: fnEn, ...fn }: any) => ({
+    const functions = rawFunctions.map(({ displayNameEn: fnEn, ...fn }) => ({
       ...fn,
       displayName: pick(fnEn, fn.displayName),
     }));
@@ -99,16 +115,7 @@ export class TenantToolService {
           paginationAction === 'next' || paginationAction === null
             ? (pageSize ?? 10) + 1
             : -((pageSize ?? 10) + 1),
-        select: {
-          id: true,
-          displayName: true,
-          status: true,
-          isConnected: true,
-          createdAt: true,
-          createdByUserId: true,
-          allowedFunctions: true,
-          ...HEALTH_SELECT,
-        },
+        select: DASHBOARD_TOOL_SELECT,
         orderBy: { createdAt: 'desc' },
       });
       return await CursorPaginatedResponseUtils.getInstance().build(
@@ -116,8 +123,8 @@ export class TenantToolService {
         pageSize,
         paginationAction,
       );
-    } catch (error: any) {
-      this.logger.error(`Error fetching dashboard data: ${error?.message ?? 'Unknown error'}`);
+    } catch (error) {
+      this.logger.error(`Error fetching dashboard data: ${errorMessage(error)}`);
       return null;
     }
   }
@@ -182,27 +189,17 @@ export class TenantToolService {
 
   async getTenantToolById(
     id: string,
+    organizationId: string,
     locale: SupportedLocale = DEFAULT_LOCALE,
   ): Promise<DashboardTenantToolDto | null> {
     try {
-      const tenantTool = await this.prismaService.tenantTool.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          displayName: true,
-          status: true,
-          isConnected: true,
-          createdAt: true,
-          createdByUserId: true,
-          allowedFunctions: true,
-          ...HEALTH_SELECT,
-        },
+      const tenantTool = await this.prismaService.tenantTool.findFirst({
+        where: { id, organizationId },
+        select: DASHBOARD_TOOL_SELECT,
       });
       return tenantTool ? this.toDashboardDto(tenantTool, locale) : null;
-    } catch (error: any) {
-      this.logger.error(
-        `Error fetching tenant tool with ID ${id}: ${error?.message ?? 'Unknown error'}`,
-      );
+    } catch (error) {
+      this.logger.error(`Error fetching tenant tool with ID ${id}: ${errorMessage(error)}`);
       return null;
     }
   }
@@ -214,11 +211,15 @@ export class TenantToolService {
       // Fetch tool catalog to check provider
       const catalog = await this.prismaService.toolCatalog.findUnique({
         where: { id: data.toolCatalogId },
-        select: { provider: true },
+        select: { provider: true, toolName: true },
       });
 
       if (!catalog) {
         throw new NotFoundException('Tool catalog entry not found');
+      }
+
+      if (catalog.toolName === 'http_request') {
+        this.assertValidHttpRequestConfig(data.config);
       }
 
       // Only ACTIVE tools (deletedAt = null) block name reuse.
@@ -235,6 +236,10 @@ export class TenantToolService {
         throw new ConflictException('Ya existe una herramienta activa con ese nombre.');
       }
 
+      if (data.workflowId) {
+        await this.assertWorkflowsBelongToOrg([data.workflowId], organizationId);
+      }
+
       // Determine if it should be connected immediately
       // If provider is 'none', 'custom' or empty, it doesn't need OAuth
       const noAuthRequired =
@@ -247,8 +252,10 @@ export class TenantToolService {
           displayName: requestedDisplayName,
           organizationId,
           toolCatalogId: data.toolCatalogId,
-          allowedFunctions: data.allowedFunctions,
-          config: data.config,
+          // Json de Prisma: null no se acepta tal cual (sería Prisma.JsonNull); ausente o null
+          // significa "sin restricción de funciones" y se deja la columna en su default.
+          allowedFunctions: data.allowedFunctions ?? undefined,
+          config: data.config as Prisma.InputJsonObject | undefined,
           createdByUserId: userId,
           isConnected: noAuthRequired,
           status: noAuthRequired
@@ -260,12 +267,12 @@ export class TenantToolService {
         },
       });
       return tenantTool;
-    } catch (error: any) {
-      if (error?.code === 'P2002') {
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException('Ya existe una herramienta activa con ese nombre.');
       }
 
-      this.logger.error(`Error creating tenant tool: ${error?.message ?? 'Unknown error'}`);
+      this.logger.error(`Error creating tenant tool: ${errorMessage(error)}`);
       throw error;
     }
   }
@@ -296,10 +303,8 @@ export class TenantToolService {
           displayName: data.displayName,
         },
       });
-    } catch (error: any) {
-      this.logger.error(
-        `Error updating tenant tool with ID ${id}: ${error?.message ?? 'Unknown error'}`,
-      );
+    } catch (error) {
+      this.logger.error(`Error updating tenant tool with ID ${id}: ${errorMessage(error)}`);
       return null;
     }
   }
@@ -323,6 +328,8 @@ export class TenantToolService {
       throw new ForbiddenException('No tienes permisos para modificar esta herramienta');
     }
 
+    await this.assertWorkflowsBelongToOrg(workflowIds, orgId);
+
     try {
       return await this.prismaService.tenantTool.update({
         where: { id: tenantToolId },
@@ -332,9 +339,9 @@ export class TenantToolService {
           },
         },
       });
-    } catch (error: any) {
+    } catch (error) {
       this.logger.error(
-        `Error adding workflows to tenant tool with ID ${tenantToolId}: ${error?.message ?? 'Unknown error'}`,
+        `Error adding workflows to tenant tool with ID ${tenantToolId}: ${errorMessage(error)}`,
       );
       return null;
     }
@@ -359,6 +366,8 @@ export class TenantToolService {
       throw new ForbiddenException('No tienes permisos para modificar esta herramienta');
     }
 
+    await this.assertWorkflowsBelongToOrg(workflowIds, orgId);
+
     try {
       return await this.prismaService.tenantTool.update({
         where: { id: tenantToolId },
@@ -368,9 +377,9 @@ export class TenantToolService {
           },
         },
       });
-    } catch (error: any) {
+    } catch (error) {
       this.logger.error(
-        `Error removing workflows from tenant tool with ID ${tenantToolId}: ${error?.message ?? 'Unknown error'}`,
+        `Error removing workflows from tenant tool with ID ${tenantToolId}: ${errorMessage(error)}`,
       );
       return null;
     }
@@ -520,17 +529,16 @@ export class TenantToolService {
           workflows: { connect: workflowIds.map((id) => ({ id })) },
         },
       });
-    } catch (error: any) {
-      if (error?.code === 'P2002') {
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException('Ya existe una herramienta activa con ese nombre.');
       }
       this.logger.error(
-        `Error linking workflows to WhatsApp Outbound tenant tool: ${error?.message ?? 'Unknown error'}`,
+        `Error linking workflows to WhatsApp Outbound tenant tool: ${errorMessage(error)}`,
       );
       throw error;
     }
   }
-
 
   /**
    * Executes a strict Hard-Delete on the OAuth credentials and a Soft-Delete on the tool instance.
@@ -607,5 +615,56 @@ export class TenantToolService {
         },
       });
     });
+  }
+
+  /**
+   * Los ids de workflow llegan en el body. La tool ya está acotada a la organización, pero
+   * sin esto se podía colgar de un workflow ajeno (y aparecer en su ejecución).
+   */
+  private async assertWorkflowsBelongToOrg(workflowIds: string[], organizationId: string) {
+    const uniqueIds = [...new Set(workflowIds)];
+    const count = await this.prismaService.workflow.count({
+      where: { id: { in: uniqueIds }, organizationId },
+    });
+    if (count !== uniqueIds.length) {
+      throw new NotFoundException('One or more workflows do not belong to this organization');
+    }
+  }
+
+  /**
+   * `http_request` llama a la URL que diga su config desde dentro de Google Cloud. El filtro
+   * que de verdad importa (IPs internas, metadata) vive en el servicio de agentes, que es quien
+   * resuelve y conecta; esto solo evita guardar una config que allá se va a rechazar siempre,
+   * para que el error salga al crear la tool y no a media conversación.
+   */
+  private assertValidHttpRequestConfig(config: unknown) {
+    const cfg = (config ?? {}) as Record<string, unknown>;
+
+    if (cfg.base_url !== undefined && cfg.base_url !== '') {
+      let url: URL | null = null;
+      try {
+        url = typeof cfg.base_url === 'string' ? new URL(cfg.base_url) : null;
+      } catch {
+        url = null;
+      }
+      if (url?.protocol !== 'https:' || url.username || url.password) {
+        throw new BadRequestException('base_url debe ser una URL https sin usuario ni contraseña');
+      }
+    }
+
+    const headers = cfg.default_headers;
+    if (headers !== undefined) {
+      if (typeof headers !== 'object' || headers === null || Array.isArray(headers)) {
+        throw new BadRequestException('default_headers debe ser un objeto');
+      }
+      const forbidden = Object.keys(headers).find((name) =>
+        ['host', 'metadata-flavor', 'x-google-metadata-request'].includes(
+          name.trim().toLowerCase(),
+        ),
+      );
+      if (forbidden) {
+        throw new BadRequestException(`El header ${forbidden} no se puede configurar`);
+      }
+    }
   }
 }

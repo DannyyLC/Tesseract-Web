@@ -1,4 +1,5 @@
 /**
+
  * Calcula cuánto historial cabe de verdad en una ejecución.
  *
  * `maxHistoryTokens` lo escribe una persona al configurar el workflow y nada
@@ -12,6 +13,12 @@
  * entera: ahí también viven el system prompt, las definiciones de las tools y la
  * respuesta que el modelo va a escribir, así que se reserva un margen.
  */
+
+/** Lo único que este módulo lee de cada agente de la config (JSON libre del workflow). */
+interface AgentModelConfig {
+  model?: unknown;
+  fallbacks?: unknown;
+}
 
 export interface ModelContextWindow {
   modelName: string;
@@ -52,7 +59,7 @@ export function collectConfiguredModels(config: unknown): string[] {
 
   const models = new Set<string>();
 
-  for (const agentConfig of Object.values(agents as Record<string, any>)) {
+  for (const agentConfig of Object.values(agents as Record<string, AgentModelConfig>)) {
     if (typeof agentConfig?.model === 'string' && agentConfig.model) {
       models.add(agentConfig.model);
     }

@@ -1,8 +1,3 @@
-import { SecretFieldsCipher } from '@/automation/tools/core/secret-fields-cipher.service';
-import {
-  WHATSAPP_SESSION_SECRET_FIELDS,
-  whatsappSessionContext,
-} from '@/messaging/channels/whatsapp-config/whatsapp-session-data';
 import { ExecutionsService } from '@/automation/executions/executions.service';
 import { LlmModelsService } from '@/automation/llm-models/llm-models.service';
 import { MediaPolicy, resolveMediaPolicy } from '@/automation/media-processing/media-policy';
@@ -11,10 +6,15 @@ import {
   ProcessedAttachment,
   toAttachmentInput,
 } from '@/automation/media-processing/media-processing.service';
+import { SecretFieldsCipher } from '@/automation/tools/core/secret-fields-cipher.service';
 import { CreditsService } from '@/billing/credits/credits.service';
 import { EndUsersService } from '@/identity/end-users/end-users.service';
 import { OrganizationsService } from '@/identity/organizations/organizations.service';
 import { IWBPayloadConsumer } from '@/messaging/channels/whatsapp-config/payload-consumers/wb-payload-consumer.interface';
+import {
+  WHATSAPP_SESSION_SECRET_FIELDS,
+  whatsappSessionContext,
+} from '@/messaging/channels/whatsapp-config/whatsapp-session-data';
 import { ConversationsService } from '@/messaging/conversations/conversations.service';
 import { InterventionTokenService } from '@/messaging/conversations/core/intervention-token.service';
 import {
@@ -24,6 +24,7 @@ import {
 } from '@/platform/common/exceptions';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
 import { resolveTimezone } from '@/platform/common/utils/resolve-timezone';
+import { toText } from '@/platform/common/utils/to-text';
 import {
   addDaysInZone,
   addMonthsInZone,
@@ -41,26 +42,36 @@ import { ConfigService } from '@nestjs/config';
 import {
   ChatRole,
   CompactionStatus,
+  Conversation,
   ConversationChannel,
   WorkflowCategory as DbWorkflowCategory,
+  Execution,
   ExecutionStatus,
   MessageAttachmentType,
+  Prisma,
   SubscriptionStatus,
   TriggerType,
 } from '@tesseract/database';
 import {
   DEFAULT_PAGE_SIZE,
   DashboardWorkflowDto,
+  DatasetField,
   PaginatedResponse,
   WorkflowCategory as SharedWorkflowCategory,
   WorkflowMetricsDto,
   WorkflowStatsDto,
-  getWorkflowCreditCost,
+  getWorkflowCreditCost
 } from '@tesseract/types';
-import { PassThrough } from 'stream';
+import { PassThrough, Readable } from 'stream';
 import { AgentsService } from '../agents/agents.service';
-import { UserType } from '../agents/dto/agent-execution-request.dto';
+import {
+  AgentToolInstance,
+  MessageHistoryDto,
+  UserType
+} from '../agents/dto/agent-execution-request.dto';
+import { ExecutionMetadataDto } from '../agents/dto/agent-execution-response.dto';
 import { DatasetTokenService } from '../datasets/core/dataset-token.service';
+import { TokenUsage } from '../llm-models/dto/types';
 import { ToolsService } from '../tools/core/tools.service';
 import {
   assertMaxTokensWithinCategory,
@@ -70,6 +81,7 @@ import { selectMessagesToArchive } from './compaction-window';
 import { collectConfiguredModels, resolveContextWindowBudget } from './context-window-budget';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
+import { resolvePresenceIndicators } from './presence-indicators';
 import { WorkflowConfigValidator } from './workflow-config.validator';
 
 /**
@@ -85,6 +97,43 @@ const FOLLOW_UP_REASON_VARIABLE = 'follow_up_reason';
  * Service que maneja la lógica de negocio de workflows
  * Incluye validación de límites según el plan de la organización
  */
+/**
+ * Lo que `execute()` y `executeStream()` cargan del workflow para armar el payload del agente.
+ *
+ * El filtro por `deletedAt` en las tools es la red que atrapa cualquier tool borrada que se
+ * quedó colgada de la relación: viajaría al agente con la config a medias y el runtime la
+ * descartaría, dejando al agente sin la herramienta y sin explicación.
+ */
+const WORKFLOW_FOR_EXECUTION = {
+  organization: {
+    // La zona por defecto del tenant la hereda el payload cuando el workflow no define la suya.
+    select: { id: true, name: true, plan: true, timezone: true },
+  },
+  tenantTools: {
+    where: { deletedAt: null },
+    include: { credential: true, toolCatalog: { include: { functions: true } } },
+  },
+} satisfies Prisma.WorkflowInclude;
+
+type WorkflowForPayload = Prisma.WorkflowGetPayload<{ include: typeof WORKFLOW_FOR_EXECUTION }>;
+
+/**
+ * Lee un string de la metadata del execute, que es de forma libre (la manda quien llama). Un
+ * valor que no sea string se trata como ausente en lugar de colarse donde se espera un id.
+ */
+function metadataString(
+  metadata: Record<string, unknown> | undefined,
+  key: string,
+): string | undefined {
+  const value = metadata?.[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+/** El mensaje del usuario: `input.message` si viene, o el input entero como JSON. */
+function messageFromInput(input: Record<string, unknown>): string {
+  return input?.message != null ? toText(input.message) : JSON.stringify(input);
+}
+
 @Injectable()
 export class WorkflowsService {
   private readonly logger = new Logger(WorkflowsService.name);
@@ -144,7 +193,7 @@ export class WorkflowsService {
     await this.validateConfig(dto.config);
 
     assertMaxTokensWithinCategory({
-      category: this.mapDbWorkflowCategoryToShared(dto.category as DbWorkflowCategory),
+      category: this.mapDbWorkflowCategoryToShared(dto.category),
       maxHistoryTokens: dto.maxHistoryTokens,
     });
 
@@ -168,7 +217,7 @@ export class WorkflowsService {
         description: dto.description,
         category: dto.category,
         maxHistoryTokens: dto.maxHistoryTokens,
-        config: dto.config as any,
+        config: dto.config as unknown as Prisma.InputJsonObject,
         isActive: dto.isActive ?? true,
         isPaused: dto.isPaused ?? false,
         schedule: dto.schedule,
@@ -176,7 +225,7 @@ export class WorkflowsService {
         timezone: dto.timezone ?? null,
         timeout: dto.timeout ?? 300,
         maxRetries: dto.maxRetries ?? 3,
-        triggerType: dto.triggerType ? [dto.triggerType.toUpperCase() as any] : undefined,
+        triggerType: dto.triggerType ? [dto.triggerType.toUpperCase() as TriggerType] : undefined,
         organizationId,
         // Asociar tags si se proporcionaron
         ...(dto.tagIds && {
@@ -208,7 +257,7 @@ export class WorkflowsService {
       category?: SharedWorkflowCategory;
     },
   ): Promise<PaginatedResponse<DashboardWorkflowDto>> {
-    const where: any = {
+    const where: Prisma.WorkflowWhereInput = {
       organizationId,
       deletedAt: null,
       // Los workflows internos los crea/prueba super admin dentro de esta organización;
@@ -668,9 +717,7 @@ export class WorkflowsService {
       });
 
       assertMaxTokensWithinCategory({
-        category: this.mapDbWorkflowCategoryToShared(
-          (dto.category as DbWorkflowCategory) ?? stored.category,
-        ),
+        category: this.mapDbWorkflowCategoryToShared(dto.category ?? stored.category),
         maxHistoryTokens: dto.maxHistoryTokens ?? stored.maxHistoryTokens,
       });
     }
@@ -683,14 +730,14 @@ export class WorkflowsService {
         description: dto.description,
         category: dto.category,
         maxHistoryTokens: dto.maxHistoryTokens,
-        config: dto.config as any,
+        config: dto.config as unknown as Prisma.InputJsonObject,
         isActive: dto.isActive,
         isPaused: dto.isPaused,
         schedule: dto.schedule,
         timezone: dto.timezone,
         timeout: dto.timeout,
         maxRetries: dto.maxRetries,
-        triggerType: dto.triggerType ? [dto.triggerType.toUpperCase() as any] : undefined,
+        triggerType: dto.triggerType ? [dto.triggerType.toUpperCase() as TriggerType] : undefined,
         version: existing.version + 1, // Incrementar versión
         // Actualizar tags si se proporcionaron
         ...(dto.tagIds && {
@@ -764,18 +811,25 @@ export class WorkflowsService {
   }
 
   /**
-   * Política de media del workflow, con los defaults ya aplicados.
+   * Lo que los workers de canal necesitan saber del workflow antes de ejecutarlo, con los
+   * defaults ya aplicados: si mostrar visto/escribiendo y qué hacer con la media entrante.
    *
-   * Lee solo `config` porque quien la necesita —el worker de WhatsApp— decide con ella
-   * si vale la pena descargar y transcribir un archivo, mucho antes de ejecutar nada.
+   * Lee solo `config`, en una sola consulta, porque se usa antes del acuse de lectura y mucho
+   * antes de ejecutar nada.
    */
-  async getMediaPolicy(organizationId: string, workflowId: string): Promise<MediaPolicy> {
+  async getChannelPolicy(
+    organizationId: string,
+    workflowId: string,
+  ): Promise<{ mediaPolicy: MediaPolicy; presenceIndicators: boolean }> {
     const workflow = await this.prisma.workflow.findFirst({
       where: { id: workflowId, organizationId, deletedAt: null },
       select: { config: true },
     });
 
-    return resolveMediaPolicy(workflow?.config);
+    return {
+      mediaPolicy: resolveMediaPolicy(workflow?.config),
+      presenceIndicators: resolvePresenceIndicators(workflow?.config),
+    };
   }
 
   /**
@@ -814,8 +868,8 @@ export class WorkflowsService {
    * tal cual para procesar adjuntos.
    */
   private sanitizeMetadataForTrigger(
-    metadata?: Record<string, any>,
-  ): Record<string, any> | undefined {
+    metadata?: Record<string, unknown>,
+  ): Record<string, unknown> | undefined {
     if (!metadata?.preProcessedAttachments) {
       return metadata;
     }
@@ -831,8 +885,8 @@ export class WorkflowsService {
   async execute(
     organizationId: string,
     workflowId: string,
-    input: Record<string, any>,
-    metadata?: Record<string, any>,
+    input: Record<string, unknown>,
+    metadata?: Record<string, unknown>,
     userId?: string, // Opcional: quién ejecuta desde UI
     whatsappData?: IWBPayloadConsumer, // Opcional: datos de WhatsApp si la ejecución es por un mensaje entrante
     apiKeyId?: string, // Opcional: qué API key ejecuta
@@ -847,34 +901,7 @@ export class WorkflowsService {
         organizationId,
         deletedAt: null,
       },
-      include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            plan: true,
-            // Zona por defecto del tenant: la hereda el payload del agente cuando el
-            // workflow no define la suya.
-            timezone: true,
-          },
-        },
-        // Incluir tenantTools desde el inicio (evita query duplicado)
-        //
-        // El filtro por `deletedAt` es la red que atrapa cualquier tool borrada que se quedó
-        // colgada de la relación: viajaría al agente con la config a medias y el runtime la
-        // descartaría, dejando al agente sin la herramienta y sin explicación.
-        tenantTools: {
-          where: { deletedAt: null },
-          include: {
-            credential: true,
-            toolCatalog: {
-              include: {
-                functions: true,
-              },
-            },
-          },
-        },
-      },
+      include: WORKFLOW_FOR_EXECUTION,
     });
 
     if (!workflow) {
@@ -941,9 +968,9 @@ export class WorkflowsService {
     this.logger.log(`Iniciando ejecución ${execution.id} para workflow ${workflowId}`);
 
     // 4. GESTIONAR CONVERSACIÓN
-    const channel = metadata?.channel ?? 'API';
-    const conversationId = metadata?.conversationId;
-    const endUserId = metadata?.endUserId;
+    const channel = metadataString(metadata, 'channel') ?? 'API';
+    const conversationId = metadataString(metadata, 'conversationId');
+    const endUserId = metadataString(metadata, 'endUserId');
     // El worker de WhatsApp procesa los adjuntos antes de llamar aquí, porque necesita
     // el texto para agregar varios mensajes en una sola respuesta. Cuando vienen, no se
     // vuelve a procesar nada.
@@ -956,7 +983,7 @@ export class WorkflowsService {
           mimeType: string;
           sourceUrl: string;
           sha256?: string;
-          metadata?: Record<string, any>;
+          metadata?: Prisma.InputJsonObject;
         }[]
       | undefined;
     let userMessage = '';
@@ -971,8 +998,13 @@ export class WorkflowsService {
           workflow.isInternal,
         );
       } else {
-        this.logger.error(`WhatsApp channel requires whatsappData for conversation management. Workflow: ${workflowId}, Execution: ${execution.id}`);
-        throw new InvalidWorkflowConfigException('WhatsApp channel requires whatsappData for conversation management', { workflowId, executionId: execution.id  });
+        this.logger.error(
+          `WhatsApp channel requires whatsappData for conversation management. Workflow: ${workflowId}, Execution: ${execution.id}`,
+        );
+        throw new InvalidWorkflowConfigException(
+          'WhatsApp channel requires whatsappData for conversation management',
+          { workflowId, executionId: execution.id },
+        );
       }
 
       // Si quien llama ya procesó los adjuntos —el worker de WhatsApp lo hace para
@@ -1042,12 +1074,13 @@ export class WorkflowsService {
         workflow.isInternal,
       );
     }
-    userMessage = input?.message ?? JSON.stringify(input);
+    userMessage = messageFromInput(input);
 
     if (preProcessedAttachments) {
       attachments = preProcessedAttachments.map(toAttachmentInput);
     } else {
-      const ocrPrompt = (workflow.config as any)?.mediaProcessing?.ocrPrompt;
+      const ocrPrompt = (workflow.config as { mediaProcessing?: { ocrPrompt?: string } } | null)
+        ?.mediaProcessing?.ocrPrompt;
 
       const processedMedia = await this.mediaProcessingService.processIncomingAttachments(
         organizationId,
@@ -1203,7 +1236,7 @@ export class WorkflowsService {
         channel,
         historyForPayload,
         compactionContext.activeSummary,
-        metadata?.whatsAppConfigId,
+        metadataString(metadata, 'whatsAppConfigId'),
         {
           client_number: whatsappData?.getFromNumber()
         }
@@ -1225,7 +1258,7 @@ export class WorkflowsService {
       if (lastMessage?.role?.toUpperCase() === ChatRole.ASSISTANT) {
         await this.conversationsService.addMessage(
           conversation.id,
-          lastMessage.role.toUpperCase() as any,
+          lastMessage.role.toUpperCase() as ChatRole,
           lastMessage.content,
         );
         assistantMessageSaved = true;
@@ -1239,7 +1272,7 @@ export class WorkflowsService {
       }
 
       // 7. EXTRAER TOKENS Y CALCULAR COSTO (multi-modelo con BATCH QUERY)
-      const responseMetadata = (agentResponse.metadata ?? {}) as any;
+      const responseMetadata: ExecutionMetadataDto = agentResponse.metadata ?? {};
 
       // Persistir el estado del workflow (ya filtrado por el servicer vía persist_variables)
       await this.persistConversationVariables(
@@ -1259,7 +1292,7 @@ export class WorkflowsService {
       if (Object.keys(usageByModel).length > 0) {
         try {
           // Convertir formato para batch query
-          const usageForBatch: Record<string, any> = {};
+          const usageForBatch: Record<string, TokenUsage> = {};
           for (const [modelName, usage] of Object.entries(usageByModel)) {
             usageForBatch[modelName] = {
               inputTokens: (usage as { input_tokens?: number })?.input_tokens ?? 0,
@@ -1283,7 +1316,9 @@ export class WorkflowsService {
         // Fallback: usar tokens totales con modelo por defecto
         const inputTokens = responseMetadata.input_tokens ?? 0;
         const outputTokens = responseMetadata.output_tokens ?? 0;
-        const modelUsed = responseMetadata.model_used ?? 'gpt-4o-mini';
+        // El motor no reporta un modelo único cuando no hay usage_by_model: se costea con el
+        // modelo por defecto.
+        const modelUsed = 'gpt-4o-mini';
 
         if (totalTokens > 0) {
           try {
@@ -1418,14 +1453,14 @@ export class WorkflowsService {
   async executeStream(
     organizationId: string,
     workflowId: string,
-    input: Record<string, any>,
-    metadata?: Record<string, any>,
+    input: Record<string, unknown>,
+    metadata?: Record<string, unknown>,
     userId?: string, // Opcional: quién ejecuta desde UI
     apiKeyId?: string, // Opcional: qué API key ejecuta
     trigger: TriggerType = TriggerType.API,
     executionId?: string, // Opcional: id ya generado por el llamador (test-execute async)
     allowInternal = false, // Solo true desde el controller admin de test-execute (ya validó isInternal con assertInternalForTesting)
-  ): Promise<NodeJS.ReadableStream> {
+  ): Promise<Readable> {
     // 1. VALIDACIONES PREVIAS (Misma lógica que execute)
     const workflow = await this.prisma.workflow.findFirst({
       where: {
@@ -1433,31 +1468,7 @@ export class WorkflowsService {
         organizationId,
         deletedAt: null,
       },
-      include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            plan: true,
-            // Zona por defecto del tenant: la hereda el payload del agente cuando el
-            // workflow no define la suya.
-            timezone: true,
-          },
-        },
-        // Mismo filtro que en execute(): una tool borrada que siguió colgada de la relación
-        // llegaría al payload con la config a medias.
-        tenantTools: {
-          where: { deletedAt: null },
-          include: {
-            credential: true,
-            toolCatalog: {
-              include: {
-                functions: true,
-              },
-            },
-          },
-        },
-      },
+      include: WORKFLOW_FOR_EXECUTION,
     });
 
     if (!workflow) {
@@ -1517,10 +1528,10 @@ export class WorkflowsService {
     this.logger.log(`Iniciando ejecución (stream) ${execution.id} para workflow ${workflowId}`);
 
     // 4. GESTIONAR CONVERSACIÓN
-    const channel = metadata?.channel ?? 'API';
-    const conversationId = metadata?.conversationId;
-    const endUserId = metadata?.endUserId;
-    const userMessage = input?.message ?? JSON.stringify(input);
+    const channel = metadataString(metadata, 'channel') ?? 'API';
+    const conversationId = metadataString(metadata, 'conversationId');
+    const endUserId = metadataString(metadata, 'endUserId');
+    const userMessage = messageFromInput(input);
 
     const conversation = await this.conversationsService.findOrCreateConversation(
       workflowId,
@@ -1655,7 +1666,7 @@ export class WorkflowsService {
         channel,
         historyForPayload,
         compactionContext.activeSummary,
-        metadata?.whatsAppConfigId,
+        metadataString(metadata, 'whatsAppConfigId'),
       );
 
       this.logger.debug(`Llamando al AgentsService (Stream)`);
@@ -1690,11 +1701,11 @@ export class WorkflowsService {
    */
   private handleStreamFilteringAndMonitoring(
     rawStream: NodeJS.ReadableStream,
-    execution: any,
-    conversation: any,
-    workflow: any,
+    execution: Pick<Execution, 'id'>,
+    conversation: Conversation,
+    workflow: WorkflowForPayload,
     organizationId: string,
-  ): NodeJS.ReadableStream {
+  ): Readable {
     // highWaterMark: 0 deshabilita el buffer interno para que cada token se envíe inmediatamente
     const clientStream = new PassThrough({ highWaterMark: 0 });
 
@@ -1710,7 +1721,7 @@ export class WorkflowsService {
       clientStream.write(': keep-alive\n\n');
     }, 15000);
 
-    let metadataEvent: any = null;
+    let metadataEvent: ExecutionMetadataDto | null = null;
     let assistantMessageBuilder = '';
     // El agente puede reportar una falla (p. ej. grafo que no compila) como un evento
     // `data` normal en vez de cortar el stream — el stream sigue y termina por
@@ -1719,16 +1730,16 @@ export class WorkflowsService {
     let agentErrorContent: string | null = null;
 
     // gRPC data events emit decoded proto objects — no SSE parsing needed
-    rawStream.on('data', (event: any) => {
+    rawStream.on('data', (event: { type?: string; content?: unknown; metadata?: string }) => {
       if (event.type === 'token') {
         clientStream.write(`data: ${JSON.stringify(event.content)}\n\n`);
-        assistantMessageBuilder += event.content ?? '';
+        assistantMessageBuilder += toText(event.content);
       } else if (event.type === 'metadata') {
         metadataEvent = event.metadata ? JSON.parse(event.metadata) : null;
       } else if (event.type === 'error') {
         agentErrorContent =
           typeof event.content === 'string' ? event.content : JSON.stringify(event.content);
-        this.logger.error(`[${execution.id}] Agent stream error: ${event.content}`);
+        this.logger.error(`[${execution.id}] Agent stream error: ${toText(event.content)}`);
       }
       // tool_start, tool_end, end: consumed silently
     });
@@ -1772,7 +1783,7 @@ export class WorkflowsService {
 
           // 3. Calcular Costos
           if (Object.keys(usageByModel).length > 0) {
-            const usageForBatch: Record<string, any> = {};
+            const usageForBatch: Record<string, TokenUsage> = {};
             for (const [modelName, usage] of Object.entries(usageByModel)) {
               usageForBatch[modelName] = {
                 inputTokens: (usage as { input_tokens?: number })?.input_tokens ?? 0,
@@ -1793,7 +1804,8 @@ export class WorkflowsService {
             // Fallback: usar tokens totales con modelo por defecto
             const inputTokens = metadataEvent?.input_tokens ?? 0;
             const outputTokens = metadataEvent?.output_tokens ?? 0;
-            const modelUsed = metadataEvent?.model_used ?? 'gpt-4o-mini';
+            // Sin usage_by_model el motor no reporta un modelo único: se costea con el default.
+            const modelUsed = 'gpt-4o-mini';
 
             if (totalTokens > 0) {
               try {
@@ -1954,22 +1966,24 @@ export class WorkflowsService {
    * @returns Payload listo para enviar al AgentsService
    */
   private async buildAgentPayload(
-    workflow: any,
-    conversation: any,
+    workflow: WorkflowForPayload,
+    conversation: Conversation,
     userMessage: string,
     userId?: string,
     channel = 'api',
-    messageHistory: any[] = [],
+    messageHistory: { role: string; content?: string | null }[] = [],
     activeSummary?: string | null,
     whatsAppConfigId?: string,
     // Datos del canal para este turno (p.ej. {client_number}). Se exponen en
-    // user_metadata (→ {{context.user_metadata.*}} en el motor) y como
-    // auto_fill_variables de send_bulk_whatsapp (variables de plantilla que el
-    // sistema llena en su posición declarada; el modelo nunca las controla).
-    channelContext?: Record<string, any>
+    // user_metadata (→ {{context.user_metadata.*}} en el motor).
+    channelContext?: Record<string, unknown>,
   ) {
     // 1. Extraer nueva estructura unificada de config
-    const config = workflow.config;
+    // JSON libre del workflow; el validador ya comprobó graph y agents al guardarlo.
+    const config = (workflow.config ?? {}) as {
+      graph?: Record<string, unknown>;
+      agents?: Record<string, unknown>;
+    };
     const graphConfig = config.graph ?? {
       type: 'react',
       config: { max_iterations: 10, allow_interrupts: false },
@@ -1977,7 +1991,7 @@ export class WorkflowsService {
     const agentsConfig = config.agents ?? {};
 
     // 2. Construir tool_instances con UUIDs como keys
-    const toolInstances: Record<string, any> = {};
+    const toolInstances: Record<string, AgentToolInstance> = {};
 
     // Obtener las credenciales descifradas de manera segura
     const credentialsMap = await this.toolsService.populateDecryptedCredentials(
@@ -1992,11 +2006,12 @@ export class WorkflowsService {
       toolInstances[toolId] = {
         tool_name: toolName,
         display_name: tenantTool.displayName,
-        config: tenantTool.config ?? {},
+        // Json de Prisma: la config de una tool siempre se guarda como objeto.
+        config: (tenantTool.config ?? {}) as Record<string, unknown>,
         // Priorizar el RBAC a nivel de auth (allowedFunctions)
         enabled_functions:
-          tenantTool.allowedFunctions ??
-          tenantTool.toolCatalog.functions.map((fn: any) => fn.functionName),
+          (tenantTool.allowedFunctions as string[] | null) ??
+          tenantTool.toolCatalog.functions.map((fn) => fn.functionName),
         credentials: credentialsMap[toolId] ?? undefined,
       };
 
@@ -2013,6 +2028,9 @@ export class WorkflowsService {
             organizationId: workflow.organizationId,
             deletedAt: null,
             isActive: true,
+            // Un número sin aprobar no envía: saldría con la llave global de YCloud hablando en
+            // nombre de un negocio que no se ha verificado que sea de esta organización.
+            approvedAt: { not: null },
             defaultWorkflowId: workflow.id,
           },
           select: { id: true, isDefaultForOutbound: true },
@@ -2044,12 +2062,17 @@ export class WorkflowsService {
 
         if (configId) {
           const wac = await this.prisma.whatsAppConfig.findFirst({
-            where: { id: configId, organizationId: workflow.organizationId },
+            // `configId` puede venir de la metadata de la ejecución: se vuelve a exigir aprobado.
+            where: {
+              id: configId,
+              organizationId: workflow.organizationId,
+              approvedAt: { not: null },
+            },
             include: { templates: { where: { isActive: true } } },
           });
 
           if (wac) {
-            const availableTemplates: Record<string, any> = {};
+            const availableTemplates: Record<string, unknown> = {};
             for (const tpl of wac.templates) {
               availableTemplates[tpl.id] = {
                 name: tpl.name,
@@ -2076,9 +2099,6 @@ export class WorkflowsService {
               phone_number_id: sessionData.phoneNumberId,
               access_token: sessionData.accessToken,
               available_templates: availableTemplates,
-              ...(channelContext && Object.keys(channelContext).length > 0
-                ? { auto_fill_variables: channelContext }
-                : {}),
             };
           } else {
             this.logger.warn(
@@ -2099,7 +2119,7 @@ export class WorkflowsService {
       // de llamada. De paso el dato queda vivo — si el cliente corrige un precio, el siguiente
       // mensaje ya lo usa.
       if (toolName === 'dataset') {
-        const datasetId = (tenantTool.config)?.dataset_id;
+        const datasetId = (tenantTool.config as { dataset_id?: string } | null)?.dataset_id;
 
         if (datasetId) {
           const dataset = await this.prisma.dataset.findFirst({
@@ -2116,7 +2136,7 @@ export class WorkflowsService {
             // del cliente y no le sirve de nada a la tool —que solo necesita saber que la columna
             // es un número—, así que no tiene por qué salir del Gateway ni acabar en los registros
             // de lo que se le envía al servicio de agentes.
-            const fields = (dataset.fields as any[])
+            const fields = (dataset.fields as unknown as (DatasetField & { deletedAt?: string })[])
               .filter((field) => !field?.deletedAt)
               .map((field) => ({
                 key: field.key,
@@ -2146,7 +2166,9 @@ export class WorkflowsService {
               ),
             };
           } else {
-            this.logger.warn(`dataset tool ${toolId}: dataset ${datasetId} no encontrado o borrado`);
+            this.logger.warn(
+              `dataset tool ${toolId}: dataset ${datasetId} no encontrado o borrado`,
+            );
           }
         } else {
           this.logger.warn(`dataset tool ${toolId}: falta dataset_id en TenantTool.config`);
@@ -2178,11 +2200,12 @@ export class WorkflowsService {
     }
 
     // 3. Filtrar tool_instances por agente según su configuración
-    const agentToolInstances: Record<string, Record<string, any>> = {};
+    const agentToolInstances: Record<string, Record<string, AgentToolInstance>> = {};
 
     for (const [agentName, agentConfig] of Object.entries(agentsConfig)) {
-      const agentTools = (agentConfig as { tools?: any[] }).tools ?? [];
-      const filtered: Record<string, any> = {};
+      const agentTools =
+        (agentConfig as { tools?: (string | { id?: string; functions?: string[] })[] }).tools ?? [];
+      const filtered: Record<string, AgentToolInstance> = {};
 
       for (const tool of agentTools) {
         if (typeof tool === 'string') {
@@ -2213,9 +2236,9 @@ export class WorkflowsService {
     }
 
     // 4. Limpiar agents_config - remover campo 'tools' (redundante, ya está en agent_tool_instances)
-    const cleanedAgentsConfig: Record<string, any> = {};
+    const cleanedAgentsConfig: Record<string, unknown> = {};
     for (const [agentName, agentConfig] of Object.entries(agentsConfig)) {
-      const { tools: _tools, ...configWithoutTools } = agentConfig as any;
+      const { tools: _tools, ...configWithoutTools } = agentConfig as Record<string, unknown>;
       cleanedAgentsConfig[agentName] = configWithoutTools;
     }
 
@@ -2254,8 +2277,7 @@ export class WorkflowsService {
 
     // Variables persistidas de la conversación (las usa el workflow para recordar estado entre
     // mensajes). El Gateway es agnóstico: solo reenvía el blob tal cual lo guardó.
-    const persistedVariables =
-      (conversation.metadata as Record<string, any>)?.variables ?? {};
+    const persistedVariables = (conversation.metadata as Record<string, unknown>)?.variables ?? {};
 
     // 7. Construir el payload final
     const payload = {
@@ -2274,7 +2296,8 @@ export class WorkflowsService {
       agent_tool_instances: agentToolInstances,
 
       // Historial y metadata
-      message_history: composedHistory,
+      // El rol viene del enum de la base (en mayúsculas); el motor lo pasa a minúsculas.
+      message_history: composedHistory as MessageHistoryDto[],
       // Alimenta `build_time_context` en apps/agents, que le dice al LLM qué hora es.
       // Antes iba 'UTC' fijo porque `workflows.timezone` traía ese default y nadie lo
       // cambiaba: los agentes respondían con seis horas de desfase a cualquier
@@ -2657,7 +2680,7 @@ export class WorkflowsService {
     } else if (Array.isArray(content)) {
       summary = content
         .filter((part) => part?.type === 'text' && part?.text)
-        .map((part) => part.text!.trim())
+        .map((part) => (part.text ?? '').trim())
         .filter(Boolean)
         .join('\n');
     }
@@ -2715,11 +2738,11 @@ export class WorkflowsService {
    * Valida la estructura del config según su tipo
    */
   /** Catálogo de tipos de nodo del motor (proxy del RPC GetNodeCatalog). */
-  async getNodeCatalog(graphType = 'pipeline'): Promise<Record<string, any>> {
+  async getNodeCatalog(graphType = 'pipeline'): Promise<Record<string, unknown>> {
     return this.agentsService.getNodeCatalog(graphType);
   }
 
-  private async validateConfig(config: any) {
+  private async validateConfig(config: unknown) {
     await this.configValidator.assert(config);
   }
 
@@ -2736,7 +2759,9 @@ export class WorkflowsService {
       case DbWorkflowCategory.ADVANCED:
         return SharedWorkflowCategory.ADVANCED;
       default:
-        throw new InvalidWorkflowConfigException(`Categoría de workflow inválida: ${category}`);
+        throw new InvalidWorkflowConfigException(
+          `Categoría de workflow inválida: ${String(category)}`,
+        );
     }
   }
 }

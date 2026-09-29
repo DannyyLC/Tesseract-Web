@@ -117,10 +117,7 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
   };
 
   const addField = () => {
-    onChange([
-      ...fields,
-      { key: '', label: '', type: 'text', order: fields.length },
-    ]);
+    onChange([...fields, { key: '', label: '', type: 'text', order: fields.length }]);
   };
 
   const removeField = (index: number) => {
@@ -196,9 +193,7 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
     const tokens = field.formula.match(/[a-z][a-z0-9_]*/g) ?? [];
 
     return [
-      ...new Set(
-        tokens.filter((token) => token !== ROUND_FUNCTION && !validKeys.has(token)),
-      ),
+      ...new Set(tokens.filter((token) => token !== ROUND_FUNCTION && !validKeys.has(token))),
     ];
   };
 
@@ -317,7 +312,9 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                           tiene que conocer las keys internas, que es lo que la UI le esconde. */}
                       {peers.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-xs text-text-tertiary">{t('formulaColumnsHint')}</span>
+                          <span className="text-xs text-text-tertiary">
+                            {t('formulaColumnsHint')}
+                          </span>
                           {peers.map((peer) => (
                             <button
                               key={peer.key}
@@ -338,7 +335,9 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                           botón solo agrega la llamada vacía al final, el cliente escribe adentro lo
                           que quiere redondear y a cuántos decimales. */}
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-xs text-text-tertiary">{t('formulaFunctionsHint')}</span>
+                        <span className="text-xs text-text-tertiary">
+                          {t('formulaFunctionsHint')}
+                        </span>
                         <button
                           type="button"
                           onClick={() =>
@@ -402,7 +401,9 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
           {t('addColumn')}
         </button>
       ) : (
-        <p className="text-xs text-text-tertiary">{t('maxColumnsReached', { max: MAX_DATASET_FIELDS })}</p>
+        <p className="text-xs text-text-tertiary">
+          {t('maxColumnsReached', { max: MAX_DATASET_FIELDS })}
+        </p>
       )}
     </div>
   );

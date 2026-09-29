@@ -40,6 +40,15 @@ function normalized(expr: Prisma.Sql): Prisma.Sql {
   return Prisma.sql`translate(lower(${expr}), 'áéíóúñü', 'aeiounu')`;
 }
 
+/** Equivalente en TS de `normalized()`, para comparar contra las opciones de un `select`. */
+function fold(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 @Injectable()
 export class DatasetQueryService {
   constructor(private readonly prismaService: PrismaService) {}
@@ -118,13 +127,19 @@ export class DatasetQueryService {
     for (const [key, values] of Object.entries(request.select ?? {})) {
       const field = byKey.get(key);
 
-      if (!field || field.type !== 'select' || values.length === 0) {
+      if (field?.type !== 'select' || values.length === 0) {
         continue;
       }
 
+      // `@>` compara exacto, pero el modelo manda a veces "toyota" o "Camión " en vez de la
+      // opción tal cual. Se lleva cada valor a su opción canónica antes de armar la contención;
+      // uno que no corresponde a ninguna viaja igual y da cero filas, que es la respuesta honesta.
+      const canonical = new Map((field.options ?? []).map((option) => [fold(option), option]));
+      const resolved = [...new Set(values.map((value) => canonical.get(fold(value)) ?? value))];
+
       // Un OR de contenciones en vez de `@> ANY(...)`: así el planner puede combinar una lectura
       // de índice por valor (BitmapOr), que con ANY sobre un array no siempre consigue.
-      const alternatives = values.map(
+      const alternatives = resolved.map(
         (value) => Prisma.sql`"data" @> ${JSON.stringify({ [key]: value })}::jsonb`,
       );
 
@@ -147,13 +162,17 @@ export class DatasetQueryService {
 
       if (range.min !== undefined && range.min !== null) {
         const bound =
-          field.type === 'number' ? Prisma.sql`${Number(range.min)}::numeric` : Prisma.sql`${String(range.min)}`;
+          field.type === 'number'
+            ? Prisma.sql`${Number(range.min)}::numeric`
+            : Prisma.sql`${String(range.min)}`;
         conditions.push(Prisma.sql`${column} >= ${bound}`);
       }
 
       if (range.max !== undefined && range.max !== null) {
         const bound =
-          field.type === 'number' ? Prisma.sql`${Number(range.max)}::numeric` : Prisma.sql`${String(range.max)}`;
+          field.type === 'number'
+            ? Prisma.sql`${Number(range.max)}::numeric`
+            : Prisma.sql`${String(range.max)}`;
         conditions.push(Prisma.sql`${column} <= ${bound}`);
       }
     }
@@ -161,7 +180,9 @@ export class DatasetQueryService {
     const query = request.query?.trim();
 
     if (query) {
-      const textFields = live.filter((field) => field.type === 'text');
+      // Las columnas `select` también entran: son texto, y quien busca "toyota" en el buscador o
+      // el modelo que mete la marca en `query` no tienen por qué saber que "Marca" es un select.
+      const textFields = live.filter((field) => field.type === 'text' || field.type === 'select');
 
       if (textFields.length > 0) {
         // "BYD M9" busca "BYD" y "M9" por separado (AND entre palabras) en vez de la frase
@@ -204,7 +225,7 @@ export class DatasetQueryService {
     const key = descending ? sortBy.slice(1) : sortBy;
     const field = liveFields(fields).find((candidate) => candidate.key === key);
 
-    if (!field || field.type === 'select') {
+    if (!field) {
       return fallback;
     }
 

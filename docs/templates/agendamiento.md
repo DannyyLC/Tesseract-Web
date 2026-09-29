@@ -205,9 +205,7 @@ La herramienta falla:
   "graph": {
     "type": "pipeline",
     "schema_version": 1,
-    "nodes": [
-      { "id": "agente", "type": "agent", "agent": "default", "max_iterations": 10 }
-    ],
+    "nodes": [{ "id": "agente", "type": "agent", "agent": "default", "max_iterations": 10 }],
     "edges": [
       { "from": "START", "to": "agente" },
       { "from": "agente", "to": "END" }
@@ -230,11 +228,11 @@ el modelo redondea y parafrasea, y una hora parafraseada es una cita perdida.
 
 `max_iterations` a 10 porque el flujo encadena consultar, a veces reconsultar otro rango, y crear.
 
-| Tool | Obligatoria | Para qué |
-| ---- | ----------- | -------- |
-| `google_calendar` | Sí | Sin ella este template no existe |
-| `human_handoff` | Sí | Bloque 7 |
-| `dataset` | No | Si los servicios y duraciones son muchos y cambian |
+| Tool              | Obligatoria | Para qué                                           |
+| ----------------- | ----------- | -------------------------------------------------- |
+| `google_calendar` | Sí          | Sin ella este template no existe                   |
+| `human_handoff`   | Sí          | Bloque 7                                           |
+| `dataset`         | No          | Si los servicios y duraciones son muchos y cambian |
 
 **Configura `timezone` en la tool**, no solo en el prompt. `TenantTool.config.timezone` es lo que
 interpreta las fechas; el default es `UTC` y con eso las citas de un cliente mexicano salen seis
@@ -244,13 +242,13 @@ horas corridas. Ver [Catálogo de Tools](/reference/tools-catalog).
 
 ## Variables propias
 
-| Variable | Obligatoria | Ejemplo |
-| -------- | ----------- | ------- |
-| `{{servicios}}` | Sí | `Consulta general (30 min) · Limpieza dental (60 min) · Ortodoncia, primera vez (45 min)` |
-| `{{reglas_agenda}}` | Sí | `Lunes a viernes 9:00–19:00 · Sábados 9:00–14:00 · No se agenda con menos de 2 horas de anticipación · Máximo 30 días hacia adelante` |
-| `{{timezone}}` | Sí | `America/Mexico_City` |
-| `{{profesional}}` | Sí | `el doctor`, `el contador`, `el abogado` |
-| `{{instrucciones_previas}}` | No | `Llega 10 minutos antes y trae identificación` |
+| Variable                    | Obligatoria | Ejemplo                                                                                                                               |
+| --------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `{{servicios}}`             | Sí          | `Consulta general (30 min) · Limpieza dental (60 min) · Ortodoncia, primera vez (45 min)`                                             |
+| `{{reglas_agenda}}`         | Sí          | `Lunes a viernes 9:00–19:00 · Sábados 9:00–14:00 · No se agenda con menos de 2 horas de anticipación · Máximo 30 días hacia adelante` |
+| `{{timezone}}`              | Sí          | `America/Mexico_City`                                                                                                                 |
+| `{{profesional}}`           | Sí          | `el doctor`, `el contador`, `el abogado`                                                                                              |
+| `{{instrucciones_previas}}` | No          | `Llega 10 minutos antes y trae identificación`                                                                                        |
 
 `{{servicios}}` **necesita duraciones**. Sin ellas el agente agenda todo con el bloque por defecto
 del calendario y encima cita a alguien de una hora sobre alguien de treinta minutos.
@@ -263,18 +261,18 @@ meses.
 
 ## Ejemplo poblado — consultorio dental
 
-| Variable | Valor |
-| -------- | ----- |
-| `{{nombre_agente}}` | Sofía |
-| `{{rol}}` | asistente de agenda |
-| `{{empresa}}` | Dental Aguas |
-| `{{servicios}}` | Consulta general (30 min) · Limpieza dental (60 min) · Ortodoncia primera vez (45 min) · Urgencia valorada (30 min) |
-| `{{reglas_agenda}}` | Lunes a viernes 9:00–19:00 · Sábados 9:00–14:00 · Mínimo 2 horas de anticipación · Máximo 30 días hacia adelante |
-| `{{timezone}}` | America/Mexico_City |
-| `{{profesional}}` | el doctor |
-| `{{instrucciones_previas}}` | Llega 10 minutos antes |
-| `{{canal}}` | whatsapp |
-| Voz | B — cercana |
+| Variable                    | Valor                                                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `{{nombre_agente}}`         | Sofía                                                                                                               |
+| `{{rol}}`                   | asistente de agenda                                                                                                 |
+| `{{empresa}}`               | Dental Aguas                                                                                                        |
+| `{{servicios}}`             | Consulta general (30 min) · Limpieza dental (60 min) · Ortodoncia primera vez (45 min) · Urgencia valorada (30 min) |
+| `{{reglas_agenda}}`         | Lunes a viernes 9:00–19:00 · Sábados 9:00–14:00 · Mínimo 2 horas de anticipación · Máximo 30 días hacia adelante    |
+| `{{timezone}}`              | America/Mexico_City                                                                                                 |
+| `{{profesional}}`           | el doctor                                                                                                           |
+| `{{instrucciones_previas}}` | Llega 10 minutos antes                                                                                              |
+| `{{canal}}`                 | whatsapp                                                                                                            |
+| Voz                         | B — cercana                                                                                                         |
 
 ```
 Paciente:  hola, quiero una limpieza

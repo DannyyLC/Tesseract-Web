@@ -18,7 +18,7 @@ export class TempTokenGuard implements CanActivate {
       throw new UnauthorizedException('Temp token required');
     }
     try {
-      const secret = this.configService.get<string>('TEMP_TOKEN_SECRET')!;
+      const secret = this.configService.getOrThrow<string>('TEMP_TOKEN_SECRET');
       const payload = this.jwtService.verify(tempToken, { secret });
       // Optionally attach payload to request for later use
       request.user = payload;

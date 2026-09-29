@@ -608,18 +608,18 @@ describe('EndUsersService', () => {
     it('should refuse a duplicate phone number within the organization', async () => {
       mockPrismaService.endUser.create.mockRejectedValue(uniqueConstraintError());
 
-      await expect(
-        service.createFromPhoneNumber(organizationId, '+5215512345678'),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.createFromPhoneNumber(organizationId, '+5215512345678')).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('should propagate errors that are not a unique constraint violation', async () => {
       const dbError = new Error('Database connection lost');
       mockPrismaService.endUser.create.mockRejectedValue(dbError);
 
-      await expect(
-        service.createFromPhoneNumber(organizationId, '+5215512345678'),
-      ).rejects.toThrow('Database connection lost');
+      await expect(service.createFromPhoneNumber(organizationId, '+5215512345678')).rejects.toThrow(
+        'Database connection lost',
+      );
     });
   });
 

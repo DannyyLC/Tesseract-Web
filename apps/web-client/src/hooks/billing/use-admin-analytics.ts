@@ -26,7 +26,8 @@ export function useAdminAnalyticsTopWorkflows(
 ) {
   return useQuery({
     queryKey: [KEY, 'top-workflows', period, metric, limit],
-    queryFn: () => RootApi.getInstance().getAnalyticsAdminApi().getTopWorkflows(period, metric, limit),
+    queryFn: () =>
+      RootApi.getInstance().getAnalyticsAdminApi().getTopWorkflows(period, metric, limit),
     staleTime: 1000 * 60,
   });
 }
@@ -40,7 +41,9 @@ export function useAdminAnalyticsOrganizationsMargin(
   return useQuery({
     queryKey: [KEY, 'organizations-margin', period, page, limit, sortBy],
     queryFn: () =>
-      RootApi.getInstance().getAnalyticsAdminApi().getOrganizationsMargin(period, page, limit, sortBy),
+      RootApi.getInstance()
+        .getAnalyticsAdminApi()
+        .getOrganizationsMargin(period, page, limit, sortBy),
     staleTime: 1000 * 60,
   });
 }

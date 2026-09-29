@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import ResetPasswordScreen from '../_components/reset-password-screen';
 
 export const metadata = {
@@ -6,5 +7,10 @@ export const metadata = {
 };
 
 export default function ResetPasswordPage() {
-  return <ResetPasswordScreen />;
+  // `useSearchParams` exige un límite de Suspense para que la página se pueda prerenderizar.
+  return (
+    <Suspense>
+      <ResetPasswordScreen />
+    </Suspense>
+  );
 }

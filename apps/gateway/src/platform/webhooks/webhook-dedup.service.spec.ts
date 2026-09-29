@@ -23,10 +23,7 @@ describe('WebhookDedupService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        WebhookDedupService,
-        { provide: PrismaService, useValue: mockPrismaService },
-      ],
+      providers: [WebhookDedupService, { provide: PrismaService, useValue: mockPrismaService }],
     }).compile();
 
     service = module.get<WebhookDedupService>(WebhookDedupService);

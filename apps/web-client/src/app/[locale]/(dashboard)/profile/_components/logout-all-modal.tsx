@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/modal';
 import { useLogoutAll } from '@/hooks/identity/use-auth';
 import { Loader2, MonitorX } from 'lucide-react';
 import { toast } from 'sonner';
+import { toApiError } from '@/lib/api/api-error';
 
 interface LogoutAllModalProps {
   isOpen: boolean;
@@ -20,7 +21,8 @@ export default function LogoutAllModal({ isOpen, onClose }: LogoutAllModalProps)
       await logoutAll.mutateAsync();
       toast.success(t('successToast'));
       onClose();
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       toast.error(error.message || t('errorToast'));
     }
   };

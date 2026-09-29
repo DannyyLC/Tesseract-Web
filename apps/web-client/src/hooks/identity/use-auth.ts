@@ -3,20 +3,9 @@ import RootApi from '@/lib/api/endpoints/root-api';
 import { useRouter } from '@/i18n/routing';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import { toApiError } from '@/lib/api/api-error';
 
-export interface User {
-  sub: string;
-  email: string;
-  name: string;
-  role: string;
-  organizationId: string;
-  organizationName: string;
-  plan: string;
-  hasPassword?: boolean;
-  twoFactorEnabled?: boolean;
-  /** Códigos de respaldo sin usar. 0 cuando el 2FA está desactivado. */
-  backupCodesRemaining?: number;
-}
+export type { AuthUser as User } from '@/lib/api/endpoints/identity/auth/auth-api';
 
 // Hook para obtener el usuario actual
 export function useAuth() {
@@ -26,7 +15,7 @@ export function useAuth() {
       const api = RootApi.getInstance().getAuthApi();
       try {
         return await api.getMe();
-      } catch (error) {
+      } catch {
         // Si falla (ej. 401), retornamos null para indicar que no hay usuario
         return null;
       }
@@ -51,7 +40,8 @@ export function useLogin() {
       try {
         const api = RootApi.getInstance().getAuthApi();
         return await api.login(credentials);
-      } catch (error: any) {
+      } catch (caught) {
+        const error = toApiError(caught);
         if (error.message === 'Invalid credentials or account inactive') {
           throw new Error('Email o contraseña incorrectos');
         }
@@ -63,22 +53,18 @@ export function useLogin() {
         throw error;
       }
     },
-    onSuccess: (response: any) => {
-      // response es ApiResponse<any> del backend
-      // Estructura esperada para login exitoso directo: response.data.user
-      // Estructura para 2FA requerido: response.data.require2FA
-
-      if (response?.data?.user) {
+    onSuccess: (response) => {
+      const data = response.data;
+      if (data && 'user' in data) {
         // Login completo (sin 2FA o tokens ya seteados)
-        queryClient.setQueryData(['auth', 'me'], response.data.user);
+        queryClient.setQueryData(['auth', 'me'], data.user);
         queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
         const queryStr = window.location.search;
         // El super admin es operador de plataforma: va a su propia área /admin,
         // no al panel de inquilino (scopeado por organización).
-        const destination =
-          response.data.user.role === 'SUPER_ADMIN' ? '/admin/dashboard' : '/dashboard';
+        const destination = data.user.role === 'SUPER_ADMIN' ? '/admin/dashboard' : '/dashboard';
         router.push(`${destination}${queryStr}`);
-      } else if (response?.data?.require2FA) {
+      } else if (data?.require2FA) {
         // 2FA requerido - redirigir a página de verificación
         router.push('/verify-2fa');
       } else {
@@ -145,7 +131,8 @@ export function useSignupStepOne() {
       const api = RootApi.getInstance().getAuthApi();
       try {
         return await api.signupStepOne(data);
-      } catch (error: any) {
+      } catch (caught) {
+        const error = toApiError(caught);
         if (error.message && error.message.includes('ThrottlerException')) {
           throw new Error(
             'Demasiados intentos fallidos. Por favor, espera antes de intentar nuevamente.',
@@ -266,7 +253,7 @@ export function useResetPasswordStepOne() {
 // Hook para Reset Password Paso 2 (Verificar código y cambiar password)
 export function useResetPasswordStepTwo() {
   return useMutation({
-    mutationFn: async (data: { verificationCode: string; newPassword: string }) => {
+    mutationFn: async (data: { email: string; verificationCode: string; newPassword: string }) => {
       const api = RootApi.getInstance().getAuthApi();
       return await api.resetPasswordStepTwo(data);
     },

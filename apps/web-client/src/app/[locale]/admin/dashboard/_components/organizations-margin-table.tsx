@@ -33,7 +33,10 @@ export function OrganizationsMarginTable({ items, page, totalPages, onPageChange
       ) : (
         <ul className="divide-y divide-border">
           {items.map((row) => (
-            <li key={row.organizationId} className="flex items-center justify-between gap-3 px-4 py-3">
+            <li
+              key={row.organizationId}
+              className="flex items-center justify-between gap-3 px-4 py-3"
+            >
               <div className="min-w-0">
                 <Link
                   href={`/admin/organizaciones/${row.organizationId}`}
@@ -52,7 +55,11 @@ export function OrganizationsMarginTable({ items, page, totalPages, onPageChange
               <div className="shrink-0 text-right">
                 <p
                   className={`text-sm font-medium ${
-                    row.marginUSD == null ? 'text-text-secondary' : row.marginUSD >= 0 ? 'text-success-500' : 'text-danger'
+                    row.marginUSD == null
+                      ? 'text-text-secondary'
+                      : row.marginUSD >= 0
+                        ? 'text-success-500'
+                        : 'text-danger'
                   }`}
                 >
                   {row.marginUSD != null ? formatUSD(row.marginUSD) : t('noPrice')}

@@ -2,6 +2,7 @@ import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ModelTier } from '@tesseract/database';
 import { Type } from 'class-transformer';
+import { QueryBoolean } from '@/platform/common/decorators/query-boolean.decorator';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@tesseract/types';
 
 export class QueryLlmModelsDto {
@@ -27,7 +28,7 @@ export class QueryLlmModelsDto {
   })
   @IsBoolean()
   @IsOptional()
-  @Type(() => Boolean)
+  @QueryBoolean()
   isActive?: boolean;
 
   @ApiPropertyOptional({

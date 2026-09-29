@@ -11,7 +11,12 @@ describe('normalizeEmail', () => {
   });
 
   it('hace que las variantes de capitalización colapsen en el mismo valor', () => {
-    const variantes = ['juan@empresa.com', 'JUAN@EMPRESA.COM', 'Juan@Empresa.com', ' jUaN@eMpReSa.CoM '];
+    const variantes = [
+      'juan@empresa.com',
+      'JUAN@EMPRESA.COM',
+      'Juan@Empresa.com',
+      ' jUaN@eMpReSa.CoM ',
+    ];
     expect(new Set(variantes.map((v) => normalizeEmail(v))).size).toBe(1);
   });
 

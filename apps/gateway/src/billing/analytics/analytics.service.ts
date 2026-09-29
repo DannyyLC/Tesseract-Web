@@ -14,6 +14,7 @@ import {
   AdminAnalyticsOrganizationsMarginResponseDto,
   AdminAnalyticsOrgMarginRowDto,
 } from './dto/admin-analytics-organizations-margin-response.dto';
+import { toText } from '@/platform/common/utils/to-text';
 
 /**
  * Zona fija de la plataforma, no por-organización. A diferencia de `ExecutionsService.getStats()`
@@ -153,7 +154,7 @@ export class AdminAnalyticsService {
       prices = await this.priceCatalogService.pricesFor(plan);
     } catch (error) {
       this.logger.warn(
-        `No se pudo consultar el precio de ${plan} en Stripe: se excluye del cálculo de margen. ${error}`,
+        `No se pudo consultar el precio de ${plan} en Stripe: se excluye del cálculo de margen. ${error instanceof Error ? error.message : toText(error)}`,
       );
       return null;
     }
@@ -191,7 +192,10 @@ export class AdminAnalyticsService {
     ]);
 
     const orgIds = Array.from(
-      new Set([...grouped.map((g) => g.organizationId), ...categoryRows.map((r) => r.organizationId)]),
+      new Set([
+        ...grouped.map((g) => g.organizationId),
+        ...categoryRows.map((r) => r.organizationId),
+      ]),
     );
     const creditValues = await this.resolveCreditValues(orgIds);
 
@@ -257,10 +261,14 @@ export class AdminAnalyticsService {
         unpricedOrganizations,
       },
       byCategory: CATEGORY_ORDER.map((category) => {
-        const bucket = byCategory.get(category)!;
+        const bucket = byCategory.get(category);
+        // Se inicializa una por categoría arriba; que falte sería un bug, no un dato.
+        if (!bucket) throw new Error(`Sin acumulador para la categoría ${category}`);
         const bucketMarginUSD = bucket.estimatedRevenueUSD - bucket.costUSD;
         const bucketMarginPct =
-          bucket.estimatedRevenueUSD > 0 ? (bucketMarginUSD / bucket.estimatedRevenueUSD) * 100 : null;
+          bucket.estimatedRevenueUSD > 0
+            ? (bucketMarginUSD / bucket.estimatedRevenueUSD) * 100
+            : null;
         return {
           category,
           executions: bucket.executions,
@@ -305,7 +313,11 @@ export class AdminAnalyticsService {
     const byDay = new Map(
       rows.map((row) => [
         row.day.toISOString().slice(0, 10),
-        { executions: Number(row.executions), costUSD: Number(row.costUSD), creditsCharged: Number(row.creditsCharged) },
+        {
+          executions: Number(row.executions),
+          costUSD: Number(row.costUSD),
+          creditsCharged: Number(row.creditsCharged),
+        },
       ]),
     );
 
@@ -328,7 +340,9 @@ export class AdminAnalyticsService {
         cursor = addDaysInZone(cursor, 1, PLATFORM_TIMEZONE);
       }
     } else {
-      for (const [date, day] of Array.from(byDay.entries()).sort(([a], [b]) => a.localeCompare(b))) {
+      for (const [date, day] of Array.from(byDay.entries()).sort(([a], [b]) =>
+        a.localeCompare(b),
+      )) {
         points.push({
           date,
           executions: day.executions,
@@ -356,14 +370,19 @@ export class AdminAnalyticsService {
       _count: { _all: true },
       // `_count.workflowId` en el orderBy (no `_all`, que aquí no es una clave válida para
       // ordenar) equivale a COUNT(*) igual: `workflowId` es la columna de agrupación, nunca nula.
-      orderBy:
-        metric === 'cost' ? { _sum: { cost: 'desc' } } : { _count: { workflowId: 'desc' } },
+      orderBy: metric === 'cost' ? { _sum: { cost: 'desc' } } : { _count: { workflowId: 'desc' } },
       take: limit,
     });
 
     const workflows = await this.prisma.workflow.findMany({
       where: { id: { in: grouped.map((g) => g.workflowId) } },
-      select: { id: true, name: true, category: true, organizationId: true, organization: { select: { name: true } } },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        organizationId: true,
+        organization: { select: { name: true } },
+      },
     });
     const workflowById = new Map(workflows.map((w) => [w.id, w]));
 
@@ -417,7 +436,10 @@ export class AdminAnalyticsService {
       const creditValueUSD = creditValues.get(row.organizationId)?.creditValueUSD ?? null;
       const estimatedRevenueUSD = creditValueUSD != null ? creditsCharged * creditValueUSD : null;
       const marginUSD = estimatedRevenueUSD != null ? estimatedRevenueUSD - costUSD : null;
-      const marginPct = marginUSD != null && estimatedRevenueUSD! > 0 ? (marginUSD / estimatedRevenueUSD!) * 100 : null;
+      const marginPct =
+        marginUSD != null && estimatedRevenueUSD != null && estimatedRevenueUSD > 0
+          ? (marginUSD / estimatedRevenueUSD) * 100
+          : null;
 
       return {
         organizationId: row.organizationId,
@@ -426,7 +448,8 @@ export class AdminAnalyticsService {
         executions: row._count._all,
         costUSD: round(costUSD, USD_DECIMALS),
         creditsCharged,
-        estimatedRevenueUSD: estimatedRevenueUSD != null ? round(estimatedRevenueUSD, USD_DECIMALS) : null,
+        estimatedRevenueUSD:
+          estimatedRevenueUSD != null ? round(estimatedRevenueUSD, USD_DECIMALS) : null,
         marginUSD: marginUSD != null ? round(marginUSD, USD_DECIMALS) : null,
         marginPct: marginPct != null ? round(marginPct, 2) : null,
       };
@@ -440,7 +463,7 @@ export class AdminAnalyticsService {
         if (b.marginPct == null) return -1;
         return a.marginPct - b.marginPct;
       }
-      const key = sortBy as 'costUSD' | 'executions';
+      const key = sortBy;
       return b[key] - a[key];
     });
 

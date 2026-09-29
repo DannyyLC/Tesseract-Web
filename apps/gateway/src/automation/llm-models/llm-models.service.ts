@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import { PrismaService } from '@/platform/database/prisma.service';
+import { Prisma } from '@tesseract/database';
 import {
   CreateLlmModelDto,
   UpdateLlmModelDto,
@@ -67,7 +68,7 @@ export class LlmModelsService {
     const { search, tier, isActive, llmCategoryId, page = 1, limit = DEFAULT_PAGE_SIZE } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.LlmModelWhereInput = {};
     if (search) {
       where.OR = [
         { provider: { contains: search, mode: 'insensitive' } },

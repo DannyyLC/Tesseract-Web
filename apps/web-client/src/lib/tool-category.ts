@@ -10,9 +10,6 @@ const KNOWN_TOOL_CATEGORIES = new Set([
 ]);
 
 /** Etiqueta traducida de una categoría; si es una que no conocemos, se muestra tal cual. */
-export function toolCategoryLabel(
-  category: string,
-  t: (key: string) => string,
-): string {
+export function toolCategoryLabel(category: string, t: (key: string) => string): string {
   return KNOWN_TOOL_CATEGORIES.has(category) ? t(`categories.${category}`) : category;
 }

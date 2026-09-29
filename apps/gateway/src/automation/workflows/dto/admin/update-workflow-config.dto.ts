@@ -13,7 +13,7 @@ export class UpdateWorkflowConfigDto {
   @ApiProperty({ description: 'Config completo del workflow' })
   @IsObject()
   @IsNotEmpty({ message: 'El config es requerido' })
-  config!: Record<string, any>;
+  config!: Record<string, unknown>;
 
   /**
    * Versión que el editor tenía cargada. Viaja al WHERE del UPDATE para que dos

@@ -102,6 +102,23 @@ export function MediaTab({ config, onChange }: Props) {
         />
       </div>
 
+      {/* Encendido por defecto: solo se guarda la excepción (`false`), así la config de los
+          workflows que no la usan no cambia. */}
+      <div className="rounded-lg border border-border p-4">
+        <Switch
+          checked={config.presenceIndicators !== false}
+          onChange={(v) =>
+            onChange(
+              v
+                ? deleteAtPath(config, ['presenceIndicators'])
+                : setAtPath(config, ['presenceIndicators'], false),
+            )
+          }
+          label={t('presenceLabel')}
+          hint={t('presenceHint')}
+        />
+      </div>
+
       <details className="rounded-lg border border-border p-4">
         <summary className="cursor-pointer text-sm font-medium text-text-primary">
           {t('userMessagesSummary')}

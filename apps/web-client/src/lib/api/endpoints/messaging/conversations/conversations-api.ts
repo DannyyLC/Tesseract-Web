@@ -112,7 +112,7 @@ class ConversationsApi {
    * Endpoint: DELETE /conversations/:id
    */
   public async remove(id: string): Promise<boolean> {
-    const result = await this.apiRequestManager.delete<ApiResponse<any>>(
+    const result = await this.apiRequestManager.delete<ApiResponse<unknown>>(
       `${ConversationsApi.BASE_URL}/${id}`,
     );
     return result.data.success;

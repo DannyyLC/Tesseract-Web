@@ -103,7 +103,9 @@ describe('formula', () => {
     });
 
     it('rechaza demasiados paréntesis anidados', () => {
-      expect(() => parseFormula(`${'('.repeat(40)}1${')'.repeat(40)}`)).toThrow(BadRequestException);
+      expect(() => parseFormula(`${'('.repeat(40)}1${')'.repeat(40)}`)).toThrow(
+        BadRequestException,
+      );
     });
 
     /**

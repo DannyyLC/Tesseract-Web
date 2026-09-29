@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { google, drive_v3 } from 'googleapis';
+import { toText } from '@/platform/common/utils/to-text';
 
 export interface DriveFileItem {
   id: string;
@@ -11,7 +12,7 @@ export interface DriveFileItem {
 
 @Injectable()
 export class GoogleDriveService {
-      private drive: drive_v3.Drive;
+  private drive: drive_v3.Drive;
 
   constructor() {
     // No private_key or client_email needed!
@@ -34,15 +35,20 @@ export class GoogleDriveService {
       const response = await this.drive.files.list({
         q: `'${folderId}' in parents and trashed=false`,
         fields: 'files(id, name, mimeType)',
-        supportsAllDrives: true,             // Fixes corporate shared drive barriers
-        includeItemsFromAllDrives: true,     // Fixes corporate shared drive barriers
+        supportsAllDrives: true, // Fixes corporate shared drive barriers
+        includeItemsFromAllDrives: true, // Fixes corporate shared drive barriers
         corpora: 'allDrives', // Tells Google to look outside your personal 'user' scope
       });
 
-      const files = response.data.files || [];
+      const files = response.data.files ?? [];
 
       // Mapeamos y clasificamos los archivos según su MimeType
-      return files.map((file) => {
+      // Sin id, nombre o tipo no hay archivo que enviar: se descartan en vez de afirmarlos.
+      const complete = files.filter(
+        (file): file is drive_v3.Schema$File & { id: string; name: string; mimeType: string } =>
+          Boolean(file.id && file.name && file.mimeType),
+      );
+      return complete.map((file) => {
         let type: 'document' | 'video' | 'unknown' = 'unknown';
 
         if (file.mimeType === 'application/pdf') {
@@ -52,16 +58,17 @@ export class GoogleDriveService {
         }
 
         return {
-          id: file.id!,
-          name: file.name!,
-          mimeType: file.mimeType!,
+          id: file.id,
+          name: file.name,
+          mimeType: file.mimeType,
           type,
           // Generamos el link de descarga directa que requiere yCloud
           downloadUrl: `https://drive.google.com/uc?export=download&id=${file.id}`,
         };
       });
-    } catch (error: BadRequestException | any) {
-      throw new BadRequestException(`Error al acceder a la carpeta: ${error?.message}`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : toText(error);
+      throw new BadRequestException(`Error al acceder a la carpeta: ${reason}`);
     }
   }
 

@@ -115,7 +115,7 @@ export function AnnouncementModal({
           {preview && onPreviewClose && (
             <button
               onClick={onPreviewClose}
-              className="absolute right-3 top-3 z-20 rounded-full bg-surface/90 p-1.5 shadow-sm backdrop-blur-sm hover:bg-surface-secondary"
+              className="bg-surface/90 absolute right-3 top-3 z-20 rounded-full p-1.5 shadow-sm backdrop-blur-sm hover:bg-surface-secondary"
               aria-label="Cerrar vista previa"
             >
               <X size={18} className="text-text-secondary" />
@@ -125,9 +125,7 @@ export function AnnouncementModal({
           {/* Header fijo. */}
           <div
             className={`flex shrink-0 items-center justify-center gap-2 py-10 ${
-              isCelebration
-                ? 'bg-gradient-to-br from-accent/20 via-accent/10 to-transparent'
-                : ''
+              isCelebration ? 'from-accent/20 via-accent/10 bg-gradient-to-br to-transparent' : ''
             }`}
           >
             {isCelebration ? (

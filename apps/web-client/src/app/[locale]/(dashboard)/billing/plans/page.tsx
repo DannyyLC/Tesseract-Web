@@ -34,6 +34,7 @@ import Loading from '@/app/[locale]/(dashboard)/loading';
 import PermissionGuard from '@/components/auth/permission-guard';
 import { triggerWowConfetti } from '@/lib/confetti';
 import { useLocale, useTranslations } from 'next-intl';
+import { toApiError } from '@/lib/api/api-error';
 
 export default function PlansPage() {
   const router = useRouter();
@@ -61,6 +62,9 @@ export default function PlansPage() {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    // Solo al montar: revisa el regreso de Stripe una vez. `router` de next-intl cambia de
+    // identidad en cada render, así que como dependencia lo correría en bucle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const { data: dashboardData, isLoading: isLoadingDashboard } = useBillingDashboard();
@@ -114,12 +118,13 @@ export default function PlansPage() {
         toast.success(t('downgradeCancelSuccess'));
         setIsCancellingDowngrade(false);
       },
-      onError: (error: any) => {
-        let msg = t('downgradeCancelError');
-        if (error?.response?.data?.message) {
-          msg = error.response.data.message;
-        }
-        toast.error(msg);
+      onError: (error) => {
+        const serverMessage = toApiError(error).response?.data?.message;
+        toast.error(
+          typeof serverMessage === 'string' && serverMessage
+            ? serverMessage
+            : t('downgradeCancelError'),
+        );
         setIsCancellingDowngrade(false);
       },
     });
@@ -209,12 +214,13 @@ export default function PlansPage() {
           setChangedPlanName(selectedPlan.name);
           setShowPlanChangeSuccess(true);
           triggerWowConfetti();
-        } catch (updateError: any) {
-          if (updateError?.response?.status === 409) {
+        } catch (caught) {
+          const updateError = toApiError(caught);
+          if (updateError.response?.status === 409) {
             await startCheckout(selectedPlan.type);
             return;
           }
-          if (updateError?.response?.data?.message === 'SUBSCRIPTION_PAST_DUE') {
+          if (updateError.response?.data?.message === 'SUBSCRIPTION_PAST_DUE') {
             const { url } = await createPortalSession.mutateAsync();
             goToStripe(url);
             return;
@@ -258,7 +264,6 @@ export default function PlansPage() {
     window.open(url, '_blank');
   };
 
-  const currentPlanDetails = plansData?.find((p) => p.type === subscription.plan);
   // Por el orden declarado del catálogo: con dos monedas un importe ya no ordena planes.
   const isUpgrade =
     !!selectedPlan && canUpgradePlan(subscription.plan as SubscriptionPlan, selectedPlan.type);
@@ -488,7 +493,7 @@ export default function PlansPage() {
           <div className="space-y-4">
             <p className="text-sm text-text-secondary">{t('countryModalIntro')}</p>
 
-            <div className="flex items-start gap-2 rounded-lg bg-warning-500/10 p-3 text-sm text-warning-600">
+            <div className="bg-warning-500/10 flex items-start gap-2 rounded-lg p-3 text-sm text-warning-600">
               <AlertCircle size={16} className="mt-0.5 shrink-0" />
               <span>{t('countryModalWarning')}</span>
             </div>

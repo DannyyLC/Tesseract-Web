@@ -166,7 +166,7 @@ export class ConversationsController {
       channels: parseChannels(channels),
     });
 
-    const items: DashboardConversationDto[] = paginatedResponse.items.map((c: any) => ({
+    const items: DashboardConversationDto[] = paginatedResponse.items.map((c) => ({
       id: c.id,
       title: c.title,
       channel: c.channel,
@@ -272,8 +272,8 @@ export class ConversationsController {
     @Param('id') id: string,
     @Body() dto: UpdateConversationDto,
     @Res() res: Response,
-  ): Promise<Response<ApiResponse<any>>> {
-    const apiResponse = new ApiResponseBuilder<any>();
+  ): Promise<Response<ApiResponse<unknown>>> {
+    const apiResponse = new ApiResponseBuilder<unknown>();
 
     const conversation = await this.conversationsService.update(user.organizationId, id, dto);
 
@@ -291,8 +291,8 @@ export class ConversationsController {
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
     @Res() res: Response,
-  ): Promise<Response<ApiResponse<any>>> {
-    const apiResponse = new ApiResponseBuilder<any>();
+  ): Promise<Response<ApiResponse<unknown>>> {
+    const apiResponse = new ApiResponseBuilder<unknown>();
 
     await this.conversationsService.remove(user.organizationId, id);
 

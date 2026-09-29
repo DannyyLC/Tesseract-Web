@@ -6,7 +6,10 @@ import { useTranslations } from 'next-intl';
 import { Loader2, Plus, Radio } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { Link } from '@/i18n/routing';
-import { useAdminWhatsappMutations, useAdminWhatsappNumbers } from '@/hooks/messaging/use-admin-whatsapp-config';
+import {
+  useAdminWhatsappMutations,
+  useAdminWhatsappNumbers,
+} from '@/hooks/messaging/use-admin-whatsapp-config';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import {
@@ -15,6 +18,7 @@ import {
   isProviderValueComplete,
   toProviderPayload,
 } from '@/components/admin/organizations/whatsapp-provider-fields';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   workflowId: string;
@@ -75,7 +79,7 @@ export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
           toast.success(t('createdSuccess'));
           closeCreate();
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };

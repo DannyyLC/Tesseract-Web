@@ -1,5 +1,6 @@
 'use client';
 
+import { TURNSTILE_SITE_KEY } from '@/lib/turnstile';
 import { useState } from 'react';
 import { ArrowRight, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,6 +10,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter, Link } from '@/i18n/routing';
 import { useResetPasswordStepOne } from '@/hooks/identity/use-auth';
 import { Turnstile } from '@marsidev/react-turnstile';
+import { toApiError } from '@/lib/api/api-error';
 
 export default function ForgotPasswordScreen() {
   const t = useTranslations('ForgotPasswordScreen');
@@ -25,8 +27,10 @@ export default function ForgotPasswordScreen() {
     try {
       await sendResetCode({ email, turnstileToken });
       toast.success(t('successToast'));
-      router.push('/reset-password');
-    } catch (error: any) {
+      // El correo viaja a la siguiente pantalla: el código solo vale junto con él.
+      router.push(`/reset-password?email=${encodeURIComponent(email)}`);
+    } catch (caught) {
+      const error = toApiError(caught);
       toast.error(error.message || t('errorToast'));
     }
   };
@@ -150,7 +154,7 @@ export default function ForgotPasswordScreen() {
 
                 <div className="flex justify-center">
                   <Turnstile
-                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                    siteKey={TURNSTILE_SITE_KEY}
                     options={{ size: 'flexible' }}
                     onSuccess={(token) => setTurnstileToken(token)}
                     onExpire={() => setTurnstileToken(null)}

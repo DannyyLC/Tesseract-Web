@@ -98,8 +98,12 @@ describe('diffConfigs', () => {
   // para nada — justo en el escenario para el que se construyó.
   it('muestra el cambio aunque esté al final de un prompt largo', () => {
     const prompt = 'Eres un asesor de ventas. '.repeat(200); // ~5 200 caracteres
-    const before = { agents: { general: { system_prompt: `${prompt}Cierra siempre con un saludo.` } } };
-    const after = { agents: { general: { system_prompt: `${prompt}Cierra siempre con una despedida formal.` } } };
+    const before = {
+      agents: { general: { system_prompt: `${prompt}Cierra siempre con un saludo.` } },
+    };
+    const after = {
+      agents: { general: { system_prompt: `${prompt}Cierra siempre con una despedida formal.` } },
+    };
 
     const [entry] = diffConfigs(before, after);
 

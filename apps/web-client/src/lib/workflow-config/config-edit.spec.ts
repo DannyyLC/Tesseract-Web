@@ -20,7 +20,15 @@ const baseConfig = () => ({
     type: 'pipeline',
     schema_version: 1,
     nodes: [
-      { id: 'check_route', type: 'condition', config: { mode: 'router', routes: { general: 'agente_general' }, fallback: 'agente_general' } },
+      {
+        id: 'check_route',
+        type: 'condition',
+        config: {
+          mode: 'router',
+          routes: { general: 'agente_general' },
+          fallback: 'agente_general',
+        },
+      },
       { id: 'agente_general', type: 'agent', agent: 'general', max_iterations: 3 },
       { id: 'notify', type: 'tool', config: { tool_instance: 'uuid-tool-1', function: 'send' } },
     ],
@@ -131,7 +139,9 @@ describe('lintConfig — referencias sin integridad referencial', () => {
   });
 
   it('detecta una tool instance que no pertenece a la organización', () => {
-    const errors = lintConfig(baseConfig(), ['otro-uuid'], testT).filter((i) => i.severity === 'error');
+    const errors = lintConfig(baseConfig(), ['otro-uuid'], testT).filter(
+      (i) => i.severity === 'error',
+    );
     expect(errors.some((e) => e.message.includes('uuid-tool-1'))).toBe(true);
   });
 

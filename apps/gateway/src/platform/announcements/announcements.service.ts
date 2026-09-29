@@ -6,7 +6,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { NotificationKind, Notification, Prisma } from '@tesseract/database';
+import {
+  NotificationKind,
+  Notification,
+  Prisma,
+  UserRole as DbUserRole,
+} from '@tesseract/database';
 import {
   DEFAULT_PAGE_SIZE,
   AdminAnnouncementDto,
@@ -75,7 +80,7 @@ export class AnnouncementsService {
         messageTemplate: dto.message,
         titleTemplateEn: dto.titleEn ?? null,
         messageTemplateEn: dto.messageEn ?? null,
-        announcementTemplate: dto.template as any,
+        announcementTemplate: dto.template,
         ctaLabel: dto.ctaLabel ?? null,
         ctaLabelEn: dto.ctaLabelEn ?? null,
         ctaUrl: dto.ctaUrl ?? null,
@@ -182,7 +187,7 @@ export class AnnouncementsService {
     const where: Prisma.UserWhereInput = {
       isActive: true,
       deletedAt: null,
-      role: { in: roles as any },
+      role: { in: roles as DbUserRole[] },
       organization: {
         isActive: true,
         deletedAt: null,
@@ -227,7 +232,9 @@ export class AnnouncementsService {
     }
 
     await this.prisma.notification.update({ where: { id }, data: { deliveredCount: delivered } });
-    this.logger.info(`AnnouncementsService - fanOut >> anuncio ${id} entregado a ${delivered} usuarios`);
+    this.logger.info(
+      `AnnouncementsService - fanOut >> anuncio ${id} entregado a ${delivered} usuarios`,
+    );
     return { delivered };
   }
 
@@ -236,7 +243,7 @@ export class AnnouncementsService {
       where: {
         isActive: true,
         deletedAt: null,
-        role: { in: roles as any },
+        role: { in: roles },
         organization: {
           isActive: true,
           deletedAt: null,
@@ -252,7 +259,9 @@ export class AnnouncementsService {
   async getById(id: string): Promise<AdminAnnouncementDto> {
     const row = await this.prisma.notification.findFirst({
       where: { id, kind: NotificationKind.ANNOUNCEMENT },
-      include: { targetOrganizations: { include: { organization: { select: { id: true, name: true } } } } },
+      include: {
+        targetOrganizations: { include: { organization: { select: { id: true, name: true } } } },
+      },
     });
     if (!row) throw new NotFoundException('Anuncio no encontrado');
     const metrics = await this.getMetrics(id);
@@ -284,7 +293,9 @@ export class AnnouncementsService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { targetOrganizations: { include: { organization: { select: { id: true, name: true } } } } },
+        include: {
+          targetOrganizations: { include: { organization: { select: { id: true, name: true } } } },
+        },
       }),
       this.prisma.notification.count({ where }),
     ]);
@@ -370,7 +381,10 @@ export class AnnouncementsService {
     );
   }
 
-  private toAdminDto(row: NotificationWithTargets, metrics?: AnnouncementMetricsDto): AdminAnnouncementDto {
+  private toAdminDto(
+    row: NotificationWithTargets,
+    metrics?: AnnouncementMetricsDto,
+  ): AdminAnnouncementDto {
     const m = metrics ?? { delivered: 0, dismissed: 0, ctaClicked: 0, read: 0 };
     return {
       id: row.id,
@@ -383,7 +397,7 @@ export class AnnouncementsService {
       ctaLabelEn: row.ctaLabelEn,
       ctaUrl: row.ctaUrl,
       targetOrganizations: row.targetOrganizations.map((t) => t.organization),
-      targetRoles: (row.targetRoles as string[]) as UserRole[],
+      targetRoles: row.targetRoles as string[] as UserRole[],
       status: this.deriveStatus(row),
       isActive: row.isActive,
       publishedAt: row.publishedAt?.toISOString() ?? null,

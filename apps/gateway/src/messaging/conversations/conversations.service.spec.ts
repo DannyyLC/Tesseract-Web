@@ -32,6 +32,9 @@ const mockPrismaService = {
   whatsAppConfig: {
     findUnique: jest.fn(),
   },
+  messengerConfig: {
+    findFirst: jest.fn(),
+  },
   endUser: {
     upsert: jest.fn(),
   },
@@ -85,7 +88,8 @@ describe('ConversationsService', () => {
   describe('findOrCreateConversation', () => {
     it('should return existing conversation if conversationId is provided and exists', async () => {
       const mockConversation = { id: 'conv-123' };
-      mockPrismaService.conversation.findUnique.mockResolvedValue(mockConversation);
+      mockPrismaService.workflow.findUnique.mockResolvedValue({ organizationId: 'org-1' });
+      mockPrismaService.conversation.findFirst.mockResolvedValue(mockConversation);
 
       const result = await service.findOrCreateConversation(
         'wf-1',
@@ -95,14 +99,37 @@ describe('ConversationsService', () => {
         'conv-123',
       );
 
-      expect(mockPrismaService.conversation.findUnique).toHaveBeenCalledWith({
-        where: { id: 'conv-123' },
+      expect(mockPrismaService.conversation.findFirst).toHaveBeenCalledWith({
+        where: { id: 'conv-123', organizationId: 'org-1' },
       });
       expect(result).toEqual(mockConversation);
     });
 
+    // El conversationId llega en la metadata del execute: quien llama lo elige.
+    it('no reutiliza una conversación de otra organización: crea una propia', async () => {
+      mockPrismaService.workflow.findUnique.mockResolvedValue({ organizationId: 'org-1' });
+      // La búsqueda filtra por org-1, así que la conversación de otro tenant no aparece.
+      mockPrismaService.conversation.findFirst.mockResolvedValue(null);
+      mockPrismaService.conversation.create.mockResolvedValue({ id: 'new-conv-1' });
+
+      const result = await service.findOrCreateConversation(
+        'wf-1',
+        'api',
+        undefined,
+        undefined,
+        'conv-de-otro-tenant',
+      );
+
+      expect(mockPrismaService.conversation.findFirst).toHaveBeenCalledWith({
+        where: { id: 'conv-de-otro-tenant', organizationId: 'org-1' },
+      });
+      expect(mockPrismaService.conversation.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ organizationId: 'org-1' }) }),
+      );
+      expect(result).toEqual({ id: 'new-conv-1' });
+    });
+
     it('should throw Error if workflow not found', async () => {
-      mockPrismaService.conversation.findUnique.mockResolvedValue(null);
       mockPrismaService.workflow.findUnique.mockResolvedValue(null);
 
       await expect(service.findOrCreateConversation('wf-1', 'api')).rejects.toThrow(
@@ -147,6 +174,33 @@ describe('ConversationsService', () => {
           data: expect.objectContaining({ isInternalWorkflow: true }),
         }),
       );
+    });
+  });
+
+  describe('findOne', () => {
+    // `id: undefined` no filtra nada en Prisma: sin la guarda devolvía la primera
+    // conversación de la organización.
+    it('rechaza un id vacío sin consultar la base', async () => {
+      await expect(service.findOne('org-1', undefined)).rejects.toThrow(NotFoundException);
+      expect(mockPrismaService.conversation.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findOrCreateConversationFromMessengerMessage', () => {
+    // El pageId es público y puede llegar en la metadata del execute: sin el filtro, un
+    // tenant podía crear conversaciones colgadas de la página (y el token) de otro.
+    it('solo resuelve páginas de la organización del workflow', async () => {
+      mockPrismaService.workflow.findUnique.mockResolvedValue({ organizationId: 'org-1' });
+      mockPrismaService.messengerConfig.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.findOrCreateConversationFromMessengerMessage('wf-1', 'page-ajena', 'psid-1'),
+      ).rejects.toThrow('Messenger config no encontrada para la página: page-ajena');
+
+      expect(mockPrismaService.messengerConfig.findFirst).toHaveBeenCalledWith({
+        where: { pageId: 'page-ajena', organizationId: 'org-1' },
+      });
+      expect(mockPrismaService.conversation.create).not.toHaveBeenCalled();
     });
   });
 

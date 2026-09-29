@@ -1,7 +1,10 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/platform/database/prisma.service';
+import { UserRole } from '@tesseract/database';
+import { OauthStateClaims, OauthStateService } from './oauth-state.service';
 import axios from 'axios';
+import { errorMessage, oauthErrorDescription } from '@/platform/common/utils/error-message';
 
 @Injectable()
 export class ToolsOauthService {
@@ -10,11 +13,12 @@ export class ToolsOauthService {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly oauthState: OauthStateService,
   ) {}
 
   /**
    * Genera la URL de autorización de Google para OAuth 2.0.
-   * Empaqueta el tenantToolId de forma segura en el parámetro 'state'.
+   * Empaqueta la tool, la organización y el usuario en un `state` firmado (ver OauthStateService).
    */
   async generateGoogleAuthUrl(
     tenantToolId: string,
@@ -48,19 +52,17 @@ export class ToolsOauthService {
     // O si no hay filtro explícito, tomar todas las funciones del catálogo para esta tool
     const allowedFunctionNames =
       tool.allowedFunctions && Array.isArray(tool.allowedFunctions)
-        ? tool.allowedFunctions
-        : tool.toolCatalog.functions.map((f: any) => f.functionName);
+        ? (tool.allowedFunctions as string[])
+        : tool.toolCatalog.functions.map((f) => f.functionName);
 
     // Mapeo Dinámico de funciones a Scopes directo desde la Base de Datos
     // Filtramos las funciones del catálogo que el usuario "encendió" para esta herramienta
-    const allowedFunctions = tool.toolCatalog.functions.filter((f: any) =>
+    const allowedFunctions = tool.toolCatalog.functions.filter((f) =>
       allowedFunctionNames.includes(f.functionName),
     );
 
     // Extraemos todos los scopes de esas funciones, aplanamos la lista y quitamos duplicados con Set
-    const scopesList = Array.from(
-      new Set(allowedFunctions.flatMap((f: any) => f.oauthScopes ?? [])),
-    );
+    const scopesList = Array.from(new Set(allowedFunctions.flatMap((f) => f.oauthScopes ?? [])));
 
     // Opcional: Asegurar que siempre pidamos el perfil básico para identificar a quién le dimos el token
     if (
@@ -73,13 +75,7 @@ export class ToolsOauthService {
 
     const scopes = scopesList.join(' ');
 
-    // Empaquetar IDs en el state
-    const statePayload = {
-      t: tenantToolId,
-      o: organizationId,
-      u: userId,
-    };
-    const state = Buffer.from(JSON.stringify(statePayload)).toString('base64');
+    const state = await this.oauthState.sign({ tenantToolId, organizationId, userId });
 
     const params = new URLSearchParams({
       client_id: clientId,
@@ -92,6 +88,30 @@ export class ToolsOauthService {
     });
 
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  }
+
+  /**
+   * Comprueba, al volver de Google, que quien inició la conexión todavía puede hacerla.
+   *
+   * El `state` firmado prueba quién la inició, no que siga siendo miembro: entre el clic y el
+   * callback pueden pasar minutos, y a alguien se le pudo quitar la cuenta o el rol en medio.
+   */
+  async assertCanConnect(claims: OauthStateClaims): Promise<void> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: claims.userId,
+        organizationId: claims.organizationId,
+        isActive: true,
+        deletedAt: null,
+        role: { in: [UserRole.OWNER, UserRole.ADMIN] },
+      },
+      select: { id: true },
+    });
+    if (!user) {
+      throw new ForbiddenException(
+        'El usuario ya no puede conectar herramientas en esta organización',
+      );
+    }
   }
 
   /**
@@ -126,10 +146,8 @@ export class ToolsOauthService {
         scopes: data.scope ? data.scope.split(' ') : [],
         profile,
       };
-    } catch (error: any) {
-      this.logger.error(
-        `Error exchanging Google code: ${error?.response?.data?.error_description ?? error.message}`,
-      );
+    } catch (error) {
+      this.logger.error(`Error exchanging Google code: ${oauthErrorDescription(error)}`);
       throw new BadRequestException('Failed to exchange authorization code with Google');
     }
   }
@@ -159,10 +177,8 @@ export class ToolsOauthService {
         // Notar que Google rara vez envía un nuevo refresh_token aquí, a menos que el anterior esté por caducar por políticas raras.
         refreshToken: data.refresh_token ?? refreshToken,
       };
-    } catch (error: any) {
-      this.logger.error(
-        `Error refreshing Google token: ${error?.response?.data?.error_description ?? error.message}`,
-      );
+    } catch (error) {
+      this.logger.error(`Error refreshing Google token: ${oauthErrorDescription(error)}`);
       throw new BadRequestException('Failed to refresh Google authorization token');
     }
   }
@@ -182,9 +198,9 @@ export class ToolsOauthService {
         name: data.name,
         picture: data.picture,
       };
-    } catch (error: any) {
+    } catch (error) {
       this.logger.warn(
-        `Failed to fetch Google user profile: ${error.message}. Scopes might be missing.`,
+        `Failed to fetch Google user profile: ${errorMessage(error)}. Scopes might be missing.`,
       );
       return null;
     }

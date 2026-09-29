@@ -8,6 +8,8 @@ export const ErrorStrings = {
   [OPERATIONS.ACCEPT_INVITATION]: {
     INVITATION_EXPIRED:
       'La invitación expiró, por favor contacta a tu administrador para obtener una nueva.',
+    EMAIL_ALREADY_REGISTERED:
+      'Este correo ya tiene una cuenta activa en otra organización. Inicia sesión con ella o pide a tu administrador que te invite con otro correo.',
     SERVER_ERROR: 'El servidor está teniendo problemas, por favor intenta nuevamente más tarde.',
   },
   [OPERATIONS.RESEND_INVITATION]: {

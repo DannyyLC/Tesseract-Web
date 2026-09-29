@@ -1,5 +1,29 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '../../../api-request-manager';
-import { DashboardUserDataDto, UpdateUserDto, ApiResponse, PaginatedResponse } from '@tesseract/types';
+import {
+  DashboardUserDataDto,
+  UpdateUserDto,
+  ApiResponse,
+  PaginatedResponse,
+} from '@tesseract/types';
+
+/** `GET /users/stats` (`UsersService.getStats`). */
+export interface UserStats {
+  total: number;
+  byRole: { viewer: number; admin: number; owner: number };
+  active: number;
+  inactive: number;
+  verified: number;
+  unverified: number;
+  pendingInvitations?: number;
+}
+
+/** `GET /users/pending-invitations`. */
+export interface PendingInvitation {
+  email: string;
+  expiresAt: string;
+  createdAt: string;
+}
 
 class UsersApi {
   public apiRequestManager: ApiRequestManager;
@@ -34,20 +58,18 @@ class UsersApi {
     const url = `${UsersApi.BASE_URL}/dashboard${queryString ? `?${queryString}` : ''}`;
 
     const result =
-      await this.apiRequestManager.get<ApiResponse<PaginatedResponse<DashboardUserDataDto>>>(
-        url,
-      );
-    return result.data.data!;
+      await this.apiRequestManager.get<ApiResponse<PaginatedResponse<DashboardUserDataDto>>>(url);
+    return unwrapData(result);
   }
 
   /**
    * Get user statistics
    */
-  public async getStats(): Promise<any> {
-    // The return type is 'any' in the controller Response<any> (setData(stats))
-    // The prompt provided DashboardUsersDto which might be the stats structure
-    const result = await this.apiRequestManager.get<ApiResponse<any>>(`${UsersApi.BASE_URL}/stats`);
-    return result.data.data;
+  public async getStats(): Promise<UserStats> {
+    const result = await this.apiRequestManager.get<ApiResponse<UserStats>>(
+      `${UsersApi.BASE_URL}/stats`,
+    );
+    return unwrapData(result);
   }
 
   /**
@@ -57,7 +79,7 @@ class UsersApi {
     const result = await this.apiRequestManager.get<ApiResponse<DashboardUserDataDto>>(
       `${UsersApi.BASE_URL}/${id}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   /**
@@ -68,7 +90,7 @@ class UsersApi {
       `${UsersApi.BASE_URL}/${id}/update-status-or-role`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   /**
@@ -99,14 +121,14 @@ class UsersApi {
       `${UsersApi.BASE_URL}/me/organization`,
       { data },
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
-  public async getPendingInvitations(): Promise<any> {
-    const result = await this.apiRequestManager.get<ApiResponse<any>>(
+  public async getPendingInvitations(): Promise<PendingInvitation[]> {
+    const result = await this.apiRequestManager.get<ApiResponse<PendingInvitation[]>>(
       `${UsersApi.BASE_URL}/pending-invitations`,
     );
-    return result.data.data;
+    return unwrapData(result);
   }
 }
 

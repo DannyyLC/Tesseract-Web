@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '@/lib/api/api-request-manager';
 import type { ApiResponse, WhatsAppConfig, WhatsAppTemplate } from '@tesseract/types';
 
@@ -78,7 +79,7 @@ class WhatsappConfigAdminApi {
       this.base(organizationId),
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   async update(
@@ -108,6 +109,15 @@ class WhatsappConfigAdminApi {
     return result.data.data ?? false;
   }
 
+  /** Aprueba un número dado de alta por el cliente: desde aquí recibe y envía mensajes. */
+  async approve(organizationId: string, configId: string): Promise<boolean> {
+    const result = await this.apiRequestManager.patch<ApiResponse<boolean>>(
+      `${this.base(organizationId)}/${configId}/approve`,
+      {},
+    );
+    return result.data.data ?? false;
+  }
+
   async listTemplates(organizationId: string, configId: string): Promise<WhatsAppTemplate[]> {
     const result = await this.apiRequestManager.get<ApiResponse<WhatsAppTemplate[]>>(
       `${this.base(organizationId)}/${configId}/templates`,
@@ -124,7 +134,7 @@ class WhatsappConfigAdminApi {
       `${this.base(organizationId)}/${configId}/templates`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   async updateTemplate(
@@ -136,7 +146,7 @@ class WhatsappConfigAdminApi {
       `${this.base(organizationId)}/templates/${templateId}`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   async deleteTemplate(organizationId: string, templateId: string): Promise<boolean> {

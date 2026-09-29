@@ -3,16 +3,16 @@ module.exports = {
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
   transform: {
-    '^.+\\.[tj]s$': ['ts-jest', {
-      tsconfig: '<rootDir>/tsconfig.spec.json',
-    }],
+    '^.+\\.[tj]s$': [
+      'ts-jest',
+      {
+        tsconfig: '<rootDir>/tsconfig.spec.json',
+      },
+    ],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/apps/gateway',
-  testMatch: [
-    '<rootDir>/src/**/*.spec.ts',
-    '<rootDir>/test/**/*.e2e-spec.ts',
-  ],
+  testMatch: ['<rootDir>/src/**/*.spec.ts', '<rootDir>/test/**/*.e2e-spec.ts'],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.spec.ts',
@@ -26,7 +26,7 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   // Configuración para tests e2e - evita que Jest se quede colgado
-  detectOpenHandles: true,  // Detecta conexiones abiertas (útil para debugging)
-  forceExit: true,          // Fuerza el cierre después de completar los tests
-  maxWorkers: 1,            // Un solo worker para tests e2e (evita conflictos de BD)
+  detectOpenHandles: true, // Detecta conexiones abiertas (útil para debugging)
+  forceExit: true, // Fuerza el cierre después de completar los tests
+  maxWorkers: 1, // Un solo worker para tests e2e (evita conflictos de BD)
 };

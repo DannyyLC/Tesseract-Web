@@ -34,6 +34,8 @@ export interface WhatsAppConfig {
   qrCodeExpiry: Date | null;
   credentials: WhatsAppCredentialsStatus;
   isActive: boolean;
+  /** Cuándo un super admin lo aprobó. `null` = pendiente: no recibe ni envía mensajes. */
+  approvedAt: Date | null;
   defaultWorkflowId: string | null;
   /**
    * Solo importa cuando el workflow tiene más de un número: cuál usa `send_bulk_whatsapp` como

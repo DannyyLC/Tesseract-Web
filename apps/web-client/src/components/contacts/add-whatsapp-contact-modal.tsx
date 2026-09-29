@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Loader2, Phone } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { useEndUserMutations } from '@/hooks/identity/use-end-users';
+import { toApiError } from '@/lib/api/api-error';
 
 interface AddWhatsappContactModalProps {
   isOpen: boolean;
@@ -59,7 +60,8 @@ export function AddWhatsappContactModal({ isOpen, onClose }: AddWhatsappContactM
       });
       toast.success(t('addWhatsappSuccess'));
       onClose();
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       const statusCode = err?.response?.status;
       const backendMessage = typeof err?.message === 'string' ? err.message : '';
 
@@ -81,7 +83,10 @@ export function AddWhatsappContactModal({ isOpen, onClose }: AddWhatsappContactM
         </div>
 
         <div>
-          <label htmlFor="whatsapp-name" className="mb-1.5 block text-sm font-medium text-text-primary">
+          <label
+            htmlFor="whatsapp-name"
+            className="mb-1.5 block text-sm font-medium text-text-primary"
+          >
             {t('addWhatsappNameLabel')}
           </label>
           <input
@@ -100,7 +105,10 @@ export function AddWhatsappContactModal({ isOpen, onClose }: AddWhatsappContactM
         </div>
 
         <div>
-          <label htmlFor="whatsapp-phone" className="mb-1.5 block text-sm font-medium text-text-primary">
+          <label
+            htmlFor="whatsapp-phone"
+            className="mb-1.5 block text-sm font-medium text-text-primary"
+          >
             {t('addWhatsappPhoneLabel')}
           </label>
           <input

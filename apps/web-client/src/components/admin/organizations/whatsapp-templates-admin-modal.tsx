@@ -12,6 +12,7 @@ import {
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import type { WhatsAppTemplate } from '@tesseract/types';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   isOpen: boolean;
@@ -30,7 +31,13 @@ interface FormState {
   bodyVariables: string;
 }
 
-const EMPTY_FORM: FormState = { id: null, name: '', displayName: '', language: 'es_MX', bodyVariables: '' };
+const EMPTY_FORM: FormState = {
+  id: null,
+  name: '',
+  displayName: '',
+  language: 'es_MX',
+  bodyVariables: '',
+};
 
 /**
  * CRUD de templates de un número — Meta los registra por número (WABA), no por
@@ -42,10 +49,19 @@ const EMPTY_FORM: FormState = { id: null, name: '', displayName: '', language: '
  * pero se quedan fuera de este formulario a propósito — el caso de uso real es casi
  * siempre variables del cuerpo.
  */
-export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, configId, configLabel }: Props) {
+export function WhatsappTemplatesAdminModal({
+  isOpen,
+  onClose,
+  organizationId,
+  configId,
+  configLabel,
+}: Props) {
   const t = useTranslations('Admin.WhatsappTemplatesModal');
   const getApiErrorMessage = useApiErrorMessage();
-  const { data: templates, isLoading } = useAdminWhatsappTemplates(organizationId, isOpen ? configId : null);
+  const { data: templates, isLoading } = useAdminWhatsappTemplates(
+    organizationId,
+    isOpen ? configId : null,
+  );
   const { createTemplate, updateTemplate, deleteTemplate } = useAdminWhatsappTemplateMutations(
     organizationId,
     configId,
@@ -96,27 +112,32 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
         setIsFormOpen(false);
         setForm(EMPTY_FORM);
       })
-      .catch((e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)));
+      .catch((e: unknown) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)));
   };
 
   const handleDelete = (template: WhatsAppTemplate) => {
     deleteTemplate.mutate(template.id, {
       onSuccess: () => toast.success(t('templateDeleted')),
-      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
     });
   };
 
   const handleToggleActive = (template: WhatsAppTemplate) => {
     updateTemplate.mutate(
       { id: template.id, data: { isActive: !template.isActive } },
-      { onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)) },
+      { onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)) },
     );
   };
 
   const isSaving = createTemplate.isPending || updateTemplate.isPending;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={t('modalTitle', { config: configLabel })} size="lg">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t('modalTitle', { config: configLabel })}
+      size="lg"
+    >
       <div className="space-y-4">
         <p className="text-xs text-text-secondary">{t('subtitle')}</p>
 

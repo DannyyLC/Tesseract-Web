@@ -15,8 +15,8 @@ import {
   ConversationStatus,
   ChatRole,
   CompactionStatus,
-  MessengerConfig,
   ExecutionStatus,
+  Prisma,
 } from '@tesseract/database';
 import { UtilityService } from '@/platform/utility/utility.service';
 import { buildConversationTitle } from './conversation-title';
@@ -56,7 +56,7 @@ interface MessageAttachmentInput {
   processingError?: string;
   processor?: string;
   processorVersion?: string;
-  metadata?: any;
+  metadata?: Prisma.InputJsonValue;
 }
 
 /**
@@ -153,7 +153,7 @@ export class ConversationsService {
         );
       }
     }
-    
+
     return '';
   }
 
@@ -180,7 +180,7 @@ export class ConversationsService {
 
       const joinedName = [data?.first_name, data?.last_name].filter(Boolean).join(' ').trim();
       return joinedName || null;
-    } catch (error) {
+    } catch {
       this.logger.warn(
         `No se pudo resolver el nombre del remitente ${senderId} para la página ${config.pageId}`,
       );
@@ -296,19 +296,8 @@ export class ConversationsService {
     conversationId?: string,
     isInternalWorkflow = false,
   ) {
-    // Si viene un conversationId, buscar esa conversación
-    if (conversationId) {
-      const existing = await this.prisma.conversation.findUnique({
-        where: { id: conversationId },
-      });
-
-      if (existing) {
-        this.logger.debug(`Usando conversación existente: ${conversationId}`);
-        return existing;
-      }
-    }
-
-    // Obtener la organización del workflow para asignarla a la conversación
+    // Obtener la organización del workflow: acota la búsqueda de abajo y se asigna a la
+    // conversación nueva.
     const workflow = await this.prisma.workflow.findUnique({
       where: { id: workflowId },
       select: { organizationId: true },
@@ -316,6 +305,20 @@ export class ConversationsService {
 
     if (!workflow) {
       throw new Error(`Workflow no encontrado: ${workflowId}`);
+    }
+
+    // Si viene un conversationId, buscar esa conversación. El id llega en la metadata del
+    // execute, que controla quien llama (API key o dashboard): sin el filtro por
+    // organización, cualquier tenant podía leer el historial de otro y escribir en él.
+    if (conversationId) {
+      const existing = await this.prisma.conversation.findFirst({
+        where: { id: conversationId, organizationId: workflow.organizationId },
+      });
+
+      if (existing) {
+        this.logger.debug(`Usando conversación existente: ${conversationId}`);
+        return existing;
+      }
     }
 
     // Si no existe o no viene conversationId, crear una nueva
@@ -485,8 +488,21 @@ export class ConversationsService {
     senderId: string,
     isInternalWorkflow = false,
   ) {
-    const messengerConfig = await this.prisma.messengerConfig.findUnique({
-      where: { pageId },
+    // Obtener la organización del workflow para asignarla a la conversación
+    const workflow = await this.prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { organizationId: true },
+    });
+
+    if (!workflow) {
+      throw new Error(`Workflow no encontrado: ${workflowId}`);
+    }
+
+    // El pageId es público y puede llegar en la metadata del execute: la página tiene que
+    // ser de la misma organización que el workflow, o se estaría operando con la config
+    // (y el token) de otro tenant.
+    const messengerConfig = await this.prisma.messengerConfig.findFirst({
+      where: { pageId, organizationId: workflow.organizationId },
     });
     if (!messengerConfig) {
       throw new Error(`Messenger config no encontrada para la página: ${pageId}`);
@@ -499,16 +515,6 @@ export class ConversationsService {
         `Usando conversación existente para Messenger ${senderId} -> ${pageId} (config ${messengerConfig.id})`,
       );
       return existing;
-    }
-
-    // Obtener la organización del workflow para asignarla a la conversación
-    const workflow = await this.prisma.workflow.findUnique({
-      where: { id: workflowId },
-      select: { organizationId: true },
-    });
-
-    if (!workflow) {
-      throw new Error(`Workflow no encontrado: ${workflowId}`);
     }
 
     // El PSID no es un teléfono ni un email: encaja en `externalId`, que es el
@@ -562,7 +568,13 @@ export class ConversationsService {
    * @param organizationId - ID de la organización
    * @param id - ID de la conversación
    */
-  async findOne(organizationId: string, id: string) {
+  async findOne(organizationId: string, id: string | undefined) {
+    // Sin esto, `id: undefined` no filtra nada en Prisma y se devolvía la primera
+    // conversación de la organización en lugar de fallar.
+    if (!id) {
+      throw new NotFoundException('Conversation id is required');
+    }
+
     const conversation = await this.prisma.conversation.findFirst({
       where: {
         id,
@@ -606,7 +618,12 @@ export class ConversationsService {
    * @param id - ID de la conversación
    * @param data - Datos a actualizar (compatible con PrismaUpdateInput)
    */
-  async update(organizationId: string, id: string, data: any) {
+  async update(
+    organizationId: string,
+    id: string,
+    // `status` puede llegar en minúsculas desde la UI; abajo se normaliza.
+    data: Omit<Prisma.ConversationUpdateInput, 'status'> & { status?: string },
+  ) {
     // 1. Verificar ownership y obtener contexto mínimo para reglas de autocierre
     const currentConversation = await this.getAutoCloseContext(organizationId, id);
 
@@ -651,7 +668,7 @@ export class ConversationsService {
 
     const conversation = await this.prisma.conversation.update({
       where: { id },
-      data: updateData,
+      data: updateData as Prisma.ConversationUpdateInput,
     });
 
     this.logger.debug(`Conversación ${id} actualizada: ${JSON.stringify(updateData)}`);
@@ -704,7 +721,7 @@ export class ConversationsService {
     cursor?: string | null;
     take?: number;
     onlyErrors?: boolean;
-  }): Promise<PaginatedResponse<any>> {
+  }) {
     const { organizationId, workflowId, cursor, take = DEFAULT_PAGE_SIZE, onlyErrors } = params;
 
     const conversations = await this.prisma.conversation.findMany({
@@ -731,14 +748,11 @@ export class ConversationsService {
       },
     });
 
-    const paginated = await CursorPaginatedResponseUtils.getInstance().build(
-      conversations as any,
-      take,
-    );
+    const paginated = await CursorPaginatedResponseUtils.getInstance().build(conversations, take);
 
     return {
       ...paginated,
-      items: paginated.items.map((c: any) => ({
+      items: paginated.items.map((c) => ({
         id: c.id,
         title: c.title,
         channel: c.channel,
@@ -871,7 +885,7 @@ export class ConversationsService {
       where: {
         isHumanInTheLoop,
         needsFollowUp,
-        ...(status && { status: status.toUpperCase() as any }),
+        ...(status && { status: status.toUpperCase() as ConversationStatus }),
         // Una lista vacía en un `in` no devolveria nada, asi que ausente y vacia tienen
         // que significar lo mismo: sin filtro de canal.
         ...(channels?.length && { channel: { in: channels } }),
@@ -916,7 +930,7 @@ export class ConversationsService {
     );
 
     const items = await Promise.all(
-      paginatedResult.items.map(async (c: any) => {
+      paginatedResult.items.map(async (c) => {
         let endUserName = c.endUser?.name ?? null;
 
         if (
@@ -925,7 +939,10 @@ export class ConversationsService {
           c.messengerSenderId &&
           c.messengerConfig
         ) {
-          const fetchedName = await this.fetchMessengerSenderName(c.messengerConfig, c.messengerSenderId);
+          const fetchedName = await this.fetchMessengerSenderName(
+            c.messengerConfig,
+            c.messengerSenderId,
+          );
           if (fetchedName) {
             endUserName = fetchedName;
             if (c.endUser?.id) {
@@ -934,8 +951,10 @@ export class ConversationsService {
                   where: { id: c.endUser.id },
                   data: { name: fetchedName },
                 });
-              } catch (error) {
-                this.logger.warn(`No se pudo persistir el nombre del remitente ${c.messengerSenderId}`);
+              } catch {
+                this.logger.warn(
+                  `No se pudo persistir el nombre del remitente ${c.messengerSenderId}`,
+                );
               }
             }
           }
@@ -956,7 +975,7 @@ export class ConversationsService {
 
     return {
       ...paginatedResult,
-      items: items as DashboardConversationDto[],
+      items,
     };
   }
 
@@ -991,10 +1010,11 @@ export class ConversationsService {
             Boolean(attachment.processedText?.trim()) &&
             // Para audio, el contenido del mensaje YA es la transcripción; agregarla
             // otra vez le mandaba al agente el mismo texto dos veces, en cada turno.
-            attachment.processedText!.trim() !== message.content?.trim(),
+            (attachment.processedText ?? '').trim() !== message.content?.trim(),
         )
         .map(
-          (attachment) => `[${attachment.type.toLowerCase()}] ${attachment.processedText!.trim()}`,
+          (attachment) =>
+            `[${attachment.type.toLowerCase()}] ${(attachment.processedText ?? '').trim()}`,
         );
 
       if (processedMediaLines.length === 0) {
@@ -1045,10 +1065,11 @@ export class ConversationsService {
             Boolean(attachment.processedText?.trim()) &&
             // Para audio, el contenido del mensaje YA es la transcripción; agregarla
             // otra vez le mandaba al agente el mismo texto dos veces, en cada turno.
-            attachment.processedText!.trim() !== message.content?.trim(),
+            (attachment.processedText ?? '').trim() !== message.content?.trim(),
         )
         .map(
-          (attachment) => `[${attachment.type.toLowerCase()}] ${attachment.processedText!.trim()}`,
+          (attachment) =>
+            `[${attachment.type.toLowerCase()}] ${(attachment.processedText ?? '').trim()}`,
         );
 
       if (processedMediaLines.length === 0) {
@@ -1084,88 +1105,91 @@ export class ConversationsService {
     conversationId: string,
     role: ChatRole,
     content: string,
-    metadata?: any,
+    metadata?: Prisma.InputJsonValue,
     attachments?: MessageAttachmentInput[],
   ) {
-    const message = await this.prisma.$transaction(async (tx) => {
-      const conversation = await tx.conversation.findUnique({
-        where: { id: conversationId },
-        select: {
-          organizationId: true,
-          title: true,
-          workflow: {
-            select: {
-              inactivityHours: true,
+    const message = await this.prisma.$transaction(
+      async (tx) => {
+        const conversation = await tx.conversation.findUnique({
+          where: { id: conversationId },
+          select: {
+            organizationId: true,
+            title: true,
+            workflow: {
+              select: {
+                inactivityHours: true,
+              },
+            },
+            organization: {
+              select: {
+                defaultInactivityHours: true,
+              },
             },
           },
-          organization: {
-            select: {
-              defaultInactivityHours: true,
-            },
+        });
+
+        if (!conversation) {
+          throw new NotFoundException(`Conversation with ID ${conversationId} not found`);
+        }
+
+        const createdMessage = await tx.message.create({
+          data: {
+            conversationId,
+            organizationId: conversation.organizationId,
+            role: role === ChatRole.USER ? ChatRole.USER : role,
+            content,
+            metadata: metadata ?? undefined,
+            attachments:
+              attachments && attachments.length > 0
+                ? {
+                    create: attachments.map((attachment) => ({
+                      organizationId: conversation.organizationId,
+                      ...attachment,
+                    })),
+                  }
+                : undefined,
           },
-        },
-      });
+          include: {
+            attachments: true,
+          },
+        });
 
-      if (!conversation) {
-        throw new NotFoundException(`Conversation with ID ${conversationId} not found`);
-      }
+        const messageTimestamp = new Date();
+        const inactivityHours = this.resolveInactivityHours(
+          conversation.workflow?.inactivityHours,
+          conversation.organization?.defaultInactivityHours,
+        );
 
-      const createdMessage = await tx.message.create({
-        data: {
-          conversationId,
-          organizationId: conversation.organizationId,
-          role: role === ChatRole.USER ? ChatRole.USER : role,
-          content,
-          metadata: metadata ?? undefined,
-          attachments:
-            attachments && attachments.length > 0
-              ? {
-                  create: attachments.map((attachment) => ({
-                    organizationId: conversation.organizationId,
-                    ...attachment,
-                  })),
-                }
-              : undefined,
-        },
-        include: {
-          attachments: true,
-        },
-      });
+        // Título automático con el primer mensaje del usuario. Aquí y no en cada canal
+        // porque `addMessage` es por donde pasan todos: mientras esto vivió en el
+        // navegador, solo las conversaciones creadas desde el panel llegaban a tener
+        // nombre. Solo el primero: los siguientes renombrarían la conversación sola, y un
+        // título puesto a mano se respeta siempre.
+        const generatedTitle =
+          !conversation.title && role === ChatRole.USER ? buildConversationTitle(content) : null;
 
-      const messageTimestamp = new Date();
-      const inactivityHours = this.resolveInactivityHours(
-        conversation.workflow?.inactivityHours,
-        conversation.organization?.defaultInactivityHours,
-      );
+        await tx.conversation.update({
+          where: { id: conversationId },
+          data: {
+            ...(generatedTitle && { title: generatedTitle }),
+            lastMessageAt: messageTimestamp,
+            lastMessageRole: role === ChatRole.USER ? ChatRole.USER : role, // Normalize 'human' to 'user' if needed by schema enum, or keep string
+            autoCloseAt: this.calculateAutoCloseAt(messageTimestamp, inactivityHours),
+            // messageCount increment removed to avoid double counting with batchUpdate
+          },
+        });
 
-      // Título automático con el primer mensaje del usuario. Aquí y no en cada canal
-      // porque `addMessage` es por donde pasan todos: mientras esto vivió en el
-      // navegador, solo las conversaciones creadas desde el panel llegaban a tener
-      // nombre. Solo el primero: los siguientes renombrarían la conversación sola, y un
-      // título puesto a mano se respeta siempre.
-      const generatedTitle =
-        !conversation.title && role === ChatRole.USER ? buildConversationTitle(content) : null;
-
-      await tx.conversation.update({
-        where: { id: conversationId },
-        data: {
-          ...(generatedTitle && { title: generatedTitle }),
-          lastMessageAt: messageTimestamp,
-          lastMessageRole: role === ChatRole.USER ? ChatRole.USER : role, // Normalize 'human' to 'user' if needed by schema enum, or keep string
-          autoCloseAt: this.calculateAutoCloseAt(messageTimestamp, inactivityHours),
-          // messageCount increment removed to avoid double counting with batchUpdate
-        },
-      });
-
-      return createdMessage;
-    }, {
-      // Cloud Run puede throttlear CPU entre ticks del event loop cuando la
-      // instancia no está atendiendo activamente la request, lo que puede
-      // inflar el tiempo real de una transacción interactiva simple muy por
-      // encima del default de Prisma (5000ms). Damos más margen aquí.
-      timeout: 10000,
-      maxWait: 10000,
-    });
+        return createdMessage;
+      },
+      {
+        // Cloud Run puede throttlear CPU entre ticks del event loop cuando la
+        // instancia no está atendiendo activamente la request, lo que puede
+        // inflar el tiempo real de una transacción interactiva simple muy por
+        // encima del default de Prisma (5000ms). Damos más margen aquí.
+        timeout: 10000,
+        maxWait: 10000,
+      },
+    );
 
     this.logger.debug(`Mensaje ${role} agregado a conversación ${conversationId}`);
 
@@ -1187,7 +1211,7 @@ export class ConversationsService {
     return this.prisma.conversation.count({
       where: {
         isHumanInTheLoop,
-        ...(status && { status: status.toUpperCase() as any }),
+        ...(status && { status: status.toUpperCase() as ConversationStatus }),
         organizationId,
         workflowId,
         userId,
@@ -1365,10 +1389,7 @@ export class ConversationsService {
 
     const compaction = conversation?.currentCompaction;
 
-    if (
-      compaction?.status !== CompactionStatus.SUCCEEDED ||
-      !compaction.summary
-    ) {
+    if (compaction?.status !== CompactionStatus.SUCCEEDED || !compaction.summary) {
       return null;
     }
 

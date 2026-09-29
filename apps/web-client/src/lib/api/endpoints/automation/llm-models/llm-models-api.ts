@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '../../../api-request-manager';
 import { ApiResponse } from '@tesseract/types';
 
@@ -95,14 +96,14 @@ class LlmModelsApi {
     const qs = params.toString();
     const url = `${LlmModelsApi.BASE_URL}${qs ? `?${qs}` : ''}`;
     const result = await this.apiRequestManager.get<ApiResponse<LlmModelsListResult>>(url);
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async findOne(id: string): Promise<LlmModel> {
     const result = await this.apiRequestManager.get<ApiResponse<LlmModel>>(
       `${LlmModelsApi.BASE_URL}/${id}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async create(data: CreateLlmModelInput): Promise<LlmModel> {
@@ -110,7 +111,7 @@ class LlmModelsApi {
       LlmModelsApi.BASE_URL,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async update(id: string, data: UpdateLlmModelInput): Promise<LlmModel> {
@@ -118,7 +119,7 @@ class LlmModelsApi {
       `${LlmModelsApi.BASE_URL}/${id}`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async supersedePricing(id: string, data: SupersedePricingInput): Promise<LlmModel> {
@@ -126,14 +127,14 @@ class LlmModelsApi {
       `${LlmModelsApi.BASE_URL}/${id}/pricing`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async remove(id: string): Promise<LlmModel> {
     const result = await this.apiRequestManager.delete<ApiResponse<LlmModel>>(
       `${LlmModelsApi.BASE_URL}/${id}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 }
 

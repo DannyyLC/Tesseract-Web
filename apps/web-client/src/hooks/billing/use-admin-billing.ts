@@ -62,7 +62,9 @@ export function useUpdateAdminSubscription() {
       return await api.update(organizationId, data);
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-organizations', 'detail', variables.organizationId] });
+      queryClient.invalidateQueries({
+        queryKey: ['admin-organizations', 'detail', variables.organizationId],
+      });
     },
   });
 }

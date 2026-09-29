@@ -15,7 +15,11 @@ interface ConnectedWorkflowsSectionProps {
 }
 
 /** Clon admin de `(dashboard)/datasets/_components/connected-workflows-section.tsx`. */
-export function ConnectedWorkflowsSection({ organizationId, datasetId, workflows }: ConnectedWorkflowsSectionProps) {
+export function ConnectedWorkflowsSection({
+  organizationId,
+  datasetId,
+  workflows,
+}: ConnectedWorkflowsSectionProps) {
   const t = useTranslations('Datasets');
   const [isConnecting, setIsConnecting] = useState(false);
   const [workflowToDisconnect, setWorkflowToDisconnect] = useState<DatasetWorkflowRef | null>(null);
@@ -46,7 +50,9 @@ export function ConnectedWorkflowsSection({ organizationId, datasetId, workflows
               transition={{ delay: index * 0.05 }}
               className="group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2 transition-colors hover:border-border hover:bg-surface-secondary"
             >
-              <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{workflow.name}</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
+                {workflow.name}
+              </span>
               <button
                 type="button"
                 onClick={() => setWorkflowToDisconnect(workflow)}

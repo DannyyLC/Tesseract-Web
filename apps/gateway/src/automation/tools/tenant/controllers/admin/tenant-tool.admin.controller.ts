@@ -22,7 +22,9 @@ export class TenantToolAdminController {
   constructor(private readonly tenantToolService: TenantToolService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar tenant tools de todas las organizaciones (búsqueda + paginado)' })
+  @ApiOperation({
+    summary: 'Listar tenant tools de todas las organizaciones (búsqueda + paginado)',
+  })
   async findAll(@Query() query: QueryTenantToolsAdminDto): Promise<ApiResponse> {
     const result = await this.tenantToolService.findAllForAdmin(query);
     return new ApiResponseBuilder().setData(result).build();

@@ -180,7 +180,9 @@ export class ToolHealthService {
       select: {
         allowedFunctions: true,
         credential: { select: { scopes: true } },
-        toolCatalog: { select: { functions: { select: { functionName: true, oauthScopes: true } } } },
+        toolCatalog: {
+          select: { functions: { select: { functionName: true, oauthScopes: true } } },
+        },
       },
     });
 

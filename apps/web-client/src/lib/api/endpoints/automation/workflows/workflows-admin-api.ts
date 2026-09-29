@@ -1,9 +1,19 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '@/lib/api/api-request-manager';
 import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import type { ApiResponse } from '@tesseract/types';
 
+import type { WorkflowConfig } from '@/lib/workflow-config/config-edit';
+
 /** El config es un documento abierto a propósito: el editor lo preserva completo. */
-export type WorkflowConfig = Record<string, any>;
+export type { WorkflowConfig };
+
+/** JSON Schema del `config` de un tipo de nodo, tal como lo publica el motor. */
+export interface NodeConfigSchema {
+  properties?: Record<string, { type?: string; enum?: unknown[]; description?: string }>;
+  required?: string[];
+  [key: string]: unknown;
+}
 
 export interface AdminWorkflowListItem {
   id: string;
@@ -62,10 +72,10 @@ export interface EditorContext {
         label: string;
         description: string;
         ports: { inputs: string[]; outputs: string[] | string };
-        config_schema: Record<string, any>;
+        config_schema: NodeConfigSchema;
       }
     >;
-    templates?: Record<string, any>;
+    templates?: Record<string, unknown>;
     graph_config_keys?: Record<string, string>;
   } | null;
   models: { id: string; modelName: string; provider: string; tier: string }[];
@@ -180,7 +190,7 @@ class WorkflowsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<EditorContext>>(
       `${WorkflowsAdminApi.BASE_URL}/editor-context`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async findAll(query: AdminWorkflowsQuery = {}): Promise<Paginated<AdminWorkflowListItem>> {
@@ -196,14 +206,14 @@ class WorkflowsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<Paginated<AdminWorkflowListItem>>>(
       `${WorkflowsAdminApi.BASE_URL}${qs ? `?${qs}` : ''}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async findOne(id: string): Promise<AdminWorkflowDetail> {
     const result = await this.apiRequestManager.get<ApiResponse<AdminWorkflowDetail>>(
       `${WorkflowsAdminApi.BASE_URL}/${id}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async validateConfig(id: string, config: WorkflowConfig): Promise<ValidationResult> {
@@ -211,7 +221,7 @@ class WorkflowsAdminApi {
       `${WorkflowsAdminApi.BASE_URL}/${id}/config/validate`,
       { config },
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async saveConfig(id: string, input: SaveConfigInput): Promise<SaveConfigResult> {
@@ -219,7 +229,7 @@ class WorkflowsAdminApi {
       `${WorkflowsAdminApi.BASE_URL}/${id}/config`,
       input,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async updateMeta(id: string, data: Record<string, unknown>): Promise<AdminWorkflowDetail> {
@@ -227,14 +237,18 @@ class WorkflowsAdminApi {
       `${WorkflowsAdminApi.BASE_URL}/${id}`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
-  public async listVersions(id: string, page = 1, limit = DEFAULT_PAGE_SIZE): Promise<Paginated<WorkflowVersion>> {
+  public async listVersions(
+    id: string,
+    page = 1,
+    limit = DEFAULT_PAGE_SIZE,
+  ): Promise<Paginated<WorkflowVersion>> {
     const result = await this.apiRequestManager.get<ApiResponse<Paginated<WorkflowVersion>>>(
       `${WorkflowsAdminApi.BASE_URL}/${id}/versions?page=${page}&limit=${limit}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async getVersion(
@@ -244,7 +258,7 @@ class WorkflowsAdminApi {
     const result = await this.apiRequestManager.get<
       ApiResponse<WorkflowVersion & { config: WorkflowConfig }>
     >(`${WorkflowsAdminApi.BASE_URL}/${id}/versions/${versionId}`);
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async diffVersion(
@@ -254,7 +268,7 @@ class WorkflowsAdminApi {
     const result = await this.apiRequestManager.get<
       ApiResponse<{ fromVersion: number; toVersion: number; entries: ConfigDiffEntry[] }>
     >(`${WorkflowsAdminApi.BASE_URL}/${id}/versions/${versionId}/diff`);
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async restoreVersion(
@@ -267,7 +281,7 @@ class WorkflowsAdminApi {
       `${WorkflowsAdminApi.BASE_URL}/${id}/versions/${versionId}/restore`,
       { expectedVersion, note },
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async create(data: CreateWorkflowAdminInput): Promise<AdminWorkflowListItem> {
@@ -275,7 +289,7 @@ class WorkflowsAdminApi {
       WorkflowsAdminApi.BASE_URL,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async clone(id: string, data: CloneWorkflowInput): Promise<CloneWorkflowResult> {
@@ -283,7 +297,7 @@ class WorkflowsAdminApi {
       `${WorkflowsAdminApi.BASE_URL}/${id}/clone`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   // Devuelven el `Workflow` base (sin organization/_count/tenantTools/config, a
@@ -293,14 +307,14 @@ class WorkflowsAdminApi {
     const result = await this.apiRequestManager.delete<
       ApiResponse<{ id: string; deletedAt: string | null }>
     >(`${WorkflowsAdminApi.BASE_URL}/${id}`);
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async restore(id: string): Promise<{ id: string; deletedAt: string | null }> {
     const result = await this.apiRequestManager.post<
       ApiResponse<{ id: string; deletedAt: string | null }>
     >(`${WorkflowsAdminApi.BASE_URL}/${id}/restore`, {});
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   /** Detalle de una ejecución de prueba — para el panel de la pestaña "Probar". */
@@ -311,7 +325,7 @@ class WorkflowsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AdminTestExecutionDetail>>(
       `${WorkflowsAdminApi.BASE_URL}/test-executions/${executionId}?organizationId=${organizationId}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 }
 

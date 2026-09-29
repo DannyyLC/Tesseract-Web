@@ -20,12 +20,20 @@ function Card({
   size?: 'default' | 'large';
 }) {
   const valueColor =
-    tone === 'success' ? 'text-success-500' : tone === 'danger' ? 'text-danger' : 'text-text-primary';
+    tone === 'success'
+      ? 'text-success-500'
+      : tone === 'danger'
+        ? 'text-danger'
+        : 'text-text-primary';
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
-      <span className="text-xs font-medium uppercase tracking-wide text-text-secondary">{label}</span>
-      <p className={`mt-2 font-semibold ${valueColor} ${size === 'large' ? 'text-3xl' : 'text-2xl'}`}>
+      <span className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+        {label}
+      </span>
+      <p
+        className={`mt-2 font-semibold ${valueColor} ${size === 'large' ? 'text-3xl' : 'text-2xl'}`}
+      >
         {value}
       </p>
       {hint && <p className="mt-1 text-xs text-text-secondary">{hint}</p>}

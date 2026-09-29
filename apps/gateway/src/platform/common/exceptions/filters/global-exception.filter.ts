@@ -14,6 +14,13 @@ import { ErrorCode } from '../base/error-codes.enum';
  * Interfaz para la respuesta de error estandarizada
  * Todas las respuestas de error tendrán esta estructura
  */
+/** Lo que se lee de un error de Prisma (tienen `code` P#### y `meta` según el código). */
+interface PrismaLikeError {
+  code: string;
+  message?: string;
+  meta?: { target?: string[]; field_name?: string };
+}
+
 interface ErrorResponse {
   success: false;
   errorCode: string;
@@ -23,7 +30,7 @@ interface ErrorResponse {
   // Detalle por campo de errores de validación (DTOs). El front traduce por
   // `constraints` (nombres estables de class-validator, ej. "isEmail", "minLength"),
   // nunca por `message`.
-  errors?: Array<{ field: string; constraints: string[] }>;
+  errors?: { field: string; constraints: string[] }[];
 }
 
 /**
@@ -33,7 +40,7 @@ interface ErrorResponse {
  * front para mostrar. Con este mapeo, el front siempre tiene una clave (`Errors.GENERIC_*`)
  * que traducir, aunque el mensaje específico se pierda a favor de uno genérico.
  */
-function genericErrorCodeForStatus(status: number): string {
+function genericErrorCodeForStatus(status: HttpStatus): string {
   switch (status) {
     case HttpStatus.BAD_REQUEST:
       return ErrorCode.GENERIC_BAD_REQUEST;
@@ -114,7 +121,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // Excepciones custom (AppException)
     // ============================================
     if (exception instanceof AppException) {
-      const errors = exception.metadata?.errors;
+      const errors = exception.metadata?.errors as ErrorResponse['errors'];
       return {
         success: false,
         errorCode: exception.errorCode,
@@ -139,8 +146,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
       } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
-        message = (exceptionResponse as any).message ?? message;
-        errorCode = (exceptionResponse as any).errorCode;
+        const body = exceptionResponse as { message?: string; errorCode?: string };
+        message = body.message ?? message;
+        errorCode = body.errorCode;
       }
 
       // Sin errorCode propio (throw nativo de Nest, ej. `new NotFoundException('texto')'`):
@@ -158,7 +166,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // Errores de Prisma
     // ============================================
     if (this.isPrismaError(exception)) {
-      return this.handlePrismaError(exception as any, timestamp, isProduction);
+      return this.handlePrismaError(exception, timestamp, isProduction);
     }
 
     // ============================================
@@ -187,7 +195,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
    * Ver todos los códigos: https://www.prisma.io/docs/reference/api-reference/error-reference
    */
   private handlePrismaError(
-    exception: any,
+    exception: PrismaLikeError,
     timestamp: string,
     isProduction: boolean,
   ): ErrorResponse {
@@ -244,7 +252,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     return {
       success: false,
       errorCode: ErrorCode.DATABASE_ERROR,
-      message: isProduction ? 'A database error occurred' : exception.message,
+      message: isProduction ? 'A database error occurred' : (exception.message ?? 'Database error'),
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       timestamp,
     };
@@ -255,14 +263,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
    *
    * Los errores de Prisma tienen una propiedad 'code' que empieza con 'P'
    */
-  private isPrismaError(exception: unknown): boolean {
-    return (
-      typeof exception === 'object' &&
-      exception !== null &&
-      'code' in exception &&
-      typeof (exception as any).code === 'string' &&
-      (exception as any).code.startsWith('P')
-    );
+  private isPrismaError(exception: unknown): exception is PrismaLikeError {
+    if (typeof exception !== 'object' || exception === null || !('code' in exception)) {
+      return false;
+    }
+    const { code } = exception;
+    return typeof code === 'string' && code.startsWith('P');
   }
 
   /**
@@ -279,7 +285,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const userAgent = headers['user-agent'] ?? 'unknown';
 
     // Obtener el clientId si existe en el request (agregado por AuthGuard)
-    const clientId = (request as any).client?.id ?? 'anonymous';
+    const clientId = (request as Request & { client?: { id?: string } }).client?.id ?? 'anonymous';
 
     // Contexto del error para logging.
     //

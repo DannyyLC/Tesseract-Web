@@ -1,5 +1,9 @@
 import { ForbiddenException, HttpStatus } from '@nestjs/common';
 import { TriggerType } from '@tesseract/database';
+import {
+  TURN_MAX_WAIT_SECONDS,
+  TURN_POLL_SECONDS,
+} from '../../../shared/channel-message-queue.service';
 import { WhatsappWorkerController } from './whatsapp-worker.controller';
 import {
   WHATSAPP_MAX_WINDOW_SECONDS,
@@ -31,11 +35,13 @@ describe('WhatsappWorkerController · processWindow', () => {
     error: jest.fn(),
     debug: jest.fn(),
   };
-  const mockWorkflowsService: any = { getMediaPolicy: jest.fn(), execute: jest.fn() };
+  const mockWorkflowsService: any = { getChannelPolicy: jest.fn(), execute: jest.fn() };
   const mockQueueService: any = {
     peekLastBufferedAt: jest.fn(),
     drainWindow: jest.fn(),
     commitWindow: jest.fn(),
+    acquireTurn: jest.fn(),
+    releaseTurn: jest.fn(),
   };
   const mockConversationsService: any = {
     findActiveWhatsappConversation: jest.fn(),
@@ -108,6 +114,8 @@ describe('WhatsappWorkerController · processWindow', () => {
 
     // Buffer vacío: `deferIfStillTyping` no reagenda y la ventana se procesa de inmediato.
     mockQueueService.peekLastBufferedAt.mockResolvedValue(null);
+    // Conversación libre: el turno se toma a la primera.
+    mockQueueService.acquireTurn.mockResolvedValue({ acquired: true, token: 'tok-1' });
     mockQueueService.drainWindow.mockResolvedValue({
       messages: [textMessage('hola')],
       processingKey: 'proc-1',
@@ -115,12 +123,16 @@ describe('WhatsappWorkerController · processWindow', () => {
     mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
       id: 'wa-1',
       isActive: true,
+      approvedAt: new Date('2026-01-01'),
       defaultWorkflowId: 'wf-1',
       connectionStatus: 'CONNECTED',
       phoneNumber: body.agentPhoneNumber,
       provider: 'ycloud',
     });
-    mockWorkflowsService.getMediaPolicy.mockResolvedValue(policy);
+    mockWorkflowsService.getChannelPolicy.mockResolvedValue({
+      mediaPolicy: policy,
+      presenceIndicators: true,
+    });
     mockConversationsService.findActiveWhatsappConversation.mockResolvedValue({
       id: 'conv-1',
       isHumanInTheLoop: false,
@@ -220,6 +232,7 @@ describe('WhatsappWorkerController · processWindow', () => {
       mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
         id: 'wa-1',
         isActive: true,
+        approvedAt: new Date('2026-01-01'),
         defaultWorkflowId: null,
         connectionStatus: 'CONNECTED',
         phoneNumber: body.agentPhoneNumber,
@@ -233,7 +246,7 @@ describe('WhatsappWorkerController · processWindow', () => {
       expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'missing-config' });
       // La refactorización multi-proveedor quitó el gate de Y_CLOUD_API_KEY: ya no debe
       // condicionar el procesamiento de una cuenta 'meta' a que exista esa env var.
-      expect(mockWorkflowsService.getMediaPolicy).not.toHaveBeenCalled();
+      expect(mockWorkflowsService.getChannelPolicy).not.toHaveBeenCalled();
     });
   });
 
@@ -257,6 +270,7 @@ describe('WhatsappWorkerController · processWindow', () => {
       mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
         id: 'wa-1',
         isActive: true,
+        approvedAt: new Date('2026-01-01'),
         defaultWorkflowId: 'wf-1',
         connectionStatus: 'CONNECTED',
         phoneNumber: body.agentPhoneNumber,
@@ -322,6 +336,7 @@ describe('WhatsappWorkerController · processWindow', () => {
       mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
         id: 'wa-1',
         isActive: true,
+        approvedAt: new Date('2026-01-01'),
         defaultWorkflowId: 'wf-1',
         connectionStatus: 'DISCONNECTED',
         phoneNumber: body.agentPhoneNumber,
@@ -343,6 +358,7 @@ describe('WhatsappWorkerController · processWindow', () => {
       mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
         id: 'wa-1',
         isActive: true,
+        approvedAt: new Date('2026-01-01'),
         defaultWorkflowId: 'wf-1',
         connectionStatus: 'CONNECTED',
         phoneNumber: '',
@@ -375,6 +391,7 @@ describe('WhatsappWorkerController · processWindow', () => {
       mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
         id: 'wa-1',
         isActive: true,
+        approvedAt: new Date('2026-01-01'),
         defaultWorkflowId: 'wf-1',
         connectionStatus: 'CONNECTED',
         phoneNumber: body.agentPhoneNumber,
@@ -627,7 +644,11 @@ describe('WhatsappWorkerController · processWindow', () => {
     });
 
     it('NO confirma la ventana si falla la resolución de la política de media', async () => {
-      mockWorkflowsService.getMediaPolicy.mockRejectedValue(new Error('workflow sin config'));
+      // `getChannelPolicy` solo se consulta cuando no hay texto ni avisos que agregar
+      // (para decidir si hace falta el aviso de "formato no soportado"); hace falta caer
+      // en esa rama para que el rechazo del mock se dispare.
+      mockPayloadConsumer.getInterpretedMessage.mockResolvedValue({});
+      mockWorkflowsService.getChannelPolicy.mockRejectedValue(new Error('workflow sin config'));
       const res = buildResponse();
 
       await controller.processWindow(body, res);
@@ -666,6 +687,7 @@ describe('WhatsappWorkerController · processWindow', () => {
       mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
         id: 'wa-1',
         isActive: true,
+        approvedAt: new Date('2026-01-01'),
         defaultWorkflowId: 'wf-1',
         connectionStatus: 'CONNECTED',
         phoneNumber: body.agentPhoneNumber,
@@ -686,6 +708,7 @@ describe('WhatsappWorkerController · processWindow', () => {
       mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
         id: 'wa-1',
         isActive: true,
+        approvedAt: new Date('2026-01-01'),
         defaultWorkflowId: 'wf-1',
         connectionStatus: 'CONNECTED',
         phoneNumber: body.agentPhoneNumber,
@@ -697,6 +720,130 @@ describe('WhatsappWorkerController · processWindow', () => {
       expect(mockWhatsappConfigService.markMessagesAsRead).not.toHaveBeenCalled();
       expect(mockPayloadConsumerResolver.forProvider).not.toHaveBeenCalled();
       expect(mockWorkflowsService.execute).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * Un turno a la vez por conversación. Sin esto, una ventana que se cierra mientras el
+   * turno anterior sigue ejecutándose arranca otro en paralelo, con un historial al que le
+   * faltan las respuestas del primero, y el cliente recibe varias respuestas de golpe.
+   */
+  describe('turno en curso en la misma conversación', () => {
+    const assistantReply = () =>
+      mockWorkflowsService.execute.mockResolvedValue({
+        id: 'exec-1',
+        result: {
+          messages: [{ role: 'assistant', content: 'Claro, con gusto te ayudo.' }],
+          conversationId: 'conv-1',
+        },
+      });
+
+    it('si la conversación está ocupada, reagenda sin tocar el buffer ni ejecutar', async () => {
+      mockQueueService.acquireTurn.mockResolvedValue({ acquired: false, token: null });
+      const res = buildResponse();
+
+      await controller.processWindow({ ...body, extension: 2 }, res);
+
+      expect(mockQueueService.drainWindow).not.toHaveBeenCalled();
+      expect(mockWorkflowsService.execute).not.toHaveBeenCalled();
+      expect(mockWhatsappConfigService.sendTextMessage).not.toHaveBeenCalled();
+      // No tomó la marca, así que no la suelta: es del otro turno.
+      expect(mockQueueService.releaseTurn).not.toHaveBeenCalled();
+
+      expect(mockCloudTasks.enqueue).toHaveBeenCalledTimes(1);
+      const task = mockCloudTasks.enqueue.mock.calls[0][0];
+      expect(task.delaySeconds).toBe(TURN_POLL_SECONDS);
+      // El contador sigue al de la cadena para que el nombre de la tarea no se repita.
+      expect(task.taskId.endsWith('-w-1-x3')).toBe(true);
+      expect(task.payload).toEqual(
+        expect.objectContaining({ windowId: 'w-1', extension: 3, busySince: expect.any(Number) }),
+      );
+      expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'busy', extension: 3 });
+    });
+
+    it('conserva busySince entre reagendados para que el tope cuente desde la primera espera', async () => {
+      mockQueueService.acquireTurn.mockResolvedValue({ acquired: false, token: null });
+      const busySince = Date.now() - 10_000;
+
+      await controller.processWindow({ ...body, busySince }, buildResponse());
+
+      expect(mockCloudTasks.enqueue.mock.calls[0][0].payload.busySince).toBe(busySince);
+    });
+
+    it('pasado el tope de espera procesa sin turno para no perder los mensajes', async () => {
+      mockQueueService.acquireTurn.mockResolvedValue({ acquired: false, token: null });
+      assistantReply();
+      const res = buildResponse();
+
+      await controller.processWindow(
+        { ...body, busySince: Date.now() - TURN_MAX_WAIT_SECONDS * 1000 },
+        res,
+      );
+
+      expect(mockCloudTasks.enqueue).not.toHaveBeenCalled();
+      expect(mockWorkflowsService.execute).toHaveBeenCalled();
+      expect(mockLogger.error).toHaveBeenCalled();
+      expect(res.send).toHaveBeenCalledWith({ processed: true });
+    });
+
+    it('suelta su turno antes de contestarle a Cloud Tasks', async () => {
+      assistantReply();
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockQueueService.releaseTurn).toHaveBeenCalledWith(
+        body.organizationId,
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
+        'tok-1',
+      );
+      // En Cloud Run la CPU se estrangula al salir la respuesta: soltar después podría
+      // quedarse congelado y dejar la conversación ocupada.
+      expect(mockQueueService.releaseTurn.mock.invocationCallOrder[0]).toBeLessThan(
+        res.status.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('suelta su turno aunque la ejecución falle, para que el reintento no se bloquee', async () => {
+      mockWorkflowsService.execute.mockRejectedValue(new Error('agents caído'));
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(mockQueueService.commitWindow).not.toHaveBeenCalled();
+      expect(mockQueueService.releaseTurn).toHaveBeenCalledWith(
+        body.organizationId,
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
+        'tok-1',
+      );
+    });
+
+    it('suelta su turno aunque falle algo fuera del manejo de errores del turno', async () => {
+      mockQueueService.drainWindow.mockRejectedValue(new Error('Upstash caído'));
+
+      await expect(controller.processWindow(body, buildResponse())).rejects.toThrow(
+        'Upstash caído',
+      );
+
+      expect(mockQueueService.releaseTurn).toHaveBeenCalledWith(
+        body.organizationId,
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
+        'tok-1',
+      );
+    });
+
+    it('suelta su turno cuando la ventana resulta vacía', async () => {
+      mockQueueService.drainWindow.mockResolvedValue({ messages: [], processingKey: null });
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'empty-window' });
+      expect(mockQueueService.releaseTurn).toHaveBeenCalledTimes(1);
     });
   });
 });

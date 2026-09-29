@@ -3,11 +3,23 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { Loader2, MessageSquareText, Pencil, Plus, Power, PowerOff, Trash2 } from 'lucide-react';
+import {
+  BadgeCheck,
+  Loader2,
+  MessageSquareText,
+  Pencil,
+  Plus,
+  Power,
+  PowerOff,
+  Trash2,
+} from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useAdminWorkflows } from '@/hooks/automation/use-admin-workflows';
-import { useAdminWhatsappMutations, useAdminWhatsappNumbers } from '@/hooks/messaging/use-admin-whatsapp-config';
+import {
+  useAdminWhatsappMutations,
+  useAdminWhatsappNumbers,
+} from '@/hooks/messaging/use-admin-whatsapp-config';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import type { WhatsAppConfig } from '@tesseract/types';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
@@ -18,6 +30,7 @@ import {
   isProviderValueComplete,
   toProviderPayload,
 } from './whatsapp-provider-fields';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   organizationId: string;
@@ -44,7 +57,8 @@ export function ChannelsTab({ organizationId }: Props) {
   const getApiErrorMessage = useApiErrorMessage();
   const { data: configs, isLoading } = useAdminWhatsappNumbers(organizationId);
   const { data: workflowsPage } = useAdminWorkflows({ organizationId, limit: 100 });
-  const { createConfig, updateConfig, deleteConfig, setActive } = useAdminWhatsappMutations(organizationId);
+  const { createConfig, updateConfig, deleteConfig, setActive, approve } =
+    useAdminWhatsappMutations(organizationId);
 
   // Un número no puede rutear a un workflow interno del super admin — el backend ya lo
   // rechaza, esto es solo para no ofrecerlo en el selector.
@@ -52,7 +66,10 @@ export function ChannelsTab({ organizationId }: Props) {
     () => (workflowsPage?.data ?? []).filter((w) => !w.isInternal),
     [workflowsPage],
   );
-  const workflowNameById = useMemo(() => new Map(workflows.map((w) => [w.id, w.name])), [workflows]);
+  const workflowNameById = useMemo(
+    () => new Map(workflows.map((w) => [w.id, w.name])),
+    [workflows],
+  );
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -131,7 +148,7 @@ export function ChannelsTab({ organizationId }: Props) {
           toast.success(t('createdSuccess'));
           closeCreate();
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -157,7 +174,7 @@ export function ChannelsTab({ organizationId }: Props) {
           toast.success(t('savedSuccess'));
           setEditTarget(null);
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -165,14 +182,21 @@ export function ChannelsTab({ organizationId }: Props) {
   const handleDelete = (config: WhatsAppConfig) => {
     deleteConfig.mutate(config.id, {
       onSuccess: () => toast.success(t('deletedSuccess')),
-      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
+    });
+  };
+
+  const handleApprove = (config: WhatsAppConfig) => {
+    approve.mutate(config.id, {
+      onSuccess: () => toast.success(t('approvedSuccess')),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
     });
   };
 
   const handleToggleActive = (config: WhatsAppConfig) => {
     setActive.mutate(
       { id: config.id, isActive: !config.isActive },
-      { onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)) },
+      { onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)) },
     );
   };
 
@@ -202,7 +226,10 @@ export function ChannelsTab({ organizationId }: Props) {
                 ? (workflowNameById.get(config.defaultWorkflowId) ?? t('deletedWorkflow'))
                 : null;
               return (
-                <li key={config.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <li
+                  key={config.id}
+                  className="flex flex-wrap items-center justify-between gap-3 py-3"
+                >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate font-medium text-text-primary">
@@ -211,22 +238,43 @@ export function ChannelsTab({ organizationId }: Props) {
                       {config.displayName && (
                         <span className="text-xs text-text-secondary">{config.phoneNumber}</span>
                       )}
+                      {!config.approvedAt && (
+                        <span className="text-xs font-medium text-warning-500">
+                          {t('pendingBadge')}
+                        </span>
+                      )}
                       {!config.isActive && (
                         <span className="text-xs text-danger">{t('inactiveBadge')}</span>
                       )}
                     </div>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
-                      <span className={CONNECTION_STYLE[config.connectionStatus] ?? 'text-text-tertiary'}>
+                      <span
+                        className={
+                          CONNECTION_STYLE[config.connectionStatus] ?? 'text-text-tertiary'
+                        }
+                      >
                         {config.connectionStatus}
                       </span>
                       <span>{t(config.provider === 'meta' ? 'providerMeta' : 'providerYcloud')}</span>
                       <span>
-                        {workflowName ? t('routesTo', { workflow: workflowName }) : t('noWorkflowAssigned')}
+                        {workflowName
+                          ? t('routesTo', { workflow: workflowName })
+                          : t('noWorkflowAssigned')}
                       </span>
                     </p>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-1">
+                    {!config.approvedAt && (
+                      <button
+                        onClick={() => handleApprove(config)}
+                        disabled={approve.isPending}
+                        title={t('approveTitle')}
+                        className="rounded-lg p-2 text-success-500 transition-colors hover:bg-surface-secondary disabled:opacity-50"
+                      >
+                        <BadgeCheck size={16} />
+                      </button>
+                    )}
                     <button
                       onClick={() => setTemplatesTarget(config)}
                       title={t('templatesTitle')}

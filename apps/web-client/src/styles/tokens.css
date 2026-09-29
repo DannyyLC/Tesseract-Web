@@ -247,8 +247,8 @@
   --auth-branding-grid-opacity: 0.3;
   --auth-branding-logo-filter: invert(1) drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
   /* Texto y bordes de elementos decorativos del panel de branding (panel siempre oscuro) */
-  --auth-branding-text-label: rgba(255, 255, 255, 0.70);
-  --auth-branding-text-desc: rgba(255, 255, 255, 0.80);
+  --auth-branding-text-label: rgba(255, 255, 255, 0.7);
+  --auth-branding-text-desc: rgba(255, 255, 255, 0.8);
   --auth-branding-float-border: rgba(255, 255, 255, 0.25);
   --auth-branding-float-border-faint: rgba(255, 255, 255, 0.15);
 

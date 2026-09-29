@@ -19,11 +19,7 @@ export function UserDetails({ userId }: UserDetailsProps) {
   }
 
   if (error || !user) {
-    return (
-      <div className="p-4 text-center text-sm text-danger">
-        {t('loadDetailsError')}
-      </div>
-    );
+    return <div className="p-4 text-center text-sm text-danger">{t('loadDetailsError')}</div>;
   }
 
   return (

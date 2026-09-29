@@ -1,6 +1,15 @@
 'use client';
 
-import { ArrowRight, Calendar, Globe, MessageSquare, Phone, Terminal, User, Users } from 'lucide-react';
+import {
+  ArrowRight,
+  Calendar,
+  Globe,
+  MessageSquare,
+  Phone,
+  Terminal,
+  User,
+  Users,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { MessengerIcon, WhatsappIcon } from '@/components/icons';
 
@@ -179,10 +188,16 @@ export default function ConversationChannelMeta({
           {item.variant === 'route' ? (
             <span className="inline-flex max-w-full items-start gap-1.5 text-text-secondary">
               <span className="mt-0.5 shrink-0">{item.icon}</span>
-              <span className={`inline-flex min-w-0 flex-wrap items-center gap-1 ${routeTextClass} whitespace-normal break-words leading-relaxed text-text-primary`}>
-                <span className="break-all font-medium">{item.value.split(' to ')[0]?.replace(/^From /, '')}</span>
+              <span
+                className={`inline-flex min-w-0 flex-wrap items-center gap-1 ${routeTextClass} whitespace-normal break-words leading-relaxed text-text-primary`}
+              >
+                <span className="break-all font-medium">
+                  {item.value.split(' to ')[0]?.replace(/^From /, '')}
+                </span>
                 <ArrowRight size={12} className="mt-px shrink-0 text-text-tertiary" />
-                <span className="break-all text-text-secondary">{item.value.split(' to ')[1] ?? ''}</span>
+                <span className="break-all text-text-secondary">
+                  {item.value.split(' to ')[1] ?? ''}
+                </span>
               </span>
             </span>
           ) : (

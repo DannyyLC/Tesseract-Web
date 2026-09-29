@@ -33,6 +33,12 @@ import {
   WHATSAPP_SESSION_SECRET_FIELDS,
   whatsappSessionContext,
 } from './whatsapp-session-data';
+import { WhatsAppInboundEvent } from './dto';
+import { EmailService } from '@/messaging/notifications/email/email.service';
+import { toText } from '@/platform/common/utils/to-text';
+import { httpErrorDetail } from '@/platform/common/utils/error-message';
+
+const YCLOUD_API_BASE = process.env.YCLOUD_API_BASE ?? 'https://api.ycloud.com/v2';
 
 /** Ventana de tolerancia para el timestamp de la firma de webhooks (5 minutos). */
 const WEBHOOK_SIGNATURE_TOLERANCE_SECONDS = 300;
@@ -46,6 +52,7 @@ export class WhatsappConfigService {
     private readonly conversationsService: ConversationsService,
     private readonly secretFieldsCipher: SecretFieldsCipher,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+    private readonly emailService: EmailService,
   ) {}
 
   async getWhatsappConfigById(id: string) {
@@ -105,6 +112,11 @@ export class WhatsappConfigService {
     }
   }
 
+  /**
+   * @param approved `true` solo desde el panel de super admin. El alta que hace el cliente nace
+   * pendiente (`approvedAt` NULL) y no recibe ni envía nada hasta que un super admin la aprueba
+   * (ver el comentario de `approvedAt` en schema.prisma).
+   */
   async createRecordAndgenerateWebhookSecret(
     organizationId: string,
     workflowId: string,
@@ -112,6 +124,7 @@ export class WhatsappConfigService {
     presentation?: { displayName?: string; description?: string },
     // Sin esto el número nace en YCloud, como siempre. `sessionData` solo lo usa Meta.
     channel?: { provider: WhatsAppProvider; sessionData?: JsonObject },
+    approved = false,
   ): Promise<WhatsAppConfig | null> {
     try {
       // El id se genera aquí (y no con el `@default(uuid())` de la base) porque el cifrado de
@@ -134,6 +147,7 @@ export class WhatsappConfigService {
           webhookUrl: `${process.env.DOMAIN_BASE_URL}/whatsapp-config/whatsapp-webhook`,
           defaultWorkflowId: workflowId,
           isActive: true,
+          approvedAt: approved ? new Date() : null,
           displayName: presentation?.displayName?.trim() || undefined,
           description: presentation?.description?.trim() || undefined,
         },
@@ -349,6 +363,71 @@ export class WhatsappConfigService {
       WHATSAPP_SESSION_SECRET_FIELDS,
       whatsappSessionContext(configId),
     )) as JsonObject;
+  }
+
+  /** 
+   * Avisa a soporte que un cliente pidió dar de alta un número. Es la señal para terminar la
+   * integración en YCloud y aprobarlo desde el panel de super admin. No lanza: si el correo
+   * falla, la solicitud sigue viva y visible como pendiente en ese panel.
+   */
+  async notifyNumberRequested(
+    config: WhatsAppConfig,
+    requester: { name: string; email: string },
+  ): Promise<void> {
+    try {
+      const organization = await this.prismaService.organization.findUnique({
+        where: { id: config.organizationId },
+        select: { name: true },
+      });
+      const workflow = config.defaultWorkflowId
+        ? await this.prismaService.workflow.findUnique({
+            where: { id: config.defaultWorkflowId },
+            select: { name: true },
+          })
+        : null;
+      const now = new Date();
+      const dateTime = `${now.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })} a las ${now.toLocaleTimeString('es-ES')}`;
+
+      const sent = await this.emailService.sendServiceRequestEmail(
+        process.env.SMTP_EMAIL_FROM ?? 'no-reply@fractalops.com.mx',
+        process.env.SUPPORT_EMAIL_TO ?? 'support@fractalops.com.mx',
+        requester.email,
+        requester.name,
+        'Solicitud de alta de número de WhatsApp',
+        `Número: ${config.phoneNumber}\n` +
+          `Workflow: ${workflow?.name ?? 'sin asignar'} (${config.defaultWorkflowId ?? '-'})\n` +
+          'Queda pendiente: termina la integración en YCloud y apruébalo en el panel de super ' +
+          'admin (Organizaciones → Canales).',
+        organization?.name ?? 'Organización desconocida',
+        config.organizationId,
+        dateTime,
+      );
+      if (!sent) {
+        this.logger.error(
+          `No se pudo avisar a soporte del número ${maskPhone(config.phoneNumber)}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error('Error avisando a soporte de un número nuevo:', error);
+    }
+  }
+
+  /** Marca el número como verificado por un super admin. Idempotente: no pisa la fecha original. */
+  async approve(configId: string): Promise<boolean> {
+    try {
+      await this.prismaService.whatsAppConfig.updateMany({
+        where: { id: configId, approvedAt: null },
+        data: { approvedAt: new Date() },
+      });
+      return true;
+    } catch (error) {
+      this.logger.error('Error approving WhatsApp config:', error);
+      return false;
+    }
   }
 
   async updateIsActive(configId: string, isActive: boolean): Promise<boolean> {
@@ -621,7 +700,7 @@ export class WhatsappConfigService {
    * citas, líneas horizontales) se degradan a texto plano o a una aproximación
    * visual cercana.
    */
-  async sanitizeOutput(text: string): Promise<string> {
+  sanitizeOutput(text: string): string {
     if (!text) return text;
 
     // Marcadores temporales para no reprocesar segmentos ya resueltos.
@@ -687,11 +766,13 @@ export class WhatsappConfigService {
     const clientNumber = whatsappInboundMessagePayload.getFromNumber();
     const ownerNumber = whatsappInboundMessagePayload.getToNumber();
     if (clientNumber === undefined || ownerNumber === undefined) {
-      this.logger.error('Client number or owner number is undefined in the WhatsApp inbound message payload.');
+      this.logger.error(
+        'Client number or owner number is undefined in the WhatsApp inbound message payload.',
+      );
       return;
     }
 
-    const variables = (((executionMetadata ?? {}))?.variables ?? {}) as Record<string, unknown>;
+    const variables = ((executionMetadata ?? {})?.variables ?? {}) as Record<string, unknown>;
     if (Object.keys(variables).length === 0) {
       return;
     }
@@ -715,7 +796,13 @@ export class WhatsappConfigService {
 
     if (declaredActions === null) {
       // Legacy: workflow sin post_turn_actions declaradas → comportamiento histórico
-      await this.legacyMediaUrlAction(conversationId, organizationId, executionMetadata, ownerNumber, clientNumber);
+      await this.legacyMediaUrlAction(
+        conversationId,
+        organizationId,
+        executionMetadata,
+        ownerNumber,
+        clientNumber,
+      );
       return;
     }
 
@@ -742,10 +829,8 @@ export class WhatsappConfigService {
     // Handlers que este canal (WhatsApp) ofrece a las acciones declaradas
     const handlers: Record<string, PostTurnActionHandler> = {
       send_drive_folder_media: async (triggerValue, params, actionId) => {
-        const urls = Array.isArray(triggerValue)
-          ? triggerValue
-          : String(triggerValue ?? '').split(',');
-        const intro = params.intro_message ? String(params.intro_message) : '';
+        const urls = Array.isArray(triggerValue) ? triggerValue : toText(triggerValue).split(',');
+        const intro = toText(params.intro_message);
         if (intro) {
           await sendAndRecord(actionId, intro);
         }
@@ -756,15 +841,14 @@ export class WhatsappConfigService {
         }
       },
       send_text_message: async (_triggerValue, params, actionId) => {
-        const text = params.text ? String(params.text) : '';
+        const text = toText(params.text);
         if (text) {
           await sendAndRecord(actionId, text);
         }
       },
     };
 
-    const previousFlags =
-      ((executionMetadata)?.postTurnActions as Record<string, boolean>) ?? {};
+    const previousFlags = (executionMetadata?.postTurnActions as Record<string, boolean>) ?? {};
 
     const updatedFlags = await runPostTurnActions({
       actions: declaredActions,
@@ -792,8 +876,8 @@ export class WhatsappConfigService {
     ownerNumber: string,
     clientNumber: string,
   ): Promise<void> {
-    const variables = ((executionMetadata ?? {}))?.variables;
-    if ((variables as JsonObject)?.media_url && !(executionMetadata)?.media_url_sent) {
+    const variables = (executionMetadata ?? {})?.variables;
+    if ((variables as JsonObject)?.media_url && !executionMetadata?.media_url_sent) {
       const mediaUrlValue = (variables as JsonObject)?.media_url;
       const mediaUrls = Array.isArray(mediaUrlValue)
         ? mediaUrlValue
@@ -804,10 +888,18 @@ export class WhatsappConfigService {
       let firstTime = true;
       for (const mediaUrl of mediaUrls) {
         if (firstTime) {
-          this.sendTextMessage(ownerNumber, clientNumber, 'Te tratare de compartir algúnos archivos que son relevantes en relación a lo mencionado anteriormente.');
+          // Sin await a propósito (el aviso no bloquea el envío de archivos), pero con catch:
+          // sendTextMessage no atrapa sus errores y un rechazo sin manejar tumba el proceso.
+          this.sendTextMessage(
+            ownerNumber,
+            clientNumber,
+            'Te tratare de compartir algúnos archivos que son relevantes en relación a lo mencionado anteriormente.',
+          ).catch((error: unknown) =>
+            this.logger.error('No se pudo enviar el aviso de archivos por WhatsApp', error),
+          );
           firstTime = false;
         }
-        const normalizedMediaUrl = String(mediaUrl).trim();
+        const normalizedMediaUrl = toText(mediaUrl).trim();
         if (!normalizedMediaUrl) {
           continue;
         }
@@ -823,17 +915,23 @@ export class WhatsappConfigService {
     }
   }
 
-  private async sendFolderMediaToUser(folderUrl: string, fromPhoneNumber: string, toPhoneNumber: string) {
+  private async sendFolderMediaToUser(
+    folderUrl: string,
+    fromPhoneNumber: string,
+    toPhoneNumber: string,
+  ) {
     // 1. Obtener todos los archivos clasificados
     const files = await this.driveService.getFilesFromPublicFolder(folderUrl);
-    
+
     this.logger.info(`Procesando ${files.length} archivos para el cliente.`);
 
     // 2. Descartar formatos no soportados y enviar el resto
     const sendable: WBFile[] = [];
     for (const file of files) {
       if (file.type === 'unknown') {
-        this.logger.warn(`Archivo ignorado por formato no soportado: ${file.name} (${file.mimeType})`);
+        this.logger.warn(
+          `Archivo ignorado por formato no soportado: ${file.name} (${file.mimeType})`,
+        );
         continue;
       }
       sendable.push({ type: file.type, name: file.name, link: file.downloadUrl });

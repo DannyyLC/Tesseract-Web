@@ -25,7 +25,8 @@ interface Props {
 export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) {
   const tt = useTranslations('Admin.NodesTab');
   const tSummary = useTranslations('Admin.NodeSummary');
-  const nodes: any[] = config.graph?.nodes ?? [];
+  // Memoizado: `?? []` crearía un arreglo nuevo en cada render y rompería los useMemo.
+  const nodes = useMemo(() => config.graph?.nodes ?? [], [config.graph?.nodes]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filter, setFilter] = useState('');
   const [draftText, setDraftText] = useState<string | null>(null);
@@ -54,7 +55,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
   }, [nodes, filter]);
 
   const current = nodes[selectedIndex];
-  const schema = current && nodeCatalog?.node_types?.[current.type];
+  const schema = current?.type ? nodeCatalog?.node_types?.[current.type] : undefined;
 
   const select = (index: number) => {
     setSelectedIndex(index);
@@ -78,9 +79,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
   };
 
   if (nodes.length === 0) {
-    return (
-      <p className="p-8 text-center text-sm text-text-secondary">{tt('noNodes')}</p>
-    );
+    return <p className="p-8 text-center text-sm text-text-secondary">{tt('noNodes')}</p>;
   }
 
   return (
@@ -116,7 +115,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
                     {node?.id}
                   </span>
                   <span className="block truncate text-[11px] text-text-secondary">
-                    {nodeCatalog?.node_types?.[node?.type]?.label ?? node?.type}
+                    {(node?.type && nodeCatalog?.node_types?.[node.type]?.label) ?? node?.type}
                     {' · '}
                     {summarizeNode(tSummary, node, toolNames)}
                   </span>
@@ -178,29 +177,27 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
               {schema ? (
                 <div className="max-h-[430px] overflow-y-auto rounded-lg border border-border p-3">
                   <ul className="space-y-2">
-                    {Object.entries<any>(schema.config_schema?.properties ?? {}).map(
-                      ([key, prop]) => (
-                        <li key={key} className="text-xs">
-                          <span className="font-mono text-text-primary">{key}</span>
-                          <span className="ml-2 text-text-secondary">{prop.type}</span>
-                          {schema.config_schema?.required?.includes(key) && (
-                            <span className="ml-2 text-[10px] uppercase text-danger">
-                              {tt('required')}
-                            </span>
-                          )}
-                          {prop.enum && (
-                            <span className="ml-2 text-text-secondary">
-                              ({prop.enum.join(' | ')})
-                            </span>
-                          )}
-                          {prop.description && (
-                            <p className="mt-0.5 text-[11px] text-text-secondary">
-                              {prop.description}
-                            </p>
-                          )}
-                        </li>
-                      ),
-                    )}
+                    {Object.entries(schema.config_schema?.properties ?? {}).map(([key, prop]) => (
+                      <li key={key} className="text-xs">
+                        <span className="font-mono text-text-primary">{key}</span>
+                        <span className="ml-2 text-text-secondary">{prop.type}</span>
+                        {schema.config_schema?.required?.includes(key) && (
+                          <span className="ml-2 text-[10px] uppercase text-danger">
+                            {tt('required')}
+                          </span>
+                        )}
+                        {prop.enum && (
+                          <span className="ml-2 text-text-secondary">
+                            ({prop.enum.join(' | ')})
+                          </span>
+                        )}
+                        {prop.description && (
+                          <p className="mt-0.5 text-[11px] text-text-secondary">
+                            {prop.description}
+                          </p>
+                        )}
+                      </li>
+                    ))}
                   </ul>
                   <p className="mt-3 border-t border-border pt-2 text-[11px] text-text-secondary">
                     {tt('agentSynthesizerHint')}

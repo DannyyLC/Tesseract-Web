@@ -12,6 +12,7 @@ import { toIntlLocale } from '@/lib/intl-locale';
 import type { AdminWorkflowDetail } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import { WorkflowChannelsSection } from './workflow-channels-section';
+import { isToastHandled, toApiError } from '@/lib/api/api-error';
 
 interface Props {
   workflow: AdminWorkflowDetail;
@@ -78,15 +79,16 @@ export function SettingsTab({ workflow }: Props) {
       await removeWorkflow.mutateAsync(workflow.id);
       toast.success(t('workflowDeleted'));
       setConfirmDeleteOpen(false);
-    } catch (e: any) {
-      if (!e?.toastHandled) toast.error(getApiErrorMessage(e));
+    } catch (caught) {
+      const e = toApiError(caught);
+      if (!e.toastHandled) toast.error(getApiErrorMessage(e));
     }
   };
 
   const handleRestore = () => {
     restoreWorkflow.mutate(workflow.id, {
       onSuccess: () => toast.success(t('workflowRestored')),
-      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
     });
   };
 
@@ -100,7 +102,7 @@ export function SettingsTab({ workflow }: Props) {
       },
       {
         onSuccess: () => toast.success(t('settingsSaved')),
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -111,7 +113,11 @@ export function SettingsTab({ workflow }: Props) {
 
       <div>
         <label className={labelClass}>{t('nameLabel')}</label>
-        <input className={inputClass} value={form.name} onChange={(e) => set('name', e.target.value)} />
+        <input
+          className={inputClass}
+          value={form.name}
+          onChange={(e) => set('name', e.target.value)}
+        />
       </div>
 
       <div>
@@ -225,7 +231,7 @@ export function SettingsTab({ workflow }: Props) {
           <>
             <p className="mt-1 text-xs text-text-secondary">{t('stopsImmediatelyHint')}</p>
             <button
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-danger px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
+              className="hover:bg-danger/10 mt-2 inline-flex items-center gap-1.5 rounded-lg border border-danger px-3 py-1.5 text-xs font-medium text-danger transition-colors disabled:opacity-50"
               onClick={() => setConfirmDeleteOpen(true)}
               disabled={removeWorkflow.isPending}
             >
@@ -241,8 +247,16 @@ export function SettingsTab({ workflow }: Props) {
       </div>
 
       <div className="flex justify-end pt-2">
-        <button className={btnPrimary} onClick={handleSave} disabled={!dirty || updateMeta.isPending}>
-          {updateMeta.isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+        <button
+          className={btnPrimary}
+          onClick={handleSave}
+          disabled={!dirty || updateMeta.isPending}
+        >
+          {updateMeta.isPending ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <Save size={14} />
+          )}
           {t('saveSettings')}
         </button>
       </div>

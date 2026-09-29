@@ -1,6 +1,10 @@
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
-import { InterventionAccessGuard, InterventionRequest } from '../../core/intervention-access.guard';
+import {
+  InterventionAccessGuard,
+  InterventionRequest,
+  interventionClaimsOf,
+} from '../../core/intervention-access.guard';
 import { ConversationsService } from '../../conversations.service';
 import { RequestInterventionDto } from '../../dto/request-intervention.dto';
 
@@ -27,7 +31,7 @@ export class InterventionController {
     @Req() request: InterventionRequest,
     @Body() body: RequestInterventionDto,
   ): Promise<void> {
-    const { organizationId, conversationId } = request.interventionClaims!;
+    const { organizationId, conversationId } = interventionClaimsOf(request);
 
     await this.conversationsService.requestHumanIntervention(
       organizationId,

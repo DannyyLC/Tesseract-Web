@@ -1,7 +1,16 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  Area,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { Activity } from 'lucide-react';
 import type { AdminAnalyticsTimeseriesPoint } from '@/lib/api/endpoints/billing/analytics-admin-api';
 import { formatCompactNumber, formatUSD } from './format';
@@ -78,7 +87,8 @@ export function CostExecutionsTimeseriesChart({ points }: Props) {
                     </div>
                     <div className="flex flex-col gap-1">
                       <span>
-                        {t('tooltipExecutions')}: <span className="font-medium">{point.executions}</span>
+                        {t('tooltipExecutions')}:{' '}
+                        <span className="font-medium">{point.executions}</span>
                       </span>
                       <span>
                         {t('tooltipRealCost')}:{' '}

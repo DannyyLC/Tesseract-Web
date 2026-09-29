@@ -52,6 +52,17 @@ export class ApiKeysService {
       );
     }
 
+    // El workflow llega del body: tiene que ser de esta organización.
+    if (dto.workflowId) {
+      const workflow = await this.prisma.workflow.findFirst({
+        where: { id: dto.workflowId, organizationId },
+        select: { id: true },
+      });
+      if (!workflow) {
+        throw new NotFoundException('Workflow no encontrado en esta organización');
+      }
+    }
+
     // Generar API Key aleatorio
     const apiKey = ApiKeyUtil.generate('live');
 
@@ -191,7 +202,7 @@ export class ApiKeysService {
     }
 
     // Preparar datos a actualizar
-    const dataToUpdate: any = {};
+    const dataToUpdate: Prisma.ApiKeyUpdateInput = {};
     if (dto.name !== undefined) dataToUpdate.name = dto.name;
     if (dto.description !== undefined) dataToUpdate.description = dto.description;
     if (dto.isActive !== undefined) dataToUpdate.isActive = dto.isActive;

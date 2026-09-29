@@ -54,7 +54,8 @@ export class AnalyticsAdminController {
     @Query('period', new DefaultValuePipe('30d')) period: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-    @Query('sortBy', new DefaultValuePipe('marginPct')) sortBy: 'marginPct' | 'costUSD' | 'executions',
+    @Query('sortBy', new DefaultValuePipe('marginPct'))
+    sortBy: 'marginPct' | 'costUSD' | 'executions',
   ): Promise<ApiResponse> {
     const result = await this.analyticsService.getOrganizationsMargin(period, page, limit, sortBy);
     return new ApiResponseBuilder().setData(result).build();

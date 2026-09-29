@@ -7,7 +7,7 @@ interface CreditDisplayProps {
   currencySymbol?: string;
 }
 
-export default function CreditDisplay({ balance, currencySymbol = '' }: CreditDisplayProps) {
+export default function CreditDisplay({ balance }: CreditDisplayProps) {
   const t = useTranslations('BillingCredits');
   const isNegative = balance < 0;
 

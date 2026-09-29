@@ -8,7 +8,9 @@ import {
   validateRecord,
 } from './dataset-schema.validator';
 
-const field = (overrides: Partial<DatasetField> & Pick<DatasetField, 'key' | 'type'>): DatasetField => ({
+const field = (
+  overrides: Partial<DatasetField> & Pick<DatasetField, 'key' | 'type'>,
+): DatasetField => ({
   label: overrides.key,
   order: 0,
   ...overrides,
@@ -53,7 +55,10 @@ describe('dataset-schema.validator', () => {
 
     it('rechaza keys repetidas', () => {
       expect(() =>
-        validateFields([field({ key: 'marca', type: 'text' }), field({ key: 'marca', type: 'text' })]),
+        validateFields([
+          field({ key: 'marca', type: 'text' }),
+          field({ key: 'marca', type: 'text' }),
+        ]),
       ).toThrow(BadRequestException);
     });
 

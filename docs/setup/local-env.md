@@ -114,9 +114,9 @@ Estas deben estar siempre configuradas o el gateway no inicializa.
 - `FRONTEND_URL`: URL del frontend (típicamente `http://localhost:3001`).
 - `DOMAIN_BASE_URL`: URL base del dominio de la app.
 - `AGENTS_GRPC_URL`: Dirección del servicio de agentes gRPC (default `localhost:50051`).
-- `AGENTS_INTERNAL_SECRET`: Secreto compartido entre gateway y agents para autenticar la llamada interna gRPC. **Debe coincidir** en ambos lados. Si no la pones, agents levanta igual pero **rechaza todas las llamadas** con `UNAUTHENTICATED`: el síntoma es un error de gRPC a media conversación, no un mensaje que lo explique (el aviso sale una sola vez, al arrancar el servicio de Python). En producción el servicio directamente no arranca sin ella — ver `apps/agents/src/core/env_validation.py`.
 - `GATEWAY_INTERNAL_URL`: URL con la que agents alcanza al gateway (sentido inverso). Solo la usa la tool de catálogos, para consultar las filas en tiempo de llamada.
-- `DATASET_TOKEN_SECRET`: Firma los tokens de esa consulta. Al revés que `AGENTS_INTERNAL_SECRET`, **va solo en el gateway**: agents recibe el token ya firmado dentro del payload y lo reenvía, pero nunca lo emite. Compartir la llave le permitiría firmarse el acceso al catálogo de cualquier organización.
+- `DATASET_TOKEN_SECRET`: Firma los tokens de esa consulta. **Va solo en el gateway**: agents recibe el token ya firmado dentro del payload y lo reenvía, pero nunca lo emite. Compartir la llave le permitiría firmarse el acceso al catálogo de cualquier organización.
+- `OAUTH_STATE_SECRET`: Firma el `state` con el que se conecta una tool a Google (Calendar, Sheets). **Va solo en el gateway**. Sin ella, conectar una tool de Google falla con error; el resto de la app funciona igual.
 
 ### Seguridad Front-End (Obligatorio para Sign Up / Login)
 
@@ -171,7 +171,7 @@ _Solo requieres estas variables si vas a hacer cambios en el código de cobros, 
 _Solo requieres configurar esto si vas a crear/editar Workflows y usar la opción de "Probar Chat" o ejecutar agentes. Estas llaves las lee el servicio de Python (`apps/agents`)._
 
 - `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`: Llaves de los proveedores de IA. (Solo pon la llave del proveedor que vayas a usar).
-- `AGENTS_GRPC_URL` y `AGENTS_INTERNAL_SECRET`: Ver la sección de URLs arriba (la conexión gateway → agents ya no es HTTP, es gRPC interno autenticado).
+- `AGENTS_GRPC_URL`: Ver la sección de URLs arriba (la conexión gateway → agents es gRPC). En local no lleva autenticación; en producción la pone Cloud Run con IAM — ver `docs/setup/deployment.md`, §5.
 
 ### Procesamiento de Medios y Compactación (Opcionales)
 

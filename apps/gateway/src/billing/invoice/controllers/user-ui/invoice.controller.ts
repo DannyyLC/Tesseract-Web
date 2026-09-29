@@ -1,19 +1,7 @@
 import { ParsePageSizePipe } from '@/platform/common/pipes/parse-page-size.pipe';
-import {
-  Controller,
-  Get,
-  Param,
-  Post,
-  Query,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import {
-  ApiResponseBuilder,
-  PaginatedResponse,
-  UserRole,
-} from '@tesseract/types';
+import { ApiResponseBuilder, PaginatedResponse, UserRole } from '@tesseract/types';
 import { CfdiStatus } from '@tesseract/database';
 import { Response } from 'express';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
@@ -105,10 +93,7 @@ export class InvoiceController {
 
     // Se rechaza antes de tocar el PAC: reintentar una factura ya timbrada emitiría un
     // segundo CFDI para un solo pago, y una en STAMPING está siendo timbrada ahora mismo.
-    if (
-      invoice.cfdiStatus !== CfdiStatus.PENDING &&
-      invoice.cfdiStatus !== CfdiStatus.FAILED
-    ) {
+    if (invoice.cfdiStatus !== CfdiStatus.PENDING && invoice.cfdiStatus !== CfdiStatus.FAILED) {
       throw new CfdiNotStampableException(invoiceId, invoice.cfdiStatus);
     }
 
@@ -145,11 +130,7 @@ export class InvoiceController {
   ): Promise<void> {
     const normalized = format === 'xml' ? 'xml' : 'pdf';
 
-    const file = await this.invoiceService.getCfdiFile(
-      user.organizationId,
-      invoiceId,
-      normalized,
-    );
+    const file = await this.invoiceService.getCfdiFile(user.organizationId, invoiceId, normalized);
 
     res.setHeader('Content-Type', file.contentType);
     res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);

@@ -152,7 +152,9 @@ export function CatalogTab({ onConnect }: CatalogTabProps) {
                     connectedCount={connectedCountMap[tool.toolName] ?? 0}
                     onConnect={handleConnectClick}
                     forceDisabled={
-                      isWhatsappOutbound && whatsappStatus ? !whatsappStatus.hasWhatsappConfig : false
+                      isWhatsappOutbound && whatsappStatus
+                        ? !whatsappStatus.hasWhatsappConfig
+                        : false
                     }
                     disabledBadgeText={isWhatsappOutbound ? t('whatsappNoConfigBadge') : undefined}
                     pendingSetupCount={

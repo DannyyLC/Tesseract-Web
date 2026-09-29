@@ -84,6 +84,7 @@ export interface InviteUserDto {
 export interface AcceptInvitationDto {
   user: string;
   password?: string;
+  email: string;
   verificationCode: string;
 }
 

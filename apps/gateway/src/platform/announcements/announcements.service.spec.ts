@@ -4,7 +4,13 @@ import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { AnnouncementsService } from './announcements.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 
-const ACTOR = { sub: 'admin-1', email: 'admin@platform.com', name: 'Admin', role: 'SUPER_ADMIN', organizationId: 'platform-org' };
+const ACTOR = {
+  sub: 'admin-1',
+  email: 'admin@platform.com',
+  name: 'Admin',
+  role: 'SUPER_ADMIN',
+  organizationId: 'platform-org',
+};
 
 describe('AnnouncementsService', () => {
   let service: AnnouncementsService;
@@ -33,7 +39,10 @@ describe('AnnouncementsService', () => {
       providers: [
         AnnouncementsService,
         { provide: PrismaService, useValue: prisma },
-        { provide: WINSTON_MODULE_PROVIDER, useValue: { info: jest.fn(), error: jest.fn(), warn: jest.fn() } },
+        {
+          provide: WINSTON_MODULE_PROVIDER,
+          useValue: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+        },
       ],
     }).compile();
 

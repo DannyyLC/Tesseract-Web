@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { useRouter } from '@/i18n/routing';
+import { Link, useRouter } from '@/i18n/routing';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send,
@@ -34,6 +34,7 @@ import ConversationChannelMeta from '../_components/conversation-channel-meta';
 import { useDictation } from '@/hooks/use-dictation';
 import { useEndUserMutations } from '@/hooks/identity/use-end-users';
 import { BlockContactModal } from '@/components/contacts';
+import { eventString } from '@/lib/api/endpoints/automation/workflows/stream-types';
 
 interface Message {
   id: string;
@@ -169,7 +170,7 @@ export default function WorkflowChatPage() {
       // Si estamos haciendo streaming, NO sobrescribir con datos del servidor
       if (isStreaming) return;
 
-      const serverMessages: Message[] = conversationData.messages.map((msg: any) => ({
+      const serverMessages: Message[] = conversationData.messages.map((msg) => ({
         id: msg.id || Date.now().toString(),
         role: (msg.role as string).toLowerCase() as 'user' | 'assistant',
         content: msg.content,
@@ -259,6 +260,9 @@ export default function WorkflowChatPage() {
         setTimeout(scrollToBottom, 100);
       }
     }
+    // `messages.length` solo decide el scroll inicial; como dependencia volvería a mezclar
+    // con los datos del servidor cada vez que cambia un mensaje local.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationData, isStreaming]);
 
   useEffect(() => {
@@ -309,7 +313,7 @@ export default function WorkflowChatPage() {
       setThinkingIndex((prev) => (prev + 1) % THINKING_WORDS.length);
     }, 2000);
     return () => clearInterval(interval);
-  }, [isStreaming]);
+  }, [isStreaming, THINKING_WORDS.length]);
 
   const handleChatScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -416,15 +420,15 @@ export default function WorkflowChatPage() {
         { message: userMsg.content },
         isNewConversation ? undefined : { conversationId }, // Metadata only if existing conversation
         (event, data) => {
-          // Si recibimos el ID
-          if (event === 'conversation_id') {
+          const receivedId = eventString(data);
+          if (event === 'conversation_id' && receivedId) {
             // Si es una conversacion nueva (ID recibido != ID actual URL)
-            if (data !== conversationId) {
-              pendingConversationId.current = data;
+            if (receivedId !== conversationId) {
+              pendingConversationId.current = receivedId;
 
               // Migrar borrador si venimos de 'new'
               if (isNewConversation) {
-                migrateDraft(data);
+                migrateDraft(receivedId);
               }
             }
 
@@ -818,7 +822,7 @@ export default function WorkflowChatPage() {
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
-                                table: ({ node, ...props }) => (
+                                table: ({ node: _node, ...props }) => (
                                   <div className="my-4 overflow-x-auto rounded-lg border border-border">
                                     <table
                                       className="w-full border-collapse text-left text-text-primary"
@@ -826,19 +830,19 @@ export default function WorkflowChatPage() {
                                     />
                                   </div>
                                 ),
-                                thead: ({ node, ...props }) => (
+                                thead: ({ node: _node, ...props }) => (
                                   <thead
                                     className="border-b border-border bg-surface-secondary text-text-primary"
                                     {...props}
                                   />
                                 ),
-                                th: ({ node, ...props }) => (
+                                th: ({ node: _node, ...props }) => (
                                   <th
                                     className="p-3 text-sm font-semibold text-text-primary"
                                     {...props}
                                   />
                                 ),
-                                td: ({ node, ...props }) => (
+                                td: ({ node: _node, ...props }) => (
                                   <td
                                     className="border-b border-border p-3 text-sm text-text-primary last:border-0"
                                     {...props}
@@ -933,23 +937,23 @@ export default function WorkflowChatPage() {
                     error?.message?.includes('grace period has expired') ? (
                       <p className="opacity-90">
                         {t('subscriptionInactive')}{' '}
-                        <a
+                        <Link
                           href="/billing"
                           className="font-semibold underline underline-offset-2 hover:opacity-75"
                         >
                           {t('goToBilling')}
-                        </a>
+                        </Link>
                       </p>
                     ) : error?.statusCode === 403 ||
                       error?.message?.includes('Insufficient credits') ? (
                       <p className="opacity-90">
                         {t('insufficientCredits')}{' '}
-                        <a
+                        <Link
                           href="/billing"
                           className="font-semibold underline underline-offset-2 hover:opacity-75"
                         >
                           {t('buyCredits')}
-                        </a>
+                        </Link>
                       </p>
                     ) : (
                       <p className="opacity-90">

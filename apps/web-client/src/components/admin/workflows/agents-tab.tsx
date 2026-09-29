@@ -10,6 +10,7 @@ import {
   nodesReferencingAgent,
   renameKey,
   setAtPath,
+  type SignalTool,
   type WorkflowConfig,
 } from '@/lib/workflow-config/config-edit';
 import type {
@@ -27,7 +28,8 @@ interface Props {
 
 export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
   const t = useTranslations('Admin.AgentsTab');
-  const agents: Record<string, any> = config.agents ?? {};
+  // Memoizado: `?? {}` crearía un objeto nuevo en cada render y rompería los useMemo de abajo.
+  const agents = useMemo(() => config.agents ?? {}, [config.agents]);
   const agentKeys = useMemo(() => Object.keys(agents), [agents]);
 
   const [selected, setSelected] = useState(agentKeys[0] ?? '');
@@ -49,8 +51,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
     if (!q) return agentKeys;
     return agentKeys.filter(
       (k) =>
-        k.toLowerCase().includes(q) ||
-        (agents[k]?.system_prompt ?? '').toLowerCase().includes(q),
+        k.toLowerCase().includes(q) || (agents[k]?.system_prompt ?? '').toLowerCase().includes(q),
     );
   }, [agentKeys, agents, filter]);
 
@@ -62,6 +63,12 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
   /** Cada control escribe una ruta concreta; el resto del documento no se toca. */
   const setField = (field: string, value: unknown) =>
     onChange(setAtPath(config, ['agents', selected, field], value));
+
+  const updateSignal = (index: number, patch: Partial<SignalTool>) =>
+    setField(
+      'signal_tools',
+      (current?.signal_tools ?? []).map((s, j) => (j === index ? { ...s, ...patch } : s)),
+    );
 
   const handleRename = () => {
     const next = renaming.trim();
@@ -77,8 +84,9 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
     let next_config = setAtPath(config, ['agents'], renameKey(agents, selected, next));
 
     referencing.forEach((nodeId) => {
-      const index = (next_config.graph?.nodes ?? []).findIndex((n: any) => n.id === nodeId);
-      if (index >= 0) next_config = setAtPath(next_config, ['graph', 'nodes', index, 'agent'], next);
+      const index = (next_config.graph?.nodes ?? []).findIndex((n) => n.id === nodeId);
+      if (index >= 0)
+        next_config = setAtPath(next_config, ['graph', 'nodes', index, 'agent'], next);
     });
 
     onChange(next_config);
@@ -266,21 +274,14 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
                 {t('signalToolsSummary', { count: current.signal_tools.length })}
               </summary>
               <div className="mt-3 space-y-3">
-                {current.signal_tools.map((signal: any, i: number) => (
+                {current.signal_tools.map((signal, i) => (
                   <div key={i} className="space-y-2 rounded-md border border-border p-2">
                     <div>
                       <label className={labelClass}>name</label>
                       <input
                         className={inputClass}
                         value={signal.name ?? ''}
-                        onChange={(e) =>
-                          setField(
-                            'signal_tools',
-                            current.signal_tools.map((s: any, j: number) =>
-                              j === i ? { ...s, name: e.target.value } : s,
-                            ),
-                          )
-                        }
+                        onChange={(e) => updateSignal(i, { name: e.target.value })}
                       />
                     </div>
                     <div>
@@ -289,14 +290,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
                         rows={2}
                         className={inputClass}
                         value={signal.description ?? ''}
-                        onChange={(e) =>
-                          setField(
-                            'signal_tools',
-                            current.signal_tools.map((s: any, j: number) =>
-                              j === i ? { ...s, description: e.target.value } : s,
-                            ),
-                          )
-                        }
+                        onChange={(e) => updateSignal(i, { description: e.target.value })}
                       />
                     </div>
                     <div>
@@ -304,14 +298,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
                       <input
                         className={inputClass}
                         value={signal.response ?? ''}
-                        onChange={(e) =>
-                          setField(
-                            'signal_tools',
-                            current.signal_tools.map((s: any, j: number) =>
-                              j === i ? { ...s, response: e.target.value } : s,
-                            ),
-                          )
-                        }
+                        onChange={(e) => updateSignal(i, { response: e.target.value })}
                       />
                     </div>
                   </div>
@@ -326,13 +313,13 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
                 {t('toolsSummary', { count: current.tools.length })}
               </span>
               <ul className="mt-2 space-y-1">
-                {current.tools.map((tool: any, i: number) => {
+                {current.tools.map((tool, i) => {
                   const id = typeof tool === 'string' ? tool : tool?.id;
-                  const known = toolNames.get(id);
+                  const known = id ? toolNames.get(id) : undefined;
                   return (
                     <li key={i} className="flex items-center gap-2 text-xs">
                       <span className={known ? 'text-text-primary' : 'text-danger'}>
-                        {known ?? t('toolNotOwned', { id: id?.slice(0, 8) })}
+                        {known ?? t('toolNotOwned', { id: id?.slice(0, 8) ?? '?' })}
                       </span>
                     </li>
                   );

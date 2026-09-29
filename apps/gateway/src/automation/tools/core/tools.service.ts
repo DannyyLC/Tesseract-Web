@@ -4,7 +4,7 @@ import { KmsService } from './kms.service';
 import { UpsertCredentialsDto } from './dto/upsert-credentials.dto';
 import { ToolsOauthService } from './tools-oauth.service';
 import { ToolHealthService } from './tool-health.service';
-import { ToolConnectionStatus } from '@tesseract/database';
+import { Prisma, TenantToolCredential, ToolConnectionStatus } from '@tesseract/database';
 
 @Injectable()
 export class ToolsService {
@@ -21,8 +21,16 @@ export class ToolsService {
   /**
    * Decrypts credentials for an array of TenantTools that already include the `credential` relation.
    */
-  async populateDecryptedCredentials(tenantTools: any[]): Promise<Record<string, any>> {
-    const credentialsMap: Record<string, any> = {};
+  async populateDecryptedCredentials(
+    tenantTools: {
+      id: string;
+      credential?: Pick<
+        TenantToolCredential,
+        'encryptedAccessToken' | 'encryptedRefreshToken' | 'tokenExpiresAt' | 'oauthProvider'
+      > | null;
+    }[],
+  ): Promise<Record<string, Record<string, unknown>>> {
+    const credentialsMap: Record<string, Record<string, unknown>> = {};
 
     for (const tenantTool of tenantTools) {
       if (tenantTool.credential) {
@@ -180,11 +188,13 @@ export class ToolsService {
       : new Date(Date.now() + 3600 * 1000);
 
     // Preparamos el profile para mezclarlo con cualquier config existente
-    let updatedConfig = tool.config && typeof tool.config === 'object' ? tool.config : {};
+    let updatedConfig = (
+      tool.config && typeof tool.config === 'object' ? tool.config : {}
+    ) as Prisma.InputJsonObject;
     if (data.profile) {
       updatedConfig = {
         ...updatedConfig,
-        profile: data.profile,
+        profile: data.profile as Prisma.InputJsonObject,
       };
     }
 

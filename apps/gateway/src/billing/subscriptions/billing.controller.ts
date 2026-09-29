@@ -41,7 +41,7 @@ import {
   isValidTopUpQuantity,
   CREDIT_TOPUP_LIMITS,
 } from '@tesseract/types';
-import { Organization, SubscriptionPlan, SubscriptionStatus } from '@tesseract/database';
+import { Organization, SubscriptionStatus } from '@tesseract/database';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { Response } from 'express';

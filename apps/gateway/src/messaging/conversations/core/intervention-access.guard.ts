@@ -12,6 +12,14 @@ export interface InterventionRequest extends Request {
   interventionClaims?: InterventionTokenClaims;
 }
 
+/** Claims que dejó `InterventionAccessGuard`. Falla cerrado si una ruta se quedó sin el guard. */
+export function interventionClaimsOf(request: InterventionRequest): InterventionTokenClaims {
+  if (!request.interventionClaims) {
+    throw new UnauthorizedException('Falta el token de intervención');
+  }
+  return request.interventionClaims;
+}
+
 @Injectable()
 export class InterventionAccessGuard implements CanActivate {
   constructor(private readonly interventionTokenService: InterventionTokenService) {}

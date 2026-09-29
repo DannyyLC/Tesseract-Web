@@ -34,6 +34,8 @@ import type {
   AdminTestExecutionDetail,
   AdminWorkflowDetail,
 } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
+import { toApiError } from '@/lib/api/api-error';
+import { eventString } from '@/lib/api/endpoints/automation/workflows/stream-types';
 
 interface Props {
   workflow: AdminWorkflowDetail;
@@ -95,8 +97,13 @@ export function TestTab({ workflow }: Props) {
   const [title, setTitle] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
-  const { execute, messages: streamContent, isStreaming, error, clear } =
-    useAdminTestExecuteStream();
+  const {
+    execute,
+    messages: streamContent,
+    isStreaming,
+    error,
+    clear,
+  } = useAdminTestExecuteStream();
   const { getTestExecution } = useAdminWorkflowMutations();
   const loadConversation = useLoadAdminConversation();
   const renameConversation = useRenameAdminConversation();
@@ -138,9 +145,10 @@ export function TestTab({ workflow }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [thread.length, isStreaming]);
 
+  const lastExecStatus = execHistory[execHistory.length - 1]?.status;
   useEffect(() => {
     panelBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [execHistory.length, execHistory[execHistory.length - 1]?.status]);
+  }, [execHistory.length, lastExecStatus]);
 
   if (!workflow.isInternal) {
     return (
@@ -196,11 +204,12 @@ export function TestTab({ workflow }: Props) {
       { message: trimmed },
       conversationId ? { conversationId } : undefined,
       (event, data) => {
-        if (event === 'conversation_id') setConversationId(data);
+        const value = eventString(data);
+        if (event === 'conversation_id') setConversationId(value);
         if (event === 'execution_id') {
-          executionId = data;
+          executionId = value;
           setExecHistory((prev) =>
-            prev.map((rec) => (rec.turnId === turnId ? { ...rec, executionId: data } : rec)),
+            prev.map((rec) => (rec.turnId === turnId ? { ...rec, executionId: value } : rec)),
           );
         }
       },
@@ -268,7 +277,8 @@ export function TestTab({ workflow }: Props) {
           detail: e,
         })),
       );
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       toast.error(getApiErrorMessage(err));
     }
   };
@@ -291,7 +301,7 @@ export function TestTab({ workflow }: Props) {
           setTitle(trimmed);
           setIsEditingTitle(false);
         },
-        onError: (err: any) => {
+        onError: (err) => {
           toast.error(getApiErrorMessage(err));
           setIsEditingTitle(false);
         },
@@ -312,7 +322,9 @@ export function TestTab({ workflow }: Props) {
         <div className="mb-3 flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
             {!conversationId ? (
-              <span className="text-sm font-medium text-text-secondary">{t('newConversation')}</span>
+              <span className="text-sm font-medium text-text-secondary">
+                {t('newConversation')}
+              </span>
             ) : isEditingTitle ? (
               <input
                 value={titleDraft}
@@ -420,7 +432,7 @@ export function TestTab({ workflow }: Props) {
             </div>
           )}
           {error && (
-            <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger-600">
+            <p className="bg-danger/10 mt-3 rounded-lg px-3 py-2 text-xs text-danger-600">
               {error ? getApiErrorMessage(error) : t('executeError')}
             </p>
           )}
@@ -483,7 +495,9 @@ export function TestTab({ workflow }: Props) {
               {t('noExecutionsYet')}
             </p>
           ) : (
-            execHistory.map((rec, i) => <ExecutionCard key={rec.turnId} record={rec} turn={i + 1} />)
+            execHistory.map((rec, i) => (
+              <ExecutionCard key={rec.turnId} record={rec} turn={i + 1} />
+            ))
           )}
           <div ref={panelBottomRef} />
         </div>
@@ -499,7 +513,7 @@ function ExecutionCard({ record, turn }: { record: ExecRecord; turn: number }) {
   const cost = detail ? Number(detail.cost) : 0;
 
   return (
-    <div className="rounded-lg border border-border bg-surface-secondary/40 p-2.5 text-xs">
+    <div className="bg-surface-secondary/40 rounded-lg border border-border p-2.5 text-xs">
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium text-text-primary">{t('turnLabel', { turn })}</span>
         {status !== 'done' ? (
@@ -534,14 +548,14 @@ function ExecutionCard({ record, turn }: { record: ExecRecord; turn: number }) {
           </div>
 
           {detail.status === 'FAILED' && detail.error && (
-            <div className="mt-2 rounded-md bg-danger/10 p-2 text-danger-600">
+            <div className="bg-danger/10 mt-2 rounded-md p-2 text-danger-600">
               <p className="break-words">{detail.error}</p>
               {detail.errorStack && (
                 <details className="mt-1">
-                  <summary className="flex cursor-pointer items-center gap-1 text-[10px] font-medium select-none">
+                  <summary className="flex cursor-pointer select-none items-center gap-1 text-[10px] font-medium">
                     <ChevronDown size={10} /> {t('stackTrace')}
                   </summary>
-                  <pre className="mt-1 max-h-40 overflow-auto rounded bg-surface-secondary p-1.5 text-[10px] whitespace-pre-wrap text-text-secondary">
+                  <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-surface-secondary p-1.5 text-[10px] text-text-secondary">
                     {detail.errorStack}
                   </pre>
                 </details>

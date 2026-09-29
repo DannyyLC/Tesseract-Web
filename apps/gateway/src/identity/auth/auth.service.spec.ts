@@ -5,14 +5,9 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '@/messaging/notifications/email/email.service';
 import { UtilityService } from '@/platform/utility/utility.service';
+import { OrganizationsService } from '../organizations/organizations.service';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import {
-  UnauthorizedException,
-  NotFoundException,
-  Logger,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { UnauthorizedException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { StepOneErrors, StepThreeErrors, ForgotPassErrors } from './dto';
 import { UserRole } from '@tesseract/database';
 import * as bcrypt from 'bcrypt';
@@ -26,9 +21,6 @@ jest.mock('qrcode', () => ({
 describe('AuthService', () => {
   let service: AuthService;
   let prisma: PrismaService;
-  let jwtService: JwtService;
-  let emailService: EmailService;
-  let utilityService: UtilityService;
 
   const mockPrismaService = {
     user: {
@@ -63,14 +55,19 @@ describe('AuthService', () => {
     decode: jest.fn(),
   };
 
+  const configValues: Record<string, string> = {
+    JWT_SECRET: 'secret',
+    JWT_REFRESH_SECRET: 'refresh_secret',
+    TEMP_TOKEN_SECRET: 'temp_secret',
+    JWT_EXPIRATION_TIME: '15m',
+    JWT_REFRESH_EXPIRATION_TIME: '7d',
+    FRONTEND_URL: 'http://localhost:3000',
+  };
   const mockConfigService = {
-    get: jest.fn().mockImplementation((key) => {
-      if (key === 'JWT_SECRET') return 'secret';
-      if (key === 'JWT_REFRESH_SECRET') return 'refresh_secret';
-      if (key === 'JWT_EXPIRATION_TIME') return '15m';
-      if (key === 'JWT_REFRESH_EXPIRATION_TIME') return '7d';
-      if (key === 'FRONTEND_URL') return 'http://localhost:3000';
-      return null;
+    get: jest.fn().mockImplementation((key: string) => configValues[key] ?? null),
+    getOrThrow: jest.fn().mockImplementation((key: string) => {
+      if (!(key in configValues)) throw new Error(`Missing ${key}`);
+      return configValues[key];
     }),
   };
 
@@ -78,6 +75,7 @@ describe('AuthService', () => {
     sendTemplateEmail: jest.fn().mockResolvedValue(true),
     sendVerificationCodeByEmail: jest.fn(),
     sendPasswordResetCodeByEmail: jest.fn(),
+    sendAccountExistsEmail: jest.fn(),
   };
 
   const mockUtilityService = {
@@ -118,9 +116,6 @@ describe('AuthService', () => {
 
     service = module.get<AuthService>(AuthService);
     prisma = module.get<PrismaService>(PrismaService);
-    jwtService = module.get<JwtService>(JwtService);
-    emailService = module.get<EmailService>(EmailService);
-    utilityService = module.get<UtilityService>(UtilityService);
 
     jest.clearAllMocks();
   });
@@ -165,10 +160,30 @@ describe('AuthService', () => {
         });
         expect(result).toEqual({
           status: 'complete',
+          rememberMe: false,
           user: expect.objectContaining({ id: 'u1', email: 'test@test.com' }),
           accessToken: 'acc',
           refreshToken: 'ref',
         });
+      });
+
+      // El controlador decide con esto la duración de la cookie de refresh; antes no se
+      // devolvía y "Recordarme" nunca surtía efecto en el login sin 2FA.
+      it('devuelve rememberMe para que el controlador alargue la cookie', async () => {
+        jest
+          .spyOn(service, 'validateUser')
+          .mockResolvedValue({ user: mockUser as any, organization: mockOrg as any });
+        jest
+          .spyOn(service, 'generateTokens')
+          .mockResolvedValue({ accessToken: 'acc', refreshToken: 'ref' });
+
+        const result = await service.login({
+          email: 'test@test.com',
+          password: 'pwd',
+          rememberMe: true,
+        });
+
+        expect(result).toEqual(expect.objectContaining({ status: 'complete', rememberMe: true }));
       });
 
       it('should return 2fa_required and tempToken if 2FA is enabled', async () => {
@@ -321,10 +336,12 @@ describe('AuthService', () => {
           organization: validOrg,
         });
 
+        const deleteInvitations = jest.fn().mockResolvedValue({ count: 1 });
         // Mock transaction
         prisma.$transaction = jest.fn().mockImplementation(async (cb) => {
           // Providing a stub transaction object
           const mockTx = {
+            userVerification: { deleteMany: deleteInvitations },
             organization: {
               create: jest
                 .fn()
@@ -338,10 +355,7 @@ describe('AuthService', () => {
             },
           };
           jest
-            .spyOn(
-              require('../organizations/organizations.service').OrganizationsService,
-              'generateUniqueSlug',
-            )
+            .spyOn(OrganizationsService, 'generateUniqueSlug')
             .mockResolvedValue('john-s-organization');
           return await cb(mockTx);
         });
@@ -349,13 +363,19 @@ describe('AuthService', () => {
         const result = await service.validateGoogleUser(googleDetails);
         expect(prisma.$transaction).toHaveBeenCalled();
         expect(result.user.id).toBe('u-deleted');
+        // Queda como OWNER de su organización nueva: una invitación pendiente no puede sobrevivir.
+        expect(deleteInvitations).toHaveBeenCalledWith({
+          where: { email: 'google@example.com', isFromInvitation: true },
+        });
       });
 
       it('should magically create user, org, and balance if user does not exist', async () => {
         prisma.user.findUnique = jest.fn().mockResolvedValue(null);
+        const deleteInvitations = jest.fn().mockResolvedValue({ count: 1 });
 
         prisma.$transaction = jest.fn().mockImplementation(async (cb) => {
           const mockTx = {
+            userVerification: { deleteMany: deleteInvitations },
             organization: {
               create: jest
                 .fn()
@@ -365,10 +385,7 @@ describe('AuthService', () => {
             user: { create: jest.fn().mockResolvedValue({ id: 'new-user', googleId: 'g123' }) },
           };
           jest
-            .spyOn(
-              require('../organizations/organizations.service').OrganizationsService,
-              'generateUniqueSlug',
-            )
+            .spyOn(OrganizationsService, 'generateUniqueSlug')
             .mockResolvedValue('john-s-organization');
           return await cb(mockTx);
         });
@@ -376,6 +393,10 @@ describe('AuthService', () => {
         const result = await service.validateGoogleUser(googleDetails);
         expect(prisma.$transaction).toHaveBeenCalled();
         expect(result.user.id).toBe('new-user');
+        // Sin esto, aceptar después una invitación mudaba a este OWNER a la organización que invitó.
+        expect(deleteInvitations).toHaveBeenCalledWith({
+          where: { email: 'google@example.com', isFromInvitation: true },
+        });
       });
     });
   });
@@ -604,10 +625,33 @@ describe('AuthService', () => {
         password: 'pwd',
       };
 
-      it('should return EMAIL_ALREADY_EXISTS if email active', async () => {
-        prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1', deletedAt: null });
-        const result = await service.signupStepOne(payload);
-        expect(result).toBe(StepOneErrors.EMAIL_ALREADY_EXISTS);
+      describe('when the email already has an account', () => {
+        beforeEach(() => {
+          prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1', deletedAt: null });
+          prisma.userVerification.create = jest.fn();
+        });
+
+        it('answers exactly like a new signup and sends the notice instead of a code', async () => {
+          mockEmailService.sendAccountExistsEmail.mockResolvedValue({ messageId: 'x' });
+
+          const result = await service.signupStepOne(payload, 'en');
+
+          expect(result).toBe(true);
+          expect(mockEmailService.sendAccountExistsEmail).toHaveBeenCalledWith(
+            'new@test.com',
+            'en',
+          );
+          expect(mockEmailService.sendVerificationCodeByEmail).not.toHaveBeenCalled();
+          expect(prisma.userVerification.create).not.toHaveBeenCalled();
+        });
+
+        it('reports TRANSPORTER_ERROR when the notice cannot be sent, like a failed code', async () => {
+          mockEmailService.sendAccountExistsEmail.mockResolvedValue(null);
+
+          const result = await service.signupStepOne(payload);
+
+          expect(result).toBe(StepOneErrors.TRANSPORTER_ERROR);
+        });
       });
 
       it('should delete existing verification and resend when one is active', async () => {
@@ -625,7 +669,7 @@ describe('AuthService', () => {
         expect(prisma.userVerification.deleteMany).toHaveBeenCalledWith({
           where: { email: 'new@test.com' },
         });
-        expect(result).toEqual(mockSentInfo);
+        expect(result).toBe(true);
       });
 
       it('should return TRANSPORTER_ERROR if email fails', async () => {
@@ -654,13 +698,16 @@ describe('AuthService', () => {
         expect(prisma.userVerification.create).toHaveBeenCalledWith({
           data: expect.objectContaining({ email: 'new@test.com', verificationCode: '123456' }),
         });
-        expect(result).toEqual(mockSentInfo);
+        // Los datos del transporte no salen al cliente.
+        expect(result).toBe(true);
       });
     });
 
     describe('signupStepTwo', () => {
       it('should return true if code verified', async () => {
-        prisma.userVerification.findFirst = jest.fn().mockResolvedValue({ id: 'v1' });
+        prisma.userVerification.findFirst = jest
+          .fn()
+          .mockResolvedValue({ id: 'v1', verificationCode: '123456', failedAttempts: 0 });
         prisma.userVerification.updateMany = jest.fn().mockResolvedValue({ count: 1 });
         const result = await service.signupStepTwo({
           email: 'new@test.com',
@@ -710,12 +757,7 @@ describe('AuthService', () => {
             },
             userVerification: { deleteMany: jest.fn() },
           };
-          jest
-            .spyOn(
-              require('../organizations/organizations.service').OrganizationsService,
-              'generateUniqueSlug',
-            )
-            .mockResolvedValue('org');
+          jest.spyOn(OrganizationsService, 'generateUniqueSlug').mockResolvedValue('org');
           return await cb(mockTx);
         });
         jest
@@ -758,20 +800,51 @@ describe('AuthService', () => {
     describe('resetPasswordStepTwo', () => {
       it('should return VERIFICATION_CODE_INVALID if not found', async () => {
         prisma.userVerification.findFirst = jest.fn().mockResolvedValue(null);
-        const result = await service.resetPasswordStepTwo('123', 'newpwd');
+        const result = await service.resetPasswordStepTwo('test@test.com', '123', 'newpwd');
         expect(result).toBe(ForgotPassErrors.VERIFICATION_CODE_INVALID);
       });
 
+      it('busca el código del correo dado, no el de cualquiera', async () => {
+        prisma.userVerification.findFirst = jest.fn().mockResolvedValue(null);
+        await service.resetPasswordStepTwo('test@test.com', '123456', 'newpwd');
+        expect(prisma.userVerification.findFirst).toHaveBeenCalledWith({
+          where: expect.objectContaining({ email: 'test@test.com', isFromInvitation: false }),
+        });
+      });
+
+      it('no toca contraseñas si el correo no tiene usuario (alta en curso)', async () => {
+        prisma.userVerification.findFirst = jest.fn().mockResolvedValue({
+          id: 'v1',
+          email: 'nuevo@test.com',
+          verificationCode: '123456',
+          failedAttempts: 0,
+        });
+        prisma.userVerification.updateMany = jest.fn().mockResolvedValue({ count: 1 });
+        prisma.user.findUnique = jest.fn().mockResolvedValue(null);
+        prisma.user.update = jest.fn();
+
+        const result = await service.resetPasswordStepTwo('nuevo@test.com', '123456', 'newpwd');
+
+        expect(result).toBe(ForgotPassErrors.VERIFICATION_CODE_INVALID);
+        expect(prisma.user.update).not.toHaveBeenCalled();
+      });
+
       it('should update password and revoke tokens', async () => {
-        prisma.userVerification.findFirst = jest.fn().mockResolvedValue({ email: 'test@test.com' });
+        prisma.userVerification.findFirst = jest.fn().mockResolvedValue({
+          id: 'v1',
+          email: 'test@test.com',
+          verificationCode: '123456',
+          failedAttempts: 0,
+        });
+        prisma.userVerification.updateMany = jest.fn().mockResolvedValue({ count: 1 });
         mockUtilityService.hashPassword.mockResolvedValue('hashed2');
         prisma.user.findUnique = jest.fn().mockResolvedValue({ id: 'u1' });
         jest.spyOn(service, 'logoutAll').mockResolvedValue({} as any);
 
-        const result = await service.resetPasswordStepTwo('123', 'newpwd');
+        const result = await service.resetPasswordStepTwo('test@test.com', '123456', 'newpwd');
 
         expect(prisma.user.update).toHaveBeenCalledWith({
-          where: { email: 'test@test.com' },
+          where: { id: 'u1' },
           data: { password: 'hashed2' },
         });
         expect(service.logoutAll).toHaveBeenCalledWith('u1');

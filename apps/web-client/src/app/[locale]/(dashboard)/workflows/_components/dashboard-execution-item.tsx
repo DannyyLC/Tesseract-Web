@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Loader2, AlertCircle, Zap, Clock, Coins } from 'lucide-react';
-import { DashboardExecutionDataDto } from '@tesseract/types';
+import { DashboardExecutionDataDto, ExecutionDto } from '@tesseract/types';
 import { useExecution } from '@/hooks/automation/use-executions';
 import { toIntlLocale } from '@/lib/intl-locale';
 
@@ -118,24 +118,16 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
   // Fetch full details only when expanded.
   const { data: fullExecution, isLoading } = useExecution(isExpanded ? execution.id : '');
 
-  // Merge dashboard data with full details when available
-  // Cast to any because the provided JSON is slightly generic and DTOs might not fully capture dynamic fields
-  // but we will use the specific fields requested.
-  const displayData = (fullExecution || execution) as any;
+  // El detalle completo pisa al resumen del listado en cuanto llega.
+  const displayData: DashboardExecutionDataDto & Partial<ExecutionDto> = {
+    ...execution,
+    ...fullExecution,
+  };
 
   // Use names from initial execution object since detailed view might not include them
   const workflowName =
-    execution.workflow?.name ||
-    execution.workflowName ||
-    displayData.workflow?.name ||
-    displayData.workflowName ||
-    t('defaultWorkflowName');
-  const userName =
-    execution.user?.name ||
-    execution.userName ||
-    displayData.user?.name ||
-    displayData.userName ||
-    t('systemUser');
+    execution.workflow?.name || execution.workflowName || t('defaultWorkflowName');
+  const userName = execution.user?.name || execution.userName || t('systemUser');
 
   return (
     <motion.div
@@ -324,42 +316,18 @@ export default function DashboardExecutionItem({ execution }: DashboardExecution
                       )}
                     </div>
 
-                    {/* Error / Warning Section */}
-                    {(displayData.error || displayData.wasOverage) && (
-                      <div className="space-y-2">
-                        {displayData.error && (
-                          <div className="border-danger-500/20 bg-danger/5 rounded-lg border p-3">
-                            <div className="mb-1 flex items-center gap-2">
-                              <AlertCircle
-                                size={12}
-                                className="text-[var(--danger-text-adaptive)]"
-                              />
-                              <span className="text-xs font-medium text-[var(--danger-text-adaptive)]">
-                                {t('errorDetails')}
-                              </span>
-                            </div>
-                            <code className="block break-all font-mono text-xs text-[var(--danger-text-adaptive)]">
-                              {displayData.error}
-                            </code>
-                          </div>
-                        )}
-
-                        {displayData.wasOverage && (
-                          <div className="border-warning-500/20 bg-warning-500/5 rounded-lg border p-3">
-                            <div className="mb-1 flex items-center gap-2">
-                              <AlertCircle
-                                size={12}
-                                className="text-[var(--warning-text-adaptive)]"
-                              />
-                              <span className="text-xs font-medium text-[var(--warning-text-adaptive)]">
-                                {t('limitExceeded')}
-                              </span>
-                            </div>
-                            <p className="text-xs text-[var(--warning-text-adaptive)]">
-                              {t('overageMessage')}
-                            </p>
-                          </div>
-                        )}
+                    {/* Aviso de excedente. El `error` de la ejecución no se expone al cliente. */}
+                    {displayData.wasOverage && (
+                      <div className="border-warning-500/20 bg-warning-500/5 rounded-lg border p-3">
+                        <div className="mb-1 flex items-center gap-2">
+                          <AlertCircle size={12} className="text-[var(--warning-text-adaptive)]" />
+                          <span className="text-xs font-medium text-[var(--warning-text-adaptive)]">
+                            {t('limitExceeded')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[var(--warning-text-adaptive)]">
+                          {t('overageMessage')}
+                        </p>
                       </div>
                     )}
 

@@ -16,7 +16,10 @@ import { ToolsService } from '../tools/core/tools.service';
 import { MediaProcessingService } from '../media-processing/media-processing.service';
 import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { InvalidWorkflowConfigException, WorkflowNotFoundException } from '@/platform/common/exceptions';
+import {
+  InvalidWorkflowConfigException,
+  WorkflowNotFoundException,
+} from '@/platform/common/exceptions';
 import { WorkflowCategory } from '@tesseract/types';
 
 describe('WorkflowsService', () => {
@@ -571,12 +574,7 @@ describe('WorkflowsService', () => {
           },
         ];
 
-        await service.execute(
-          orgId,
-          wfId,
-          { message: 'nota de voz' },
-          { preProcessedAttachments },
-        );
+        await service.execute(orgId, wfId, { message: 'nota de voz' }, { preProcessedAttachments });
 
         const triggerDataArg = (mockExecutionsService as any).create.mock.calls[0][2];
         expect(triggerDataArg.metadata.preProcessedAttachments[0]).not.toHaveProperty('sourceUrl');

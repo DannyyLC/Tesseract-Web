@@ -17,6 +17,17 @@ import { addDaysInZone, startOfDayInZone, zonedDayKey } from '@/platform/common/
  * - Consultar historial de ejecuciones
  * - Calcular estadísticas de workflows
  */
+/**
+ * Lo que se guarda como `triggerData`: JSON libre, del que se leen estos tres ids. La
+ * organización es obligatoria porque la columna de la ejecución lo es.
+ */
+export interface ExecutionTriggerData {
+  organizationId: string;
+  userId?: string;
+  apiKeyId?: string;
+  [key: string]: unknown;
+}
+
 @Injectable()
 export class ExecutionsService {
   private readonly logger = new Logger(ExecutionsService.name);
@@ -46,7 +57,7 @@ export class ExecutionsService {
   async create(
     workflowId: string,
     trigger: TriggerType,
-    triggerData?: any,
+    triggerData: ExecutionTriggerData,
     id?: string,
     isInternalWorkflow = false,
   ) {
@@ -56,11 +67,11 @@ export class ExecutionsService {
         workflowId,
         status: ExecutionStatus.PENDING,
         trigger,
-        triggerData: triggerData ?? {},
+        triggerData: triggerData as Prisma.InputJsonObject,
         startedAt: new Date(),
-        organizationId: triggerData?.organizationId,
-        userId: triggerData?.userId,
-        apiKeyId: triggerData?.apiKeyId,
+        organizationId: triggerData.organizationId,
+        userId: triggerData.userId,
+        apiKeyId: triggerData.apiKeyId,
         isInternalWorkflow,
       },
       include: {
@@ -96,11 +107,12 @@ export class ExecutionsService {
     executionId: string,
     status: ExecutionStatus,
     data?: {
-      result?: any;
+      /** JSON libre (la respuesta del agente); se guarda tal cual. */
+      result?: unknown;
       error?: string;
       errorStack?: string;
       logs?: string;
-      stepResults?: any;
+      stepResults?: unknown;
       cost?: number;
       credits?: number;
       tokensUsed?: number; // ← Agregado para consolidar updates
@@ -151,11 +163,11 @@ export class ExecutionsService {
         ).includes(status as string) // Removed ExecutionStatus cast
           ? duration
           : undefined,
-        result: data?.result,
+        result: data?.result as Prisma.InputJsonValue | undefined,
         error: data?.error,
         errorStack: data?.errorStack,
         logs: data?.logs,
-        stepResults: data?.stepResults,
+        stepResults: data?.stepResults as Prisma.InputJsonValue | undefined,
         cost: data?.cost,
         credits: data?.credits,
         tokensUsed: data?.tokensUsed, // ← Incluido en el mismo update
@@ -348,7 +360,7 @@ export class ExecutionsService {
    * @param organizationId - ID de la organización (opcional para super admin)
    */
   async findOneForAdmin(executionId: string, organizationId?: string) {
-    const where: any = {
+    const where: Prisma.ExecutionWhereInput = {
       id: executionId,
     };
 
@@ -539,7 +551,7 @@ export class ExecutionsService {
     const take = Math.min(limit, 100);
 
     // Construir filtros dinámicos (isInternalWorkflow: false — versión cliente)
-    const where: any = {
+    const where: Prisma.ExecutionWhereInput = {
       isInternalWorkflow: false,
       workflow: {
         organizationId,
@@ -565,7 +577,7 @@ export class ExecutionsService {
     const total = await this.prisma.execution.count({ where });
 
     // Construir query con cursor si existe
-    const queryOptions: any = {
+    const queryOptions = {
       where,
       take: take + 1, // Tomar uno extra para saber si hay más
       orderBy: {
@@ -612,16 +624,13 @@ export class ExecutionsService {
           },
         },
       },
-    };
+    } satisfies Prisma.ExecutionFindManyArgs;
 
-    // Si hay cursor, empezar desde ese punto
-    if (cursor) {
-      queryOptions.cursor = { id: cursor };
-      queryOptions.skip = 1; // Skip el cursor mismo
-    }
-
-    // Obtener ejecuciones
-    const results = await this.prisma.execution.findMany(queryOptions);
+    // Obtener ejecuciones; con cursor se empieza desde ese punto, saltando el cursor mismo
+    const results = await this.prisma.execution.findMany({
+      ...queryOptions,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
 
     // Determinar si hay más resultados
     const hasMore = results.length > take;
@@ -680,7 +689,7 @@ export class ExecutionsService {
     const take = Math.min(limit, 100);
 
     // Construir filtros dinámicos
-    const where: any = {};
+    const where: Prisma.ExecutionWhereInput = {};
 
     // Si se proporciona organizationId, filtrar por él
     if (organizationId) {
@@ -708,7 +717,7 @@ export class ExecutionsService {
     const total = await this.prisma.execution.count({ where });
 
     // Construir query con cursor si existe
-    const queryOptions: any = {
+    const queryOptions = {
       where,
       take: take + 1, // Tomar uno extra para saber si hay más
       orderBy: {
@@ -764,16 +773,13 @@ export class ExecutionsService {
           },
         },
       },
-    };
+    } satisfies Prisma.ExecutionFindManyArgs;
 
-    // Si hay cursor, empezar desde ese punto
-    if (cursor) {
-      queryOptions.cursor = { id: cursor };
-      queryOptions.skip = 1; // Skip el cursor mismo
-    }
-
-    // Obtener ejecuciones
-    const results = await this.prisma.execution.findMany(queryOptions);
+    // Obtener ejecuciones; con cursor se empieza desde ese punto, saltando el cursor mismo
+    const results = await this.prisma.execution.findMany({
+      ...queryOptions,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
 
     // Determinar si hay más resultados
     const hasMore = results.length > take;
@@ -915,7 +921,7 @@ export class ExecutionsService {
     const timezone = await this.getOrganizationTimezone(organizationId);
     const startDate = this.periodStartDate(period, timezone);
 
-    const where: any = {
+    const where: Prisma.ExecutionWhereInput = {
       deletedAt: null,
       isInternalWorkflow: false,
       workflow: {
@@ -949,19 +955,16 @@ export class ExecutionsService {
 
     // Calcular estadísticas
     const total = executions.length;
-    const successful = executions.filter((e: any) => e.status === ExecutionStatus.COMPLETED).length;
-    const failed = executions.filter((e: any) => e.status === ExecutionStatus.FAILED).length;
-    const cancelled = executions.filter((e: any) => e.status === ExecutionStatus.CANCELLED).length;
-    const timeout = executions.filter((e: any) => e.status === ExecutionStatus.TIMEOUT).length;
+    const successful = executions.filter((e) => e.status === ExecutionStatus.COMPLETED).length;
+    const failed = executions.filter((e) => e.status === ExecutionStatus.FAILED).length;
+    const cancelled = executions.filter((e) => e.status === ExecutionStatus.CANCELLED).length;
+    const timeout = executions.filter((e) => e.status === ExecutionStatus.TIMEOUT).length;
 
     const successRate = total > 0 ? (successful / total) * 100 : 0;
 
     // Calcular duración total y promedio
-    const completedExecutions = executions.filter((e: any) => e.duration !== null);
-    const totalDuration = completedExecutions.reduce(
-      (sum: any, e: any) => sum + (e.duration ?? 0),
-      0,
-    );
+    const completedExecutions = executions.filter((e) => e.duration !== null);
+    const totalDuration = completedExecutions.reduce((sum, e) => sum + (e.duration ?? 0), 0);
     const avgDuration =
       completedExecutions.length > 0 ? totalDuration / completedExecutions.length : 0;
 
@@ -971,13 +974,13 @@ export class ExecutionsService {
       failed,
       cancelled,
       timeout,
-      pending: executions.filter((e: any) => e.status === ExecutionStatus.PENDING).length,
-      running: executions.filter((e: any) => e.status === ExecutionStatus.RUNNING).length,
+      pending: executions.filter((e) => e.status === ExecutionStatus.PENDING).length,
+      running: executions.filter((e) => e.status === ExecutionStatus.RUNNING).length,
     };
 
     // Agrupar por trigger
     const byTrigger: Record<string, number> = {};
-    executions.forEach((e: any) => {
+    executions.forEach((e) => {
       byTrigger[e.trigger] = (byTrigger[e.trigger] ?? 0) + 1;
     });
 
@@ -1011,7 +1014,7 @@ export class ExecutionsService {
       ADVANCED: { count: 0, credits: 0 },
     };
 
-    executions.forEach((e: any) => {
+    executions.forEach((e) => {
       // Stats por workflow
       const existing = workflowStats.get(e.workflowId) ?? {
         name: e.workflow.name,
@@ -1206,7 +1209,7 @@ export class ExecutionsService {
         startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     }
 
-    const where: any = {
+    const where: Prisma.ExecutionWhereInput = {
       workflowId,
       isInternalWorkflow: false,
       ...(startDate && { startedAt: { gte: startDate } }),
@@ -1262,7 +1265,7 @@ export class ExecutionsService {
       }
     >();
 
-    executions.forEach((e: any) => {
+    executions.forEach((e) => {
       if (e.apiKeyId && e.apiKey) {
         const existing = byApiKey.get(e.apiKeyId) ?? {
           name: e.apiKey.name,
@@ -1367,13 +1370,13 @@ export class ExecutionsService {
       userId?: string;
       startDate?: Date;
       endDate?: Date;
-      status?: string;
-      trigger?: string;
+      status?: ExecutionStatus;
+      trigger?: TriggerType;
     } = {},
   ): Promise<PaginatedResponse<DashboardExecutionDto>> {
     const { workflowId, userId, startDate, endDate, status, trigger } = filters;
 
-    const where: any = {
+    const where: Prisma.ExecutionWhereInput = {
       organizationId,
       deletedAt: null,
       isInternalWorkflow: false,

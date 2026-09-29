@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
 import { WhatsappOutboundUnlinkedWorkflowDto } from '@tesseract/types';
 import { useTenantToolMutations } from '@/hooks/automation/use-tenant-tools';
+import { toApiError } from '@/lib/api/api-error';
 
 interface WhatsappOutboundLinkModalProps {
   isOpen: boolean;
@@ -53,7 +54,8 @@ export function WhatsappOutboundLinkModal({
       await linkWhatsappOutboundWorkflows.mutateAsync(selected);
       toast.success(t('whatsappLinkSuccess'));
       onClose();
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       const backendMessage =
         (typeof error?.message === 'string' && error.message.trim()) ||
         (typeof error?.response?.data?.message === 'string' &&
@@ -118,7 +120,9 @@ export function WhatsappOutboundLinkModal({
                           className="flex items-center gap-1 truncate text-[10px] text-text-tertiary"
                         >
                           <Phone size={10} className="shrink-0" />
-                          {num.displayName ? `${num.displayName} · ${num.phoneNumber}` : num.phoneNumber}
+                          {num.displayName
+                            ? `${num.displayName} · ${num.phoneNumber}`
+                            : num.phoneNumber}
                         </p>
                       ))}
                     </div>

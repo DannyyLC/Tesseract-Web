@@ -1,5 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
 import { ChatRole } from '@tesseract/database';
+import { UserRole } from '@tesseract/types';
+import { ROLES_KEY } from '@/identity/auth/decorators/roles.decorator';
 import { WhatsappConfigController } from './whatsapp-config.controller';
 import { EBMessageType, WBEventTypes } from '../../payload-consumers/wb-payload-consumer.interface';
 
@@ -93,6 +95,7 @@ describe('WhatsappConfigController · handleWebhook', () => {
       id: 'wa-1',
       organizationId: 'org-1',
       isActive: true,
+      approvedAt: new Date('2026-01-01'),
       defaultWorkflowId: 'wf-1',
     });
     mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: true });
@@ -299,6 +302,7 @@ describe('WhatsappConfigController · handleWebhook', () => {
         id: 'wa-1',
         organizationId: 'org-1',
         isActive: true,
+        approvedAt: new Date('2026-01-01'),
         defaultWorkflowId: null,
       });
       const res = createResponse(Buffer.from('{}'));
@@ -343,7 +347,36 @@ describe('WhatsappConfigController · handleWebhook', () => {
     });
   });
 
-  // ─── Estado del workflow ─────────────────────────────────────────────────
+  it('descarta los mensajes a un número que un super admin no ha aprobado', async () => {
+    mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
+      id: 'wa-1',
+      organizationId: 'org-1',
+      isActive: true,
+      approvedAt: null,
+      defaultWorkflowId: 'wf-1',
+    });
+    const res = createResponse(Buffer.from('{}'));
+
+    await controller.handleWebhook(body, res, ycloudHeaders);
+
+    expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+    expect(res.send).toHaveBeenCalledWith(
+      expect.objectContaining({ ignored: 'unapproved-config' }),
+    );
+    expect(mockQueueService.bufferMessage).not.toHaveBeenCalled();
+    expect(mockCloudTasks.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('no consulta la lista negra si la firma no es válida', async () => {
+    consumer.verifySignature.mockResolvedValue(false);
+    const res = createResponse(Buffer.from('{}'));
+
+    await controller.handleWebhook(body, res, ycloudHeaders);
+
+    // La firma manda: un POST sin autenticar no debe poder sondear qué números están bloqueados.
+    expect(mockEndUsersService.isBlocked).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+  });
 
   describe('estado del workflow', () => {
     it('descarta sin reintentar si el workflow ya no existe (borrado o de otra organización)', async () => {
@@ -379,32 +412,10 @@ describe('WhatsappConfigController · handleWebhook', () => {
 
       expect(mockConversationsService.addMessage).not.toHaveBeenCalled();
     });
-
-    it('con el workflow apagado, un echo se registra como ASSISTANT con motivo inactive-workflow', async () => {
-      mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: false });
-      consumer.getWBEventType.mockReturnValue(WBEventTypes.MsgEchoes);
-      consumer.getFromNumber.mockReturnValue(AGENT_NUMBER);
-      consumer.getToNumber.mockReturnValue(CLIENT_NUMBER);
-      mockConversationsService.findActiveWhatsappConversation.mockResolvedValue({
-        id: 'conv-1',
-        organizationId: 'org-1',
-      });
-
-      await controller.handleWebhook(body, createResponse(Buffer.from('{}')), ycloudHeaders);
-
-      expect(mockConversationsService.addMessage).toHaveBeenCalledWith(
-        'conv-1',
-        ChatRole.ASSISTANT,
-        'hola',
-        expect.objectContaining({ source: 'whatsapp_smb_echo' }),
-      );
-      expect(mockConversationsService.markMessageOutsideWorkflow).toHaveBeenCalledWith(
-        'org-1',
-        'conv-1',
-        'inactive-workflow',
-        undefined,
-      );
-    });
+    // Un echo nunca llega a esta rama: siempre se resuelve antes, en el bloque de "lista
+    // negra" (que para un echo consulta HITL en vez de bloqueo — ver más abajo, "echoes
+    // con el workflow activo"), así que no hay un caso de echo + workflow inactivo que
+    // probar aquí.
   });
 
   // ─── Echoes con workflow activo ──────────────────────────────────────────
@@ -527,6 +538,11 @@ describe('WhatsappConfigController · handleWebhook', () => {
     });
 
     it('libera la deduplicación y contesta 500 si falla interpretar el mensaje (p.ej. transcripción)', async () => {
+      // El flujo normal ya no interpreta el mensaje aquí (eso lo hace el worker, fuera del
+      // ciclo del webhook): la única rama de este controller que sí llama a
+      // `getInterpretedMessage` es la que registra el mensaje fuera del flujo, por ejemplo
+      // con el workflow apagado.
+      mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: false });
       consumer.getInterpretedMessage.mockRejectedValue(new Error('STT caído'));
       const res = createResponse(Buffer.from('{}'));
 
@@ -601,5 +617,175 @@ describe('WhatsappConfigController · handleWebhook', () => {
 
       expect(mockWebhookDedup.release).toHaveBeenCalledWith('ycloud', 'wamid-1');
     });
+  });
+});
+
+/**
+ * Las rutas de gestión reciben ids en la URL. Un número o template de otra organización tiene
+ * que contestarse como inexistente y, sobre todo, no llegar al servicio que escribe o envía.
+ */
+describe('WhatsappConfigController · gestión', () => {
+  const ORG = 'org-1';
+  const currUser: any = { organizationId: ORG, role: UserRole.ADMIN };
+  const ownConfig = {
+    id: 'wa-1',
+    organizationId: ORG,
+    phoneNumber: '5211111111111',
+    approvedAt: new Date('2026-01-01'),
+  };
+  const foreignConfig = { id: 'wa-9', organizationId: 'org-9', phoneNumber: '5219999999999' };
+
+  const service: any = {
+    getWhatsappConfigById: jest.fn(),
+    getTemplate: jest.fn(),
+    deleteRecord: jest.fn(),
+    updateIsActive: jest.fn(),
+    createTemplate: jest.fn(),
+    listTemplates: jest.fn(),
+    updateTemplate: jest.fn(),
+    deleteTemplate: jest.fn(),
+    sendTemplateMessage: jest.fn(),
+  };
+  const controller = new WhatsappConfigController(
+    service,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  const res = () => {
+    const r: any = {};
+    r.status = jest.fn().mockReturnValue(r);
+    r.json = jest.fn().mockReturnValue(r);
+    return r;
+  };
+
+  beforeEach(() => {
+    // `clearAllMocks` no basta: `jest.resetAllMocks()` en el describe de `handleWebhook` de
+    // arriba opera sobre el registro global de mocks de Jest (compartido por todo el
+    // archivo, no por describe), y ya para cuando corren estos tests borró la implementación
+    // que estos mocks traían de fábrica. Se re-arma aquí para que este describe no dependa
+    // del orden de ejecución de los demás.
+    jest.clearAllMocks();
+    service.getWhatsappConfigById.mockImplementation((id: string) =>
+      Promise.resolve(
+        id === ownConfig.id ? ownConfig : id === foreignConfig.id ? foreignConfig : null,
+      ),
+    );
+    service.deleteRecord.mockResolvedValue(true);
+    service.updateIsActive.mockResolvedValue(true);
+    service.listTemplates.mockResolvedValue([]);
+    service.deleteTemplate.mockResolvedValue(true);
+  });
+
+  it('no borra ni apaga un número de otra organización', async () => {
+    const r1 = res();
+    await controller.deleteConfig(currUser, foreignConfig.id, r1);
+    const r2 = res();
+    await controller.setIsActive(currUser, foreignConfig.id, false, r2);
+
+    expect(r1.status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(r2.status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(service.deleteRecord).not.toHaveBeenCalled();
+    expect(service.updateIsActive).not.toHaveBeenCalled();
+  });
+
+  it('borra un número propio', async () => {
+    const r = res();
+    await controller.deleteConfig(currUser, ownConfig.id, r);
+    expect(service.deleteRecord).toHaveBeenCalledWith(ownConfig.id);
+    expect(r.status).toHaveBeenCalledWith(HttpStatus.OK);
+  });
+
+  it('no crea ni lista templates en un número ajeno', async () => {
+    await controller.createTemplate(currUser, foreignConfig.id, { name: 'x' }, res());
+    await controller.listTemplates(currUser, foreignConfig.id, res());
+    expect(service.createTemplate).not.toHaveBeenCalled();
+    expect(service.listTemplates).not.toHaveBeenCalled();
+  });
+
+  it('no envía, edita ni borra un template cuyo número es de otra organización', async () => {
+    service.getTemplate.mockResolvedValue({
+      id: 'tpl-9',
+      whatsAppConfigId: foreignConfig.id,
+      name: 'promo',
+      language: 'es_MX',
+    });
+
+    const r = res();
+    await controller.sendTemplate(currUser, 'tpl-9', { to: '5215500000000' } as any, r);
+    await controller.updateTemplate(currUser, 'tpl-9', { name: 'y' }, res());
+    await controller.deleteTemplate(currUser, 'tpl-9', res());
+
+    expect(r.status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(service.sendTemplateMessage).not.toHaveBeenCalled();
+    expect(service.updateTemplate).not.toHaveBeenCalled();
+    expect(service.deleteTemplate).not.toHaveBeenCalled();
+  });
+
+  it('envía un template propio desde el número al que pertenece', async () => {
+    service.getTemplate.mockResolvedValue({
+      id: 'tpl-1',
+      whatsAppConfigId: ownConfig.id,
+      name: 'promo',
+      language: 'es_MX',
+    });
+
+    await controller.sendTemplate(currUser, 'tpl-1', { to: '5215500000000' } as any, res());
+
+    expect(service.sendTemplateMessage).toHaveBeenCalledWith(
+      ownConfig.phoneNumber,
+      '5215500000000',
+      'promo',
+      'es_MX',
+      undefined,
+    );
+  });
+
+  it('no envía templates desde un número propio que sigue pendiente', async () => {
+    service.getWhatsappConfigById.mockResolvedValueOnce({ ...ownConfig, approvedAt: null });
+    service.getTemplate.mockResolvedValue({
+      id: 'tpl-1',
+      whatsAppConfigId: ownConfig.id,
+      name: 'promo',
+      language: 'es_MX',
+    });
+    const r = res();
+
+    await controller.sendTemplate(currUser, 'tpl-1', { to: '5215500000000' } as any, r);
+
+    expect(r.status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(service.sendTemplateMessage).not.toHaveBeenCalled();
+  });
+
+  // Un VIEWER solo consulta: las escrituras exigen OWNER/ADMIN.
+  it.each([
+    'createConfig',
+    'deleteConfig',
+    'updateConfig',
+    'setIsActive',
+    'createTemplate',
+    'updateTemplate',
+    'deleteTemplate',
+    'sendTemplate',
+  ])('%s queda fuera de VIEWER', (handler) => {
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      (WhatsappConfigController.prototype as any)[handler],
+    );
+    expect(roles).toEqual([UserRole.OWNER, UserRole.ADMIN]);
+  });
+
+  it.each(['listConfigsByOrgAndWorkflow', 'listTemplates'])('%s admite VIEWER', (handler) => {
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      (WhatsappConfigController.prototype as any)[handler],
+    );
+    expect(roles).toContain(UserRole.VIEWER);
   });
 });

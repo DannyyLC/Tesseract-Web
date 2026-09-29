@@ -5,12 +5,7 @@ import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { WINSTON_MODULE_NEST_PROVIDER, WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
-import {
-  buildLogFormat,
-  buildWinstonOptions,
-  LOG_LEVELS,
-  resolveLogLevel,
-} from './winston.config';
+import { buildLogFormat, buildWinstonOptions, LOG_LEVELS, resolveLogLevel } from './winston.config';
 
 /**
  * El bug que originó este spec: Winston estaba configurado y el mapeo de severidad era
@@ -96,7 +91,7 @@ describe('configuración de Winston', () => {
     });
 
     it('mapea cada nivel a la severidad que Cloud Logging entiende', async () => {
-      const casos: Array<[keyof Logger, string]> = [
+      const casos: [keyof Logger, string][] = [
         ['error', 'ERROR'],
         ['warn', 'WARNING'],
         ['log', 'INFO'],
@@ -122,7 +117,6 @@ describe('configuración de Winston', () => {
     it('no emite códigos de color, que en Cloud Logging son basura', async () => {
       const [linea] = await capturarSalida(true, (logger) => logger.error('sin ansi'));
 
-      // eslint-disable-next-line no-control-regex
       expect(linea).not.toMatch(/\x1B\[/);
     });
 

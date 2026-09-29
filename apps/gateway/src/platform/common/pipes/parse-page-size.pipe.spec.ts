@@ -16,10 +16,18 @@ describe('ParsePageSizePipe', () => {
     expect(pipe.transform(String(MAX_PAGE_SIZE))).toBe(MAX_PAGE_SIZE);
   });
 
-  it.each(['0', '-5', String(MAX_PAGE_SIZE + 1), '100000', 'abc', '1.5', '1e2', ' 20', '20 ', '0x10'])(
-    'rechaza %p',
-    (value) => {
-      expect(() => pipe.transform(value)).toThrow(BadRequestException);
-    },
-  );
+  it.each([
+    '0',
+    '-5',
+    String(MAX_PAGE_SIZE + 1),
+    '100000',
+    'abc',
+    '1.5',
+    '1e2',
+    ' 20',
+    '20 ',
+    '0x10',
+  ])('rechaza %p', (value) => {
+    expect(() => pipe.transform(value)).toThrow(BadRequestException);
+  });
 });

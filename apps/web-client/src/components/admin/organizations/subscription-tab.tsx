@@ -9,6 +9,7 @@ import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { toIntlLocale } from '@/lib/intl-locale';
 import type { AdminOrganizationDetail } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import { btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   org: AdminOrganizationDetail;
@@ -68,12 +69,12 @@ export function SubscriptionTab({ org }: Props) {
       },
       {
         onSuccess: () => toast.success(t('updated')),
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
 
-  if (isStripeManaged) {
+  if (isStripeManaged && org.subscription) {
     return (
       <div className="w-full space-y-4">
         <p className="rounded-lg border border-border bg-surface-secondary px-3 py-2 text-xs text-text-secondary">
@@ -91,8 +92,8 @@ export function SubscriptionTab({ org }: Props) {
           <div>
             <dt className="text-xs text-text-secondary">{t('currentPeriod')}</dt>
             <dd className="text-sm text-text-primary">
-              {new Date(org.subscription!.currentPeriodStart).toLocaleDateString(intlLocale)} –{' '}
-              {new Date(org.subscription!.currentPeriodEnd).toLocaleDateString(intlLocale)}
+              {new Date(org.subscription.currentPeriodStart).toLocaleDateString(intlLocale)} –{' '}
+              {new Date(org.subscription.currentPeriodEnd).toLocaleDateString(intlLocale)}
             </dd>
           </div>
           <div>
@@ -113,7 +114,11 @@ export function SubscriptionTab({ org }: Props) {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <label className={labelClass}>{t('plan')}</label>
-          <select className={inputClass} value={form.plan} onChange={(e) => set('plan', e.target.value as Form['plan'])}>
+          <select
+            className={inputClass}
+            value={form.plan}
+            onChange={(e) => set('plan', e.target.value as Form['plan'])}
+          >
             {PLANS.map((p) => (
               <option key={p} value={p}>
                 {p}

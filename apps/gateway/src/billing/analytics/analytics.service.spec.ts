@@ -46,7 +46,11 @@ describe('AdminAnalyticsService', () => {
   describe('getOrganizationsMargin — valor del crédito', () => {
     it('FREE: valor del crédito es 0, no null — no genera ingreso pero sí es resoluble', async () => {
       mockPrismaService.execution.groupBy.mockResolvedValue([
-        { organizationId: 'org-free', _sum: { cost: decimal(5), credits: 100 }, _count: { _all: 20 } },
+        {
+          organizationId: 'org-free',
+          _sum: { cost: decimal(5), credits: 100 },
+          _count: { _all: 20 },
+        },
       ]);
       mockPrismaService.organization.findMany.mockResolvedValue([
         { id: 'org-free', name: 'Free Co', plan: SubscriptionPlan.FREE },
@@ -62,10 +66,19 @@ describe('AdminAnalyticsService', () => {
 
     it('plan pagado con precio en Stripe: convierte centavos/créditos a valor por crédito', async () => {
       mockPrismaService.execution.groupBy.mockResolvedValue([
-        { organizationId: 'org-starter', _sum: { cost: decimal(2), credits: 100 }, _count: { _all: 10 } },
+        {
+          organizationId: 'org-starter',
+          _sum: { cost: decimal(2), credits: 100 },
+          _count: { _all: 10 },
+        },
       ]);
       mockPrismaService.organization.findMany.mockResolvedValue([
-        { id: 'org-starter', name: 'Starter Co', plan: SubscriptionPlan.STARTER, subscription: null },
+        {
+          id: 'org-starter',
+          name: 'Starter Co',
+          plan: SubscriptionPlan.STARTER,
+          subscription: null,
+        },
       ]);
       // STARTER = 750 créditos/mes (packages/types/plans.ts). $75.00 -> 7500 centavos, elegido
       // para que el valor del crédito salga en 0.10 redondo y la aserción se lea sola.
@@ -80,10 +93,19 @@ describe('AdminAnalyticsService', () => {
 
     it('plan pagado sin precio en Stripe: se excluye (null), nunca divide por cero', async () => {
       mockPrismaService.execution.groupBy.mockResolvedValue([
-        { organizationId: 'org-unpriced', _sum: { cost: decimal(3), credits: 50 }, _count: { _all: 5 } },
+        {
+          organizationId: 'org-unpriced',
+          _sum: { cost: decimal(3), credits: 50 },
+          _count: { _all: 5 },
+        },
       ]);
       mockPrismaService.organization.findMany.mockResolvedValue([
-        { id: 'org-unpriced', name: 'Unpriced Co', plan: SubscriptionPlan.GROWTH, subscription: null },
+        {
+          id: 'org-unpriced',
+          name: 'Unpriced Co',
+          plan: SubscriptionPlan.GROWTH,
+          subscription: null,
+        },
       ]);
       mockPriceCatalogService.pricesFor.mockResolvedValue({}); // sin lookup key configurado
 
@@ -96,12 +118,23 @@ describe('AdminAnalyticsService', () => {
 
     it('Stripe inaccesible (API key inválida/caído): se excluye (null), no tumba la petición', async () => {
       mockPrismaService.execution.groupBy.mockResolvedValue([
-        { organizationId: 'org-stripe-down', _sum: { cost: decimal(1), credits: 30 }, _count: { _all: 3 } },
+        {
+          organizationId: 'org-stripe-down',
+          _sum: { cost: decimal(1), credits: 30 },
+          _count: { _all: 3 },
+        },
       ]);
       mockPrismaService.organization.findMany.mockResolvedValue([
-        { id: 'org-stripe-down', name: 'Stripe Down Co', plan: SubscriptionPlan.STARTER, subscription: null },
+        {
+          id: 'org-stripe-down',
+          name: 'Stripe Down Co',
+          plan: SubscriptionPlan.STARTER,
+          subscription: null,
+        },
       ]);
-      mockPriceCatalogService.pricesFor.mockRejectedValue(new Error('Invalid API Key provided: sk_test_...'));
+      mockPriceCatalogService.pricesFor.mockRejectedValue(
+        new Error('Invalid API Key provided: sk_test_...'),
+      );
 
       const result = await service.getOrganizationsMargin('30d', 1, 20, 'marginPct');
 
@@ -112,7 +145,11 @@ describe('AdminAnalyticsService', () => {
 
     it('ENTERPRISE con precio y créditos custom: usa customMonthlyPrice en dólares, no en centavos', async () => {
       mockPrismaService.execution.groupBy.mockResolvedValue([
-        { organizationId: 'org-ent', _sum: { cost: decimal(50), credits: 1000 }, _count: { _all: 40 } },
+        {
+          organizationId: 'org-ent',
+          _sum: { cost: decimal(50), credits: 1000 },
+          _count: { _all: 40 },
+        },
       ]);
       mockPrismaService.organization.findMany.mockResolvedValue([
         {
@@ -132,10 +169,19 @@ describe('AdminAnalyticsService', () => {
 
     it('ENTERPRISE sin configuración custom: se excluye (null), no cae al catálogo de Stripe', async () => {
       mockPrismaService.execution.groupBy.mockResolvedValue([
-        { organizationId: 'org-ent-bare', _sum: { cost: decimal(10), credits: 200 }, _count: { _all: 8 } },
+        {
+          organizationId: 'org-ent-bare',
+          _sum: { cost: decimal(10), credits: 200 },
+          _count: { _all: 8 },
+        },
       ]);
       mockPrismaService.organization.findMany.mockResolvedValue([
-        { id: 'org-ent-bare', name: 'Bare Enterprise', plan: SubscriptionPlan.ENTERPRISE, subscription: null },
+        {
+          id: 'org-ent-bare',
+          name: 'Bare Enterprise',
+          plan: SubscriptionPlan.ENTERPRISE,
+          subscription: null,
+        },
       ]);
 
       const result = await service.getOrganizationsMargin('30d', 1, 20, 'marginPct');

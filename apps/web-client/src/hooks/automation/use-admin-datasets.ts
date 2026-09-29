@@ -32,11 +32,18 @@ export function useAdminDatasetRecords(
   limit = DEFAULT_PAGE_SIZE,
   offset = 0,
   query = '',
+  { filters, sortBy }: { filters?: string; sortBy?: string } = {},
 ) {
   return useQuery({
-    queryKey: [KEY, 'records', organizationId, id, limit, offset, query],
+    queryKey: [KEY, 'records', organizationId, id, limit, offset, query, filters, sortBy],
     queryFn: async () =>
-      api().listRecords(organizationId, id, { limit, offset, query: query || undefined }),
+      api().listRecords(organizationId, id, {
+        limit,
+        offset,
+        query: query || undefined,
+        filters,
+        sortBy,
+      }),
     enabled: !!organizationId && !!id,
     // Las filas cambian con cada edición; no vale la pena cachearlas.
     staleTime: 0,

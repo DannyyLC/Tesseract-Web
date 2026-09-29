@@ -71,7 +71,7 @@ export default function TopBar({ onMenuClick, isSidebarCollapsed }: TopBarProps)
 
   const generateBreadcrumbs = () => {
     const segments = pathname.split('/').filter(Boolean);
-    const breadcrumbs: any[] = [];
+    const breadcrumbs: Array<{ label: string; href: string }> = [];
 
     let currentPath = '';
 

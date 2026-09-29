@@ -18,11 +18,13 @@ import { YCloudTransporter } from './transporters/ycloud.transporter';
 import { MetaTransporter } from './transporters/meta.transporter';
 import { WBTransporterResolver } from './transporters/wb-transporter.resolver';
 import { WBPayloadConsumerResolver } from './payload-consumers/wb-payload-consumer.resolver';
+import { NotificationsModule } from '@/messaging/notifications/notifications.module';
 
 @Module({
   // `ToolsModule` va por `SecretFieldsCipher`: las credenciales de `sessionData` se guardan cifradas con KMS.
   // `EndUsersModule` va por la lista negra: el webhook descarta lo que mande un contacto bloqueado.
-  imports: [UtilityModule, HttpModule, ToolsModule, WorkflowsModule, MediaProcessingModule, GoogleDriveModule, ConversationsModule, WebhookDedupModule, CloudTasksModule, EndUsersModule],
+  imports: [UtilityModule, HttpModule, ToolsModule, WorkflowsModule, MediaProcessingModule, GoogleDriveModule, 
+    ConversationsModule, WebhookDedupModule, CloudTasksModule, EndUsersModule, NotificationsModule],
   providers: [
     WhatsappConfigService,
     WhatsappMessageQueueService,

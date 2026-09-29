@@ -37,7 +37,7 @@ export class WorkflowAlreadyExistsException extends AppException {
  * Se lanza cuando el config JSON del workflow es inválido
  */
 export class InvalidWorkflowConfigException extends AppException {
-  constructor(reason: string, config?: any) {
+  constructor(reason: string, config?: unknown) {
     super(
       ErrorCode.INVALID_CONFIG,
       `Invalid workflow configuration: ${reason}`,
@@ -82,7 +82,7 @@ export class WorkflowPausedException extends AppException {
  * Se lanza cuando los steps del workflow custom son inválidos
  */
 export class InvalidCustomStepsException extends AppException {
-  constructor(reason: string, steps?: any) {
+  constructor(reason: string, steps?: unknown) {
     super(
       ErrorCode.INVALID_CUSTOM_STEPS,
       `Invalid workflow steps: ${reason}`,

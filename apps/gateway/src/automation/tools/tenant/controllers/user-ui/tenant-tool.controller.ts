@@ -31,6 +31,8 @@ import { CreateTenantToolDto } from '../../dto/create-tenant-tool.dto';
 import { UpdateTenantToolDto } from '../../dto/update-tenant-tool.dto';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
+import { errorMessage } from '@/platform/common/utils/error-message';
+import { TenantTool } from '@tesseract/database';
 
 @Controller('tenant-tool')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -77,7 +79,7 @@ export class TenantToolController {
     @Body() body: CreateTenantToolDto,
     @Res() res: Response,
   ) {
-    const apiResponse = new ApiResponseBuilder<CreateTenantToolDto | null>();
+    const apiResponse = new ApiResponseBuilder<TenantTool | null>();
     const created = await this.tenantToolService.createTenantTool(
       body,
       user.organizationId,
@@ -188,7 +190,7 @@ export class TenantToolController {
     @CurrentUser() user: UserPayload,
     @Res() res: Response,
   ) {
-    const apiResponse = new ApiResponseBuilder<any>();
+    const apiResponse = new ApiResponseBuilder<unknown>();
     try {
       const updated = await this.tenantToolService.linkWhatsappOutboundWorkflows(
         user.organizationId,
@@ -200,8 +202,8 @@ export class TenantToolController {
         .setData(updated)
         .setMessage('Workflows linked to WhatsApp Outbound successfully');
       return res.status(HttpStatusCode.Ok).json(apiResponse.build());
-    } catch (error: any) {
-      apiResponse.setSuccess(false).setMessage(error?.message ?? 'Error linking workflows');
+    } catch (error) {
+      apiResponse.setSuccess(false).setMessage(errorMessage(error, 'Error linking workflows'));
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     }
   }
@@ -209,12 +211,17 @@ export class TenantToolController {
   @Get(':id')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async getTenantToolById(
+    @CurrentUser() user: UserPayload,
     @Param('id') id: string,
     @Res() res: Response,
     @Locale() locale: SupportedLocale,
   ) {
-    const apiResponse = new ApiResponseBuilder<any>();
-    const tenantTool = await this.tenantToolService.getTenantToolById(id, locale);
+    const apiResponse = new ApiResponseBuilder<unknown>();
+    const tenantTool = await this.tenantToolService.getTenantToolById(
+      id,
+      user.organizationId,
+      locale,
+    );
     if (!tenantTool) {
       apiResponse.setSuccess(false).setMessage('Tenant tool not found');
       return res.status(HttpStatusCode.NotFound).json(apiResponse.build());
@@ -239,8 +246,8 @@ export class TenantToolController {
       await this.tenantToolService.disconnectTool(toolId, user.organizationId, user.sub, user.role);
       apiResponse.setSuccess(true).setData(true).setMessage('Tool disconnected successfully');
       return res.status(HttpStatusCode.Ok).json(apiResponse.build());
-    } catch (error: any) {
-      apiResponse.setSuccess(false).setMessage(error?.message ?? 'Error disconnecting tool');
+    } catch (error) {
+      apiResponse.setSuccess(false).setMessage(errorMessage(error, 'Error disconnecting tool'));
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     }
   }
@@ -257,8 +264,8 @@ export class TenantToolController {
       await this.tenantToolService.deleteTool(toolId, user.organizationId, user.sub, user.role);
       apiResponse.setSuccess(true).setData(true).setMessage('Tool soft-deleted and secrets wiped');
       return res.status(HttpStatusCode.Ok).json(apiResponse.build());
-    } catch (error: any) {
-      apiResponse.setSuccess(false).setMessage(error?.message ?? 'Error deleting tool');
+    } catch (error) {
+      apiResponse.setSuccess(false).setMessage(errorMessage(error, 'Error deleting tool'));
       return res.status(HttpStatusCode.BadRequest).json(apiResponse.build());
     }
   }

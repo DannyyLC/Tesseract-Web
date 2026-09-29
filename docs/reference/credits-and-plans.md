@@ -83,14 +83,14 @@ Venia de $0.16 USD, que era 4.8x la tarifa de plan y castigaba justo al cliente 
 
 Cada plan incluye un limite de overage por defecto igual a sus creditos mensuales:
 
-| Plan       | Limite de Overage por defecto                          |
-| ---------- | ------------------------------------------------------ |
-| Free       | No disponible                                          |
-| Starter    | 750 creditos (hasta $750 MXN / $37.50 USD)             |
-| Growth     | 2,550 creditos (hasta $2,550 MXN / $127.50 USD)        |
-| Business   | 6,900 creditos (hasta $6,900 MXN / $345.00 USD)        |
-| Pro        | 18,750 creditos (hasta $18,750 MXN / $937.50 USD)      |
-| Enterprise | Configurable                                           |
+| Plan       | Limite de Overage por defecto                     |
+| ---------- | ------------------------------------------------- |
+| Free       | No disponible                                     |
+| Starter    | 750 creditos (hasta $750 MXN / $37.50 USD)        |
+| Growth     | 2,550 creditos (hasta $2,550 MXN / $127.50 USD)   |
+| Business   | 6,900 creditos (hasta $6,900 MXN / $345.00 USD)   |
+| Pro        | 18,750 creditos (hasta $18,750 MXN / $937.50 USD) |
+| Enterprise | Configurable                                      |
 
 La organizacion puede ajustar su limite de overage desde el panel de Billing. Los creditos de overage se cobran al final del mes en la siguiente factura de Stripe.
 
@@ -100,18 +100,18 @@ La organizacion puede ajustar su limite de overage desde el panel de Billing. Lo
 
 Los creditos se asignan automaticamente al inicio de cada ciclo de facturacion. Los creditos no utilizados **si se acumulan** al mes siguiente: la renovacion suma el balance del plan al saldo positivo existente (ver `addCredits` en `credits.service.ts`, que hace `balanceAfter = balanceBefore + amount`). Cuando hay saldo negativo por overage, la renovacion lo reconcilia primero y deja el balance en los creditos del plan.
 
-**Los creditos no caducan nunca.** Lo que decide si se pueden *gastar* no es su antiguedad, es si la organizacion tiene una suscripcion activa ahora mismo — ver la seccion 7.
+**Los creditos no caducan nunca.** Lo que decide si se pueden _gastar_ no es su antiguedad, es si la organizacion tiene una suscripcion activa ahora mismo — ver la seccion 7.
 
 El historial completo de asignaciones, deducciones y cargos queda registrado en la tabla `CreditTransactions` de la base de datos, con los tipos:
 
-| Tipo de transaccion               | Cuando ocurre                          |
-| --------------------------------- | -------------------------------------- |
-| `SUBSCRIPTION_RENEWAL`            | Cada mes al renovar el plan            |
-| `EXECUTION_DEDUCTION`             | Cada vez que un Workflow se ejecuta    |
-| `OVERAGE_CHARGE`                  | Al facturar creditos negativos del mes |
+| Tipo de transaccion               | Cuando ocurre                                  |
+| --------------------------------- | ---------------------------------------------- |
+| `SUBSCRIPTION_RENEWAL`            | Cada mes al renovar el plan                    |
+| `EXECUTION_DEDUCTION`             | Cada vez que un Workflow se ejecuta            |
+| `OVERAGE_CHARGE`                  | Al facturar creditos negativos del mes         |
 | `ONE_TIME_PURCHASE`               | Al comprar una recarga de creditos (seccion 8) |
-| `PLAN_UPGRADE` / `PLAN_DOWNGRADE` | Al cambiar de plan                     |
-| `MANUAL_ADJUSTMENT`               | Ajuste realizado por un administrador  |
+| `PLAN_UPGRADE` / `PLAN_DOWNGRADE` | Al cambiar de plan                             |
+| `MANUAL_ADJUSTMENT`               | Ajuste realizado por un administrador          |
 
 ---
 
@@ -121,13 +121,13 @@ Tener saldo no basta para ejecutar un Workflow: la organizacion tambien necesita
 
 La regla vive en `resolveSubscriptionAccess()` (`packages/types/src/billing/subscriptions/subscription-access.ts`) y la consulta `CreditsService.canExecuteWorkflow()` antes de mirar el balance:
 
-| Estado de la suscripcion     | ¿Puede ejecutar?                                               |
-| ----------------------------- | ---------------------------------------------------------------- |
-| `ACTIVE`                       | Si, siempre (incluye cancelacion programada a fin de periodo)  |
-| `PAST_DUE`, dentro de 7 dias  | Si — gracia tras el primer cobro fallido                        |
-| `PAST_DUE`, pasados 7 dias    | No                                                               |
-| `CANCELED` / `INCOMPLETE`     | No, sin importar el saldo                                        |
-| Sin fila `Subscription`       | No (p.ej. nunca contrato)                                        |
+| Estado de la suscripcion     | ¿Puede ejecutar?                                              |
+| ---------------------------- | ------------------------------------------------------------- |
+| `ACTIVE`                     | Si, siempre (incluye cancelacion programada a fin de periodo) |
+| `PAST_DUE`, dentro de 7 dias | Si — gracia tras el primer cobro fallido                      |
+| `PAST_DUE`, pasados 7 dias   | No                                                            |
+| `CANCELED` / `INCOMPLETE`    | No, sin importar el saldo                                     |
+| Sin fila `Subscription`      | No (p.ej. nunca contrato)                                     |
 
 El reloj de la gracia (`Subscription.pastDueSince`) es propio y **mas corto que el de Stripe**: Stripe reintenta el cobro fallido durante semanas (configurable en su panel) antes de cancelar la suscripcion de verdad; nosotros cortamos la ejecucion a los 7 dias sin esperar a que Stripe se rinda. `pastDueSince` se marca la primera vez que falla un cobro y se limpia en cuanto vuelve a pagarse — un segundo intento fallido durante la misma incidencia no reinicia el reloj.
 

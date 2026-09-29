@@ -19,7 +19,8 @@ export function useInfiniteAdminConversations(
     queryFn: async ({ pageParam }: { pageParam?: string }) =>
       api().findAll({ ...params, cursor: pageParam, take: DEFAULT_PAGE_SIZE }),
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => (last.nextPageAvailable ? (last.nextCursor ?? undefined) : undefined),
+    getNextPageParam: (last) =>
+      last.nextPageAvailable ? (last.nextCursor ?? undefined) : undefined,
     enabled,
     retry: false,
   });

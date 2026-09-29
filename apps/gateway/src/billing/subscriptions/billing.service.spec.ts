@@ -96,14 +96,13 @@ const PLAN_PRICE_IDS: Record<string, string> = {
 };
 
 const mockPriceCatalog = {
-  priceIdFor: jest.fn(async (plan: string) => PLAN_PRICE_IDS[plan]),
-  planFor: jest.fn(
-    async (priceId: string) =>
-      Object.entries(PLAN_PRICE_IDS).find(([, id]) => id === priceId)?.[0] ?? null,
+  priceIdFor: jest.fn((plan: string) => Promise.resolve(PLAN_PRICE_IDS[plan])),
+  planFor: jest.fn((priceId: string) =>
+    Promise.resolve(Object.entries(PLAN_PRICE_IDS).find(([, id]) => id === priceId)?.[0] ?? null),
   ),
-  pricesFor: jest.fn(async () => ({ usd: 2500, mxn: 49900 })),
-  overagePriceId: jest.fn(async () => 'price_overage_123'),
-  overagePrices: jest.fn(async () => ({ usd: 16, mxn: 320 })),
+  pricesFor: jest.fn(() => Promise.resolve({ usd: 2500, mxn: 49900 })),
+  overagePriceId: jest.fn(() => Promise.resolve('price_overage_123')),
+  overagePrices: jest.fn(() => Promise.resolve({ usd: 16, mxn: 320 })),
 };
 
 const mockUtilityService = {
@@ -111,7 +110,7 @@ const mockUtilityService = {
 };
 
 const mockCfdiService = {
-  stampInvoice: jest.fn(async () => ({ status: 'stamped' as const })),
+  stampInvoice: jest.fn(() => Promise.resolve({ status: 'stamped' as const })),
 };
 
 describe('BillingService', () => {
@@ -134,9 +133,9 @@ describe('BillingService', () => {
     service = module.get<BillingService>(BillingService);
 
     // Mock logger to keep console clean during tests
-    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
-    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
-    jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
 
     jest.clearAllMocks();
   });
@@ -427,7 +426,11 @@ describe('BillingService', () => {
       expect(mockPrismaService.subscription.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { organizationId: orgId },
-          create: expect.objectContaining({ organizationId: orgId, plan: 'GROWTH', status: 'ACTIVE' }),
+          create: expect.objectContaining({
+            organizationId: orgId,
+            plan: 'GROWTH',
+            status: 'ACTIVE',
+          }),
         }),
       );
       expect(enforceLimitsSpy).toHaveBeenCalledWith(orgId, 'GROWTH');
@@ -484,6 +487,40 @@ describe('BillingService', () => {
         where: { id: { in: ['wf-b'] } },
         data: { isActive: false },
       });
+    });
+  });
+
+  describe('enforceLimits · usuarios', () => {
+    const users = [
+      { id: 'viewer-old', role: 'VIEWER', lastLoginAt: new Date('2026-01-01') },
+      { id: 'owner', role: 'OWNER', lastLoginAt: null },
+      { id: 'admin', role: 'ADMIN', lastLoginAt: new Date('2026-02-01') },
+      { id: 'viewer-new', role: 'VIEWER', lastLoginAt: new Date('2026-03-01') },
+    ];
+    const withUserLimit = (maxUsers: number) => {
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        customMaxUsers: maxUsers,
+        customMaxWorkflows: -1,
+        customMaxApiKeys: -1,
+      });
+      mockPrismaService.user.findMany.mockResolvedValue(users);
+    };
+    const deactivated = () =>
+      (mockPrismaService.user.updateMany.mock.calls[0]?.[0]?.where?.id?.in ?? []) as string[];
+
+    // Los roles de la base van en mayúsculas; antes se comparaban en minúsculas y un downgrade
+    // desactivaba a todos, dueño incluido.
+    it('nunca desactiva al dueño', async () => {
+      withUserLimit(1);
+      await (service as any).enforceLimits('org-1', 'FREE');
+      expect(deactivated()).not.toContain('owner');
+      expect(deactivated()).toEqual(expect.arrayContaining(['admin', 'viewer-old', 'viewer-new']));
+    });
+
+    it('conserva por rol y luego por el login más reciente', async () => {
+      withUserLimit(3);
+      await (service as any).enforceLimits('org-1', 'FREE');
+      expect(deactivated()).toEqual(['viewer-old']);
     });
   });
 

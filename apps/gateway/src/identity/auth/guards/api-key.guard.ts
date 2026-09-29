@@ -49,6 +49,7 @@ export class ApiKeyGuard implements CanActivate {
           name: true,
           isActive: true,
           deletedAt: true,
+          expiresAt: true,
           workflowId: true,
           organization: {
             select: {
@@ -65,6 +66,13 @@ export class ApiKeyGuard implements CanActivate {
 
       if (!matchedApiKey || !matchedApiKey.isActive || matchedApiKey.deletedAt) {
         this.logger.warn(`API key inválido, inactivo o eliminado`);
+        throw new UnauthorizedException('API key inválido');
+      }
+
+      // La API acepta `expiresAt` al crear la key; si no se respeta aquí, quien la configura
+      // cree que caduca y sigue sirviendo para siempre.
+      if (matchedApiKey.expiresAt && matchedApiKey.expiresAt <= new Date()) {
+        this.logger.warn(`API key expirada: ${matchedApiKey.id}`);
         throw new UnauthorizedException('API key inválido');
       }
 

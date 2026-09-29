@@ -12,9 +12,13 @@ import { PagePager } from '@/components/ui/page-pager';
 import { usePageSize } from '@/hooks/shared/use-page-size';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { useInfiniteAdminOrganizations } from '@/hooks/automation/use-admin-workflows';
-import { useAdminAnnouncements, useAdminAnnouncementMutations } from '@/hooks/platform/use-admin-announcements';
+import {
+  useAdminAnnouncements,
+  useAdminAnnouncementMutations,
+} from '@/hooks/platform/use-admin-announcements';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass } from '../_styles';
+import { isToastHandled } from '@/lib/api/api-error';
 
 const STATUS_CLASS: Record<AnnouncementStatus, string> = {
   [AnnouncementStatus.DRAFT]: 'text-text-tertiary',
@@ -37,7 +41,8 @@ export default function AdminAnnouncementsPage() {
 
   const targetLabel = (a: AdminAnnouncementDto): string => {
     if (a.targetOrganizations.length === 0) return t('allOrganizations');
-    if (a.targetOrganizations.length <= 2) return a.targetOrganizations.map((o) => o.name).join(', ');
+    if (a.targetOrganizations.length <= 2)
+      return a.targetOrganizations.map((o) => o.name).join(', ');
     return t('multipleOrgs', { count: a.targetOrganizations.length });
   };
   const [organizationId, setOrganizationId] = useState('');
@@ -176,13 +181,22 @@ export default function AdminAnnouncementsPage() {
 
                 <div className="flex shrink-0 items-center gap-2">
                   {a.status === AnnouncementStatus.DRAFT && (
-                    <button className={btnGhost} disabled={publish.isPending} onClick={() => setPendingPublish(a)}>
+                    <button
+                      className={btnGhost}
+                      disabled={publish.isPending}
+                      onClick={() => setPendingPublish(a)}
+                    >
                       <Send size={14} />
                       {t('publish')}
                     </button>
                   )}
-                  {(a.status === AnnouncementStatus.PUBLISHED || a.status === AnnouncementStatus.EXPIRED) && (
-                    <button className={btnGhost} disabled={unpublish.isPending} onClick={() => setPendingUnpublish(a)}>
+                  {(a.status === AnnouncementStatus.PUBLISHED ||
+                    a.status === AnnouncementStatus.EXPIRED) && (
+                    <button
+                      className={btnGhost}
+                      disabled={unpublish.isPending}
+                      onClick={() => setPendingUnpublish(a)}
+                    >
                       <EyeOff size={14} />
                       {t('unpublish')}
                     </button>
@@ -232,7 +246,7 @@ export default function AdminAnnouncementsPage() {
           if (!pendingPublish) return;
           await publish.mutateAsync(pendingPublish.id, {
             onSuccess: (result) => toast.success(t('sentToUsers', { count: result.delivered })),
-            onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+            onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
           });
           setPendingPublish(null);
         }}
@@ -250,7 +264,7 @@ export default function AdminAnnouncementsPage() {
         onConfirm={async () => {
           if (!pendingUnpublish) return;
           await unpublish.mutateAsync(pendingUnpublish.id, {
-            onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+            onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
           });
           setPendingUnpublish(null);
         }}

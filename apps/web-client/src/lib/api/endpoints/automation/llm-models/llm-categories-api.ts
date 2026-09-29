@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '../../../api-request-manager';
 import { ApiResponse } from '@tesseract/types';
 
@@ -49,7 +50,7 @@ class LlmCategoriesApi {
     const result = await this.apiRequestManager.get<ApiResponse<LlmCategoriesListResult>>(
       `${LlmCategoriesApi.BASE_URL}${qs ? `?${qs}` : ''}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async create(data: CreateLlmCategoryInput): Promise<LlmCategory> {
@@ -57,7 +58,7 @@ class LlmCategoriesApi {
       LlmCategoriesApi.BASE_URL,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async update(id: string, data: UpdateLlmCategoryInput): Promise<LlmCategory> {
@@ -65,14 +66,14 @@ class LlmCategoriesApi {
       `${LlmCategoriesApi.BASE_URL}/${id}`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async remove(id: string): Promise<LlmCategory> {
     const result = await this.apiRequestManager.delete<ApiResponse<LlmCategory>>(
       `${LlmCategoriesApi.BASE_URL}/${id}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 }
 

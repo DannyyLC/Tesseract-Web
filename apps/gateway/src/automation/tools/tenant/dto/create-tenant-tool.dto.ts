@@ -21,7 +21,7 @@ export class CreateTenantToolDto {
     description: 'Custom configuration for the tenant tool',
     example: '{ "portal_id": "123", "default_pipeline": "ventas" }',
   })
-  config?: any;
+  config?: Record<string, unknown>;
 
   @IsOptional()
   @IsArray()
@@ -30,7 +30,7 @@ export class CreateTenantToolDto {
     example: '["list_events", "create_event"]',
     nullable: true,
   })
-  allowedFunctions?: any;
+  allowedFunctions?: string[] | null;
 
   @IsOptional()
   @IsString()

@@ -13,6 +13,7 @@ import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { toIntlLocale } from '@/lib/intl-locale';
 import type { AdminOrganizationDetail } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   organizationId: string;
@@ -40,7 +41,11 @@ export function CreditsTab({ organizationId, org }: Props) {
   };
 
   const amountValue = Number(amount);
-  const canAdjust = amount.trim() !== '' && Number.isInteger(amountValue) && amountValue !== 0 && reason.trim().length >= 3;
+  const canAdjust =
+    amount.trim() !== '' &&
+    Number.isInteger(amountValue) &&
+    amountValue !== 0 &&
+    reason.trim().length >= 3;
 
   const handleAdjust = () => {
     if (!canAdjust) return;
@@ -53,7 +58,7 @@ export function CreditsTab({ organizationId, org }: Props) {
           setCursor(undefined);
           setDirection(undefined);
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -140,7 +145,9 @@ export function CreditsTab({ organizationId, org }: Props) {
                   ? t('usedCredits', { used: overageUsed.toLocaleString(intlLocale) }) +
                     (overageRemaining === null
                       ? ''
-                      : t('usedRemaining', { remaining: overageRemaining.toLocaleString(intlLocale) }))
+                      : t('usedRemaining', {
+                          remaining: overageRemaining.toLocaleString(intlLocale),
+                        }))
                   : t('usedNone')}
               </dd>
             </div>
@@ -161,9 +168,7 @@ export function CreditsTab({ organizationId, org }: Props) {
             {items.map((tx) => (
               <li key={tx.id} className="flex items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm text-text-primary">
-                    {tx.description ?? tx.type}
-                  </p>
+                  <p className="truncate text-sm text-text-primary">{tx.description ?? tx.type}</p>
                   <p className="text-xs text-text-secondary">
                     {new Date(tx.createdAt).toLocaleString(intlLocale)} · {tx.type}
                   </p>

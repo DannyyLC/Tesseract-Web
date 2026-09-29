@@ -364,15 +364,15 @@ describe('LlmModelsService', () => {
 
       const calcA = result.find((c) => c.model === 'model-a');
       expect(calcA).toBeDefined();
-      expect(calcA!.totalCost).toBe(5); // (0.5 * 2) + (1 * 4) = 1 + 4 = 5
+      expect(calcA?.totalCost).toBe(5); // (0.5 * 2) + (1 * 4) = 1 + 4 = 5
 
       const calcB = result.find((c) => c.model === 'model-b');
       expect(calcB).toBeDefined();
-      expect(calcB!.totalCost).toBe(2); // (2 * 1) + 0 = 2
+      expect(calcB?.totalCost).toBe(2); // (2 * 1) + 0 = 2
 
       const calcUnknown = result.find((c) => c.model === 'unknown-model');
       expect(calcUnknown).toBeDefined();
-      expect(calcUnknown!.provider).toBe('unknown'); // Used fallback
+      expect(calcUnknown?.provider).toBe('unknown'); // Used fallback
     });
 
     it('should return empty array if provided empty object', async () => {

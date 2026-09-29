@@ -20,6 +20,7 @@ import type {
   CreateLlmModelInput,
 } from '@/lib/api/endpoints/automation/llm-models/llm-models-api';
 import type { LlmCategory } from '@/lib/api/endpoints/automation/llm-models/llm-categories-api';
+import { isToastHandled } from '@/lib/api/api-error';
 
 const TIERS: ModelTier[] = ['BASIC', 'STANDARD', 'PREMIUM'];
 
@@ -68,7 +69,7 @@ export default function LlmModelsAdminPage() {
     hasNextPage: hasNextCategoryPage,
     isFetchingNextPage: isFetchingNextCategoryPage,
   } = useInfiniteLlmCategories({ isActive: true });
-  
+
   const categories = categoriesPages?.pages.flatMap((p) => p.data) ?? [];
   const categoryOptions = [
     { label: tt('allCategories'), value: '' },
@@ -99,13 +100,13 @@ export default function LlmModelsAdminPage() {
 
       {/* Filtros */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[250px]">
+        <div className="relative min-w-[250px] flex-1">
           <Search
             size={16}
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary"
           />
           <input
-            className={`${inputClass} pl-9 w-full`}
+            className={`${inputClass} w-full pl-9`}
             placeholder={tt('searchPlaceholder')}
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
@@ -124,7 +125,7 @@ export default function LlmModelsAdminPage() {
           ))}
         </select>
         <InfiniteSelect
-          className="flex-1 min-w-[200px]"
+          className="min-w-[200px] flex-1"
           value={categoryFilter}
           onChange={setCategoryFilter}
           options={categoryOptions}
@@ -176,9 +177,7 @@ export default function LlmModelsAdminPage() {
                   <td className="px-4 py-3 text-text-primary">{m.provider}</td>
                   <td className="px-4 py-3 font-medium text-text-primary">{m.modelName}</td>
                   <td className="px-4 py-3 text-text-secondary">{m.tier}</td>
-                  <td className="px-4 py-3 text-text-secondary">
-                    {m.llmCategory?.name ?? '—'}
-                  </td>
+                  <td className="px-4 py-3 text-text-secondary">{m.llmCategory?.name ?? '—'}</td>
                   <td className="px-4 py-3 text-text-secondary">{fmtPrice(m.inputPricePer1m)}</td>
                   <td className="px-4 py-3 text-text-secondary">{fmtPrice(m.outputPricePer1m)}</td>
                   <td className="px-4 py-3 text-text-secondary">
@@ -186,10 +185,11 @@ export default function LlmModelsAdminPage() {
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${m.isActive
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        m.isActive
                           ? 'bg-green-500/10 text-green-600'
                           : 'bg-gray-500/10 text-text-secondary'
-                        }`}
+                      }`}
                     >
                       {m.isActive ? tt('active') : tt('inactive')}
                     </span>
@@ -225,7 +225,7 @@ export default function LlmModelsAdminPage() {
             </tbody>
           </table>
         )}
-        
+
         {/* Paginación */}
         {meta && (
           <PagePager
@@ -246,7 +246,11 @@ export default function LlmModelsAdminPage() {
       {/* Modal: crear */}
       <AnimatePresence>
         {createOpen && (
-          <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title={tt('newModelModalTitle')}>
+          <Modal
+            isOpen={createOpen}
+            onClose={() => setCreateOpen(false)}
+            title={tt('newModelModalTitle')}
+          >
             <CreateForm
               categories={categories}
               isCategoriesLoading={isCategoriesLoading}
@@ -261,8 +265,7 @@ export default function LlmModelsAdminPage() {
                     toast.success(tt('modelCreated'));
                     setCreateOpen(false);
                   },
-                  onError: (e: any) =>
-                    !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+                  onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
                 })
               }
             />
@@ -295,8 +298,7 @@ export default function LlmModelsAdminPage() {
                       toast.success(tt('modelUpdated'));
                       setEditModel(null);
                     },
-                    onError: (e: any) =>
-                      !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+                    onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
                   },
                 )
               }
@@ -325,8 +327,7 @@ export default function LlmModelsAdminPage() {
                       toast.success(tt('priceUpdated'));
                       setPriceModel(null);
                     },
-                    onError: (e: any) =>
-                      !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+                    onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
                   },
                 )
               }
@@ -373,7 +374,7 @@ export default function LlmModelsAdminPage() {
                         toast.success(tt('modelDeactivated'));
                         setDeactivateModelConfirm(null);
                       },
-                      onError: (e: any) => !e?.toastHandled && toast.error(tt('deactivateError')),
+                      onError: (e) => !isToastHandled(e) && toast.error(tt('deactivateError')),
                     });
                   }}
                 >
@@ -476,7 +477,7 @@ function CreateForm({
             ))}
           </select>
         </div>
-        <div className="flex flex-col h-full">
+        <div className="flex h-full flex-col">
           <label className={labelClass}>{tt('categoryOptionalLabel')}</label>
           <InfiniteSelect
             value={f.llmCategoryId}
@@ -637,7 +638,7 @@ function EditForm({
             ))}
           </select>
         </div>
-        <div className="flex flex-col h-full">
+        <div className="flex h-full flex-col">
           <label className={labelClass}>{tt('categoryLabel')}</label>
           <InfiniteSelect
             value={f.llmCategoryId}
@@ -688,12 +689,14 @@ function EditForm({
           role="switch"
           aria-checked={f.isActive}
           onClick={() => setF({ ...f, isActive: !f.isActive })}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${f.isActive ? 'bg-success-500' : 'bg-border-hover'
-            }`}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+            f.isActive ? 'bg-success-500' : 'bg-border-hover'
+          }`}
         >
           <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-surface-elevated transition-transform ${f.isActive ? 'translate-x-6' : 'translate-x-1'
-              }`}
+            className={`inline-block h-4 w-4 transform rounded-full bg-surface-elevated transition-transform ${
+              f.isActive ? 'translate-x-6' : 'translate-x-1'
+            }`}
           />
         </button>
         <span className="text-sm text-text-primary">

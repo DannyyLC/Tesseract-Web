@@ -106,6 +106,7 @@ async function bootstrap() {
   } catch (error) {
     // A partir de aquí no se puede asumir que el logger exista: si `NestFactory.create`
     // falló, nunca se llegó a `useLogger`. `console.error` es lo único garantizado.
+    // eslint-disable-next-line no-console -- ver comentario de arriba: no hay logger todavía.
     console.error('Error fatal al iniciar la aplicación:', error);
     process.exit(1);
   }

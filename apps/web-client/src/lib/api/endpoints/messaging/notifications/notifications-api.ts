@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '../../../api-request-manager';
 import { NotificationEventDto, PaginatedResponse, ApiResponse } from '@tesseract/types';
 
@@ -23,7 +24,7 @@ class NotificationsApi {
     const result = await this.apiRequestManager.get<
       ApiResponse<PaginatedResponse<NotificationEventDto>>
     >(`${NotificationsApi.BASE_URL}?${params.toString()}`);
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   /**
@@ -33,7 +34,7 @@ class NotificationsApi {
     const result = await this.apiRequestManager.get<ApiResponse<number>>(
       `${NotificationsApi.BASE_URL}/unread-count`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   /**

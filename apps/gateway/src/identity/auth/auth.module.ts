@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { TurnstileService } from './turnstile.service';
@@ -33,7 +33,8 @@ import { TwoFactorModule } from '../two-factor/two-factor.module';
         return {
           secret: configService.get<string>('JWT_SECRET'),
           signOptions: {
-            expiresIn: expiresIn as any, // Cast necesario debido a limitación de tipos
+            // El tipo de jsonwebtoken exige un literal tipo '5m'; la variable de entorno es string.
+            expiresIn: expiresIn as NonNullable<JwtModuleOptions['signOptions']>['expiresIn'],
           },
         };
       },

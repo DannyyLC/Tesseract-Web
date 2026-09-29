@@ -19,10 +19,11 @@ export type BillingCurrency = 'usd' | 'mxn';
  * Moneda para una organización cuyo país aún no se conoce.
  *
  * Solo aplica a organizaciones anteriores a este campo o que nunca han contratado: en cuanto
- * alguien pasa por el checkout, su país queda escrito. USD y no MXN a propósito — es lo que
- * cobraba el sistema antes de existir esta distinción, así que es lo que no cambia nada.
+ * alguien pasa por el checkout, su país queda escrito. MXN porque el grueso de los clientes es
+ * de México: una cuenta nueva ve los precios en la moneda en que casi seguro pagará. Solo afecta
+ * a lo que se muestra; el checkout exige país antes de cobrar y nunca cae aquí.
  */
-export const FALLBACK_BILLING_CURRENCY: BillingCurrency = 'usd';
+export const FALLBACK_BILLING_CURRENCY: BillingCurrency = 'mxn';
 
 /** Regiones en las que se agrupa el selector. La UI traduce estas claves. */
 export type CountryRegion = 'mexico' | 'latam' | 'northAmerica' | 'europe';

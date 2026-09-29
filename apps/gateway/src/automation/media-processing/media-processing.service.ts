@@ -1,3 +1,4 @@
+import { Prisma } from '@tesseract/database';
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { MEDIA_PROCESSOR_ADAPTER, MediaProcessorAdapter } from './adapters/media-processor.adapter';
@@ -15,7 +16,7 @@ export interface IncomingAttachment {
    */
   sourceHeaders?: Record<string, string>;
   sha256?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   /** Tope de tamaño para este adjunto. Lo fija la política del workflow. */
   maxBytes?: number;
 }
@@ -54,7 +55,8 @@ export function toAttachmentInput(attachment: ProcessedAttachment) {
     processor: attachment.processor,
     processorVersion: attachment.processorVersion,
     sizeBytes: attachment.sizeBytes,
-    metadata: attachment.metadata,
+    // Frontera con la base: la metadata calculada es JSON serializable.
+    metadata: attachment.metadata as Prisma.InputJsonObject | undefined,
   };
 }
 
@@ -234,7 +236,11 @@ export class MediaProcessingService {
     }
 
     if (buffer.length > maxAudioBytes(policy)) {
-      return { status: 'REJECTED', reason: 'AUDIO_TOO_LONG', message: policy.messages.audioTooLong };
+      return {
+        status: 'REJECTED',
+        reason: 'AUDIO_TOO_LONG',
+        message: policy.messages.audioTooLong,
+      };
     }
 
     const result = await this.adapter.transcribeBuffer({

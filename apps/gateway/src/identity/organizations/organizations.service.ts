@@ -13,10 +13,9 @@ import {
   OPERATIONS,
   PLANS,
   SubscriptionPlan,
-  SubscriptionPlan as SharedSubscriptionPlan,
   getPlanLimits,
 } from '@tesseract/types';
-import { Organization, SubscriptionStatus, UserRole } from '@tesseract/database';
+import { Organization, Prisma, SubscriptionStatus, UserRole } from '@tesseract/database';
 import { randomBytes } from 'crypto';
 import { TwoFactorService } from '@/identity/two-factor/two-factor.service';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
@@ -37,6 +36,7 @@ import {
   QueryOrganizationsAdminDto,
 } from './dto';
 import { maskEmail } from '@/platform/common/utils/mask-email';
+import { checkVerificationCode } from '@/identity/auth/utils/verification-code.util';
 
 /**
  * Servicio para gestionar organizaciones
@@ -266,7 +266,35 @@ export class OrganizationsService {
       },
     });
 
-    const stats: any = {
+    // Datos solo para super admins
+    const subscription = organization.subscription;
+    const adminData =
+      includeAdminData && organization.creditBalance
+        ? {
+            creditBalance: organization.creditBalance.balance,
+            lifetimeEarned: organization.creditBalance.lifetimeEarned,
+            lifetimeSpent: organization.creditBalance.lifetimeSpent,
+            currentMonthCostUSD: organization.creditBalance.currentMonthCostUSD,
+            currentMonthSpent: organization.creditBalance.currentMonthSpent,
+            allowOverages: organization.allowOverages,
+            overageLimit: organization.overageLimit,
+            deactivatedAt: organization.deactivatedAt,
+            deactivatedBy: organization.deactivatedBy,
+            deactivationReason: organization.deactivationReason,
+            stripeCustomerId: organization.stripeCustomerId,
+            ...(subscription && {
+              subscription: {
+                status: subscription.status,
+                currentPeriodStart: subscription.currentPeriodStart,
+                currentPeriodEnd: subscription.currentPeriodEnd,
+                pendingPlanChange: subscription.pendingPlanChange,
+                planChangeRequestedAt: subscription.planChangeRequestedAt,
+              },
+            }),
+          }
+        : undefined;
+
+    const stats = {
       plan: organization.plan,
       limits: effectiveLimits,
       usage: {
@@ -303,34 +331,9 @@ export class OrganizationsService {
       canAddWorkflow:
         effectiveLimits.maxWorkflows === -1 ||
         organization._count.workflows < effectiveLimits.maxWorkflows,
+      // Datos solo para super admins
+      ...(adminData && { adminData }),
     };
-
-    // Datos solo para super admins
-    if (includeAdminData && organization.creditBalance) {
-      stats.adminData = {
-        creditBalance: organization.creditBalance.balance,
-        lifetimeEarned: organization.creditBalance.lifetimeEarned,
-        lifetimeSpent: organization.creditBalance.lifetimeSpent,
-        currentMonthCostUSD: organization.creditBalance.currentMonthCostUSD,
-        currentMonthSpent: organization.creditBalance.currentMonthSpent,
-        allowOverages: organization.allowOverages,
-        overageLimit: organization.overageLimit,
-        deactivatedAt: (organization as any).deactivatedAt,
-        deactivatedBy: (organization as any).deactivatedBy,
-        deactivationReason: (organization as any).deactivationReason,
-        stripeCustomerId: organization.stripeCustomerId,
-      };
-
-      if (organization.subscription) {
-        stats.adminData.subscription = {
-          status: organization.subscription.status,
-          currentPeriodStart: organization.subscription.currentPeriodStart,
-          currentPeriodEnd: organization.subscription.currentPeriodEnd,
-          pendingPlanChange: (organization.subscription as any).pendingPlanChange,
-          planChangeRequestedAt: (organization.subscription as any).planChangeRequestedAt,
-        };
-      }
-    }
 
     return stats;
   }
@@ -558,8 +561,7 @@ export class OrganizationsService {
 
     // 1. Validate if Plan allows Overages (e.g. FREE plan doesn't)
     // We reuse getPlanLimits to check monthlyCredits
-    // Cast to SharedSubscriptionPlan to match expected type
-    const limits = getPlanLimits(organization.plan as unknown as SharedSubscriptionPlan);
+    const limits = getPlanLimits(organization.plan);
 
     if (allowOverages && limits.monthlyCredits === 0) {
       throw new BadRequestException(
@@ -663,9 +665,9 @@ export class OrganizationsService {
         where: { id: organizationId },
         data: {
           isActive: false,
-          deactivatedAt: new Date() as any,
-          deactivatedBy: deactivatedBy as any,
-          deactivationReason: reason as any,
+          deactivatedAt: new Date(),
+          deactivatedBy,
+          deactivationReason: reason,
         },
       });
     } catch (error) {
@@ -713,9 +715,9 @@ export class OrganizationsService {
         where: { id: organizationId },
         data: {
           isActive: true,
-          deactivatedAt: null as any,
-          deactivatedBy: null as any,
-          deactivationReason: null as any,
+          deactivatedAt: null,
+          deactivatedBy: null,
+          deactivationReason: null,
         },
       });
     } catch (error) {
@@ -836,7 +838,10 @@ export class OrganizationsService {
    * @param prismaClient - Cliente de Prisma (this.prisma o tx)
    * @returns Slug único
    */
-  static async generateUniqueSlug(name: string, prismaClient: any): Promise<string> {
+  static async generateUniqueSlug(
+    name: string,
+    prismaClient: Pick<Prisma.TransactionClient, 'organization'>,
+  ): Promise<string> {
     const baseSlug = OrganizationsService.generateSlug(name);
 
     // Intentar primero con el slug base
@@ -873,7 +878,19 @@ export class OrganizationsService {
    * Obtiene los límites efectivos de una organización
    * Combina los límites del plan con los overrides custom
    */
-  private getEffectiveLimits(organization: any) {
+  private getEffectiveLimits(
+    organization: Pick<
+      Organization,
+      | 'plan'
+      | 'customMaxUsers'
+      | 'customMaxWorkflows'
+      | 'customMaxApiKeys'
+      | 'customMaxDatasets'
+      | 'customMaxDatasetRows'
+      | 'overageLimit'
+      | 'allowOverages'
+    >,
+  ) {
     const planDefaults = PLANS[organization.plan as SubscriptionPlan].limits;
 
     return {
@@ -978,11 +995,7 @@ export class OrganizationsService {
         return InviteUserErrorsDto.USER_ALREADY_REGISTERED;
       }
 
-      await this.emailService.sendOrganizationExistsEmail(
-        email,
-        isOrganizationValid.name,
-        locale,
-      );
+      await this.emailService.sendOrganizationExistsEmail(email, isOrganizationValid.name, locale);
       return true;
     }
 
@@ -1106,15 +1119,18 @@ export class OrganizationsService {
   async createUserFromInvitation(
     userName: string,
     pass: string,
+    email: string,
     verificationCode: string,
   ): Promise<{ success: DashboardUserDataDto | null; error?: string }> {
-    const userVerification = await this.prisma.userVerification.findFirst({
-      where: {
-        verificationCode,
-        isFromInvitation: true,
-      },
-    });
-    if (!userVerification || userVerification.expiresAt < new Date()) {
+    // El código solo vale junto con el correo invitado y con intentos acotados. Antes se buscaba
+    // solo por código: cualquiera podía probar códigos contra todas las invitaciones vivas y, al
+    // acertar, entrar a esa organización con la contraseña que eligiera.
+    const userVerification = await checkVerificationCode(
+      this.prisma,
+      { email, isFromInvitation: true },
+      verificationCode,
+    );
+    if (!userVerification) {
       return {
         success: null,
         error: ErrorStrings[OPERATIONS.ACCEPT_INVITATION].INVITATION_EXPIRED,
@@ -1134,15 +1150,36 @@ export class OrganizationsService {
             isFromInvitation: true,
           },
         });
-        await this.prisma.user.update({
+
+        // Una cuenta viva no se muda por invitación: `invite()` ya no la invita (le avisa por
+        // correo), así que llegar aquí con una significa que se creó después, entre el envío y la
+        // aceptación. Con Google eso fabrica un OWNER de su propia organización que, al aceptar,
+        // se llevaba el rol a la organización que lo invitó.
+        if (!existingUser.deletedAt) {
+          return {
+            success: null,
+            error: ErrorStrings[OPERATIONS.ACCEPT_INVITATION].EMAIL_ALREADY_REGISTERED,
+          };
+        }
+
+        // Cuenta borrada que se vuelve a invitar: entra como un miembro nuevo. El rol que tenía
+        // antes era de otra organización y no se hereda.
+        const reactivated = await this.prisma.user.update({
           where: { email: userVerification.email },
           data: {
             emailVerified: true,
             isActive: true,
+            deletedAt: null,
+            role: UserRole.VIEWER,
             organizationId: userVerification.organizationName,
           },
         });
-        this.utilityService.sendNotificationToAppClients(
+        await this.prisma.refreshToken.updateMany({
+          where: { userId: existingUser.id, revokedAt: null },
+          data: { revokedAt: new Date(), revokedReason: 'organization_changed' },
+        });
+        // Atrapa sus propios errores: se dispara sin esperar a propósito.
+        void this.utilityService.sendNotificationToAppClients(
           userVerification.organizationName,
           [UserRole.OWNER, UserRole.ADMIN],
           NOTIFICATIONSENUM.ACCEPTED_INVITATION,
@@ -1150,14 +1187,14 @@ export class OrganizationsService {
         );
         return {
           success: {
-            email: existingUser.email,
-            name: existingUser.name,
-            role: existingUser.role,
-            isActive: existingUser.isActive,
-            lastLoginAt: existingUser.lastLoginAt,
-            createdAt: existingUser.createdAt,
-            avatar: existingUser.avatar,
-            emailVerified: existingUser.emailVerified,
+            email: reactivated.email,
+            name: reactivated.name,
+            role: reactivated.role,
+            isActive: reactivated.isActive,
+            lastLoginAt: reactivated.lastLoginAt,
+            createdAt: reactivated.createdAt,
+            avatar: reactivated.avatar,
+            emailVerified: reactivated.emailVerified,
           },
         };
       }
@@ -1180,7 +1217,8 @@ export class OrganizationsService {
           isFromInvitation: true,
         },
       });
-      this.utilityService.sendNotificationToAppClients(
+      // Atrapa sus propios errores: se dispara sin esperar a propósito.
+      void this.utilityService.sendNotificationToAppClients(
         userVerification.organizationName,
         [UserRole.OWNER, UserRole.ADMIN],
         NOTIFICATIONSENUM.ACCEPTED_INVITATION,
@@ -1233,13 +1271,17 @@ export class OrganizationsService {
       locale,
     );
     if (!emailSentInfo) {
-      this.logger.error(`resendInvitation >> Error sending invitation email to ${maskEmail(userEmail)}`);
+      this.logger.error(
+        `resendInvitation >> Error sending invitation email to ${maskEmail(userEmail)}`,
+      );
       return { success: false, error: ErrorStrings[OPERATIONS.RESEND_INVITATION].SERVER_ERROR };
     }
 
     const modifiedRecords = await this.prisma.userVerification.updateMany({
       where: {
         email: userEmail,
+        organizationName: organizationId,
+        isFromInvitation: true,
       },
       data: {
         verificationCode: emailSentInfo.verificationCode,
@@ -1247,11 +1289,15 @@ export class OrganizationsService {
       },
     });
     if (modifiedRecords.count === 0) {
-      this.logger.error(`resendInvitation >> Error updating verification record for ${maskEmail(userEmail)}`);
+      this.logger.error(
+        `resendInvitation >> Error updating verification record for ${maskEmail(userEmail)}`,
+      );
       return { success: false, error: ErrorStrings[OPERATIONS.RESEND_INVITATION].SERVER_ERROR };
     }
 
-    this.utilityService.sendNotificationToAppClients(
+    // Atrapa sus propios errores: se dispara sin esperar a propósito.
+
+    void this.utilityService.sendNotificationToAppClients(
       organizationId,
       [UserRole.OWNER, UserRole.ADMIN],
       NOTIFICATIONSENUM.RESEND_INVITATION,
@@ -1268,18 +1314,25 @@ export class OrganizationsService {
     userEmail: string,
     organizationId: string,
   ): Promise<{ success: boolean; error?: string }> {
+    // `organizationName` guarda el id de la organización que invitó. Sin él, cualquier
+    // OWNER/ADMIN podía cancelar la invitación pendiente de otro tenant con solo el email.
     const deletedRecords = await this.prisma.userVerification.deleteMany({
       where: {
         email: userEmail,
+        organizationName: organizationId,
         isFromInvitation: true,
       },
     });
     if (deletedRecords.count === 0) {
-      this.logger.error(`cancelInvitation >> No pending invitation found for ${maskEmail(userEmail)}`);
+      this.logger.error(
+        `cancelInvitation >> No pending invitation found for ${maskEmail(userEmail)}`,
+      );
       return { success: false, error: ErrorStrings[OPERATIONS.CANCEL_INVITATION].CANCEL_FAILED };
     }
 
-    this.utilityService.sendNotificationToAppClients(
+    // Atrapa sus propios errores: se dispara sin esperar a propósito.
+
+    void this.utilityService.sendNotificationToAppClients(
       organizationId,
       [UserRole.OWNER, UserRole.ADMIN],
       NOTIFICATIONSENUM.CANCEL_INVITATION,

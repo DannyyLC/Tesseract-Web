@@ -91,12 +91,7 @@ export class EndUsersController {
     @Res() res: Response,
   ): Promise<Response<ApiResponse<DashboardEndUserDto>>> {
     const apiResponse = new ApiResponseBuilder<DashboardEndUserDto>();
-    const result = await this.endUsersService.block(
-      user.organizationId,
-      id,
-      user.sub,
-      body.reason,
-    );
+    const result = await this.endUsersService.block(user.organizationId, id, user.sub, body.reason);
     apiResponse.setData(result).setMessage('End user blocked successfully').setSuccess(true);
     return res.status(200).json(apiResponse.build());
   }

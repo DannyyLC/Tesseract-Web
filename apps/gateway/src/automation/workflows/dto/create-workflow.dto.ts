@@ -102,7 +102,7 @@ export interface WorkflowConfig {
   type: 'agent';
   graph: {
     type: 'react' | 'supervisor' | 'router' | 'sequential' | 'parallel';
-    config?: Record<string, any>;
+    config?: Record<string, unknown>;
   };
   agents: Record<
     string,
@@ -135,4 +135,9 @@ export interface WorkflowConfig {
     };
     ocrPrompt?: string;
   };
+  /**
+   * Si el canal muestra "visto" y "escribiendo" al recibir un mensaje. Ausente = `true`.
+   * Resolución en `../presence-indicators`.
+   */
+  presenceIndicators?: boolean;
 }

@@ -20,9 +20,7 @@ export const WHATSAPP_WINDOW_SECONDS = Number(process.env.WHATSAPP_WINDOW_SECOND
  * acumulado; lo que llegue después arma la siguiente ventana, así que no se pierde
  * nada — solo se parte la respuesta en dos.
  */
-export const WHATSAPP_MAX_WINDOW_SECONDS = Number(
-  process.env.WHATSAPP_MAX_WINDOW_SECONDS ?? 40,
-);
+export const WHATSAPP_MAX_WINDOW_SECONDS = Number(process.env.WHATSAPP_MAX_WINDOW_SECONDS ?? 40);
 
 /**
  * Lo que se guarda por mensaje: el body crudo del webhook, con la forma del proveedor que lo

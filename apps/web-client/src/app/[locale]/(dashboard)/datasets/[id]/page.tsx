@@ -9,6 +9,8 @@ import PermissionGuard from '@/components/auth/permission-guard';
 import { ImportCsvModal } from '@/components/datasets/import-csv-modal';
 import { RecordsGrid } from '@/components/datasets/records-grid';
 import { RecordsToolbar } from '@/components/datasets/records-toolbar';
+import { RowsSummary } from '@/components/datasets/rows-summary';
+import { useRecordFilters } from '@/components/datasets/use-record-filters';
 import { PagePager } from '@/components/ui/page-pager';
 import { usePageSize } from '@/hooks/shared/use-page-size';
 import { useRecordSelection } from '@/components/datasets/use-record-selection';
@@ -24,7 +26,6 @@ import {
 } from '@/hooks/automation/use-datasets';
 import { ConnectedWorkflowsSection } from '../_components/connected-workflows-section';
 import { SchemaBuilder } from '../_components/schema-builder';
-
 
 export default function DatasetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -44,19 +45,25 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 400);
+  const filterState = useRecordFilters(dataset?.fields);
+  // Sin debounce: el panel de cada columna solo cambia los filtros al pulsar "Aplicar".
+  const filters = filterState.serialized;
 
   useEffect(() => {
     setPage(1);
-  }, [search]);
+  }, [search, filters, filterState.sortBy]);
 
-  const { data: records } = useDatasetRecords(id, pageSize, (page - 1) * pageSize, search);
+  const { data: records } = useDatasetRecords(id, pageSize, (page - 1) * pageSize, search, {
+    filters,
+    sortBy: filterState.sortBy,
+  });
   const { updateFields, clearRecords, createRecord, updateRecord, deleteRecords, importCsv } =
     useDatasetMutations();
 
   // La selección abarca solo la página visible, así que se vacía al paginar o al buscar.
   const selection = useRecordSelection(
     (records?.items ?? []).map((record) => record.id),
-    `${page}|${pageSize}|${search}`,
+    `${page}|${pageSize}|${search}|${filters}|${filterState.sortBy}`,
   );
 
   const [isEditingSchema, setIsEditingSchema] = useState(false);
@@ -195,18 +202,17 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
           )}
         </div>
 
-        <ConnectedWorkflowsSection
-          datasetId={id}
-          workflows={dataset.workflows}
-          canEdit={canEdit}
-        />
+        <ConnectedWorkflowsSection datasetId={id} workflows={dataset.workflows} canEdit={canEdit} />
 
         {/* ─── Filas ───────────────────────────────────────────────────────── */}
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-text-primary">
-              {t('rowsHeading', { count: records?.total ?? 0 })}
-            </h2>
+          <div className="flex items-start justify-between gap-4">
+            <RowsSummary
+              count={records?.total ?? 0}
+              filtered={!!search || !!filters}
+              usage={usage}
+              blockedLabel={t('writesBlocked')}
+            />
 
             <PagePager
               page={page}
@@ -224,34 +230,22 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
             />
           </div>
 
-          {/* El consumo va a la vista: un botón deshabilitado sin explicación es peor que el
-              límite (mismo criterio que la pantalla de lista de catálogos). */}
-          {usage && (
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface-elevated px-5 py-3 text-sm">
-              <span className="text-text-tertiary">{t('usageRows')}: </span>
-              <span className="font-medium text-text-primary">
-                {usage.rows} / {usage.maxDatasetRows === -1 ? '∞' : usage.maxDatasetRows}
-              </span>
-              {atRowLimit && (
-                <span className="rounded-lg bg-warning-500/10 px-2 py-1 text-xs font-medium text-warning-600">
-                  {t('writesBlocked')}
-                </span>
-              )}
-            </div>
-          )}
-
           <RecordsToolbar
             search={searchInput}
             onSearchChange={setSearchInput}
             selectedCount={selection.selectedVisibleIds.length}
             onDeleteSelected={() => setIsDeletingSelected(true)}
             onClearSelection={selection.clear}
+          fields={dataset.fields}
+          filterState={filterState}
             canDelete={canEdit}
           />
 
           <RecordsGrid
             fields={dataset.fields}
             records={records?.items ?? []}
+          filterState={filterState}
+          filtered={!!search || !!filters}
             readOnly={!canEdit}
             createDisabledReason={atRowLimit ? t('writesBlocked') : undefined}
             selection={canEdit ? selection : undefined}
@@ -275,7 +269,11 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">{t('editColumnsHint')}</p>
 
-          <SchemaBuilder fields={draftFields} onChange={setDraftFields} savedFields={dataset.fields} />
+          <SchemaBuilder
+            fields={draftFields}
+            onChange={setDraftFields}
+            savedFields={dataset.fields}
+          />
 
           {overwriteConfirmed && columnsLosingManualValues.length > 0 && (
             <div className="rounded-xl bg-[var(--badge-warning-bg-solid)] px-4 py-3 text-sm text-[var(--badge-warning-text-solid)]">

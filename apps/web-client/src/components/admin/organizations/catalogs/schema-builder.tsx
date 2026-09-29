@@ -129,11 +129,19 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
       .map((saved) => saved.label || saved.key);
   };
 
-  const staleFormulaKeys = (field: DatasetField, peers: { key: string; label: string }[]): string[] => {
+  const staleFormulaKeys = (
+    field: DatasetField,
+    peers: { key: string; label: string }[],
+  ): string[] => {
     if (!field.formula) return [];
-    const validKeys = new Set([...peers.map((peer) => peer.key), ...savedFields.map((saved) => saved.key)]);
+    const validKeys = new Set([
+      ...peers.map((peer) => peer.key),
+      ...savedFields.map((saved) => saved.key),
+    ]);
     const tokens = field.formula.match(/[a-z][a-z0-9_]*/g) ?? [];
-    return [...new Set(tokens.filter((token) => token !== ROUND_FUNCTION && !validKeys.has(token)))];
+    return [
+      ...new Set(tokens.filter((token) => token !== ROUND_FUNCTION && !validKeys.has(token))),
+    ];
   };
 
   return (
@@ -155,7 +163,10 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
             }}
             className="flex flex-col gap-3 rounded-xl border border-border bg-surface-elevated p-4 sm:flex-row sm:items-start"
           >
-            <GripVertical size={18} className="mt-2 hidden shrink-0 cursor-grab text-text-tertiary sm:block" />
+            <GripVertical
+              size={18}
+              className="mt-2 hidden shrink-0 cursor-grab text-text-tertiary sm:block"
+            />
 
             <div className="min-w-0 flex-1 space-y-3">
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -234,12 +245,16 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
 
                       {peers.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-xs text-text-tertiary">{t('formulaColumnsHint')}</span>
+                          <span className="text-xs text-text-tertiary">
+                            {t('formulaColumnsHint')}
+                          </span>
                           {peers.map((peer) => (
                             <button
                               key={peer.key}
                               type="button"
-                              onClick={() => update(index, { formula: `${field.formula ?? ''}${peer.key}` })}
+                              onClick={() =>
+                                update(index, { formula: `${field.formula ?? ''}${peer.key}` })
+                              }
                               className="rounded-md border border-border px-2 py-0.5 font-mono text-xs text-text-secondary transition-colors hover:border-border-focus hover:text-text-primary"
                             >
                               {peer.label || peer.key}
@@ -249,10 +264,14 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                       )}
 
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-xs text-text-tertiary">{t('formulaFunctionsHint')}</span>
+                        <span className="text-xs text-text-tertiary">
+                          {t('formulaFunctionsHint')}
+                        </span>
                         <button
                           type="button"
-                          onClick={() => update(index, { formula: `${field.formula ?? ''}${ROUND_FUNCTION}()` })}
+                          onClick={() =>
+                            update(index, { formula: `${field.formula ?? ''}${ROUND_FUNCTION}()` })
+                          }
                           title={t('formulaRoundTitle')}
                           className="rounded-md border border-border px-2 py-0.5 font-mono text-xs text-text-secondary transition-colors hover:border-border-focus hover:text-text-primary"
                         >
@@ -261,14 +280,20 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
                       </div>
 
                       {missingDependencies(field).map((missing) => (
-                        <p key={missing} className="flex items-start gap-1.5 text-xs text-warning-600">
+                        <p
+                          key={missing}
+                          className="flex items-start gap-1.5 text-xs text-warning-600"
+                        >
                           <AlertTriangle size={13} className="mt-0.5 shrink-0" />
                           {t('formulaMissingDependency', { column: missing })}
                         </p>
                       ))}
 
                       {stale.map((label) => (
-                        <p key={label} className="flex items-start gap-1.5 text-xs text-warning-600">
+                        <p
+                          key={label}
+                          className="flex items-start gap-1.5 text-xs text-warning-600"
+                        >
                           <AlertTriangle size={13} className="mt-0.5 shrink-0" />
                           {t('formulaStaleKey', { column: label })}
                         </p>
@@ -301,7 +326,9 @@ export function SchemaBuilder({ fields, onChange, savedFields = [] }: SchemaBuil
           {t('addColumn')}
         </button>
       ) : (
-        <p className="text-xs text-text-tertiary">{t('maxColumnsReached', { max: MAX_DATASET_FIELDS })}</p>
+        <p className="text-xs text-text-tertiary">
+          {t('maxColumnsReached', { max: MAX_DATASET_FIELDS })}
+        </p>
       )}
     </div>
   );

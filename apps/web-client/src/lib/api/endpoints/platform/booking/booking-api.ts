@@ -16,9 +16,8 @@ class BookingApi {
   }
 
   public async getEventTypes(): Promise<BookingEventType[]> {
-    const result = await this.apiRequestManager.get<ApiResponse<BookingEventType[]>>(
-      '/booking/event-types',
-    );
+    const result =
+      await this.apiRequestManager.get<ApiResponse<BookingEventType[]>>('/booking/event-types');
     return result.data.data ?? [];
   }
 

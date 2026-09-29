@@ -177,7 +177,7 @@ export function useAudioRecorder() {
       setState('idle');
       return false;
     }
-  }, [releaseMicrophone]);
+  }, [releaseMicrophone, attachRecorder]);
 
   /**
    * Cierra el segmento en curso y abre otro de inmediato, sin soltar el micrófono.

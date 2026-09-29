@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { toast } from 'sonner';
+import type { ApiError } from './api-error';
 
 /**
  * Locale activo para mandarlo al gateway en `X-Locale`. No hay preferencia persistida en
@@ -70,9 +71,12 @@ class ApiRequestManager {
     );
     // Flag to prevent infinite loops
     let isRefreshing = false;
-    let failedQueue: Array<{ resolve: (value?: any) => void; reject: (reason?: any) => void }> = [];
+    let failedQueue: Array<{
+      resolve: (value?: unknown) => void;
+      reject: (reason?: unknown) => void;
+    }> = [];
 
-    const processQueue = (error: any, token: string | null = null) => {
+    const processQueue = (error: unknown, token: string | null = null) => {
       failedQueue.forEach((prom) => {
         if (error) {
           prom.reject(error);
@@ -187,7 +191,7 @@ class ApiRequestManager {
         const finalMessage = serverMessage || error.message || 'Ocurrió un error inesperado';
 
         // Creamos un error personalizado que incluye la respuesta completa para acceder a campos específicos como 'errors'
-        const customError: any = new Error(finalMessage);
+        const customError: ApiError = new Error(finalMessage);
         customError.response = error.response;
         customError.errorCode = errorCode;
         // También podemos adjuntar directamente los errores si existen para facilitar el acceso
@@ -214,7 +218,7 @@ class ApiRequestManager {
 
   public async post<T>(
     url: string,
-    data?: any,
+    data?: unknown,
     config?: AxiosRequestConfig,
   ): Promise<AxiosResponse<T>> {
     return this.axiosInstance.post<T>(url, data, config);
@@ -222,7 +226,7 @@ class ApiRequestManager {
 
   public async put<T>(
     url: string,
-    data?: any,
+    data?: unknown,
     config?: AxiosRequestConfig,
   ): Promise<AxiosResponse<T>> {
     return this.axiosInstance.put<T>(url, data, config);
@@ -234,7 +238,7 @@ class ApiRequestManager {
 
   public async patch<T>(
     url: string,
-    data?: any,
+    data?: unknown,
     config?: AxiosRequestConfig,
   ): Promise<AxiosResponse<T>> {
     return this.axiosInstance.patch<T>(url, data, config);

@@ -11,13 +11,18 @@ import { DatasetQueryService } from './dataset-query.service';
 describe('DatasetQueryService — búsqueda de texto libre', () => {
   const DATASET_ID = 'ds-1';
 
-  const field = (overrides: Partial<DatasetField> & Pick<DatasetField, 'key' | 'type'>): DatasetField => ({
+  const field = (
+    overrides: Partial<DatasetField> & Pick<DatasetField, 'key' | 'type'>,
+  ): DatasetField => ({
     label: overrides.key,
     order: 0,
     ...overrides,
   });
 
-  const FIELDS: DatasetField[] = [field({ key: 'marca', type: 'text' }), field({ key: 'modelo', type: 'text' })];
+  const FIELDS: DatasetField[] = [
+    field({ key: 'marca', type: 'text' }),
+    field({ key: 'modelo', type: 'text' }),
+  ];
 
   let mockPrismaService: { $queryRaw: jest.Mock };
   let service: DatasetQueryService;
@@ -27,10 +32,12 @@ describe('DatasetQueryService — búsqueda de texto libre', () => {
     service = new DatasetQueryService(mockPrismaService as unknown as PrismaService);
   });
 
-  const search = (fields: DatasetField[], request: DatasetSearchRequest) => service.search(DATASET_ID, fields, request);
+  const search = (fields: DatasetField[], request: DatasetSearchRequest) =>
+    service.search(DATASET_ID, fields, request);
 
   /** `search()` dispara COUNT primero y SELECT después; ambas comparten el mismo WHERE. */
-  const capturedWhere = (): Prisma.Sql => mockPrismaService.$queryRaw.mock.calls[1][0] as Prisma.Sql;
+  const capturedWhere = (): Prisma.Sql =>
+    mockPrismaService.$queryRaw.mock.calls[1][0] as Prisma.Sql;
 
   it('multi-palabra: genera un AND de grupos OR, uno por token', async () => {
     await search(FIELDS, { query: 'BYD M9' });
@@ -93,18 +100,52 @@ describe('DatasetQueryService — búsqueda de texto libre', () => {
     expect(where.values).toContain('%\\%%');
   });
 
-  it('dataset sin columnas de texto: no agrega condición de búsqueda libre', async () => {
+  it('columnas select también entran en la búsqueda libre', async () => {
     const soloSelect: DatasetField[] = [field({ key: 'marca', type: 'select', options: ['BYD'] })];
 
-    await search(soloSelect, { query: 'BYD M9' });
+    await search(soloSelect, { query: 'byd' });
 
     const where = capturedWhere();
 
-    expect(where.sql).not.toContain('LIKE');
+    expect(where.sql).toContain('LIKE');
+    expect(where.values).toContain('%byd%');
+  });
+
+  it('dataset solo con números y fechas: no agrega condición de búsqueda libre', async () => {
+    const sinTexto: DatasetField[] = [field({ key: 'precio', type: 'number' })];
+
+    await search(sinTexto, { query: 'BYD' });
+
+    expect(capturedWhere().sql).not.toContain('LIKE');
+  });
+
+  it('select: lleva el valor a su opción canónica sin importar mayúsculas ni acentos', async () => {
+    const conSelect: DatasetField[] = [
+      field({ key: 'tipo', type: 'select', options: ['Camión', 'Sedán'] }),
+    ];
+
+    await search(conSelect, { select: { tipo: [' camion', 'SEDAN', 'Camión'] } });
+
+    const values = capturedWhere().values;
+
+    expect(values).toContain(JSON.stringify({ tipo: 'Camión' }));
+    expect(values).toContain(JSON.stringify({ tipo: 'Sedán' }));
+    expect(values.filter((value) => value === JSON.stringify({ tipo: 'Camión' }))).toHaveLength(1);
+  });
+
+  it('select: un valor que no es ninguna opción viaja tal cual', async () => {
+    const conSelect: DatasetField[] = [field({ key: 'tipo', type: 'select', options: ['Sedán'] })];
+
+    await search(conSelect, { select: { tipo: ['Pickup'] } });
+
+    expect(capturedWhere().values).toContain(JSON.stringify({ tipo: 'Pickup' }));
   });
 
   it('límite de tokens: un query con más palabras que MAX_DATASET_FIELDS se trunca', async () => {
-    const muchasPalabras = Array.from({ length: MAX_DATASET_FIELDS + 10 }, (_, index) => `p${index}`).join(' ');
+    const muchasPalabras = Array.from(
+      { length: MAX_DATASET_FIELDS + 10 },
+      (_, index) => `p${index}`,
+    ).join(' ');
 
     await search(FIELDS, { query: muchasPalabras });
 

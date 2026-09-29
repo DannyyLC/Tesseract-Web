@@ -45,10 +45,7 @@ export default function AdminWorkflowsPage() {
     isLoading: orgsLoading,
   } = useInfiniteAdminOrganizations({ search: orgSearch || undefined });
 
-  const organizations = useMemo(
-    () => orgPages?.pages.flatMap((p) => p.data) ?? [],
-    [orgPages],
-  );
+  const organizations = useMemo(() => orgPages?.pages.flatMap((p) => p.data) ?? [], [orgPages]);
 
   const orgOptions = useMemo(
     () => [

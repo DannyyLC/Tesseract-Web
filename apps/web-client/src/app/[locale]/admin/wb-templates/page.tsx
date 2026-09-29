@@ -73,7 +73,9 @@ export default function AdminWbTemplatesPage() {
 
       <section className="rounded-xl border border-border bg-surface">
         {!organizationId ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('selectOrgFirst')}</p>
+          <p className="px-4 py-10 text-center text-sm text-text-secondary">
+            {t('selectOrgFirst')}
+          </p>
         ) : configsLoading ? (
           <div className="flex justify-center py-16">
             <LogoLoader text={t('loading')} />

@@ -1,10 +1,4 @@
-type StreamCallbacks = {
-  onOpen?: () => void;
-  onChunk: (chunk: string) => void;
-  onEvent?: (event: string, data: any) => void;
-  onError?: (error: any) => void;
-  onComplete?: () => void;
-};
+import { streamErrorFrom, type StreamCallbacks } from './stream-types';
 
 /**
  * Gemelo de `WorkflowsStream` (workflows-stream.ts) para `POST
@@ -40,8 +34,8 @@ class WorkflowsAdminTestStream {
   public static async testExecuteStream(
     id: string,
     organizationId: string,
-    input: Record<string, any>,
-    metadata?: Record<string, any>,
+    input: Record<string, unknown>,
+    metadata?: Record<string, unknown>,
     callbacks?: StreamCallbacks,
   ): Promise<void> {
     return WorkflowsAdminTestStream._doExecute(
@@ -57,8 +51,8 @@ class WorkflowsAdminTestStream {
   private static async _doExecute(
     id: string,
     organizationId: string,
-    input: Record<string, any>,
-    metadata: Record<string, any> | undefined,
+    input: Record<string, unknown>,
+    metadata: Record<string, unknown> | undefined,
     callbacks: StreamCallbacks | undefined,
     retried: boolean,
   ): Promise<void> {
@@ -89,17 +83,10 @@ class WorkflowsAdminTestStream {
           return;
         }
 
-        let errorBody: any = {};
-        try {
-          errorBody = await response.json();
-        } catch {
-          // sin body o no era JSON: se usa el mensaje genérico de abajo
-        }
-        const err: any = new Error(
-          errorBody.message || `Error executing test stream: ${response.statusText}`,
+        throw await streamErrorFrom(
+          response,
+          `Error executing test stream: ${response.statusText}`,
         );
-        err.statusCode = response.status;
-        throw err;
       }
 
       if (!response.body) {
@@ -132,7 +119,7 @@ class WorkflowsAdminTestStream {
 
           if (trimmed.startsWith('data: ')) {
             const dataContent = trimmed.slice(6);
-            let parsed: any = dataContent;
+            let parsed: unknown = dataContent;
             try {
               parsed = JSON.parse(dataContent);
             } catch {

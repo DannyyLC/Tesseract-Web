@@ -71,7 +71,7 @@ export class CreditsService {
     amount: number,
     type: TransactionType,
     description?: string,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
     costUSD?: number,
     subscriptionId?: string,
     invoiceId?: string,
@@ -103,7 +103,7 @@ export class CreditsService {
           balanceBefore,
           balanceAfter,
           description,
-          metadata: metadata ?? undefined,
+          metadata: metadata as Prisma.InputJsonObject | undefined,
           costUSD,
           subscriptionId,
           invoiceId,
@@ -136,7 +136,7 @@ export class CreditsService {
     amountMajor: number;
     cfdiStatus: CfdiStatus;
     stripePaymentIntentId?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<{ invoiceId: string; deduped: boolean }> {
     const balance = await this.prisma.creditBalance.findUnique({
       where: { organizationId: params.organizationId },
@@ -182,7 +182,7 @@ export class CreditsService {
             balanceBefore,
             balanceAfter,
             description: `Recarga de ${params.credits} créditos`,
-            metadata: params.metadata ?? undefined,
+            metadata: params.metadata as Prisma.InputJsonObject | undefined,
             invoiceId,
           },
         }),
@@ -257,7 +257,7 @@ export class CreditsService {
       };
     }
 
-    const requiredCredits = getWorkflowCreditCost(workflowCategory as any);
+    const requiredCredits = getWorkflowCreditCost(workflowCategory);
 
     // Caso 1: Tiene créditos suficientes
     if (balance.balance >= requiredCredits) {
@@ -315,7 +315,7 @@ export class CreditsService {
     workflowCategory: WorkflowCategory,
     workflowName: string,
     costUSD?: number,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): Promise<void> {
     // Obtener balance actual
     const balance = await this.prisma.creditBalance.findUnique({
@@ -326,7 +326,7 @@ export class CreditsService {
       throw new Error('Credit balance not found');
     }
 
-    const credits = getWorkflowCreditCost(workflowCategory as any);
+    const credits = getWorkflowCreditCost(workflowCategory);
     const balanceBefore = balance.balance;
     const balanceAfter = balanceBefore - credits;
 
@@ -355,7 +355,7 @@ export class CreditsService {
           workflowCategory,
           costUSD: costUSD ?? undefined,
           description: `Execution of ${workflowCategory} workflow: ${workflowName}`,
-          metadata: metadata ?? undefined,
+          metadata: metadata as Prisma.InputJsonObject | undefined,
         },
       }),
 
@@ -399,7 +399,7 @@ export class CreditsService {
     });
 
     if (organization) {
-      const planMonthlyCredits = getPlanLimits(organization.plan as any).monthlyCredits;
+      const planMonthlyCredits = getPlanLimits(organization.plan).monthlyCredits;
       const lowCreditsThreshold = Math.max(
         1,
         Math.ceil(planMonthlyCredits * LOW_CREDITS_THRESHOLD_PERCENTAGE),

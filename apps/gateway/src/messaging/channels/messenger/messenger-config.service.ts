@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { ChatRole, MessengerConfig, MessengerConnectionStatus } from '@tesseract/database';
 import { JsonObject } from '@prisma/client/runtime/client';
 import * as crypto from 'crypto';
@@ -15,6 +15,8 @@ import {
 } from '@/messaging/post-turn-actions';
 import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
 import { PrismaService } from '@/platform/database/prisma.service';
+import { toText } from '@/platform/common/utils/to-text';
+import { httpErrorDetail } from '@/platform/common/utils/error-message';
 
 const GRAPH_API_BASE = process.env.MESSENGER_GRAPH_API_BASE ?? 'https://graph.facebook.com/v21.0';
 
@@ -40,6 +42,68 @@ export class MessengerConfigService {
     private readonly conversationsService: ConversationsService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
+
+  // ─── Prueba de propiedad ──────────────────────────────────────────────
+
+  /**
+   * Comprueba con Meta que las credenciales son de esa página antes de guardarlas.
+   *
+   * El `pageId` es público y el webhook enruta por él, así que sin esto cualquiera podía dar
+   * de alta la página de otro (o cambiar el `pageId` de la suya) y quedarse con sus mensajes;
+   * con las credenciales de la plataforma como respaldo, ni siquiera necesitaba unas propias.
+   * `GET /me` con un token de página devuelve el id de esa página, y el `appsecret_proof`
+   * (HMAC del token con el App Secret) hace que Meta rechace un App Secret de otra app.
+   *
+   * Lo que no venga en `input` se toma de `current` (la config guardada): así se puede rotar
+   * una sola credencial y aun así verificar el par completo.
+   *
+   * @throws BadRequestException con un mensaje que se puede mostrar tal cual en el formulario.
+   */
+  async assertCredentialsOwnPage(
+    input: { pageId: string; pageAccessToken?: string; appSecret?: string },
+    current?: Pick<MessengerConfig, 'pageAccessToken' | 'appSecret'>,
+  ): Promise<void> {
+    const pageAccessToken =
+      input.pageAccessToken?.trim() ||
+      (current?.pageAccessToken ? await this.kmsService.decrypt(current.pageAccessToken) : '');
+    const appSecret =
+      input.appSecret?.trim() ||
+      (current?.appSecret ? await this.kmsService.decrypt(current.appSecret) : '');
+
+    if (!pageAccessToken || !appSecret) {
+      throw new BadRequestException(
+        'El Page Access Token y el App Secret de tu app de Meta son obligatorios',
+      );
+    }
+
+    let ownerId: string | undefined;
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get<{ id?: string }>(`${GRAPH_API_BASE}/me`, {
+          params: {
+            fields: 'id',
+            access_token: pageAccessToken,
+            appsecret_proof: crypto
+              .createHmac('sha256', appSecret)
+              .update(pageAccessToken)
+              .digest('hex'),
+          },
+        }),
+      );
+      ownerId = data?.id;
+    } catch {
+      // Sin loguear el error de axios: la URL lleva el token en claro.
+      throw new BadRequestException(
+        'Meta rechazó las credenciales: revisa el Page Access Token y el App Secret',
+      );
+    }
+
+    if (ownerId !== input.pageId) {
+      throw new BadRequestException(
+        `El Page Access Token no pertenece a la página ${input.pageId}`,
+      );
+    }
+  }
 
   // ─── Config lookup ────────────────────────────────────────────────────
 
@@ -364,7 +428,7 @@ export class MessengerConfigService {
     recipientId: string,
     message: string,
   ): Promise<void> {
-    const sanitized = await this.sanitizeOutput(message);
+    const sanitized = this.sanitizeOutput(message);
 
     for (const chunk of this.splitIntoChunks(sanitized, MESSENGER_MAX_TEXT_LENGTH)) {
       await this.callSendApi(config, {
@@ -460,10 +524,7 @@ export class MessengerConfigService {
     recipientId: string,
     workflowId?: string,
   ): Promise<void> {
-    const variables = (((executionMetadata ?? {}) as JsonObject)?.variables ?? {}) as Record<
-      string,
-      unknown
-    >;
+    const variables = ((executionMetadata ?? {})?.variables ?? {}) as Record<string, unknown>;
     if (Object.keys(variables).length === 0) {
       return;
     }
@@ -511,29 +572,26 @@ export class MessengerConfigService {
     // Handlers que este canal (Messenger) ofrece a las acciones declaradas
     const handlers: Record<string, PostTurnActionHandler> = {
       send_drive_folder_media: async (triggerValue, params, actionId) => {
-        const urls = Array.isArray(triggerValue)
-          ? triggerValue
-          : String(triggerValue ?? '').split(',');
-        const intro = params.intro_message ? String(params.intro_message) : '';
+        const urls = Array.isArray(triggerValue) ? triggerValue : toText(triggerValue).split(',');
+        const intro = toText(params.intro_message);
         if (intro) {
           await sendAndRecord(actionId, intro);
         }
         for (const url of urls) {
-          const normalized = String(url).trim();
+          const normalized = toText(url).trim();
           if (!normalized) continue;
           await this.sendFolderMediaToUser(normalized, config, recipientId);
         }
       },
       send_text_message: async (_triggerValue, params, actionId) => {
-        const text = params.text ? String(params.text) : '';
+        const text = toText(params.text);
         if (text) {
           await sendAndRecord(actionId, text);
         }
       },
     };
 
-    const previousFlags =
-      ((executionMetadata as JsonObject)?.postTurnActions as Record<string, boolean>) ?? {};
+    const previousFlags = (executionMetadata?.postTurnActions as Record<string, boolean>) ?? {};
 
     const updatedFlags = await runPostTurnActions({
       actions: declaredActions,
@@ -598,9 +656,9 @@ export class MessengerConfigService {
 
         // Pequeño delay entre envíos para respetar los límites de tasa.
         await new Promise((resolve) => setTimeout(resolve, 500));
-      } catch (error: any) {
+      } catch (error) {
         // El detalle real del rechazo de Meta viene en la respuesta, no en el message.
-        const detail = error?.response?.data ? JSON.stringify(error.response.data) : error?.message;
+        const detail = httpErrorDetail(error);
         this.logger.error(`Error enviando archivo ${file.name}: ${detail}`);
         // Decisión arquitectónica: continuar con el siguiente archivo aunque falle uno
       }
@@ -614,7 +672,7 @@ export class MessengerConfigService {
    * literales, así que se quitan en lugar de traducirse (a diferencia de WhatsApp,
    * que sí tiene su propio subconjunto).
    */
-  async sanitizeOutput(text: string): Promise<string> {
+  sanitizeOutput(text: string): string {
     if (!text) return text;
 
     return (
@@ -701,7 +759,10 @@ export class MessengerConfigService {
     return crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
   }
 
-  async updateConnectionStatusByPageId(pageId: string, connectionStatus: MessengerConnectionStatus): Promise<boolean> {
+  async updateConnectionStatusByPageId(
+    pageId: string,
+    connectionStatus: MessengerConnectionStatus,
+  ): Promise<boolean> {
     try {
       await this.prismaService.messengerConfig.updateMany({
         where: { pageId },
@@ -713,7 +774,10 @@ export class MessengerConfigService {
       });
       return true;
     } catch (error) {
-      this.logger.error(`Error updating Messenger config connection status for pageId ${pageId}:`, error);
+      this.logger.error(
+        `Error updating Messenger config connection status for pageId ${pageId}:`,
+        error,
+      );
       return false;
     }
   }
@@ -726,7 +790,10 @@ export class MessengerConfigService {
       });
       return true;
     } catch (error) {
-      this.logger.error(`Error updating Messenger config connection error for pageId ${pageId}:`, error);
+      this.logger.error(
+        `Error updating Messenger config connection error for pageId ${pageId}:`,
+        error,
+      );
       return false;
     }
   }

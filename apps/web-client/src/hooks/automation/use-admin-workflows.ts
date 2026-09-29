@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import {
+  skipToken,
+  useQuery,
+  useMutation,
+  useQueryClient,
+  useInfiniteQuery,
+} from '@tanstack/react-query';
 import RootApi from '@/lib/api/endpoints/root-api';
 import type {
   AdminWorkflowsQuery,
@@ -11,6 +17,11 @@ import type {
 } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
 import type { AdminOrganizationsQuery } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import WorkflowsAdminTestStream from '@/lib/api/endpoints/automation/workflows/workflows-admin-test-stream';
+import {
+  toStreamError,
+  type StreamError,
+  type StreamEventHandler,
+} from '@/lib/api/endpoints/automation/workflows/stream-types';
 
 const KEY = 'admin-workflows';
 const ORG_KEY = 'admin-organizations';
@@ -24,7 +35,8 @@ const orgApi = () => RootApi.getInstance().getOrganizationsAdminApi();
 export function useInfiniteAdminOrganizations(query: AdminOrganizationsQuery = {}) {
   return useInfiniteQuery({
     queryKey: [ORG_KEY, 'infinite', query],
-    queryFn: async ({ pageParam }) => orgApi().findAll({ ...query, page: pageParam, limit: DEFAULT_PAGE_SIZE }),
+    queryFn: async ({ pageParam }) =>
+      orgApi().findAll({ ...query, page: pageParam, limit: DEFAULT_PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (last) =>
       last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined,
@@ -84,8 +96,7 @@ export function useWorkflowVersions(id: string, page = 1, enabled = true, limit?
 export function useVersionDiff(id: string, versionId: string | null) {
   return useQuery({
     queryKey: [KEY, 'diff', id, versionId],
-    queryFn: async () => api().diffVersion(id, versionId!),
-    enabled: !!id && !!versionId,
+    queryFn: id && versionId ? async () => api().diffVersion(id, versionId) : skipToken,
     retry: false,
   });
 }
@@ -189,14 +200,14 @@ export function useAdminWorkflowMutations() {
 export function useAdminTestExecuteStream() {
   const [messages, setMessages] = useState<string>('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [error, setError] = useState<any>(null);
+  const [error, setError] = useState<StreamError | null>(null);
 
   const execute = async (
     id: string,
     organizationId: string,
-    input: Record<string, any>,
-    metadata?: Record<string, any>,
-    onEvent?: (event: string, data: any) => void,
+    input: Record<string, unknown>,
+    metadata?: Record<string, unknown>,
+    onEvent?: StreamEventHandler,
   ) => {
     setIsStreaming(true);
     setMessages('');
@@ -207,13 +218,13 @@ export function useAdminTestExecuteStream() {
         onChunk: (chunk) => setMessages((prev) => prev + chunk),
         onEvent,
         onError: (err) => {
-          setError(err);
+          setError(toStreamError(err));
           setIsStreaming(false);
         },
         onComplete: () => setIsStreaming(false),
       });
     } catch (e) {
-      setError(e);
+      setError(toStreamError(e));
       setIsStreaming(false);
     }
   };

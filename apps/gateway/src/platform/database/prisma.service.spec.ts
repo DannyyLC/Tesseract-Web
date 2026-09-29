@@ -112,7 +112,7 @@ describe('PrismaService', () => {
 
   describe('enableShutdownHooks', () => {
     it('should register beforeExit hook', () => {
-      const mockApp = { close: jest.fn().mockResolvedValue(undefined) };
+      const mockApp = { close: jest.fn().mockResolvedValue(undefined) } as any;
       (service.$on as jest.Mock).mockImplementation((event, callback) => {
         if (event === 'beforeExit') {
           callback();

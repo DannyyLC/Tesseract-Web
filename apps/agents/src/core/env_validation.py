@@ -4,11 +4,9 @@ Validación de variables de entorno antes de que arranque el servidor.
 Espejo de `apps/gateway/src/platform/config/env-validation.ts`: una lista de obligatorias
 en producción, un mensaje que las enumera y `sys.exit(1)`.
 
-**Por qué reventar al arrancar y no solo rechazar cada llamada.** Si el proceso arranca sin
-`AGENTS_INTERNAL_SECRET` y rechaza todo, Cloud Run lo ve sano, le manda tráfico y el servicio
-queda caído en producción. Si *no* arranca, la revisión nunca queda lista y la anterior sigue
-sirviendo: mismo aviso ruidoso, sin corte. El servicer rechaza igual por petición (ver
-`_verify_token` en grpc_servicer.py); las dos capas se complementan.
+**Por qué reventar al arrancar y no solo fallar después.** Si el proceso arranca sin una
+variable crítica, Cloud Run lo ve sano y le manda tráfico. Si *no* arranca, la revisión nunca
+queda lista y la anterior sigue sirviendo: mismo aviso ruidoso, sin corte.
 """
 
 import os
@@ -16,11 +14,9 @@ import sys
 
 # ─── Obligatorias en producción ───────────────────────────────────────────────
 
-REQUIRED_IN_PRODUCTION: list[str] = [
-    # Autentica el canal Gateway → Agents. Sin ella el servicio queda abierto a quien
-    # alcance su URL, que hoy es cualquiera en internet.
-    "AGENTS_INTERNAL_SECRET",
-]
+# Hoy vacía. Era `AGENTS_INTERNAL_SECRET`, que autenticaba al Gateway con un secreto
+# compartido; desde la migración a OIDC eso lo hace Cloud Run con IAM, fuera de este proceso.
+REQUIRED_IN_PRODUCTION: list[str] = []
 
 # La lista se queda corta a propósito. Las ~36 variables del servicio viven solo en la consola
 # de GCP, sin versionar; cada nombre que se agregue aquí es una forma nueva de que un deploy
