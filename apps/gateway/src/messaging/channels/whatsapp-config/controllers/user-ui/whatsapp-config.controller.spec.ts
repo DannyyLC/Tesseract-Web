@@ -543,6 +543,86 @@ describe('WhatsappConfigController · handleWebhook', () => {
     });
   });
 
+  // ─── Lotes de Meta ───────────────────────────────────────────────────────
+
+  describe('lote de Meta con varios mensajes', () => {
+    const batch = {
+      object: 'whatsapp_business_account',
+      entry: [
+        {
+          id: 'waba-1',
+          changes: [
+            {
+              field: 'messages',
+              value: {
+                metadata: { display_phone_number: '15550001111' },
+                messages: [
+                  { id: 'wamid-a', from: '5215512345678', type: 'text', text: { body: 'a' } },
+                  { id: 'wamid-b', from: '5215512345678', type: 'text', text: { body: 'b' } },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    let consumerA: ReturnType<typeof buildConsumer>;
+    let consumerB: ReturnType<typeof buildConsumer>;
+
+    beforeEach(() => {
+      consumerA = buildConsumer({ getWhatsappMessageId: jest.fn().mockReturnValue('wamid-a') });
+      consumerB = buildConsumer({ getWhatsappMessageId: jest.fn().mockReturnValue('wamid-b') });
+      // Primero el consumer del webhook completo (firma), luego uno por mensaje.
+      mockPayloadConsumerResolver.forProvider
+        .mockResolvedValueOnce(consumer)
+        .mockResolvedValueOnce(consumerA)
+        .mockResolvedValueOnce(consumerB);
+    });
+
+    it('verifica la firma una vez y encola cada mensaje con su propio payload', async () => {
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(batch, res, metaHeaders);
+
+      expect(consumer.verifySignature).toHaveBeenCalledTimes(1);
+      expect(consumerA.verifySignature).not.toHaveBeenCalled();
+      expect(mockWebhookDedup.claim).toHaveBeenCalledWith('meta', 'wamid-a', EBMessageType.Text);
+      expect(mockWebhookDedup.claim).toHaveBeenCalledWith('meta', 'wamid-b', EBMessageType.Text);
+      expect(mockQueueService.bufferMessage).toHaveBeenCalledTimes(2);
+      const events = mockQueueService.bufferMessage.mock.calls.map(
+        (call: any[]) => call[3].event.entry[0].changes[0].value.messages,
+      );
+      expect(events).toEqual([[batch.entry[0].changes[0].value.messages[0]], [batch.entry[0].changes[0].value.messages[1]]]);
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(res.send).toHaveBeenCalledWith({
+        received: true,
+        messages: [{ received: true }, { received: true }],
+      });
+    });
+
+    it('con firma inválida no encola ninguno', async () => {
+      consumer.verifySignature.mockResolvedValue(false);
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(batch, res, metaHeaders);
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+      expect(mockWebhookDedup.claim).not.toHaveBeenCalled();
+      expect(mockQueueService.bufferMessage).not.toHaveBeenCalled();
+    });
+
+    it('si falla uno, libera solo su claim y contesta 500 para que Meta reintente el lote', async () => {
+      mockCloudTasks.enqueue.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('tasks down'));
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(batch, res, metaHeaders);
+
+      expect(mockWebhookDedup.release).toHaveBeenCalledTimes(1);
+      expect(mockWebhookDedup.release).toHaveBeenCalledWith('meta', 'wamid-b');
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    });
+  });
+
   // ─── Manejo de errores dentro del bloque protegido ──────────────────────
 
   describe('errores durante el procesamiento (dentro del try/catch)', () => {

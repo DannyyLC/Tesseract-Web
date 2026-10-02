@@ -38,6 +38,7 @@ import {
 } from '../../dto';
 import { IWBPayloadConsumer, WBEventTypes } from '../../payload-consumers/wb-payload-consumer.interface';
 import { WBPayloadConsumerResolver } from '../../payload-consumers/wb-payload-consumer.resolver';
+import { splitMetaWebhook } from '../../payload-consumers/split-meta-webhook';
 import { PublicWhatsAppConfig, toPublicConfig } from '../../whatsapp-config.presenter';
 import { ApiResponse, ApiResponseBuilder, UserRole } from '@tesseract/types';
 import { Response } from 'express';
@@ -48,9 +49,17 @@ import { Roles } from '@/identity/auth/decorators/roles.decorator';
 import { WhatsappConfigService } from '../../whatsapp-config.service';
 import {
   WHATSAPP_WINDOW_SECONDS,
+  WhatsAppBufferedEvent,
   WhatsappMessageQueueService,
 } from '../../whatsapp-message-queue.service';
 import { WEBHOOK_PROVIDER_META_WHATSAPP, WEBHOOK_PROVIDER_YCLOUD, WHATSAPP_WORKER_PATH } from '../../whatsapp-worker.constants';
+
+/** El mensaje del webhook que se está procesando: lo que el catch necesita para liberar y loguear. */
+interface WebhookMessageContext {
+  whatsappMessageId?: string;
+  agentPhoneNumber?: string;
+  clientPhoneNumber?: string;
+}
 
 @Controller('whatsapp-config')
 export class WhatsappConfigController {
@@ -129,40 +138,24 @@ export class WhatsappConfigController {
   async handleWebhook(@Body() body: any, @Res() res: Response, @Headers() headers: any) {
     // Declaradas afuera del try para que el catch (que cubre TODO el método, no solo el
     // procesamiento posterior a la firma) pueda usarlas en el log y en el release del
-    // claim de deduplicación sin importar en qué punto haya fallado.
+    // claim de deduplicación sin importar en qué punto haya fallado. `current` lo va
+    // llenando `enqueueMessage` con el mensaje que se está procesando.
     let provider: string | undefined;
-    let whatsappMessageId: string | undefined;
-    let agentPhoneNumber: string | undefined;
-    let clientPhoneNumber: string | undefined;
+    const current: WebhookMessageContext = {};
 
     try {
-      let payloadConsumer: IWBPayloadConsumer;
       if (headers['ycloud-signature']) {
         provider = WEBHOOK_PROVIDER_YCLOUD;
       } else {
         provider = WEBHOOK_PROVIDER_META_WHATSAPP;
       }
-      payloadConsumer = await this.payloadConsumerResolver.forProvider(provider, body);
+      const webhookConsumer = await this.payloadConsumerResolver.forProvider(provider, body);
 
-      // Los dos tipos de evento traen el mensaje bajo una llave distinta, y en el echo
-      // `from`/`to` están invertidos: lo manda el negocio (`from`) hacia el cliente (`to`),
-      // al revés que un mensaje entrante.
-      const sendTime = payloadConsumer.getSendTime();
-      whatsappMessageId = payloadConsumer.getWhatsappMessageId();
-      const messageType = payloadConsumer.getMessageType();
-      const fromPhoneNumber = payloadConsumer.getFromNumber();
-      const toPhoneNumber = payloadConsumer.getToNumber();
-      const eventType = payloadConsumer.getWBEventType();
-
-      const isEcho = WBEventTypes.MsgEchoes == eventType;
-      agentPhoneNumber = isEcho ? fromPhoneNumber : toPhoneNumber;
-      clientPhoneNumber = isEcho ? toPhoneNumber : fromPhoneNumber;
-
-      // 1. Firma primero, antes de tocar la base de datos y antes de decidir NADA sobre
-      // el payload — incluido si el evento es de un tipo que ni siquiera vamos a
-      // procesar. Antes, un evento clasificado como NotAllowed contestaba 200 sin haber
-      // validado la firma: un payload sin autenticar llegaba a parsearse y clasificarse
-      // igual que uno legítimo.
+      // 1. Firma primero, sobre el webhook COMPLETO, antes de tocar la base de datos y antes
+      // de decidir NADA sobre el payload — incluido si el evento es de un tipo que ni
+      // siquiera vamos a procesar. Antes, un evento clasificado como NotAllowed contestaba
+      // 200 sin haber validado la firma: un payload sin autenticar llegaba a parsearse y
+      // clasificarse igual que uno legítimo.
       //
       // Lo correcto es firmar sobre el body crudo; el código anterior usaba
       // JSON.stringify(body), que solo funciona si la re-serialización coincide
@@ -175,14 +168,14 @@ export class WhatsappConfigController {
       let signatureSource = 'raw-body';
 
       if (rawBody) {
-        isValidSignature = await payloadConsumer.verifySignature(
+        isValidSignature = await webhookConsumer.verifySignature(
           rawBody.toString('utf8'),
           headers,
         );
       }
 
       if (!isValidSignature) {
-        const validViaStringify = await payloadConsumer.verifySignature(
+        const validViaStringify = await webhookConsumer.verifySignature(
           JSON.stringify(body),
           headers,
         );
@@ -197,6 +190,12 @@ export class WhatsappConfigController {
       }
 
       if (!isValidSignature) {
+        // En un echo `from`/`to` están invertidos: lo manda el negocio (`from`) hacia el
+        // cliente (`to`), al revés que un mensaje entrante.
+        const fromPhoneNumber = webhookConsumer.getFromNumber();
+        const toPhoneNumber = webhookConsumer.getToNumber();
+        const isEcho = WBEventTypes.MsgEchoes == webhookConsumer.getWBEventType();
+        const agentPhoneNumber = isEcho ? fromPhoneNumber : toPhoneNumber;
         this.logger.warn(
           `Invalid signature for message from ${maskPhone(fromPhoneNumber)} to ${toPhoneNumber}`,
         );
@@ -205,136 +204,241 @@ export class WhatsappConfigController {
         return res.status(HttpStatus.UNAUTHORIZED).send({ received: false });
       }
 
-      if (WBEventTypes.NotAllowed === eventType) {
-        return res.status(HttpStatus.OK).send({ received: true });
-      }
-
-      if (!whatsappMessageId) {
-        this.logger.warn(`Whatsapp message without ID from ${maskPhone(fromPhoneNumber)}`);
-        return res.status(HttpStatus.OK).send({ received: true });
-      }
-
-      // 2. Deduplicación: YCloud reintenta, y reprocesar dispara el workflow dos
-      //    veces (y con él, el cobro de créditos al tenant).
-      const isNew = await this.webhookDedup.claim(
-        provider,
-        whatsappMessageId,
-        messageType,
-      );
-      if (!isNew) {
-        this.logger.warn(`Whatsapp message ${whatsappMessageId} duplicate, it's skipped`);
-        return res.status(HttpStatus.OK).send({ received: true, duplicate: true });
-      }
-
-      // 3. Resolver la cuenta y agendar el procesamiento. Todo esto es barato y va
-      //    ANTES de responder: si algo falla, devolvemos un no-2xx y YCloud reintenta.
-      const account = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(agentPhoneNumber);
-      if (!account) {
-        // El campo `reason` es lo que cuentan las métricas de Cloud Logging dadas de alta
-        // para los descartes del webhook — no cambiar su valor sin actualizar el filtro
-        // de la métrica correspondiente (whatsapp-discard-<reason>).
-        this.logger.warn('No WhatsApp config found for phone number', {
-          reason: 'unknown-config',
-          agentPhoneNumber,
-        });
-        return res.status(HttpStatus.OK).send({ received: true, ignored: 'unknown-config' });
-      }
-
-      if (!account.isActive) {
-        this.logger.warn('Received message for inactive WhatsApp config', {
-          reason: 'inactive-config',
-          agentPhoneNumber,
-        });
-        return res.status(HttpStatus.OK).send({ received: true, ignored: 'inactive-config' });
-      }
-
-      // Un número que un super admin no ha aprobado no es todavía de nadie: sus mensajes no se
-      // entregan a la organización que lo registró (ver `approvedAt` en schema.prisma).
-      if (!account.approvedAt) {
-        this.logger.warn('Received message for unapproved WhatsApp config', {
-          reason: 'unapproved-config',
-          agentPhoneNumber,
-        });
-        return res.status(HttpStatus.OK).send({ received: true, ignored: 'unapproved-config' });
-      }
-
-      if (!account.defaultWorkflowId) {
-        this.logger.warn('Received message for WhatsApp config with no associated workflow', {
-          reason: 'no-workflow',
-          whatsappConfigId: account.id,
-        });
-        return res.status(HttpStatus.OK).send({ received: true, ignored: 'no-workflow' });
-      }
-      // Interpretar el mensaje (incluida la transcripción de audio) cuesta una llamada a
-      // Meta/YCloud por la multimedia y, en el peor caso, el STT: hacerlo aquí, antes del
-      // ACK, es lo que hacía que un audio se transcribiera dos veces (una para nada, ya
-      // que el flujo normal ni siquiera usa el resultado) y arriesgaba que el proveedor
-      // diera por fallido el webhook si la transcripción tardaba. Solo dos ramas de abajo
-      // (echo con humano interviniendo, workflow apagado) necesitan el texto para dejar
-      // registro; se resuelve ahí, no aquí. El flujo normal solo encola el `body` crudo y
-      // deja que `interpretMessages()` del worker lo interprete ya fuera del ciclo del
-      // webhook.
-      let cachedMessageText: string | undefined;
-      const getMessageText = async (): Promise<string> => {
-        if (cachedMessageText === undefined) {
-          const interpreted = await payloadConsumer.getInterpretedMessage();
-          cachedMessageText = interpreted.text || '';
-        }
-        return cachedMessageText;
-      };
-
-      // Lista negra, ANTES de resolver el workflow. El orden importa: con el flujo apagado la
-      // rama de abajo registra el mensaje, y si la comprobación fuera después, un contacto
-      // bloqueado empezaría a acumular mensajes guardados cada vez que alguien apague el
-      // workflow — justo lo que el bloqueo venía a evitar. El bloqueo es sobre la persona y
-      // gana sobre cualquier estado del flujo.
-      //
-      // Solo aplica a lo que ENTRA: un echo es un mensaje que el negocio decidió mandar desde
-      // su propio teléfono, y la lista negra nunca fue sobre lo que sale.
-      //
-      // Cortar en este punto significa que un contacto bloqueado no escribe al buffer de Redis,
-      // no agenda una Cloud Task, no recibe palomita azul, no transcribe su audio, no ejecuta el
-      // workflow y no cuesta un crédito. Es lo único que se gasta en él: un findUnique por llave
-      // única. El mensaje no se guarda en ningún lado; esta línea de log —con el número
-      // enmascarado y el id— es lo que permite rastrear un bloqueo por error, y Cloud Logging la
-      // retiene 30 días sin costar una sola escritura en la base.
-      if (!isEcho) {
-        const isBlocked = await this.endUsersService.isBlocked(account.organizationId, {
-          phoneNumber: clientPhoneNumber,
-        });
-
-        if (isBlocked) {
-          this.logger.info('Mensaje de contacto bloqueado, se descarta', {
-            organizationId: account.organizationId,
-            agentPhoneNumber,
-            userNumber: maskPhone(clientPhoneNumber),
-            whatsappMessageId,
-          });
-          return res.status(HttpStatus.OK).send({ received: true, ignored: 'blocked-contact' });
+      // Un mensaje a la vez. Meta agrupa varios en un solo POST y su consumer lee uno
+      // por payload, así que el lote se parte; YCloud siempre manda uno. Un webhook sin
+      // mensajes (un acuse, otro `object`) sigue por el camino de un solo payload y lo
+      // descarta la clasificación NotAllowed.
+      const parts = provider === WEBHOOK_PROVIDER_META_WHATSAPP ? splitMetaWebhook(body) : [];
+      const results: Record<string, unknown>[] = [];
+      if (parts.length === 0) {
+        results.push(await this.enqueueMessage(provider, webhookConsumer, body, current));
+      } else {
+        for (const part of parts) {
+          const consumer = await this.payloadConsumerResolver.forProvider(provider, part);
+          results.push(await this.enqueueMessage(provider, consumer, part, current));
         }
       }
 
-      // Un workflow borrado (o de otra organización) no tiene a dónde rutear. No es
-      // transitorio: reintentar no lo resucita, así que se corta aquí en vez de caer al
-      // catch, devolver 500 y dejar a YCloud reintentando contra una config rota. Un fallo
-      // de base sí lanza, y ese sí cae al catch y pide reintento, que es lo correcto.
-      const workflow = await this.workflowsService.getRoutingState(
-        account.organizationId,
+      return res
+        .status(HttpStatus.OK)
+        .send(results.length === 1 ? results[0] : { received: true, messages: results });
+    } catch (error) {
+      // Nada se procesó, así que se libera el claim y se devuelve 500 para que
+      // el proveedor reintente. Antes esto era irrecuperable: el ACK ya había salido.
+      // En un lote de Meta, los mensajes que ya se encolaron conservan su claim: el
+      // reintento del lote completo los descarta como duplicados.
+      //
+      // `provider`/`whatsappMessageId` pueden no haberse llegado a resolver si el fallo
+      // ocurrió muy temprano (p.ej. el propio payloadConsumerResolver); en ese caso nunca
+      // hubo un claim que liberar. `release` además ya tolera un claim inexistente sin
+      // lanzar, así que este guard es solo para no llamarlo con `undefined` de más.
+      if (provider && current.whatsappMessageId) {
+        await this.webhookDedup.release(provider, current.whatsappMessageId);
+      }
+
+      this.logger.error('Whatsapp message could not be enqueued', {
+        whatsappInboundMessageId: current.whatsappMessageId,
+        agentPhoneNumber: current.agentPhoneNumber,
+        userNumber: maskPhone(current.clientPhoneNumber),
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send({ received: false });
+    }
+  }
+
+  /**
+   * Procesa UN mensaje ya autenticado: deduplica, resuelve la cuenta, aplica lista negra y
+   * estado del workflow, y lo deja en la ventana de agregación con su Cloud Task. Devuelve
+   * el cuerpo de la respuesta para ese mensaje. Si lanza, `current` dice qué claim liberar.
+   */
+  private async enqueueMessage(
+    provider: string,
+    consumer: IWBPayloadConsumer,
+    payload: WhatsAppBufferedEvent,
+    current: WebhookMessageContext,
+  ): Promise<Record<string, unknown>> {
+    current.whatsappMessageId = undefined;
+    current.agentPhoneNumber = undefined;
+    current.clientPhoneNumber = undefined;
+
+    const sendTime = consumer.getSendTime();
+    const whatsappMessageId = consumer.getWhatsappMessageId();
+    const messageType = consumer.getMessageType();
+    const fromPhoneNumber = consumer.getFromNumber();
+    const toPhoneNumber = consumer.getToNumber();
+    const eventType = consumer.getWBEventType();
+
+    // Los dos tipos de evento traen el mensaje bajo una llave distinta, y en el echo
+    // `from`/`to` están invertidos: lo manda el negocio (`from`) hacia el cliente (`to`),
+    // al revés que un mensaje entrante.
+    const isEcho = WBEventTypes.MsgEchoes == eventType;
+    const agentPhoneNumber = isEcho ? fromPhoneNumber : toPhoneNumber;
+    const clientPhoneNumber = isEcho ? toPhoneNumber : fromPhoneNumber;
+    current.agentPhoneNumber = agentPhoneNumber;
+    current.clientPhoneNumber = clientPhoneNumber;
+
+    if (WBEventTypes.NotAllowed === eventType) {
+      return { received: true };
+    }
+
+    if (!whatsappMessageId) {
+      this.logger.warn(`Whatsapp message without ID from ${maskPhone(fromPhoneNumber)}`);
+      return { received: true };
+    }
+
+    // Deduplicación: el proveedor reintenta, y reprocesar dispara el workflow dos
+    //    veces (y con él, el cobro de créditos al tenant).
+    const isNew = await this.webhookDedup.claim(
+      provider,
+      whatsappMessageId,
+      messageType,
+    );
+    if (!isNew) {
+      this.logger.warn(`Whatsapp message ${whatsappMessageId} duplicate, it's skipped`);
+      return { received: true, duplicate: true };
+    }
+    // Solo a partir de aquí el claim es nuestro y le toca al catch liberarlo.
+    current.whatsappMessageId = whatsappMessageId;
+
+    // Resolver la cuenta y agendar el procesamiento. Todo esto es barato y va
+    //    ANTES de responder: si algo falla, devolvemos un no-2xx y YCloud reintenta.
+    const account = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(agentPhoneNumber);
+    if (!account) {
+      // El campo `reason` es lo que cuentan las métricas de Cloud Logging dadas de alta
+      // para los descartes del webhook — no cambiar su valor sin actualizar el filtro
+      // de la métrica correspondiente (whatsapp-discard-<reason>).
+      this.logger.warn('No WhatsApp config found for phone number', {
+        reason: 'unknown-config',
+        agentPhoneNumber,
+      });
+      return { received: true, ignored: 'unknown-config' };
+    }
+
+    if (!account.isActive) {
+      this.logger.warn('Received message for inactive WhatsApp config', {
+        reason: 'inactive-config',
+        agentPhoneNumber,
+      });
+      return { received: true, ignored: 'inactive-config' };
+    }
+
+    // Un número que un super admin no ha aprobado no es todavía de nadie: sus mensajes no se
+    // entregan a la organización que lo registró (ver `approvedAt` en schema.prisma).
+    if (!account.approvedAt) {
+      this.logger.warn('Received message for unapproved WhatsApp config', {
+        reason: 'unapproved-config',
+        agentPhoneNumber,
+      });
+      return { received: true, ignored: 'unapproved-config' };
+    }
+
+    if (!account.defaultWorkflowId) {
+      this.logger.warn('Received message for WhatsApp config with no associated workflow', {
+        reason: 'no-workflow',
+        whatsappConfigId: account.id,
+      });
+      return { received: true, ignored: 'no-workflow' };
+    }
+    // Interpretar el mensaje (incluida la transcripción de audio) cuesta una llamada a
+    // Meta/YCloud por la multimedia y, en el peor caso, el STT: hacerlo aquí, antes del
+    // ACK, es lo que hacía que un audio se transcribiera dos veces (una para nada, ya
+    // que el flujo normal ni siquiera usa el resultado) y arriesgaba que el proveedor
+    // diera por fallido el webhook si la transcripción tardaba. Solo dos ramas de abajo
+    // (echo con humano interviniendo, workflow apagado) necesitan el texto para dejar
+    // registro; se resuelve ahí, no aquí. El flujo normal solo encola el `body` crudo y
+    // deja que `interpretMessages()` del worker lo interprete ya fuera del ciclo del
+    // webhook.
+    let cachedMessageText: string | undefined;
+    const getMessageText = async (): Promise<string> => {
+      if (cachedMessageText === undefined) {
+        const interpreted = await consumer.getInterpretedMessage();
+        cachedMessageText = interpreted.text || '';
+      }
+      return cachedMessageText;
+    };
+
+    // Lista negra, ANTES de resolver el workflow. El orden importa: con el flujo apagado la
+    // rama de abajo registra el mensaje, y si la comprobación fuera después, un contacto
+    // bloqueado empezaría a acumular mensajes guardados cada vez que alguien apague el
+    // workflow — justo lo que el bloqueo venía a evitar. El bloqueo es sobre la persona y
+    // gana sobre cualquier estado del flujo.
+    //
+    // Solo aplica a lo que ENTRA: un echo es un mensaje que el negocio decidió mandar desde
+    // su propio teléfono, y la lista negra nunca fue sobre lo que sale.
+    //
+    // Cortar en este punto significa que un contacto bloqueado no escribe al buffer de Redis,
+    // no agenda una Cloud Task, no recibe palomita azul, no transcribe su audio, no ejecuta el
+    // workflow y no cuesta un crédito. Es lo único que se gasta en él: un findUnique por llave
+    // única. El mensaje no se guarda en ningún lado; esta línea de log —con el número
+    // enmascarado y el id— es lo que permite rastrear un bloqueo por error, y Cloud Logging la
+    // retiene 30 días sin costar una sola escritura en la base.
+    if (!isEcho) {
+      const isBlocked = await this.endUsersService.isBlocked(account.organizationId, {
+        phoneNumber: clientPhoneNumber,
+      });
+
+      if (isBlocked) {
+        this.logger.info('Mensaje de contacto bloqueado, se descarta', {
+          organizationId: account.organizationId,
+          agentPhoneNumber,
+          userNumber: maskPhone(clientPhoneNumber),
+          whatsappMessageId,
+        });
+        return { received: true, ignored: 'blocked-contact' };
+      }
+    }
+
+    // Un workflow borrado (o de otra organización) no tiene a dónde rutear. No es
+    // transitorio: reintentar no lo resucita, así que se corta aquí en vez de caer al
+    // catch, devolver 500 y dejar a YCloud reintentando contra una config rota. Un fallo
+    // de base sí lanza, y ese sí cae al catch y pide reintento, que es lo correcto.
+    const workflow = await this.workflowsService.getRoutingState(
+      account.organizationId,
+      account.defaultWorkflowId,
+    );
+    if (!workflow) {
+      this.logger.warn('Received message for WhatsApp config with missing workflow', {
+        reason: 'missing-workflow',
+        whatsappConfigId: account.id,
+        workflowId: account.defaultWorkflowId,
+      });
+      return { received: true, ignored: 'missing-workflow' };
+    }
+
+    // Con el flujo apagado nadie más lleva la conversación al día: se registra el
+    // mensaje sea cual sea su origen (cliente o negocio) para que el historial no se
+    // quede corto.
+    if (!workflow.isActive) {
+      await this.recordMessageOutsideFlow(
+        account.id,
         account.defaultWorkflowId,
+        agentPhoneNumber,
+        clientPhoneNumber,
+        isEcho,
+        await getMessageText(),
+        'inactive-workflow',
       );
-      if (!workflow) {
-        this.logger.warn('Received message for WhatsApp config with missing workflow', {
-          reason: 'missing-workflow',
-          whatsappConfigId: account.id,
-          workflowId: account.defaultWorkflowId,
-        });
-        return res.status(HttpStatus.OK).send({ received: true, ignored: 'missing-workflow' });
-      }
+      this.logger.warn('Received message for WhatsApp config with inactive workflow', {
+        reason: 'inactive-workflow',
+        whatsappConfigId: account.id,
+        workflowId: account.defaultWorkflowId,
+      });
+      return { received: true, ignored: 'inactive-workflow' };
+    }
 
-      // Con el flujo apagado nadie más lleva la conversación al día: se registra el
-      // mensaje sea cual sea su origen (cliente o negocio) para que el historial no se
-      // quede corto.
-      if (!workflow.isActive) {
+    // Los echoes reflejan mensajes que el negocio ya mandó desde la app de WhatsApp
+    // Business, fuera de nuestra API: no hay nada que ejecutar. Con el flujo activo
+    // solo hace falta registrarlos si alguien intervino la conversación a mano; si no,
+    // `execute()` es quien la lleva al día y sumar el echo aquí la duplicaría. Va
+    // después de la rama del flujo apagado, que registra también los echoes.
+    if (isEcho) {
+      const conversation = await this.conversationsService.findActiveWhatsappConversation(
+        account.id,
+        clientPhoneNumber,
+      );
+      if (conversation?.isHumanInTheLoop === true) {
         await this.recordMessageOutsideFlow(
           account.id,
           account.defaultWorkflowId,
@@ -342,103 +446,53 @@ export class WhatsappConfigController {
           clientPhoneNumber,
           isEcho,
           await getMessageText(),
-          'inactive-workflow',
+          'human-in-the-loop',
+          conversation,
         );
-        this.logger.warn('Received message for WhatsApp config with inactive workflow', {
-          reason: 'inactive-workflow',
-          whatsappConfigId: account.id,
-          workflowId: account.defaultWorkflowId,
-        });
-        return res.status(HttpStatus.OK).send({ received: true, ignored: 'inactive-workflow' });
       }
+      return { received: true };
+    }
 
-      // Los echoes reflejan mensajes que el negocio ya mandó desde la app de WhatsApp
-      // Business, fuera de nuestra API: no hay nada que ejecutar. Con el flujo activo
-      // solo hace falta registrarlos si alguien intervino la conversación a mano; si no,
-      // `execute()` es quien la lleva al día y sumar el echo aquí la duplicaría. Va
-      // después de la rama del flujo apagado, que registra también los echoes.
-      if (isEcho) {
-        const conversation = await this.conversationsService.findActiveWhatsappConversation(
-          account.id,
-          clientPhoneNumber,
-        );
-        if (conversation?.isHumanInTheLoop === true) {
-          await this.recordMessageOutsideFlow(
-            account.id,
-            account.defaultWorkflowId,
-            agentPhoneNumber,
-            clientPhoneNumber,
-            isEcho,
-            await getMessageText(),
-            'human-in-the-loop',
-            conversation,
-          );
-        }
-        return res.status(HttpStatus.OK).send({ received: true });
-      }
+    const bufferedAt = Date.now();
+    const windowId = this.whatsappMessageQueueService.buildWindowId(bufferedAt);
 
-      const bufferedAt = Date.now();
-      const windowId = this.whatsappMessageQueueService.buildWindowId(bufferedAt);
+    await this.whatsappMessageQueueService.bufferMessage(
+      account.organizationId,
+      agentPhoneNumber,
+      clientPhoneNumber,
+      {
+        messageId: whatsappMessageId,
+        sendTime: sendTime,
+        bufferedAt,
+        event: payload,
+      },
+    );
 
-      await this.whatsappMessageQueueService.bufferMessage(
-        account.organizationId,
+    // El nombre de la tarea es determinista por ventana, así que el segundo y
+    // tercer mensaje de la misma ráfaga no agendan nada nuevo: Cloud Tasks
+    // rechaza el nombre repetido. Si un mensaje cruza la frontera de tiempo y
+    // agenda una tarea extra, el worker la resuelve como ventana vacía o la
+    // reagenda; en ninguno de los dos casos se pierde nada.
+    await this.cloudTasks.enqueue({
+      path: WHATSAPP_WORKER_PATH,
+      delaySeconds: WHATSAPP_WINDOW_SECONDS,
+      taskId: [
+        'wa',
+        CloudTasksService.sanitizeIdPart(account.organizationId),
+        CloudTasksService.sanitizeIdPart(agentPhoneNumber),
+        CloudTasksService.sanitizeIdPart(clientPhoneNumber),
+        windowId,
+      ].join('-'),
+      payload: {
+        organizationId: account.organizationId,
         agentPhoneNumber,
         clientPhoneNumber,
-        {
-          messageId: whatsappMessageId,
-          sendTime: sendTime,
-          bufferedAt,
-          event: body,
-        },
-      );
+        windowId,
+        windowStartedAt: bufferedAt,
+      },
+    });
 
-      // El nombre de la tarea es determinista por ventana, así que el segundo y
-      // tercer mensaje de la misma ráfaga no agendan nada nuevo: Cloud Tasks
-      // rechaza el nombre repetido. Si un mensaje cruza la frontera de tiempo y
-      // agenda una tarea extra, el worker la resuelve como ventana vacía o la
-      // reagenda; en ninguno de los dos casos se pierde nada.
-      await this.cloudTasks.enqueue({
-        path: WHATSAPP_WORKER_PATH,
-        delaySeconds: WHATSAPP_WINDOW_SECONDS,
-        taskId: [
-          'wa',
-          CloudTasksService.sanitizeIdPart(account.organizationId),
-          CloudTasksService.sanitizeIdPart(agentPhoneNumber),
-          CloudTasksService.sanitizeIdPart(clientPhoneNumber),
-          windowId,
-        ].join('-'),
-        payload: {
-          organizationId: account.organizationId,
-          agentPhoneNumber,
-          clientPhoneNumber,
-          windowId,
-          windowStartedAt: bufferedAt,
-        },
-      });
-
-      return res.status(HttpStatus.OK).send({ received: true });
-    } catch (error) {
-      // Nada se procesó, así que se libera el claim y se devuelve 500 para que
-      // el proveedor reintente. Antes esto era irrecuperable: el ACK ya había salido.
-      //
-      // `provider`/`whatsappMessageId` pueden no haberse llegado a resolver si el fallo
-      // ocurrió muy temprano (p.ej. el propio payloadConsumerResolver); en ese caso nunca
-      // hubo un claim que liberar. `release` además ya tolera un claim inexistente sin
-      // lanzar, así que este guard es solo para no llamarlo con `undefined` de más.
-      if (provider && whatsappMessageId) {
-        await this.webhookDedup.release(provider, whatsappMessageId);
-      }
-
-      this.logger.error('Whatsapp message could not be enqueued', {
-        whatsappInboundMessageId: whatsappMessageId,
-        agentPhoneNumber,
-        userNumber: maskPhone(clientPhoneNumber),
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send({ received: false });
-    }
+    return { received: true };
   }
 
   /**
