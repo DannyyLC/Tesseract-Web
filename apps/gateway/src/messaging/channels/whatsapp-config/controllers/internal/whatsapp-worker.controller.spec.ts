@@ -1,24 +1,30 @@
-import { of } from 'rxjs';
+import { ForbiddenException, HttpStatus } from '@nestjs/common';
+import { TriggerType } from '@tesseract/database';
 import {
   TURN_MAX_WAIT_SECONDS,
   TURN_POLL_SECONDS,
 } from '../../../shared/channel-message-queue.service';
 import { WhatsappWorkerController } from './whatsapp-worker.controller';
+import {
+  WHATSAPP_MAX_WINDOW_SECONDS,
+  WHATSAPP_WINDOW_SECONDS,
+} from '../../whatsapp-message-queue.service';
 
 /**
- * El foco de estas pruebas es qué sale —o no sale— hacia el WhatsApp del cliente.
- *
- * Con la conversación intervenida por un humano, el bot no debe emitir nada: ni respuesta,
- * ni avisos de media, ni el acuse de lectura (la palomita azul afirma que alguien leyó el
- * mensaje, y con el bot apagado nadie lo leyó).
+ * Cobertura de `processWindow`, con foco en los escenarios de falla y en el nuevo
+ * enrutado multi-proveedor (YCloud / Meta) introducido junto con los transporters y los
+ * payload consumers. El `WBPayloadConsumerResolver` se mockea por completo: la clase real
+ * pide 4 dependencias (logger, mediaProcessingService, workflowsService,
+ * whatsappConfigService) que no hacen falta aquí, y acoplarse a ellas solo haría frágil
+ * esta suite ante cambios de esas otras piezas.
  */
-describe('WhatsappWorkerController', () => {
+describe('WhatsappWorkerController · processWindow', () => {
   let controller: WhatsappWorkerController;
 
-  const mockHttpService: any = { post: jest.fn() };
   const mockWhatsappConfigService: any = {
     getWhatsappConfigByPhoneNumber: jest.fn(),
     sendTextMessage: jest.fn(),
+    markMessagesAsRead: jest.fn(),
     updateConnectionStatus: jest.fn(),
     updatePhoneNumber: jest.fn(),
     handleActionsDerivatedFromMetadata: jest.fn(),
@@ -37,17 +43,18 @@ describe('WhatsappWorkerController', () => {
     acquireTurn: jest.fn(),
     releaseTurn: jest.fn(),
   };
-  const mockMediaProcessingService: any = { processIncomingAttachments: jest.fn() };
   const mockConversationsService: any = {
     findActiveWhatsappConversation: jest.fn(),
     findOne: jest.fn(),
   };
   const mockCloudTasks: any = { enqueue: jest.fn() };
+  const mockPayloadConsumer: any = { getInterpretedMessage: jest.fn() };
+  const mockPayloadConsumerResolver: any = { forProvider: jest.fn() };
 
   const body = {
     organizationId: 'org-1',
-    phoneNumber: '+521111111111',
-    userNumber: '+527821176985',
+    agentPhoneNumber: '+521111111111',
+    clientPhoneNumber: '+527821176985',
     windowId: 'w-1',
   };
 
@@ -71,15 +78,14 @@ describe('WhatsappWorkerController', () => {
     sendTime: '2026-08-07T17:00:00Z',
     bufferedAt: Date.now(),
     event: {
-      whatsappInboundMessage: { type: 'text', text: { body: text }, from: body.userNumber },
+      type: 'whatsapp.inbound_message.received',
+      whatsappInboundMessage: { type: 'text', text: { body: text }, from: body.clientPhoneNumber },
     },
   });
 
-  const imageMessage = (messageId = 'm-2') => ({
-    messageId,
-    sendTime: '2026-08-07T17:00:01Z',
-    bufferedAt: Date.now(),
-    event: { whatsappInboundMessage: { type: 'image', image: {}, from: body.userNumber } },
+  const successfulExecution = (content = 'Claro, con gusto te ayudo.') => ({
+    id: 'exec-1',
+    result: { messages: [{ role: 'assistant', content }], conversationId: 'conv-1' },
   });
 
   const buildResponse = () => {
@@ -90,18 +96,20 @@ describe('WhatsappWorkerController', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    process.env.Y_CLOUD_API_KEY = 'test-key';
+    // `resetAllMocks` (no solo `clearAllMocks`) es necesario: un `mockRejectedValue` que
+    // un test deja puesto en uno de los mocks compartidos de arriba sobrevive a
+    // `clearAllMocks` (que solo borra el historial de llamadas) y se filtraría a los
+    // tests siguientes.
+    jest.resetAllMocks();
 
     controller = new WhatsappWorkerController(
-      mockHttpService,
       mockWhatsappConfigService,
       mockLogger,
       mockWorkflowsService,
       mockQueueService,
-      mockMediaProcessingService,
       mockConversationsService,
       mockCloudTasks,
+      mockPayloadConsumerResolver,
     );
 
     // Buffer vacío: `deferIfStillTyping` no reagenda y la ventana se procesa de inmediato.
@@ -118,9 +126,9 @@ describe('WhatsappWorkerController', () => {
       approvedAt: new Date('2026-01-01'),
       defaultWorkflowId: 'wf-1',
       connectionStatus: 'CONNECTED',
-      phoneNumber: body.phoneNumber,
+      phoneNumber: body.agentPhoneNumber,
+      provider: 'ycloud',
     });
-    mockHttpService.post.mockReturnValue(of({ data: {} }));
     mockWorkflowsService.getChannelPolicy.mockResolvedValue({
       mediaPolicy: policy,
       presenceIndicators: true,
@@ -130,10 +138,154 @@ describe('WhatsappWorkerController', () => {
       isHumanInTheLoop: false,
     });
     mockConversationsService.findOne.mockResolvedValue({ id: 'conv-1', metadata: {} });
+    mockWhatsappConfigService.markMessagesAsRead.mockResolvedValue(undefined);
+    mockPayloadConsumerResolver.forProvider.mockResolvedValue(mockPayloadConsumer);
+    mockPayloadConsumer.getInterpretedMessage.mockResolvedValue({ text: 'hola' });
   });
 
-  describe('conversación intervenida por un humano', () => {
+  // ─── deferIfStillTyping ────────────────────────────────────────────────
+
+  describe('ventana deslizante (deferIfStillTyping)', () => {
+    it('reagenda cuando el buffer tiene actividad más reciente que el silencio requerido', async () => {
+      mockQueueService.peekLastBufferedAt.mockResolvedValue(Date.now() - 1000); // 1s < 8s por defecto
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockCloudTasks.enqueue).toHaveBeenCalledTimes(1);
+      expect(mockCloudTasks.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: expect.stringContaining('-x1'),
+          payload: expect.objectContaining({ extension: 1 }),
+        }),
+      );
+      expect(mockQueueService.drainWindow).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(res.send).toHaveBeenCalledWith(
+        expect.objectContaining({ processed: false, reason: 'still-typing', extension: 1 }),
+      );
+    });
+
+    it('incrementa la extensión ya existente en vez de reiniciarla', async () => {
+      mockQueueService.peekLastBufferedAt.mockResolvedValue(Date.now() - 1000);
+
+      await controller.processWindow({ ...body, extension: 2 }, buildResponse());
+
+      expect(mockCloudTasks.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({ taskId: expect.stringContaining('-x3') }),
+      );
+    });
+
+    it('deja de reagendar y procesa lo acumulado al llegar al tope total, aunque siga "escribiendo"', async () => {
+      mockQueueService.peekLastBufferedAt.mockResolvedValue(Date.now() - 1000); // sigue escribiendo
+      mockQueueService.drainWindow.mockResolvedValue({ messages: [], processingKey: null });
+
+      await controller.processWindow(
+        { ...body, windowStartedAt: Date.now() - (WHATSAPP_MAX_WINDOW_SECONDS * 1000 + 5000) },
+        buildResponse(),
+      );
+
+      expect(mockCloudTasks.enqueue).not.toHaveBeenCalled();
+      expect(mockQueueService.drainWindow).toHaveBeenCalled();
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Tope de ventana alcanzado, se responde con lo acumulado',
+        expect.anything(),
+      );
+    });
+
+    it('procesa de inmediato una vez que el silencio ya superó la ventana', async () => {
+      mockQueueService.peekLastBufferedAt.mockResolvedValue(
+        Date.now() - (WHATSAPP_WINDOW_SECONDS * 1000 + 1000),
+      );
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockCloudTasks.enqueue).not.toHaveBeenCalled();
+      expect(mockQueueService.drainWindow).toHaveBeenCalled();
+    });
+  });
+
+  // ─── Guardas tempranas ─────────────────────────────────────────────────
+
+  describe('guardas antes de procesar', () => {
+    it('reporta ventana vacía sin tocar la cuenta', async () => {
+      mockQueueService.drainWindow.mockResolvedValue({ messages: [], processingKey: null });
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockWhatsappConfigService.getWhatsappConfigByPhoneNumber).not.toHaveBeenCalled();
+      expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'empty-window' });
+    });
+
+    it('confirma la ventana y no reintenta si no hay config para el número', async () => {
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue(null);
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
+      expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'ausent-config' });
+    });
+
+    it('confirma la ventana y no reintenta si la config no tiene workflow por defecto (ninguno de los dos proveedores)', async () => {
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
+        id: 'wa-1',
+        isActive: true,
+        approvedAt: new Date('2026-01-01'),
+        defaultWorkflowId: null,
+        connectionStatus: 'CONNECTED',
+        phoneNumber: body.agentPhoneNumber,
+        provider: 'meta',
+      });
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
+      expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'missing-config' });
+      // La refactorización multi-proveedor quitó el gate de Y_CLOUD_API_KEY: ya no debe
+      // condicionar el procesamiento de una cuenta 'meta' a que exista esa env var.
+      expect(mockWorkflowsService.getChannelPolicy).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── Acuse de lectura / typing indicator (multi-proveedor) ────────────
+
+  describe('acuse de lectura y typing indicator', () => {
     beforeEach(() => {
+      mockWorkflowsService.execute.mockResolvedValue(successfulExecution());
+    });
+
+    it('delega en whatsapp-config.service sin importar el proveedor (ycloud)', async () => {
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockWhatsappConfigService.markMessagesAsRead).toHaveBeenCalledWith(
+        body.agentPhoneNumber,
+        ['m-1'],
+      );
+    });
+
+    it('delega igual para una cuenta meta: el controller no distingue proveedores a este nivel', async () => {
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
+        id: 'wa-1',
+        isActive: true,
+        approvedAt: new Date('2026-01-01'),
+        defaultWorkflowId: 'wf-1',
+        connectionStatus: 'CONNECTED',
+        phoneNumber: body.agentPhoneNumber,
+        provider: 'meta',
+      });
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockWhatsappConfigService.markMessagesAsRead).toHaveBeenCalledWith(
+        body.agentPhoneNumber,
+        ['m-1'],
+      );
+    });
+
+    it('no marca como leído ni manda avisos con la conversación intervenida', async () => {
       mockConversationsService.findActiveWhatsappConversation.mockResolvedValue({
         id: 'conv-1',
         isHumanInTheLoop: true,
@@ -142,104 +294,461 @@ describe('WhatsappWorkerController', () => {
         id: 'exec-1',
         result: { messages: [], skipped: 'hitl', conversationId: 'conv-1' },
       });
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockWhatsappConfigService.markMessagesAsRead).not.toHaveBeenCalled();
+      expect(mockWhatsappConfigService.sendTextMessage).not.toHaveBeenCalled();
     });
 
-    it('no envía nada al cliente y cierra la ventana', async () => {
+    it('con presenceIndicators apagado no marca como leído, pero sí responde', async () => {
+      mockWorkflowsService.getChannelPolicy.mockResolvedValue({
+        mediaPolicy: policy,
+        presenceIndicators: false,
+      });
+      mockWorkflowsService.execute.mockResolvedValue(successfulExecution('Claro, con gusto te ayudo.'));
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockWhatsappConfigService.markMessagesAsRead).not.toHaveBeenCalled();
+      expect(mockWhatsappConfigService.sendTextMessage).toHaveBeenCalledWith(
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
+        'Claro, con gusto te ayudo.',
+      );
+    });
+
+    it('[corregido] un fallo al marcar como leído (transporter caído, credencial mala) ya NO aborta la ventana: se registra y se sigue', async () => {
+      mockWhatsappConfigService.markMessagesAsRead.mockRejectedValue(new Error('transporter caído'));
+      mockWorkflowsService.execute.mockResolvedValue(successfulExecution('Claro, con gusto te ayudo.'));
       const res = buildResponse();
 
       await controller.processWindow(body, res);
 
-      expect(mockWhatsappConfigService.sendTextMessage).not.toHaveBeenCalled();
+      // El fallo de la palomita/typing indicator es cosmético: ya no debe impedir que el
+      // cliente reciba su respuesta real.
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'No se pudo marcar la ventana como leída / mandar el typing indicator',
+        expect.objectContaining({ error: 'transporter caído' }),
+      );
+      expect(mockWorkflowsService.execute).toHaveBeenCalled();
+      expect(mockWhatsappConfigService.sendTextMessage).toHaveBeenCalledWith(
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
+        'Claro, con gusto te ayudo.',
+      );
       expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'hitl' });
+      expect(res.send).toHaveBeenCalledWith({ processed: true });
+    });
+  });
+
+  // ─── Estado de conexión / número ───────────────────────────────────────
+
+  describe('actualizaciones de estado de la cuenta', () => {
+    beforeEach(() => {
+      mockWorkflowsService.execute.mockResolvedValue(successfulExecution());
     });
 
-    it('no marca el mensaje como leído', async () => {
+    it('reconecta la cuenta si no estaba CONNECTED', async () => {
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
+        id: 'wa-1',
+        isActive: true,
+        approvedAt: new Date('2026-01-01'),
+        defaultWorkflowId: 'wf-1',
+        connectionStatus: 'DISCONNECTED',
+        phoneNumber: body.agentPhoneNumber,
+        provider: 'ycloud',
+      });
+
       await controller.processWindow(body, buildResponse());
 
-      // El único uso de httpService en este flujo es el typing indicator / acuse de lectura.
-      expect(mockHttpService.post).not.toHaveBeenCalled();
+      expect(mockWhatsappConfigService.updateConnectionStatus).toHaveBeenCalledWith('wa-1', 'CONNECTED');
     });
 
-    it('tampoco manda los avisos de media', async () => {
+    it('no toca el estado si ya estaba CONNECTED', async () => {
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockWhatsappConfigService.updateConnectionStatus).not.toHaveBeenCalled();
+    });
+
+    it('rellena el número guardado si venía vacío', async () => {
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
+        id: 'wa-1',
+        isActive: true,
+        approvedAt: new Date('2026-01-01'),
+        defaultWorkflowId: 'wf-1',
+        connectionStatus: 'CONNECTED',
+        phoneNumber: '',
+        provider: 'ycloud',
+      });
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockWhatsappConfigService.updatePhoneNumber).toHaveBeenCalledWith('wa-1', body.agentPhoneNumber);
+    });
+  });
+
+  // ─── Interpretación de mensajes (multi-proveedor) ─────────────────────
+
+  describe('interpretación de mensajes', () => {
+    beforeEach(() => {
+      mockWorkflowsService.execute.mockResolvedValue(successfulExecution());
+    });
+
+    it('resuelve el payload consumer con el proveedor de la cuenta (ycloud)', async () => {
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockPayloadConsumerResolver.forProvider).toHaveBeenCalledWith(
+        'ycloud',
+        expect.anything(),
+      );
+    });
+
+    it('resuelve el payload consumer con el proveedor de la cuenta (meta)', async () => {
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
+        id: 'wa-1',
+        isActive: true,
+        approvedAt: new Date('2026-01-01'),
+        defaultWorkflowId: 'wf-1',
+        connectionStatus: 'CONNECTED',
+        phoneNumber: body.agentPhoneNumber,
+        provider: 'meta',
+      });
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockPayloadConsumerResolver.forProvider).toHaveBeenCalledWith('meta', expect.anything());
+    });
+
+    it('[corregido] con una ráfaga de varios mensajes, construye UN consumer POR mensaje, cada uno con su propio evento', async () => {
+      const m1 = textMessage('hola', 'm-1');
+      const m2 = textMessage('cómo estás', 'm-2');
+      const m3 = textMessage('gracias', 'm-3');
+      mockQueueService.drainWindow.mockResolvedValue({ messages: [m1, m2, m3], processingKey: 'proc-1' });
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockPayloadConsumerResolver.forProvider).toHaveBeenCalledTimes(3);
+      expect(mockPayloadConsumerResolver.forProvider).toHaveBeenNthCalledWith(1, 'ycloud', m1.event);
+      expect(mockPayloadConsumerResolver.forProvider).toHaveBeenNthCalledWith(2, 'ycloud', m2.event);
+      expect(mockPayloadConsumerResolver.forProvider).toHaveBeenNthCalledWith(3, 'ycloud', m3.event);
+      expect(mockPayloadConsumer.getInterpretedMessage).toHaveBeenCalledTimes(3);
+    });
+
+    it('[corregido] agrega el texto propio de cada mensaje de la ráfaga en vez de repetir el primero', async () => {
       mockQueueService.drainWindow.mockResolvedValue({
-        messages: [imageMessage(), textMessage('¿me ayudas?')],
+        messages: [
+          textMessage('hola', 'm-1'),
+          textMessage('cómo estás', 'm-2'),
+          textMessage('gracias', 'm-3'),
+        ],
+        processingKey: 'proc-1',
+      });
+      mockPayloadConsumer.getInterpretedMessage
+        .mockResolvedValueOnce({ text: 'hola' })
+        .mockResolvedValueOnce({ text: 'cómo estás' })
+        .mockResolvedValueOnce({ text: 'gracias' });
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockWorkflowsService.execute).toHaveBeenCalledWith(
+        'org-1',
+        'wf-1',
+        { message: 'hola\ncómo estás\ngracias' },
+        expect.anything(),
+        undefined,
+        mockPayloadConsumer,
+        undefined,
+        TriggerType.WEBHOOK,
+      );
+    });
+
+    it('[corregido] el payload consumer que se le pasa a execute() sigue siendo el del primer mensaje ("dueño" de la ventana)', async () => {
+      const first = mockPayloadConsumer;
+      const second = { getInterpretedMessage: jest.fn().mockResolvedValue({ text: 'cómo estás' }) };
+      mockPayloadConsumerResolver.forProvider.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+      mockQueueService.drainWindow.mockResolvedValue({
+        messages: [textMessage('hola', 'm-1'), textMessage('cómo estás', 'm-2')],
         processingKey: 'proc-1',
       });
 
       await controller.processWindow(body, buildResponse());
 
-      // Con las imágenes apagadas en la política, el flujo normal avisaría "no puedo leer
-      // imágenes". Es texto del bot, y el bot está apagado.
-      expect(mockWhatsappConfigService.sendTextMessage).not.toHaveBeenCalled();
+      expect(mockWorkflowsService.execute).toHaveBeenCalledWith(
+        'org-1',
+        'wf-1',
+        expect.anything(),
+        expect.anything(),
+        undefined,
+        first,
+        undefined,
+        TriggerType.WEBHOOK,
+      );
     });
   });
 
-  describe('conversación normal', () => {
-    it('responde con el mensaje del asistente y marca como leído', async () => {
-      mockWorkflowsService.execute.mockResolvedValue({
-        id: 'exec-1',
-        result: {
-          messages: [{ role: 'assistant', content: 'Claro, con gusto te ayudo.' }],
-          conversationId: 'conv-1',
-        },
-      });
+  // ─── Sin texto útil ─────────────────────────────────────────────────────
+
+  describe('ventana sin texto útil', () => {
+    it('avisa formato no soportado y registra el error cuando no hay texto ni avisos', async () => {
+      mockPayloadConsumer.getInterpretedMessage.mockResolvedValue({});
       const res = buildResponse();
 
       await controller.processWindow(body, res);
 
-      expect(mockHttpService.post).toHaveBeenCalled();
-      expect(mockWhatsappConfigService.sendTextMessage).toHaveBeenCalledTimes(1);
       expect(mockWhatsappConfigService.sendTextMessage).toHaveBeenCalledWith(
-        body.phoneNumber,
-        body.userNumber,
-        'Claro, con gusto te ayudo.',
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
+        policy.messages.unsupportedFormat,
       );
-      expect(res.send).toHaveBeenCalledWith({ processed: true });
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'No se pudo extraer texto de la ventana',
+        expect.anything(),
+      );
+      expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
+      expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'no-text' });
     });
 
-    it('con presenceIndicators apagado responde igual pero sin visto ni escribiendo', async () => {
-      mockWorkflowsService.getChannelPolicy.mockResolvedValue({
-        mediaPolicy: policy,
-        presenceIndicators: false,
-      });
-      mockWorkflowsService.execute.mockResolvedValue({
-        id: 'exec-1',
-        result: {
-          messages: [{ role: 'assistant', content: 'Claro, con gusto te ayudo.' }],
-          conversationId: 'conv-1',
-        },
+    it('con la conversación intervenida, igual registra el error pero no manda el aviso', async () => {
+      mockPayloadConsumer.getInterpretedMessage.mockResolvedValue({});
+      mockConversationsService.findActiveWhatsappConversation.mockResolvedValue({
+        id: 'conv-1',
+        isHumanInTheLoop: true,
       });
 
       await controller.processWindow(body, buildResponse());
 
-      // El único uso de httpService en este flujo es el typing indicator / acuse de lectura.
-      expect(mockHttpService.post).not.toHaveBeenCalled();
-      expect(mockWorkflowsService.execute).toHaveBeenCalled();
-      expect(mockWhatsappConfigService.sendTextMessage).toHaveBeenCalledWith(
-        body.phoneNumber,
-        body.userNumber,
-        'Claro, con gusto te ayudo.',
+      expect(mockWhatsappConfigService.sendTextMessage).not.toHaveBeenCalled();
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'No se pudo extraer texto de la ventana',
+        expect.anything(),
       );
     });
 
-    it('sin mensaje del asistente y sin motivo declarado: no inventa respuesta y lo reporta', async () => {
-      mockWorkflowsService.execute.mockResolvedValue({
-        id: 'exec-1',
-        result: { messages: [], conversationId: 'conv-1' },
+    it('con presenceIndicators apagado igual manda el aviso: el switch solo apaga visto/escribiendo', async () => {
+      mockPayloadConsumer.getInterpretedMessage.mockResolvedValue({});
+      mockWorkflowsService.getChannelPolicy.mockResolvedValue({
+        mediaPolicy: policy,
+        presenceIndicators: false,
       });
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockWhatsappConfigService.sendTextMessage).toHaveBeenCalledWith(
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
+        policy.messages.unsupportedFormat,
+      );
+    });
+
+    it('si hubo un aviso de política (p.ej. imagen deshabilitada), no duplica con el de formato no soportado', async () => {
+      mockPayloadConsumer.getInterpretedMessage.mockResolvedValue({ notice: policy.messages.imageDisabled });
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockWhatsappConfigService.sendTextMessage).toHaveBeenCalledTimes(1);
+      expect(mockWhatsappConfigService.sendTextMessage).toHaveBeenCalledWith(
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
+        policy.messages.imageDisabled,
+      );
+      expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'no-text' });
+    });
+  });
+
+  // ─── Ejecución del workflow y extracción de la respuesta ───────────────
+
+  describe('respuesta del workflow', () => {
+    it('no responde y lo reporta cuando `messages` viene ausente del resultado', async () => {
+      mockWorkflowsService.execute.mockResolvedValue({ id: 'exec-1', result: { conversationId: 'conv-1' } });
       const res = buildResponse();
 
       await controller.processWindow(body, res);
 
       expect(mockWhatsappConfigService.sendTextMessage).not.toHaveBeenCalled();
-      expect(mockLogger.error).toHaveBeenCalled();
-      expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
-      expect(res.send).toHaveBeenCalledWith({
-        processed: false,
-        reason: 'no-assistant-message',
+      expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'no-assistant-message' });
+    });
+
+    it('no responde si el último mensaje no es del asistente', async () => {
+      mockWorkflowsService.execute.mockResolvedValue({
+        id: 'exec-1',
+        result: { messages: [{ role: 'user', content: 'eco' }], conversationId: 'conv-1' },
       });
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockWhatsappConfigService.sendTextMessage).not.toHaveBeenCalled();
+    });
+
+    it('reporta hitl con nivel info (no error) cuando un humano está atendiendo', async () => {
+      mockWorkflowsService.execute.mockResolvedValue({
+        id: 'exec-1',
+        result: { messages: [], skipped: 'hitl', conversationId: 'conv-1' },
+      });
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Conversación intervenida por un humano: el bot no responde',
+        expect.anything(),
+      );
+      expect(mockLogger.error).not.toHaveBeenCalled();
+      expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'hitl' });
+    });
+
+    it('responde, comita la ventana y ejecuta las acciones post-turno en el camino feliz', async () => {
+      mockWorkflowsService.execute.mockResolvedValue(successfulExecution('Claro, con gusto te ayudo.'));
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockWhatsappConfigService.sendTextMessage).toHaveBeenCalledWith(
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
+        'Claro, con gusto te ayudo.',
+      );
+      expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
+      expect(mockConversationsService.findOne).toHaveBeenCalledWith('org-1', 'conv-1');
+      expect(mockWhatsappConfigService.handleActionsDerivatedFromMetadata).toHaveBeenCalledWith(
+        'conv-1',
+        'org-1',
+        {},
+        mockPayloadConsumer,
+        'wf-1',
+      );
+      expect(res.send).toHaveBeenCalledWith({ processed: true });
+    });
+
+    it('un fallo en las acciones post-turno no cambia la respuesta ya enviada al cliente', async () => {
+      mockWorkflowsService.execute.mockResolvedValue(successfulExecution());
+      mockWhatsappConfigService.handleActionsDerivatedFromMetadata.mockRejectedValue(
+        new Error('drive caído'),
+      );
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockWhatsappConfigService.sendTextMessage).toHaveBeenCalledTimes(1);
+      expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Fallaron las acciones derivadas de metadata',
+        expect.anything(),
+      );
+      expect(res.send).toHaveBeenCalledWith({ processed: true });
+    });
+
+    it('lo mismo si falla la relectura de la conversación (findOne) para las acciones post-turno', async () => {
+      mockWorkflowsService.execute.mockResolvedValue(successfulExecution());
+      mockConversationsService.findOne.mockRejectedValue(new Error('conversación borrada'));
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
+      expect(res.send).toHaveBeenCalledWith({ processed: true });
+    });
+  });
+
+  // ─── Manejo de errores ──────────────────────────────────────────────────
+
+  describe('manejo de errores', () => {
+    it('confirma la ventana sin reintentar cuando el workflow bloquea la ejecución (sin crédito/suscripción)', async () => {
+      mockWorkflowsService.execute.mockRejectedValue(new ForbiddenException('Sin créditos'));
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'blocked' });
+    });
+
+    it('NO confirma la ventana ante un error genérico del workflow, para que Cloud Tasks reintente', async () => {
+      mockWorkflowsService.execute.mockRejectedValue(new Error('DB caída'));
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockQueueService.commitWindow).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(res.send).toHaveBeenCalledWith({ processed: false });
+    });
+
+    it('NO confirma la ventana si falla la resolución de la política de media', async () => {
+      mockWorkflowsService.getChannelPolicy.mockRejectedValue(new Error('workflow sin config'));
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockQueueService.commitWindow).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    });
+
+    it('NO confirma la ventana si la propia búsqueda de la cuenta lanza (no es lo mismo que "no encontrada")', async () => {
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockRejectedValue(
+        new Error('timeout de conexión'),
+      );
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockQueueService.commitWindow).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    });
+
+    it('sigue devolviendo 500 (fallo genuinamente transitorio) si forProvider falla por una causa distinta a un proveedor no soportado', async () => {
+      mockPayloadConsumerResolver.forProvider.mockRejectedValue(new Error('timeout resolviendo el consumer'));
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(mockQueueService.commitWindow).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── Proveedor no soportado / corrupto en la config ─────────────────────
+
+  describe('[corregido] proveedor no soportado en la config de la cuenta', () => {
+    it('descarta la ventana sin reintentar, en vez de fallar con 500 en un bucle indefinido', async () => {
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
+        id: 'wa-1',
+        isActive: true,
+        approvedAt: new Date('2026-01-01'),
+        defaultWorkflowId: 'wf-1',
+        connectionStatus: 'CONNECTED',
+        phoneNumber: body.agentPhoneNumber,
+        // Un typo, una migración a medias, o un proveedor que se dio de baja: no es un
+        // problema de disponibilidad y un reintento jamás lo arregla.
+        provider: 'baileys',
+      });
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'unsupported-provider' });
+    });
+
+    it('ni siquiera intenta marcar como leído ni resolver un payload consumer para ese proveedor', async () => {
+      mockWhatsappConfigService.getWhatsappConfigByPhoneNumber.mockResolvedValue({
+        id: 'wa-1',
+        isActive: true,
+        approvedAt: new Date('2026-01-01'),
+        defaultWorkflowId: 'wf-1',
+        connectionStatus: 'CONNECTED',
+        phoneNumber: body.agentPhoneNumber,
+        provider: 'baileys',
+      });
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockWhatsappConfigService.markMessagesAsRead).not.toHaveBeenCalled();
+      expect(mockPayloadConsumerResolver.forProvider).not.toHaveBeenCalled();
+      expect(mockWorkflowsService.execute).not.toHaveBeenCalled();
     });
   });
 
@@ -314,8 +823,8 @@ describe('WhatsappWorkerController', () => {
 
       expect(mockQueueService.releaseTurn).toHaveBeenCalledWith(
         body.organizationId,
-        body.phoneNumber,
-        body.userNumber,
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
         'tok-1',
       );
       // En Cloud Run la CPU se estrangula al salir la respuesta: soltar después podría
@@ -335,8 +844,8 @@ describe('WhatsappWorkerController', () => {
       expect(mockQueueService.commitWindow).not.toHaveBeenCalled();
       expect(mockQueueService.releaseTurn).toHaveBeenCalledWith(
         body.organizationId,
-        body.phoneNumber,
-        body.userNumber,
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
         'tok-1',
       );
     });
@@ -350,8 +859,8 @@ describe('WhatsappWorkerController', () => {
 
       expect(mockQueueService.releaseTurn).toHaveBeenCalledWith(
         body.organizationId,
-        body.phoneNumber,
-        body.userNumber,
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
         'tok-1',
       );
     });

@@ -5,18 +5,21 @@ Provides send_bulk_whatsapp: a LangChain tool that allows agents to send
 WhatsApp template messages to multiple recipients in a single call.
 
 SECURITY MODEL:
-    from_number, api_key, and available_templates are ALWAYS injected
-    by the Gateway into tool config. The AI model provides only:
+    provider, from_number, api_key/access_token, and available_templates are
+    ALWAYS injected by the Gateway into tool config. The AI model provides only:
       - to         (recipient phone number)
       - template_id (UUID of a WhatsAppTemplate in the DB)
       - variables  (dict of component value arrays)
 
-    The model can NEVER choose the sender phone number.
+    The model can NEVER choose the sender phone number or the provider.
 
-CONFIG injected by Gateway via buildAgentPayload:
+CONFIG injected by Gateway via buildAgentPayload (apps/gateway .../workflows.service.ts):
     {
+        "provider": "ycloud" | "meta",
         "from_number": "+521234567890",
-        "api_key": "<Y_CLOUD_API_KEY>",
+        "api_key": "<Y_CLOUD_API_KEY>",              # provider == "ycloud"
+        "phone_number_id": "<META_PHONE_NUMBER_ID>",  # provider == "meta"
+        "access_token": "<META_ACCESS_TOKEN>",        # provider == "meta"
         "available_templates": {
             "<template_uuid>": {
                 "name": "recordatorio_cita",
@@ -40,6 +43,7 @@ from core.redaction import mask_phone
 logger = logging.getLogger(__name__)
 
 YCLOUD_API_BASE = "https://api.ycloud.com/v2"
+META_API_BASE = "https://graph.facebook.com/v21.0"
 
 
 # ─── Input schema ─────────────────────────────────────────────────────────────
@@ -65,13 +69,9 @@ class BulkWhatsAppInput(BaseModel):
 
 # ─── HTTP helpers ─────────────────────────────────────────────────────────────
 
-def _build_template_payload(
-    from_number: str,
-    to: str,
-    template_name: str,
-    language: str,
-    variables: dict,
-) -> dict:
+def _build_template_components(variables: dict) -> list[dict]:
+    """Común a ambos proveedores: YCloud replica el formato de componentes de la
+    Cloud API de Meta."""
     components: list[dict] = []
 
     header_vars: list[str] = variables.get("header", [])
@@ -98,12 +98,39 @@ def _build_template_payload(
             "parameters": [{"type": "payload", "payload": payload_value}],
         })
 
+    return components
+
+
+def _build_template_payload(
+    provider: str,
+    from_number: str,
+    to: str,
+    template_name: str,
+    language: str,
+    variables: dict,
+) -> dict:
+    components = _build_template_components(variables)
 
     # El payload trae el número destino y los `components`, o sea las variables de la
     # plantilla: nombres, montos, lo que lleve el template. Eso es dato del cliente y no
     # va a Cloud Logging, donde se retiene 30 días. Para depurar basta saber qué plantilla
     # se armó; el detalle se ve en local subiendo LOG_LEVEL.
-    logger.debug("calling template %s with %d component(s)", template_name, len(components))
+    logger.debug("calling template %s (%s) with %d component(s)", template_name, provider, len(components))
+
+    if provider == "meta":
+        # La Cloud API de Meta no lleva "from": el remitente lo determina el
+        # phone_number_id contra el que se llama, y no acepta "policy" en language.
+        return {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": to,
+            "type": "template",
+            "template": {
+                "name": template_name,
+                "language": {"code": language},
+                "components": components,
+            },
+        }
 
     return {
         "from": from_number,
@@ -117,22 +144,40 @@ def _build_template_payload(
     }
 
 
-def _send_single_message(api_key: str, payload: dict, timeout: float = 15.0) -> dict:
-    url = f"{YCLOUD_API_BASE}/whatsapp/messages/sendDirectly"
-    headers = {"X-API-Key": api_key, "Content-Type": "application/json"}
+def _extract_message_id(provider: str, data: dict) -> str:
+    if provider == "meta":
+        messages = data.get("messages") or []
+        return messages[0].get("id", "unknown") if messages else "unknown"
+    return data.get("id", "unknown")
+
+
+def _send_single_message(
+    provider: str,
+    payload: dict,
+    *,
+    api_key: str = "",
+    access_token: str = "",
+    phone_number_id: str = "",
+    timeout: float = 15.0,
+) -> dict:
+    if provider == "meta":
+        url = f"{META_API_BASE}/{phone_number_id}/messages"
+        headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+    else:
+        url = f"{YCLOUD_API_BASE}/whatsapp/messages/sendDirectly"
+        headers = {"X-API-Key": api_key, "Content-Type": "application/json"}
 
     try:
         response = httpx.post(url, json=payload, headers=headers, timeout=timeout)
         response.raise_for_status()
         data = response.json()
-        message_id = data.get("id", "unknown")
+        
+        message_id = _extract_message_id(provider, data)
         status = data.get("status")
 
-        # Un 2xx solo dice que YCloud recibió la petición; si Meta la rechaza, YCloud lo
-        # reporta en `status`/`errorCode`. Sin registrarlo, un envío fallido se veía igual
-        # que uno exitoso.
         logger.info(
-            "YCloud respuesta: to=%s id=%s status=%s errorCode=%s errorMessage=%s",
+            "%s respuesta: to=%s id=%s status=%s errorCode=%s errorMessage=%s",
+            provider,
             mask_phone(payload.get("to")),
             message_id,
             status,
@@ -144,14 +189,15 @@ def _send_single_message(api_key: str, payload: dict, timeout: float = 15.0) -> 
             return {
                 "ok": False,
                 "message_id": message_id,
-                "error": f"YCloud status=failed errorCode={data.get('errorCode')}: {data.get('errorMessage')}",
+                "error": f"{provider} status=failed errorCode={data.get('errorCode')}: {data.get('errorMessage')}",
             }
 
-        return {"ok": True, "message_id": message_id, "status": status}
+        return {"ok": True, "message_id": message_id}
     except httpx.HTTPStatusError as exc:
         error_body = exc.response.text[:200]
         logger.error(
-            "YCloud API error %s for to=%s: %s",
+            "%s API error %s for to=%s: %s",
+            provider,
             exc.response.status_code,
             mask_phone(payload.get("to")),
             error_body,
@@ -172,15 +218,32 @@ def load_whatsapp_outbound_tools(
     Returns the send_bulk_whatsapp LangChain tool.
 
     config must contain (injected by Gateway, never from the model):
-        from_number         str  — número remitente (E.164)
-        api_key             str  — YCloud API key
-        available_templates dict — {template_uuid: {name, language, variables}}
+        provider             str  — "ycloud" (default) o "meta"
+        from_number          str  — número remitente (E.164)
+        api_key              str  — YCloud API key (provider == "ycloud")
+        phone_number_id      str  — Meta phone_number_id (provider == "meta")
+        access_token         str  — Meta access token (provider == "meta")
+        available_templates  dict — {template_uuid: {name, language, variables}}
+        auto_fill_variables  dict — opcional: {nombre_variable: valor}. Si una
+                                    plantilla declara una variable con ese nombre,
+                                    el valor se inserta en su posición declarada
+                                    (el modelo no la provee ni la controla).
     """
+    provider: str = config.get("provider") or "ycloud"
     from_number: str = config.get("from_number", "")
     api_key: str = config.get("api_key", "")
+    phone_number_id: str = config.get("phone_number_id", "")
+    access_token: str = config.get("access_token", "")
     available_templates: dict = config.get("available_templates", {})
 
-    if not from_number or not api_key:
+    if provider == "meta":
+        if not phone_number_id or not access_token:
+            logger.error(
+                "send_bulk_whatsapp: phone_number_id o access_token no inyectados en config "
+                "para provider 'meta'. Tool deshabilitado."
+            )
+            return []
+    elif not from_number or not api_key:
         logger.error(
             "send_bulk_whatsapp: from_number o api_key no inyectados en config. Tool deshabilitado."
         )
@@ -223,6 +286,7 @@ def load_whatsapp_outbound_tools(
                 continue
 
             payload = _build_template_payload(
+                provider=provider,
                 from_number=from_number,  # SISTEMA — el modelo nunca lo controla
                 to=msg.to,
                 template_name=tpl["name"],
@@ -230,14 +294,21 @@ def load_whatsapp_outbound_tools(
                 variables=msg.variables,
             )
 
-            result = _send_single_message(api_key, payload)
+            result = _send_single_message(
+                provider,
+                payload,
+                api_key=api_key,
+                access_token=access_token,
+                phone_number_id=phone_number_id,
+            )
             results.append({"to": msg.to, **result})
 
             # Sin `to` ni `variables`: son el teléfono del destinatario y el contenido
             # personalizado del mensaje. Lo que hace falta para operar es si el envío
             # salió y con qué plantilla; a quién se le mandó queda en la ejecución.
             logger.info(
-                "send_bulk_whatsapp: from=%s template=%s ok=%s",
+                "send_bulk_whatsapp: provider=%s from=%s template=%s ok=%s",
+                provider,
                 from_number,
                 tpl["name"],
                 result["ok"],

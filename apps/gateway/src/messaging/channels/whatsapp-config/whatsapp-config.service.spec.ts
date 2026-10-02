@@ -24,22 +24,25 @@ describe('WhatsappConfigService', () => {
     },
   };
 
-  const mockHttpService: any = {
-    axiosRef: { post: jest.fn(), get: jest.fn() },
-  };
+  const mockTransporterResolver: any = { forProvider: jest.fn() };
 
   const mockLogger = { error: jest.fn(), warn: jest.fn(), info: jest.fn() } as any;
 
   const mockDriveService: any = { getFilesFromPublicFolder: jest.fn() };
   const mockConversationsService: any = { update: jest.fn() };
+  const mockCipher: any = {
+    encryptFields: jest.fn(async (data: object) => ({ ...data, encrypted: true })),
+    decryptFields: jest.fn(async (data: object) => data),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
     service = new WhatsappConfigService(
       mockPrisma,
-      mockHttpService,
+      mockTransporterResolver,
       mockDriveService,
       mockConversationsService,
+      mockCipher,
       mockLogger,
       { sendServiceRequestEmail: jest.fn().mockResolvedValue(true) } as any,
     );
@@ -171,6 +174,62 @@ describe('WhatsappConfigService', () => {
       expect(data.displayName).toBeUndefined();
       expect(data.description).toBeUndefined();
     });
+
+    it('con canal Meta guarda provider y sessionData cifrado, atado al id de la fila', async () => {
+      mockPrisma.whatsAppConfig.create.mockResolvedValue({ id: 'n1' });
+      const sessionData = { phoneNumberId: '123', appSecret: 'sec', accessToken: 'tok' };
+
+      await service.createRecordAndgenerateWebhookSecret('org-1', 'wf-1', '+1', undefined, {
+        provider: 'meta',
+        sessionData,
+      });
+
+      const data = mockPrisma.whatsAppConfig.create.mock.calls.at(-1)?.[0].data;
+      expect(mockCipher.encryptFields).toHaveBeenCalledWith(
+        sessionData,
+        ['appSecret', 'accessToken'],
+        `whatsapp-config:${data.id}`,
+      );
+      expect(data.provider).toBe('meta');
+      // Lo que llega a la base es lo que devolvió el cifrado, nunca el objeto en claro.
+      expect(data.sessionData).toEqual({ ...sessionData, encrypted: true });
+    });
+
+    it('sin canal no escribe sessionData', async () => {
+      mockPrisma.whatsAppConfig.create.mockResolvedValue({ id: 'n1' });
+
+      await service.createRecordAndgenerateWebhookSecret('org-1', 'wf-1', '+1');
+
+      const data = mockPrisma.whatsAppConfig.create.mock.calls.at(-1)?.[0].data;
+      expect(data.sessionData).toBeUndefined();
+      expect(mockCipher.encryptFields).not.toHaveBeenCalled();
+    });
+
+    it('si el cifrado falla no crea la fila', async () => {
+      mockCipher.encryptFields.mockRejectedValueOnce(new Error('kms down'));
+
+      const res = await service.createRecordAndgenerateWebhookSecret('org-1', 'wf-1', '+1', undefined, {
+        provider: 'meta',
+        sessionData: { phoneNumberId: '1', appSecret: 's', accessToken: 't' },
+      });
+
+      expect(res).toBeNull();
+      expect(mockPrisma.whatsAppConfig.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('decryptSessionData', () => {
+    it('descifra con el contexto de la fila', async () => {
+      const config = { id: 'c-1', sessionData: { accessToken: 'kms:v1:x' } } as any;
+
+      await service.decryptSessionData(config);
+
+      expect(mockCipher.decryptFields).toHaveBeenCalledWith(
+        config.sessionData,
+        ['appSecret', 'accessToken'],
+        'whatsapp-config:c-1',
+      );
+    });
   });
 
   describe('updatePhoneNumber', () => {
@@ -260,6 +319,24 @@ describe('WhatsappConfigService', () => {
     });
   });
 
+  describe('isPhoneNumberTaken', () => {
+    it('busca otra fila con el número o sus variantes, excluyendo la propia', async () => {
+      mockPrisma.whatsAppConfig.findFirst.mockResolvedValue({ id: 'otra' });
+
+      expect(await service.isPhoneNumberTaken('+525522222222', 'c1')).toBe(true);
+
+      const where = mockPrisma.whatsAppConfig.findFirst.mock.calls.at(-1)?.[0].where;
+      expect(where.id).toEqual({ not: 'c1' });
+      // Variante con el `1` de móvil mexicano: es la misma persona que llega por el webhook.
+      expect(where.phoneNumber.in).toEqual(expect.arrayContaining(['+525522222222', '+5215522222222']));
+    });
+
+    it('libre cuando no hay otra fila', async () => {
+      mockPrisma.whatsAppConfig.findFirst.mockResolvedValue(null);
+      expect(await service.isPhoneNumberTaken('+525522222222', 'c1')).toBe(false);
+    });
+  });
+
   describe('updateConfig', () => {
     it('limpia los espacios y guarda como NULL lo que queda vacío', async () => {
       mockPrisma.whatsAppConfig.update.mockResolvedValue({});
@@ -273,6 +350,57 @@ describe('WhatsappConfigService', () => {
       expect(mockPrisma.whatsAppConfig.update).toHaveBeenCalledWith({
         where: { id: 'c1' },
         data: { displayName: 'Soporte', description: null },
+      });
+    });
+
+    it('guarda el teléfono canónico', async () => {
+      mockPrisma.whatsAppConfig.update.mockResolvedValue({});
+
+      await service.updateConfig('c1', { phoneNumber: '+52 55 2222 2222' });
+
+      expect(mockPrisma.whatsAppConfig.update).toHaveBeenCalledWith({
+        where: { id: 'c1' },
+        data: { phoneNumber: '+525522222222' },
+      });
+    });
+
+    describe('sessionData', () => {
+      it('mezcla el parche con lo guardado y cifra el resultado completo', async () => {
+        mockPrisma.whatsAppConfig.findUnique.mockResolvedValue({
+          sessionData: { phoneNumberId: '1', appSecret: 'kms:v1:viejo', accessToken: 'kms:v1:tok' },
+        });
+        mockPrisma.whatsAppConfig.update.mockResolvedValue({});
+
+        await service.updateConfig('c1', { sessionData: { accessToken: 'nuevo' } });
+
+        expect(mockCipher.encryptFields).toHaveBeenCalledWith(
+          { phoneNumberId: '1', appSecret: 'kms:v1:viejo', accessToken: 'nuevo' },
+          ['appSecret', 'accessToken'],
+          'whatsapp-config:c1',
+        );
+        const data = mockPrisma.whatsAppConfig.update.mock.calls.at(-1)?.[0].data;
+        expect(data.sessionData).toEqual(expect.objectContaining({ encrypted: true, phoneNumberId: '1' }));
+      });
+
+      it('funciona cuando la fila aún no tenía sessionData', async () => {
+        mockPrisma.whatsAppConfig.findUnique.mockResolvedValue({ sessionData: null });
+        mockPrisma.whatsAppConfig.update.mockResolvedValue({});
+
+        await service.updateConfig('c1', { sessionData: { phoneNumberId: '9' } });
+
+        expect(mockCipher.encryptFields).toHaveBeenCalledWith(
+          { phoneNumberId: '9' },
+          expect.anything(),
+          'whatsapp-config:c1',
+        );
+      });
+
+      it('si el cifrado falla no escribe y devuelve false', async () => {
+        mockPrisma.whatsAppConfig.findUnique.mockResolvedValue({ sessionData: {} });
+        mockCipher.encryptFields.mockRejectedValueOnce(new Error('kms down'));
+
+        expect(await service.updateConfig('c1', { sessionData: { accessToken: 'x' } })).toBe(false);
+        expect(mockPrisma.whatsAppConfig.update).not.toHaveBeenCalled();
       });
     });
 

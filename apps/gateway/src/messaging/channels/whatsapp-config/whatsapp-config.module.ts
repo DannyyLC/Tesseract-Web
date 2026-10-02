@@ -1,6 +1,7 @@
 import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
 import { UtilityModule } from '@/platform/utility/utility.module';
+import { ToolsModule } from '@/automation/tools/core/tools.module';
 import { WorkflowsModule } from '@/automation/workflows/workflows.module';
 import { WhatsappConfigController } from './controllers/user-ui/whatsapp-config.controller';
 import { WhatsappConfigService } from './whatsapp-config.service';
@@ -13,23 +14,25 @@ import { CloudTasksModule } from '@/platform/tasks/cloud-tasks.module';
 import { WhatsappWorkerController } from './controllers/internal/whatsapp-worker.controller';
 import { WhatsappConfigAdminController } from './controllers/admin/whatsapp-config.admin.controller';
 import { EndUsersModule } from '@/identity/end-users/end-users.module';
+import { YCloudTransporter } from './transporters/ycloud.transporter';
+import { MetaTransporter } from './transporters/meta.transporter';
+import { WBTransporterResolver } from './transporters/wb-transporter.resolver';
+import { WBPayloadConsumerResolver } from './payload-consumers/wb-payload-consumer.resolver';
 import { NotificationsModule } from '@/messaging/notifications/notifications.module';
 
 @Module({
+  // `ToolsModule` va por `SecretFieldsCipher`: las credenciales de `sessionData` se guardan cifradas con KMS.
   // `EndUsersModule` va por la lista negra: el webhook descarta lo que mande un contacto bloqueado.
-  imports: [
-    UtilityModule,
-    HttpModule,
-    WorkflowsModule,
-    MediaProcessingModule,
-    GoogleDriveModule,
-    ConversationsModule,
-    WebhookDedupModule,
-    CloudTasksModule,
-    EndUsersModule,
-    NotificationsModule,
+  imports: [UtilityModule, HttpModule, ToolsModule, WorkflowsModule, MediaProcessingModule, GoogleDriveModule, 
+    ConversationsModule, WebhookDedupModule, CloudTasksModule, EndUsersModule, NotificationsModule],
+  providers: [
+    WhatsappConfigService,
+    WhatsappMessageQueueService,
+    YCloudTransporter,
+    MetaTransporter,
+    WBTransporterResolver,
+    WBPayloadConsumerResolver,
   ],
-  providers: [WhatsappConfigService, WhatsappMessageQueueService],
   controllers: [WhatsappConfigController, WhatsappWorkerController, WhatsappConfigAdminController],
   exports: [WhatsappConfigService, WhatsappMessageQueueService],
 })

@@ -12,6 +12,12 @@ import {
 } from '@/hooks/messaging/use-admin-whatsapp-config';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import {
+  EMPTY_PROVIDER_VALUE,
+  WhatsappProviderFields,
+  isProviderValueComplete,
+  toProviderPayload,
+} from '@/components/admin/organizations/whatsapp-provider-fields';
 import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
@@ -46,23 +52,27 @@ export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [description, setDescription] = useState('');
+  const [provider, setProvider] = useState(EMPTY_PROVIDER_VALUE);
   const isPhoneValid = WHATSAPP_PHONE_REGEX.test(phoneNumber);
+  const canCreate = isPhoneValid && isProviderValueComplete(provider);
 
   const closeCreate = () => {
     setIsCreateOpen(false);
     setPhoneNumber('');
     setDisplayName('');
     setDescription('');
+    setProvider(EMPTY_PROVIDER_VALUE);
   };
 
   const handleCreate = () => {
-    if (!isPhoneValid) return;
+    if (!canCreate) return;
     createConfig.mutate(
       {
         phoneNumber,
         workflowId,
         displayName: displayName.trim() || undefined,
         description: description.trim() || undefined,
+        ...toProviderPayload(provider),
       },
       {
         onSuccess: () => {
@@ -101,6 +111,9 @@ export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
               {c.displayName && (
                 <span className="shrink-0 text-xs text-text-secondary">{c.phoneNumber}</span>
               )}
+              <span className="shrink-0 text-xs text-text-tertiary">
+                {c.provider === 'meta' ? 'Meta' : 'YCloud'}
+              </span>
               {!c.isActive && (
                 <span className="shrink-0 text-xs text-danger">{t('inactiveBadge')}</span>
               )}
@@ -118,6 +131,8 @@ export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
 
       <Modal isOpen={isCreateOpen} onClose={closeCreate} title={t('modalTitle')}>
         <div className="space-y-4">
+          <WhatsappProviderFields value={provider} onChange={setProvider} />
+
           <div>
             <label className={labelClass}>{t('phoneNumberLabel')}</label>
             <input
@@ -162,7 +177,7 @@ export function WorkflowChannelsSection({ workflowId, organizationId }: Props) {
             <button
               className={btnPrimary}
               onClick={handleCreate}
-              disabled={!isPhoneValid || createConfig.isPending}
+              disabled={!canCreate || createConfig.isPending}
             >
               {createConfig.isPending && <Loader2 size={14} className="animate-spin" />}
               {t('create')}

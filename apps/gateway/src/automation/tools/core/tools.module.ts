@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ToolsService } from './tools.service';
 import { KmsService } from './kms.service';
+import { SecretFieldsCipher } from './secret-fields-cipher.service';
 import { DatabaseModule } from '@/platform/database/database.module';
 import { ToolsOauthController } from './tools-oauth.controller';
 import { ToolsOauthService } from './tools-oauth.service';
@@ -14,7 +15,7 @@ import { OauthStateService } from './oauth-state.service';
   // `JwtModule.register({})` sin secreto: el `state` se firma con el suyo (ver OauthStateService).
   imports: [DatabaseModule, UtilityModule, WebhookDedupModule, JwtModule.register({})],
   controllers: [ToolsOauthController],
-  providers: [ToolsService, KmsService, ToolsOauthService, ToolHealthService, OauthStateService],
-  exports: [ToolsService, KmsService, ToolHealthService],
+  providers: [ToolsService, KmsService, SecretFieldsCipher, ToolsOauthService, ToolHealthService, OauthStateService],
+  exports: [ToolsService, KmsService, SecretFieldsCipher, ToolHealthService],
 })
 export class ToolsModule {}

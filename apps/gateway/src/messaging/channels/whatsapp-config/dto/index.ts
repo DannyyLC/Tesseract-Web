@@ -4,3 +4,4 @@ export * from './template.dto';
 export * from './update-config.dto';
 export * from './update-token.dto';
 export * from './whatsapp-inbound-event.dto';
+export * from './meta-webhook-payload.dto';
