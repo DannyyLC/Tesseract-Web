@@ -312,24 +312,6 @@ export class WhatsappConfigController {
           });
           return res.status(HttpStatus.OK).send({ received: true, ignored: 'blocked-contact' });
         }
-      } else {
-        const conversation = await this.conversationsService.findActiveWhatsappConversation(
-          account.id,
-          clientPhoneNumber,
-        );
-        if (conversation?.isHumanInTheLoop === true) {
-          await this.recordMessageOutsideFlow(
-            account.id,
-            account.defaultWorkflowId,
-            agentPhoneNumber,
-            clientPhoneNumber,
-            isEcho,
-            await getMessageText(),
-            'human-in-the-loop',
-            conversation,
-          );
-        }
-        return res.status(HttpStatus.OK).send({ received: true });
       }
 
       // Un workflow borrado (o de otra organización) no tiene a dónde rutear. No es
@@ -368,6 +350,31 @@ export class WhatsappConfigController {
           workflowId: account.defaultWorkflowId,
         });
         return res.status(HttpStatus.OK).send({ received: true, ignored: 'inactive-workflow' });
+      }
+
+      // Los echoes reflejan mensajes que el negocio ya mandó desde la app de WhatsApp
+      // Business, fuera de nuestra API: no hay nada que ejecutar. Con el flujo activo
+      // solo hace falta registrarlos si alguien intervino la conversación a mano; si no,
+      // `execute()` es quien la lleva al día y sumar el echo aquí la duplicaría. Va
+      // después de la rama del flujo apagado, que registra también los echoes.
+      if (isEcho) {
+        const conversation = await this.conversationsService.findActiveWhatsappConversation(
+          account.id,
+          clientPhoneNumber,
+        );
+        if (conversation?.isHumanInTheLoop === true) {
+          await this.recordMessageOutsideFlow(
+            account.id,
+            account.defaultWorkflowId,
+            agentPhoneNumber,
+            clientPhoneNumber,
+            isEcho,
+            await getMessageText(),
+            'human-in-the-loop',
+            conversation,
+          );
+        }
+        return res.status(HttpStatus.OK).send({ received: true });
       }
 
       const bufferedAt = Date.now();

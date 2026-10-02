@@ -412,10 +412,30 @@ describe('WhatsappConfigController · handleWebhook', () => {
 
       expect(mockConversationsService.addMessage).not.toHaveBeenCalled();
     });
-    // Un echo nunca llega a esta rama: siempre se resuelve antes, en el bloque de "lista
-    // negra" (que para un echo consulta HITL en vez de bloqueo — ver más abajo, "echoes
-    // con el workflow activo"), así que no hay un caso de echo + workflow inactivo que
-    // probar aquí.
+
+    it('con el workflow apagado, registra también el echo del negocio como ASSISTANT', async () => {
+      mockWorkflowsService.getRoutingState.mockResolvedValue({ isActive: false });
+      consumer.getWBEventType.mockReturnValue(WBEventTypes.MsgEchoes);
+      consumer.getFromNumber.mockReturnValue(AGENT_NUMBER);
+      consumer.getToNumber.mockReturnValue(CLIENT_NUMBER);
+      const res = createResponse(Buffer.from('{}'));
+
+      await controller.handleWebhook(body, res, ycloudHeaders);
+
+      expect(mockConversationsService.addMessage).toHaveBeenCalledWith(
+        'conv-1',
+        ChatRole.ASSISTANT,
+        'hola',
+        expect.objectContaining({ source: 'whatsapp_smb_echo' }),
+      );
+      expect(mockConversationsService.markMessageOutsideWorkflow).toHaveBeenCalledWith(
+        'org-1',
+        'conv-1',
+        'inactive-workflow',
+        undefined,
+      );
+      expect(res.send).toHaveBeenCalledWith({ received: true, ignored: 'inactive-workflow' });
+    });
   });
 
   // ─── Echoes con workflow activo ──────────────────────────────────────────
