@@ -460,57 +460,6 @@ export class WhatsappConfigService {
   }
 
   /**
-   * Resuelve el challenge de suscripción del webhook de la Cloud API de Meta (GET).
-   *
-   * Meta lo llama al dar de alta el endpoint y cada vez que se reconfigura. El token es
-   * el que se captura en el panel de la app de Meta y vive en `META_WHATSAPP_VERIFY_TOKEN`.
-   * La comparación es en tiempo constante para no filtrar el token por temporización.
-   */
-  verifySubscription(mode: string, token: string): boolean {
-    const verifyToken = process.env.META_WHATSAPP_VERIFY_TOKEN ?? 'Fr4cT4L-010126';
-    if (!verifyToken) {
-      this.logger.error('META_WHATSAPP_VERIFY_TOKEN no está configurado');
-      return false;
-    }
-
-    if (mode !== 'subscribe' || !token) return false;
-
-    // timingSafeEqual exige buffers de igual longitud.
-    const received = Buffer.from(token, 'utf8');
-    const expected = Buffer.from(verifyToken, 'utf8');
-    if (received.length !== expected.length) return false;
-
-    return crypto.timingSafeEqual(received, expected);
-  }
-
-  /**
-   * Verifica el `x-hub-signature-256` de un webhook de la Cloud API de Meta: `sha256=` más
-   * el HMAC del body crudo con el app secret (`META_WHATSAPP_APP_SECRET`).
-   *
-   * No hay timestamp, así que no se acota la frescura; el replay lo cierra la deduplicación
-   * por `wamid`. Tiene que ser el body crudo: Meta escapa los no-ASCII a su manera y
-   * `JSON.stringify(body)` no reproduce esos bytes.
-   */
-  verifyMetaSignature(rawBody: Buffer, signatureHeader: string): boolean {
-    const secret = process.env.META_WHATSAPP_APP_SECRET ?? '6515e815e54febf22701dfb043b9f6ef';
-    if (!secret) {
-      this.logger.error('');
-      return false;
-    }
-
-    const [algorithm, signature] = (signatureHeader || '').split('=');
-    if (algorithm !== 'sha256' || !signature) return false;
-
-    const expectedSignature = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-
-    const received = Buffer.from(signature, 'utf8');
-    const expected = Buffer.from(expectedSignature, 'utf8');
-    if (received.length !== expected.length) return false;
-
-    return crypto.timingSafeEqual(received, expected);
-  }
-
-  /**
    * Verifica la firma HMAC de un webhook de YCloud.
    *
    * El header viene con formato `t=<unix>,v1=<hmac_hex>` y se firma
