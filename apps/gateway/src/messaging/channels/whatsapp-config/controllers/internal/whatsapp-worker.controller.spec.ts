@@ -301,6 +301,23 @@ describe('WhatsappWorkerController · processWindow', () => {
       expect(mockWhatsappConfigService.sendTextMessage).not.toHaveBeenCalled();
     });
 
+    it('con presenceIndicators apagado no marca como leído, pero sí responde', async () => {
+      mockWorkflowsService.getChannelPolicy.mockResolvedValue({
+        mediaPolicy: policy,
+        presenceIndicators: false,
+      });
+      mockWorkflowsService.execute.mockResolvedValue(successfulExecution('Claro, con gusto te ayudo.'));
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockWhatsappConfigService.markMessagesAsRead).not.toHaveBeenCalled();
+      expect(mockWhatsappConfigService.sendTextMessage).toHaveBeenCalledWith(
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
+        'Claro, con gusto te ayudo.',
+      );
+    });
+
     it('[corregido] un fallo al marcar como leído (transporter caído, credencial mala) ya NO aborta la ventana: se registra y se sigue', async () => {
       mockWhatsappConfigService.markMessagesAsRead.mockRejectedValue(new Error('transporter caído'));
       mockWorkflowsService.execute.mockResolvedValue(successfulExecution('Claro, con gusto te ayudo.'));
@@ -508,6 +525,22 @@ describe('WhatsappWorkerController · processWindow', () => {
       );
     });
 
+    it('con presenceIndicators apagado igual manda el aviso: el switch solo apaga visto/escribiendo', async () => {
+      mockPayloadConsumer.getInterpretedMessage.mockResolvedValue({});
+      mockWorkflowsService.getChannelPolicy.mockResolvedValue({
+        mediaPolicy: policy,
+        presenceIndicators: false,
+      });
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockWhatsappConfigService.sendTextMessage).toHaveBeenCalledWith(
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
+        policy.messages.unsupportedFormat,
+      );
+    });
+
     it('si hubo un aviso de política (p.ej. imagen deshabilitada), no duplica con el de formato no soportado', async () => {
       mockPayloadConsumer.getInterpretedMessage.mockResolvedValue({ notice: policy.messages.imageDisabled });
       const res = buildResponse();
@@ -644,10 +677,6 @@ describe('WhatsappWorkerController · processWindow', () => {
     });
 
     it('NO confirma la ventana si falla la resolución de la política de media', async () => {
-      // `getChannelPolicy` solo se consulta cuando no hay texto ni avisos que agregar
-      // (para decidir si hace falta el aviso de "formato no soportado"); hace falta caer
-      // en esa rama para que el rechazo del mock se dispare.
-      mockPayloadConsumer.getInterpretedMessage.mockResolvedValue({});
       mockWorkflowsService.getChannelPolicy.mockRejectedValue(new Error('workflow sin config'));
       const res = buildResponse();
 

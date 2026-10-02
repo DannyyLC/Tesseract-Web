@@ -214,7 +214,13 @@ export class WhatsappWorkerController {
       );
       const isIntervened = conversation?.isHumanInTheLoop === true;
 
-      if (!isIntervened) {
+      const { mediaPolicy: policy, presenceIndicators } =
+        await this.workflowsService.getChannelPolicy(organizationId, account.defaultWorkflowId);
+
+      // El workflow puede apagar visto/escribiendo (`presenceIndicators`): el acuse sale antes
+      // de ejecutarlo, y en un workflow que a veces decide no contestar prometería una
+      // respuesta que no va a llegar.
+      if (!isIntervened && presenceIndicators) {
         // Marcar como leído cuanto antes: es la señal de vida que ve el usuario. Es
         // best-effort y va en su propio try/catch a propósito: es una cortesía visual,
         // no la respuesta en sí, y un fallo acá (transporter caído, credencial mala)
@@ -258,13 +264,10 @@ export class WhatsappWorkerController {
 
       if (!interpreted.aggregatedText.trim()) {
         if (interpreted.notices.length === 0) {
-           const { mediaPolicy: policy, presenceIndicators } =
-            await this.workflowsService.getChannelPolicy(organizationId, account.defaultWorkflowId);
-
           // Red de seguridad: ningún camino conocido llega aquí sin haber avisado, pero
           // si aparece uno nuevo, el usuario recibe algo en vez de silencio. Salvo con la
           // conversación intervenida, donde el silencio es justamente lo correcto.
-          if (!isIntervened && presenceIndicators) {
+          if (!isIntervened) {
             await this.whatsappConfigService.sendTextMessage(
               agentPhoneNumber,
               clientPhoneNumber,
