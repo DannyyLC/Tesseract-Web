@@ -43,10 +43,6 @@ export class MetaTransporter extends BaseWBTransporter {
   protected async markMessageAsRead(sender: WBSender, messageId: string): Promise<void> {
     const phoneNumberId = this.phoneNumberIdOf(sender);
     const accessToken = this.accessTokenOf(sender);
-    if (phoneNumberId === '' || accessToken === '') {
-      this.logger.error(`Missing Credentials to markMessageAsRead whatsappConfig ${sender.configId}...`);
-      return;
-    }
 
     await firstValueFrom(
       this.httpService.post(
@@ -70,10 +66,6 @@ export class MetaTransporter extends BaseWBTransporter {
   private async send(sender: WBSender, to: string, message: object): Promise<void> {
     const phoneNumberId = this.phoneNumberIdOf(sender);
     const accessToken = this.accessTokenOf(sender);
-    if (phoneNumberId === '' || accessToken === '') {
-      this.logger.error(`Missing Credentials to send a message whatsappConfig ${sender.configId}...`);
-      return;
-    }
 
     await firstValueFrom(
       this.httpService.post(
@@ -92,8 +84,10 @@ export class MetaTransporter extends BaseWBTransporter {
   private phoneNumberIdOf(sender: WBSender): string {
     const phoneNumberId = (sender.sessionData as { phoneNumberId?: unknown } | null)?.phoneNumberId;
     if (typeof phoneNumberId !== 'string' || !phoneNumberId) {
-      this.logger.error(`WhatsAppConfig ${sender.configId} (meta) with phoneNumber ${sender.phoneNumber} without sessionData.phoneNumberId`,);
-      return '';
+      // Lanza en vez de seguir en silencio: quien llama (el worker, el envío de plantillas
+      // del panel) tiene que enterarse de que el mensaje no salió, igual que con un token
+      // vencido que Meta rechaza.
+      throw new Error(`WhatsAppConfig ${sender.configId} (meta) no tiene sessionData.phoneNumberId`);
     }
     return phoneNumberId;
   }
@@ -101,8 +95,7 @@ export class MetaTransporter extends BaseWBTransporter {
   private accessTokenOf(sender: WBSender): string {
     const accessToken = (sender.sessionData as { accessToken?: unknown } | null)?.accessToken;
     if (typeof accessToken !== 'string' || !accessToken) {
-      this.logger.error(`WhatsAppConfig ${sender.configId} (meta) with phoneNumber ${sender.phoneNumber} without sessionData.accessToken`,);
-      return '';
+      throw new Error(`WhatsAppConfig ${sender.configId} (meta) no tiene sessionData.accessToken`);
     }
     return accessToken;
   }
