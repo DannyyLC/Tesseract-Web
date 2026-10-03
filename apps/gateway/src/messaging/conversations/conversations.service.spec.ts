@@ -6,7 +6,7 @@ import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { UtilityService } from '@/platform/utility/utility.service';
 import { KmsService } from '@/automation/tools/core/kms.service';
-import { ConversationChannel } from '@tesseract/database';
+import { ChatRole, ConversationChannel } from '@tesseract/database';
 import { CHANNEL_FILTER_GROUPS } from '@tesseract/types';
 
 // Mock CursorPaginatedResponseUtils
@@ -333,7 +333,7 @@ describe('ConversationsService', () => {
 
   describe('findAll', () => {
     it('should return paginated conversations', async () => {
-      const mockConversations = [{ id: 'c-1', userId: 'u-1' }];
+      const mockConversations = [{ id: 'c-1', userId: 'u-1', messages: [] }];
       mockPrismaService.conversation.findMany.mockResolvedValue(mockConversations);
       mockBuild.mockReturnValue({ items: mockConversations, nextCursor: null });
 
@@ -417,6 +417,7 @@ describe('ConversationsService', () => {
         userId: null,
         endUser: { name: 'Juan Pérez', phoneNumber: null },
         messengerConfig: { pageName: 'Tacos El Fractal' },
+        messages: [],
       };
       mockPrismaService.conversation.findMany.mockResolvedValue([row]);
       mockBuild.mockReturnValue({ items: [row], nextCursor: null });
@@ -434,6 +435,72 @@ describe('ConversationsService', () => {
           endUserPhoneNumber: null,
         }),
       );
+    });
+
+    it('resume el último mensaje y quién lo escribió, sin devolver el mensaje', async () => {
+      const row = {
+        id: 'c-1',
+        userId: null,
+        messages: [
+          {
+            role: ChatRole.ASSISTANT,
+            content: 'Ya te lo mando\npor aquí',
+            metadata: { source: 'messenger_echo' },
+          },
+        ],
+      };
+      mockPrismaService.conversation.findMany.mockResolvedValue([row]);
+      mockBuild.mockReturnValue({ items: [row], nextCursor: null });
+
+      const result = await service.findAll({
+        paginationAction: 'next',
+        organizationId: 'org-1',
+        take: 10,
+      });
+
+      expect(result.items[0]).toEqual(
+        expect.objectContaining({
+          lastMessagePreview: 'Ya te lo mando por aquí',
+          lastMessageAuthor: 'HUMAN_AGENT',
+        }),
+      );
+      // El mensaje crudo no viaja al front: de él solo salen esos dos campos.
+      expect(result.items[0]).not.toHaveProperty('messages');
+    });
+
+    it('deja los campos del último mensaje en null cuando no hay mensajes', async () => {
+      const row = { id: 'c-1', userId: null, messages: [] };
+      mockPrismaService.conversation.findMany.mockResolvedValue([row]);
+      mockBuild.mockReturnValue({ items: [row], nextCursor: null });
+
+      const result = await service.findAll({
+        paginationAction: 'next',
+        organizationId: 'org-1',
+        take: 10,
+      });
+
+      expect(result.items[0]).toEqual(
+        expect.objectContaining({ lastMessagePreview: null, lastMessageAuthor: null }),
+      );
+    });
+
+    it('pide solo el último turno USER/ASSISTANT del hilo', async () => {
+      mockPrismaService.conversation.findMany.mockResolvedValue([]);
+      mockBuild.mockReturnValue({ items: [], nextCursor: null });
+
+      await service.findAll({
+        paginationAction: 'next',
+        organizationId: 'org-1',
+        take: 10,
+      });
+
+      const include = mockPrismaService.conversation.findMany.mock.calls.at(-1)?.[0].include;
+      expect(include.messages).toEqual({
+        where: { role: { in: [ChatRole.USER, ChatRole.ASSISTANT] } },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: { role: true, content: true, metadata: true },
+      });
     });
 
     it('sin priorización ordena por último mensaje, no por fecha de creación', async () => {

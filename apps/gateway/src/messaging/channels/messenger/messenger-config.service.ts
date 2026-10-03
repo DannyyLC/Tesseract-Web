@@ -2,6 +2,7 @@ import { HttpService } from '@nestjs/axios';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { ChatRole, MessengerConfig, MessengerConnectionStatus } from '@tesseract/database';
 import { JsonObject } from '@prisma/client/runtime/client';
+import { isAxiosError } from 'axios';
 import * as crypto from 'crypto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { firstValueFrom } from 'rxjs';
@@ -27,6 +28,23 @@ const GRAPH_API_BASE = process.env.MESSENGER_GRAPH_API_BASE ?? 'https://graph.fa
  */
 const MESSENGER_MAX_TEXT_LENGTH = 2000;
 
+/**
+ * Lo que `GET /debug_token` cuenta de un token. Solo los campos que se usan; Meta manda
+ * bastantes más.
+ *
+ * `profile_id` únicamente viene cuando `type` es `PAGE`, y es el id de esa página: es el
+ * dato que prueba la propiedad. https://developers.facebook.com/docs/graph-api/reference/debug_token
+ */
+interface DebugTokenData {
+  type?: 'PAGE' | 'USER' | 'APP' | 'SYSTEM_USER' | string;
+  profile_id?: string;
+  is_valid?: boolean;
+  /** Epoch en segundos; 0 o ausente significa que no caduca. */
+  expires_at?: number;
+  scopes?: string[];
+  error?: { code?: number; subcode?: number; message?: string };
+}
+
 @Injectable()
 export class MessengerConfigService {
   /** App secret de respaldo, para despliegues de una sola app; ver `resolveAppSecret`. */
@@ -51,8 +69,15 @@ export class MessengerConfigService {
    * El `pageId` es público y el webhook enruta por él, así que sin esto cualquiera podía dar
    * de alta la página de otro (o cambiar el `pageId` de la suya) y quedarse con sus mensajes;
    * con las credenciales de la plataforma como respaldo, ni siquiera necesitaba unas propias.
-   * `GET /me` con un token de página devuelve el id de esa página, y el `appsecret_proof`
-   * (HMAC del token con el App Secret) hace que Meta rechace un App Secret de otra app.
+   *
+   * La prueba es `GET /debug_token`, que introspecciona el token autenticando con el app
+   * access token (`<appId>|<appSecret>`). Responde tres cosas en una sola llamada: que el
+   * token sigue vivo, de qué tipo es (`PAGE`, `USER`, `SYSTEM_USER`…) y, si es de página,
+   * de CUÁL (`profile_id`). Que el app access token autentique es ya la prueba de que el
+   * App Secret es el de la app que emitió el token.
+   *
+   * El `appId` que hace falta para armarlo no se pide ni se guarda: sale del propio token
+   * con `GET /app` (ver `resolveAppId`). Con el Page Access Token y el App Secret basta.
    *
    * Lo que no venga en `input` se toma de `current` (la config guardada): así se puede rotar
    * una sola credencial y aun así verificar el par completo.
@@ -63,12 +88,16 @@ export class MessengerConfigService {
     input: { pageId: string; pageAccessToken?: string; appSecret?: string },
     current?: Pick<MessengerConfig, 'pageAccessToken' | 'appSecret'>,
   ): Promise<void> {
-    const pageAccessToken =
+    // Los valores guardados también se recortan: `createRecord` llegó a persistir sin hacerlo
+    // y un token con un salto de línea al final viaja como `%0A` y Meta lo rechaza entero.
+    const pageAccessToken = (
       input.pageAccessToken?.trim() ||
-      (current?.pageAccessToken ? await this.kmsService.decrypt(current.pageAccessToken) : '');
-    const appSecret =
+      (current?.pageAccessToken ? await this.kmsService.decrypt(current.pageAccessToken) : '')
+    ).trim();
+    const appSecret = (
       input.appSecret?.trim() ||
-      (current?.appSecret ? await this.kmsService.decrypt(current.appSecret) : '');
+      (current?.appSecret ? await this.kmsService.decrypt(current.appSecret) : '')
+    ).trim();
 
     if (!pageAccessToken || !appSecret) {
       throw new BadRequestException(
@@ -76,33 +105,128 @@ export class MessengerConfigService {
       );
     }
 
-    let ownerId: string | undefined;
-    try {
-      const { data } = await firstValueFrom(
-        this.httpService.get<{ id?: string }>(`${GRAPH_API_BASE}/me`, {
-          params: {
-            fields: 'id',
-            access_token: pageAccessToken,
-            appsecret_proof: crypto
-              .createHmac('sha256', appSecret)
-              .update(pageAccessToken)
-              .digest('hex'),
-          },
-        }),
-      );
-      ownerId = data?.id;
-    } catch {
-      // Sin loguear el error de axios: la URL lleva el token en claro.
+    const appId = await this.resolveAppId(pageAccessToken);
+    const token = await this.debugToken(pageAccessToken, appId, appSecret);
+
+    if (token.is_valid === false) {
       throw new BadRequestException(
-        'Meta rechazó las credenciales: revisa el Page Access Token y el App Secret',
+        `Meta rechazó el Page Access Token: ${
+          token.error?.message ?? 'ya no es válido, genéralo otra vez en tu app de Meta'
+        }`,
       );
     }
 
-    if (ownerId !== input.pageId) {
+    // El caso que más se da: se pega el token de usuario que el Graph API Explorer enseña
+    // por defecto, o el de un system user de Business Manager. Los dos son válidos y los dos
+    // pueden administrar la página, pero el que la Send API necesita es el de la página.
+    if (token.type !== 'PAGE') {
       throw new BadRequestException(
-        `El Page Access Token no pertenece a la página ${input.pageId}`,
+        `Ese token es de tipo ${token.type ?? 'desconocido'}, no de página. En tu app de Meta, ` +
+          `en Messenger → Configuración → Tokens de acceso, genera el token de la página ` +
+          `${input.pageId} y pega ese.`,
       );
     }
+
+    if (token.profile_id !== input.pageId) {
+      throw new BadRequestException(
+        `El Page Access Token es de la página ${
+          token.profile_id ?? 'desconocida'
+        }, no de la ${input.pageId}`,
+      );
+    }
+
+    const scopes = token.scopes ?? [];
+
+    // Lo que sigue no bloquea: son avisos sobre credenciales que Meta da por buenas hoy pero
+    // dejan de servir después, y el motivo de esta reescritura es dejar de rechazar de más.
+    if (scopes.length > 0 && !scopes.includes('pages_messaging')) {
+      this.logger.warn(
+        `Messenger: el token de la página ${input.pageId} no trae el permiso pages_messaging ` +
+          `(scopes: ${scopes.join(', ')}); no podrá responder por la Send API`,
+      );
+    }
+    if (token.expires_at) {
+      this.logger.warn(
+        `Messenger: el token de la página ${input.pageId} caduca el ` +
+          `${new Date(token.expires_at * 1000).toISOString()}; genera uno permanente o el canal ` +
+          `dejará de responder`,
+      );
+    }
+  }
+
+  /**
+   * App de Meta que emitió un token.
+   *
+   * `GET /app` devuelve la app asociada al propio access token, que es justo la que hace
+   * falta para armar el app access token de `/debug_token`. Derivarla cuesta un viaje más
+   * por verificación, pero evita pedirle al usuario un dato que ya está en el token.
+   */
+  private async resolveAppId(pageAccessToken: string): Promise<string> {
+    let appId: string | undefined;
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get<{ id?: string }>(`${GRAPH_API_BASE}/app`, {
+          params: { fields: 'id', access_token: pageAccessToken },
+        }),
+      );
+      appId = data?.id;
+    } catch (error) {
+      // El error de axios no se loguea entero: la URL lleva el token en claro. El cuerpo de
+      // la respuesta de Meta sí, que es donde viene el motivo y no trae credenciales.
+      this.logger.error(`Messenger: GET /app rechazó el token: ${httpErrorDetail(error)}`);
+      throw new BadRequestException(
+        `Meta no reconoció el Page Access Token${this.metaReason(error)}`,
+      );
+    }
+
+    if (!appId) {
+      throw new BadRequestException(
+        'Meta no dijo qué app emitió el Page Access Token; vuelve a generarlo en tu app de Meta',
+      );
+    }
+
+    return appId;
+  }
+
+  /** Introspección del token contra `/debug_token`, autenticando con el app access token. */
+  private async debugToken(
+    inputToken: string,
+    appId: string,
+    appSecret: string,
+  ): Promise<DebugTokenData> {
+    let data: DebugTokenData | undefined;
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<{ data?: DebugTokenData }>(`${GRAPH_API_BASE}/debug_token`, {
+          params: { input_token: inputToken, access_token: `${appId}|${appSecret}` },
+        }),
+      );
+      data = response.data?.data;
+    } catch (error) {
+      this.logger.error(
+        `Messenger: /debug_token falló para la app ${appId}: ${httpErrorDetail(error)}`,
+      );
+      // Quien autentica esta llamada es el par App ID + App Secret, así que un rechazo aquí
+      // es de ellos, no del token que se está revisando.
+      throw new BadRequestException(
+        `Meta rechazó el App ID ${appId} con ese App Secret${this.metaReason(error)}`,
+      );
+    }
+
+    if (!data) {
+      throw new BadRequestException('Meta respondió a /debug_token sin datos del token');
+    }
+
+    return data;
+  }
+
+  /** `: <motivo de Meta>` para pegar al final de un mensaje, o cadena vacía si no vino. */
+  private metaReason(error: unknown): string {
+    if (isAxiosError<{ error?: { message?: string } }>(error)) {
+      const message = error.response?.data?.error?.message;
+      if (message) return `: ${message}`;
+    }
+    return '';
   }
 
   // ─── Config lookup ────────────────────────────────────────────────────
@@ -133,6 +257,10 @@ export class MessengerConfigService {
    * Da de alta una página. No genera ningún secreto: a diferencia de WhatsApp, aquí
    * las dos credenciales las emite Meta —el token de página y el app secret— y la URL
    * del webhook se configura en el panel de la app, no se deriva de la fila.
+   *
+   * Las credenciales se recortan antes de cifrarse, igual que en `updateConfig`: se pegan
+   * a mano desde el panel de Meta y un salto de línea al final sobrevive al cifrado, viaja
+   * después como `%0A` en la query y hace que Meta rechace el token sin decir por qué.
    */
   async createRecord(
     organizationId: string,
@@ -144,6 +272,9 @@ export class MessengerConfigService {
     description?: string,
   ): Promise<MessengerConfig | null> {
     try {
+      const trimmedToken = pageAccessToken?.trim();
+      const trimmedSecret = appSecret?.trim();
+
       return await this.prismaService.messengerConfig.create({
         data: {
           provider: 'meta',
@@ -151,10 +282,8 @@ export class MessengerConfigService {
           pageId,
           pageName,
           description,
-          pageAccessToken: pageAccessToken
-            ? await this.kmsService.encrypt(pageAccessToken)
-            : undefined,
-          appSecret: appSecret ? await this.kmsService.encrypt(appSecret) : undefined,
+          pageAccessToken: trimmedToken ? await this.kmsService.encrypt(trimmedToken) : undefined,
+          appSecret: trimmedSecret ? await this.kmsService.encrypt(trimmedSecret) : undefined,
           defaultWorkflowId: workflowId,
           isActive: true,
         },
@@ -289,7 +418,7 @@ export class MessengerConfigService {
     try {
       await this.prismaService.messengerConfig.update({
         where: { id: configId },
-        data: { pageAccessToken: await this.kmsService.encrypt(pageAccessToken) },
+        data: { pageAccessToken: await this.kmsService.encrypt(pageAccessToken.trim()) },
       });
       return true;
     } catch (error) {
@@ -309,7 +438,7 @@ export class MessengerConfigService {
     try {
       await this.prismaService.messengerConfig.update({
         where: { id: configId },
-        data: { appSecret: await this.kmsService.encrypt(appSecret) },
+        data: { appSecret: await this.kmsService.encrypt(appSecret.trim()) },
       });
       return true;
     } catch (error) {

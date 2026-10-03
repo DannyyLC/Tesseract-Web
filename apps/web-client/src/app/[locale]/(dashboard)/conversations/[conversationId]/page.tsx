@@ -16,6 +16,7 @@ import {
   BellRing,
   Mic,
   ShieldBan,
+  Pencil,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useWorkflow, useExecuteStream } from '@/hooks/automation/use-workflows';
@@ -457,6 +458,12 @@ export default function WorkflowChatPage() {
   }
 
   const isEmpty = messages.length === 0;
+  /**
+   * Con la conversación vacía el encabezado muestra el nombre del workflow, no un asunto:
+   * ahí el relieve de campo editable prometería renombrar algo que no es el título. El
+   * click sigue haciendo lo mismo que antes, solo se calla el relieve.
+   */
+  const isTopicEditable = canUpdate && !isEmpty;
 
   return (
     <PermissionGuard permissions="conversations:read" redirect={true} fallbackRoute="/dashboard">
@@ -485,6 +492,16 @@ export default function WorkflowChatPage() {
                       <ArrowLeft size={20} />
                     </button>
                     <div>
+                      {/* Mismo tratamiento que la tarjeta del listado: etiqueta que
+                          nombra el campo y hueco con sombra interior al pasar por
+                          encima. Con la conversación vacía el encabezado muestra el
+                          nombre del workflow, no un asunto, así que ahí no va la
+                          etiqueta. */}
+                      {!isEmpty && (
+                        <span className="block text-[10px] font-medium uppercase tracking-wide text-text-tertiary">
+                          {t('topicLabel')}
+                        </span>
+                      )}
                       {isEditing ? (
                         <input
                           value={renameValue}
@@ -520,7 +537,7 @@ export default function WorkflowChatPage() {
                             }
                           }}
                           autoFocus
-                          className="w-full min-w-[200px] border-b border-border-hover bg-transparent p-0 text-lg font-bold text-text-primary outline-none"
+                          className="-mx-2 w-[calc(100%+1rem)] min-w-[200px] rounded-lg border border-border-hover bg-surface-secondary px-2 py-1 text-lg font-bold text-text-primary shadow-[inset_0_1px_3px_var(--shadow-sm)] outline-none"
                         />
                       ) : (
                         <h1
@@ -530,12 +547,24 @@ export default function WorkflowChatPage() {
                               setIsEditing(true);
                             }
                           }}
-                          className={`flex items-center gap-2 truncate text-base font-bold text-text-primary lg:text-lg ${canUpdate ? 'cursor-pointer transition-opacity hover:opacity-70' : ''}`}
+                          className={`group/topic -mx-2 flex items-center gap-2 rounded-lg border border-transparent px-2 py-1 text-base font-bold text-text-primary lg:text-lg ${
+                            isTopicEditable
+                              ? 'cursor-text transition-all duration-200 hover:border-border hover:bg-surface-secondary hover:shadow-[inset_0_1px_3px_var(--shadow-sm)]'
+                              : ''
+                          }`}
                           title={canUpdate ? t('editNameTitle') : undefined}
                         >
-                          {isEmpty
-                            ? workflow?.name
-                            : conversationData?.title || t('newConversation')}
+                          <span className="truncate">
+                            {isEmpty
+                              ? workflow?.name
+                              : conversationData?.title || t('newConversation')}
+                          </span>
+                          {isTopicEditable && (
+                            <Pencil
+                              size={12}
+                              className="shrink-0 text-text-tertiary opacity-0 transition-opacity group-hover/topic:opacity-100"
+                            />
+                          )}
                         </h1>
                       )}
                       <p className="max-w-[180px] truncate text-xs text-text-tertiary lg:max-w-md">

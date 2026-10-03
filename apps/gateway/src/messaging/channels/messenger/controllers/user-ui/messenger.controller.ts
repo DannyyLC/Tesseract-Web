@@ -558,15 +558,6 @@ export class MessengerController {
       return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
     }
 
-    // Las credenciales tienen que ser de esa página (ver assertCredentialsOwnPage). Sin ellas ya
-    // no se cae a las de la plataforma: eso dejaba registrar cualquier página suscrita a la app.
-    const ownership = await this.checkOwnership(res, {
-      pageId: body.pageId,
-      pageAccessToken: body.pageAccessToken,
-      appSecret: body.appSecret,
-    });
-    if (ownership) return ownership;
-
     // El workflow llega del body: tiene que ser de esta organización.
     const workflow = await this.workflowsService.getRoutingState(
       currUser.organizationId,
@@ -579,6 +570,16 @@ export class MessengerController {
         .setMessage('Workflow not found in this organization');
       return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
     }
+
+    // Las credenciales tienen que ser de esa página (ver assertCredentialsOwnPage). Sin ellas ya
+    // no se cae a las de la plataforma: eso dejaba registrar cualquier página suscrita a la app.
+    // Va después de resolver el workflow porque esto sale a la red y aquello es una consulta.
+    const ownership = await this.checkOwnership(res, {
+      pageId: body.pageId,
+      pageAccessToken: body.pageAccessToken,
+      appSecret: body.appSecret,
+    });
+    if (ownership) return ownership;
 
     const response = await this.messengerConfigService.createRecord(
       currUser.organizationId,

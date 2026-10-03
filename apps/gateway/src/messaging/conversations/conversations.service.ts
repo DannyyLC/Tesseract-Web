@@ -20,6 +20,7 @@ import {
 } from '@tesseract/database';
 import { UtilityService } from '@/platform/utility/utility.service';
 import { buildConversationTitle } from './conversation-title';
+import { buildLastMessagePreview, resolveLastMessageAuthor } from './last-message';
 import { messengerExternalId } from '@/platform/common/utils/messenger-external-id';
 import { normalizePhone } from '@/platform/common/utils/normalize-phone';
 import { KmsService } from '@/automation/tools/core/kms.service';
@@ -917,6 +918,17 @@ export class ConversationsService {
         },
         messengerConfig: { select: { pageName: true, pageId: true, pageAccessToken: true } },
         whatsappConfig: { select: { phoneNumber: true } },
+        // Último mensaje para la vista previa del listado. SYSTEM y TOOL quedan fuera
+        // por el mismo criterio que el hilo (ver findOneForAdmin): no son turnos de la
+        // conversación, y un prompt de sistema como "último mensaje" no le dice nada a
+        // nadie. Solo lo que hace falta para la línea: el texto completo de todos los
+        // mensajes de la página sería un payload enorme para pintar una línea.
+        messages: {
+          where: { role: { in: [ChatRole.USER, ChatRole.ASSISTANT] } },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { role: true, content: true, metadata: true },
+        },
       },
     });
 
@@ -930,7 +942,7 @@ export class ConversationsService {
     );
 
     const items = await Promise.all(
-      paginatedResult.items.map(async (c) => {
+      paginatedResult.items.map(async ({ messages, ...c }) => {
         let endUserName = c.endUser?.name ?? null;
 
         if (
@@ -960,9 +972,16 @@ export class ConversationsService {
           }
         }
 
+        // `messages` se queda fuera del item a propósito (se desestructuró arriba): de
+        // ahí solo salen estos dos campos, y devolver el mensaje crudo invitaría a que
+        // alguien lo leyera desde el front sin pasar por este resumen.
+        const lastMessage = messages[0];
+
         return {
           ...c,
           isInternal: !!c.userId,
+          lastMessagePreview: lastMessage ? buildLastMessagePreview(lastMessage.content) : null,
+          lastMessageAuthor: lastMessage ? resolveLastMessageAuthor(lastMessage, c) : null,
           endUserPhoneNumber: c.endUser?.phoneNumber ?? null,
           whatsappBusinessPhoneNumber: c.whatsappConfig?.phoneNumber ?? null,
           endUserName,

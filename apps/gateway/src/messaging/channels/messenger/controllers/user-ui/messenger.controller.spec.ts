@@ -95,6 +95,11 @@ describe('MessengerController · gestión', () => {
   });
 
   describe('prueba de propiedad de la página', () => {
+    // La prueba sale a la red, así que corre después de resolver el workflow: sin uno válido
+    // el alta ni siquiera llega a ella. `clearAllMocks` no borra el `mockResolvedValue` que
+    // deja el test de arriba, de modo que hay que reponerlo.
+    beforeEach(() => workflowsService.getRoutingState.mockResolvedValue({ id: 'wf-1' }));
+
     const rejected = () =>
       service.assertCredentialsOwnPage.mockRejectedValueOnce(
         new BadRequestException('El Page Access Token no pertenece a la página p-ajena'),
@@ -130,6 +135,23 @@ describe('MessengerController · gestión', () => {
       expect(service.updateConfig).not.toHaveBeenCalled();
     });
 
+    it('da de alta la página cuando Meta confirma que el token es de ella', async () => {
+      await controller.createConfig(
+        currUser,
+        { workflowId: 'wf-1', pageId: 'p-1', pageName: 'x', pageAccessToken: 't', appSecret: 's' },
+        res(),
+      );
+      expect(service.createRecord).toHaveBeenCalledWith(
+        ORG,
+        'wf-1',
+        'p-1',
+        'x',
+        't',
+        's',
+        undefined,
+      );
+    });
+
     it('editar solo el nombre no llama a Meta', async () => {
       await controller.updateConfig(currUser, ownConfig.id, { pageName: 'Nuevo' }, res());
       expect(service.assertCredentialsOwnPage).not.toHaveBeenCalled();
@@ -147,6 +169,7 @@ describe('MessengerController · gestión', () => {
         { pageId: 'p-1', pageAccessToken: 'nuevo' },
         ownConfig,
       );
+      expect(service.updatePageAccessToken).toHaveBeenCalledWith(ownConfig.id, 'nuevo');
     });
   });
 

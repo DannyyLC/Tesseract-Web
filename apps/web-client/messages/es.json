@@ -1079,7 +1079,14 @@
     "blocked": "Bloqueado",
     "blockTitle": "Bloquear a este contacto (sus mensajes dejarán de llegar)",
     "unblockTitle": "Desbloquear a este contacto",
-    "blockedBadge": "Bloqueado"
+    "blockedBadge": "Bloqueado",
+    "topicLabel": "Asunto",
+    "lastMessageTitle": "Último mensaje de la conversación",
+    "lastMessageAtTitle": "Cuándo llegó el último mensaje",
+    "lastMessageNoText": "Adjunto sin texto",
+    "lastMessageAuthorClient": "Cliente",
+    "lastMessageAuthorAi": "Asistente IA",
+    "lastMessageAuthorYou": "Tú"
   },
   "ApiKeys": {
     "heading": "API Keys",
@@ -1537,7 +1544,7 @@
     "pageIdLabel": "Page ID",
     "pageIdPlaceholder": "Ej: 102938475610293",
     "pageNameLabel": "Nombre de la página",
-    "pageNamePlaceholder": "Ej: RGM Advanced",
+    "pageNamePlaceholder": "Ej: Mi página de Facebook",
     "descriptionLabel": "Descripción",
     "optionalSuffix": "(Opcional)",
     "descriptionPlaceholder": "Notas internas sobre esta configuración del canal",
@@ -1796,7 +1803,7 @@
     "pageIdPlaceholder": "E.J: 102938475610293",
     "pageIdHint": "Es la llave con la que Meta identifica esta página en cada llamada a nuestro sistema. Se cuidadoso al editarla, ya que si no coincide con la página que Meta tiene registrada, tu agente dejara de funcionar en nuestro sistema.",
     "pageNameLabel": "Nombre de la página",
-    "pageNamePlaceholder": "Ej: RGM Advanced",
+    "pageNamePlaceholder": "Ej: Mi página de Facebook",
     "descriptionLabel": "Descripción",
     "optionalSuffix": "(Opcional)",
     "descriptionPlaceholder": "Notas internas sobre esta configuración del canal",

@@ -182,6 +182,8 @@ export class ConversationsController {
       messengerSenderId: c.messengerSenderId ?? null,
       messageCount: c.messageCount,
       lastMessageAt: c.lastMessageAt,
+      lastMessagePreview: c.lastMessagePreview ?? null,
+      lastMessageAuthor: c.lastMessageAuthor ?? null,
       closedAt: c.closedAt,
       workflowId: c.workflowId,
       userId: c.userId,
