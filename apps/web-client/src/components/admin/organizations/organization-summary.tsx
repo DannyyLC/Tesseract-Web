@@ -1,10 +1,11 @@
 'use client';
 
-import { ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, CalendarClock, CalendarPlus, Loader2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { useAdminOrganization } from '@/hooks/identity/use-admin-organizations';
 import { toIntlLocale } from '@/lib/intl-locale';
+import { CreditsCard, UsageGrid, daysUntil, planColor } from './org-visuals';
 
 interface Props {
   organizationId: string;
@@ -32,70 +33,33 @@ export function OrganizationSummary({ organizationId }: Props) {
     return <p className="py-4 text-center text-sm text-danger">{t('loadError')}</p>;
   }
 
-  const limits = org.planLimits.limits;
-  const fmt = (max: number) => (max === -1 ? '∞' : max.toLocaleString(intlLocale));
+  const date = (value: string) => new Date(value).toLocaleDateString(intlLocale);
 
   return (
     <div className="space-y-4 py-4">
-      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <dt className="text-xs text-text-secondary">{t('plan')}</dt>
-          <dd className="text-sm text-text-primary">{org.plan}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-text-secondary">{t('created')}</dt>
-          <dd className="text-sm text-text-primary">
-            {new Date(org.createdAt).toLocaleDateString(intlLocale)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs text-text-secondary">{t('credits')}</dt>
-          <dd className={`text-sm ${org.usage.credits < 0 ? 'text-danger' : 'text-text-primary'}`}>
-            {org.usage.credits.toLocaleString(intlLocale)} / {fmt(limits.monthlyCredits)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs text-text-secondary">{t('renews')}</dt>
-          <dd className="text-sm text-text-primary">
-            {org.subscription
-              ? new Date(org.subscription.currentPeriodEnd).toLocaleDateString(intlLocale)
-              : '—'}
-          </dd>
-        </div>
-      </dl>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+        <span className="font-semibold tracking-wide" style={{ color: planColor(org.plan) }}>
+          {org.plan}
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-text-secondary">
+          <CalendarPlus size={13} />
+          {t('createdOn', { date: date(org.createdAt) })}
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-text-secondary">
+          <CalendarClock size={13} />
+          {org.subscription
+            ? t('renewsOn', {
+                date: date(org.subscription.currentPeriodEnd),
+                days: daysUntil(org.subscription.currentPeriodEnd),
+              })
+            : t('noSubscription')}
+        </span>
+      </div>
 
-      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <div>
-          <dt className="text-xs text-text-secondary">{t('workflows')}</dt>
-          <dd className="text-sm text-text-primary">
-            {org.usage.workflows} / {fmt(limits.maxWorkflows)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs text-text-secondary">{t('users')}</dt>
-          <dd className="text-sm text-text-primary">
-            {org.usage.users} / {fmt(limits.maxUsers)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs text-text-secondary">{t('apiKeys')}</dt>
-          <dd className="text-sm text-text-primary">
-            {org.usage.apiKeys} / {fmt(limits.maxApiKeys)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs text-text-secondary">{t('datasets')}</dt>
-          <dd className="text-sm text-text-primary">
-            {org.usage.datasets} / {fmt(limits.maxDatasets)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs text-text-secondary">{t('datasetRows')}</dt>
-          <dd className="text-sm text-text-primary">
-            {org.usage.datasetRows} / {fmt(limits.maxDatasetRows)}
-          </dd>
-        </div>
-      </dl>
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <CreditsCard org={org} />
+        <UsageGrid org={org} />
+      </div>
 
       <div className="pt-1">
         <Link

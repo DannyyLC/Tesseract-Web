@@ -11,7 +11,6 @@ import {
   emptyClass,
   pageSubtitleClass,
   pageTitleClass,
-  rowActiveClass,
   rowClass,
   searchClass,
   searchIconClass,
@@ -91,8 +90,13 @@ export default function AdminOrganizationsPage() {
             {data.data.map((org) => {
               const isExpanded = expandedId === org.id;
               return (
-                // Expandida se queda enmarcada para agrupar el resumen con su fila.
-                <li key={org.id} className={isExpanded ? rowActiveClass : rowClass}>
+                // Expandida se queda enmarcada solo con borde (sin el fondo gris de
+                // `rowActiveClass`) para que el resumen, que ya tiene sus propias tarjetas,
+                // no quede sobre un panel de otro tono.
+                <li
+                  key={org.id}
+                  className={isExpanded ? 'rounded-xl border border-border' : rowClass}
+                >
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : org.id)}
                     aria-expanded={isExpanded}
