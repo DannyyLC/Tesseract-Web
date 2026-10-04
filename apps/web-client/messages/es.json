@@ -2141,7 +2141,32 @@
       "loadError": "No se pudieron cargar las organizaciones.",
       "empty": "No hay organizaciones que coincidan.",
       "inactiveBadge": "inactiva",
-      "pagerSummary": "Página {page} de {totalPages} · {total} organizaciones"
+      "pagerSummary": "Página {page} de {totalPages} · {total} organizaciones",
+      "filteringBy": "Mostrando: {segment}",
+      "clearSegment": "Quitar filtro",
+      "Overview": {
+        "activeTitle": "Organizaciones activas",
+        "activeHint": "{paying} pagan · {free} en FREE · {inactive} desactivadas",
+        "mrrTitle": "Ingreso mensual",
+        "mrrUsd": "+ {amount} cobrados en dólares",
+        "mrrHint": "{priced, plural, one {# organización pagando} other {# organizaciones pagando}} · {manual, plural, one {# manual} other {# manuales}}",
+        "mrrUnpriced": "{count, plural, one {# pagando sin precio resoluble} other {# pagando sin precio resoluble}}",
+        "attentionTitle": "Requieren atención",
+        "allGood": "Todo en orden",
+        "negativeBalance": "con saldo negativo",
+        "lowCredits": "con créditos bajos",
+        "paymentIssue": "con pago vencido o incompleto",
+        "manualRenewalDue": "con renovación manual por vencer",
+        "idleTitle": "Sin actividad ({days} días)",
+        "idleHint": "Activas, sin ejecutar nada en {days} días",
+        "idleNone": "Todas tuvieron actividad",
+        "segments": {
+          "paying": "organizaciones que pagan",
+          "free": "organizaciones en FREE",
+          "attention": "organizaciones que requieren atención",
+          "idle": "organizaciones sin actividad"
+        }
+      }
     },
     "OrganizationSummary": {
       "loadError": "No se pudo cargar la organización.",

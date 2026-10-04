@@ -70,6 +70,16 @@ export class AnalyticsAdminController {
     return new ApiResponseBuilder().setData(result).build();
   }
 
+  @Get('organizations-overview')
+  @ApiOperation({
+    summary:
+      'Números del listado de organizaciones: activas, MRR, atención requerida e inactividad',
+  })
+  async organizationsOverview(): Promise<ApiResponse> {
+    const result = await this.analyticsService.getOrganizationsOverview();
+    return new ApiResponseBuilder().setData(result).build();
+  }
+
   @Get('workflows/:id')
   @ApiOperation({
     summary: 'Detalle de un workflow: costo y tokens por ejecución, modelos, serie diaria y margen',

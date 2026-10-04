@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronDown, Search } from 'lucide-react';
+import { ChevronDown, Search, X } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAdminOrganizations } from '@/hooks/identity/use-admin-organizations';
 import { OrganizationSummary } from '@/components/admin/organizations/organization-summary';
+import { OrganizationsOverviewCards } from '@/components/admin/organizations/organizations-overview-cards';
+import type { AdminOrganizationSegment } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import {
   emptyClass,
   pageSubtitleClass,
@@ -32,16 +34,18 @@ export default function AdminOrganizationsPage() {
   const { pageSize, setPageSize } = usePageSize('admin-organizations');
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [segment, setSegment] = useState<AdminOrganizationSegment | null>(null);
 
   const search = useDebounce(searchInput, 400);
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, segment]);
 
   const { data, isLoading, error } = useAdminOrganizations({
     search: search || undefined,
     isActive: statusFilter === '' ? undefined : statusFilter === 'true',
+    segment: segment ?? undefined,
     page,
     limit: pageSize,
   });
@@ -52,6 +56,20 @@ export default function AdminOrganizationsPage() {
         <h1 className={pageTitleClass}>{t('title')}</h1>
         <p className={pageSubtitleClass}>{t('subtitle')}</p>
       </div>
+
+      <OrganizationsOverviewCards segment={segment} onSegmentChange={setSegment} />
+
+      {segment && (
+        <p className="flex flex-wrap items-center gap-2 text-sm text-text-secondary">
+          {t('filteringBy', { segment: t(`Overview.segments.${segment}`) })}
+          <button
+            onClick={() => setSegment(null)}
+            className="inline-flex items-center gap-1 text-text-primary underline-offset-2 hover:underline"
+          >
+            <X size={14} /> {t('clearSegment')}
+          </button>
+        </p>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">

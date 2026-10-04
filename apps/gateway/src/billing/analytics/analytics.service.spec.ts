@@ -13,6 +13,7 @@ const mockPrismaService = {
   },
   organization: {
     findMany: jest.fn(),
+    count: jest.fn(),
   },
   workflow: {
     findUnique: jest.fn(),
@@ -385,6 +386,70 @@ describe('AdminAnalyticsService', () => {
 
       expect(result.timeseries).toHaveLength(7); // hoy + 6 días atrás
       expect(result.timeseries.every((p) => p.executions === 0)).toBe(true);
+    });
+  });
+
+  describe('getOrganizationsOverview — MRR', () => {
+    const subscription = (overrides: Record<string, unknown> = {}) => ({
+      status: 'ACTIVE',
+      currency: 'mxn',
+      customMonthlyPrice: null,
+      stripeSubscriptionId: 'sub_123',
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      mockPrismaService.organization.count.mockResolvedValue(0);
+      // STARTER: 49900 centavos en MXN, 2500 en USD.
+      mockPriceCatalogService.pricesFor.mockResolvedValue({ mxn: 49900, usd: 2500 });
+    });
+
+    it('suma por moneda: Stripe en centavos, precio custom en unidades, sin convertir monedas', async () => {
+      mockPrismaService.organization.findMany.mockResolvedValue([
+        { plan: SubscriptionPlan.STARTER, subscription: subscription() },
+        { plan: SubscriptionPlan.STARTER, subscription: subscription({ currency: 'usd' }) },
+        {
+          plan: SubscriptionPlan.BUSINESS,
+          subscription: subscription({
+            customMonthlyPrice: decimal(3000),
+            stripeSubscriptionId: null,
+          }),
+        },
+      ]);
+
+      const { mrr } = await service.getOrganizationsOverview();
+
+      expect(mrr.mxn).toBe(499 + 3000);
+      expect(mrr.usd).toBe(25);
+      expect(mrr.priced).toBe(3);
+      expect(mrr.manual).toBe(1);
+      expect(mrr.unpriced).toBe(0);
+    });
+
+    it('sin suscripción vigente o sin precio resoluble: cuenta como unpriced, no suma 0', async () => {
+      mockPriceCatalogService.pricesFor.mockResolvedValue({});
+      mockPrismaService.organization.findMany.mockResolvedValue([
+        { plan: SubscriptionPlan.GROWTH, subscription: null },
+        { plan: SubscriptionPlan.GROWTH, subscription: subscription({ status: 'CANCELED' }) },
+        { plan: SubscriptionPlan.GROWTH, subscription: subscription() }, // Stripe sin precio
+      ]);
+
+      const { mrr } = await service.getOrganizationsOverview();
+
+      expect(mrr.unpriced).toBe(3);
+      expect(mrr.priced).toBe(0);
+      expect(mrr.mxn).toBe(0);
+    });
+
+    it('Stripe caído: excluye del MRR sin tumbar la petición', async () => {
+      mockPriceCatalogService.pricesFor.mockRejectedValue(new Error('Stripe down'));
+      mockPrismaService.organization.findMany.mockResolvedValue([
+        { plan: SubscriptionPlan.STARTER, subscription: subscription() },
+      ]);
+
+      const { mrr } = await service.getOrganizationsOverview();
+
+      expect(mrr.unpriced).toBe(1);
     });
   });
 });

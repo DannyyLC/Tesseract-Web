@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { addDaysInZone, startOfDayInZone, zonedDayKey } from '@/platform/common/utils/zoned-dates';
 import { Prisma } from '@tesseract/database';
-import { getPlanLimits, SubscriptionPlan, WorkflowCategory } from '@tesseract/types';
+import { getPlanLimits, PlanPrices, SubscriptionPlan, WorkflowCategory } from '@tesseract/types';
 import { PriceCatalogService } from '../subscriptions/price-catalog.service';
 import { AdminAnalyticsOverviewResponseDto } from './dto/admin-analytics-overview-response.dto';
 import { AdminAnalyticsTimeseriesResponseDto } from './dto/admin-analytics-timeseries-response.dto';
@@ -15,6 +15,14 @@ import {
   AdminAnalyticsOrgMarginRowDto,
 } from './dto/admin-analytics-organizations-margin-response.dto';
 import { AdminAnalyticsWorkflowResponseDto } from './dto/admin-analytics-workflow-response.dto';
+import { AdminOrganizationsOverviewResponseDto } from './dto/admin-analytics-organizations-overview-response.dto';
+import {
+  ACTIVE_CUSTOMER_WHERE,
+  CUSTOMER_WHERE,
+  IDLE_DAYS,
+  attentionReasons,
+  segmentWhere,
+} from '@/identity/organizations/admin-organization-segments';
 import { toText } from '@/platform/common/utils/to-text';
 
 /**
@@ -535,6 +543,118 @@ export class AdminAnalyticsService {
     const total = rows.length;
     const start = (page - 1) * limit;
     return { items: rows.slice(start, start + limit), page, limit, total };
+  }
+
+  /**
+   * Números de arriba del listado de organizaciones: cuántas hay, cuánto ingreso recurrente
+   * dejan, cuáles piden atención y cuáles dejaron de usar la plataforma. Los conteos usan los
+   * mismos `where` que el filtro del listado (`admin-organization-segments.ts`), así que el
+   * número de cada tarjeta coincide con lo que se ve al hacer clic en ella.
+   */
+  async getOrganizationsOverview(): Promise<AdminOrganizationsOverviewResponseDto> {
+    const now = new Date();
+    const reasons = attentionReasons(now);
+    const count = (where: Prisma.OrganizationWhereInput) =>
+      this.prisma.organization.count({ where });
+
+    const [
+      active,
+      inactive,
+      paying,
+      free,
+      attention,
+      negativeBalance,
+      lowCredits,
+      paymentIssue,
+      manualRenewalDue,
+      idle,
+      payingOrganizations,
+    ] = await Promise.all([
+      count(ACTIVE_CUSTOMER_WHERE),
+      count({ ...CUSTOMER_WHERE, isActive: false }),
+      count(segmentWhere('paying', now)),
+      count(segmentWhere('free', now)),
+      count(segmentWhere('attention', now)),
+      count(reasons.negativeBalance),
+      count(reasons.lowCredits),
+      count(reasons.paymentIssue),
+      count(reasons.manualRenewalDue),
+      count(segmentWhere('idle', now)),
+      this.prisma.organization.findMany({
+        where: segmentWhere('paying', now),
+        select: {
+          plan: true,
+          subscription: {
+            select: {
+              status: true,
+              currency: true,
+              customMonthlyPrice: true,
+              stripeSubscriptionId: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const mrr = { mxn: 0, usd: 0, priced: 0, unpriced: 0, manual: 0 };
+    const planPrices = new Map<SubscriptionPlan, PlanPrices | null>();
+
+    for (const org of payingOrganizations) {
+      const subscription = org.subscription;
+      // Un PAST_DUE sigue siendo ingreso recurrente (en riesgo, y por eso también sale en
+      // "Requieren atención"); CANCELED o INCOMPLETE ya no lo son.
+      if (!subscription || !['ACTIVE', 'PAST_DUE'].includes(subscription.status)) {
+        mrr.unpriced += 1;
+        continue;
+      }
+
+      const currency = subscription.currency.toLowerCase();
+      if (currency !== 'mxn' && currency !== 'usd') {
+        mrr.unpriced += 1;
+        continue;
+      }
+
+      // El precio custom está en unidades de la moneda de la suscripción; el de Stripe, en
+      // centavos.
+      let amount = subscription.customMonthlyPrice?.toNumber() ?? null;
+      if (amount == null) {
+        const plan = org.plan as SubscriptionPlan;
+        if (!planPrices.has(plan)) {
+          try {
+            planPrices.set(plan, await this.priceCatalogService.pricesFor(plan));
+          } catch (error) {
+            this.logger.warn(
+              `No se pudo consultar el precio de ${plan} en Stripe: se excluye del MRR. ${error instanceof Error ? error.message : toText(error)}`,
+            );
+            planPrices.set(plan, null);
+          }
+        }
+        const cents = planPrices.get(plan)?.[currency];
+        amount = cents != null ? cents / 100 : null;
+      }
+
+      if (amount == null) {
+        mrr.unpriced += 1;
+        continue;
+      }
+
+      mrr[currency] += amount;
+      mrr.priced += 1;
+      if (!subscription.stripeSubscriptionId) mrr.manual += 1;
+    }
+
+    return {
+      organizations: { active, inactive, paying, free },
+      mrr: { ...mrr, mxn: round(mrr.mxn, 2), usd: round(mrr.usd, 2) },
+      attention: {
+        total: attention,
+        negativeBalance,
+        lowCredits,
+        paymentIssue,
+        manualRenewalDue,
+      },
+      idle: { total: idle, days: IDLE_DAYS },
+    };
   }
 
   /**

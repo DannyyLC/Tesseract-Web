@@ -167,6 +167,20 @@ export interface AdminWorkflowAnalytics {
   topExecutions: AdminWorkflowAnalyticsTopExecution[];
 }
 
+export interface AdminOrganizationsOverview {
+  organizations: { active: number; inactive: number; paying: number; free: number };
+  /** Ingreso mensual recurrente por moneda, en unidades; no se convierte entre monedas. */
+  mrr: { mxn: number; usd: number; priced: number; unpriced: number; manual: number };
+  attention: {
+    total: number;
+    negativeBalance: number;
+    lowCredits: number;
+    paymentIssue: number;
+    manualRenewalDue: number;
+  };
+  idle: { total: number; days: number };
+}
+
 class AnalyticsAdminApi {
   public apiRequestManager: ApiRequestManager;
   private static BASE_URL = '/admin/analytics';
@@ -211,6 +225,13 @@ class AnalyticsAdminApi {
     );
     return unwrapData(result);
   }
+  public async getOrganizationsOverview(): Promise<AdminOrganizationsOverview> {
+    const result = await this.apiRequestManager.get<ApiResponse<AdminOrganizationsOverview>>(
+      `${AnalyticsAdminApi.BASE_URL}/organizations-overview`,
+    );
+    return unwrapData(result);
+  }
+
   public async getWorkflowAnalytics(id: string, period: string): Promise<AdminWorkflowAnalytics> {
     const result = await this.apiRequestManager.get<ApiResponse<AdminWorkflowAnalytics>>(
       `${AnalyticsAdminApi.BASE_URL}/workflows/${id}?period=${period}`,

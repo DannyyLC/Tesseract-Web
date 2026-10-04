@@ -2141,7 +2141,32 @@
       "loadError": "Organizations could not be loaded.",
       "empty": "No organizations match.",
       "inactiveBadge": "inactive",
-      "pagerSummary": "Page {page} of {totalPages} · {total} organizations"
+      "pagerSummary": "Page {page} of {totalPages} · {total} organizations",
+      "filteringBy": "Showing: {segment}",
+      "clearSegment": "Clear filter",
+      "Overview": {
+        "activeTitle": "Active organizations",
+        "activeHint": "{paying} paying · {free} on FREE · {inactive} deactivated",
+        "mrrTitle": "Monthly revenue",
+        "mrrUsd": "+ {amount} billed in dollars",
+        "mrrHint": "{priced, plural, one {# paying organization} other {# paying organizations}} · {manual} manual",
+        "mrrUnpriced": "{count} paying without a resolvable price",
+        "attentionTitle": "Need attention",
+        "allGood": "All good",
+        "negativeBalance": "with negative balance",
+        "lowCredits": "with low credits",
+        "paymentIssue": "with past-due or incomplete payment",
+        "manualRenewalDue": "with manual renewal due",
+        "idleTitle": "No activity ({days} days)",
+        "idleHint": "Active, with no executions in {days} days",
+        "idleNone": "All had activity",
+        "segments": {
+          "paying": "paying organizations",
+          "free": "FREE organizations",
+          "attention": "organizations that need attention",
+          "idle": "organizations with no activity"
+        }
+      }
     },
     "OrganizationSummary": {
       "loadError": "The organization could not be loaded.",

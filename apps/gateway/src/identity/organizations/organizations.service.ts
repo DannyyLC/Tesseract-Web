@@ -37,6 +37,7 @@ import {
 } from './dto';
 import { maskEmail } from '@/platform/common/utils/mask-email';
 import { checkVerificationCode } from '@/identity/auth/utils/verification-code.util';
+import { segmentWhere } from './admin-organization-segments';
 
 /**
  * Servicio para gestionar organizaciones
@@ -99,17 +100,23 @@ export class OrganizationsService {
    * Devuelve lo mínimo para poblar un selector; el detalle se pide con findOne().
    */
   async findAllForAdmin(query: QueryOrganizationsAdminDto) {
-    const { search, isActive, page = 1, limit = DEFAULT_PAGE_SIZE } = query;
+    const { search, isActive, segment, page = 1, limit = DEFAULT_PAGE_SIZE } = query;
     const skip = (page - 1) * limit;
 
-    const where = {
-      ...(isActive !== undefined && { isActive }),
-      ...(search && {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' as const } },
-          { slug: { contains: search, mode: 'insensitive' as const } },
-        ],
-      }),
+    // `AND` y no un spread: el segmento y la búsqueda pueden traer cada uno su propio `OR`.
+    const where: Prisma.OrganizationWhereInput = {
+      AND: [
+        isActive !== undefined ? { isActive } : {},
+        search
+          ? {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' as const } },
+                { slug: { contains: search, mode: 'insensitive' as const } },
+              ],
+            }
+          : {},
+        segment ? segmentWhere(segment, new Date()) : {},
+      ],
     };
 
     const [data, total] = await Promise.all([

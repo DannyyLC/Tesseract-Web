@@ -12,9 +12,13 @@ export interface AdminOrganization {
   _count: { workflows: number };
 }
 
+/** Segmentos de las tarjetas del listado (ver `admin-organization-segments.ts` del gateway). */
+export type AdminOrganizationSegment = 'paying' | 'free' | 'attention' | 'idle';
+
 export interface AdminOrganizationsQuery {
   search?: string;
   isActive?: boolean;
+  segment?: AdminOrganizationSegment;
   page?: number;
   limit?: number;
 }
@@ -95,6 +99,7 @@ class OrganizationsAdminApi {
     const params = new URLSearchParams();
     if (query.search) params.append('search', query.search);
     if (query.isActive !== undefined) params.append('isActive', String(query.isActive));
+    if (query.segment) params.append('segment', query.segment);
     if (query.page) params.append('page', String(query.page));
     if (query.limit) params.append('limit', String(query.limit));
 
