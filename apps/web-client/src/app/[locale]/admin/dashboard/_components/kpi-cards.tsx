@@ -6,7 +6,7 @@ interface Props {
   kpis: AdminAnalyticsKpis;
 }
 
-function Card({
+export function KpiCard({
   label,
   value,
   hint,
@@ -57,18 +57,18 @@ export function KpiCards({ kpis }: Props) {
   return (
     <div className="space-y-8 px-2">
       <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
-        <Card
+        <KpiCard
           label={t('executions')}
           value={formatCompactNumber(kpis.totalExecutions)}
           hint={t('activeOrgsHint', { count: formatCompactNumber(kpis.activeOrganizations) })}
         />
-        <Card
+        <KpiCard
           label={t('realCost')}
           value={formatUSD(kpis.totalCostUSD)}
           hint={t('realCostHint')}
           divided
         />
-        <Card
+        <KpiCard
           divided
           label={t('charged')}
           value={formatUSD(kpis.estimatedRevenueUSD)}
@@ -78,7 +78,7 @@ export function KpiCards({ kpis }: Props) {
               : t('creditsHint', { count: kpis.totalCreditsCharged })
           }
         />
-        <Card
+        <KpiCard
           divided
           label={t('margin')}
           value={formatUSD(kpis.marginUSD)}
@@ -92,12 +92,12 @@ export function KpiCards({ kpis }: Props) {
       </div>
 
       <div className="grid grid-cols-1 gap-8 border-t border-[var(--border-subtle)] pt-8 md:grid-cols-2">
-        <Card
+        <KpiCard
           label={t('overageRate')}
           value={formatPct(kpis.overageRate)}
           hint={t('overageRateHint', { count: formatCompactNumber(kpis.overageExecutions) })}
         />
-        <Card
+        <KpiCard
           label={t('creditsCharged')}
           value={formatCompactNumber(kpis.totalCreditsCharged)}
           hint={t('creditsChargedHint')}

@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { SubscriptionPlan } from '@tesseract/types';
+import { NotFoundException } from '@nestjs/common';
+import { SubscriptionPlan, WorkflowCategory } from '@tesseract/types';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { AdminAnalyticsService } from './analytics.service';
 import { PriceCatalogService } from '../subscriptions/price-catalog.service';
@@ -12,6 +13,9 @@ const mockPrismaService = {
   },
   organization: {
     findMany: jest.fn(),
+  },
+  workflow: {
+    findUnique: jest.fn(),
   },
   $queryRaw: jest.fn(),
 };
@@ -210,6 +214,177 @@ describe('AdminAnalyticsService', () => {
       expect(overview.kpis.unpricedOrganizations).toBe(1); // org-b
       expect(overview.kpis.estimatedRevenueUSD).toBe(0); // org-a (FREE) aporta 0, org-b se excluye
       expect(overview.byCategory).toHaveLength(3); // LIGHT/STANDARD/ADVANCED siempre presentes
+    });
+  });
+
+  describe('getWorkflowAnalytics', () => {
+    const workflow = {
+      id: 'wf-1',
+      name: 'Asistente',
+      category: WorkflowCategory.STANDARD,
+      organizationId: 'org-1',
+      organization: { name: 'Org Uno', plan: SubscriptionPlan.STARTER },
+    };
+
+    /** Fila resumen con todo en null/0; cada test sobreescribe solo lo que le importa. */
+    const summaryRow = (overrides: Record<string, unknown> = {}) => ({
+      executions: 0,
+      completed: 0,
+      failed: 0,
+      charged: 0,
+      costUSD: 0,
+      creditsCharged: 0,
+      costAvg: null,
+      costP50: null,
+      costP95: null,
+      costP99: null,
+      costMax: null,
+      inputAvg: null,
+      inputP50: null,
+      inputP95: null,
+      inputMax: null,
+      outputAvg: null,
+      outputP50: null,
+      outputP95: null,
+      outputMax: null,
+      inputTotal: 0,
+      outputTotal: 0,
+      durationAvg: null,
+      durationP50: null,
+      durationP95: null,
+      durationMax: null,
+      ...overrides,
+    });
+
+    /** Orden de las consultas: resumen, modelos, serie diaria, top ejecuciones y, al final, el histograma. */
+    const mockQueries = (
+      summary: Record<string, unknown>,
+      models: unknown[] = [],
+      days: unknown[] = [],
+      top: unknown[] = [],
+      buckets: unknown[] = [],
+    ) => {
+      // `clearAllMocks` no vacía la cola de `Once`: si un test no llega al histograma, su respuesta
+      // quedaría encolada para el siguiente. Se reinicia aquí.
+      mockPrismaService.$queryRaw.mockReset();
+      mockPrismaService.$queryRaw
+        .mockResolvedValueOnce([summary])
+        .mockResolvedValueOnce(models)
+        .mockResolvedValueOnce(days)
+        .mockResolvedValueOnce(top)
+        .mockResolvedValueOnce(buckets);
+    };
+
+    beforeEach(() => {
+      mockPrismaService.workflow.findUnique.mockResolvedValue(workflow);
+      mockPrismaService.organization.findMany.mockResolvedValue([
+        { id: 'org-1', plan: SubscriptionPlan.STARTER, subscription: null },
+      ]);
+      // STARTER = 750 créditos/mes; 7500 centavos -> 0.10 USD por crédito.
+      mockPriceCatalogService.pricesFor.mockResolvedValue({ usd: 7500 });
+    });
+
+    it('workflow inexistente: 404', async () => {
+      mockPrismaService.workflow.findUnique.mockResolvedValue(null);
+
+      await expect(service.getWorkflowAnalytics('nope', '30d')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('calcula ingreso y margen con el valor del crédito del plan de la organización', async () => {
+      mockQueries(
+        summaryRow({
+          executions: 4,
+          completed: 3,
+          failed: 1,
+          charged: 3,
+          costUSD: 0.3,
+          creditsCharged: 15,
+          inputTotal: 9000,
+          outputTotal: 600,
+        }),
+      );
+
+      const result = await service.getWorkflowAnalytics('wf-1', '30d');
+
+      expect(result.workflow.creditValueUSD).toBeCloseTo(0.1);
+      expect(result.kpis.estimatedRevenueUSD).toBeCloseTo(1.5); // 15 créditos × 0.10
+      expect(result.kpis.marginUSD).toBeCloseTo(1.2); // 1.5 - 0.3
+      expect(result.kpis.marginPct).toBeCloseTo(80);
+      expect(result.kpis.successRate).toBe(75);
+      expect(result.kpis.inputOutputRatio).toBe(15); // 9000 / 600
+    });
+
+    it('sin valor del crédito resoluble: ingreso y margen en null, nunca 0', async () => {
+      mockPriceCatalogService.pricesFor.mockResolvedValue({});
+      mockQueries(summaryRow({ executions: 2, charged: 2, costUSD: 0.2, creditsCharged: 10 }));
+
+      const result = await service.getWorkflowAnalytics('wf-1', '30d');
+
+      expect(result.kpis.estimatedRevenueUSD).toBeNull();
+      expect(result.kpis.marginUSD).toBeNull();
+      expect(result.kpis.marginPct).toBeNull();
+      expect(result.timeseries.every((p) => p.estimatedRevenueUSD === null)).toBe(true);
+    });
+
+    it('marca como estimada la fila de modelo sin usage_by_model y reparte el % del costo', async () => {
+      mockQueries(summaryRow({ executions: 3, charged: 3, costUSD: 0.4 }), [
+        {
+          model: 'claude-x',
+          executions: 2,
+          costUSD: 0.3,
+          inputTokens: 100,
+          outputTokens: 10,
+          estimated: false,
+        },
+        {
+          model: 'gpt-4o-mini',
+          executions: 1,
+          costUSD: 0.1,
+          inputTokens: 50,
+          outputTokens: 5,
+          estimated: true,
+        },
+      ]);
+
+      const result = await service.getWorkflowAnalytics('wf-1', '30d');
+
+      expect(result.byModel.map((m) => m.estimated)).toEqual([false, true]);
+      expect(result.byModel[0].costSharePct).toBe(75);
+      expect(result.byModel[1].costSharePct).toBe(25);
+    });
+
+    it('histograma: 10 rangos hasta el p99, el último abierto; vacío sin ejecuciones cobradas', async () => {
+      mockQueries(
+        summaryRow({ executions: 5, charged: 5, costP99: 1, costMax: 3 }),
+        [],
+        [],
+        [],
+        [
+          { bucket: 1, count: 3 },
+          { bucket: 10, count: 2 },
+        ],
+      );
+
+      const result = await service.getWorkflowAnalytics('wf-1', '30d');
+
+      expect(result.costDistribution).toHaveLength(10);
+      expect(result.costDistribution[0]).toEqual({ fromUSD: 0, toUSD: 0.1, count: 3 });
+      expect(result.costDistribution[9]).toEqual({ fromUSD: 0.9, toUSD: null, count: 2 });
+
+      mockQueries(summaryRow());
+      const empty = await service.getWorkflowAnalytics('wf-1', '30d');
+      expect(empty.costDistribution).toEqual([]);
+    });
+
+    it('rellena con 0 los días del periodo sin actividad', async () => {
+      mockQueries(summaryRow());
+
+      const result = await service.getWorkflowAnalytics('wf-1', '7d');
+
+      expect(result.timeseries).toHaveLength(7); // hoy + 6 días atrás
+      expect(result.timeseries.every((p) => p.executions === 0)).toBe(true);
     });
   });
 });

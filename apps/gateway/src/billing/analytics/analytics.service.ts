@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { addDaysInZone, startOfDayInZone, zonedDayKey } from '@/platform/common/utils/zoned-dates';
 import { Prisma } from '@tesseract/database';
@@ -14,6 +14,7 @@ import {
   AdminAnalyticsOrganizationsMarginResponseDto,
   AdminAnalyticsOrgMarginRowDto,
 } from './dto/admin-analytics-organizations-margin-response.dto';
+import { AdminAnalyticsWorkflowResponseDto } from './dto/admin-analytics-workflow-response.dto';
 import { toText } from '@/platform/common/utils/to-text';
 
 /**
@@ -44,6 +45,70 @@ interface ByCategoryRawRow {
   executions: number;
   costUSD: number;
   creditsCharged: number;
+}
+
+/** Cuántas ejecuciones más caras se listan en el detalle de un workflow. */
+const TOP_EXECUTIONS_LIMIT = 10;
+
+/** Rangos del histograma de costo por ejecución. */
+const COST_BUCKETS = 10;
+
+interface WorkflowSummaryRawRow {
+  executions: number;
+  completed: number;
+  failed: number;
+  charged: number;
+  costUSD: number;
+  creditsCharged: number;
+  costAvg: number | null;
+  costP50: number | null;
+  costP95: number | null;
+  costP99: number | null;
+  costMax: number | null;
+  inputAvg: number | null;
+  inputP50: number | null;
+  inputP95: number | null;
+  inputMax: number | null;
+  outputAvg: number | null;
+  outputP50: number | null;
+  outputP95: number | null;
+  outputMax: number | null;
+  inputTotal: number;
+  outputTotal: number;
+  durationAvg: number | null;
+  durationP50: number | null;
+  durationP95: number | null;
+  durationMax: number | null;
+}
+
+interface WorkflowModelRawRow {
+  model: string | null;
+  executions: number;
+  costUSD: number;
+  inputTokens: number;
+  outputTokens: number;
+  estimated: boolean | null;
+}
+
+interface WorkflowDayRawRow {
+  day: Date;
+  executions: number;
+  costUSD: number;
+  creditsCharged: number;
+  avgCostUSD: number | null;
+  avgInputTokens: number | null;
+  avgOutputTokens: number | null;
+}
+
+interface WorkflowTopExecutionRawRow {
+  id: string;
+  startedAt: Date;
+  status: string;
+  costUSD: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  durationMs: number | null;
+  conversationId: string | null;
 }
 
 interface CreditValue {
@@ -471,4 +536,327 @@ export class AdminAnalyticsService {
     const start = (page - 1) * limit;
     return { items: rows.slice(start, start + limit), page, limit, total };
   }
+
+  /**
+   * Detalle de costo, tokens y margen de UN workflow, para explicar por qué dos workflows de la
+   * misma categoría dejan márgenes distintos (los créditos son fijos por categoría; el costo no).
+   *
+   * Los tokens y la duración no viven en `executions` sino en el `metadata` de su
+   * `CreditTransaction` (1:1 por `executionId`), que solo existe para las ejecuciones cobradas.
+   * Por eso las estadísticas por ejecución (costo, tokens, duración) se calculan solo sobre esas;
+   * las fallidas cuentan en volumen y tasa de éxito, pero no tienen de dónde sacar tokens.
+   */
+  async getWorkflowAnalytics(
+    workflowId: string,
+    period: string,
+  ): Promise<AdminAnalyticsWorkflowResponseDto> {
+    const workflow = await this.prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        organizationId: true,
+        organization: { select: { name: true, plan: true } },
+      },
+    });
+    if (!workflow) throw new NotFoundException(`Workflow ${workflowId} no encontrado`);
+
+    const startDate = this.periodStartDate(period);
+    const where = Prisma.sql`
+      e."workflowId" = ${workflowId} AND e."deletedAt" IS NULL AND e."isInternalWorkflow" = false
+      ${startDate ? Prisma.sql`AND e."startedAt" >= ${startDate}` : Prisma.empty}
+    `;
+
+    // `execution_time_ms` llega en 0 desde el flujo de streaming (no lo mide): se trata como
+    // ausente y se cae a la diferencia entre `finishedAt` y `startedAt`.
+    const durationMs = Prisma.sql`COALESCE(
+      NULLIF((ct.metadata->>'execution_time_ms')::float, 0),
+      EXTRACT(EPOCH FROM (e."finishedAt" - e."startedAt")) * 1000
+    )`;
+
+    const [[summary], modelRows, dayRows, topRows, creditValues] = await Promise.all([
+      this.prisma.$queryRaw<WorkflowSummaryRawRow[]>`
+        WITH ex AS (
+          SELECT e.status::text AS status,
+                 e.cost::float AS cost,
+                 e.credits AS credits,
+                 ct.id IS NOT NULL AS charged,
+                 (ct.metadata->>'input_tokens')::float AS input_tokens,
+                 (ct.metadata->>'output_tokens')::float AS output_tokens,
+                 ${durationMs} AS duration_ms
+          FROM executions e
+          LEFT JOIN credit_transactions ct ON ct."executionId" = e.id
+          WHERE ${where}
+        )
+        SELECT COUNT(*)::int AS executions,
+               COUNT(*) FILTER (WHERE status = 'COMPLETED')::int AS completed,
+               COUNT(*) FILTER (WHERE status IN ('FAILED', 'TIMEOUT'))::int AS failed,
+               COUNT(*) FILTER (WHERE charged)::int AS charged,
+               COALESCE(SUM(cost), 0)::float AS "costUSD",
+               COALESCE(SUM(credits), 0)::int AS "creditsCharged",
+               AVG(cost) FILTER (WHERE charged)::float AS "costAvg",
+               (percentile_cont(0.5) WITHIN GROUP (ORDER BY cost) FILTER (WHERE charged))::float AS "costP50",
+               (percentile_cont(0.95) WITHIN GROUP (ORDER BY cost) FILTER (WHERE charged))::float AS "costP95",
+               (percentile_cont(0.99) WITHIN GROUP (ORDER BY cost) FILTER (WHERE charged))::float AS "costP99",
+               (MAX(cost) FILTER (WHERE charged))::float AS "costMax",
+               AVG(input_tokens) FILTER (WHERE charged)::float AS "inputAvg",
+               (percentile_cont(0.5) WITHIN GROUP (ORDER BY input_tokens) FILTER (WHERE charged))::float AS "inputP50",
+               (percentile_cont(0.95) WITHIN GROUP (ORDER BY input_tokens) FILTER (WHERE charged))::float AS "inputP95",
+               (MAX(input_tokens) FILTER (WHERE charged))::float AS "inputMax",
+               AVG(output_tokens) FILTER (WHERE charged)::float AS "outputAvg",
+               (percentile_cont(0.5) WITHIN GROUP (ORDER BY output_tokens) FILTER (WHERE charged))::float AS "outputP50",
+               (percentile_cont(0.95) WITHIN GROUP (ORDER BY output_tokens) FILTER (WHERE charged))::float AS "outputP95",
+               (MAX(output_tokens) FILTER (WHERE charged))::float AS "outputMax",
+               COALESCE(SUM(input_tokens) FILTER (WHERE charged), 0)::float AS "inputTotal",
+               COALESCE(SUM(output_tokens) FILTER (WHERE charged), 0)::float AS "outputTotal",
+               AVG(duration_ms) FILTER (WHERE charged)::float AS "durationAvg",
+               (percentile_cont(0.5) WITHIN GROUP (ORDER BY duration_ms) FILTER (WHERE charged))::float AS "durationP50",
+               (percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms) FILTER (WHERE charged))::float AS "durationP95",
+               (MAX(duration_ms) FILTER (WHERE charged))::float AS "durationMax"
+        FROM ex
+      `,
+      // `cost_breakdown` trae una entrada por modelo con su costo; los tokens de ese modelo salen
+      // de `usage_by_model`. Si `usage_by_model` viene vacío, el motor no reportó modelos y el
+      // gateway costeó todo con el modelo por defecto: esa fila usa los tokens totales y se marca
+      // como estimada.
+      this.prisma.$queryRaw<WorkflowModelRawRow[]>`
+        SELECT cb->>'model' AS model,
+               COUNT(DISTINCT ct.id)::int AS executions,
+               COALESCE(SUM((cb->>'cost')::float), 0)::float AS "costUSD",
+               COALESCE(SUM(CASE
+                 WHEN ct.metadata->'usage_by_model'->(cb->>'model') IS NOT NULL
+                   THEN (ct.metadata->'usage_by_model'->(cb->>'model')->>'input_tokens')::float
+                 WHEN COALESCE(ct.metadata->'usage_by_model', '{}'::jsonb) = '{}'::jsonb
+                   THEN (ct.metadata->>'input_tokens')::float
+                 ELSE 0 END), 0)::float AS "inputTokens",
+               COALESCE(SUM(CASE
+                 WHEN ct.metadata->'usage_by_model'->(cb->>'model') IS NOT NULL
+                   THEN (ct.metadata->'usage_by_model'->(cb->>'model')->>'output_tokens')::float
+                 WHEN COALESCE(ct.metadata->'usage_by_model', '{}'::jsonb) = '{}'::jsonb
+                   THEN (ct.metadata->>'output_tokens')::float
+                 ELSE 0 END), 0)::float AS "outputTokens",
+               BOOL_OR(ct.metadata->'usage_by_model'->(cb->>'model') IS NULL) AS estimated
+        FROM executions e
+        JOIN credit_transactions ct ON ct."executionId" = e.id
+        CROSS JOIN LATERAL jsonb_array_elements(
+          CASE WHEN jsonb_typeof(ct.metadata->'cost_breakdown') = 'array'
+               THEN ct.metadata->'cost_breakdown' ELSE '[]'::jsonb END
+        ) AS cb
+        WHERE ${where}
+        GROUP BY 1
+        ORDER BY "costUSD" DESC
+      `,
+      // Doble `AT TIME ZONE`: ver `getTimeseries()`.
+      this.prisma.$queryRaw<WorkflowDayRawRow[]>`
+        SELECT (date_trunc('day', (e."startedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${PLATFORM_TIMEZONE}))::date AS day,
+               COUNT(*)::int AS executions,
+               COALESCE(SUM(e.cost), 0)::float AS "costUSD",
+               COALESCE(SUM(e.credits), 0)::int AS "creditsCharged",
+               AVG(e.cost) FILTER (WHERE ct.id IS NOT NULL)::float AS "avgCostUSD",
+               AVG((ct.metadata->>'input_tokens')::float)::float AS "avgInputTokens",
+               AVG((ct.metadata->>'output_tokens')::float)::float AS "avgOutputTokens"
+        FROM executions e
+        LEFT JOIN credit_transactions ct ON ct."executionId" = e.id
+        WHERE ${where}
+        GROUP BY 1
+        ORDER BY 1
+      `,
+      this.prisma.$queryRaw<WorkflowTopExecutionRawRow[]>`
+        SELECT e.id AS id,
+               e."startedAt" AS "startedAt",
+               e.status::text AS status,
+               e.cost::float AS "costUSD",
+               (ct.metadata->>'input_tokens')::float AS "inputTokens",
+               (ct.metadata->>'output_tokens')::float AS "outputTokens",
+               ${durationMs}::float AS "durationMs",
+               e."conversationId" AS "conversationId"
+        FROM executions e
+        LEFT JOIN credit_transactions ct ON ct."executionId" = e.id
+        WHERE ${where}
+        ORDER BY e.cost DESC, e."startedAt" DESC
+        LIMIT ${TOP_EXECUTIONS_LIMIT}::int
+      `,
+      this.resolveCreditValues([workflow.organizationId]),
+    ]);
+
+    const creditValueUSD = creditValues.get(workflow.organizationId)?.creditValueUSD ?? null;
+    const costUSD = Number(summary?.costUSD ?? 0);
+    const creditsCharged = Number(summary?.creditsCharged ?? 0);
+    const executions = Number(summary?.executions ?? 0);
+    const estimatedRevenueUSD = creditValueUSD != null ? creditsCharged * creditValueUSD : null;
+    const marginUSD = estimatedRevenueUSD != null ? estimatedRevenueUSD - costUSD : null;
+    const marginPct =
+      marginUSD != null && estimatedRevenueUSD != null && estimatedRevenueUSD > 0
+        ? (marginUSD / estimatedRevenueUSD) * 100
+        : null;
+    const totalInputTokens = Number(summary?.inputTotal ?? 0);
+    const totalOutputTokens = Number(summary?.outputTotal ?? 0);
+
+    const totalModelCost = modelRows.reduce((acc, row) => acc + Number(row.costUSD), 0);
+
+    // Fechas `::date`: se leen en UTC, no con `zonedDayKey` (ver `getTimeseries()`).
+    const byDay = new Map(dayRows.map((row) => [row.day.toISOString().slice(0, 10), row]));
+    const timeseries = this.dayKeys(period, startDate, Array.from(byDay.keys())).map((date) => {
+      const day = byDay.get(date);
+      const dayCredits = Number(day?.creditsCharged ?? 0);
+      return {
+        date,
+        executions: Number(day?.executions ?? 0),
+        costUSD: round(Number(day?.costUSD ?? 0), USD_DECIMALS),
+        estimatedRevenueUSD:
+          creditValueUSD != null ? round(dayCredits * creditValueUSD, USD_DECIMALS) : null,
+        avgCostUSD: nullableRound(day?.avgCostUSD, USD_DECIMALS),
+        avgInputTokens: nullableRound(day?.avgInputTokens, 0),
+        avgOutputTokens: nullableRound(day?.avgOutputTokens, 0),
+      };
+    });
+
+    return {
+      period,
+      timezone: PLATFORM_TIMEZONE,
+      workflow: {
+        id: workflow.id,
+        name: workflow.name,
+        category: workflow.category as WorkflowCategory,
+        organizationId: workflow.organizationId,
+        organizationName: workflow.organization.name,
+        plan: workflow.organization.plan as SubscriptionPlan,
+        creditValueUSD,
+      },
+      kpis: {
+        executions,
+        completed: Number(summary?.completed ?? 0),
+        failed: Number(summary?.failed ?? 0),
+        charged: Number(summary?.charged ?? 0),
+        successRate:
+          executions > 0 ? round((Number(summary?.completed ?? 0) / executions) * 100, 2) : 0,
+        creditsCharged,
+        costUSD: round(costUSD, USD_DECIMALS),
+        estimatedRevenueUSD:
+          estimatedRevenueUSD != null ? round(estimatedRevenueUSD, USD_DECIMALS) : null,
+        marginUSD: marginUSD != null ? round(marginUSD, USD_DECIMALS) : null,
+        marginPct: marginPct != null ? round(marginPct, 2) : null,
+        costPerExecution: distribution(
+          summary?.costAvg,
+          summary?.costP50,
+          summary?.costP95,
+          summary?.costMax,
+          USD_DECIMALS,
+        ),
+        inputTokens: distribution(
+          summary?.inputAvg,
+          summary?.inputP50,
+          summary?.inputP95,
+          summary?.inputMax,
+          0,
+        ),
+        outputTokens: distribution(
+          summary?.outputAvg,
+          summary?.outputP50,
+          summary?.outputP95,
+          summary?.outputMax,
+          0,
+        ),
+        totalInputTokens,
+        totalOutputTokens,
+        inputOutputRatio:
+          totalOutputTokens > 0 ? round(totalInputTokens / totalOutputTokens, 2) : null,
+        durationMs: distribution(
+          summary?.durationAvg,
+          summary?.durationP50,
+          summary?.durationP95,
+          summary?.durationMax,
+          0,
+        ),
+      },
+      byModel: modelRows.map((row) => ({
+        model: row.model ?? '(sin modelo)',
+        executions: Number(row.executions),
+        inputTokens: Math.round(Number(row.inputTokens)),
+        outputTokens: Math.round(Number(row.outputTokens)),
+        costUSD: round(Number(row.costUSD), USD_DECIMALS),
+        costSharePct:
+          totalModelCost > 0 ? round((Number(row.costUSD) / totalModelCost) * 100, 2) : 0,
+        estimated: Boolean(row.estimated),
+      })),
+      timeseries,
+      costDistribution: await this.costDistribution(where, summary),
+      topExecutions: topRows.map((row) => ({
+        id: row.id,
+        startedAt: row.startedAt.toISOString(),
+        status: row.status,
+        costUSD: round(Number(row.costUSD), USD_DECIMALS),
+        inputTokens: nullableRound(row.inputTokens, 0),
+        outputTokens: nullableRound(row.outputTokens, 0),
+        durationMs: nullableRound(row.durationMs, 0),
+        conversationId: row.conversationId,
+      })),
+    };
+  }
+
+  /**
+   * Histograma del costo por ejecución en `COST_BUCKETS` rangos iguales entre 0 y el p99. Cortar en
+   * el p99 y no en el máximo evita que una sola ejecución atípica aplaste todo lo demás en el
+   * primer rango; lo que queda por encima cae en el último, que se reporta abierto (`toUSD: null`).
+   */
+  private async costDistribution(
+    where: Prisma.Sql,
+    summary: WorkflowSummaryRawRow | undefined,
+  ): Promise<AdminAnalyticsWorkflowResponseDto['costDistribution']> {
+    const upper = Number(summary?.costP99 ?? 0) || Number(summary?.costMax ?? 0);
+    if (!summary || Number(summary.charged) === 0 || upper <= 0) return [];
+
+    const rows = await this.prisma.$queryRaw<{ bucket: number; count: number }[]>`
+      SELECT GREATEST(LEAST(width_bucket(e.cost::float, 0::float, ${upper}::float, ${COST_BUCKETS}::int), ${COST_BUCKETS}::int), 1)::int AS bucket,
+             COUNT(*)::int AS count
+      FROM executions e
+      JOIN credit_transactions ct ON ct."executionId" = e.id
+      WHERE ${where}
+      GROUP BY 1
+    `;
+    const countByBucket = new Map(rows.map((row) => [Number(row.bucket), Number(row.count)]));
+    const width = upper / COST_BUCKETS;
+
+    return Array.from({ length: COST_BUCKETS }, (_, i) => ({
+      fromUSD: round(width * i, USD_DECIMALS),
+      toUSD: i === COST_BUCKETS - 1 ? null : round(width * (i + 1), USD_DECIMALS),
+      count: countByBucket.get(i + 1) ?? 0,
+    }));
+  }
+
+  /**
+   * Claves de día (YYYY-MM-DD en `PLATFORM_TIMEZONE`) del periodo, para rellenar con 0 los días
+   * sin actividad. Con `all` no hay inicio fijo: se usan solo los días que trajo la consulta.
+   */
+  private dayKeys(period: string, startDate: Date | undefined, present: string[]): string[] {
+    if (period === 'all' || !startDate) return [...present].sort((a, b) => a.localeCompare(b));
+
+    const keys: string[] = [];
+    const today = startOfDayInZone(new Date(), PLATFORM_TIMEZONE);
+    for (let cursor = startDate; cursor <= today; ) {
+      keys.push(zonedDayKey(cursor, PLATFORM_TIMEZONE));
+      cursor = addDaysInZone(cursor, 1, PLATFORM_TIMEZONE);
+    }
+    return keys;
+  }
+}
+
+function nullableRound(value: number | null | undefined, decimals: number): number | null {
+  return value == null ? null : round(Number(value), decimals);
+}
+
+function distribution(
+  avg: number | null | undefined,
+  p50: number | null | undefined,
+  p95: number | null | undefined,
+  max: number | null | undefined,
+  decimals: number,
+) {
+  return {
+    avg: nullableRound(avg, decimals),
+    p50: nullableRound(p50, decimals),
+    p95: nullableRound(p95, decimals),
+    max: nullableRound(max, decimals),
+  };
 }

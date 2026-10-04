@@ -47,3 +47,16 @@ export function useAdminAnalyticsOrganizationsMargin(
     staleTime: 1000 * 60,
   });
 }
+
+/** Detalle de costo, tokens y margen de un workflow. `id` vacío no dispara la consulta. */
+export function useAdminWorkflowAnalytics(id: string | null, period: string) {
+  return useQuery({
+    queryKey: [KEY, 'workflow', id, period],
+    queryFn: () =>
+      RootApi.getInstance()
+        .getAnalyticsAdminApi()
+        .getWorkflowAnalytics(id as string, period),
+    enabled: Boolean(id),
+    staleTime: 1000 * 60,
+  });
+}

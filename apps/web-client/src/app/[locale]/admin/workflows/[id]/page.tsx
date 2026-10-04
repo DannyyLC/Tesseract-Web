@@ -7,6 +7,7 @@ import { usePathname, useRouter } from '@/i18n/routing';
 import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
 import {
+  BarChart3,
   Bot,
   Boxes,
   CheckCircle2,
@@ -44,6 +45,7 @@ import { RawJsonTab } from '@/components/admin/workflows/raw-json-tab';
 import { HistoryTab } from '@/components/admin/workflows/history-tab';
 import { SettingsTab } from '@/components/admin/workflows/settings-tab';
 import { TestTab } from '@/components/admin/workflows/test-tab';
+import { MetricsTab } from '@/components/admin/workflows/metrics/metrics-tab';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import {
   btnDangerGhost,
@@ -59,10 +61,19 @@ import {
 } from '../../_styles';
 import { isToastHandled, toApiError } from '@/lib/api/api-error';
 
-type TabId = 'agents' | 'nodes' | 'graph' | 'media' | 'json' | 'test' | 'settings' | 'history';
+type TabId =
+  | 'agents'
+  | 'nodes'
+  | 'graph'
+  | 'media'
+  | 'json'
+  | 'test'
+  | 'settings'
+  | 'history'
+  | 'metrics';
 
 /** Pestañas que no tocan `draft` (ver `showConfigFooter` más abajo). */
-const NON_DRAFT_TABS: TabId[] = ['settings', 'history', 'test'];
+const NON_DRAFT_TABS: TabId[] = ['settings', 'history', 'test', 'metrics'];
 
 const draftKey = (id: string, version: number) => `wf-draft:${id}:${version}`;
 
@@ -118,6 +129,7 @@ function WorkflowEditor() {
     { id: 'test', label: t('tabs.test'), icon: FlaskConical },
     { id: 'settings', label: t('tabs.settings'), icon: SlidersHorizontal },
     { id: 'history', label: t('tabs.history'), icon: History },
+    { id: 'metrics', label: t('tabs.metrics'), icon: BarChart3 },
   ];
 
   const { data: workflow, isLoading, error } = useAdminWorkflow(workflowId);
@@ -417,6 +429,7 @@ function WorkflowEditor() {
           hasUnsavedChanges={isDirty}
         />
       )}
+      {tab === 'metrics' && <MetricsTab workflowId={workflowId} />}
 
       {showConfigFooter && validation && !validation.valid && (
         <div className={`${dangerBannerClass} mt-6 space-y-1`}>

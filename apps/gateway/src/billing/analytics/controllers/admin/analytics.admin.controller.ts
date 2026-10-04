@@ -1,4 +1,13 @@
-import { Controller, DefaultValuePipe, Get, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  DefaultValuePipe,
+  Get,
+  Param,
+  ParseIntPipe,
+  ParseUUIDPipe,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiResponse, ApiResponseBuilder, UserRole } from '@tesseract/types';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
@@ -58,6 +67,18 @@ export class AnalyticsAdminController {
     sortBy: 'marginPct' | 'costUSD' | 'executions',
   ): Promise<ApiResponse> {
     const result = await this.analyticsService.getOrganizationsMargin(period, page, limit, sortBy);
+    return new ApiResponseBuilder().setData(result).build();
+  }
+
+  @Get('workflows/:id')
+  @ApiOperation({
+    summary: 'Detalle de un workflow: costo y tokens por ejecución, modelos, serie diaria y margen',
+  })
+  async workflow(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('period', new DefaultValuePipe('30d')) period: string,
+  ): Promise<ApiResponse> {
+    const result = await this.analyticsService.getWorkflowAnalytics(id, period);
     return new ApiResponseBuilder().setData(result).build();
   }
 }
