@@ -80,7 +80,7 @@ export function SubscriptionTab({ org }: Props) {
         <p className="rounded-xl bg-[var(--surface-tint)] px-4 py-3 text-xs text-text-secondary">
           {t('stripeManagedHint')}
         </p>
-        <dl className="grid gap-3 rounded-2xl border border-border p-6 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <dt className="text-xs text-text-secondary">{t('plan')}</dt>
             <dd className="text-sm text-text-primary">{org.subscription?.plan}</dd>

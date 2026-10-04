@@ -2317,6 +2317,7 @@
       "saveError": "Could not save"
     },
     "SubscriptionTab": {
+      "title": "Subscription",
       "stripeManagedHint": "This organization bills through Stripe. The subscription is managed from there (or from the regular plan-change flow) — editing it by hand would be overwritten by the next webhook.",
       "plan": "Plan",
       "status": "Status",
@@ -2367,8 +2368,7 @@
       "inactiveBadge": "inactive",
       "tabs": {
         "general": "General",
-        "credits": "Credits",
-        "subscription": "Subscription",
+        "billing": "Credits & subscription",
         "limits": "Limits",
         "channels": "Channels",
         "catalogs": "Catalogs"

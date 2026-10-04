@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useLocale, useTranslations } from 'next-intl';
 import { Loader2, Plus } from 'lucide-react';
@@ -18,9 +18,11 @@ import { isToastHandled } from '@/lib/api/api-error';
 interface Props {
   organizationId: string;
   org: AdminOrganizationDetail;
+  /** Contenido entre el balance y el historial (la suscripción, en la pestaña fusionada). */
+  afterBalance?: ReactNode;
 }
 
-export function CreditsTab({ organizationId, org }: Props) {
+export function CreditsTab({ organizationId, org, afterBalance }: Props) {
   const t = useTranslations('Admin.CreditsTab');
   const intlLocale = toIntlLocale(useLocale());
   const getApiErrorMessage = useApiErrorMessage();
@@ -90,7 +92,7 @@ export function CreditsTab({ organizationId, org }: Props) {
   return (
     <div className="w-full space-y-6">
       <section className="px-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
               {t('balanceTitle')}
@@ -119,32 +121,24 @@ export function CreditsTab({ organizationId, org }: Props) {
             <Plus size={16} /> {t('adjustCredits')}
           </button>
         </div>
-      </section>
 
-      {/* Sobregiro. Se edita en la pestaña Límites, pero se muestra acá porque es el único
-          lugar donde un balance negativo tiene sentido: sin el límite al lado no se sabe
-          cuánto le queda antes del corte. */}
-      <section className="rounded-2xl border border-border p-6">
-        <h2 className="mb-4 text-base font-semibold text-text-primary">{t('overageTitle')}</h2>
-        {org.allowOverages ? (
-          <dl className="grid gap-3 sm:grid-cols-3">
-            <div>
-              <dt className="text-xs text-text-secondary">{t('statusLabel')}</dt>
-              <dd className="text-sm font-medium text-[var(--success-text-adaptive)]">
-                {t('statusAllowed')}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-text-secondary">{t('limitLabel')}</dt>
-              <dd className="text-sm text-text-primary">
-                {overageLimit === -1
-                  ? '∞'
-                  : t('limitCredits', { limit: overageLimit.toLocaleString(intlLocale) })}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-text-secondary">{t('usedLabel')}</dt>
-              <dd className={`text-sm ${overageUsed > 0 ? 'text-danger' : 'text-text-primary'}`}>
+        {/* Sobregiro. Se edita en la pestaña Límites y la pestaña General ya lo destaca; aquí va
+            en segundo plano, junto al balance, porque es el único lugar donde un balance
+            negativo tiene sentido: sin el límite al lado no se sabe cuánto le queda antes del
+            corte. */}
+        <p className="mt-5 border-t border-[var(--border-subtle)] pt-4 text-xs text-text-secondary">
+          <span className="font-semibold text-text-primary">{t('overageTitle')}:</span>{' '}
+          {org.allowOverages ? (
+            <>
+              <span className="text-[var(--success-text-adaptive)]">{t('statusAllowed')}</span>
+              {' · '}
+              {t('limitLabel')}{' '}
+              {overageLimit === -1
+                ? '∞'
+                : t('limitCredits', { limit: overageLimit.toLocaleString(intlLocale) })}
+              {' · '}
+              {t('usedLabel')}{' '}
+              <span className={overageUsed > 0 ? 'text-danger' : undefined}>
                 {overageUsed > 0
                   ? t('usedCredits', { used: overageUsed.toLocaleString(intlLocale) }) +
                     (overageRemaining === null
@@ -153,13 +147,15 @@ export function CreditsTab({ organizationId, org }: Props) {
                           remaining: overageRemaining.toLocaleString(intlLocale),
                         }))
                   : t('usedNone')}
-              </dd>
-            </div>
-          </dl>
-        ) : (
-          <p className="text-sm text-text-secondary">{t('overageNotAllowed')}</p>
-        )}
+              </span>
+            </>
+          ) : (
+            t('overageNotAllowed')
+          )}
+        </p>
       </section>
+
+      {afterBalance}
 
       <section className="rounded-2xl border border-border">
         <div className="border-b border-border px-6 py-4">

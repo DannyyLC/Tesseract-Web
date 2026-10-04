@@ -2317,6 +2317,7 @@
       "saveError": "No se pudo guardar"
     },
     "SubscriptionTab": {
+      "title": "Suscripción",
       "stripeManagedHint": "Esta organización factura por Stripe. La suscripción se gestiona desde ahí (o desde el flujo normal de cambio de plan) — editarla a mano se perdería en el próximo webhook.",
       "plan": "Plan",
       "status": "Estado",
@@ -2367,8 +2368,7 @@
       "inactiveBadge": "inactiva",
       "tabs": {
         "general": "General",
-        "credits": "Créditos",
-        "subscription": "Suscripción",
+        "billing": "Créditos y suscripción",
         "limits": "Límites",
         "channels": "Canales",
         "catalogs": "Catálogos"
