@@ -1,6 +1,5 @@
 'use client';
 
-import { Moon, TrendingDown, Workflow, XCircle } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { toIntlLocale } from '@/lib/intl-locale';
 import { useAdminWorkflowsOverview } from '@/hooks/automation/use-admin-workflows';
@@ -37,7 +36,6 @@ export function WorkflowsOverviewCards({ segment, onSegmentChange }: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <OverviewCard
-        icon={Workflow}
         label={t('activeTitle')}
         value={num(workflows.active)}
         active={segment === null}
@@ -50,7 +48,6 @@ export function WorkflowsOverviewCards({ segment, onSegmentChange }: Props) {
       />
 
       <OverviewCard
-        icon={XCircle}
         label={t('failingTitle', { days: failing.days })}
         color={failing.total > 0 ? 'var(--danger-500)' : 'var(--success-500)'}
         value={num(failing.total)}
@@ -67,7 +64,6 @@ export function WorkflowsOverviewCards({ segment, onSegmentChange }: Props) {
       />
 
       <OverviewCard
-        icon={TrendingDown}
         label={t('negativeMarginTitle', { days: negativeMargin.days })}
         color={negativeMargin.total > 0 ? 'var(--danger-500)' : 'var(--success-500)'}
         value={num(negativeMargin.total)}
@@ -84,7 +80,6 @@ export function WorkflowsOverviewCards({ segment, onSegmentChange }: Props) {
       />
 
       <OverviewCard
-        icon={Moon}
         label={t('idleTitle', { days: idle.days })}
         color={idle.total > 0 ? 'var(--warning-500)' : 'var(--success-500)'}
         value={num(idle.total)}

@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Coins, Database, KeyRound, Rows3, Users, Workflow, type LucideIcon } from 'lucide-react';
+import { Database, KeyRound, Rows3, Users, Workflow, type LucideIcon } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { toIntlLocale } from '@/lib/intl-locale';
 import type { AdminOrganizationDetail } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
@@ -67,24 +67,21 @@ export function Meter({ ratio, color }: { ratio: number; color: string }) {
   );
 }
 
-/** Tarjeta con borde y encabezado en versalitas, el contenedor de todos los bloques. */
+/** Bloque con encabezado en versalitas; con borde por defecto, el contenedor de las tarjetas. */
 export function StatCard({
-  icon: Icon,
-  iconColor,
   label,
   children,
+  bordered = true,
   className = '',
 }: {
-  icon: LucideIcon;
-  iconColor?: string;
   label: string;
   children: ReactNode;
+  bordered?: boolean;
   className?: string;
 }) {
   return (
-    <div className={`rounded-xl border border-border p-4 ${className}`}>
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-        <Icon size={14} style={iconColor ? { color: iconColor } : undefined} />
+    <div className={`${bordered ? 'rounded-xl border border-border p-4' : ''} ${className}`}>
+      <div className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
         {label}
       </div>
       {children}
@@ -93,7 +90,13 @@ export function StatCard({
 }
 
 /** Saldo de créditos contra lo que da el plan al mes, con barra de lo que queda. */
-export function CreditsCard({ org }: { org: AdminOrganizationDetail }) {
+export function CreditsCard({
+  org,
+  bordered = true,
+}: {
+  org: AdminOrganizationDetail;
+  bordered?: boolean;
+}) {
   const t = useTranslations('Admin.OrganizationSummary');
   const intlLocale = toIntlLocale(useLocale());
   const num = (value: number) => value.toLocaleString(intlLocale);
@@ -105,7 +108,7 @@ export function CreditsCard({ org }: { org: AdminOrganizationDetail }) {
   const level: Level = credits < 0 ? 'danger' : balanceLevel(creditRatio);
 
   return (
-    <StatCard icon={Coins} iconColor={LEVEL_COLOR[level]} label={t('credits')}>
+    <StatCard label={t('credits')} bordered={bordered}>
       <p className="font-geist-mono mt-2 text-3xl font-light tracking-tight">
         <span style={{ color: LEVEL_COLOR[level] }}>{num(credits)}</span>
         {hasCreditCap && (
@@ -135,10 +138,12 @@ export function CreditsCard({ org }: { org: AdminOrganizationDetail }) {
 export function UsageGrid({
   org,
   showCustom = false,
+  showIcons = true,
   className = 'grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5',
 }: {
   org: AdminOrganizationDetail;
   showCustom?: boolean;
+  showIcons?: boolean;
   className?: string;
 }) {
   const t = useTranslations('Admin.OrganizationSummary');
@@ -204,7 +209,7 @@ export function UsageGrid({
         return (
           <div key={key} className="flex flex-col gap-2 rounded-xl border border-border p-3">
             <div className="flex items-center gap-1.5 text-xs text-text-secondary">
-              <Icon size={13} className="text-text-tertiary" />
+              {showIcons && <Icon size={13} className="text-text-tertiary" />}
               <span className="truncate">{label}</span>
             </div>
             <p className="font-geist-mono text-lg text-text-primary">

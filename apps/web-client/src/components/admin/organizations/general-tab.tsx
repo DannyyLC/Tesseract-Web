@@ -3,16 +3,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useLocale, useTranslations } from 'next-intl';
-import {
-  AlertTriangle,
-  CalendarClock,
-  CalendarPlus,
-  Gauge,
-  Loader2,
-  Power,
-  PowerOff,
-  Receipt,
-} from 'lucide-react';
+import { AlertTriangle, Loader2, Power, PowerOff } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { useAdminOrganizationMutations } from '@/hooks/identity/use-admin-organizations';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
@@ -142,10 +133,7 @@ export function GeneralTab({ org }: Props) {
           <div className="md:border-l md:border-[var(--border-subtle)] md:pl-6">
             <dt className={factLabelClass}>{t('created')}</dt>
             <dd className="mt-2 text-xl font-semibold text-text-primary">{date(org.createdAt)}</dd>
-            <dd className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-text-tertiary">
-              <CalendarPlus size={12} />
-              {t('ageDays', { days: ageDays })}
-            </dd>
+            <dd className="mt-0.5 text-xs text-text-tertiary">{t('ageDays', { days: ageDays })}</dd>
           </div>
           <div className="min-w-0 md:border-l md:border-[var(--border-subtle)] md:pl-6">
             <dt className={factLabelClass}>{t('idLabel')}</dt>
@@ -167,7 +155,7 @@ export function GeneralTab({ org }: Props) {
       <div className="grid gap-4 md:grid-cols-3">
         <CreditsCard org={org} />
 
-        <StatCard icon={Receipt} iconColor={statusColor} label={t('subscriptionTitle')}>
+        <StatCard label={t('subscriptionTitle')}>
           {subscription ? (
             <>
               <p className="mt-2 text-2xl font-light tracking-tight">
@@ -182,8 +170,7 @@ export function GeneralTab({ org }: Props) {
                   {date(subscription.currentPeriodStart)} – {date(subscription.currentPeriodEnd)}
                 </p>
               </div>
-              <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-text-secondary">
-                <CalendarClock size={13} />
+              <p className="mt-2 text-xs text-text-secondary">
                 {subscription.cancelAtPeriodEnd
                   ? t('cancelsIn', { days: daysUntil(subscription.currentPeriodEnd) })
                   : t('renewsIn', { days: daysUntil(subscription.currentPeriodEnd) })}
@@ -197,11 +184,7 @@ export function GeneralTab({ org }: Props) {
           )}
         </StatCard>
 
-        <StatCard
-          icon={Gauge}
-          iconColor={org.allowOverages ? LEVEL_COLOR[usageLevel(overageRatio)] : undefined}
-          label={t('overageTitle')}
-        >
+        <StatCard label={t('overageTitle')}>
           <p
             className="mt-2 text-2xl font-light tracking-tight"
             style={{ color: org.allowOverages ? 'var(--success-500)' : undefined }}

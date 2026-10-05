@@ -1,14 +1,12 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import type { LucideIcon } from 'lucide-react';
 
 /**
  * Tarjeta de número de los listados del admin (organizaciones, workflows): un número grande con
  * su contexto debajo y un filtro detrás. Seleccionada se marca solo con un borde más gris.
  */
 export function OverviewCard({
-  icon: Icon,
   label,
   value,
   hint,
@@ -16,7 +14,6 @@ export function OverviewCard({
   active,
   onClick,
 }: {
-  icon: LucideIcon;
   label: string;
   value: string;
   hint: ReactNode;
@@ -32,8 +29,7 @@ export function OverviewCard({
         active ? 'border-[var(--border-hover)]' : 'border-border'
       }`}
     >
-      <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-        <Icon size={14} style={color ? { color } : undefined} />
+      <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
         {label}
       </span>
       <span

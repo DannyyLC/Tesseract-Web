@@ -1,6 +1,5 @@
 'use client';
 
-import { AlertTriangle, Building2, Moon, TrendingUp } from 'lucide-react';
 import { OverviewCard, OverviewCardsSkeleton } from '@/components/admin/overview-card';
 import { useLocale, useTranslations } from 'next-intl';
 import { toIntlLocale } from '@/lib/intl-locale';
@@ -46,7 +45,6 @@ export function OrganizationsOverviewCards({ segment, onSegmentChange }: Props) 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <OverviewCard
-        icon={Building2}
         label={t('activeTitle')}
         value={num(organizations.active)}
         active={segment === null}
@@ -59,7 +57,6 @@ export function OrganizationsOverviewCards({ segment, onSegmentChange }: Props) 
       />
 
       <OverviewCard
-        icon={TrendingUp}
         label={t('mrrTitle')}
         color="var(--success-500)"
         value={money(mrr.mxn, 'MXN')}
@@ -83,7 +80,6 @@ export function OrganizationsOverviewCards({ segment, onSegmentChange }: Props) 
       />
 
       <OverviewCard
-        icon={AlertTriangle}
         label={t('attentionTitle')}
         color={attention.total > 0 ? 'var(--danger-500)' : 'var(--success-500)'}
         value={num(attention.total)}
@@ -101,7 +97,6 @@ export function OrganizationsOverviewCards({ segment, onSegmentChange }: Props) 
       />
 
       <OverviewCard
-        icon={Moon}
         label={t('idleTitle', { days: idle.days })}
         color={idle.total > 0 ? 'var(--warning-500)' : 'var(--success-500)'}
         value={num(idle.total)}

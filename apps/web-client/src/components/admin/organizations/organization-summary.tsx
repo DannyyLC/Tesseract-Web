@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, CalendarClock, CalendarPlus, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { useAdminOrganization } from '@/hooks/identity/use-admin-organizations';
@@ -41,12 +41,8 @@ export function OrganizationSummary({ organizationId }: Props) {
         <span className="font-semibold tracking-wide" style={{ color: planColor(org.plan) }}>
           {org.plan}
         </span>
-        <span className="inline-flex items-center gap-1.5 text-text-secondary">
-          <CalendarPlus size={13} />
-          {t('createdOn', { date: date(org.createdAt) })}
-        </span>
-        <span className="inline-flex items-center gap-1.5 text-text-secondary">
-          <CalendarClock size={13} />
+        <span className="text-text-secondary">{t('createdOn', { date: date(org.createdAt) })}</span>
+        <span className="text-text-secondary">
           {org.subscription
             ? t('renewsOn', {
                 date: date(org.subscription.currentPeriodEnd),
@@ -57,8 +53,8 @@ export function OrganizationSummary({ organizationId }: Props) {
       </div>
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-        <CreditsCard org={org} />
-        <UsageGrid org={org} />
+        <CreditsCard org={org} bordered={false} />
+        <UsageGrid org={org} showIcons={false} />
       </div>
 
       <div className="pt-1">
