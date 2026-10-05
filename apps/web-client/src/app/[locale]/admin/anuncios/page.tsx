@@ -27,6 +27,7 @@ import {
   rowClass,
 } from '../_styles';
 import { isToastHandled } from '@/lib/api/api-error';
+import { AnnouncementsOverviewCards } from '@/components/admin/announcements/announcements-overview-cards';
 
 const STATUS_CLASS: Record<AnnouncementStatus, string> = {
   [AnnouncementStatus.DRAFT]: 'text-text-tertiary',
@@ -103,6 +104,8 @@ export default function AdminAnnouncementsPage() {
           {t('newAnnouncement')}
         </button>
       </div>
+
+      <AnnouncementsOverviewCards status={status} onStatusChange={setStatus} />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-[240px] flex-1">

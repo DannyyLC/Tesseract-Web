@@ -34,6 +34,13 @@ export class AnnouncementsAdminController {
     return new ApiResponseBuilder().setData(result).build();
   }
 
+  @Get('overview')
+  @ApiOperation({ summary: 'Números del listado: anuncios por estado, lectura y clics' })
+  async overview(): Promise<ApiResponse> {
+    const result = await this.announcementsService.getOverview();
+    return new ApiResponseBuilder().setData(result).build();
+  }
+
   @Get('audience-preview')
   @ApiOperation({ summary: 'Conteo estimado de destinatarios antes de publicar' })
   async audiencePreview(@Query() query: AudiencePreviewQueryDto): Promise<ApiResponse> {

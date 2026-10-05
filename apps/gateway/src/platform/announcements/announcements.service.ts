@@ -42,6 +42,9 @@ interface MetricsRow {
   read: number;
 }
 
+/** Ventana de lectura y clics de las tarjetas del listado de anuncios. */
+const OVERVIEW_WINDOW_DAYS = 90;
+
 /**
  * Lado de escritura del super admin: crear, publicar (fan-out), despublicar, editar y medir
  * anuncios. El fan-out es propio (no extiende `UtilityService.sendNotificationToAppClients`):
@@ -304,6 +307,59 @@ export class AnnouncementsService {
     const data = rows.map((row) => this.toAdminDto(row, metrics.get(row.id)));
 
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+  }
+
+  /**
+   * Números de arriba del listado: cuántos anuncios hay en cada estado (con `statusWhere`, el
+   * mismo filtro del listado, para que coincidan) y qué tanto se leen y se les da clic a los
+   * publicados en la ventana.
+   */
+  async getOverview() {
+    const now = new Date();
+    const since = new Date(now.getTime() - OVERVIEW_WINDOW_DAYS * 86_400_000);
+    const count = (status: AnnouncementStatus) =>
+      this.prisma.notification.count({
+        where: { kind: NotificationKind.ANNOUNCEMENT, ...this.statusWhere(status, now) },
+      });
+
+    const [published, draft, expired, unpublished, [engagement]] = await Promise.all([
+      count(AnnouncementStatus.PUBLISHED),
+      count(AnnouncementStatus.DRAFT),
+      count(AnnouncementStatus.EXPIRED),
+      count(AnnouncementStatus.UNPUBLISHED),
+      // Clics solo sobre entregas de anuncios con botón: dividir entre todas las entregas
+      // castigaría la tasa por anuncios que no tenían en qué hacer clic.
+      this.prisma.$queryRaw<
+        {
+          delivered: number;
+          read: number;
+          dismissed: number;
+          ctaDelivered: number;
+          ctaClicked: number;
+        }[]
+      >`
+        SELECT count(*)::int                                                AS delivered,
+               count(*) FILTER (WHERE un."isRead")::int                     AS read,
+               count(*) FILTER (WHERE un."dismissedAt" IS NOT NULL)::int    AS dismissed,
+               count(*) FILTER (WHERE n."ctaUrl" IS NOT NULL)::int          AS "ctaDelivered",
+               count(*) FILTER (WHERE un."ctaClickedAt" IS NOT NULL)::int   AS "ctaClicked"
+        FROM   "user_notifications" un
+        JOIN   "notifications" n ON n.id = un."notificationId"
+        WHERE  n.kind = 'ANNOUNCEMENT' AND un."createdAt" >= ${since}
+      `,
+    ]);
+
+    return {
+      status: { published, draft, expired, unpublished },
+      engagement: {
+        days: OVERVIEW_WINDOW_DAYS,
+        delivered: engagement?.delivered ?? 0,
+        read: engagement?.read ?? 0,
+        dismissed: engagement?.dismissed ?? 0,
+        ctaDelivered: engagement?.ctaDelivered ?? 0,
+        ctaClicked: engagement?.ctaClicked ?? 0,
+      },
+    };
   }
 
   private async getAnnouncementOrThrow(id: string): Promise<Notification> {

@@ -194,6 +194,25 @@ export interface AdminWorkflowsOverview {
   idle: { total: number; days: number };
 }
 
+export interface AdminWhatsappOverview {
+  numbers: { total: number; connected: number; down: number; byProvider: Record<string, number> };
+  templates: { active: number; numbersWithTemplates: number; connectedWithoutTemplates: number };
+  conversations: { total: number; numbers: number };
+  days: number;
+}
+
+export interface AdminLlmModelsOverview {
+  active: number;
+  providers: number;
+  byTier: Record<string, number>;
+  used: number;
+  activeUnused: number;
+  usedNotInCatalog: number;
+  totalCostUSD: number;
+  top: { model: string; costUSD: number; sharePct: number } | null;
+  days: number;
+}
+
 class AnalyticsAdminApi {
   public apiRequestManager: ApiRequestManager;
   private static BASE_URL = '/admin/analytics';
@@ -248,6 +267,20 @@ class AnalyticsAdminApi {
   public async getWorkflowsOverview(): Promise<AdminWorkflowsOverview> {
     const result = await this.apiRequestManager.get<ApiResponse<AdminWorkflowsOverview>>(
       `${AnalyticsAdminApi.BASE_URL}/workflows-overview`,
+    );
+    return unwrapData(result);
+  }
+
+  public async getWhatsappOverview(): Promise<AdminWhatsappOverview> {
+    const result = await this.apiRequestManager.get<ApiResponse<AdminWhatsappOverview>>(
+      `${AnalyticsAdminApi.BASE_URL}/whatsapp-overview`,
+    );
+    return unwrapData(result);
+  }
+
+  public async getLlmModelsOverview(): Promise<AdminLlmModelsOverview> {
+    const result = await this.apiRequestManager.get<ApiResponse<AdminLlmModelsOverview>>(
+      `${AnalyticsAdminApi.BASE_URL}/llm-models-overview`,
     );
     return unwrapData(result);
   }

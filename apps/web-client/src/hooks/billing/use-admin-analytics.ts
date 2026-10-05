@@ -60,3 +60,21 @@ export function useAdminWorkflowAnalytics(id: string | null, period: string) {
     staleTime: 1000 * 60,
   });
 }
+
+/** Panorama de WhatsApp de toda la plataforma (tarjetas de la página de plantillas). */
+export function useAdminWhatsappOverview() {
+  return useQuery({
+    queryKey: [KEY, 'whatsapp-overview'],
+    queryFn: () => RootApi.getInstance().getAnalyticsAdminApi().getWhatsappOverview(),
+    staleTime: 1000 * 60,
+  });
+}
+
+/** Panorama del catálogo de modelos contra su uso real (tarjetas de la página de modelos). */
+export function useAdminLlmModelsOverview() {
+  return useQuery({
+    queryKey: [KEY, 'llm-models-overview'],
+    queryFn: () => RootApi.getInstance().getAnalyticsAdminApi().getLlmModelsOverview(),
+    staleTime: 1000 * 60,
+  });
+}

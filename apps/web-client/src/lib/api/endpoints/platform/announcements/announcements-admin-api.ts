@@ -22,12 +22,32 @@ export interface AdminAnnouncementsQuery {
   limit?: number;
 }
 
+export interface AdminAnnouncementsOverview {
+  status: { published: number; draft: number; expired: number; unpublished: number };
+  engagement: {
+    days: number;
+    delivered: number;
+    read: number;
+    dismissed: number;
+    /** Entregas de anuncios con botón: la base de la tasa de clics. */
+    ctaDelivered: number;
+    ctaClicked: number;
+  };
+}
+
 class AnnouncementsAdminApi {
   public apiRequestManager: ApiRequestManager;
   private static BASE_URL = '/admin/announcements';
 
   constructor() {
     this.apiRequestManager = ApiRequestManager.getInstance();
+  }
+
+  public async getOverview(): Promise<AdminAnnouncementsOverview> {
+    const result = await this.apiRequestManager.get<ApiResponse<AdminAnnouncementsOverview>>(
+      `${AnnouncementsAdminApi.BASE_URL}/overview`,
+    );
+    return unwrapData(result);
   }
 
   public async list(query: AdminAnnouncementsQuery = {}): Promise<AdminAnnouncementsListResult> {

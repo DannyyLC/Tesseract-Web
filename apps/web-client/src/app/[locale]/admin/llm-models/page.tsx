@@ -39,6 +39,7 @@ import {
   sectionClass,
   selectTriggerClass,
 } from '../_styles';
+import { LlmModelsOverviewCards } from '@/components/admin/llm-models/llm-models-overview-cards';
 
 function fmtPrice(v: string) {
   const n = Number(v);
@@ -107,6 +108,8 @@ export default function LlmModelsAdminPage() {
           <Plus size={16} /> {tt('newModel')}
         </button>
       </div>
+
+      <LlmModelsOverviewCards />
 
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-3">

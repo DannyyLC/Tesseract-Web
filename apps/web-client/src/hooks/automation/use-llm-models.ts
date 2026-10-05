@@ -37,7 +37,11 @@ export function useLlmModel(id: string) {
 // Mutaciones: crear, actualizar metadatos, cambio de precio versionado, desactivar
 export function useLlmModelMutations() {
   const queryClient = useQueryClient();
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: [KEY, 'list'] });
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: [KEY, 'list'] });
+    // Crear, desactivar o cambiar el precio de un modelo mueve las tarjetas de la página.
+    queryClient.invalidateQueries({ queryKey: ['admin-analytics', 'llm-models-overview'] });
+  };
 
   const createModel = useMutation({
     mutationFn: async (data: CreateLlmModelInput) => {

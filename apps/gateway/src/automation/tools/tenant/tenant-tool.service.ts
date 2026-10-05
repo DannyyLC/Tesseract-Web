@@ -20,6 +20,11 @@ import { UpdateTenantToolDto } from './dto/update-tenant-tool.dto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { Prisma, ToolConnectionStatus, UserRole } from '@tesseract/database';
+import {
+  LIVE_TENANT_TOOL_WHERE,
+  tenantToolSegmentWhere,
+  type AdminTenantToolSegment,
+} from './admin-tenant-tool-segments';
 import { ToolHealthService } from '../core/tool-health.service';
 import { errorMessage } from '@/platform/common/utils/error-message';
 
@@ -142,13 +147,14 @@ export class TenantToolService {
   async findAllForAdmin(query: {
     search?: string;
     organizationId?: string;
+    segment?: AdminTenantToolSegment;
     page?: number;
     limit?: number;
   }) {
-    const { search, organizationId, page = 1, limit = DEFAULT_PAGE_SIZE } = query;
+    const { search, organizationId, segment, page = 1, limit = DEFAULT_PAGE_SIZE } = query;
     const skip = (page - 1) * limit;
 
-    const where = {
+    const where: Prisma.TenantToolWhereInput = {
       deletedAt: null,
       ...(organizationId && { organizationId }),
       ...(search && {
@@ -157,6 +163,7 @@ export class TenantToolService {
           { id: { contains: search, mode: 'insensitive' as const } },
         ],
       }),
+      ...(segment && { AND: [tenantToolSegmentWhere(segment)] }),
     };
 
     const [data, total] = await Promise.all([
@@ -184,6 +191,54 @@ export class TenantToolService {
     return {
       data,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  /**
+   * Números de arriba del listado de integraciones. Los segmentos salen de
+   * `admin-tenant-tool-segments.ts`, el mismo filtro del listado.
+   */
+  async getAdminOverview() {
+    const count = (where: Prisma.TenantToolWhereInput) =>
+      this.prismaService.tenantTool.count({ where });
+
+    const [total, connected, problem, expiredAuth, unattached, connectedOrgs, byCatalog] =
+      await Promise.all([
+        count(LIVE_TENANT_TOOL_WHERE),
+        count(tenantToolSegmentWhere('connected')),
+        count(tenantToolSegmentWhere('problem')),
+        count({ ...LIVE_TENANT_TOOL_WHERE, status: 'EXPIRED_AUTH' }),
+        count(tenantToolSegmentWhere('unattached')),
+        this.prismaService.tenantTool.groupBy({
+          by: ['organizationId'],
+          where: tenantToolSegmentWhere('connected'),
+        }),
+        this.prismaService.tenantTool.groupBy({
+          by: ['toolCatalogId'],
+          where: LIVE_TENANT_TOOL_WHERE,
+          _count: { _all: true },
+          orderBy: { _count: { toolCatalogId: 'desc' } },
+        }),
+      ]);
+
+    const top = byCatalog[0];
+    const topCatalog = top
+      ? await this.prismaService.toolCatalog.findUnique({
+          where: { id: top.toolCatalogId },
+          select: { displayName: true },
+        })
+      : null;
+
+    return {
+      total,
+      connected,
+      connectedOrganizations: connectedOrgs.length,
+      problem,
+      expiredAuth,
+      error: problem - expiredAuth,
+      unattached,
+      catalogsInUse: byCatalog.length,
+      mostUsed: top && topCatalog ? { name: topCatalog.displayName, count: top._count._all } : null,
     };
   }
 

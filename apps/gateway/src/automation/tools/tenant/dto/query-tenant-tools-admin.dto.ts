@@ -1,6 +1,10 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import {
+  ADMIN_TENANT_TOOL_SEGMENTS,
+  type AdminTenantToolSegment,
+} from '../admin-tenant-tool-segments';
 
 export class QueryTenantToolsAdminDto {
   @ApiPropertyOptional({
@@ -18,6 +22,15 @@ export class QueryTenantToolsAdminDto {
   @IsOptional()
   @IsString()
   organizationId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Segmento de las tarjetas del listado: connected, problem (error o autorización vencida) o unattached (conectada sin workflows)',
+    enum: ADMIN_TENANT_TOOL_SEGMENTS,
+  })
+  @IsOptional()
+  @IsIn(ADMIN_TENANT_TOOL_SEGMENTS)
+  segment?: AdminTenantToolSegment;
 
   @ApiPropertyOptional({ description: 'Página (1-indexed)', example: 1, default: 1 })
   @IsOptional()

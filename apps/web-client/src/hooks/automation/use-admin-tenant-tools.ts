@@ -15,3 +15,13 @@ export function useAdminTenantTools(query: AdminTenantToolsQuery = {}) {
     staleTime: 5000,
   });
 }
+
+/** Números de arriba del listado de integraciones. */
+export function useAdminTenantToolsOverview() {
+  return useQuery({
+    queryKey: [KEY, 'overview'],
+    queryFn: () => RootApi.getInstance().getTenantToolsAdminApi().getOverview(),
+    retry: false,
+    staleTime: 1000 * 60,
+  });
+}

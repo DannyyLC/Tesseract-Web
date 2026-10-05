@@ -16,6 +16,16 @@ export function useAdminAnnouncements(query: AdminAnnouncementsQuery = {}) {
   });
 }
 
+/** Números de arriba del listado; bajo la clave del listado para que las mutaciones lo refresquen. */
+export function useAdminAnnouncementsOverview() {
+  return useQuery({
+    queryKey: [KEY, 'overview'],
+    queryFn: async () => api().getOverview(),
+    retry: false,
+    staleTime: 1000 * 60,
+  });
+}
+
 export function useAdminAnnouncement(id: string) {
   return useQuery({
     queryKey: [KEY, 'detail', id],
@@ -47,6 +57,7 @@ export function useAdminAnnouncementMutations() {
   const invalidate = (id?: string) => {
     if (id) queryClient.invalidateQueries({ queryKey: [KEY, 'detail', id] });
     queryClient.invalidateQueries({ queryKey: [KEY, 'list'] });
+    queryClient.invalidateQueries({ queryKey: [KEY, 'overview'] });
   };
 
   const createAnnouncement = useMutation({

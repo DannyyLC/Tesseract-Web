@@ -2454,7 +2454,20 @@
       "publishError": "No se pudo publicar",
       "unpublishModalTitle": "Despublicar anuncio",
       "unpublishModalMessage": "\"{title}\" se retira del modal y de la campana de todos los que ya lo recibieron.",
-      "unpublishError": "No se pudo despublicar"
+      "unpublishError": "No se pudo despublicar",
+      "Overview": {
+        "publishedTitle": "Publicados",
+        "publishedHint": "Vigentes ahora · {expired} expirados · {unpublished} retirados",
+        "draftTitle": "Borradores",
+        "draftHint": "Escritos pero sin publicar",
+        "draftNone": "Nada pendiente de publicar",
+        "readTitle": "Leídos ({days} días)",
+        "readHint": "{read} de {delivered} entregas · {dismissed} descartadas",
+        "noDeliveries": "Sin entregas en el periodo",
+        "ctaTitle": "Clics en el botón ({days} días)",
+        "ctaHint": "{clicked} de {delivered} entregas con botón",
+        "ctaNone": "Ningún anuncio con botón en el periodo"
+      }
     },
     "NewAnnouncement": {
       "backToAnnouncements": "Volver a anuncios",
@@ -2538,7 +2551,27 @@
       "empty": "No hay integraciones que coincidan.",
       "workflowsCount": "{count, plural, one {# workflow} other {# workflows}}",
       "pagerSummary": "Página {page} de {totalPages} · {total} integraciones",
-      "allOrganizations": "Todas las organizaciones"
+      "allOrganizations": "Todas las organizaciones",
+      "filteringBy": "Mostrando: {segment}",
+      "clearSegment": "Quitar filtro",
+      "Overview": {
+        "connectedTitle": "Conectadas",
+        "connectedHint": "{total} en total · en {orgs, plural, one {# organización} other {# organizaciones}}",
+        "problemTitle": "Con problema",
+        "problemHint": "{expired} con autorización vencida · {error} con error",
+        "problemNone": "Todas funcionando",
+        "unattachedTitle": "Sin workflow",
+        "unattachedHint": "Conectadas, pero ningún workflow las usa",
+        "unattachedNone": "Todas se usan en algún workflow",
+        "mostUsedTitle": "La más usada",
+        "mostUsedHint": "{count, plural, one {# conexión} other {# conexiones}} · {catalogs} herramientas distintas en uso",
+        "mostUsedNone": "Sin integraciones todavía",
+        "segments": {
+          "connected": "integraciones conectadas",
+          "problem": "integraciones con problema",
+          "unattached": "integraciones sin workflow"
+        }
+      }
     },
     "WbTemplates": {
       "title": "Templates de WhatsApp",
@@ -2555,7 +2588,23 @@
       "stepOrg": "Organización",
       "stepNumber": "Número",
       "stepTemplates": "Templates",
-      "noNumbersTitle": "Sin números de WhatsApp"
+      "noNumbersTitle": "Sin números de WhatsApp",
+      "Overview": {
+        "connectedTitle": "Números conectados",
+        "connectedHint": "{total} en total · {providers}",
+        "downTitle": "Números caídos",
+        "downHint": "Activos pero desconectados o con error: no reciben ni envían",
+        "downNone": "Todos los números activos están conectados",
+        "templatesTitle": "Plantillas activas",
+        "templatesHint": "En {numbers, plural, one {# número} other {# números}}",
+        "withoutTemplates": "{count, plural, one {# número conectado sin plantillas} other {# números conectados sin plantillas}}: no pueden escribir fuera de la ventana de 24 h",
+        "conversationsTitle": "Conversaciones ({days} días)",
+        "conversationsHint": "En {numbers, plural, one {# número} other {# números}}",
+        "providers": {
+          "meta": "Meta",
+          "ycloud": "YCloud"
+        }
+      }
     },
     "LlmModels": {
       "title": "Modelos LLM",
@@ -2622,7 +2671,19 @@
       "priceChangeHint": "Se cerrará el precio vigente y se creará una nueva versión activa. El historial se conserva.",
       "priceChangeReasonPlaceholder": "Motivo del cambio de precio",
       "updating": "Actualizando…",
-      "updatePrice": "Actualizar precio"
+      "updatePrice": "Actualizar precio",
+      "Overview": {
+        "activeTitle": "Modelos activos",
+        "activeHint": "{basic} básicos · {standard} estándar · {premium} premium · {providers} proveedores",
+        "usedTitle": "En uso ({days} días)",
+        "usedHint": "{unused, plural, one {# activo sin uso} other {# activos sin uso}}",
+        "usedNotInCatalog": "{count, plural, one {# usado que ya no está en el catálogo} other {# usados que ya no están en el catálogo}}",
+        "topTitle": "Más gasto ({days} días)",
+        "topHint": "{cost} · {pct}% del gasto en LLM",
+        "noUsage": "Sin uso en el periodo",
+        "spendTitle": "Gasto en LLM ({days} días)",
+        "spendHint": "Tokens a precio de lista, sin descontar caché"
+      }
     },
     "Configuration": {
       "title": "Configuración",

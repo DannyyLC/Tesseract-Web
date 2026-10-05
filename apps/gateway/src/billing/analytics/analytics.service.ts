@@ -138,6 +138,12 @@ const WORKFLOW_IDLE_DAYS = 14;
 
 const DAY_MS = 86_400_000;
 
+/** Ventana del volumen de conversaciones de WhatsApp. */
+const CHANNEL_WINDOW_DAYS = 30;
+
+/** Ventana de uso y gasto por modelo. */
+const MODEL_WINDOW_DAYS = 30;
+
 /**
  * Workflow de un cliente vivo: ni borrado ni interno, de una organización activa que no es la
  * de plataforma. Es la base de todos los segmentos y conteos de workflows.
@@ -817,6 +823,126 @@ export class AdminAnalyticsService {
       isPaused: false,
       createdAt: { lt: since },
       executions: { none: { startedAt: { gte: since }, deletedAt: null } },
+    };
+  }
+
+  /**
+   * Panorama de WhatsApp en toda la plataforma: números conectados o caídos, plantillas (sin
+   * ellas un número no puede escribir fuera de la ventana de 24 h) y volumen de conversaciones.
+   */
+  async getWhatsappOverview() {
+    const since = new Date(Date.now() - CHANNEL_WINDOW_DAYS * DAY_MS);
+    const liveNumber: Prisma.WhatsAppConfigWhereInput = {
+      deletedAt: null,
+      organization: { deletedAt: null, slug: { not: PLATFORM_ORG_SLUG } },
+    };
+    const activeNumber: Prisma.WhatsAppConfigWhereInput = { ...liveNumber, isActive: true };
+    const count = (where: Prisma.WhatsAppConfigWhereInput) =>
+      this.prisma.whatsAppConfig.count({ where });
+
+    const [
+      total,
+      connected,
+      down,
+      byProvider,
+      activeTemplates,
+      numbersWithTemplates,
+      connectedWithoutTemplates,
+      conversations,
+      numbersWithConversations,
+    ] = await Promise.all([
+      count(liveNumber),
+      count({ ...activeNumber, connectionStatus: 'CONNECTED' }),
+      // Activo pero sin conexión: ni recibe ni manda mensajes.
+      count({ ...activeNumber, connectionStatus: { in: ['DISCONNECTED', 'ERROR'] } }),
+      this.prisma.whatsAppConfig.groupBy({
+        by: ['provider'],
+        where: liveNumber,
+        _count: { _all: true },
+      }),
+      this.prisma.whatsAppTemplate.count({
+        where: { isActive: true, whatsAppConfig: liveNumber },
+      }),
+      count({ ...liveNumber, templates: { some: { isActive: true } } }),
+      count({
+        ...activeNumber,
+        connectionStatus: 'CONNECTED',
+        templates: { none: { isActive: true } },
+      }),
+      this.prisma.conversation.count({
+        where: { whatsappConfigId: { not: null }, createdAt: { gte: since } },
+      }),
+      count({ ...liveNumber, conversations: { some: { createdAt: { gte: since } } } }),
+    ]);
+
+    return {
+      numbers: {
+        total,
+        connected,
+        down,
+        byProvider: Object.fromEntries(byProvider.map((row) => [row.provider, row._count._all])),
+      },
+      templates: { active: activeTemplates, numbersWithTemplates, connectedWithoutTemplates },
+      conversations: { total: conversations, numbers: numbersWithConversations },
+      days: CHANNEL_WINDOW_DAYS,
+    };
+  }
+
+  /**
+   * Panorama del catálogo de modelos contra lo que de verdad se usó: cuántos modelos activos hay,
+   * cuáles se usaron en la ventana (según el `cost_breakdown` de cada cobro) y en cuál se va el
+   * gasto. Un modelo activo sin uso es candidato a desactivarse o a revisar su precio.
+   */
+  async getLlmModelsOverview() {
+    const since = new Date(Date.now() - MODEL_WINDOW_DAYS * DAY_MS);
+
+    const [models, usage] = await Promise.all([
+      this.prisma.llmModel.findMany({
+        where: { isActive: true, effectiveTo: null },
+        select: { modelName: true, provider: true, tier: true },
+      }),
+      this.prisma.$queryRaw<{ model: string; costUSD: number; executions: number }[]>`
+        SELECT cb->>'model' AS model,
+               COALESCE(SUM((cb->>'cost')::float), 0)::float AS "costUSD",
+               COUNT(DISTINCT ct.id)::int AS executions
+        FROM credit_transactions ct
+        CROSS JOIN LATERAL jsonb_array_elements(
+          CASE WHEN jsonb_typeof(ct.metadata->'cost_breakdown') = 'array'
+               THEN ct.metadata->'cost_breakdown' ELSE '[]'::jsonb END
+        ) AS cb
+        WHERE ct."executionId" IS NOT NULL AND ct."createdAt" >= ${since}
+          AND (cb->>'cost')::float > 0
+        GROUP BY 1
+        ORDER BY "costUSD" DESC
+      `,
+    ]);
+
+    // Un mismo modelo puede tener una fila por tier: se cuenta una vez por nombre.
+    const activeNames = new Set(models.map((m) => m.modelName));
+    const usedNames = new Set(usage.map((row) => row.model));
+    const byTier = { BASIC: 0, STANDARD: 0, PREMIUM: 0 } as Record<string, number>;
+    for (const model of models) byTier[model.tier] = (byTier[model.tier] ?? 0) + 1;
+
+    const totalCostUSD = usage.reduce((acc, row) => acc + Number(row.costUSD), 0);
+    const top = usage[0];
+
+    return {
+      active: activeNames.size,
+      providers: new Set(models.map((m) => m.provider)).size,
+      byTier,
+      used: usedNames.size,
+      activeUnused: Array.from(activeNames).filter((name) => !usedNames.has(name)).length,
+      // Usados que no están en el catálogo activo: se costearon con un precio que ya no existe.
+      usedNotInCatalog: Array.from(usedNames).filter((name) => !activeNames.has(name)).length,
+      totalCostUSD: round(totalCostUSD, USD_DECIMALS),
+      top: top
+        ? {
+            model: top.model,
+            costUSD: round(Number(top.costUSD), USD_DECIMALS),
+            sharePct: totalCostUSD > 0 ? round((Number(top.costUSD) / totalCostUSD) * 100, 1) : 0,
+          }
+        : null,
+      days: MODEL_WINDOW_DAYS,
     };
   }
 

@@ -20,6 +20,8 @@ import {
 } from '../_styles';
 import { PagePager } from '@/components/ui/page-pager';
 import { usePageSize } from '@/hooks/shared/use-page-size';
+import { TenantToolsOverviewCards } from '@/components/admin/tools/tenant-tools-overview-cards';
+import type { AdminTenantToolSegment } from '@/lib/api/endpoints/automation/tools/tenant-tools-admin-api';
 
 const STATUS_STYLE: Record<string, string> = {
   CONNECTED: 'text-success-600',
@@ -43,6 +45,7 @@ export default function AdminIntegracionesPage() {
   const [organizationId, setOrganizationId] = useState('');
   const [orgSearchInput, setOrgSearchInput] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [segment, setSegment] = useState<AdminTenantToolSegment | null>(null);
   const { pageSize, setPageSize } = usePageSize('admin-integrations');
   const [page, setPage] = useState(1);
 
@@ -51,7 +54,7 @@ export default function AdminIntegracionesPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [organizationId, search]);
+  }, [organizationId, search, segment]);
 
   const {
     data: orgPages,
@@ -74,6 +77,7 @@ export default function AdminIntegracionesPage() {
   const { data, isLoading, error } = useAdminTenantTools({
     organizationId: organizationId || undefined,
     search: search || undefined,
+    segment: segment ?? undefined,
     page,
     limit: pageSize,
   });
@@ -84,6 +88,20 @@ export default function AdminIntegracionesPage() {
         <h1 className={pageTitleClass}>{t('title')}</h1>
         <p className={pageSubtitleClass}>{t('subtitle')}</p>
       </div>
+
+      <TenantToolsOverviewCards segment={segment} onSegmentChange={setSegment} />
+
+      {segment && (
+        <p className="flex flex-wrap items-center gap-2 text-sm text-text-secondary">
+          {t('filteringBy', { segment: t(`Overview.segments.${segment}`) })}
+          <button
+            onClick={() => setSegment(null)}
+            className="text-text-primary underline-offset-2 hover:underline"
+          >
+            {t('clearSegment')}
+          </button>
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-[240px] flex-1">

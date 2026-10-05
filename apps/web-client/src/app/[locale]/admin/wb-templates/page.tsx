@@ -18,6 +18,7 @@ import {
   rowActionClass,
   rowClass,
 } from '../_styles';
+import { WhatsappOverviewCards } from '@/components/admin/whatsapp/whatsapp-overview-cards';
 
 const CONNECTION_STYLE: Record<string, string> = {
   CONNECTED: 'text-success-600',
@@ -62,6 +63,8 @@ export default function AdminWbTemplatesPage() {
         <h1 className={pageTitleClass}>{t('title')}</h1>
         <p className={pageSubtitleClass}>{t('subtitle')}</p>
       </div>
+
+      <WhatsappOverviewCards />
 
       <div className="max-w-sm">
         <label className={labelClass}>{t('orgLabel')}</label>

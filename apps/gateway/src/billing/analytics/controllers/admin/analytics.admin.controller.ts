@@ -89,6 +89,20 @@ export class AnalyticsAdminController {
     return new ApiResponseBuilder().setData(result).build();
   }
 
+  @Get('whatsapp-overview')
+  @ApiOperation({ summary: 'Panorama de WhatsApp: números, plantillas y conversaciones' })
+  async whatsappOverview(): Promise<ApiResponse> {
+    const result = await this.analyticsService.getWhatsappOverview();
+    return new ApiResponseBuilder().setData(result).build();
+  }
+
+  @Get('llm-models-overview')
+  @ApiOperation({ summary: 'Panorama de modelos LLM: activos, en uso y en cuál se va el gasto' })
+  async llmModelsOverview(): Promise<ApiResponse> {
+    const result = await this.analyticsService.getLlmModelsOverview();
+    return new ApiResponseBuilder().setData(result).build();
+  }
+
   @Get('workflows/:id')
   @ApiOperation({
     summary: 'Detalle de un workflow: costo y tokens por ejecución, modelos, serie diaria y margen',
