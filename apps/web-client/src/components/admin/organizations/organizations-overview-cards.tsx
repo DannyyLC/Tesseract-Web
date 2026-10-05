@@ -1,7 +1,7 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import { AlertTriangle, Building2, Moon, TrendingUp, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Building2, Moon, TrendingUp } from 'lucide-react';
+import { OverviewCard, OverviewCardsSkeleton } from '@/components/admin/overview-card';
 import { useLocale, useTranslations } from 'next-intl';
 import { toIntlLocale } from '@/lib/intl-locale';
 import { useAdminOrganizationsOverview } from '@/hooks/identity/use-admin-organizations';
@@ -32,16 +32,7 @@ export function OrganizationsOverviewCards({ segment, onSegmentChange }: Props) 
   const toggle = (next: AdminOrganizationSegment | null) =>
     onSegmentChange(segment === next ? null : next);
 
-  if (!data) {
-    // Mismo alto que las tarjetas para que el listado no salte al cargar.
-    return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="h-[132px] animate-pulse rounded-2xl border border-border" />
-        ))}
-      </div>
-    );
-  }
+  if (!data) return <OverviewCardsSkeleton />;
 
   const { organizations, mrr, attention, idle } = data;
 
@@ -119,45 +110,5 @@ export function OrganizationsOverviewCards({ segment, onSegmentChange }: Props) 
         hint={idle.total === 0 ? t('idleNone') : t('idleHint', { days: idle.days })}
       />
     </div>
-  );
-}
-
-function OverviewCard({
-  icon: Icon,
-  label,
-  value,
-  hint,
-  color,
-  active,
-  onClick,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  hint: ReactNode;
-  color?: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-pressed={active}
-      className={`flex flex-col rounded-2xl border p-5 text-left transition-colors hover:bg-[var(--surface-tint)] ${
-        active ? 'border-[var(--border-hover)]' : 'border-border'
-      }`}
-    >
-      <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
-        <Icon size={14} style={color ? { color } : undefined} />
-        {label}
-      </span>
-      <span
-        className={`font-geist-mono mt-2 text-3xl font-light tracking-tight ${color ? '' : 'text-text-primary'}`}
-        style={color ? { color } : undefined}
-      >
-        {value}
-      </span>
-      <span className="mt-1 text-xs text-text-tertiary">{hint}</span>
-    </button>
   );
 }

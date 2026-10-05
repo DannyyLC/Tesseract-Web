@@ -1,8 +1,12 @@
-import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { QueryBoolean } from '@/platform/common/decorators/query-boolean.decorator';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@tesseract/types';
+import {
+  ADMIN_WORKFLOW_SEGMENTS,
+  type AdminWorkflowSegment,
+} from '@/billing/analytics/analytics.service';
 
 export class QueryWorkflowsAdminDto {
   @ApiPropertyOptional({ description: 'Filtrar por organización' })
@@ -20,6 +24,15 @@ export class QueryWorkflowsAdminDto {
   @IsOptional()
   @QueryBoolean()
   includeDeleted?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Segmento de las tarjetas del listado: failing (con fallas), negativeMargin o idle (sin ejecuciones)',
+    enum: ADMIN_WORKFLOW_SEGMENTS,
+  })
+  @IsOptional()
+  @IsIn(ADMIN_WORKFLOW_SEGMENTS)
+  segment?: AdminWorkflowSegment;
 
   @ApiPropertyOptional({ description: 'Página (1-indexed)', example: 1, default: 1 })
   @IsOptional()

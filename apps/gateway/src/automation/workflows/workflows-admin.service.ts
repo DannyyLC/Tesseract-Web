@@ -12,6 +12,7 @@ import { PrismaService } from '@/platform/database/prisma.service';
 import { InvalidWorkflowConfigException } from '@/platform/common/exceptions';
 import { OrganizationsService } from '@/identity/organizations/organizations.service';
 import { AgentsService } from '../agents/agents.service';
+import { AdminAnalyticsService } from '@/billing/analytics/analytics.service';
 import { WorkflowConfigValidator } from './workflow-config.validator';
 import { assertMaxTokensWithinCategory, touchesCategoryCeiling } from './category-token-ceiling';
 import { configSizeBytes, diffConfigs, hashConfig } from './workflow-config.utils';
@@ -55,6 +56,7 @@ export class WorkflowsAdminService {
     private readonly organizationsService: OrganizationsService,
     private readonly agentsService: AgentsService,
     private readonly configService: ConfigService,
+    private readonly analyticsService: AdminAnalyticsService,
   ) {
     this.versionsToKeep = Number(
       this.configService.get('WORKFLOW_VERSIONS_TO_KEEP', DEFAULT_VERSIONS_TO_KEEP),
@@ -89,7 +91,14 @@ export class WorkflowsAdminService {
 
   /** Listado de workflows. Nunca selecciona `config`: son ~100 KB por fila. */
   async findAll(query: QueryWorkflowsAdminDto) {
-    const { organizationId, search, includeDeleted, page = 1, limit = DEFAULT_PAGE_SIZE } = query;
+    const {
+      organizationId,
+      search,
+      includeDeleted,
+      segment,
+      page = 1,
+      limit = DEFAULT_PAGE_SIZE,
+    } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.WorkflowWhereInput = {
@@ -101,6 +110,8 @@ export class WorkflowsAdminService {
           { description: { contains: search, mode: 'insensitive' as const } },
         ],
       }),
+      // Mismo criterio que las tarjetas del listado (ver `getWorkflowsOverview()`).
+      ...(segment && { AND: [await this.analyticsService.resolveWorkflowSegment(segment)] }),
     };
 
     const [data, total] = await Promise.all([

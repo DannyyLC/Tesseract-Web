@@ -2680,7 +2680,27 @@
       "inactiveBadge": "inactivo",
       "internalBadge": "interno",
       "executionsCount": "{count} ejecuciones",
-      "pagerSummary": "Página {page} de {totalPages} · {total} workflows"
+      "pagerSummary": "Página {page} de {totalPages} · {total} workflows",
+      "filteringBy": "Mostrando: {segment}",
+      "clearSegment": "Quitar filtro",
+      "Overview": {
+        "activeTitle": "Workflows activos",
+        "activeHint": "{paused} pausados · {inactive} inactivos · {internal} internos",
+        "failingTitle": "Con fallas ({days} días)",
+        "failingHint": "{failed, plural, one {# ejecución fallida} other {# ejecuciones fallidas}} · {pct}% o más de fallas",
+        "failingNone": "Sin fallas relevantes",
+        "negativeMarginTitle": "Margen negativo ({days} días)",
+        "negativeMarginHint": "Cuestan {loss} más de lo que cobran en {days} días",
+        "negativeMarginNone": "Todos dejan margen",
+        "idleTitle": "Sin ejecuciones ({days} días)",
+        "idleHint": "Activos y sin pausar, sin responder en {days} días",
+        "idleNone": "Todos tuvieron ejecuciones",
+        "segments": {
+          "failing": "workflows con fallas",
+          "negativeMargin": "workflows con margen negativo",
+          "idle": "workflows sin ejecuciones"
+        }
+      }
     },
     "CreateWorkflowModal": {
       "modalTitle": "Nuevo workflow",

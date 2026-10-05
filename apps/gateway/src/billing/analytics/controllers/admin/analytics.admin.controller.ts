@@ -80,6 +80,15 @@ export class AnalyticsAdminController {
     return new ApiResponseBuilder().setData(result).build();
   }
 
+  @Get('workflows-overview')
+  @ApiOperation({
+    summary: 'Números del listado de workflows: activos, con fallas, margen negativo e inactivos',
+  })
+  async workflowsOverview(): Promise<ApiResponse> {
+    const result = await this.analyticsService.getWorkflowsOverview();
+    return new ApiResponseBuilder().setData(result).build();
+  }
+
   @Get('workflows/:id')
   @ApiOperation({
     summary: 'Detalle de un workflow: costo y tokens por ejecución, modelos, serie diaria y margen',

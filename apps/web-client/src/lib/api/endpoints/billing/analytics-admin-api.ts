@@ -181,6 +181,19 @@ export interface AdminOrganizationsOverview {
   idle: { total: number; days: number };
 }
 
+export interface AdminWorkflowsOverview {
+  workflows: { active: number; paused: number; inactive: number; internal: number };
+  failing: {
+    total: number;
+    failedExecutions: number;
+    days: number;
+    minExecutions: number;
+    thresholdPct: number;
+  };
+  negativeMargin: { total: number; lossUSD: number; days: number };
+  idle: { total: number; days: number };
+}
+
 class AnalyticsAdminApi {
   public apiRequestManager: ApiRequestManager;
   private static BASE_URL = '/admin/analytics';
@@ -228,6 +241,13 @@ class AnalyticsAdminApi {
   public async getOrganizationsOverview(): Promise<AdminOrganizationsOverview> {
     const result = await this.apiRequestManager.get<ApiResponse<AdminOrganizationsOverview>>(
       `${AnalyticsAdminApi.BASE_URL}/organizations-overview`,
+    );
+    return unwrapData(result);
+  }
+
+  public async getWorkflowsOverview(): Promise<AdminWorkflowsOverview> {
+    const result = await this.apiRequestManager.get<ApiResponse<AdminWorkflowsOverview>>(
+      `${AnalyticsAdminApi.BASE_URL}/workflows-overview`,
     );
     return unwrapData(result);
   }

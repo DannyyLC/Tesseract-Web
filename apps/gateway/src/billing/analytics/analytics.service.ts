@@ -16,6 +16,8 @@ import {
 } from './dto/admin-analytics-organizations-margin-response.dto';
 import { AdminAnalyticsWorkflowResponseDto } from './dto/admin-analytics-workflow-response.dto';
 import { AdminOrganizationsOverviewResponseDto } from './dto/admin-analytics-organizations-overview-response.dto';
+import { AdminWorkflowsOverviewResponseDto } from './dto/admin-analytics-workflows-overview-response.dto';
+import { PLATFORM_ORG_SLUG } from '@/platform/common/constants/platform-org.constant';
 import {
   ACTIVE_CUSTOMER_WHERE,
   CUSTOMER_WHERE,
@@ -118,6 +120,39 @@ interface WorkflowTopExecutionRawRow {
   durationMs: number | null;
   conversationId: string | null;
 }
+
+/** Segmentos de las tarjetas del listado de workflows del super admin. */
+export const ADMIN_WORKFLOW_SEGMENTS = ['failing', 'negativeMargin', 'idle'] as const;
+export type AdminWorkflowSegment = (typeof ADMIN_WORKFLOW_SEGMENTS)[number];
+
+/** Ventana, mínimo de ejecuciones y tasa de fallas para marcar un workflow como "con fallas". */
+const FAILING_WINDOW_DAYS = 7;
+const FAILING_MIN_EXECUTIONS = 5;
+const FAILING_THRESHOLD = 0.1;
+
+/** Ventana del margen por workflow. */
+const MARGIN_WINDOW_DAYS = 30;
+
+/** Días sin ejecuciones para considerar inactivo un workflow que debería estar respondiendo. */
+const WORKFLOW_IDLE_DAYS = 14;
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Workflow de un cliente vivo: ni borrado ni interno, de una organización activa que no es la
+ * de plataforma. Es la base de todos los segmentos y conteos de workflows.
+ */
+const CUSTOMER_WORKFLOW_WHERE: Prisma.WorkflowWhereInput = {
+  deletedAt: null,
+  isInternal: false,
+  organization: { deletedAt: null, isActive: true, slug: { not: PLATFORM_ORG_SLUG } },
+};
+
+/** El mismo filtro que `CUSTOMER_WORKFLOW_WHERE`, para las consultas SQL (alias `w` y `o`). */
+const CUSTOMER_WORKFLOW_SQL = Prisma.sql`
+  w."deletedAt" IS NULL AND w."isInternal" = false
+  AND o."deletedAt" IS NULL AND o."isActive" = true AND o.slug <> ${PLATFORM_ORG_SLUG}
+`;
 
 interface CreditValue {
   plan: SubscriptionPlan;
@@ -654,6 +689,134 @@ export class AdminAnalyticsService {
         manualRenewalDue,
       },
       idle: { total: idle, days: IDLE_DAYS },
+    };
+  }
+
+  /**
+   * Números de arriba del listado de workflows. Igual que con organizaciones, los conteos usan
+   * `resolveWorkflowSegment()`, el mismo que filtra el listado, para que coincidan.
+   */
+  async getWorkflowsOverview(): Promise<AdminWorkflowsOverviewResponseDto> {
+    const now = new Date();
+    const count = (where: Prisma.WorkflowWhereInput) => this.prisma.workflow.count({ where });
+
+    const [active, paused, inactive, internal, failing, negative, idle] = await Promise.all([
+      count({ ...CUSTOMER_WORKFLOW_WHERE, isActive: true, isPaused: false }),
+      count({ ...CUSTOMER_WORKFLOW_WHERE, isPaused: true }),
+      count({ ...CUSTOMER_WORKFLOW_WHERE, isActive: false }),
+      count({ deletedAt: null, isInternal: true }),
+      this.failingWorkflows(now),
+      this.negativeMarginWorkflows(now),
+      count(this.idleWorkflowsWhere(now)),
+    ]);
+
+    return {
+      workflows: { active, paused, inactive, internal },
+      failing: {
+        total: failing.length,
+        failedExecutions: failing.reduce((acc, row) => acc + row.failed, 0),
+        days: FAILING_WINDOW_DAYS,
+        minExecutions: FAILING_MIN_EXECUTIONS,
+        thresholdPct: FAILING_THRESHOLD * 100,
+      },
+      negativeMargin: {
+        total: negative.length,
+        lossUSD: round(
+          negative.reduce((acc, row) => acc + row.lossUSD, 0),
+          USD_DECIMALS,
+        ),
+        days: MARGIN_WINDOW_DAYS,
+      },
+      idle: { total: idle, days: WORKFLOW_IDLE_DAYS },
+    };
+  }
+
+  /** `where` del listado de workflows del admin para un segmento de las tarjetas. */
+  async resolveWorkflowSegment(segment: AdminWorkflowSegment): Promise<Prisma.WorkflowWhereInput> {
+    const now = new Date();
+    switch (segment) {
+      case 'failing':
+        return { id: { in: (await this.failingWorkflows(now)).map((row) => row.id) } };
+      case 'negativeMargin':
+        return { id: { in: (await this.negativeMarginWorkflows(now)).map((row) => row.id) } };
+      case 'idle':
+        return this.idleWorkflowsWhere(now);
+    }
+  }
+
+  /**
+   * Workflows con al menos `FAILING_MIN_EXECUTIONS` ejecuciones en la ventana y una tasa de
+   * fallas (FAILED o TIMEOUT) de `FAILING_THRESHOLD` o más. El mínimo evita que un workflow con
+   * 1 ejecución fallida de 1 salga con 100 % de fallas.
+   */
+  private async failingWorkflows(now: Date): Promise<{ id: string; failed: number }[]> {
+    const since = new Date(now.getTime() - FAILING_WINDOW_DAYS * DAY_MS);
+    const rows = await this.prisma.$queryRaw<{ id: string; failed: number }[]>`
+      SELECT e."workflowId" AS id,
+             COUNT(*) FILTER (WHERE e.status IN ('FAILED', 'TIMEOUT'))::int AS failed
+      FROM executions e
+      JOIN workflows w ON w.id = e."workflowId"
+      JOIN organizations o ON o.id = w."organizationId"
+      WHERE e."startedAt" >= ${since} AND e."deletedAt" IS NULL AND e."isInternalWorkflow" = false
+        AND ${CUSTOMER_WORKFLOW_SQL}
+      GROUP BY e."workflowId"
+      HAVING COUNT(*) >= ${FAILING_MIN_EXECUTIONS}::int
+         AND COUNT(*) FILTER (WHERE e.status IN ('FAILED', 'TIMEOUT'))::float / COUNT(*)
+             >= ${FAILING_THRESHOLD}::float
+    `;
+    return rows.map((row) => ({ id: row.id, failed: Number(row.failed) }));
+  }
+
+  /**
+   * Workflows que en la ventana costaron más de lo que se cobró por ellos, con el valor del
+   * crédito del plan de su organización (igual que el resto del dashboard). Las organizaciones
+   * sin ingreso (FREE, valor 0) o sin precio resoluble quedan fuera: ahí "margen negativo" es
+   * todo lo que ejecutan y no dice nada del workflow.
+   */
+  private async negativeMarginWorkflows(now: Date): Promise<{ id: string; lossUSD: number }[]> {
+    const since = new Date(now.getTime() - MARGIN_WINDOW_DAYS * DAY_MS);
+    const rows = await this.prisma.$queryRaw<
+      { id: string; organizationId: string; costUSD: number; credits: number }[]
+    >`
+      SELECT e."workflowId" AS id,
+             w."organizationId" AS "organizationId",
+             COALESCE(SUM(e.cost), 0)::float AS "costUSD",
+             COALESCE(SUM(e.credits), 0)::int AS credits
+      FROM executions e
+      JOIN workflows w ON w.id = e."workflowId"
+      JOIN organizations o ON o.id = w."organizationId"
+      WHERE e."startedAt" >= ${since} AND e."deletedAt" IS NULL AND e."isInternalWorkflow" = false
+        AND ${CUSTOMER_WORKFLOW_SQL}
+      GROUP BY e."workflowId", w."organizationId"
+    `;
+
+    const creditValues = await this.resolveCreditValues(
+      Array.from(new Set(rows.map((row) => row.organizationId))),
+    );
+
+    return rows
+      .map((row) => {
+        const value = creditValues.get(row.organizationId)?.creditValueUSD ?? null;
+        if (value == null || value <= 0) return null;
+        const lossUSD = Number(row.costUSD) - Number(row.credits) * value;
+        return lossUSD > 0 ? { id: row.id, lossUSD } : null;
+      })
+      .filter((row): row is { id: string; lossUSD: number } => row !== null);
+  }
+
+  /**
+   * Workflows que deberían estar respondiendo (activos, sin pausar, con más de
+   * `WORKFLOW_IDLE_DAYS` de creados) y no tuvieron ninguna ejecución en ese tiempo: suele ser un
+   * canal desconectado o un cliente que dejó de usarlo.
+   */
+  private idleWorkflowsWhere(now: Date): Prisma.WorkflowWhereInput {
+    const since = new Date(now.getTime() - WORKFLOW_IDLE_DAYS * DAY_MS);
+    return {
+      ...CUSTOMER_WORKFLOW_WHERE,
+      isActive: true,
+      isPaused: false,
+      createdAt: { lt: since },
+      executions: { none: { startedAt: { gte: since }, deletedAt: null } },
     };
   }
 

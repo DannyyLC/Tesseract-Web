@@ -11,5 +11,7 @@ import { AdminAnalyticsService } from './analytics.service';
   imports: [SubscriptionsModule],
   controllers: [AnalyticsAdminController],
   providers: [AdminAnalyticsService],
+  // El listado de workflows del admin filtra por los mismos segmentos que cuentan las tarjetas.
+  exports: [AdminAnalyticsService],
 })
 export class AnalyticsModule {}

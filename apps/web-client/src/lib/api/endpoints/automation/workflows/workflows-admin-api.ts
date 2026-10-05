@@ -112,8 +112,12 @@ export interface Paginated<T> {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
+/** Segmentos de las tarjetas del listado (ver `resolveWorkflowSegment()` del gateway). */
+export type AdminWorkflowSegment = 'failing' | 'negativeMargin' | 'idle';
+
 export interface AdminWorkflowsQuery {
   organizationId?: string;
+  segment?: AdminWorkflowSegment;
   search?: string;
   includeDeleted?: boolean;
   page?: number;
@@ -197,6 +201,7 @@ class WorkflowsAdminApi {
     const params = new URLSearchParams();
     if (query.organizationId) params.append('organizationId', query.organizationId);
     if (query.search) params.append('search', query.search);
+    if (query.segment) params.append('segment', query.segment);
     if (query.includeDeleted !== undefined)
       params.append('includeDeleted', String(query.includeDeleted));
     if (query.page) params.append('page', String(query.page));

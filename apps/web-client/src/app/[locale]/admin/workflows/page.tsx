@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
-import { Search, Plus, History, Building2 } from 'lucide-react';
+import { Search, Plus, History, Building2, X } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { InfiniteSelect } from '@/components/ui/infinite-select';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -26,6 +26,8 @@ import {
 import { PagePager } from '@/components/ui/page-pager';
 import { usePageSize } from '@/hooks/shared/use-page-size';
 import { CreateWorkflowModal } from '@/components/admin/workflows/create-workflow-modal';
+import { WorkflowsOverviewCards } from '@/components/admin/workflows/workflows-overview-cards';
+import type { AdminWorkflowSegment } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
 
 export default function AdminWorkflowsPage() {
   const t = useTranslations('Admin.Workflows');
@@ -38,13 +40,14 @@ export default function AdminWorkflowsPage() {
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [includeDeleted, setIncludeDeleted] = useState(false);
+  const [segment, setSegment] = useState<AdminWorkflowSegment | null>(null);
 
   const search = useDebounce(searchInput, 400);
   const orgSearch = useDebounce(orgSearchInput, 400);
 
   useEffect(() => {
     setPage(1);
-  }, [organizationId, search, includeDeleted]);
+  }, [organizationId, search, includeDeleted, segment]);
 
   const {
     data: orgPages,
@@ -71,6 +74,7 @@ export default function AdminWorkflowsPage() {
     organizationId: organizationId || undefined,
     search: search || undefined,
     includeDeleted,
+    segment: segment ?? undefined,
     page,
     limit: pageSize,
   });
@@ -87,6 +91,20 @@ export default function AdminWorkflowsPage() {
           {t('newWorkflow')}
         </button>
       </div>
+
+      <WorkflowsOverviewCards segment={segment} onSegmentChange={setSegment} />
+
+      {segment && (
+        <p className="flex flex-wrap items-center gap-2 text-sm text-text-secondary">
+          {t('filteringBy', { segment: t(`Overview.segments.${segment}`) })}
+          <button
+            onClick={() => setSegment(null)}
+            className="inline-flex items-center gap-1 text-text-primary underline-offset-2 hover:underline"
+          >
+            <X size={14} /> {t('clearSegment')}
+          </button>
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-[240px] flex-1">

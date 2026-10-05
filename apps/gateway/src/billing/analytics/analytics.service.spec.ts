@@ -17,6 +17,7 @@ const mockPrismaService = {
   },
   workflow: {
     findUnique: jest.fn(),
+    count: jest.fn(),
   },
   $queryRaw: jest.fn(),
 };
@@ -450,6 +451,76 @@ describe('AdminAnalyticsService', () => {
       const { mrr } = await service.getOrganizationsOverview();
 
       expect(mrr.unpriced).toBe(1);
+    });
+  });
+
+  describe('getWorkflowsOverview', () => {
+    beforeEach(() => {
+      mockPrismaService.workflow.count.mockResolvedValue(0);
+      // STARTER: 7500 centavos / 750 créditos = 0.10 USD por crédito.
+      mockPriceCatalogService.pricesFor.mockResolvedValue({ usd: 7500 });
+      mockPrismaService.organization.findMany.mockResolvedValue([
+        { id: 'org-paid', plan: SubscriptionPlan.STARTER, subscription: null },
+        { id: 'org-free', plan: SubscriptionPlan.FREE, subscription: null },
+      ]);
+    });
+
+    /** Orden de las consultas: fallas y después margen (las dos van en el mismo Promise.all). */
+    const mockQueries = (failing: unknown[], margin: unknown[]) => {
+      mockPrismaService.$queryRaw.mockReset();
+      mockPrismaService.$queryRaw.mockResolvedValueOnce(failing).mockResolvedValueOnce(margin);
+    };
+
+    it('margen negativo: solo workflows que cuestan más de lo cobrado, con la pérdida sumada', async () => {
+      mockQueries(
+        [],
+        [
+          // 10 créditos × 0.10 = 1.00 cobrado; costó 1.50 → pierde 0.50.
+          { id: 'wf-loss', organizationId: 'org-paid', costUSD: 1.5, credits: 10 },
+          // Cobró 1.00 y costó 0.20 → deja margen.
+          { id: 'wf-ok', organizationId: 'org-paid', costUSD: 0.2, credits: 10 },
+        ],
+      );
+
+      const { negativeMargin } = await service.getWorkflowsOverview();
+
+      expect(negativeMargin.total).toBe(1);
+      expect(negativeMargin.lossUSD).toBeCloseTo(0.5);
+    });
+
+    it('margen negativo: excluye organizaciones FREE, donde todo lo que ejecutan es pérdida', async () => {
+      mockQueries([], [{ id: 'wf-free', organizationId: 'org-free', costUSD: 3, credits: 0 }]);
+
+      const { negativeMargin } = await service.getWorkflowsOverview();
+
+      expect(negativeMargin.total).toBe(0);
+    });
+
+    it('con fallas: cuenta workflows y suma sus ejecuciones fallidas', async () => {
+      mockQueries(
+        [
+          { id: 'wf-a', failed: 3 },
+          { id: 'wf-b', failed: 2 },
+        ],
+        [],
+      );
+
+      const { failing } = await service.getWorkflowsOverview();
+
+      expect(failing.total).toBe(2);
+      expect(failing.failedExecutions).toBe(5);
+      expect(failing.thresholdPct).toBe(10);
+    });
+
+    it('el filtro del listado usa los mismos ids que la tarjeta', async () => {
+      mockPrismaService.$queryRaw.mockReset();
+      mockPrismaService.$queryRaw.mockResolvedValueOnce([
+        { id: 'wf-loss', organizationId: 'org-paid', costUSD: 5, credits: 1 },
+      ]);
+
+      const where = await service.resolveWorkflowSegment('negativeMargin');
+
+      expect(where).toEqual({ id: { in: ['wf-loss'] } });
     });
   });
 });

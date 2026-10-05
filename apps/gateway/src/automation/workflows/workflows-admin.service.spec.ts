@@ -9,6 +9,7 @@ import { OrganizationsService } from '@/identity/organizations/organizations.ser
 import { AgentsService } from '../agents/agents.service';
 import { InvalidWorkflowConfigException } from '@/platform/common/exceptions';
 import { hashConfig } from './workflow-config.utils';
+import { AdminAnalyticsService } from '@/billing/analytics/analytics.service';
 
 /**
  * Config válido mínimo: incluye una clave que ningún formulario del editor conoce,
@@ -75,6 +76,7 @@ describe('WorkflowsAdminService', () => {
           useValue: { getNodeCatalog: jest.fn().mockRejectedValue(new Error('down')) },
         },
         { provide: ConfigService, useValue: { get: (_k: string, d: unknown) => d } },
+        { provide: AdminAnalyticsService, useValue: { resolveWorkflowSegment: jest.fn() } },
       ],
     }).compile();
 

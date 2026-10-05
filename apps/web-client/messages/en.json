@@ -2680,7 +2680,27 @@
       "inactiveBadge": "inactive",
       "internalBadge": "internal",
       "executionsCount": "{count} executions",
-      "pagerSummary": "Page {page} of {totalPages} · {total} workflows"
+      "pagerSummary": "Page {page} of {totalPages} · {total} workflows",
+      "filteringBy": "Showing: {segment}",
+      "clearSegment": "Clear filter",
+      "Overview": {
+        "activeTitle": "Active workflows",
+        "activeHint": "{paused} paused · {inactive} inactive · {internal} internal",
+        "failingTitle": "Failing ({days} days)",
+        "failingHint": "{failed, plural, one {# failed execution} other {# failed executions}} · {pct}% or more failures",
+        "failingNone": "No relevant failures",
+        "negativeMarginTitle": "Negative margin ({days} days)",
+        "negativeMarginHint": "Cost {loss} more than they charge in {days} days",
+        "negativeMarginNone": "All leave margin",
+        "idleTitle": "No executions ({days} days)",
+        "idleHint": "Active and unpaused, no responses in {days} days",
+        "idleNone": "All had executions",
+        "segments": {
+          "failing": "failing workflows",
+          "negativeMargin": "workflows with negative margin",
+          "idle": "workflows with no executions"
+        }
+      }
     },
     "CreateWorkflowModal": {
       "modalTitle": "New workflow",

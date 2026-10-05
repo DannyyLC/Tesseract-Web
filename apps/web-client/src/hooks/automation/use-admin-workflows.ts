@@ -57,6 +57,19 @@ export function useAdminWorkflows(query: AdminWorkflowsQuery = {}, enabled = tru
 }
 
 /**
+ * Números de arriba del listado. Bajo la clave del listado para que las mutaciones que ya la
+ * invalidan (pausar, borrar, restaurar…) también lo refresquen.
+ */
+export function useAdminWorkflowsOverview() {
+  return useQuery({
+    queryKey: [KEY, 'overview'],
+    queryFn: () => RootApi.getInstance().getAnalyticsAdminApi().getWorkflowsOverview(),
+    retry: false,
+    staleTime: 1000 * 60,
+  });
+}
+
+/**
  * Detalle CON el config. `staleTime: Infinity` a propósito: el editor trabaja sobre
  * una copia local y un refetch en segundo plano podría reemplazar el documento base
  * mientras hay cambios sin guardar.
@@ -104,7 +117,11 @@ export function useVersionDiff(id: string, versionId: string | null) {
 export function useAdminWorkflowMutations() {
   const queryClient = useQueryClient();
 
-  const invalidateList = () => queryClient.invalidateQueries({ queryKey: [KEY, 'list'] });
+  const invalidateList = () => {
+    queryClient.invalidateQueries({ queryKey: [KEY, 'list'] });
+    // Pausar, activar, borrar o restaurar mueve los números de las tarjetas del listado.
+    queryClient.invalidateQueries({ queryKey: [KEY, 'overview'] });
+  };
   const invalidateWorkflow = (id: string) => {
     queryClient.invalidateQueries({ queryKey: [KEY, 'detail', id] });
     queryClient.invalidateQueries({ queryKey: [KEY, 'versions', id] });
