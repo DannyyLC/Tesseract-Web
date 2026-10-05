@@ -42,6 +42,10 @@ const mockPrismaService = {
     findUnique: jest.fn(),
     update: jest.fn(),
   },
+  // Gasto del periodo (credits-period.ts): `usedThisMonth` sale de las transacciones.
+  creditTransaction: {
+    aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null, costUSD: null } }),
+  },
   organization: {
     update: jest.fn(),
     findUnique: jest.fn(),

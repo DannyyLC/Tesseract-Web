@@ -38,6 +38,7 @@ import {
 import { maskEmail } from '@/platform/common/utils/mask-email';
 import { checkVerificationCode } from '@/identity/auth/utils/verification-code.util';
 import { segmentWhere } from './admin-organization-segments';
+import { creditsSpentInCurrentPeriod } from '@/billing/credits/credits-period';
 
 /**
  * Servicio para gestionar organizaciones
@@ -275,14 +276,19 @@ export class OrganizationsService {
 
     // Datos solo para super admins
     const subscription = organization.subscription;
-    const adminData =
+    // Desde las transacciones del periodo: las columnas `currentMonth*` nunca se reinician.
+    const periodSpend =
       includeAdminData && organization.creditBalance
+        ? await creditsSpentInCurrentPeriod(this.prisma, organizationId)
+        : null;
+    const adminData =
+      includeAdminData && organization.creditBalance && periodSpend
         ? {
             creditBalance: organization.creditBalance.balance,
             lifetimeEarned: organization.creditBalance.lifetimeEarned,
             lifetimeSpent: organization.creditBalance.lifetimeSpent,
-            currentMonthCostUSD: organization.creditBalance.currentMonthCostUSD,
-            currentMonthSpent: organization.creditBalance.currentMonthSpent,
+            currentMonthCostUSD: periodSpend.costUSD,
+            currentMonthSpent: periodSpend.credits,
             allowOverages: organization.allowOverages,
             overageLimit: organization.overageLimit,
             deactivatedAt: organization.deactivatedAt,

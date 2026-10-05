@@ -114,6 +114,26 @@ export class ExecutionsController {
   }
 
   /**
+   * GET /executions/response-time
+   * Tiempo que tarda el bot en generar sus respuestas (mediana, p90, por día y por workflow).
+   */
+  @Get('response-time')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
+  async getResponseTime(
+    @CurrentUser() user: UserPayload,
+    @Query() query: ExecutionStatsQueryDto,
+    @Res() res: Response,
+  ) {
+    const apiResponse = new ApiResponseBuilder<unknown>();
+    const data = await this.executionsService.getResponseTime(
+      user.organizationId,
+      query.period ?? '30d',
+    );
+    apiResponse.setData(data).setMessage('Response time retrieved successfully').setSuccess(true);
+    return res.status(HttpStatus.OK).json(apiResponse.build());
+  }
+
+  /**
    * GET /executions/stats
    * Obtiene estadísticas generales de ejecuciones de la organización
    */

@@ -1440,7 +1440,33 @@
     "statusRunning": "Running",
     "statusPending": "Pending",
     "statusCancelled": "Cancelled",
-    "statusTimeout": "Timeout"
+    "statusTimeout": "Timeout",
+    "CreditsProjection": {
+      "title": "Credits projection",
+      "insufficientData": "There is not enough history yet to estimate when your credits run out. Check back in a few days.",
+      "noConsumption": "You have not used credits in recent weeks, so there is no pace to project.",
+      "alreadyDepleted": "Your credits are used up. Top up or change your plan so your workflows keep responding.",
+      "depletesBeforeRenewal": "At this pace your credits run out on <strong>{date}</strong>, {days, plural, =0 {the same day as your renewal} one {# day before your renewal} other {# days before your renewal}}.",
+      "lastsUntilRenewal": "Your credits last until the end of your period, which renews on <strong>{date}</strong>.",
+      "depletes": "At this pace your credits run out on <strong>{date}</strong>, {days, plural, =0 {today} one {in # day} other {in # days}}.",
+      "range": "Between {earliest} and {latest}, depending on whether you have a busy or a quiet week.",
+      "rangeOpen": "From {earliest} onward if you have a busy week.",
+      "overageLimit": "With overage you would reach your limit on {date}.",
+      "methodWeekday": "Based on your usage for each day of the week: {avg} credits per day on average.",
+      "methodFlat": "Based on your average usage of {avg} credits per day; it gets sharper after two weeks of history.",
+      "tooltipActual": "Balance: {value}",
+      "tooltipExpected": "Estimated: {value}",
+      "renewal": "Renewal",
+      "lastsOverMonth": "At your current pace, your credits last more than a month."
+    },
+    "ResponseTime": {
+      "title": "Response time",
+      "noData": "No responses in the last 30 days yet.",
+      "hint": "30-day median · 90% answered in under {p90} · {count} responses",
+      "tooltip": "{value} · {count, plural, one {# response} other {# responses}}",
+      "responses": "{count, plural, one {# response} other {# responses}}",
+      "note": "This is the time the bot takes to generate the reply. It does not include the seconds the channel waits in case the customer sends several messages in a row."
+    }
   },
   "AcceptInvitation": {
     "automationPlatform": "Automation Platform",

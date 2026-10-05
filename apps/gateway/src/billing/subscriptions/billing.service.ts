@@ -46,6 +46,7 @@ import Stripe from 'stripe';
 import { UtilityService } from '@/platform/utility/utility.service';
 import { maskEmail } from '@/platform/common/utils/mask-email';
 import { CfdiService } from '../invoice/cfdi.service';
+import { creditsSpentInCurrentPeriod } from '../credits/credits-period';
 
 @Injectable()
 export class BillingService {
@@ -1620,6 +1621,11 @@ export class BillingService {
   /**
    * Get Aggregated Billing Dashboard Data
    */
+  /** Proyección del saldo de créditos para el dashboard del cliente. */
+  async getCreditsProjection(organizationId: string) {
+    return this.creditsService.getProjection(organizationId);
+  }
+
   async getBillingDashboard(organizationId: string): Promise<BillingDashboardDto> {
     const [
       organization,
@@ -1709,7 +1715,8 @@ export class BillingService {
       fiscalProfileComplete: !!organization.fiscalProfile?.validatedAt,
       credits: {
         available: creditBalance?.balance ?? 0,
-        usedThisMonth: creditBalance?.currentMonthSpent ?? 0,
+        // Desde las transacciones del periodo: `currentMonthSpent` nunca se reinicia.
+        usedThisMonth: (await creditsSpentInCurrentPeriod(this.prisma, organizationId)).credits,
         limit: limits.monthlyCredits,
       },
       usage: {

@@ -31,6 +31,8 @@ const mockPrismaService = {
   creditTransaction: {
     create: jest.fn(),
     findMany: jest.fn(),
+    // Gasto del periodo (credits-period.ts): se calcula desde las transacciones.
+    aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null, costUSD: null } }),
   },
   organization: {
     findUnique: jest.fn(),
@@ -656,11 +658,16 @@ describe('CreditsService', () => {
     const orgId = 'org-123';
 
     it('should return balance data with paginated transactions', async () => {
+      // La columna trae el acumulado histórico (nunca se reinicia); lo que se devuelve es el
+      // gasto del periodo, calculado desde las transacciones.
       const mockBalance = {
         id: 'cb-1',
         balance: 500,
-        currentMonthSpent: 120,
+        currentMonthSpent: 9999,
       };
+      mockPrismaService.creditTransaction.aggregate.mockResolvedValueOnce({
+        _sum: { amount: -120, costUSD: null },
+      });
       const mockTransactions = {
         items: [],
         nextCursor: null,

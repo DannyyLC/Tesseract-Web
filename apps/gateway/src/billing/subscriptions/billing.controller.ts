@@ -424,6 +424,18 @@ export class BillingController {
     return { message: 'Plan update initiated successfully' };
   }
 
+  /** Proyección del saldo de créditos: cuándo se acaban a este ritmo (dashboard del cliente). */
+  @Get('credits/projection')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async getCreditsProjection(@Req() req: Request & { user: UserPayload }) {
+    const organizationId = req.user.organizationId;
+    if (!organizationId) {
+      throw new BadRequestException('User does not belong to an organization');
+    }
+    return this.billingService.getCreditsProjection(organizationId);
+  }
+
   @Get('dashboard')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)

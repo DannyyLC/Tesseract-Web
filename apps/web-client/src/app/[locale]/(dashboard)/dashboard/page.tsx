@@ -17,8 +17,7 @@ import {
   Legend,
   type TooltipContentProps,
 } from 'recharts';
-import { Activity, ArrowUpRight, Loader2 } from 'lucide-react';
-import { Link } from '@/i18n/routing';
+import { Activity, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/identity/use-auth';
 import { useWorkflowStats } from '@/hooks/automation/use-workflows';
 import {
@@ -33,33 +32,11 @@ import PermissionGuard from '@/components/auth/permission-guard';
 import { BrokenIntegrationsBanner } from '@/components/integrations/broken-integrations-banner';
 import { PastDuePaymentBanner } from '@/components/billing/past-due-payment-banner';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
+import { ChartSkeleton, SectionTitle } from './_components/dashboard-section';
+import { CreditsProjectionCard } from './_components/credits-projection-card';
+import { ResponseTimeCard } from './_components/response-time-card';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function SectionTitle({
-  children,
-  href,
-  linkLabel,
-}: {
-  children: React.ReactNode;
-  href?: string;
-  linkLabel?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between border-b border-border p-5">
-      <h2 className="text-lg font-semibold text-text-primary">{children}</h2>
-      {href && (
-        <Link
-          href={href}
-          className="flex items-center gap-1 text-sm text-black/50 transition-colors hover:text-text-primary"
-        >
-          {linkLabel}
-          <ArrowUpRight size={14} />
-        </Link>
-      )}
-    </div>
-  );
-}
-
 // Custom tooltip for recharts with dark mode awareness
 function ChartTooltip({ active, payload, label }: Partial<TooltipContentProps<number, string>>) {
   if (!active || !payload?.length) return null;
@@ -79,13 +56,6 @@ function ChartTooltip({ active, payload, label }: Partial<TooltipContentProps<nu
         </p>
       ))}
     </div>
-  );
-}
-
-// ─── Skeleton for charts ──────────────────────────────────────────────────────
-function ChartSkeleton({ height = 200 }: { height?: number }) {
-  return (
-    <div className="w-full animate-pulse rounded-xl bg-surface-secondary" style={{ height }} />
   );
 }
 
@@ -386,6 +356,13 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* ── Proyección de créditos + Tiempo de respuesta ────────────────────── */}
+      {/* Sin permiso de facturación la proyección no aparece y el tiempo de respuesta ocupa la fila. */}
+      <div className={`grid gap-6 ${hasBilling ? 'lg:grid-cols-2' : 'lg:grid-cols-1'}`}>
+        {hasBilling && <CreditsProjectionCard />}
+        <ResponseTimeCard />
       </div>
 
       {/* ── Bar Chart + Activity Feed ───────────────────────────────────────── */}

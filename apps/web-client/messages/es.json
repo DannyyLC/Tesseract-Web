@@ -1440,7 +1440,33 @@
     "statusRunning": "En proceso",
     "statusPending": "Pendiente",
     "statusCancelled": "Cancelada",
-    "statusTimeout": "Timeout"
+    "statusTimeout": "Timeout",
+    "CreditsProjection": {
+      "title": "Proyección de créditos",
+      "insufficientData": "Todavía no hay suficiente historial para estimar cuándo se acaban tus créditos. Vuelve en unos días.",
+      "noConsumption": "No has consumido créditos en las últimas semanas, así que no hay ritmo que proyectar.",
+      "alreadyDepleted": "Tus créditos ya se agotaron. Recarga o cambia de plan para que tus workflows sigan respondiendo.",
+      "depletesBeforeRenewal": "A este ritmo tus créditos se acaban el <strong>{date}</strong>, {days, plural, =0 {el mismo día de tu renovación} one {# día antes de tu renovación} other {# días antes de tu renovación}}.",
+      "lastsUntilRenewal": "Tus créditos te alcanzan hasta el final de tu periodo, que se renueva el <strong>{date}</strong>.",
+      "depletes": "A este ritmo tus créditos se acaban el <strong>{date}</strong>, {days, plural, =0 {hoy} one {en # día} other {en # días}}.",
+      "range": "Entre el {earliest} y el {latest}, según si tienes una semana cargada o tranquila.",
+      "rangeOpen": "A partir del {earliest} si tienes una semana cargada.",
+      "overageLimit": "Con el sobregiro llegarías a tu límite el {date}.",
+      "methodWeekday": "Calculado con tu consumo de cada día de la semana: en promedio {avg} créditos por día.",
+      "methodFlat": "Calculado con tu consumo promedio de {avg} créditos por día; se afina cuando haya dos semanas de historial.",
+      "tooltipActual": "Saldo: {value}",
+      "tooltipExpected": "Estimado: {value}",
+      "renewal": "Renovación",
+      "lastsOverMonth": "A tu ritmo actual, tus créditos te alcanzan para más de un mes."
+    },
+    "ResponseTime": {
+      "title": "Tiempo de respuesta",
+      "noData": "Todavía no hay respuestas en los últimos 30 días.",
+      "hint": "Mediana de 30 días · el 90% se responde en menos de {p90} · {count} respuestas",
+      "tooltip": "{value} · {count, plural, one {# respuesta} other {# respuestas}}",
+      "responses": "{count, plural, one {# respuesta} other {# respuestas}}",
+      "note": "Es el tiempo que tarda el bot en generar la respuesta. No incluye los segundos en que el canal espera por si el cliente manda más mensajes seguidos."
+    }
   },
   "AcceptInvitation": {
     "automationPlatform": "Automation Platform",

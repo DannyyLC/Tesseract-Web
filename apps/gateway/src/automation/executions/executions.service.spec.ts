@@ -364,6 +364,45 @@ describe('ExecutionsService', () => {
     });
   });
 
+  describe('getResponseTime', () => {
+    it('rellena los días sin respuestas y redondea las medianas a ms', async () => {
+      mockPrismaService.$queryRaw.mockReset();
+      mockPrismaService.$queryRaw
+        .mockResolvedValueOnce([{ p50: 4321.6, p90: 9000.2, count: 3 }])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ workflowId: 'wf-1', name: 'Ventas', p50: 3999.5, count: 3 }]);
+
+      const result = await service.getResponseTime('org-1', '7d');
+
+      expect(result.p50).toBe(4322);
+      expect(result.p90).toBe(9000);
+      expect(result.count).toBe(3);
+      // 7d = hoy + 6 días atrás, todos presentes aunque la consulta no traiga ninguno.
+      expect(result.daily).toHaveLength(7);
+      expect(result.daily.every((d) => d.count === 0 && d.p50 === null)).toBe(true);
+      expect(result.byWorkflow).toEqual([
+        { workflowId: 'wf-1', name: 'Ventas', p50: 4000, count: 3 },
+      ]);
+      mockPrismaService.$queryRaw.mockReset();
+      mockPrismaService.$queryRaw.mockResolvedValue([]);
+    });
+
+    it('sin ejecuciones devuelve medianas nulas, no cero', async () => {
+      mockPrismaService.$queryRaw.mockReset();
+      mockPrismaService.$queryRaw
+        .mockResolvedValueOnce([{ p50: null, p90: null, count: 0 }])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getResponseTime('org-1', '30d');
+
+      expect(result.p50).toBeNull();
+      expect(result.count).toBe(0);
+      mockPrismaService.$queryRaw.mockReset();
+      mockPrismaService.$queryRaw.mockResolvedValue([]);
+    });
+  });
+
   describe('getHourlyDistribution', () => {
     it('devuelve las 24 franjas aunque la consulta traiga solo algunas', async () => {
       // Las horas sin actividad son el dato interesante ("a las 3am no me escribe

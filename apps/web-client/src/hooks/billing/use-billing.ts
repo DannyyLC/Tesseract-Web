@@ -40,6 +40,16 @@ export function useBillingDashboard({ enabled = true }: { enabled?: boolean } = 
   });
 }
 
+// Proyección del saldo de créditos (tarjeta del dashboard)
+export function useCreditsProjection({ enabled = true }: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: ['billing', 'credits-projection'],
+    queryFn: async () => RootApi.getInstance().getBillingApi().getCreditsProjection(),
+    enabled,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
 // Hook para mutaciones de facturación
 export function useBillingMutations() {
   const queryClient = useQueryClient();

@@ -832,6 +832,96 @@ export class ExecutionsService {
   }
 
   /**
+   * Tiempo de respuesta del bot: cuánto tarda en generar cada respuesta a una conversación.
+   *
+   * Se mide con la duración de las ejecuciones (`finishedAt − startedAt`), no con
+   * `Message.latencyMs`, que ningún código actual llena. Solo cuentan las que responden a una
+   * conversación con alguien esperando: completadas, con `conversationId` y que no vienen de un
+   * cron. Cuando contesta un especialista humano no hay ejecución, así que no contamina el dato.
+   *
+   * No incluye la ventana en que el canal junta los mensajes del cliente antes de responder
+   * (`WHATSAPP_WINDOW_SECONDS`): es el tiempo de generar la respuesta, no el total percibido.
+   */
+  async getResponseTime(organizationId: string, period: string) {
+    const timezone = await this.getOrganizationTimezone(organizationId);
+    const startDate = this.periodStartDate(period, timezone);
+    const where = Prisma.sql`
+      e."organizationId" = ${organizationId}
+      AND e.status = 'COMPLETED' AND e."conversationId" IS NOT NULL
+      AND e."finishedAt" IS NOT NULL AND e.trigger <> 'SCHEDULE'
+      AND e."isInternalWorkflow" = false AND e."deletedAt" IS NULL
+      ${startDate ? Prisma.sql`AND e."startedAt" >= ${startDate}` : Prisma.empty}
+    `;
+    const durationMs = Prisma.sql`EXTRACT(EPOCH FROM (e."finishedAt" - e."startedAt")) * 1000`;
+
+    const [[summary], dayRows, workflowRows] = await Promise.all([
+      this.prisma.$queryRaw<{ p50: number | null; p90: number | null; count: number }[]>`
+        SELECT (percentile_cont(0.5) WITHIN GROUP (ORDER BY ${durationMs}))::float AS p50,
+               (percentile_cont(0.9) WITHIN GROUP (ORDER BY ${durationMs}))::float AS p90,
+               COUNT(*)::int AS count
+        FROM executions e
+        WHERE ${where}
+      `,
+      // Doble `AT TIME ZONE`: ver `getHourlyDistribution`.
+      this.prisma.$queryRaw<{ day: Date; p50: number; count: number }[]>`
+        SELECT (date_trunc('day', (e."startedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone}))::date AS day,
+               (percentile_cont(0.5) WITHIN GROUP (ORDER BY ${durationMs}))::float AS p50,
+               COUNT(*)::int AS count
+        FROM executions e
+        WHERE ${where}
+        GROUP BY 1
+        ORDER BY 1
+      `,
+      this.prisma.$queryRaw<{ workflowId: string; name: string; p50: number; count: number }[]>`
+        SELECT e."workflowId" AS "workflowId", w.name AS name,
+               (percentile_cont(0.5) WITHIN GROUP (ORDER BY ${durationMs}))::float AS p50,
+               COUNT(*)::int AS count
+        FROM executions e
+        JOIN workflows w ON w.id = e."workflowId"
+        WHERE ${where}
+        GROUP BY e."workflowId", w.name
+        ORDER BY count DESC
+        LIMIT 5
+      `,
+    ]);
+
+    // `::date` llega como medianoche UTC del día local: se lee el Y-M-D en UTC.
+    const byDay = new Map(dayRows.map((row) => [row.day.toISOString().slice(0, 10), row]));
+    const daily: { date: string; p50: number | null; count: number }[] = [];
+    if (startDate) {
+      const today = startOfDayInZone(new Date(), timezone);
+      for (let cursor = startDate; cursor <= today; cursor = addDaysInZone(cursor, 1, timezone)) {
+        const key = zonedDayKey(cursor, timezone);
+        const row = byDay.get(key);
+        daily.push({
+          date: key,
+          p50: row ? Math.round(Number(row.p50)) : null,
+          count: row ? Number(row.count) : 0,
+        });
+      }
+    } else {
+      for (const [date, row] of byDay) {
+        daily.push({ date, p50: Math.round(Number(row.p50)), count: Number(row.count) });
+      }
+    }
+
+    return {
+      period,
+      timezone,
+      p50: summary?.p50 != null ? Math.round(summary.p50) : null,
+      p90: summary?.p90 != null ? Math.round(summary.p90) : null,
+      count: Number(summary?.count ?? 0),
+      daily,
+      byWorkflow: workflowRows.map((row) => ({
+        workflowId: row.workflowId,
+        name: row.name,
+        p50: Math.round(Number(row.p50)),
+        count: Number(row.count),
+      })),
+    };
+  }
+
+  /**
    * Distribución de ejecuciones por hora del día.
    *
    * Responde "¿a qué hora recibo actividad?" agregando en Postgres, no en Node: la

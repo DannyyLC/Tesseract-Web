@@ -17,6 +17,34 @@ export interface CreateCreditCheckoutParams {
   code2FA?: string;
 }
 
+export type CreditsProjectionStatus =
+  | 'insufficient_data'
+  | 'no_consumption'
+  | 'already_depleted'
+  | 'depletes_before_renewal'
+  | 'lasts_until_renewal'
+  | 'depletes'
+  | 'lasts_beyond_horizon';
+
+/** `GET /billing/credits/projection`. Las fechas son días locales `YYYY-MM-DD`. */
+export interface CreditsProjectionData {
+  status: CreditsProjectionStatus;
+  method: 'weekday' | 'flat' | null;
+  historyDays: number;
+  avgDailyConsumption: number;
+  depletionDate: string | null;
+  /** `latest` en `null`: a ritmo de semana tranquila no se agotan ("a partir de `earliest`"). */
+  range: { earliest: string; latest: string | null } | null;
+  overageLimitDate: string | null;
+  renewalDate: string | null;
+  leftoverAtRenewal: number | null;
+  projected: { date: string; balance: number; low: number; high: number }[];
+  timezone: string;
+  balance: number;
+  monthlyCredits: number;
+  history: { date: string; balance: number }[];
+}
+
 class BillingApi {
   public apiRequestManager: ApiRequestManager;
   private static BASE_URL = '/billing';
@@ -112,6 +140,17 @@ class BillingApi {
   public async getDashboardData(): Promise<BillingDashboardData> {
     const response = await this.apiRequestManager.get<BillingDashboardData>(
       `${BillingApi.BASE_URL}/dashboard`,
+    );
+    return response.data;
+  }
+
+  /**
+   * Proyección del saldo de créditos: cuándo se acaban a este ritmo.
+   * Endpoint: GET /billing/credits/projection
+   */
+  public async getCreditsProjection(): Promise<CreditsProjectionData> {
+    const response = await this.apiRequestManager.get<CreditsProjectionData>(
+      `${BillingApi.BASE_URL}/credits/projection`,
     );
     return response.data;
   }

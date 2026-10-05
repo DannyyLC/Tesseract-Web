@@ -46,6 +46,15 @@ export function useHourlyDistribution(period: '24h' | '7d' | '30d' | '90d' | 'al
   });
 }
 
+// Tiempo de respuesta del bot (tarjeta del dashboard)
+export function useResponseTime(period: '24h' | '7d' | '30d' | '90d' | 'all' = '30d') {
+  return useQuery({
+    queryKey: ['executions', 'response-time', period],
+    queryFn: async () => RootApi.getInstance().getExecutionsApi().getResponseTime(period),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
 // Hook para obtener detalle de una ejecución
 export function useExecution(id: string) {
   return useQuery({
