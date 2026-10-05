@@ -72,6 +72,9 @@ export function CategoryComparisonChart({ rows }: Props) {
                 width={70}
               />
               <Tooltip
+                // La sombra por defecto de Recharts es un gris fijo (#ccc) que en tema oscuro se
+                // ve casi blanco; con el tinte del tema acompaña a los dos modos.
+                cursor={{ fill: 'var(--surface-tint)' }}
                 content={({ active, payload, label }) => {
                   if (!active || !payload?.length) return null;
                   const point = payload[0].payload as (typeof data)[number];
