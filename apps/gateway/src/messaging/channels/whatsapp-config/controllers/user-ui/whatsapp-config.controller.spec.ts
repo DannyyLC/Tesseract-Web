@@ -33,6 +33,7 @@ describe('WhatsappConfigController · handleWebhook', () => {
     findOrCreateConversationFromWhatsAppMessage: jest.fn(),
     addMessage: jest.fn(),
     markMessageOutsideWorkflow: jest.fn(),
+    update: jest.fn(),
   };
   const mockEndUsersService: any = { isBlocked: jest.fn() };
   const mockPayloadConsumerResolver: any = { forProvider: jest.fn() };
@@ -447,7 +448,7 @@ describe('WhatsappConfigController · handleWebhook', () => {
       consumer.getToNumber.mockReturnValue(CLIENT_NUMBER);
     });
 
-    it('no registra nada si nadie intervino la conversación', async () => {
+    it('sin intervención previa, guarda el echo e interviene la conversación', async () => {
       mockConversationsService.findActiveWhatsappConversation.mockResolvedValue({
         id: 'conv-1',
         organizationId: 'org-1',
@@ -457,9 +458,43 @@ describe('WhatsappConfigController · handleWebhook', () => {
 
       await controller.handleWebhook(body, res, ycloudHeaders);
 
-      expect(mockConversationsService.addMessage).not.toHaveBeenCalled();
+      expect(mockConversationsService.addMessage).toHaveBeenCalledWith(
+        'conv-1',
+        ChatRole.ASSISTANT,
+        'hola',
+        expect.objectContaining({ source: 'whatsapp_smb_echo' }),
+      );
+      expect(mockConversationsService.markMessageOutsideWorkflow).toHaveBeenCalledWith(
+        'org-1',
+        'conv-1',
+        'human-takeover',
+        undefined,
+      );
+      expect(mockConversationsService.update).toHaveBeenCalledWith('org-1', 'conv-1', {
+        isHumanInTheLoop: true,
+      });
       expect(mockQueueService.bufferMessage).not.toHaveBeenCalled();
       expect(res.send).toHaveBeenCalledWith({ received: true });
+    });
+
+    it('sin conversación previa, la crea, guarda el echo y la interviene', async () => {
+      mockConversationsService.findActiveWhatsappConversation.mockResolvedValue(null);
+      mockConversationsService.findOrCreateConversationFromWhatsAppMessage.mockResolvedValue({
+        id: 'conv-new',
+        organizationId: 'org-1',
+      });
+
+      await controller.handleWebhook(body, createResponse(Buffer.from('{}')), ycloudHeaders);
+
+      expect(mockConversationsService.addMessage).toHaveBeenCalledWith(
+        'conv-new',
+        ChatRole.ASSISTANT,
+        'hola',
+        expect.objectContaining({ source: 'whatsapp_smb_echo' }),
+      );
+      expect(mockConversationsService.update).toHaveBeenCalledWith('org-1', 'conv-new', {
+        isHumanInTheLoop: true,
+      });
     });
 
     it('registra el echo como ASSISTANT cuando un humano intervino, reusando la conversación ya consultada', async () => {
@@ -484,6 +519,7 @@ describe('WhatsappConfigController · handleWebhook', () => {
         'human-in-the-loop',
         undefined,
       );
+      expect(mockConversationsService.update).not.toHaveBeenCalled();
     });
 
     it('nunca bufferea el echo ni agenda una tarea, con o sin intervención humana', async () => {

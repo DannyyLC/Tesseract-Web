@@ -618,6 +618,78 @@ describe('WorkflowsService', () => {
         );
       });
 
+      describe('intervención durante la generación', () => {
+        const arrange = (intervenedAfterGenerating: boolean) => {
+          prisma.workflow.findFirst = jest.fn().mockResolvedValue(wfMock);
+          (mockCreditsService as any).canExecuteWorkflow = jest
+            .fn()
+            .mockResolvedValue({ allowed: true });
+          (mockCreditsService as any).deductCredits = jest.fn();
+          (mockExecutionsService as any).create = jest.fn().mockResolvedValue({ id: 'exec1' });
+          (mockExecutionsService as any).linkToConversation = jest.fn();
+          (mockExecutionsService as any).getByIdFull = jest.fn().mockResolvedValue({ id: 'exec1' });
+          (mockExecutionsService as any).updateStatus = jest.fn();
+          (mockConversationsService as any).findOrCreateConversation = jest.fn().mockResolvedValue({
+            id: 'conv1',
+            isHumanInTheLoop: false,
+            endUserId: 'end-user-1',
+          });
+          (mockConversationsService as any).getMessageHistory = jest.fn().mockResolvedValue([]);
+          (mockConversationsService as any).addMessage = jest.fn();
+          (mockConversationsService as any).update = jest.fn();
+          (mockAgentsService as any).execute = jest.fn().mockResolvedValue({
+            messages: [{ role: 'assistant', content: 'Respuesta del bot' }],
+            metadata: { total_tokens: 15, usage_by_model: { 'gpt-4o': 15 } },
+          });
+          // Relectura de la bandera después de generar: ahí es donde se nota el echo.
+          (prisma as any).conversation = {
+            findUnique: jest.fn().mockResolvedValue({ isHumanInTheLoop: intervenedAfterGenerating }),
+          };
+        };
+
+        it('descarta la respuesta pero cobra y completa la ejecución', async () => {
+          arrange(true);
+
+          await service.execute(orgId, wfId, { message: 'Hola' });
+
+          const addMessage = (mockConversationsService as any).addMessage;
+          expect(addMessage).toHaveBeenCalledTimes(1);
+          expect(addMessage).toHaveBeenCalledWith('conv1', 'USER', 'Hola', undefined, expect.anything());
+          expect((mockExecutionsService as any).updateStatus).toHaveBeenCalledWith(
+            'exec1',
+            'COMPLETED',
+            expect.objectContaining({
+              result: expect.objectContaining({
+                messages: [],
+                skipped: 'hitl',
+                suppressedMessages: [{ role: 'assistant', content: 'Respuesta del bot' }],
+              }),
+            }),
+          );
+          expect((mockCreditsService as any).deductCredits).toHaveBeenCalled();
+          expect((mockConversationsService as any).update).toHaveBeenCalledWith(
+            orgId,
+            'conv1',
+            expect.objectContaining({ messageCount: { increment: 1 } }),
+          );
+        });
+
+        it('sin intervención, guarda la respuesta como siempre', async () => {
+          arrange(false);
+
+          await service.execute(orgId, wfId, { message: 'Hola' });
+
+          expect((mockConversationsService as any).addMessage).toHaveBeenCalledWith(
+            'conv1',
+            'ASSISTANT',
+            'Respuesta del bot',
+          );
+          const { result } = (mockExecutionsService as any).updateStatus.mock.calls[0][2];
+          expect(result.skipped).toBeUndefined();
+          expect(result.messages).toEqual([{ role: 'assistant', content: 'Respuesta del bot' }]);
+        });
+      });
+
       it('salta el chequeo y el descuento de créditos para un workflow interno (allowInternal:true)', async () => {
         prisma.workflow.findFirst = jest.fn().mockResolvedValue({ ...wfMock, isInternal: true });
         (mockExecutionsService as any).create = jest.fn().mockResolvedValue({ id: 'exec1' });

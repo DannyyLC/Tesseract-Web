@@ -42,7 +42,11 @@ interface CreateCompactionInput {
 }
 
 /** Por qué un mensaje ASSISTANT no pasó por el workflow. Ver `markMessageOutsideWorkflow`. */
-export type OutsideWorkflowReason = 'inactive-workflow' | 'human-in-the-loop';
+/**
+ * Por qué un mensaje ASSISTANT no lo generó el workflow. `human-takeover`: alguien contestó
+ * desde la app de WhatsApp Business con el bot activo, y con eso la conversación se intervino.
+ */
+export type OutsideWorkflowReason = 'inactive-workflow' | 'human-in-the-loop' | 'human-takeover';
 
 interface MessageAttachmentInput {
   type: 'IMAGE' | 'AUDIO';

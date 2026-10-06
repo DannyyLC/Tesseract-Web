@@ -19,7 +19,13 @@ import {
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { JsonObject } from '@prisma/client/runtime/client';
-import { ConversationChannel, TriggerType, WhatsAppConfig } from '@tesseract/database';
+import {
+  ChatRole,
+  Conversation,
+  ConversationChannel,
+  TriggerType,
+  WhatsAppConfig,
+} from '@tesseract/database';
 import { Response } from 'express';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
@@ -263,6 +269,8 @@ export class WhatsappWorkerController {
       }
 
       if (!interpreted.aggregatedText.trim()) {
+        // Lo que de verdad le llegó al cliente, para dejarlo en el historial tal cual.
+        const sentNotices = isIntervened ? [] : [...interpreted.notices];
         if (interpreted.notices.length === 0) {
           // Red de seguridad: ningún camino conocido llega aquí sin haber avisado, pero
           // si aparece uno nuevo, el usuario recibe algo en vez de silencio. Salvo con la
@@ -273,6 +281,7 @@ export class WhatsappWorkerController {
               clientPhoneNumber,
               policy.messages.unsupportedFormat,
             );
+            sentNotices.push(policy.messages.unsupportedFormat);
           }
           this.logger.error('No se pudo extraer texto de la ventana', {
             ...logContext,
@@ -280,6 +289,15 @@ export class WhatsappWorkerController {
             isIntervened,
           });
         }
+        await this.recordWindowWithoutText(
+          account,
+          agentPhoneNumber,
+          clientPhoneNumber,
+          conversation,
+          interpreted.transcript,
+          sentNotices,
+          logContext,
+        );
         await this.commit(drained.processingKey);
         return { status: HttpStatus.OK, body: { processed: false, reason: 'no-text' } };
       }
@@ -297,7 +315,9 @@ export class WhatsappWorkerController {
       const execution = await this.workflowsService.execute(
         organizationId,
         account.defaultWorkflowId,
-        { message: interpreted.aggregatedText },
+        // El transcript y no solo el texto: con los marcadores, el LLM sabe que el cliente
+        // mandó también un sticker o una foto que no pudo ver.
+        { message: interpreted.transcript },
         {
           channel: ConversationChannel.WHATSAPP,
           // Ya procesados aquí: `execute()` no debe volver a transcribirlos.
@@ -548,12 +568,16 @@ export class WhatsappWorkerController {
     account: WhatsAppConfig
   ): Promise<{
     aggregatedText: string;
+    transcript: string;
     payloadConsumer: IWBPayloadConsumer;
     attachments?: ProcessedAttachment[];
     notices: string[];
     mediaErrors: string[];
   }> {
     const parts: string[] = [];
+    // Lo mismo que `parts`, más un marcador por cada cosa que no llegó como texto, en el
+    // orden en que llegó. Es lo que se guarda y lo que ve el LLM.
+    const transcriptParts: string[] = [];
     const mediaErrors: string[] = [];
     const attachments: ProcessedAttachment[] = [];
     // Set para no repetir el mismo aviso si mandan tres imágenes seguidas.
@@ -576,14 +600,19 @@ export class WhatsappWorkerController {
 
       const interpreted = await payloadConsumer.getInterpretedMessage();
 
-      if (interpreted.text) parts.push(interpreted.text);
+      if (interpreted.placeholder) transcriptParts.push(interpreted.placeholder);
+      if (interpreted.text) {
+        parts.push(interpreted.text);
+        transcriptParts.push(interpreted.text);
+      }
       if (interpreted.attachment) attachments.push(interpreted.attachment);
       if (interpreted.notice) notices.add(interpreted.notice);
       if (interpreted.mediaError) mediaErrors.push(interpreted.mediaError);
     }
 
     return {
-      aggregatedText: parts.map((part) => part.trim()).filter(Boolean).join('\n'),
+      aggregatedText: joinParts(parts),
+      transcript: joinParts(transcriptParts),
       // `messages` nunca está vacío al llegar aquí (el caller ya cortó ese caso), así
       // que siempre queda asignado en la primera vuelta del for.
       payloadConsumer: ownerPayloadConsumer as IWBPayloadConsumer,
@@ -593,9 +622,65 @@ export class WhatsappWorkerController {
     };
   }
 
+  /**
+   * Deja en el historial una ventana que no llega a `execute()` porque no trae texto (solo un
+   * sticker, una ubicación, un audio que no se transcribió...): el marcador de lo que mandó el
+   * cliente y los avisos que se le enviaron. Sin esto el LLM no sabría, en el siguiente turno,
+   * que el cliente mandó algo, y el panel no lo mostraría.
+   *
+   * No ejecuta el workflow ni cobra. Es best-effort: el cliente ya recibió los avisos, y
+   * reintentar la ventana por un fallo aquí se los volvería a mandar.
+   */
+  private async recordWindowWithoutText(
+    account: WhatsAppConfig,
+    agentPhoneNumber: string,
+    clientPhoneNumber: string,
+    knownConversation: Conversation | null,
+    transcript: string,
+    sentNotices: string[],
+    logContext: Record<string, unknown>,
+  ): Promise<void> {
+    if (!transcript || !account.defaultWorkflowId) return;
+
+    try {
+      const conversation =
+        knownConversation ??
+        (await this.conversationsService.findOrCreateConversationFromWhatsAppMessage(
+          account.defaultWorkflowId,
+          agentPhoneNumber,
+          clientPhoneNumber,
+        ));
+
+      await this.conversationsService.addMessage(conversation.id, ChatRole.USER, transcript, {
+        source: 'unprocessed_media',
+      });
+      for (const notice of sentNotices) {
+        await this.conversationsService.addMessage(conversation.id, ChatRole.ASSISTANT, notice, {
+          source: 'media_notice',
+        });
+      }
+
+      await this.conversationsService.update(conversation.organizationId, conversation.id, {
+        messageCount: { increment: 1 + sentNotices.length },
+      });
+    } catch (error) {
+      this.logger.error('No se pudo guardar en el historial una ventana sin texto', {
+        ...logContext,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   private async commit(processingKey: string | null): Promise<void> {
     if (processingKey) {
       await this.whatsappMessageQueueService.commitWindow(processingKey);
     }
   }
+}
+
+function joinParts(parts: string[]): string {
+  return parts
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join('\n');
 }

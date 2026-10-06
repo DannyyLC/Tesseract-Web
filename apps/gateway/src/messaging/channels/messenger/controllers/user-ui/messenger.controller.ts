@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ChatRole, MessengerConfig } from '@tesseract/database';
+import { mediaPlaceholder } from '@/automation/media-processing/media-placeholders';
 import { ApiResponse, ApiResponseBuilder, UserRole } from '@tesseract/types';
 import { Response } from 'express';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
@@ -496,7 +497,16 @@ export class MessengerController {
     reason: OutsideWorkflowReason,
     knownConversation?: { id: string; organizationId: string; metadata?: unknown } | null,
   ): Promise<void> {
-    const content = messaging.message?.text;
+    // Los adjuntos (foto, sticker, ubicación...) quedan como marcador: sin él, un mensaje sin
+    // texto no se guardaba y desaparecía del historial. Ver `media-placeholders.ts`.
+    const content = [
+      ...(messaging.message?.attachments ?? []).map((attachment) =>
+        mediaPlaceholder(attachment.type),
+      ),
+      messaging.message?.text,
+    ]
+      .filter(Boolean)
+      .join('\n');
     if (!content) {
       this.logger.warn(
         `Messenger message without text for config ${messengerConfigId}, it's skipped`,

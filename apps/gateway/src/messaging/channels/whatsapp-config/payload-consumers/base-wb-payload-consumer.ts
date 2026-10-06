@@ -1,4 +1,5 @@
 import { approximateAudioSeconds, maxAudioBytes } from '@/automation/media-processing/media-policy';
+import { mediaPlaceholder } from '@/automation/media-processing/media-placeholders';
 import { MediaProcessingService } from '@/automation/media-processing/media-processing.service';
 import * as crypto from 'crypto';
 import { Logger } from 'winston';
@@ -73,12 +74,16 @@ export abstract class BaseWBPayloadConsumer<TPayload> implements IWBPayloadConsu
         return { text: this.textBody() };
 
       case 'image':
-        if (!policy.image.enabled) return { notice: policy.messages.imageDisabled };
-        return { text: this.imageCaption() };
+        // Con la imagen encendida solo se aprovecha el pie: la imagen en sí todavía no se
+        // procesa, así que el marcador va en los dos casos.
+        if (!policy.image.enabled) {
+          return { notice: policy.messages.imageDisabled, placeholder: mediaPlaceholder('image') };
+        }
+        return { text: this.imageCaption(), placeholder: mediaPlaceholder('image') };
 
       case 'video':
         this.logger.warn('Mensaje de video recibido, no soportado', { ...logContext, messageId });
-        return { notice: policy.messages.videoDisabled };
+        return { notice: policy.messages.videoDisabled, placeholder: mediaPlaceholder('video') };
 
       case 'audio':
         return this.interpretAudio(messageId);
@@ -91,7 +96,10 @@ export abstract class BaseWBPayloadConsumer<TPayload> implements IWBPayloadConsu
           messageId,
           type: this.rawMessageType(),
         });
-        return { notice: policy.messages.unsupportedFormat };
+        return {
+          notice: policy.messages.unsupportedFormat,
+          placeholder: mediaPlaceholder(this.rawMessageType()),
+        };
     }
   }
 
@@ -107,7 +115,9 @@ export abstract class BaseWBPayloadConsumer<TPayload> implements IWBPayloadConsu
     const defaultWorkflowId = this.associatedAccount.defaultWorkflowId;
     const { mediaPolicy: policy } = await this.workflowsService.getChannelPolicy(organizationId, defaultWorkflowId || '');
 
-    if (!policy.audio.enabled) return { notice: policy.messages.audioDisabled };
+    const placeholder = mediaPlaceholder('audio');
+
+    if (!policy.audio.enabled) return { notice: policy.messages.audioDisabled, placeholder };
 
     let attachment;
     try {
@@ -130,7 +140,7 @@ export abstract class BaseWBPayloadConsumer<TPayload> implements IWBPayloadConsu
       // igual que una transcripción fallida.
       const detail = error instanceof Error ? error.message : String(error);
       this.logger.error('No se pudo obtener el audio', { ...logContext, messageId, error: detail });
-      return { notice: policy.messages.audioFailed, mediaError: detail };
+      return { notice: policy.messages.audioFailed, mediaError: detail, placeholder };
     }
 
     if (attachment?.tooLarge) {
@@ -145,7 +155,7 @@ export abstract class BaseWBPayloadConsumer<TPayload> implements IWBPayloadConsu
           : undefined,
         maxSeconds: policy.audio.maxSeconds,
       });
-      return { notice: policy.messages.audioTooLong };
+      return { notice: policy.messages.audioTooLong, placeholder };
     }
 
     if (!attachment?.processedText) {
@@ -157,7 +167,7 @@ export abstract class BaseWBPayloadConsumer<TPayload> implements IWBPayloadConsu
         messageId,
         error: attachment?.processingError,
       });
-      return { notice: policy.messages.audioFailed, mediaError: detail };
+      return { notice: policy.messages.audioFailed, mediaError: detail, placeholder };
     }
 
     return { text: attachment.processedText, attachment };

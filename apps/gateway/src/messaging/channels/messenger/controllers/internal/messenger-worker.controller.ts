@@ -9,7 +9,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
-import { ConversationChannel, MessengerConnectionStatus, TriggerType } from '@tesseract/database';
+import {
+  ChatRole,
+  Conversation,
+  ConversationChannel,
+  MessengerConfig,
+  MessengerConnectionStatus,
+  TriggerType,
+} from '@tesseract/database';
 import { Response } from 'express';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
@@ -22,6 +29,7 @@ import {
   MediaProcessingService,
   ProcessedAttachment,
 } from '@/automation/media-processing/media-processing.service';
+import { mediaPlaceholder } from '@/automation/media-processing/media-placeholders';
 import { WorkflowsService } from '@/automation/workflows/workflows.service';
 import { ConversationsService } from '@/messaging/conversations/conversations.service';
 import { CloudTasksOidcGuard } from '@/platform/tasks/cloud-tasks-oidc.guard';
@@ -180,12 +188,21 @@ export class MessengerWorkerController {
         return { status: HttpStatus.OK, body: { processed: false, reason: 'missing-config' } };
       }
 
+      // Si un humano ya tomó la conversación, el bot no emite nada en todo el turno: ni
+      // respuesta, ni avisos de media, ni visto/escribiendo. Ver el worker de WhatsApp.
+      // `execute()` vuelve a comprobarlo y sigue siendo la guardia autoritativa.
+      const conversation = await this.conversationsService.findActiveMessengerConversation(
+        account.id,
+        senderId,
+      );
+      const isIntervened = conversation?.isHumanInTheLoop === true;
+
       const { mediaPolicy: policy, presenceIndicators } =
         await this.workflowsService.getChannelPolicy(organizationId, account.defaultWorkflowId);
 
       // El workflow puede apagar visto/escribiendo (`presenceIndicators`); ver el worker de
       // WhatsApp para el porqué.
-      if (presenceIndicators) {
+      if (!isIntervened && presenceIndicators) {
         // Marcar como leído cuanto antes: es la señal de vida que ve el usuario.
         await this.messengerConfigService.markSeenAndSendTypingIndicator(account, senderId);
       }
@@ -206,25 +223,44 @@ export class MessengerWorkerController {
 
       // Los avisos van primero y el texto se sigue procesando: si alguien manda una
       // imagen junto con su pregunta, se le dice que la imagen no se puede leer pero su
-      // pregunta igual se contesta.
-      for (const notice of interpreted.notices) {
-        await this.messengerConfigService.sendTextMessage(account, senderId, notice);
+      // pregunta igual se contesta. Con la conversación intervenida no sale ninguno: son
+      // texto del bot y el bot está apagado.
+      if (!isIntervened) {
+        for (const notice of interpreted.notices) {
+          await this.messengerConfigService.sendTextMessage(account, senderId, notice);
+        }
       }
 
       if (!interpreted.aggregatedText.trim()) {
+        // Lo que de verdad le llegó al cliente, para dejarlo en el historial tal cual.
+        const sentNotices = isIntervened ? [] : [...interpreted.notices];
         if (interpreted.notices.length === 0) {
           // Red de seguridad: ningún camino conocido llega aquí sin haber avisado, pero
-          // si aparece uno nuevo, el usuario recibe algo en vez de silencio.
-          await this.messengerConfigService.sendTextMessage(
-            account,
-            senderId,
-            policy.messages.unsupportedFormat,
-          );
+          // si aparece uno nuevo, el usuario recibe algo en vez de silencio. Salvo con la
+          // conversación intervenida, donde el silencio es justamente lo correcto.
+          if (!isIntervened) {
+            await this.messengerConfigService.sendTextMessage(
+              account,
+              senderId,
+              policy.messages.unsupportedFormat,
+            );
+            sentNotices.push(policy.messages.unsupportedFormat);
+          }
           this.logger.error('No se pudo extraer texto de la ventana', {
             ...logContext,
             mediaErrors: interpreted.mediaErrors,
+            isIntervened,
           });
         }
+        await this.recordWindowWithoutText(
+          account,
+          pageId,
+          senderId,
+          conversation,
+          interpreted.transcript,
+          sentNotices,
+          logContext,
+        );
         await this.commit(drained.processingKey);
         return { status: HttpStatus.OK, body: { processed: false, reason: 'no-text' } };
       }
@@ -240,7 +276,9 @@ export class MessengerWorkerController {
       const execution = await this.workflowsService.execute(
         organizationId,
         account.defaultWorkflowId,
-        { message: interpreted.aggregatedText },
+        // El transcript y no solo el texto: con los marcadores, el LLM sabe que el cliente
+        // mandó también un adjunto que no pudo ver.
+        { message: interpreted.transcript },
         {
           channel: ConversationChannel.MESSENGER,
           // Contexto del canal para resolver la conversación. El equivalente de
@@ -260,14 +298,34 @@ export class MessengerWorkerController {
       const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
       const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
 
+      if (!assistantContent) {
+        // Sin texto del asistente no se manda nada. Antes salía un fallback en inglés que el
+        // cliente recibía cada vez que escribía con la conversación intervenida, porque la
+        // rama HITL de `execute()` devuelve la ejecución sin mensajes.
+        const skipped = result?.skipped;
+        const detail = {
+          ...logContext,
+          executionId: execution.id,
+          conversationId: result?.conversationId,
+        };
+
+        if (skipped === 'hitl') {
+          this.logger.info('Conversación intervenida por un humano: el bot no responde', detail);
+        } else {
+          this.logger.error('Ejecución sin mensaje del asistente; no se envía nada', detail);
+        }
+
+        await this.commit(drained.processingKey);
+        return {
+          status: HttpStatus.OK,
+          body: { processed: false, reason: skipped === 'hitl' ? 'hitl' : 'no-assistant-message' },
+        };
+      }
+
       // Responder ANTES de consultar la conversación: `findOne` lanza si el id viene
       // vacío o la conversación está borrada, y hacerlo primero tiraba al piso una
       // respuesta ya generada y ya cobrada al tenant.
-      await this.messengerConfigService.sendTextMessage(
-        account,
-        senderId,
-        assistantContent || 'Received your message, but no response generated, try again later.',
-      );
+      await this.messengerConfigService.sendTextMessage(account, senderId, assistantContent);
 
       // A partir de aquí el usuario ya tiene su respuesta: la ventana se cierra pase
       // lo que pase, para que un reintento no vuelva a ejecutar el workflow.
@@ -452,6 +510,51 @@ export class MessengerWorkerController {
   }
 
   /**
+   * Deja en el historial una ventana que no llega a `execute()` porque no trae texto: el
+   * marcador de lo que mandó el cliente y los avisos que se le enviaron. Gemelo del método
+   * del worker de WhatsApp; ver allá el porqué. No ejecuta ni cobra, y es best-effort.
+   */
+  private async recordWindowWithoutText(
+    account: MessengerConfig,
+    pageId: string,
+    senderId: string,
+    knownConversation: Conversation | null,
+    transcript: string,
+    sentNotices: string[],
+    logContext: Record<string, unknown>,
+  ): Promise<void> {
+    if (!transcript || !account.defaultWorkflowId) return;
+
+    try {
+      const conversation =
+        knownConversation ??
+        (await this.conversationsService.findOrCreateConversationFromMessengerMessage(
+          account.defaultWorkflowId,
+          pageId,
+          senderId,
+        ));
+
+      await this.conversationsService.addMessage(conversation.id, ChatRole.USER, transcript, {
+        source: 'unprocessed_media',
+      });
+      for (const notice of sentNotices) {
+        await this.conversationsService.addMessage(conversation.id, ChatRole.ASSISTANT, notice, {
+          source: 'media_notice',
+        });
+      }
+
+      await this.conversationsService.update(conversation.organizationId, conversation.id, {
+        messageCount: { increment: 1 + sentNotices.length },
+      });
+    } catch (error) {
+      this.logger.error('No se pudo guardar en el historial una ventana sin texto', {
+        ...logContext,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
    * Convierte los mensajes crudos de la ventana en un solo texto para el agente.
    *
    * La transcripción ocurre aquí, **una sola vez por audio**, y pasa por
@@ -470,12 +573,16 @@ export class MessengerWorkerController {
     logContext: Record<string, unknown>,
   ): Promise<{
     aggregatedText: string;
+    transcript: string;
     primaryEvent: MessengerInboundEvent;
     attachments?: ProcessedAttachment[];
     notices: string[];
     mediaErrors: string[];
   }> {
     const parts: string[] = [];
+    // Lo mismo que `parts`, más un marcador por cada adjunto que no llegó como texto, en el
+    // orden en que llegó. Es lo que se guarda y lo que ve el LLM.
+    const transcriptParts: string[] = [];
     const mediaErrors: string[] = [];
     const attachments: ProcessedAttachment[] = [];
     // Set para no repetir el mismo aviso si mandan tres imágenes seguidas.
@@ -489,16 +596,20 @@ export class MessengerWorkerController {
       const postbackText = messaging.postback?.title ?? messaging.postback?.payload;
       if (postbackText) {
         parts.push(postbackText);
+        transcriptParts.push(postbackText);
       }
 
       if (messaging.message?.text) {
         parts.push(messaging.message.text);
+        transcriptParts.push(messaging.message.text);
       }
 
       // A diferencia de WhatsApp, un mensaje de Messenger puede traer texto y varios
       // adjuntos a la vez, así que se recorren todos en lugar de mirar un solo `type`.
       for (const attachment of messaging.message?.attachments ?? []) {
         const url = attachment.payload?.url;
+        // Se descarta al final si el adjunto sí terminó como texto (audio transcrito).
+        const partsBefore = parts.length;
 
         switch (attachment.type) {
           case 'image':
@@ -587,14 +698,18 @@ export class MessengerWorkerController {
               type: attachment.type,
             });
         }
+
+        if (parts.length > partsBefore) {
+          transcriptParts.push(parts[parts.length - 1]);
+        } else {
+          transcriptParts.push(mediaPlaceholder(attachment.type));
+        }
       }
     }
 
     return {
-      aggregatedText: parts
-        .map((part) => part.trim())
-        .filter(Boolean)
-        .join('\n'),
+      aggregatedText: joinParts(parts),
+      transcript: joinParts(transcriptParts),
       // El primer mensaje representa la ventana: es el que aporta el contexto de
       // remitente a `execute()`, igual que hacía el "dueño" de la ventana.
       primaryEvent: messages[0].event,
@@ -609,4 +724,11 @@ export class MessengerWorkerController {
       await this.messengerMessageQueueService.commitWindow(processingKey);
     }
   }
+}
+
+function joinParts(parts: string[]): string {
+  return parts
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join('\n');
 }

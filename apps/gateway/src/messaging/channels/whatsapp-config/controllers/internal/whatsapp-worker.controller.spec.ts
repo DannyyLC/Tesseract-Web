@@ -45,7 +45,10 @@ describe('WhatsappWorkerController · processWindow', () => {
   };
   const mockConversationsService: any = {
     findActiveWhatsappConversation: jest.fn(),
+    findOrCreateConversationFromWhatsAppMessage: jest.fn(),
     findOne: jest.fn(),
+    addMessage: jest.fn(),
+    update: jest.fn(),
   };
   const mockCloudTasks: any = { enqueue: jest.fn() };
   const mockPayloadConsumer: any = { getInterpretedMessage: jest.fn() };
@@ -554,6 +557,127 @@ describe('WhatsappWorkerController · processWindow', () => {
         policy.messages.imageDisabled,
       );
       expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'no-text' });
+    });
+
+    it('guarda el marcador del cliente y el aviso que recibió, sin ejecutar el workflow', async () => {
+      mockConversationsService.findActiveWhatsappConversation.mockResolvedValue({
+        id: 'conv-1',
+        organizationId: 'org-1',
+        isHumanInTheLoop: false,
+      });
+      mockPayloadConsumer.getInterpretedMessage.mockResolvedValue({
+        notice: policy.messages.unsupportedFormat,
+        placeholder: '[Sticker]',
+      });
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockWorkflowsService.execute).not.toHaveBeenCalled();
+      expect(mockConversationsService.addMessage).toHaveBeenNthCalledWith(
+        1,
+        'conv-1',
+        'USER',
+        '[Sticker]',
+        { source: 'unprocessed_media' },
+      );
+      expect(mockConversationsService.addMessage).toHaveBeenNthCalledWith(
+        2,
+        'conv-1',
+        'ASSISTANT',
+        policy.messages.unsupportedFormat,
+        { source: 'media_notice' },
+      );
+      expect(mockConversationsService.update).toHaveBeenCalledWith('org-1', 'conv-1', {
+        messageCount: { increment: 2 },
+      });
+    });
+
+    it('intervenida, guarda solo el marcador: el aviso no salió', async () => {
+      mockConversationsService.findActiveWhatsappConversation.mockResolvedValue({
+        id: 'conv-1',
+        organizationId: 'org-1',
+        isHumanInTheLoop: true,
+      });
+      mockPayloadConsumer.getInterpretedMessage.mockResolvedValue({
+        notice: policy.messages.unsupportedFormat,
+        placeholder: '[Sticker]',
+      });
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockConversationsService.addMessage).toHaveBeenCalledTimes(1);
+      expect(mockConversationsService.addMessage).toHaveBeenCalledWith(
+        'conv-1',
+        'USER',
+        '[Sticker]',
+        { source: 'unprocessed_media' },
+      );
+    });
+
+    it('sin conversación previa, la crea para guardar el marcador', async () => {
+      mockConversationsService.findActiveWhatsappConversation.mockResolvedValue(null);
+      mockConversationsService.findOrCreateConversationFromWhatsAppMessage.mockResolvedValue({
+        id: 'conv-new',
+        organizationId: 'org-1',
+      });
+      mockPayloadConsumer.getInterpretedMessage.mockResolvedValue({
+        notice: policy.messages.unsupportedFormat,
+        placeholder: '[Ubicación]',
+      });
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockConversationsService.findOrCreateConversationFromWhatsAppMessage).toHaveBeenCalledWith(
+        'wf-1',
+        body.agentPhoneNumber,
+        body.clientPhoneNumber,
+      );
+      expect(mockConversationsService.addMessage).toHaveBeenCalledWith(
+        'conv-new',
+        'USER',
+        '[Ubicación]',
+        { source: 'unprocessed_media' },
+      );
+    });
+
+    it('un fallo al guardar no reintenta la ventana: el cliente ya recibió el aviso', async () => {
+      mockPayloadConsumer.getInterpretedMessage.mockResolvedValue({
+        notice: policy.messages.unsupportedFormat,
+        placeholder: '[Sticker]',
+      });
+      mockConversationsService.addMessage.mockRejectedValue(new Error('db down'));
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+    });
+  });
+
+  describe('marcadores junto con texto', () => {
+    it('le pasa a execute() el marcador y el texto, en el orden en que llegaron', async () => {
+      mockQueueService.drainWindow.mockResolvedValue({
+        messages: [textMessage('', 'm-1'), textMessage('', 'm-2')],
+        processingKey: 'proc-1',
+      });
+      mockPayloadConsumer.getInterpretedMessage
+        .mockResolvedValueOnce({ notice: policy.messages.unsupportedFormat, placeholder: '[Sticker]' })
+        .mockResolvedValueOnce({ text: '¿cuánto cuesta?' });
+      mockWorkflowsService.execute.mockResolvedValue(successfulExecution());
+
+      await controller.processWindow(body, buildResponse());
+
+      expect(mockWorkflowsService.execute).toHaveBeenCalledWith(
+        'org-1',
+        'wf-1',
+        { message: '[Sticker]\n¿cuánto cuesta?' },
+        expect.anything(),
+        undefined,
+        expect.anything(),
+        undefined,
+        TriggerType.WEBHOOK,
+      );
     });
   });
 

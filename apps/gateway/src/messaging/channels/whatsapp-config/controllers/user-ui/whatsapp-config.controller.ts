@@ -354,7 +354,11 @@ export class WhatsappConfigController {
     const getMessageText = async (): Promise<string> => {
       if (cachedMessageText === undefined) {
         const interpreted = await consumer.getInterpretedMessage();
-        cachedMessageText = interpreted.text || '';
+        // Un sticker o una foto sin pie no traen texto: sin el marcador, el mensaje no se
+        // guardaba y desaparecía del historial.
+        cachedMessageText = [interpreted.placeholder, interpreted.text]
+          .filter(Boolean)
+          .join('\n');
       }
       return cachedMessageText;
     };
@@ -428,27 +432,52 @@ export class WhatsappConfigController {
       return { received: true, ignored: 'inactive-workflow' };
     }
 
-    // Los echoes reflejan mensajes que el negocio ya mandó desde la app de WhatsApp
-    // Business, fuera de nuestra API: no hay nada que ejecutar. Con el flujo activo
-    // solo hace falta registrarlos si alguien intervino la conversación a mano; si no,
-    // `execute()` es quien la lleva al día y sumar el echo aquí la duplicaría. Va
-    // después de la rama del flujo apagado, que registra también los echoes.
+    // Los echoes reflejan mensajes que alguien del negocio mandó desde la app de WhatsApp
+    // Business (coexistencia), fuera de nuestra API: no hay nada que ejecutar, pero se
+    // guardan siempre. Lo que el bot manda por API no genera echo, así que no se duplica
+    // nada. Va después de la rama del flujo apagado, que registra también los echoes.
+    //
+    // Si la conversación no estaba intervenida, una persona acaba de tomarla de facto: se
+    // interviene para que el bot no siga contestando encima. Si el bot estaba generando en
+    // ese momento, `execute()` vuelve a leer la bandera antes de guardar y descarta la
+    // respuesta.
     if (isEcho) {
       const conversation = await this.conversationsService.findActiveWhatsappConversation(
         account.id,
         clientPhoneNumber,
       );
-      if (conversation?.isHumanInTheLoop === true) {
-        await this.recordMessageOutsideFlow(
-          account.id,
-          account.defaultWorkflowId,
+      const wasIntervened = conversation?.isHumanInTheLoop === true;
+
+      const recorded = await this.recordMessageOutsideFlow(
+        account.id,
+        account.defaultWorkflowId,
+        agentPhoneNumber,
+        clientPhoneNumber,
+        isEcho,
+        await getMessageText(),
+        wasIntervened ? 'human-in-the-loop' : 'human-takeover',
+        conversation,
+      );
+
+      if (!wasIntervened) {
+        // Aunque el echo no traiga nada que guardar, la persona igual contestó.
+        const target =
+          recorded ??
+          conversation ??
+          (await this.conversationsService.findOrCreateConversationFromWhatsAppMessage(
+            account.defaultWorkflowId,
+            agentPhoneNumber,
+            clientPhoneNumber,
+          ));
+        await this.conversationsService.update(target.organizationId, target.id, {
+          isHumanInTheLoop: true,
+        });
+        this.logger.info('Respuesta desde la app de WhatsApp Business: conversación intervenida', {
+          organizationId: account.organizationId,
           agentPhoneNumber,
-          clientPhoneNumber,
-          isEcho,
-          await getMessageText(),
-          'human-in-the-loop',
-          conversation,
-        );
+          userNumber: maskPhone(clientPhoneNumber),
+          conversationId: target.id,
+        });
       }
       return { received: true };
     }
@@ -511,12 +540,12 @@ export class WhatsappConfigController {
     content: string,
     reason: OutsideWorkflowReason,
     knownConversation?: { id: string; organizationId: string; metadata?: unknown } | null,
-  ): Promise<void> {
+  ): Promise<{ id: string; organizationId: string } | null> {
     if (!content) {
       this.logger.warn(
         `Whatsapp message without text for config ${whatsappConfigId}, it's skipped`,
       );
-      return;
+      return null;
     }
 
     const conversation =
@@ -549,6 +578,8 @@ export class WhatsappConfigController {
         conversation.metadata,
       );
     }
+
+    return conversation;
   }
 
   // ─── Config CRUD ──────────────────────────────────────────────────────

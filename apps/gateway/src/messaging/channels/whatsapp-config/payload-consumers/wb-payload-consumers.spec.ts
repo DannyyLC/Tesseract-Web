@@ -339,15 +339,21 @@ describe('WhatsApp payload consumers', () => {
       const image = { type: 'image', image: { caption: 'mira' } };
       expect((await (await ycloud(image)).getInterpretedMessage()).text).toBe('mira');
       withPolicy({ image: { enabled: false } });
-      expect(await (await meta(image)).getInterpretedMessage()).toEqual({ notice: 'imagen apagada' });
+      expect(await (await meta(image)).getInterpretedMessage()).toEqual({
+        notice: 'imagen apagada',
+        placeholder: '[Imagen]',
+      });
     });
 
     it('avisa de video, formatos no soportados y política de audio apagada', async () => {
       expect((await (await ycloud({ type: 'video' })).getInterpretedMessage()).notice).toBe(
         'video no soportado',
       );
-      expect((await (await meta({ type: 'sticker' })).getInterpretedMessage()).notice).toBe(
-        'formato no soportado',
+      const sticker = await (await meta({ type: 'sticker' })).getInterpretedMessage();
+      expect(sticker.notice).toBe('formato no soportado');
+      expect(sticker.placeholder).toBe('[Sticker]');
+      expect((await (await meta({ type: 'location' })).getInterpretedMessage()).placeholder).toBe(
+        '[Ubicación]',
       );
       withPolicy({ audio: { enabled: false } });
       expect((await (await ycloud({ type: 'audio' })).getInterpretedMessage()).notice).toBe(
@@ -424,6 +430,7 @@ describe('WhatsApp payload consumers', () => {
       expect(failed).toEqual({
         notice: 'no pude escuchar el audio',
         mediaError: expect.stringContaining('400'),
+        placeholder: '[Nota de voz sin transcribir]',
       });
       fetchMock.mockRestore();
     });
@@ -441,6 +448,7 @@ describe('WhatsApp payload consumers', () => {
       expect(await (await ycloud(audio)).getInterpretedMessage()).toEqual({
         notice: 'no pude escuchar el audio',
         mediaError: 'boom',
+        placeholder: '[Nota de voz sin transcribir]',
       });
     });
   });

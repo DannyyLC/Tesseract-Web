@@ -1251,11 +1251,24 @@ export class WorkflowsService {
       const lastMessage = messages[messages.length - 1]; // Último mensaje = respuesta del asistente
       let assistantMessageSaved = false;
 
-      // El `?.` del rol no es decorativo: si el servicio de agentes no devuelve ningún
-      // mensaje, `lastMessage` es undefined y la versión anterior reventaba con TypeError.
-      // La ejecución quedaba FAILED, Cloud Tasks reintentaba la ventana completa y se volvía
-      // a pagar el LLM en cada intento, en vez de caer en el `else` que ya existe aquí.
-      if (lastMessage?.role?.toUpperCase() === ChatRole.ASSISTANT) {
+      // Alguien pudo intervenir la conversación mientras el agente generaba (p.ej. un echo de
+      // la app de WhatsApp Business en coexistencia). La bandera se leyó al inicio y la
+      // generación tarda segundos: se vuelve a leer justo antes de guardar. Si ya está
+      // intervenida, la respuesta no se guarda ni sale (`skipped: 'hitl'` hace que los
+      // workers no envíen nada), pero la ejecución sí ocurrió: costo y créditos siguen igual.
+      const suppressedByHitl =
+        !!conversation.endUserId && !userId && (await this.isConversationIntervened(conversation.id));
+
+      if (suppressedByHitl) {
+        this.logger.log(
+          `Conversación ${conversation.id} intervenida durante la ejecución ${execution.id}: ` +
+            `la respuesta del asistente se descarta.`,
+        );
+      } else if (lastMessage?.role?.toUpperCase() === ChatRole.ASSISTANT) {
+        // El `?.` del rol no es decorativo: si el servicio de agentes no devuelve ningún
+        // mensaje, `lastMessage` es undefined y la versión anterior reventaba con TypeError.
+        // La ejecución quedaba FAILED, Cloud Tasks reintentaba la ventana completa y se
+        // volvía a pagar el LLM en cada intento, en vez de caer en el `else` de abajo.
         await this.conversationsService.addMessage(
           conversation.id,
           lastMessage.role.toUpperCase() as ChatRole,
@@ -1366,6 +1379,13 @@ export class WorkflowsService {
         this.executionsService.updateStatus(execution.id, ExecutionStatus.COMPLETED, {
           result: {
             ...agentResponse,
+            // Descartada: los consumidores leen `messages`, así que se vacía para que nadie
+            // la envíe, y el texto generado se conserva aparte para auditoría.
+            ...(suppressedByHitl && {
+              messages: [],
+              skipped: 'hitl',
+              suppressedMessages: agentResponse.messages ?? [],
+            }),
             conversationId: conversation.id,
           },
           cost: costUSD,
@@ -2335,6 +2355,15 @@ export class WorkflowsService {
     );
 
     return payload;
+  }
+
+  /** Lectura fresca de `isHumanInTheLoop`: la conversación en memoria es de antes de ejecutar. */
+  private async isConversationIntervened(conversationId: string): Promise<boolean> {
+    const current = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { isHumanInTheLoop: true },
+    });
+    return current?.isHumanInTheLoop === true;
   }
 
   /**

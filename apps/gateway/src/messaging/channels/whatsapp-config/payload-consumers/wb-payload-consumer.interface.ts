@@ -28,6 +28,11 @@ export interface WBInterpretedMessage {
   notice?: string;
   /** Detalle técnico de un fallo de multimedia, para el log. */
   mediaError?: string;
+  /**
+   * Marcador para el historial (`[Sticker]`, `[Imagen]`...) cuando el mensaje traía algo que
+   * no llega como texto. Ver `media-placeholders.ts`.
+   */
+  placeholder?: string;
 }
 
 /** De dónde bajar un audio: cada proveedor lo expone distinto. */
