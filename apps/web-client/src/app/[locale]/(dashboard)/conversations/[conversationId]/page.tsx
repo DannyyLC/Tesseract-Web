@@ -93,6 +93,20 @@ export default function WorkflowChatPage() {
   const { unblockEndUser } = useEndUserMutations();
   const isContactBlocked = conversationData?.endUserBlockedAt != null;
 
+  // Lo que se escribe aquí solo se guarda en el historial: el gateway no lo reenvía a
+  // WhatsApp ni a Messenger, y fuera de la ventana de 24 h Meta exige plantilla. Se
+  // bloquea el input para no dejar en el historial respuestas que el cliente nunca recibió.
+  const channelLabelKey =
+    conversationData?.channel === 'WHATSAPP'
+      ? 'channelWhatsapp'
+      : conversationData?.channel === 'MESSENGER'
+        ? 'channelMessenger'
+        : null;
+  const channelName = channelLabelKey ? t(channelLabelKey) : null;
+  const isAwaitingTakeControl =
+    !!conversationData && !conversationData.userId && !conversationData.isHumanInTheLoop;
+  const isInputLocked = isAwaitingTakeControl || channelName !== null;
+
   // Gestión de URL y router (Moved up for early access)
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -1003,9 +1017,7 @@ export default function WorkflowChatPage() {
 
               <div
                 className={`flex items-end gap-2 rounded-[26px] border border-border bg-surface-chat p-2 pl-4 shadow-sm transition-shadow focus-within:shadow-md ${
-                  conversationData && !conversationData.userId && !conversationData.isHumanInTheLoop
-                    ? 'cursor-not-allowed opacity-50'
-                    : ''
+                  isInputLocked ? 'cursor-not-allowed opacity-50' : ''
                 }`}
               >
                 {dictation.isActive ? (
@@ -1026,18 +1038,18 @@ export default function WorkflowChatPage() {
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={handleKeyDown}
                       placeholder={
-                        conversationData && !conversationData.userId
-                          ? conversationData.isHumanInTheLoop
-                            ? t('writeResponse')
-                            : t('takeControlToRespond')
-                          : t('sendMessagePlaceholder', { name: workflow?.name ?? '' })
+                        channelName
+                          ? t('channelReplyBlocked', { channel: channelName })
+                          : conversationData && !conversationData.userId
+                            ? conversationData.isHumanInTheLoop
+                              ? t('writeResponse')
+                              : t('takeControlToRespond')
+                            : t('sendMessagePlaceholder', { name: workflow?.name ?? '' })
                       }
                       className="scrollbar-hide max-h-[120px] min-h-[44px] flex-1 resize-none overflow-y-auto bg-transparent py-3 text-[15px] leading-relaxed text-text-primary outline-none placeholder:text-input-placeholder disabled:cursor-not-allowed md:max-h-[280px]"
                       autoFocus
                       disabled={
-                        (conversationData &&
-                          !conversationData.userId &&
-                          !conversationData.isHumanInTheLoop) ||
+                        isInputLocked ||
                         (!!error &&
                           (error?.errorCode === 'WORKFLOW_2005' ||
                             error?.message?.includes('paused') ||
@@ -1052,12 +1064,7 @@ export default function WorkflowChatPage() {
                       onClick={dictation.start}
                       title={tDictation('startTitle')}
                       aria-label={tDictation('startTitle')}
-                      disabled={
-                        isStreaming ||
-                        (!!conversationData &&
-                          !conversationData.userId &&
-                          !conversationData.isHumanInTheLoop)
-                      }
+                      disabled={isStreaming || isInputLocked}
                       className="mb-1 flex-shrink-0 rounded-full p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30"
                     >
                       <Mic size={18} />
@@ -1065,9 +1072,7 @@ export default function WorkflowChatPage() {
                     <button
                       onClick={handleSend}
                       disabled={
-                        (conversationData &&
-                          !conversationData.userId &&
-                          !conversationData.isHumanInTheLoop) ||
+                        isInputLocked ||
                         !input.trim() ||
                         isStreaming ||
                         (!!error &&
@@ -1090,7 +1095,11 @@ export default function WorkflowChatPage() {
                 )}
               </div>
               <div className="mt-2 text-center">
-                <p className="text-[10px] text-text-tertiary">{t('aiDisclaimer')}</p>
+                <p className="text-[10px] text-text-tertiary">
+                  {channelName
+                    ? t('channelReplyBlockedHint', { channel: channelName })
+                    : t('aiDisclaimer')}
+                </p>
               </div>
             </div>
           </div>

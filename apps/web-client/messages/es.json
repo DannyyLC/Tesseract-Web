@@ -1051,6 +1051,8 @@
     "unexpectedError": "Ocurrió un error inesperado.",
     "writeResponse": "Escribe tu respuesta...",
     "takeControlToRespond": "Toma el control para responder manualmente...",
+    "channelReplyBlocked": "Las conversaciones de {channel} no se pueden responder desde aquí",
+    "channelReplyBlockedHint": "Los mensajes a {channel} solo se envían desde el propio canal. Tomar el control detiene las respuestas de la IA, pero no habilita escribir desde la plataforma.",
     "sendMessagePlaceholder": "Envía un mensaje a {name}...",
     "aiDisclaimer": "La IA puede cometer errores. Considera verificar la información importante.",
     "thinkingWord1": "Pensando",
